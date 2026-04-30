@@ -8,9 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAccountStore } from "@/state/accountStore";
-import { useState } from "react";
+import { type ReactElement, useState } from "react";
 
-export function NewPackDialog() {
+interface NewPackDialogProps {
+  trigger?: ReactElement;
+}
+
+export function NewPackDialog({ trigger }: NewPackDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const createPack = useAccountStore((s) => s.createPack);
@@ -25,7 +29,7 @@ export function NewPackDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">+ New pack</Button>
+        {trigger ?? <Button variant="outline">+ New pack</Button>}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
