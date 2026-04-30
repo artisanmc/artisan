@@ -9,6 +9,7 @@ import { Edges } from "./Edges";
 import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
+import { TextEditor } from "./TextEditor";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
@@ -87,7 +88,7 @@ export function Stage({ packId }: StageProps) {
   return (
     <div
       ref={wrapperRef}
-      className="h-full w-full bg-[var(--color-bg)]"
+      className="relative h-full w-full bg-[var(--color-bg)]"
       onDrop={onDrop}
       onDragOver={onDragOver}
     >
@@ -129,6 +130,7 @@ export function Stage({ packId }: StageProps) {
           <Selection stageRef={stageRef} />
         </Layer>
       </KonvaStage>
+      <TextEditor packId={packId} layout={layout} viewport={viewport} />
     </div>
   );
 }
