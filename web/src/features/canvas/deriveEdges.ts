@@ -1,5 +1,10 @@
 import type { Pack } from "@/domain/types";
-import type { Edge } from "@xyflow/react";
+
+export interface Edge {
+  id: string;
+  source: string;
+  target: string;
+}
 
 export function deriveEdges(pack: Pack): Edge[] {
   const edges: Edge[] = [];
@@ -9,7 +14,7 @@ export function deriveEdges(pack: Pack): Edge[] {
     const id = `${source}->${target}`;
     if (seen.has(id)) return;
     seen.add(id);
-    edges.push({ id, source, target, animated: false });
+    edges.push({ id, source, target });
   };
 
   for (const menu of pack.menus) {
