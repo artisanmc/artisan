@@ -1,24 +1,26 @@
 import { expect, test } from "@playwright/test";
 
-test("3-level navigation smoke", async ({ page }) => {
+test("canvas redesign smoke", async ({ page }) => {
   await page.addInitScript(() => window.localStorage.clear());
   await page.goto("/");
 
-  // TanStack Router hydrates async, so wait for the home shell.
-  await expect(page.getByText("Packs")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Personal")).toBeVisible();
-  await expect(page.getByText("Shop System")).toBeVisible();
-  await expect(page.getByText("Daily Quests")).toBeVisible();
+  // Index redirects to /pack/<first>; the page has now loaded the canvas route.
+  await expect(page).toHaveURL(/\/pack\/p_/, { timeout: 15_000 });
 
-  await page.getByText("Personal").click();
-  await expect(page).toHaveURL(/\/pack\/p_personal/);
-  // 3 menus + 1 command = 4 nodes (m_shop_main, m_profile, m_about, c_heal)
-  await expect(page.locator(".react-flow__node")).toHaveCount(4);
+  // Sidebar lists every seed pack as a mini drop target.
+  await expect(page.locator("[data-pack-mini-sidebar]")).toBeVisible();
+  await expect(page.locator("[data-pack-id='p_personal']")).toBeVisible();
+  await expect(page.locator("[data-pack-id='p_shop_system']")).toBeVisible();
+  await expect(page.locator("[data-pack-id='p_daily_quests']")).toBeVisible();
 
-  // Substring matching would also hit the "m_profile" id label inside the node;
-  // exact match clicks just the menu title.
-  await page.getByText("Profil", { exact: true }).click();
-  await expect(page).toHaveURL(/\/pack\/p_personal\/menu\/m_profile/);
-  await expect(page.getByText("Palette · Vanilla")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("Properties")).toBeVisible();
+  // Konva canvas is mounted (Konva renders to a <canvas> inside the wrapper).
+  await expect(page.locator("main canvas").first()).toBeVisible();
+
+  // Bottom palette dock and right properties pane are present.
+  await expect(page.getByText("Materials")).toBeVisible();
+  await expect(page.getByText("Pack", { exact: true })).toBeVisible();
+
+  // Click another pack mini → URL switches.
+  await page.locator("[data-pack-id='p_shop_system']").click();
+  await expect(page).toHaveURL(/\/pack\/p_shop_system/);
 });

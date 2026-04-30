@@ -14,11 +14,10 @@ export const Route = createFileRoute("/pack/$packId")({
 function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   const pId = packId as PackId;
-  const setLastActivePackId = useUiStore((s) => s.setLastActivePackId);
-
   useEffect(() => {
-    setLastActivePackId(pId);
-  }, [pId, setLastActivePackId]);
+    const current = useUiStore.getState().lastActivePackId;
+    if (current !== pId) useUiStore.getState().setLastActivePackId(pId);
+  }, [pId]);
 
   return (
     <div className="flex h-screen overflow-hidden">
