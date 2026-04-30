@@ -13,8 +13,11 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
+    "immer": "^11.1.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
