@@ -109,4 +109,43 @@ describe("accountStore", () => {
     const el = menu.layers[0]!.elements.find((e) => e.positions === "5");
     expect(el?.appearances[0]?.material).toBe("PAPER");
   });
+
+  it("temporal.undo reverts a slot material change", () => {
+    useAccountStore.temporal.getState().clear();
+    useAccountStore.getState().setSlotMaterial({
+      packId: packId("p_personal"),
+      menuId: menuId("m_shop_main"),
+      position: 13,
+      material: "EMERALD",
+    });
+    expect(
+      useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === "p_personal")!
+        .menus.find((m) => m.id === "m_shop_main")!
+        .layers[0]!.elements.find((e) => e.positions === "13")?.appearances[0]?.material,
+    ).toBe("EMERALD");
+
+    useAccountStore.temporal.getState().undo();
+
+    expect(
+      useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === "p_personal")!
+        .menus.find((m) => m.id === "m_shop_main")!
+        .layers[0]!.elements.find((e) => e.positions === "13")?.appearances[0]?.material,
+    ).not.toBe("EMERALD");
+  });
+
+  it("createPack clears the temporal stack", () => {
+    useAccountStore.getState().setSlotMaterial({
+      packId: packId("p_personal"),
+      menuId: menuId("m_shop_main"),
+      position: 13,
+      material: "EMERALD",
+    });
+    useAccountStore.getState().createPack({ name: "Fresh" });
+    // pastStates should be empty after createPack clears the stack
+    expect(useAccountStore.temporal.getState().pastStates.length).toBe(0);
+  });
 });
