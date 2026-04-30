@@ -12,6 +12,7 @@ interface AccountState {
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
+  deleteFromPack: (input: { packId: PackId; nodeIds: string[] }) => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -72,6 +73,24 @@ export const useAccountStore = create<AccountState>()(
             (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         ),
+      deleteFromPack: ({ packId: pId, nodeIds }) => {
+        const ids = new Set(nodeIds);
+        const next = produce(get().account, (draft) => {
+          const pack = draft.packs.find((p) => p.id === pId);
+          if (!pack) return;
+          pack.menus = pack.menus.filter((m) => !ids.has(m.id));
+          pack.commands = pack.commands.filter((c) => !ids.has(c.id));
+          for (const id of ids) {
+            delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[id];
+          }
+        });
+        const after = next.packs.find((p) => p.id === pId);
+        if (!after) return;
+        // Strict invariant: if any inbound open_menu now points to a removed
+        // menu, the pack is no longer hermetic and the deletion is rejected.
+        assertPackHermetic(after);
+        set({ account: next });
+      },
     }),
     { name: "interfaze:account" },
   ),

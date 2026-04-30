@@ -1,5 +1,6 @@
 import type { Menu, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
@@ -31,6 +32,7 @@ interface MenuGroupProps {
  */
 export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
+  const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const box = menuBoxSize(menu.rows);
 
   const onDragEnd = useCallback(
@@ -38,6 +40,17 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
       setCanvasPosition({ packId, nodeId: menu.id, x: e.target.x(), y: e.target.y() });
     },
     [packId, menu.id, setCanvasPosition],
+  );
+
+  const onClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      e.cancelBubble = true;
+      const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
+      const { ids, set, toggle } = useSelectionStore.getState();
+      if (additive) toggle(menu.id);
+      else if (!ids.has(menu.id) || ids.size > 1) set([menu.id]);
+    },
+    [menu.id],
   );
 
   const elementsByPosition = new Map<string, { material?: string; title?: string }>();
@@ -55,14 +68,23 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
   const slotCount = menu.rows * COLS;
 
   return (
-    <Group x={position.x} y={position.y} draggable onDragEnd={onDragEnd} name={`menu:${menu.id}`}>
+    <Group
+      x={position.x}
+      y={position.y}
+      draggable
+      onDragEnd={onDragEnd}
+      onClick={onClick}
+      onTap={onClick}
+      name={`menu:${menu.id}`}
+      id={menu.id}
+    >
       <Rect
         width={box.width}
         height={box.height}
         cornerRadius={6}
         fill="#1f1f23"
-        stroke="#3a3a3f"
-        strokeWidth={1}
+        stroke={isSelected ? "#22c55e" : "#3a3a3f"}
+        strokeWidth={isSelected ? 2 : 1}
         perfectDrawEnabled={false}
       />
       <Text
