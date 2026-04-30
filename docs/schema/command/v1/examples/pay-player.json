@@ -1,0 +1,34 @@
+{
+  "schema": "command/v1",
+  "id": "pay",
+  "name": "pay",
+  "permission": "interfaze.cmd.pay",
+  "description": "Transfère de l'argent à un autre joueur.",
+  "arguments": [
+    {
+      "name": "target",
+      "type": "online_player",
+      "required": true,
+      "description": "Le joueur à qui envoyer l'argent."
+    },
+    {
+      "name": "amount",
+      "type": "integer",
+      "required": true,
+      "description": "Montant en pièces."
+    }
+  ],
+  "requirements": [
+    { "type": "has_money", "amount": 1 }
+  ],
+  "actions": [
+    { "type": "take_money", "amount": 1 },
+    { "type": "run_command", "command": "eco give %args_target% %args_amount%", "as": "console" },
+    { "type": "send_message", "text": "§aVous avez envoyé %args_amount% pièces à %args_target%." },
+    { "type": "play_sound", "sound": "entity.experience_orb.pickup" }
+  ],
+  "fallback": [
+    { "type": "send_message", "text": "§cVous n'avez pas assez d'argent." }
+  ],
+  "cooldown": { "id": "pay_cmd", "duration_seconds": 5, "scope": "player" }
+}
