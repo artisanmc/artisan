@@ -5,6 +5,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
+import { toast } from "sonner";
 import {
   COLS,
   GRID_PADDING,
@@ -56,8 +57,9 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
           useAccountStore
             .getState()
             .moveMenuToPack({ menuId: menu.id, fromPackId: packId, toPackId: targetPackId });
+          toast.success(`Moved ${menu.id} to ${targetPackId}`);
         } catch (err) {
-          console.error(err);
+          toast.error(err instanceof Error ? err.message : "move failed");
         }
         return;
       }
