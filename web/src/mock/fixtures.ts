@@ -6,6 +6,7 @@ const ts = "2026-04-30T10:00:00Z";
 const personalPack = (): Pack => {
   const shopMainId = menuId("m_shop_main");
   const profileId = menuId("m_profile");
+  const aboutId = menuId("m_about");
   const healCmdId = commandId("c_heal");
 
   return {
@@ -22,6 +23,7 @@ const personalPack = (): Pack => {
     canvasLayout: {
       [shopMainId]: { x: 60, y: 80 },
       [profileId]: { x: 320, y: 200 },
+      [aboutId]: { x: 320, y: 320 },
       [healCmdId]: { x: 540, y: 80 },
     },
     menus: [
@@ -56,6 +58,13 @@ const personalPack = (): Pack => {
         title: "Profil",
         rows: 3,
         layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
+      },
+      {
+        id: aboutId,
+        packId: packId("p_personal"),
+        title: "About",
+        rows: 3,
+        layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
       },
     ],
     commands: [
