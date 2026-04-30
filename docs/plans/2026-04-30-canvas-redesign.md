@@ -396,7 +396,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 
 - [ ] **Step 5: Transformer** — `Selection.tsx` reads `selectionStore`, looks up Konva nodes by id from a refs Map (kept by MenuGroup/CommandGroup via `useEffect` on a Map ref), and attaches Konva's `Transformer` to those nodes for resize/rotate handles. v1 disables resize/rotate for menus (positions are in the model, sizes are derived) — we use Transformer just for the bounding box visual. Set `enabledAnchors={[]}` and `rotateEnabled={false}`.
 
-- [ ] **Step 6: Delete-key** — window keydown handler (in MenuEditor or a new `useCanvasKeyboard` hook): if Delete or Backspace and no input is focused and selection is non-empty, dispatch `deleteSelected` (a new accountStore action) which removes the selected menus/commands and rewrites any orphaned `open_menu` actions to `close_menu`. Hermetic invariant must still pass after deletion. **Tests required.**
+- [ ] **Step 6: Delete-key** — window keydown handler (in MenuEditor or a new `useCanvasKeyboard` hook): if Delete or Backspace and no input is focused and selection is non-empty, dispatch `deleteSelected` (a new accountStore action). Per the invariant philosophy ([see memory: editor architecture](../../../.claude/projects/.../project_niveau2_redesign.md)), `deleteSelected` does **not** silently rewrite orphan `open_menu` refs. It runs `assertPackHermetic` after the deletion: if any inbound ref exists, the deletion is rejected with a toast ("This menu is referenced by N action(s); remove them first or fork them"), and the user resolves the refs manually. **Tests required:** delete-without-inbound-refs succeeds; delete-with-inbound-refs throws and leaves state unchanged.
 
 - [ ] **Step 7: Unit tests** — selectionStore (set/add/toggle/clear), `deleteSelected` happy path + orphan rewrite path.
 
@@ -672,7 +672,7 @@ Window-level Ctrl+C, Ctrl+V, Ctrl+D handlers (with input-focus guard). Clipboard
 
 Paste behavior:
 - Same pack: clone with new ids, offset position by 24px
-- Different pack: clone, rewrite ids, run `assertPackHermetic` on the destination — if it fails (cross-pack `open_menu`), surface a toast asking the user to confirm rewriting the dangling action to `close_menu` OR cancel. **Keep behind a confirmation in v1**, don't silently rewrite.
+- Different pack: clone, rewrite ids, run `assertPackHermetic` on the destination. If it fails (the pasted entity carries an `open_menu` whose target isn't in the destination pack), **reject the paste** with a toast: "This entity references menus that aren't in the destination pack. Fork the referenced menu(s) into this pack first, or edit the source action." Don't try to silently rewrite. (The fork mechanism doesn't exist in v1 — but the future evolution is documented in memory; the philosophy is that the user, not the editor, decides how to resolve cross-pack refs.)
 - Slot paste onto a slot: replace
 - Slot paste onto empty slot: create
 
@@ -691,7 +691,7 @@ Paste behavior:
 
 - [ ] **Step 4: Duplicate** — same as copy + paste in one action; offset by 24px.
 
-- [ ] **Step 5: Tests** — round-trip a menu through copy/paste, asserts new ids and original integrity. Cross-pack paste with cross-pack `open_menu` action triggers the confirmation flow.
+- [ ] **Step 5: Tests** — round-trip a menu through copy/paste, asserts new ids and original integrity. Cross-pack paste of an entity carrying an `open_menu` to an out-of-pack target is rejected (assertPackHermetic throws), state is unchanged, toast surfaces the error message.
 
 - [ ] **Step 6: Commit**
 
@@ -762,6 +762,7 @@ git commit -m "chore: scrub v0 references and dead code"
 
 These are intentionally deferred — flag them when the task that hits them comes up, decide there:
 
+- **Invariant relaxation (dangling vs cross-pack):** v1 keeps the strict `assertPackHermetic` semantics inherited from the v0 scaffold — it doesn't distinguish "target doesn't exist anywhere" (dangling) from "target exists in another pack" (cross-pack), both throw with the same `cross-pack open_menu` error. The future-correct semantics (per Iban's design philosophy: dangling refs are runtime's problem, only true cross-pack must be blocked at the editor boundary) requires (a) the invariant to take the whole `Account` instead of a single `Pack`, and (b) a fork mechanism so users can resolve cross-pack rejections by inlining the dependency. Both are deferred — the strict-for-now behavior matches the v1 UX of "reject with a clear message, user resolves manually".
 - **Layer UI:** menus have multiple `Layer` entities in the model. v1 renders all layers stacked. A layer panel (toggle visibility, switch active edit layer) is a follow-up plan item, not in this scope.
 - **Snap-to-grid for menu Group positions:** nice-to-have, easy to add as a 16px snap on `dragend` in `setCanvasPosition`. Defer unless it feels missing during walkthrough.
 - **Multi-edit in PropertiesPane:** v1 shows "Multi-edit not supported" when 2+ items are selected. Common-field multi-edit is straightforward to add later.
