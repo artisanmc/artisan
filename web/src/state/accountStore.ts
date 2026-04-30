@@ -1,10 +1,12 @@
 import { newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
-import type { Account, MenuId, PackId } from "@/domain/types";
+import type { Account, CommandId, MenuId, PackId } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface AccountState {
   account: Account;
@@ -13,6 +15,19 @@ interface AccountState {
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
   deleteFromPack: (input: { packId: PackId; nodeIds: string[] }) => void;
+  setPackField: (input: { packId: PackId; field: "name" | "description"; value: string }) => void;
+  setMenuField: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    field: "title" | "permission" | "rows";
+    value: string | MenuRows;
+  }) => void;
+  setCommandField: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    field: "name" | "permission" | "description";
+    value: string;
+  }) => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -71,6 +86,61 @@ export const useAccountStore = create<AccountState>()(
             const pack = draft.account.packs.find((p) => p.id === pId);
             if (!pack) return;
             (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
+          }),
+        ),
+      setPackField: ({ packId: pId, field, value }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            if (field === "name") pack.name = value;
+            else if (field === "description") pack.description = value || undefined;
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      setMenuField: ({ packId: pId, menuId: mId, field, value }) => {
+        const next = produce(get().account, (draft) => {
+          const pack = draft.packs.find((p) => p.id === pId);
+          if (!pack) return;
+          const menu = pack.menus.find((m) => m.id === mId);
+          if (!menu) return;
+          if (field === "title") {
+            if (typeof value !== "string") return;
+            menu.title = value;
+          } else if (field === "permission") {
+            if (typeof value !== "string") return;
+            menu.permission = value || undefined;
+          } else if (field === "rows") {
+            if (typeof value !== "number") return;
+            // Reject if any element sits past the new last row.
+            const maxPos = value * 9 - 1;
+            const overflow = menu.layers.some((l) =>
+              l.elements.some((el) => Number(el.positions) > maxPos),
+            );
+            if (overflow) {
+              throw new Error(
+                `cannot shrink to ${value} rows: elements exist past position ${maxPos}`,
+              );
+            }
+            menu.rows = value;
+          }
+          pack.updatedAt = new Date().toISOString();
+        });
+        const after = next.packs.find((p) => p.id === pId);
+        if (after) assertPackHermetic(after);
+        set({ account: next });
+      },
+      setCommandField: ({ packId: pId, commandId: cId, field, value }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const cmd = pack.commands.find((c) => c.id === cId);
+            if (!cmd) return;
+            if (field === "name") cmd.name = value;
+            else if (field === "permission") cmd.permission = value || undefined;
+            else if (field === "description") cmd.description = value || undefined;
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
       deleteFromPack: ({ packId: pId, nodeIds }) => {
