@@ -1,13 +1,9 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
-import './styles/globals.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./styles/globals.css";
 
-const root = document.getElementById('root');
-if (!root) throw new Error('#root not found in index.html');
-
-createRoot(root).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
-  </StrictMode>
+    <div className="p-8 text-2xl font-semibold">Interfaze editor — bootstrapping</div>
+  </StrictMode>,
 );
