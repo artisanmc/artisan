@@ -2,6 +2,7 @@ import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { GRID_PADDING, menuBoxSize } from "./menuLayout";
 import type { ViewportState } from "./usePanZoom";
 
@@ -58,7 +59,7 @@ export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
       try {
         setMenuField({ packId, menuId: editingMenuId as MenuId, field: "title", value: trimmed });
       } catch (e) {
-        console.error(e);
+        toast.error(e instanceof Error ? e.message : "title edit failed");
       }
     }
     setEditing(null);
