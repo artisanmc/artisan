@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { InventoryGrid } from "./InventoryGrid";
 import { Palette } from "./Palette";
 import { Properties } from "./Properties";
+import { useUndoShortcut } from "./useUndoShortcut";
 
 interface MenuEditorProps {
   packId: PackId;
@@ -26,6 +27,8 @@ export function MenuEditor({ packId, menuId }: MenuEditorProps) {
   useEffect(() => {
     if (menu) load({ menu, packId });
   }, [menu, packId, load]);
+
+  useUndoShortcut();
 
   const onDragEnd = (e: DragEndEvent) => {
     const overData = e.over?.data.current as { kind?: "slot"; position?: number } | undefined;
