@@ -1,5 +1,6 @@
 import type { Menu, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useEditingStore } from "@/state/editingStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
@@ -53,6 +54,14 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
     [menu.id],
   );
 
+  const onDblClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      e.cancelBubble = true;
+      useEditingStore.getState().setEditing(menu.id);
+    },
+    [menu.id],
+  );
+
   const elementsByPosition = new Map<string, { material?: string; title?: string }>();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -75,6 +84,8 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={onDblClick}
+      onDblTap={onDblClick}
       name={`menu:${menu.id}`}
       id={menu.id}
     >
