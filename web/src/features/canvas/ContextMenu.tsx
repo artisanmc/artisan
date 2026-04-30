@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useMemo } from "react";
 
 interface ContextMenuState {
   open: boolean;
@@ -40,7 +41,11 @@ export function ContextMenu({
   onDelete,
   onMoveTo,
 }: ContextMenuProps) {
-  const otherPacks = useAccountStore((s) => s.account.packs.filter((p) => p.id !== packId));
+  // Subscribe to the packs array (stable ref until mutation), then filter
+  // in a memo. A naive selector that returns `.filter(...)` would create a
+  // new array on every render and infinite-loop Zustand's notify cycle.
+  const packs = useAccountStore((s) => s.account.packs);
+  const otherPacks = useMemo(() => packs.filter((p) => p.id !== packId), [packs, packId]);
   const hasSelection = state.selectedIds.length > 0;
 
   return (
