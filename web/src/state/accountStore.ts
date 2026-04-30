@@ -1,6 +1,6 @@
 import { newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
-import type { Account, CommandId, Layer, MenuId, PackId } from "@/domain/types";
+import type { Account, Command, CommandId, Layer, Menu, MenuId, PackId } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -34,6 +34,13 @@ interface AccountState {
     menuId: MenuId;
     position: number;
     material: string;
+  }) => void;
+  /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
+  pasteEntities: (input: {
+    packId: PackId;
+    menus: Menu[];
+    commands: Command[];
+    offset: { x: number; y: number };
   }) => void;
 }
 
@@ -198,6 +205,36 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
+        pasteEntities: ({ packId: pId, menus, commands, offset }) => {
+          const next = produce(get().account, (draft) => {
+            const pack = draft.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            for (const m of menus) {
+              const stamped: Menu = { ...m, packId: pId };
+              pack.menus.push(stamped);
+              (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+                x: offset.x,
+                y: offset.y,
+              };
+              offset.x += 24;
+              offset.y += 24;
+            }
+            for (const c of commands) {
+              const stamped: Command = { ...c, packId: pId };
+              pack.commands.push(stamped);
+              (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+                x: offset.x,
+                y: offset.y,
+              };
+              offset.x += 24;
+              offset.y += 24;
+            }
+          });
+          const after = next.packs.find((p) => p.id === pId);
+          if (!after) return;
+          assertPackHermetic(after);
+          set({ account: next });
+        },
         deleteFromPack: ({ packId: pId, nodeIds }) => {
           const ids = new Set(nodeIds);
           const next = produce(get().account, (draft) => {
