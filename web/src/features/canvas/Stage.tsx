@@ -4,6 +4,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
+import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
 import { Edges } from "./Edges";
 import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
@@ -47,7 +48,7 @@ export function Stage({ packId }: StageProps) {
 
   useCanvasKeyboard({
     packId,
-    onError: (msg) => console.error(msg), // toasts wired in Task 9
+    onError: (msg) => toast.error(msg),
   });
 
   const onDrop = useCallback(
@@ -70,7 +71,7 @@ export function Stage({ packId }: StageProps) {
           material,
         });
       } catch (err) {
-        console.error(err);
+        toast.error(err instanceof Error ? err.message : "drop failed");
       }
     },
     [pack, layout, packId, viewport],
