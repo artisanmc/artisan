@@ -3,6 +3,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { CommandGroup } from "./CommandGroup";
+import { Edges } from "./Edges";
 import { MenuGroup } from "./MenuGroup";
 import { autoLayout } from "./autoLayout";
 import { usePanZoom } from "./usePanZoom";
@@ -42,7 +43,9 @@ export function Stage({ packId }: StageProps) {
         draggable
         onWheel={onWheel}
       >
-        <Layer name="edges" />
+        <Layer name="edges">
+          <Edges pack={pack} layout={layout} />
+        </Layer>
         <Layer name="menus">
           {pack.menus.map((menu) => (
             <MenuGroup
