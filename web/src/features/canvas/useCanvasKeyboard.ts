@@ -20,7 +20,19 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
     const onKey = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
 
-      // Delete / Backspace
+      const cmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      if (cmdOrCtrl && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        useAccountStore.temporal.getState().undo();
+        return;
+      }
+      if (cmdOrCtrl && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
+        e.preventDefault();
+        useAccountStore.temporal.getState().redo();
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
         const ids = [...useSelectionStore.getState().ids];
         if (ids.length === 0) return;
@@ -33,7 +45,6 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
         }
       }
 
-      // Escape clears selection
       if (e.key === "Escape") {
         useSelectionStore.getState().clear();
       }
