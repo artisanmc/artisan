@@ -1,4 +1,4 @@
-import type { PackId } from "@/domain/types";
+import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { CommandGroup } from "./CommandGroup";
 import { Edges } from "./Edges";
+import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
+import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
 
@@ -47,10 +49,48 @@ export function Stage({ packId }: StageProps) {
     onError: (msg) => console.error(msg), // toasts wired in Task 9
   });
 
+  const onDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      const material = e.dataTransfer.getData(MATERIAL_DRAG_MIME);
+      if (!material || !pack) return;
+      e.preventDefault();
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const stagePoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const world = screenToWorld(stagePoint, viewport);
+      const hit = hitTestSlot(pack, layout, world.x, world.y);
+      if (!hit) return;
+      try {
+        useAccountStore.getState().setSlotMaterial({
+          packId,
+          menuId: hit.menuId as MenuId,
+          position: hit.position,
+          material,
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [pack, layout, packId, viewport],
+  );
+
+  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (e.dataTransfer.types.includes(MATERIAL_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
   if (!pack) return <div className="p-8 text-zinc-500">Pack not found.</div>;
 
   return (
-    <div ref={wrapperRef} className="h-full w-full bg-[var(--color-bg)]">
+    <div
+      ref={wrapperRef}
+      className="h-full w-full bg-[var(--color-bg)]"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+    >
       <KonvaStage
         ref={stageRef}
         width={size.w}

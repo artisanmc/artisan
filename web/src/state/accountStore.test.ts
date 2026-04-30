@@ -79,4 +79,34 @@ describe("accountStore", () => {
     const pack = useAccountStore.getState().account.packs.find((p) => p.id === pId)!;
     expect(pack.menus.some((m) => m.id === "m_profile")).toBe(true);
   });
+
+  it("setSlotMaterial updates an existing element at that position", () => {
+    useAccountStore.getState().setSlotMaterial({
+      packId: packId("p_personal"),
+      menuId: menuId("m_shop_main"),
+      position: 13,
+      material: "DIAMOND",
+    });
+    const pack = useAccountStore
+      .getState()
+      .account.packs.find((p) => p.id === packId("p_personal"))!;
+    const menu = pack.menus.find((m) => m.id === "m_shop_main")!;
+    const el = menu.layers[0]!.elements.find((e) => e.positions === "13")!;
+    expect(el.appearances[0]!.material).toBe("DIAMOND");
+  });
+
+  it("setSlotMaterial creates an element at an empty position", () => {
+    useAccountStore.getState().setSlotMaterial({
+      packId: packId("p_personal"),
+      menuId: menuId("m_about"),
+      position: 5,
+      material: "PAPER",
+    });
+    const pack = useAccountStore
+      .getState()
+      .account.packs.find((p) => p.id === packId("p_personal"))!;
+    const menu = pack.menus.find((m) => m.id === "m_about")!;
+    const el = menu.layers[0]!.elements.find((e) => e.positions === "5");
+    expect(el?.appearances[0]?.material).toBe("PAPER");
+  });
 });
