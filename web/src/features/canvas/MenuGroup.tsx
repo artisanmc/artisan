@@ -38,9 +38,32 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Cross-pack drop: if the drag ends with the cursor over a pack mini in
+      // the sidebar, route to moveMenuToPack instead of saving the position.
+      const sourceEvent = e.evt;
+      const cx = sourceEvent.clientX;
+      const cy = sourceEvent.clientY;
+      const minis = document.querySelectorAll<HTMLElement>("[data-pack-mini='true']");
+      for (const m of minis) {
+        const rect = m.getBoundingClientRect();
+        if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
+        const targetPackId = m.getAttribute("data-pack-id") as PackId | null;
+        if (!targetPackId || targetPackId === packId) continue;
+        // Reset Konva node back to original position so the source pack
+        // doesn't pick up a stale offset before the move clears the menu.
+        e.target.position({ x: position.x, y: position.y });
+        try {
+          useAccountStore
+            .getState()
+            .moveMenuToPack({ menuId: menu.id, fromPackId: packId, toPackId: targetPackId });
+        } catch (err) {
+          console.error(err);
+        }
+        return;
+      }
       setCanvasPosition({ packId, nodeId: menu.id, x: e.target.x(), y: e.target.y() });
     },
-    [packId, menu.id, setCanvasPosition],
+    [packId, menu.id, position.x, position.y, setCanvasPosition],
   );
 
   const onClick = useCallback(
