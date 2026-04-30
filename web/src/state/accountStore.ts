@@ -11,6 +11,7 @@ interface AccountState {
   createPack: (input: { name: string; description?: string }) => void;
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
+  setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -63,6 +64,14 @@ export const useAccountStore = create<AccountState>()(
         assertPackHermetic(toAfter);
         set({ account: next });
       },
+      setCanvasPosition: ({ packId: pId, nodeId, x, y }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
+          }),
+        ),
     }),
     { name: "interfaze:account" },
   ),
