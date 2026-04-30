@@ -36,10 +36,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
         fill="#1f1f23"
         stroke="#a16207"
         strokeWidth={1.5}
-        shadowColor="#000"
-        shadowOpacity={0.4}
-        shadowBlur={6}
-        shadowOffsetY={2}
+        perfectDrawEnabled={false}
       />
       <Text
         x={10}
@@ -49,6 +46,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
         fontSize={12}
         fontStyle="600"
         fill="#fcd34d"
+        listening={false}
       />
       <Text
         x={10}
@@ -57,6 +55,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
         fontFamily="ui-monospace, monospace"
         fontSize={9}
         fill="#71717a"
+        listening={false}
       />
     </Group>
   );
