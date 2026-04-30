@@ -1,4 +1,6 @@
+import { EmptyState } from "@/features/canvas/EmptyState";
 import { useAccountStore } from "@/state/accountStore";
+import { useUiStore } from "@/state/uiStore";
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
@@ -6,14 +8,14 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexRedirect() {
-  const firstPackId = useAccountStore((s) => s.account.packOrder[0]);
-  if (!firstPackId) {
-    // Empty-state CTA refined in Task 10. For now an inline placeholder.
-    return (
-      <div className="flex h-screen items-center justify-center text-zinc-500">
-        No packs yet. (Empty state CTA arrives in Task 10.)
-      </div>
-    );
-  }
-  return <Navigate to="/pack/$packId" params={{ packId: firstPackId }} replace />;
+  const packs = useAccountStore((s) => s.account.packs);
+  const packOrder = useAccountStore((s) => s.account.packOrder);
+  const lastActive = useUiStore((s) => s.lastActivePackId);
+
+  if (packs.length === 0) return <EmptyState />;
+
+  const lastIsValid = lastActive && packs.some((p) => p.id === lastActive);
+  const target = lastIsValid ? lastActive : packOrder[0];
+  if (!target) return <EmptyState />;
+  return <Navigate to="/pack/$packId" params={{ packId: target }} replace />;
 }
