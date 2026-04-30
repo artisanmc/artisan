@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+import type { Account, Action, Element, Menu, Pack } from "./types";
+
+describe("domain types — compile-time shape", () => {
+  it("an Account composes Packs", () => {
+    const account: Account = {
+      id: "acc_1" as Account["id"],
+      packs: [],
+      packOrder: [],
+    };
+    expect(account.packs).toHaveLength(0);
+  });
+
+  it("an open_menu Action carries a MenuId", () => {
+    const a: Action = { type: "open_menu", menuId: "m_1" as Menu["id"] };
+    expect(a.type).toBe("open_menu");
+  });
+
+  it("an Element holds appearances", () => {
+    const el: Element = {
+      id: "el_1" as Element["id"],
+      positions: "0",
+      appearances: [{ material: "DIAMOND" }],
+    };
+    expect(el.appearances).toHaveLength(1);
+  });
+
+  it("a Pack carries i18n keys scoped to itself", () => {
+    const pack: Pack = {
+      id: "p_1" as Pack["id"],
+      name: "Personal",
+      source: "user_created",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      menus: [],
+      commands: [],
+      templates: [],
+      assets: [],
+      i18nKeys: { greeting: { en: "Hi" } } as Pack["i18nKeys"],
+      defaultLang: "en",
+      canvasLayout: {},
+    };
+    expect(pack.defaultLang).toBe("en");
+  });
+});
