@@ -18,6 +18,17 @@ interface MenuGroupProps {
   position: { x: number; y: number };
 }
 
+/**
+ * Perf notes:
+ * - No Canvas2D shadows (they force an offscreen buffer per shape; with ~200
+ *   nodes per menu × N menus that tanks the drag frame rate). The 1px stroke
+ *   provides enough definition.
+ * - perfectDrawEnabled={false} on every Rect: skips the precise stroke/fill
+ *   double-pass that's irrelevant at our visual fidelity.
+ * - listening={false} on slot Rects/Text and the header/title Text: drag
+ *   targets ride on the parent Group; per-slot interactivity is opt-in
+ *   (Task 6 will flip slots back to listening for palette drop hit-testing).
+ */
 export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const box = menuBoxSize(menu.rows);
@@ -29,7 +40,6 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
     [packId, menu.id, setCanvasPosition],
   );
 
-  // Flatten all elements across layers, indexed by position string.
   const elementsByPosition = new Map<string, { material?: string; title?: string }>();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -53,10 +63,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         fill="#1f1f23"
         stroke="#3a3a3f"
         strokeWidth={1}
-        shadowColor="#000"
-        shadowOpacity={0.4}
-        shadowBlur={6}
-        shadowOffsetY={2}
+        perfectDrawEnabled={false}
       />
       <Text
         x={GRID_PADDING}
@@ -66,6 +73,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         fontSize={12}
         fontStyle="600"
         fill="#e5e5e5"
+        listening={false}
       />
       <Text
         x={GRID_PADDING}
@@ -74,6 +82,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         fontFamily="ui-monospace, monospace"
         fontSize={9}
         fill="#71717a"
+        listening={false}
       />
       {Array.from({ length: slotCount }, (_, i) => {
         const { x, y } = slotXY(i);
@@ -81,7 +90,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         const filled = Boolean(el?.material);
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
-          <Group key={i} x={x} y={y} name={`slot:${menu.id}:${i}`}>
+          <Group key={i} x={x} y={y} name={`slot:${menu.id}:${i}`} listening={false}>
             <Rect
               width={SLOT_SIZE}
               height={SLOT_SIZE}
@@ -89,6 +98,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
               fill={filled ? "#27272a" : "#18181b"}
               stroke={filled ? "#52525b" : "#27272a"}
               strokeWidth={1}
+              perfectDrawEnabled={false}
             />
             {el?.material ? (
               <Text
