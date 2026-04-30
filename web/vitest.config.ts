@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**", "tests/e2e/**"],
     // Node 25 enabled native Web Storage by default; its localStorage shadows
     // jsdom's polyfill but exposes methods as non-functions in the test pool.
     execArgv: ["--no-webstorage"],
