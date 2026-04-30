@@ -1,6 +1,6 @@
-import { newPackId } from "@/domain/ids";
+import { newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
-import type { Account, CommandId, MenuId, PackId } from "@/domain/types";
+import type { Account, CommandId, Layer, MenuId, PackId } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { create } from "zustand";
@@ -27,6 +27,12 @@ interface AccountState {
     commandId: CommandId;
     field: "name" | "permission" | "description";
     value: string;
+  }) => void;
+  setSlotMaterial: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    position: number;
+    material: string;
   }) => void;
 }
 
@@ -140,6 +146,37 @@ export const useAccountStore = create<AccountState>()(
             if (field === "name") cmd.name = value;
             else if (field === "permission") cmd.permission = value || undefined;
             else if (field === "description") cmd.description = value || undefined;
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      setSlotMaterial: ({ packId: pId, menuId: mId, position, material }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const menu = pack.menus.find((m) => m.id === mId);
+            if (!menu) return;
+            const positionStr = String(position);
+            for (const layer of menu.layers) {
+              for (const el of layer.elements) {
+                if (el.positions !== positionStr) continue;
+                const appearance = el.appearances[0];
+                if (appearance) appearance.material = material;
+                pack.updatedAt = new Date().toISOString();
+                return;
+              }
+            }
+            // Empty position — add a new element to the first layer (creating one if needed).
+            let firstLayer: Layer | undefined = menu.layers[0];
+            if (!firstLayer) {
+              firstLayer = { id: newLayerId(), name: "default", elements: [] };
+              menu.layers.push(firstLayer);
+            }
+            firstLayer.elements.push({
+              id: newElementId(),
+              positions: positionStr,
+              appearances: [{ material }],
+            });
             pack.updatedAt = new Date().toISOString();
           }),
         ),

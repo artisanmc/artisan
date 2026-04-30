@@ -1,4 +1,5 @@
 import type { PackId } from "@/domain/types";
+import { MaterialPalette } from "@/features/canvas/MaterialPalette";
 import { PropertiesPane } from "@/features/canvas/PropertiesPane";
 import { Stage } from "@/features/canvas/Stage";
 import { Link, createFileRoute, useParams } from "@tanstack/react-router";
@@ -19,9 +20,12 @@ function PackCanvasPage() {
         <span className="font-mono">{packId}</span>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1">
-          <Stage packId={packId as PackId} />
-        </main>
+        <div className="flex flex-1 flex-col">
+          <main className="flex-1">
+            <Stage packId={packId as PackId} />
+          </main>
+          <MaterialPalette />
+        </div>
         <PropertiesPane packId={packId as PackId} />
       </div>
     </div>
