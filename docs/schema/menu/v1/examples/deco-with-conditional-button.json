@@ -1,0 +1,91 @@
+{
+  "schema": "menu/v1",
+  "id": "shop_with_decoration",
+  "title": "§6Shop élégant",
+  "size": 27,
+  "permission": "menu.shop.open",
+  "layers": [
+    {
+      "id": "decoration",
+      "name": "Décoration",
+      "elements": [
+        {
+          "id": "deco_top_row",
+          "positions": "0-8",
+          "appearances": [
+            { "material": "GRAY_STAINED_GLASS_PANE", "title": " " }
+          ]
+        },
+        {
+          "id": "deco_bottom_row",
+          "positions": "18-26",
+          "appearances": [
+            { "material": "GRAY_STAINED_GLASS_PANE", "title": " " }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "items",
+      "name": "Items",
+      "elements": [
+        {
+          "id": "btn_buy_vip",
+          "positions": "4",
+          "appearances": [
+            {
+              "if": [{ "type": "not", "of": { "type": "has_permission", "perm": "rank.vip" } }],
+              "asset": "vip_button.png",
+              "title": "§6Acheter VIP",
+              "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
+              "click": {
+                "left": {
+                  "requirements": [{ "type": "has_money", "amount": 500 }],
+                  "actions": [
+                    { "type": "take_money", "amount": 500 },
+                    { "type": "run_command", "command": "lp user %player_name% parent set vip", "as": "console" },
+                    { "type": "send_message", "text": "§aRank VIP débloqué !" }
+                  ],
+                  "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent." }]
+                }
+              }
+            }
+          ],
+          "tags": ["shop", "ranks"]
+        },
+        {
+          "id": "btn_diamond_sword",
+          "positions": "13",
+          "appearances": [
+            {
+              "material": "DIAMOND_SWORD",
+              "title": "§bÉpée diamant",
+              "lore": ["§7Prix: §a200$"],
+              "click": {
+                "left": {
+                  "requirements": [{ "type": "has_money", "amount": 200 }],
+                  "actions": [
+                    { "type": "take_money", "amount": 200 },
+                    { "type": "give_item", "material": "DIAMOND_SWORD", "count": 1 }
+                  ],
+                  "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent." }]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "btn_close",
+          "positions": "22",
+          "appearances": [
+            {
+              "material": "BARRIER",
+              "title": "§cFermer",
+              "click": { "left": { "actions": [{ "type": "close_menu" }] } }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

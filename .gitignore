@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# Tooling / local state
+.superpowers/
+.claude/
+.gstack/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Env
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,65 @@
+{
+  "schema": "translations/v1",
+  "default_lang": "fr",
+  "languages": ["fr", "en", "de", "es"],
+  "keys": {
+    "menu.shop_main.title": {
+      "fr": "<gold><bold>Boutique</bold></gold>",
+      "en": "<gold><bold>Shop</bold></gold>",
+      "de": "<gold><bold>Laden</bold></gold>",
+      "es": "<gold><bold>Tienda</bold></gold>"
+    },
+    "menu.shop_main.btn_buy.title": {
+      "fr": "<green>Acheter</green>",
+      "en": "<green>Buy</green>",
+      "de": "<green>Kaufen</green>",
+      "es": "<green>Comprar</green>"
+    },
+    "menu.shop_main.btn_buy.lore.0": {
+      "fr": "<gray>Achète cet item.</gray>",
+      "en": "<gray>Buy this item.</gray>",
+      "de": "<gray>Kaufe diesen Gegenstand.</gray>",
+      "es": "<gray>Compra este objeto.</gray>"
+    },
+    "menu.shop_main.btn_buy.lore.1": {
+      "fr": "<yellow>Prix : %vault_eco_balance% pièces</yellow>",
+      "en": "<yellow>Price: %vault_eco_balance% coins</yellow>"
+    },
+    "menu.profile.title": {
+      "fr": "<aqua>Profil de %args_target%</aqua>",
+      "en": "<aqua>Profile of %args_target%</aqua>",
+      "de": "<aqua>Profil von %args_target%</aqua>",
+      "es": "<aqua>Perfil de %args_target%</aqua>"
+    },
+    "command.profile.description": {
+      "fr": "Affiche le profil d'un joueur.",
+      "en": "Shows a player's profile.",
+      "de": "Zeigt das Profil eines Spielers."
+    },
+    "command.heal.description": {
+      "fr": "Restaure votre vie et votre faim.",
+      "en": "Restores your health and hunger.",
+      "de": "Stellt Leben und Hunger wieder her.",
+      "es": "Restaura tu salud y tu hambre."
+    },
+    "command.pay.description": {
+      "fr": "Transfère de l'argent à un autre joueur.",
+      "en": "Transfers money to another player."
+    },
+    "common.welcome": {
+      "fr": "<gradient:#a8e063:#56ab2f>Bienvenue, %player_name% !</gradient>",
+      "en": "<gradient:#a8e063:#56ab2f>Welcome, %player_name%!</gradient>",
+      "de": "<gradient:#a8e063:#56ab2f>Willkommen, %player_name%!</gradient>",
+      "es": "<gradient:#a8e063:#56ab2f>Bienvenido, %player_name%!</gradient>"
+    },
+    "cooldown.heal_cmd.message": {
+      "fr": "<red>Attends avant de relancer /heal.</red>",
+      "en": "<red>Wait before using /heal again.</red>",
+      "de": "<red>Warte, bevor du /heal erneut benutzt.</red>",
+      "es": "<red>Espera antes de volver a usar /heal.</red>"
+    }
+  },
+  "metadata": {
+    "key_count": 10
+  }
+}
