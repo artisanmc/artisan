@@ -61,4 +61,22 @@ describe("accountStore", () => {
     const a = useAccountStore.getState().account;
     expect(a.packs.find((p) => p.id === fromId)!.menus.some((m) => m.id === sourceMenu)).toBe(true);
   });
+
+  it("deleteFromPack removes a leaf menu and its canvas position", () => {
+    const pId = packId("p_personal");
+    useAccountStore.getState().deleteFromPack({ packId: pId, nodeIds: ["m_about"] });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === pId)!;
+    expect(pack.menus.some((m) => m.id === "m_about")).toBe(false);
+    expect("m_about" in pack.canvasLayout).toBe(false);
+  });
+
+  it("deleteFromPack rejects when removed menu has inbound refs", () => {
+    const pId = packId("p_personal");
+    expect(() =>
+      useAccountStore.getState().deleteFromPack({ packId: pId, nodeIds: ["m_profile"] }),
+    ).toThrow(/cross-pack open_menu/);
+    // Source unchanged.
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === pId)!;
+    expect(pack.menus.some((m) => m.id === "m_profile")).toBe(true);
+  });
 });

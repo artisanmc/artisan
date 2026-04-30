@@ -1,11 +1,15 @@
 import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelectionStore } from "@/state/selectionStore";
+import type Konva from "konva";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { CommandGroup } from "./CommandGroup";
 import { Edges } from "./Edges";
 import { MenuGroup } from "./MenuGroup";
+import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
+import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
 
 interface StageProps {
@@ -15,6 +19,7 @@ interface StageProps {
 export function Stage({ packId }: StageProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const { viewport, onWheel } = usePanZoom();
 
@@ -29,11 +34,25 @@ export function Stage({ packId }: StageProps) {
 
   const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
 
+  // Empty-stage click clears selection. Konva fires `click` on the Stage when
+  // the user clicks an area not occupied by any listening child.
+  const onStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (e.target === e.target.getStage()) {
+      useSelectionStore.getState().clear();
+    }
+  }, []);
+
+  useCanvasKeyboard({
+    packId,
+    onError: (msg) => console.error(msg), // toasts wired in Task 9
+  });
+
   if (!pack) return <div className="p-8 text-zinc-500">Pack not found.</div>;
 
   return (
     <div ref={wrapperRef} className="h-full w-full bg-[var(--color-bg)]">
       <KonvaStage
+        ref={stageRef}
         width={size.w}
         height={size.h}
         x={viewport.x}
@@ -42,6 +61,8 @@ export function Stage({ packId }: StageProps) {
         scaleY={viewport.scale}
         draggable
         onWheel={onWheel}
+        onClick={onStageClick}
+        onTap={onStageClick}
       >
         <Layer name="edges">
           <Edges pack={pack} layout={layout} />
@@ -64,7 +85,9 @@ export function Stage({ packId }: StageProps) {
             />
           ))}
         </Layer>
-        <Layer name="overlay" />
+        <Layer name="overlay">
+          <Selection stageRef={stageRef} />
+        </Layer>
       </KonvaStage>
     </div>
   );
