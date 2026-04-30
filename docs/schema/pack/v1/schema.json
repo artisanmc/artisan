@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.interfaze.gg/schema/pack/v1.json",
+  "title": "Interfaze Pack Manifest",
+  "description": "Manifeste d'un pack Interfaze : unité d'organisation et d'export/import qui groupe des menus, templates, commandes, traductions et assets liés thématiquement. Le manifeste vit à la racine d'une archive .itfz (zip).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "name", "version"],
+  "properties": {
+    "schema": {
+      "const": "pack/v1",
+      "description": "Version du schéma du manifeste."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+      "description": "Identifiant slug du pack. Lowercase, alphanum, tirets/underscores. Unique par auteur (pas globalement)."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Nom affiché dans le dashboard et la marketplace."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2048,
+      "description": "Description courte du pack pour la marketplace et l'import."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-z0-9.]+)?$",
+      "description": "Version semver (X.Y.Z). Bump à chaque export pour distinguer les variantes."
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Nom d'auteur. En V3 marketplace, lié à un compte vérifié."
+    },
+    "license": {
+      "type": "string",
+      "description": "Licence du pack (SPDX identifier conseillé : MIT, CC-BY-NC-4.0, Apache-2.0, etc.)."
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL optionnelle vers une page de présentation du pack."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 32 },
+      "maxItems": 16,
+      "description": "Tags pour catégorisation et recherche dans le marketplace."
+    },
+    "interfaze_min_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Version minimum d'Interfaze requise pour utiliser ce pack."
+    },
+    "preview_image": {
+      "type": "string",
+      "description": "Chemin relatif d'une image de preview dans l'archive (ex. \"preview.png\"). Utilisée par le marketplace."
+    },
+    "menus": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+      "uniqueItems": true,
+      "description": "Liste des ids de menus inclus dans le pack. Chacun doit avoir un fichier menus/<id>.json dans l'archive."
+    },
+    "templates": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+      "uniqueItems": true,
+      "description": "Liste des ids de templates inclus. Chacun doit avoir un fichier templates/<id>.json."
+    },
+    "commands": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+      "uniqueItems": true,
+      "description": "Liste des ids de commandes incluses. Chacune doit avoir un fichier commands/<id>.json conforme à command/v1."
+    },
+    "translations": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Traductions embarquées dans le pack — sous-set de la table workspace, calculé à l'export comme l'union des clés référencées par les menus et commandes du pack.",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Chemin relatif du fichier translations dans l'archive (par défaut \"translations.json\"), conforme à translations/v1.",
+          "default": "translations.json"
+        },
+        "key_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nombre de clés embarquées (info pour les dialogs d'import)."
+        },
+        "languages": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$" },
+          "uniqueItems": true,
+          "description": "Langues couvertes par les traductions du pack. Permet à l'import d'alerter sur les langues manquantes côté workspace cible."
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Liste des chemins d'assets inclus (relatifs au dossier assets/ de l'archive)."
+    },
+    "requires_plugins": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Plugins tiers requis pour faire fonctionner ce pack (ex. \"luckperms\", \"vault\", \"questx\"). Calculé automatiquement à l'export depuis l'union des menu.metadata.uses_plugins et command.metadata.uses_plugins."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

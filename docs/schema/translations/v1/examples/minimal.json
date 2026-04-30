@@ -1,0 +1,30 @@
+{
+  "schema": "translations/v1",
+  "default_lang": "fr",
+  "languages": ["fr", "en"],
+  "keys": {
+    "menu.shop_main.title": {
+      "fr": "<gold><bold>Boutique</bold></gold>",
+      "en": "<gold><bold>Shop</bold></gold>"
+    },
+    "menu.shop_main.btn_buy.title": {
+      "fr": "<green>Acheter</green>",
+      "en": "<green>Buy</green>"
+    },
+    "menu.shop_main.btn_buy.lore.0": {
+      "fr": "<gray>Achète cet item pour <yellow>%vault_eco_balance%</yellow> pièces</gray>",
+      "en": "<gray>Buy this item for <yellow>%vault_eco_balance%</yellow> coins</gray>"
+    },
+    "common.errors.no_perm": {
+      "fr": "<red>Tu n'as pas la permission.</red>",
+      "en": "<red>You don't have permission.</red>"
+    },
+    "common.errors.no_money": {
+      "fr": "<red>Pas assez d'argent (il te manque %vault_eco_balance% pièces).</red>",
+      "en": "<red>Not enough money (you need %vault_eco_balance% more coins).</red>"
+    }
+  },
+  "metadata": {
+    "key_count": 5
+  }
+}

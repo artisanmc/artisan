@@ -1,0 +1,19 @@
+{
+  "schema": "pack/v1",
+  "id": "fancy-shop",
+  "name": "Fancy Shop Pack",
+  "description": "Shop élégant avec view states, cooldowns, et integration LuckPerms pour les ranks VIP.",
+  "version": "1.2.0",
+  "author": "iban",
+  "license": "MIT",
+  "homepage": "https://github.com/iban/fancy-shop",
+  "tags": ["shop", "economy", "ranks"],
+  "interfaze_min_version": "1.0.0",
+  "preview_image": "preview.png",
+  "menus": ["shop_main", "shop_premium"],
+  "templates": ["bouton_acheter"],
+  "assets": ["shop_bg.png", "rank_vip_button.png", "rank_vip_owned.png", "rank_vip_disabled.png"],
+  "requires_plugins": ["luckperms", "vault"],
+  "created_at": "2026-04-29T10:00:00Z",
+  "updated_at": "2026-04-29T10:00:00Z"
+}

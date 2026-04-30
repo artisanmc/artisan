@@ -1,0 +1,25 @@
+{
+  "schema": "menu/v1",
+  "id": "test_menu",
+  "title": "§6Test Menu",
+  "size": 27,
+  "layers": [
+    {
+      "id": "default",
+      "name": "Default",
+      "elements": [
+        {
+          "id": "hello",
+          "positions": "13",
+          "appearances": [
+            {
+              "material": "DIAMOND",
+              "title": "§bHello world",
+              "lore": ["§7Premier Element servi par Interfaze"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
