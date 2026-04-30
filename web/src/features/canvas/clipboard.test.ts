@@ -1,0 +1,41 @@
+import { mockAccount } from "@/mock/fixtures";
+import { describe, expect, it } from "vitest";
+import { rewriteIds } from "./clipboard";
+
+describe("rewriteIds", () => {
+  const personal = mockAccount().packs[0]!;
+
+  it("assigns new menu/command/layer/element ids", () => {
+    const { menus } = rewriteIds({ menus: [personal.menus[0]!], commands: [] });
+    const original = personal.menus[0]!;
+    expect(menus[0]!.id).not.toBe(original.id);
+    expect(menus[0]!.layers[0]!.id).not.toBe(original.layers[0]!.id);
+    if (original.layers[0]!.elements[0]) {
+      expect(menus[0]!.layers[0]!.elements[0]!.id).not.toBe(original.layers[0]!.elements[0]!.id);
+    }
+  });
+
+  it("rewrites open_menu actions targeting menus inside the same paste set", () => {
+    // m_shop_main + m_profile together — the shop main has a click → m_profile,
+    // and rewriteIds should remap that target to the new m_profile id.
+    const shopMain = personal.menus.find((m) => m.id === "m_shop_main")!;
+    const profile = personal.menus.find((m) => m.id === "m_profile")!;
+    const { menus } = rewriteIds({ menus: [shopMain, profile], commands: [] });
+    const newShopMain = menus[0]!;
+    const newProfile = menus[1]!;
+    const action = newShopMain.layers[0]!.elements[0]!.appearances[0]!.click!.left!.actions[0]!;
+    expect(action.type).toBe("open_menu");
+    if (action.type === "open_menu") {
+      expect(action.menuId).toBe(newProfile.id);
+    }
+  });
+
+  it("leaves open_menu targets that aren't in the paste set untouched", () => {
+    const shopMain = personal.menus.find((m) => m.id === "m_shop_main")!;
+    const { menus } = rewriteIds({ menus: [shopMain], commands: [] });
+    const action = menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!.actions[0]!;
+    if (action.type === "open_menu") {
+      expect(action.menuId).toBe("m_profile"); // dangling — assertPackHermetic rejects on paste
+    }
+  });
+});

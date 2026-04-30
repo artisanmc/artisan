@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
+import { ContextMenu, type ContextMenuState } from "./ContextMenu";
 import { Edges } from "./Edges";
 import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
 import { MenuGroup } from "./MenuGroup";
@@ -13,7 +14,7 @@ import { Selection } from "./Selection";
 import { TextEditor } from "./TextEditor";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { useCanvasKeyboard } from "./useCanvasKeyboard";
+import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
 
 interface StageProps {
@@ -45,6 +46,31 @@ export function Stage({ packId }: StageProps) {
       useSelectionStore.getState().clear();
     }
   }, []);
+
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+    selectedIds: [],
+  });
+
+  const onStageContextMenu = useCallback((e: Konva.KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+    const target = e.target;
+    const id = target === target.getStage() ? null : target.findAncestor("Group", true)?.id();
+    const ids = id ? [id] : [];
+    if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
+      useSelectionStore.getState().set(ids);
+    }
+    setCtxMenu({
+      open: true,
+      x: e.evt.clientX,
+      y: e.evt.clientY,
+      selectedIds: ids.length > 0 ? ids : [...useSelectionStore.getState().ids],
+    });
+  }, []);
+
+  const closeCtx = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
   useCanvasKeyboard({
     packId,
@@ -105,6 +131,7 @@ export function Stage({ packId }: StageProps) {
         onWheel={onWheel}
         onClick={onStageClick}
         onTap={onStageClick}
+        onContextMenu={onStageContextMenu}
       >
         <Layer name="edges">
           <Edges pack={pack} layout={layout} />
@@ -132,6 +159,51 @@ export function Stage({ packId }: StageProps) {
         </Layer>
       </KonvaStage>
       <TextEditor packId={packId} layout={layout} viewport={viewport} />
+      <ContextMenu
+        packId={packId}
+        state={ctxMenu}
+        onClose={closeCtx}
+        onCopy={() => {
+          void canvasClipboardActions.copySelection(packId, ctxMenu.selectedIds, (m) =>
+            toast.error(m),
+          );
+          closeCtx();
+        }}
+        onPaste={() => {
+          void canvasClipboardActions.pasteFromClipboard(packId, (m) => toast.error(m));
+          closeCtx();
+        }}
+        onDuplicate={() => {
+          canvasClipboardActions.duplicateSelection(packId, ctxMenu.selectedIds, (m) =>
+            toast.error(m),
+          );
+          closeCtx();
+        }}
+        onDelete={() => {
+          if (ctxMenu.selectedIds.length === 0) return;
+          try {
+            useAccountStore.getState().deleteFromPack({ packId, nodeIds: ctxMenu.selectedIds });
+            useSelectionStore.getState().clear();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "delete failed");
+          }
+          closeCtx();
+        }}
+        onMoveTo={(toPackId) => {
+          if (ctxMenu.selectedIds.length !== 1) return;
+          try {
+            useAccountStore.getState().moveMenuToPack({
+              menuId: ctxMenu.selectedIds[0]! as MenuId,
+              fromPackId: packId,
+              toPackId,
+            });
+            toast.success(`Moved to ${toPackId}`);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "move failed");
+          }
+          closeCtx();
+        }}
+      />
     </div>
   );
 }
