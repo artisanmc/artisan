@@ -1,3 +1,5 @@
+import type { PackId } from "@/domain/types";
+import { Canvas } from "@/features/pack-canvas/Canvas";
 import { Link, createFileRoute, useParams } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/pack/$packId")({
@@ -7,20 +9,17 @@ export const Route = createFileRoute("/pack/$packId")({
 function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   return (
-    <div className="p-8">
-      <h1 className="mb-4 font-semibold text-2xl">Pack: {packId}</h1>
-      <Link to="/" className="underline">
-        ← back
-      </Link>
-      <div className="mt-4">
-        <Link
-          to="/pack/$packId/menu/$menuId"
-          params={{ packId, menuId: "m_profile" }}
-          className="underline"
-        >
-          Open profile menu
+    <div className="flex h-screen flex-col">
+      <header className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3 text-sm">
+        <Link to="/" className="text-zinc-400 hover:text-zinc-100">
+          ← Packs
         </Link>
-      </div>
+        <span className="text-zinc-500">/</span>
+        <span className="font-mono">{packId}</span>
+      </header>
+      <main className="flex-1">
+        <Canvas packId={packId as PackId} />
+      </main>
     </div>
   );
 }
