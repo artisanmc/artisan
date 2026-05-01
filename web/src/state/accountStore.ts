@@ -6,6 +6,7 @@ import type {
   ClickType,
   Command,
   CommandId,
+  Condition,
   Element,
   ElementId,
   Layer,
@@ -190,6 +191,26 @@ interface AccountState {
     elementId: ElementId;
     fromIndex: number;
     toIndex: number;
+  }) => void;
+  /**
+   * Replace the entire visibility condition list (`if`) for an appearance.
+   * Empty list → unconditional (default state).
+   */
+  setAppearanceConditions: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    conditions: Condition[];
+  }) => void;
+  /** Replace the requirements predicate list for a click handler. */
+  setHandlerRequirements: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    conditions: Condition[];
   }) => void;
   /**
    * Replace one action inside a command's action chain.
@@ -790,6 +811,57 @@ export const useAccountStore = create<AccountState>()(
                     return;
                   const [moved] = el.appearances.splice(fromIndex, 1);
                   if (moved) el.appearances.splice(toIndex, 0, moved);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setAppearanceConditions: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          conditions,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance) return;
+                  appearance.if = conditions.length > 0 ? conditions : undefined;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setHandlerRequirements: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          conditions,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const handler = el.appearances[appearanceIndex]?.click?.[clickType];
+                  if (!handler) return;
+                  handler.requirements = conditions.length > 0 ? conditions : undefined;
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }

@@ -1,3 +1,9 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type {
   Action,
   ClickHandler,
@@ -15,7 +21,7 @@ import { cx } from "@/lib/cx";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ACTION_TYPES, defaultAction } from "./defaults";
 import {
   CLICK_TYPE_ORDER,
@@ -547,35 +553,29 @@ interface ClickTypePickerProps {
 }
 
 function ClickTypePicker({ label, options, onPick }: ClickTypePickerProps) {
-  const [open, setOpen] = useState(false);
   if (options.length === 0) return null;
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full rounded border border-zinc-700 border-dashed px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-      >
-        {label}
-      </button>
-      {open ? (
-        <div className="absolute left-0 right-0 z-10 mt-1 rounded border border-zinc-700 bg-zinc-900 shadow-lg">
-          {options.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => {
-                onPick(opt);
-                setOpen(false);
-              }}
-              className="block w-full px-2 py-1 text-left font-mono text-[11px] text-zinc-200 hover:bg-zinc-800"
-            >
-              {clickTypeLabel(opt)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="w-full rounded border border-zinc-700 border-dashed px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        >
+          {label}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        {options.map((opt) => (
+          <DropdownMenuItem
+            key={opt}
+            onSelect={() => onPick(opt)}
+            className="cursor-pointer font-mono text-[11px] focus:bg-zinc-800"
+          >
+            {clickTypeLabel(opt)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -585,37 +585,31 @@ interface ActionTypePickerProps {
 }
 
 function ActionTypePicker({ label, onPick }: ActionTypePickerProps) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full rounded border border-zinc-700 border-dashed px-2 py-1 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-      >
-        {label}
-      </button>
-      {open ? (
-        <div className="absolute left-0 right-0 z-10 mt-1 rounded border border-zinc-700 bg-zinc-900 shadow-lg">
-          {ACTION_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                onPick(type);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 px-2 py-1 text-left hover:bg-zinc-800"
-            >
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
-                {actionTypeLabel(type)}
-              </span>
-              <span className="font-mono text-[11px] text-zinc-200">{type}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="w-full rounded border border-zinc-700 border-dashed px-2 py-1 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        >
+          {label}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        {ACTION_TYPES.map((type) => (
+          <DropdownMenuItem
+            key={type}
+            onSelect={() => onPick(type)}
+            className="cursor-pointer focus:bg-zinc-800"
+          >
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
+              {actionTypeLabel(type)}
+            </span>
+            <span className="font-mono text-[11px] text-zinc-200">{type}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
