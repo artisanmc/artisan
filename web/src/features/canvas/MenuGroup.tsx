@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
+import { MiniMessageKonvaText } from "./MiniMessageKonvaText";
 import { hitTestSlot } from "./hitTest";
 import { itemTextureUrl } from "./itemTextures";
 import {
@@ -296,15 +297,14 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           perfectDrawEnabled={false}
         />
       ) : null}
-      {/* Title text in the texture's title bar (drawn on top of the bar) */}
-      <Text
+      {/* Title text in the texture's title bar — MiniMessage-aware so e.g.
+          "<gold>Profil</gold>" actually renders gold. */}
+      <MiniMessageKonvaText
+        source={menu.title}
         x={TEX_FIRST_SLOT_X + 1}
         y={5 * TEX_SCALE}
-        text={menu.title}
-        fontFamily="ui-monospace, monospace"
         fontSize={7 * TEX_SCALE}
-        fill="#404040"
-        listening={false}
+        defaultColor="#404040"
       />
       {/* Slot interaction overlays */}
       {Array.from({ length: slotCount }, (_, i) => {
