@@ -122,7 +122,9 @@ export type Action =
 export type Condition =
   | { type: "has_permission"; perm: string }
   | { type: "has_money"; amount: number }
-  | { type: "not"; of: Condition };
+  | { type: "not"; of: Condition }
+  | { type: "and"; of: Condition[] }
+  | { type: "or"; of: Condition[] };
 
 export interface Command {
   id: CommandId;
