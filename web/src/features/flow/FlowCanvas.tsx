@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import type { StepFrame } from "@/domain/stepPath";
 import type {
   Action,
@@ -111,6 +112,7 @@ function ElementFlow({
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
   const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
   const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
+  const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -147,12 +149,14 @@ function ElementFlow({
             {element.appearances.map((appearance, i) => {
               const focused = focusedStateIndex === i;
               const isDefault = (appearance.if ?? []).length === 0;
+              const material = appearance.material ?? "";
+              const textureUrl = itemTextureUrl(material);
               return (
                 <div
                   // biome-ignore lint/suspicious/noArrayIndexKey: state index is stable
                   key={i}
                   className={cx(
-                    "group relative flex w-[260px] flex-col gap-1.5 rounded border px-2 py-1.5 text-xs transition-colors",
+                    "group relative flex w-[320px] flex-col gap-1.5 overflow-hidden rounded border px-2 py-1.5 text-xs transition-colors",
                     focused
                       ? "border-emerald-500 bg-emerald-500/10 text-emerald-100"
                       : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600",
@@ -163,46 +167,74 @@ function ElementFlow({
                     onClick={() => setSub({ kind: "state", stateIndex: i })}
                     className="text-left"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
-                        {isDefault ? "default" : `state ${i}`}
-                      </span>
-                      {appearance.material ? (
-                        <span className="truncate font-mono text-[10px] text-zinc-400">
-                          {appearance.material}
-                        </span>
-                      ) : null}
-                    </div>
+                    <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
+                      {isDefault ? "default" : `state ${i}`}
+                    </span>
                   </button>
-                  <ConditionListEditor
-                    label=""
-                    conditions={appearance.if ?? []}
-                    joins={appearance.ifJoins}
-                    emptyHint={
-                      isDefault
-                        ? "default · always visible"
-                        : "(always — drop a condition here to gate this state)"
-                    }
-                    onChange={(conditions) =>
-                      setAppearanceConditions({
-                        packId,
-                        menuId: menu.id,
-                        elementId: element.id,
-                        appearanceIndex: i,
-                        conditions,
-                      })
-                    }
-                    onJoinChange={(joinIndex, op) =>
-                      setAppearanceJoin({
-                        packId,
-                        menuId: menu.id,
-                        elementId: element.id,
-                        appearanceIndex: i,
-                        joinIndex,
-                        op,
-                      })
-                    }
-                  />
+                  {/* Material row — item icon + editable name. */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
+                      {textureUrl ? (
+                        <img
+                          src={textureUrl}
+                          alt={material}
+                          draggable={false}
+                          className="h-3/4 w-3/4 object-contain"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      ) : (
+                        <span className="text-[8px] text-zinc-600">
+                          {material.slice(0, 3) || "—"}
+                        </span>
+                      )}
+                    </div>
+                    <Input
+                      value={material}
+                      placeholder="DIAMOND"
+                      onChange={(e) =>
+                        setAppearanceField({
+                          packId,
+                          menuId: menu.id,
+                          elementId: element.id,
+                          appearanceIndex: i,
+                          field: "material",
+                          value: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="h-6 flex-1 px-1.5 py-0 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <ConditionListEditor
+                      label=""
+                      conditions={appearance.if ?? []}
+                      joins={appearance.ifJoins}
+                      emptyHint={
+                        isDefault
+                          ? "default · always visible"
+                          : "(always — drop a condition here to gate this state)"
+                      }
+                      onChange={(conditions) =>
+                        setAppearanceConditions({
+                          packId,
+                          menuId: menu.id,
+                          elementId: element.id,
+                          appearanceIndex: i,
+                          conditions,
+                        })
+                      }
+                      onJoinChange={(joinIndex, op) =>
+                        setAppearanceJoin({
+                          packId,
+                          menuId: menu.id,
+                          elementId: element.id,
+                          appearanceIndex: i,
+                          joinIndex,
+                          op,
+                        })
+                      }
+                    />
+                  </div>
                   {element.appearances.length > 1 ? (
                     <button
                       type="button"
