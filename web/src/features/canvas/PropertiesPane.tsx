@@ -1,7 +1,8 @@
-import type { PackId } from "@/domain/types";
+import type { Element, ElementId, MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { CommandProperties } from "./properties/CommandProperties";
+import { ElementProperties } from "./properties/ElementProperties";
 import { MenuProperties } from "./properties/MenuProperties";
 import { PackProperties } from "./properties/PackProperties";
 
@@ -10,6 +11,20 @@ interface PropertiesPaneProps {
   /** When true, render only the body (no <aside> wrapper). Used by RightSidebar. */
   embedded?: boolean;
 }
+
+const findElement = (
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number],
+  id: ElementId,
+): { menuId: MenuId; element: Element } | null => {
+  for (const m of pack.menus) {
+    for (const layer of m.layers) {
+      for (const el of layer.elements) {
+        if (el.id === id) return { menuId: m.id, element: el };
+      }
+    }
+  }
+  return null;
+};
 
 export function PropertiesPane({ packId, embedded }: PropertiesPaneProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
@@ -20,6 +35,8 @@ export function PropertiesPane({ packId, embedded }: PropertiesPaneProps) {
   const selectedId = ids.size === 1 ? [...ids][0] : null;
   const menu = selectedId ? pack.menus.find((m) => m.id === selectedId) : undefined;
   const command = selectedId ? pack.commands.find((c) => c.id === selectedId) : undefined;
+  const elementHit =
+    selectedId && !menu && !command ? findElement(pack, selectedId as ElementId) : null;
 
   let title: string;
   let body: React.ReactNode;
@@ -34,6 +51,11 @@ export function PropertiesPane({ packId, embedded }: PropertiesPaneProps) {
   } else if (command) {
     title = "Command";
     body = <CommandProperties packId={packId} command={command} />;
+  } else if (elementHit) {
+    title = "Item";
+    body = (
+      <ElementProperties packId={packId} menuId={elementHit.menuId} element={elementHit.element} />
+    );
   } else {
     title = "Pack";
     body = <PackProperties pack={pack} />;

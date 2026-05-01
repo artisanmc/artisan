@@ -1,6 +1,15 @@
 import { newAssetId, newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
-import type { Account, Command, CommandId, Layer, Menu, MenuId, PackId } from "@/domain/types";
+import type {
+  Account,
+  Command,
+  CommandId,
+  ElementId,
+  Layer,
+  Menu,
+  MenuId,
+  PackId,
+} from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -37,6 +46,21 @@ interface AccountState {
   }) => void;
   /** Removes the element at the given position from the menu's first layer. */
   clearSlot: (input: { packId: PackId; menuId: MenuId; position: number }) => void;
+  /** Update a scalar field on the element's first appearance. */
+  setAppearanceField: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    field: "title" | "count";
+    value: string | number;
+  }) => void;
+  /** Replace the element's first-appearance lore lines. */
+  setAppearanceLore: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    lines: string[];
+  }) => void;
   /**
    * Set (or clear) a menu's background image. When `dataUrl` is provided we
    * also create a new Asset on the pack with the given metadata. When null, the
@@ -216,6 +240,51 @@ export const useAccountStore = create<AccountState>()(
                 appearances: [{ material }],
               });
               pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setAppearanceField: ({ packId: pId, menuId: mId, elementId, field, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[0];
+                  if (!appearance) return;
+                  if (field === "title") {
+                    if (typeof value !== "string") return;
+                    appearance.title = value || undefined;
+                  } else if (field === "count") {
+                    const n = typeof value === "number" ? value : Number(value);
+                    if (Number.isNaN(n) || n < 1 || n > 64) return;
+                    appearance.count = n === 1 ? undefined : n;
+                  }
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setAppearanceLore: ({ packId: pId, menuId: mId, elementId, lines }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[0];
+                  if (!appearance) return;
+                  appearance.lore = lines.length > 0 ? lines : undefined;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
             }),
           ),
         clearSlot: ({ packId: pId, menuId: mId, position }) =>
