@@ -11,6 +11,7 @@ import type {
   ClickType,
   Command,
   CommandId,
+  Condition,
   Element,
   ElementId,
   IfCase,
@@ -20,6 +21,7 @@ import type {
   Step,
 } from "@/domain/types";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
+import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { cx } from "@/lib/cx";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -537,6 +539,8 @@ function ElementIfCard({
   onMoveRight?: () => void;
 }) {
   const addIfCase = useAccountStore((s) => s.addIfCase);
+  const removeIfCase = useAccountStore((s) => s.removeIfCase);
+  const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
   return (
     <div
       className={cx(
@@ -561,6 +565,37 @@ function ElementIfCard({
             label={ci === 0 ? "if" : "else if"}
             ifCase={c}
             childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+            // Only allow removing else-if cases — the first `if` case is the
+            // anchor of the if-step and removing it would leave a degenerate
+            // shape; users delete the whole if-step via the card × instead.
+            onRemoveCase={
+              ci > 0
+                ? () =>
+                    removeIfCase({
+                      packId,
+                      menuId,
+                      elementId,
+                      appearanceIndex: stateIndex,
+                      clickType,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      caseIndex: ci,
+                    })
+                : undefined
+            }
+            onConditionsChange={(conditions) =>
+              setIfCaseConditions({
+                packId,
+                menuId,
+                elementId,
+                appearanceIndex: stateIndex,
+                clickType,
+                frames,
+                ifStepIndex: stepIndex,
+                caseIndex: ci,
+                conditions,
+              })
+            }
             renderSteps={(steps, childFrames) => (
               <ElementStepFlow
                 packId={packId}
@@ -578,6 +613,18 @@ function ElementIfCard({
           <CaseRow
             label="else"
             childFrames={[...frames, { stepIndex, descend: "else" }]}
+            onRemoveCase={() =>
+              useAccountStore.getState().toggleIfElse({
+                packId,
+                menuId,
+                elementId,
+                appearanceIndex: stateIndex,
+                clickType,
+                frames,
+                ifStepIndex: stepIndex,
+                enabled: false,
+              })
+            }
             renderSteps={(_steps, childFrames) => (
               <ElementStepFlow
                 packId={packId}
@@ -813,11 +860,21 @@ function CaseRow({
   ifCase,
   childFrames,
   renderSteps,
+  onRemoveCase,
+  onConditionsChange,
 }: {
   label: string;
   ifCase?: IfCase;
   childFrames: StepFrame[];
   renderSteps: (steps: Step[], childFrames: StepFrame[]) => React.ReactNode;
+  /** Optional × button on the row header. Provided for else-if/else cases. */
+  onRemoveCase?: () => void;
+  /**
+   * When provided, render an inline ConditionListEditor for the case's
+   * conditions right inside the row — so users don't have to find the
+   * properties pane to edit them.
+   */
+  onConditionsChange?: (conditions: Condition[]) => void;
 }) {
   return (
     <div className="rounded border border-zinc-800 bg-zinc-950/50 p-1.5">
@@ -825,14 +882,27 @@ function CaseRow({
         <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
           {label}
         </span>
-        {ifCase ? (
-          <span className="truncate font-mono text-[10px] text-zinc-500">
-            {ifCase.conditions.length === 0
-              ? "(no conditions yet)"
-              : ifCase.conditions.map(conditionSummary).join(" AND ")}
-          </span>
+        {onRemoveCase ? (
+          <button
+            type="button"
+            title="Remove this case"
+            onClick={onRemoveCase}
+            className="ml-auto rounded px-1 text-[10px] text-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            ×
+          </button>
         ) : null}
       </div>
+      {ifCase && onConditionsChange ? (
+        <div className="mb-2 rounded border border-zinc-800/60 bg-zinc-900/40 p-1.5">
+          <ConditionListEditor
+            label="when"
+            conditions={ifCase.conditions}
+            onChange={onConditionsChange}
+            emptyHint="(always — drop a condition here to gate this case)"
+          />
+        </div>
+      ) : null}
       <div className="overflow-x-auto">{renderSteps(ifCase?.steps ?? [], childFrames)}</div>
     </div>
   );
@@ -1102,6 +1172,8 @@ function CommandIfCard({
 }) {
   const addCommandIfCase = useAccountStore((s) => s.addCommandIfCase);
   const toggleCommandIfElse = useAccountStore((s) => s.toggleCommandIfElse);
+  const removeCommandIfCase = useAccountStore((s) => s.removeCommandIfCase);
+  const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
   return (
     <div
       className={cx(
@@ -1126,6 +1198,28 @@ function CommandIfCard({
             label={ci === 0 ? "if" : "else if"}
             ifCase={c}
             childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+            onRemoveCase={
+              ci > 0
+                ? () =>
+                    removeCommandIfCase({
+                      packId,
+                      commandId,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      caseIndex: ci,
+                    })
+                : undefined
+            }
+            onConditionsChange={(conditions) =>
+              setCommandIfCaseConditions({
+                packId,
+                commandId,
+                frames,
+                ifStepIndex: stepIndex,
+                caseIndex: ci,
+                conditions,
+              })
+            }
             renderSteps={(steps, childFrames) => (
               <CommandStepFlow
                 packId={packId}
@@ -1140,6 +1234,15 @@ function CommandIfCard({
           <CaseRow
             label="else"
             childFrames={[...frames, { stepIndex, descend: "else" }]}
+            onRemoveCase={() =>
+              toggleCommandIfElse({
+                packId,
+                commandId,
+                frames,
+                ifStepIndex: stepIndex,
+                enabled: false,
+              })
+            }
             renderSteps={(_, childFrames) => (
               <CommandStepFlow
                 packId={packId}
