@@ -1,5 +1,6 @@
 import type { Menu, MenuId, PackId } from "@/domain/types";
 import type { ElementId } from "@/domain/types";
+import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useHoverStore } from "@/state/hoverStore";
@@ -257,20 +258,26 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [packId, menu.id, position.x, position.y, layout],
   );
 
+  // Fan out each element across every slot it occupies. Multi-position
+  // elements (e.g. positions: "0-8") render the same material in every cell;
+  // any change to the element propagates to all of them automatically.
   const elementsByPosition = new Map<
-    string,
+    number,
     { material?: string; title?: string; count?: number; elementId: string }
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
       const appearance = el.appearances[0];
       if (!appearance) continue;
-      elementsByPosition.set(el.positions, {
+      const info = {
         material: appearance.material,
         title: appearance.title,
         count: appearance.count,
         elementId: el.id,
-      });
+      };
+      for (const p of parsePositions(el.positions)) {
+        elementsByPosition.set(p, info);
+      }
     }
   }
 
@@ -354,7 +361,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       {/* Slot interaction overlays */}
       {Array.from({ length: slotCount }, (_, i) => {
         const { x, y } = slotXY(i);
-        const el = elementsByPosition.get(String(i));
+        const el = elementsByPosition.get(i);
         const filled = Boolean(el?.material);
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
