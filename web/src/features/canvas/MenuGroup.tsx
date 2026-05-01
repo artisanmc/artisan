@@ -262,7 +262,24 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       const altKey = (e.evt as MouseEvent).altKey;
       const sel = useSelectionStore.getState();
       const sourceInSelection = sel.ids.has(sourceElementId);
-      const useSelectionDrag = sourceInSelection && (sel.ids.size > 1 || sel.focusedSlot === null);
+
+      // Look up the source element's positions to decide between single
+      // and selection drag. Selection drag is only meaningful when the
+      // user actually has multiple slots that should move together.
+      let sourcePosCount = 0;
+      if (sourceInSelection) {
+        outer: for (const layer of menu.layers) {
+          for (const el of layer.elements) {
+            if (el.id === sourceElementId) {
+              sourcePosCount = parsePositions(el.positions).length;
+              break outer;
+            }
+          }
+        }
+      }
+      const useSelectionDrag =
+        sourceInSelection && (sel.ids.size > 1 || (sel.focusedSlot === null && sourcePosCount > 1));
+
       if (useSelectionDrag) {
         // Capture every "non-source" slot that should ghost-follow the drag.
         const siblings: SiblingGhost[] = [];
@@ -338,10 +355,21 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       const original = slotXY(srcPosition);
       node.position({ x: original.x, y: original.y });
 
-      // Selection-drag: shift the whole selection by a grid delta.
+      const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
+      const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
+      const account = useAccountStore.getState().account;
+      const pack = account.packs.find((p) => p.id === packId);
+      if (!pack) return;
+      const hit = hitTestSlot(pack, layout, worldX, worldY);
+      const altKey = (e.evt as MouseEvent).altKey;
+
+      // Selection-drag: shift the whole selection by the grid delta resolved
+      // through hitTestSlot so the drop target depends on cursor position
+      // rather than where the user grabbed inside the slot.
       if (captured?.kind === "selection") {
-        const dCol = Math.round((localX - original.x) / TEX_SLOT_STRIDE);
-        const dRow = Math.round((localY - original.y) / TEX_SLOT_STRIDE);
+        if (!hit || hit.menuId !== menu.id) return;
+        const dCol = (hit.position % 9) - (srcPosition % 9);
+        const dRow = Math.floor(hit.position / 9) - Math.floor(srcPosition / 9);
         if (dCol === 0 && dRow === 0) return;
         try {
           useAccountStore.getState().moveSelectionByDelta({
@@ -356,14 +384,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         }
         return;
       }
-
-      const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
-      const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
-      const account = useAccountStore.getState().account;
-      const pack = account.packs.find((p) => p.id === packId);
-      if (!pack) return;
-      const hit = hitTestSlot(pack, layout, worldX, worldY);
-      const altKey = (e.evt as MouseEvent).altKey;
 
       try {
         if (!hit || hit.menuId !== menu.id) {
@@ -521,6 +541,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         const elementSelected = Boolean(el?.elementId && selectedIds.has(el.elementId));
         const isFocusedSlot = elementSelected && focusedSlot === i;
         const isButtonMode = elementSelected && focusedSlot === null;
+        // During selection drag, hide the SlotItem at the source's "sibling"
+        // positions so the user only sees the offset ghost, not a stale copy
+        // pinned at the original spot.
+        const isSelectionSibling =
+          dragState?.kind === "selection" &&
+          i !== dragState.sourcePosition &&
+          dragState.siblings.some((s) => s.position === i);
         return (
           <Group
             // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
@@ -594,7 +621,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 : undefined
             }
           >
-            {filled ? (
+            {filled && !isSelectionSibling ? (
               <SlotItem
                 material={el?.material ?? ""}
                 innerX={innerX}
@@ -621,13 +648,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           </Group>
         );
       })}
-      {/* Alt-drag duplicate ghost: a static copy of the source slot pinned
-          at its original coordinates while the actual draggable Group
-          follows the cursor. Only shown when Alt is held — without it the
-          drag looks like a move (source disappears at cursor). */}
-      {/* Alt-drag duplicate ghost (single drag): a static copy of the source
-          slot pinned at its original coordinates while the dragged Group
-          follows the cursor. Without it, the drag looks like a move. */}
+      {/* Alt-drag duplicate ghost (single drag only): a static copy of the
+          source slot pinned at its original coordinates while the dragged
+          Group follows the cursor. Without it, an Alt-drag looks like a
+          move (the source disappears as the cursor copy follows). */}
       {dragState?.kind === "single" &&
       dragState.altKey &&
       elementsByPosition.get(dragState.sourcePosition)?.material
