@@ -48,6 +48,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   });
   const box = menuBoxSize(menu.rows);
 
+  // Bring the menu Group to the top of its layer when its drag begins so it
+  // visibly floats above other menus while moving.
+  const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    e.target.moveToTop();
+  }, []);
+
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       // Cross-pack drop: if the drag ends with the cursor over a pack mini in
@@ -97,6 +103,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     },
     [menu.id],
   );
+
+  // Bring the parent menu Group to the top so the dragged slot renders above
+  // other menus (otherwise it disappears under the next menu it crosses).
+  const onSlotDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    e.target.getParent()?.moveToTop();
+    e.target.moveToTop();
+  }, []);
 
   /**
    * Slot drag-out router: drop outside any menu → clear; drop on another slot
@@ -174,6 +187,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       x={position.x}
       y={position.y}
       draggable
+      onDragStart={onMenuDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
@@ -235,6 +249,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             name={`slot:${menu.id}:${i}`}
             listening={filled}
             draggable={filled}
+            onDragStart={filled ? onSlotDragStart : undefined}
             onDragEnd={
               filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
             }
