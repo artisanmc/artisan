@@ -15,7 +15,7 @@ export function CommandProperties({ packId, command }: CommandPropertiesProps) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
   const setCommandStep = useAccountStore((s) => s.setCommandStep);
   const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
-  const setCommandIfCaseMatch = useAccountStore((s) => s.setCommandIfCaseMatch);
+  const setCommandIfCaseJoin = useAccountStore((s) => s.setCommandIfCaseJoin);
   const sub = useFlowSelectionStore((s) => s.sub);
 
   // When a step in the command's tree is sub-selected, edit it inline.
@@ -62,15 +62,16 @@ export function CommandProperties({ packId, command }: CommandPropertiesProps) {
             key={ci}
             label={ci === 0 ? "if conditions" : `else if (#${ci}) conditions`}
             conditions={c.conditions}
-            match={c.match ?? "all"}
-            onMatchChange={(match) =>
-              setCommandIfCaseMatch({
+            joins={c.joins}
+            onJoinChange={(joinIndex, op) =>
+              setCommandIfCaseJoin({
                 packId,
                 commandId: command.id,
                 frames: sub.path.frames,
                 ifStepIndex: sub.path.index,
                 caseIndex: ci,
-                match,
+                joinIndex,
+                op,
               })
             }
             emptyHint="(no conditions — always matches)"

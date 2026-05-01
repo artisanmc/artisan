@@ -34,12 +34,13 @@ interface ConditionListEditorProps {
   /** Hint shown when the list is empty. */
   emptyHint?: string;
   /**
-   * Boolean join mode. "all" → AND-join the chips; "any" → OR-join. When
-   * undefined the editor falls back to AND and hides the toggle (used for
-   * legacy callers like state visibility — those can be opted in later).
+   * Per-joiner boolean operators. joins[i] is between conditions[i] and
+   * conditions[i+1]; undefined defaults to "and". When omitted altogether,
+   * joiners render as static "AND" badges (used by callers that don't yet
+   * persist per-joiner state, e.g. Appearance.if visibility).
    */
-  match?: "all" | "any";
-  onMatchChange?: (match: "all" | "any") => void;
+  joins?: ("and" | "or")[];
+  onJoinChange?: (joinIndex: number, op: "and" | "or") => void;
 }
 
 const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = [
@@ -72,10 +73,10 @@ export function ConditionListEditor({
   conditions,
   onChange,
   emptyHint,
-  match,
-  onMatchChange,
+  joins,
+  onJoinChange,
 }: ConditionListEditorProps) {
-  const joiner = match === "any" ? "OR" : "AND";
+  const joinAt = (i: number): "and" | "or" => joins?.[i] ?? "and";
   const baseId = useId();
 
   const updateAt = (i: number, next: Condition) => {
@@ -105,15 +106,12 @@ export function ConditionListEditor({
   };
   const ids = conditions.map((_, i) => `${baseId}:${i}`);
 
-  const headerVisible = label || (onMatchChange && conditions.length > 1);
+  const lastJoiner = conditions.length === 0 ? "and" : joinAt(Math.max(0, conditions.length - 2));
   return (
     <div>
-      {headerVisible ? (
-        <div className="mb-1 flex items-center justify-between gap-2">
-          {label ? <span className="text-[10px] uppercase text-zinc-500">{label}</span> : <span />}
-          {onMatchChange && conditions.length > 1 ? (
-            <MatchToggle match={match ?? "all"} onChange={onMatchChange} />
-          ) : null}
+      {label ? (
+        <div className="mb-1">
+          <span className="text-[10px] uppercase text-zinc-500">{label}</span>
         </div>
       ) : null}
       {conditions.length === 0 ? (
@@ -121,7 +119,7 @@ export function ConditionListEditor({
           <div className="flex-1 rounded border border-zinc-800 border-dashed bg-zinc-900/30 px-2 py-1.5 text-[11px] text-zinc-500">
             {emptyHint ?? "always (no condition)"}
           </div>
-          <AppendChip onPick={append} joiner={joiner} />
+          <AppendChip onPick={append} joiner="AND" />
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -132,12 +130,24 @@ export function ConditionListEditor({
                   key={ids[i]}
                   id={ids[i]!}
                   condition={c}
-                  joiner={i > 0 ? joiner : null}
+                  joiner={
+                    i > 0
+                      ? {
+                          op: joinAt(i - 1),
+                          onToggle: onJoinChange
+                            ? () => onJoinChange(i - 1, joinAt(i - 1) === "and" ? "or" : "and")
+                            : undefined,
+                        }
+                      : null
+                  }
                   onChange={(next) => updateAt(i, next)}
                   onRemove={() => removeAt(i)}
                 />
               ))}
-              <AppendChip onPick={append} joiner={conditions.length > 0 ? joiner : null} />
+              <AppendChip
+                onPick={append}
+                joiner={conditions.length > 0 ? (lastJoiner === "or" ? "OR" : "AND") : null}
+              />
             </div>
           </SortableContext>
         </DndContext>
@@ -149,8 +159,8 @@ export function ConditionListEditor({
 interface ConditionChipProps {
   id: string;
   condition: Condition;
-  /** When set, render this joiner badge before the chip ("AND" / "OR"). */
-  joiner: string | null;
+  /** When set, render this joiner before the chip. onToggle flips AND ↔ OR. */
+  joiner: { op: "and" | "or"; onToggle?: () => void } | null;
   onChange: (next: Condition) => void;
   onRemove: () => void;
 }
@@ -166,11 +176,7 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
   };
   return (
     <>
-      {joiner ? (
-        <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
-          {joiner}
-        </span>
-      ) : null}
+      {joiner ? <JoinerToggle op={joiner.op} onToggle={joiner.onToggle} /> : null}
       <div
         ref={setNodeRef}
         style={style}
@@ -424,34 +430,33 @@ function AppendChip({
   );
 }
 
-function MatchToggle({
-  match,
-  onChange,
-}: {
-  match: "all" | "any";
-  onChange: (match: "all" | "any") => void;
-}) {
+/**
+ * Per-link AND/OR badge between two condition chips. Click to toggle. When
+ * onToggle is undefined (e.g. legacy callers without persisted joins), the
+ * badge renders read-only.
+ */
+function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => void }) {
+  const label = op === "or" ? "OR" : "AND";
+  if (!onToggle) {
+    return (
+      <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+        {label}
+      </span>
+    );
+  }
   return (
-    <div className="flex overflow-hidden rounded border border-zinc-700 text-[9px]">
-      {(["all", "any"] as const).map((value) => {
-        const active = match === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            onClick={() => onChange(value)}
-            className={cx(
-              "px-1.5 py-0.5 font-mono uppercase tracking-wide transition-colors",
-              active
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200",
-            )}
-            title={value === "all" ? "match ALL (AND)" : "match ANY (OR)"}
-          >
-            {value === "all" ? "AND" : "OR"}
-          </button>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      title="Click to switch operator"
+      className={cx(
+        "rounded px-1 font-mono text-[9px] uppercase tracking-wide transition-colors",
+        op === "or"
+          ? "bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
+          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+      )}
+    >
+      {label}
+    </button>
   );
 }

@@ -99,15 +99,19 @@ export type Step =
 /**
  * One arm of an if/else-if chain.
  *
- *   match = "all" (default) → AND-join the conditions
- *   match = "any"           → OR-join the conditions
+ *   joins[i] is the boolean operator between conditions[i] and
+ *   conditions[i+1]. Length is `max(0, conditions.length - 1)`. Missing
+ *   entries default to "and".
  *
- * For mixed boolean expressions, wrap nested conditions inside a `not` (the
- * Condition tree itself doesn't yet have AND/OR — fold via nested cases).
+ *   Standard precedence at runtime: AND binds tighter than OR. So
+ *   `A AND B OR C AND D` evaluates as `(A AND B) OR (C AND D)`.
+ *
+ * For unary negation use `Condition` of type `not`. Composite AND/OR
+ * conditions also exist for explicit grouping when precedence isn't enough.
  */
 export interface IfCase {
   conditions: Condition[];
-  match?: "all" | "any";
+  joins?: ("and" | "or")[];
   steps: Step[];
 }
 
