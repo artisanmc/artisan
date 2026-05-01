@@ -1,5 +1,5 @@
 import { cx } from "@/lib/cx";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface VerticalSplitProps {
   top: React.ReactNode;
@@ -11,7 +11,15 @@ interface VerticalSplitProps {
   minBottom?: number;
   /** Minimum height the top pane keeps (so the bottom can't eat the canvas). */
   minTop?: number;
+  /**
+   * When set, a small button on the resizer toggles between this collapsed
+   * height and the user's last expanded height. The expanded height is
+   * remembered in component-local state so the toggle restores it.
+   */
+  collapsedHeight?: number;
 }
+
+const COLLAPSE_THRESHOLD_PADDING = 16;
 
 /**
  * A vertical split with a draggable horizontal resizer between two panes.
@@ -25,9 +33,18 @@ export function VerticalSplit({
   onBottomHeightChange,
   minBottom = 0,
   minTop = 200,
+  collapsedHeight,
 }: VerticalSplitProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  // Last height before collapse, so toggling restores something useful.
+  const [lastExpanded, setLastExpanded] = useState<number>(() =>
+    collapsedHeight !== undefined && bottomHeight <= collapsedHeight + COLLAPSE_THRESHOLD_PADDING
+      ? 240
+      : bottomHeight,
+  );
+  const isCollapsed =
+    collapsedHeight !== undefined && bottomHeight <= collapsedHeight + COLLAPSE_THRESHOLD_PADDING;
 
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -35,6 +52,16 @@ export function VerticalSplit({
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
   }, []);
+
+  const onToggleCollapse = useCallback(() => {
+    if (collapsedHeight === undefined) return;
+    if (isCollapsed) {
+      onBottomHeightChange(lastExpanded);
+    } else {
+      setLastExpanded(bottomHeight);
+      onBottomHeightChange(collapsedHeight);
+    }
+  }, [collapsedHeight, isCollapsed, lastExpanded, bottomHeight, onBottomHeightChange]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -65,16 +92,28 @@ export function VerticalSplit({
   return (
     <div ref={wrapperRef} className="flex h-full min-h-0 w-full min-w-0 flex-col">
       <div className="min-h-0 flex-1 overflow-hidden">{top}</div>
-      <div
-        role="separator"
-        aria-orientation="horizontal"
-        tabIndex={-1}
-        onMouseDown={onMouseDown}
-        className={cx(
-          "h-1 shrink-0 cursor-row-resize bg-zinc-800 transition-colors",
-          "hover:bg-zinc-600 active:bg-emerald-600",
-        )}
-      />
+      <div className="relative shrink-0">
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          tabIndex={-1}
+          onMouseDown={onMouseDown}
+          className={cx(
+            "h-1 cursor-row-resize bg-zinc-800 transition-colors",
+            "hover:bg-zinc-600 active:bg-emerald-600",
+          )}
+        />
+        {collapsedHeight !== undefined ? (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? "Expand flow canvas" : "Collapse flow canvas"}
+            className="-translate-x-1/2 absolute top-0 left-1/2 flex h-4 w-10 -translate-y-1/2 items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            {isCollapsed ? "▲" : "▼"}
+          </button>
+        ) : null}
+      </div>
       <div className="min-h-0 shrink-0 overflow-hidden" style={{ height: bottomHeight }}>
         {bottom}
       </div>
