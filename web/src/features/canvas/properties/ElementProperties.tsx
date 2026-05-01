@@ -8,6 +8,7 @@ import { type FlowSubSelection, useFlowSelectionStore } from "@/state/flowSelect
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect, useState } from "react";
 import { ActionEditor } from "./ActionEditor";
+import { ConditionListEditor } from "./ConditionListEditor";
 import { PropertyField } from "./PropertyField";
 
 interface ElementPropertiesProps {
@@ -159,6 +160,7 @@ function AppearanceFields({
 }) {
   const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
   const setAppearanceLore = useAccountStore((s) => s.setAppearanceLore);
+  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
   const title = appearance?.title ?? "";
   const count = appearance?.count ?? 1;
   const loreText = (appearance?.lore ?? []).join("\n");
@@ -170,6 +172,24 @@ function AppearanceFields({
           editing state {stateIndex}
         </div>
       ) : null}
+      <ConditionListEditor
+        label="visibility"
+        conditions={appearance?.if ?? []}
+        emptyHint={
+          stateIndex === 0
+            ? "default state · always visible"
+            : "always (this state will shadow the default)"
+        }
+        onChange={(conditions) =>
+          setAppearanceConditions({
+            packId,
+            menuId,
+            elementId: element.id,
+            appearanceIndex: stateIndex,
+            conditions,
+          })
+        }
+      />
       <div>
         <PropertyField
           label="title"
@@ -269,6 +289,7 @@ function ActionSubEditor({
   sub: Extract<FlowSubSelection, { kind: "action" }>;
 }) {
   const setElementAction = useAccountStore((s) => s.setElementAction);
+  const setHandlerRequirements = useAccountStore((s) => s.setHandlerRequirements);
   const appearance = element.appearances[sub.stateIndex];
   const handler = appearance?.click?.[sub.clickType];
   const list = sub.fallback ? handler?.fallback : handler?.actions;
@@ -292,7 +313,7 @@ function ActionSubEditor({
       action: next,
     });
   return (
-    <div className="flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+    <div className="flex flex-col gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-2">
       <div className="flex items-center gap-2 text-[10px] text-zinc-500">
         <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zinc-300">
           {action.type}
@@ -303,6 +324,24 @@ function ActionSubEditor({
         </span>
       </div>
       <ActionEditor packId={packId} action={action} onChange={onChange} />
+      {/* The handler's requirements predicate gates the whole chain. We
+          surface it here since action selection is the most natural entry
+          point — the same requirements apply to every action in the chain. */}
+      <ConditionListEditor
+        label={`requirements · gates the ${sub.clickType.replace("_", "+")} chain`}
+        conditions={handler?.requirements ?? []}
+        emptyHint="no requirements (always runs)"
+        onChange={(conditions) =>
+          setHandlerRequirements({
+            packId,
+            menuId,
+            elementId: element.id,
+            appearanceIndex: sub.stateIndex,
+            clickType: sub.clickType,
+            conditions,
+          })
+        }
+      />
     </div>
   );
 }
