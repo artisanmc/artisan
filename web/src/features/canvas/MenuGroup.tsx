@@ -191,7 +191,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       id={menu.id}
     >
       {/* Background. Custom upload covers the full menu box; vanilla mode
-          renders two slices so the chest height adapts to `rows`. */}
+          renders two slices so the chest height adapts to `rows`.
+          Images are listening=true so the menu Group has a hit shape and
+          drag works from anywhere on the texture (Konva picks the deepest
+          draggable, so filled slots still take precedence). */}
       {usingCustom && customTex ? (
         <KonvaImage
           image={customTex}
@@ -199,7 +202,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           y={0}
           width={box.width}
           height={box.height}
-          listening={false}
           perfectDrawEnabled={false}
         />
       ) : vanillaTex ? (
@@ -211,9 +213,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             width={top.width * TEX_SCALE}
             height={top.height * TEX_SCALE}
             crop={top}
-            listening={false}
             perfectDrawEnabled={false}
-            imageSmoothingEnabled={false}
           />
           <KonvaImage
             image={vanillaTex}
@@ -222,20 +222,11 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             width={bottom.width * TEX_SCALE}
             height={bottom.height * TEX_SCALE}
             crop={bottom}
-            listening={false}
             perfectDrawEnabled={false}
-            imageSmoothingEnabled={false}
           />
         </>
       ) : (
-        // Fallback while textures load.
-        <Rect
-          width={box.width}
-          height={box.height}
-          fill="#c6c6c6"
-          listening={false}
-          perfectDrawEnabled={false}
-        />
+        <Rect width={box.width} height={box.height} fill="#c6c6c6" perfectDrawEnabled={false} />
       )}
       {/* Selection halo */}
       {isSelected ? (
@@ -281,7 +272,8 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           >
             {filled ? (
               <>
-                {/* Subtle dark overlay so material text is readable on any background */}
+                {/* Subtle dark overlay — also serves as the slot Group's hit
+                    shape so click/drag hits register inside the well. */}
                 <Rect
                   x={innerX}
                   y={innerY}
@@ -289,7 +281,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                   height={TEX_SLOT_INNER}
                   fill="rgba(20,20,20,0.55)"
                   cornerRadius={2}
-                  listening={false}
                   perfectDrawEnabled={false}
                 />
                 <Text
