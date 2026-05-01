@@ -24,7 +24,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useId } from "react";
+import { Fragment, useId } from "react";
 
 interface ConditionListEditorProps {
   /** Label shown above the list (e.g. "visibility", "when"). */
@@ -46,6 +46,8 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "has_permission", label: "has permission", chip: "perm" },
   { value: "has_money", label: "has money", chip: "$" },
   { value: "not", label: "NOT (…)", chip: "NOT" },
+  { value: "and", label: "AND group", chip: "AND" },
+  { value: "or", label: "OR group", chip: "OR" },
 ];
 
 const defaultCondition = (type: Condition["type"]): Condition => {
@@ -56,6 +58,10 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "has_money", amount: 0 };
     case "not":
       return { type: "not", of: { type: "has_permission", perm: "" } };
+    case "and":
+      return { type: "and", of: [{ type: "has_permission", perm: "" }] };
+    case "or":
+      return { type: "or", of: [{ type: "has_permission", perm: "" }] };
   }
 };
 
@@ -280,7 +286,110 @@ function ConditionInline({
           />
         </div>
       );
+    case "and":
+    case "or":
+      return <CompositeInner condition={condition} onChange={onChange} />;
   }
+}
+
+/**
+ * Inline editor for an AND/OR composite condition. Renders inner conditions
+ * as mini-chips joined by the operator, with a per-chip × and an appender at
+ * the end. Recursive: inner chips can themselves be AND/OR/NOT composites.
+ */
+function CompositeInner({
+  condition,
+  onChange,
+}: {
+  condition: Extract<Condition, { type: "and" | "or" }>;
+  onChange: (next: Condition) => void;
+}) {
+  const op = condition.type === "and" ? "AND" : "OR";
+  const updateInner = (i: number, next: Condition) => {
+    const copy = condition.of.slice();
+    copy[i] = next;
+    onChange({ ...condition, of: copy });
+  };
+  const removeInner = (i: number) => {
+    const copy = condition.of.slice();
+    copy.splice(i, 1);
+    onChange({ ...condition, of: copy });
+  };
+  const append = (type: Condition["type"]) =>
+    onChange({ ...condition, of: [...condition.of, defaultCondition(type)] });
+  return (
+    <div className="flex flex-wrap items-center gap-1 rounded border border-zinc-800 border-dashed bg-zinc-950/50 px-1 py-0.5">
+      {condition.of.length === 0 ? (
+        <span className="font-mono text-[10px] text-zinc-600 italic">empty</span>
+      ) : (
+        condition.of.map((inner, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: index stable per render
+          <Fragment key={i}>
+            {i > 0 ? (
+              <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+                {op}
+              </span>
+            ) : null}
+            <InnerChip
+              condition={inner}
+              onChange={(next) => updateInner(i, next)}
+              onRemove={() => removeInner(i)}
+            />
+          </Fragment>
+        ))
+      )}
+      <AppendChip onPick={append} joiner={op} />
+    </div>
+  );
+}
+
+/**
+ * A non-sortable chip used inside composite conditions. Same shape as
+ * ConditionChip but without the drag handle wiring.
+ */
+function InnerChip({
+  condition,
+  onChange,
+  onRemove,
+}: {
+  condition: Condition;
+  onChange: (next: Condition) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="group flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-200 hover:bg-zinc-700"
+          >
+            {labelForType(condition.type)}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+          {TYPES.map((t) => (
+            <DropdownMenuItem
+              key={t.value}
+              onSelect={() => onChange(defaultCondition(t.value))}
+              className="cursor-pointer text-[11px] focus:bg-zinc-800"
+            >
+              {t.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConditionInline condition={condition} onChange={onChange} />
+      <button
+        type="button"
+        title="Remove"
+        onClick={onRemove}
+        className="rounded px-1 text-[10px] text-zinc-500 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
 function AppendChip({
