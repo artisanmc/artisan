@@ -1,12 +1,5 @@
 import type { Pack } from "@/domain/types";
-import {
-  COLS,
-  GRID_PADDING,
-  MENU_HEADER_HEIGHT,
-  SLOT_GAP,
-  SLOT_SIZE,
-  menuBoxSize,
-} from "./menuLayout";
+import { COLS, TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H, menuBoxSize } from "./menuLayout";
 
 export interface SlotHit {
   menuId: string;
@@ -14,13 +7,16 @@ export interface SlotHit {
 }
 
 /**
- * Manual hit-testing in pack-canvas coordinates: given a point in the SAME
- * coordinate system as the menu Group `position` props (i.e. world coords,
- * not screen coords), find which slot of which menu sits under it.
+ * Manual hit-testing in pack-canvas (world) coordinates: given a point in the
+ * same coordinate system as the menu Group `position` props, find which CHEST
+ * slot of which menu sits under it. Player-inventory slots aren't returned —
+ * they aren't editable in the editor.
  *
- * We don't use Konva's stage.getIntersection because slot Rects have
- * listening={false} (so click on a slot bubbles up to the parent menu Group
- * for selection); enabling listening would break click-to-select-menu.
+ * Slot Rects keep listening={false} (so click on a slot bubbles up to the
+ * parent menu Group for selection); enabling listening would break
+ * click-to-select-menu. Instead we hit-test against the texture-derived
+ * geometry (TEX_SLOT_STRIDE chest cells starting at TEX_FIRST_SLOT_X /
+ * TEX_TITLE_H from the menu origin).
  */
 export function hitTestSlot(
   pack: Pack,
@@ -36,21 +32,16 @@ export function hitTestSlot(
     const localY = worldY - pos.y;
     if (localX < 0 || localY < 0 || localX > box.width || localY > box.height) continue;
 
-    const gridX = localX - GRID_PADDING;
-    const gridY = localY - GRID_PADDING - MENU_HEADER_HEIGHT;
+    // Chest slot grid only — exclude title bar and player inventory area.
+    const gridX = localX - TEX_FIRST_SLOT_X;
+    const gridY = localY - TEX_TITLE_H;
     if (gridX < 0 || gridY < 0) continue;
+    if (gridX >= COLS * TEX_SLOT_STRIDE) continue;
+    if (gridY >= menu.rows * TEX_SLOT_STRIDE) continue;
 
-    const cellW = SLOT_SIZE + SLOT_GAP;
-    const cellH = SLOT_SIZE + SLOT_GAP;
-    const col = Math.floor(gridX / cellW);
-    const row = Math.floor(gridY / cellH);
-    if (col < 0 || col >= COLS) continue;
-    if (row < 0 || row >= menu.rows) continue;
-
-    // Reject hits inside the gap between slots.
-    const inSlotX = gridX - col * cellW;
-    const inSlotY = gridY - row * cellH;
-    if (inSlotX > SLOT_SIZE || inSlotY > SLOT_SIZE) continue;
+    const col = Math.floor(gridX / TEX_SLOT_STRIDE);
+    const row = Math.floor(gridY / TEX_SLOT_STRIDE);
+    if (col < 0 || col >= COLS || row < 0 || row >= menu.rows) continue;
 
     return { menuId: menu.id, position: row * COLS + col };
   }

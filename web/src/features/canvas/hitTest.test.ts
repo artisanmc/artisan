@@ -2,7 +2,7 @@ import { mockAccount } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { GRID_PADDING, MENU_HEADER_HEIGHT, SLOT_SIZE } from "./menuLayout";
+import { TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
 
 describe("hitTestSlot", () => {
   const personal = mockAccount().packs[0]!;
@@ -12,24 +12,32 @@ describe("hitTestSlot", () => {
     expect(hitTestSlot(personal, layout, -100, -100)).toBeNull();
   });
 
-  it("returns the slot under the cursor for a known menu position", () => {
+  it("returns the chest slot under the cursor", () => {
     const menu = personal.menus[0]!;
     const pos = layout[menu.id]!;
-    // Aim at slot index 13 (row 1, col 4) inside this menu's grid.
+    // Aim at slot index 13 (row 1, col 4) — center of the cell.
     const col = 13 % 9;
     const row = Math.floor(13 / 9);
-    const x = pos.x + GRID_PADDING + col * (SLOT_SIZE + 2) + SLOT_SIZE / 2;
-    const y = pos.y + GRID_PADDING + MENU_HEADER_HEIGHT + row * (SLOT_SIZE + 2) + SLOT_SIZE / 2;
-    const hit = hitTestSlot(personal, layout, x, y);
-    expect(hit).toEqual({ menuId: menu.id, position: 13 });
+    const x = pos.x + TEX_FIRST_SLOT_X + col * TEX_SLOT_STRIDE + TEX_SLOT_STRIDE / 2;
+    const y = pos.y + TEX_TITLE_H + row * TEX_SLOT_STRIDE + TEX_SLOT_STRIDE / 2;
+    expect(hitTestSlot(personal, layout, x, y)).toEqual({ menuId: menu.id, position: 13 });
   });
 
-  it("returns null when the point falls inside the gap between slots", () => {
+  it("returns null when the point falls in the title bar above the chest grid", () => {
     const menu = personal.menus[0]!;
     const pos = layout[menu.id]!;
-    // 1px past the right edge of slot col 0 — inside the SLOT_GAP.
-    const x = pos.x + GRID_PADDING + SLOT_SIZE + 1;
-    const y = pos.y + GRID_PADDING + MENU_HEADER_HEIGHT + SLOT_SIZE / 2;
+    // Aim inside the title bar.
+    const x = pos.x + TEX_FIRST_SLOT_X + 10;
+    const y = pos.y + TEX_TITLE_H / 2;
+    expect(hitTestSlot(personal, layout, x, y)).toBeNull();
+  });
+
+  it("returns null when the point falls in the player-inv area below the chest grid", () => {
+    const menu = personal.menus[0]!;
+    const pos = layout[menu.id]!;
+    // Just past the chest grid bottom.
+    const x = pos.x + TEX_FIRST_SLOT_X + 10;
+    const y = pos.y + TEX_TITLE_H + menu.rows * TEX_SLOT_STRIDE + 10;
     expect(hitTestSlot(personal, layout, x, y)).toBeNull();
   });
 });

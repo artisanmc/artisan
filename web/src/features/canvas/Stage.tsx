@@ -188,7 +188,7 @@ export function Stage({ packId }: StageProps) {
         <Layer name="edges">
           <Edges pack={pack} layout={layout} />
         </Layer>
-        <Layer name="menus">
+        <Layer name="menus" imageSmoothingEnabled={false}>
           {pack.menus.map((menu) => (
             <MenuGroup
               key={menu.id}
