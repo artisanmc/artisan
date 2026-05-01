@@ -6,10 +6,12 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { toast } from "sonner";
+import { BackgroundImage } from "./BackgroundImage";
 import {
   COLS,
   GRID_PADDING,
   MENU_HEADER_HEIGHT,
+  SLOT_GAP,
   SLOT_SIZE,
   menuBoxSize,
   slotXY,
@@ -35,6 +37,11 @@ interface MenuGroupProps {
 export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
+  const backgroundUrl = useAccountStore((s) => {
+    if (!menu.background) return undefined;
+    const pack = s.account.packs.find((p) => p.id === packId);
+    return pack?.assets.find((a) => a.id === menu.background!.assetId)?.url;
+  });
   const box = menuBoxSize(menu.rows);
 
   const onDragEnd = useCallback(
@@ -123,6 +130,15 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         strokeWidth={isSelected ? 2 : 1}
         perfectDrawEnabled={false}
       />
+      {backgroundUrl ? (
+        <BackgroundImage
+          url={backgroundUrl}
+          x={GRID_PADDING}
+          y={GRID_PADDING + MENU_HEADER_HEIGHT}
+          width={COLS * SLOT_SIZE + (COLS - 1) * SLOT_GAP}
+          height={menu.rows * SLOT_SIZE + (menu.rows - 1) * SLOT_GAP}
+        />
+      ) : null}
       <Text
         x={GRID_PADDING}
         y={GRID_PADDING}
@@ -153,7 +169,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
               width={SLOT_SIZE}
               height={SLOT_SIZE}
               cornerRadius={3}
-              fill={filled ? "#27272a" : "#18181b"}
+              fill={filled ? "#27272a" : backgroundUrl ? "rgba(0,0,0,0.25)" : "#18181b"}
               stroke={filled ? "#52525b" : "#27272a"}
               strokeWidth={1}
               perfectDrawEnabled={false}
