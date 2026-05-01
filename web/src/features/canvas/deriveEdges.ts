@@ -1,3 +1,4 @@
+import { walkActions } from "@/domain/stepPath";
 import type { Pack } from "@/domain/types";
 
 export interface Edge {
@@ -24,7 +25,7 @@ export function deriveEdges(pack: Pack): Edge[] {
           if (!appearance.click) continue;
           for (const handler of Object.values(appearance.click)) {
             if (!handler) continue;
-            for (const action of [...handler.actions, ...(handler.fallback ?? [])]) {
+            for (const action of walkActions(handler.steps)) {
               if (action.type === "open_menu") push(menu.id, action.menuId);
             }
           }
@@ -34,7 +35,7 @@ export function deriveEdges(pack: Pack): Edge[] {
   }
 
   for (const cmd of pack.commands) {
-    for (const action of cmd.actions) {
+    for (const action of walkActions(cmd.steps)) {
       if (action.type === "open_menu") push(cmd.id, action.menuId);
     }
   }

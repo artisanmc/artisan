@@ -9,6 +9,7 @@ import type {
   Layer,
   Menu,
   MenuId,
+  Step,
 } from "@/domain/types";
 
 const CLIPBOARD_KIND = "interfaze.clipboard" as const;
@@ -92,10 +93,16 @@ export function rewriteIds(input: {
     }
     return a;
   };
+  const remapStep = (step: Step): Step => {
+    if (step.kind === "action") return { kind: "action", action: remapAction(step.action) };
+    return {
+      kind: "if",
+      cases: step.cases.map((c) => ({ ...c, steps: c.steps.map(remapStep) })),
+      else: step.else?.map(remapStep),
+    };
+  };
   const remapHandler = (h: ClickHandler): ClickHandler => ({
-    ...h,
-    actions: h.actions.map(remapAction),
-    fallback: h.fallback ? h.fallback.map(remapAction) : undefined,
+    steps: h.steps.map(remapStep),
   });
   const remapAppearance = (a: Appearance): Appearance => {
     if (!a.click) return a;
@@ -124,7 +131,7 @@ export function rewriteIds(input: {
   const commands = input.commands.map((c) => ({
     ...c,
     id: newCommandId(),
-    actions: c.actions.map(remapAction),
+    steps: c.steps.map(remapStep),
   }));
   const elements = (input.elements ?? []).map<ElementCopy>((ec) => ({
     sourceMenuId: ec.sourceMenuId,

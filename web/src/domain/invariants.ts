@@ -1,3 +1,4 @@
+import { walkActions } from "./stepPath";
 import type { Action, Appearance, Element, MenuId, Pack, TemplateId } from "./types";
 
 /** Throws if the pack contains any reference crossing its own boundary. */
@@ -14,7 +15,7 @@ export function assertPackHermetic(pack: Pack): void {
   }
 
   for (const cmd of pack.commands) {
-    for (const action of cmd.actions) {
+    for (const action of walkActions(cmd.steps)) {
       checkAction(action, menuIds);
     }
   }
@@ -33,8 +34,7 @@ function checkAppearance(appearance: Appearance, menuIds: Set<MenuId>): void {
   if (!appearance.click) return;
   for (const handler of Object.values(appearance.click)) {
     if (!handler) continue;
-    for (const action of handler.actions) checkAction(action, menuIds);
-    if (handler.fallback) for (const action of handler.fallback) checkAction(action, menuIds);
+    for (const action of walkActions(handler.steps)) checkAction(action, menuIds);
   }
 }
 

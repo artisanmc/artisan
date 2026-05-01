@@ -279,32 +279,41 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
         const ids = [...sel.ids];
 
         // Flow sub-selection takes priority: if the user is editing a
-        // specific state / action / command-action, Delete should remove
-        // that node rather than the whole entity.
+        // specific state or step, Delete should remove that node rather
+        // than the whole entity.
         if (flow.sub) {
           e.preventDefault();
           try {
-            if (flow.sub.kind === "action" && ids.length === 1) {
-              const candidate = findElement(packId, ids[0]! as ElementId);
-              if (candidate) {
-                useAccountStore.getState().removeElementAction({
-                  packId,
-                  menuId: candidate.menuId,
-                  elementId: ids[0]! as ElementId,
-                  appearanceIndex: flow.sub.stateIndex,
-                  clickType: flow.sub.clickType,
-                  fallback: flow.sub.fallback,
-                  actionIndex: flow.sub.actionIndex,
-                });
-                flow.clear();
-                return;
+            if (flow.sub.kind === "step" && ids.length === 1) {
+              const id = ids[0]!;
+              if (flow.sub.clickType !== undefined && flow.sub.stateIndex !== undefined) {
+                const candidate = findElement(packId, id as ElementId);
+                if (candidate) {
+                  useAccountStore.getState().removeElementStep({
+                    packId,
+                    menuId: candidate.menuId,
+                    elementId: id as ElementId,
+                    appearanceIndex: flow.sub.stateIndex,
+                    clickType: flow.sub.clickType,
+                    path: flow.sub.path,
+                  });
+                  flow.clear();
+                  return;
+                }
               }
+              // Command step (no clickType / stateIndex on the sub).
+              useAccountStore.getState().removeCommandStep({
+                packId,
+                commandId: id as never,
+                path: flow.sub.path,
+              });
+              flow.clear();
+              return;
             }
             if (flow.sub.kind === "state" && ids.length === 1) {
               const candidate = findElement(packId, ids[0]! as ElementId);
               if (candidate && flow.sub.stateIndex > 0) {
-                // Don't allow deleting state 0 (the default) via this path —
-                // that's the only state for many elements.
+                // Default state (index 0) is protected.
                 useAccountStore.getState().removeAppearance({
                   packId,
                   menuId: candidate.menuId,
@@ -314,16 +323,6 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
                 flow.clear();
                 return;
               }
-            }
-            if (flow.sub.kind === "commandAction" && ids.length === 1) {
-              const commandId = ids[0]!;
-              useAccountStore.getState().removeCommandAction({
-                packId,
-                commandId: commandId as never,
-                actionIndex: flow.sub.actionIndex,
-              });
-              flow.clear();
-              return;
             }
           } catch (err) {
             onError?.(err instanceof Error ? err.message : "delete failed");

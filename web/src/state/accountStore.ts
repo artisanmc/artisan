@@ -1,8 +1,8 @@
 import { newAssetId, newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
+import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Account,
-  Action,
   ClickType,
   Command,
   CommandId,
@@ -13,6 +13,7 @@ import type {
   Menu,
   MenuId,
   PackId,
+  Step,
 } from "@/domain/types";
 import {
   addPosition,
@@ -106,51 +107,93 @@ interface AccountState {
   }) => void;
   /** Remove an element from its menu, regardless of how many positions it has. */
   deleteElement: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  /** Replace one step inside a click handler's step tree at the given path. */
+  setElementStep: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    path: StepPath;
+    step: Step;
+  }) => void;
   /**
-   * Replace one action inside a click handler (or its fallback) with a new
-   * Action object. The new action's `type` may differ from the old one — the
-   * caller is responsible for shape correctness.
+   * Insert a step into a click handler's step tree. `frames` describes how
+   * to descend through if-steps; `index` is the position in the resolved
+   * Step[] (negative or out-of-range → append).
    */
-  setElementAction: (input: {
+  addElementStep: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
     clickType: ClickType;
-    fallback: boolean;
-    actionIndex: number;
-    action: Action;
+    frames: StepFrame[];
+    index: number;
+    step: Step;
   }) => void;
-  /** Append a new action to a click handler's main chain or fallback. */
-  addElementAction: (input: {
+  removeElementStep: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
     clickType: ClickType;
-    fallback: boolean;
-    action: Action;
+    path: StepPath;
   }) => void;
-  /** Remove the action at `actionIndex` from the chain. */
-  removeElementAction: (input: {
+  /** Reorder steps within the same Step[] (same parent). */
+  moveElementStep: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
     clickType: ClickType;
-    fallback: boolean;
-    actionIndex: number;
-  }) => void;
-  /** Reorder actions within a click handler's chain. */
-  moveElementAction: (input: {
-    packId: PackId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    fallback: boolean;
+    frames: StepFrame[];
     fromIndex: number;
     toIndex: number;
+  }) => void;
+  /** Add a new case to an if-step. */
+  addIfCase: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    frames: StepFrame[];
+    ifStepIndex: number;
+  }) => void;
+  /** Remove a case from an if-step. */
+  removeIfCase: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+  }) => void;
+  /** Replace the conditions for one case of an if-step. */
+  setIfCaseConditions: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+    conditions: Condition[];
+  }) => void;
+  /** Toggle the else-branch of an if-step on or off. */
+  toggleIfElse: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    enabled: boolean;
   }) => void;
   /**
    * Add an empty click handler at clickType on the given appearance. No-op
@@ -203,38 +246,60 @@ interface AccountState {
     appearanceIndex: number;
     conditions: Condition[];
   }) => void;
-  /** Replace the requirements predicate list for a click handler. */
-  setHandlerRequirements: (input: {
-    packId: PackId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    conditions: Condition[];
-  }) => void;
-  /**
-   * Replace one action inside a command's action chain.
-   */
-  setCommandAction: (input: {
+  /** Replace one step inside a command's step tree at the given path. */
+  setCommandStep: (input: {
     packId: PackId;
     commandId: CommandId;
-    actionIndex: number;
-    action: Action;
+    path: StepPath;
+    step: Step;
   }) => void;
-  /** Append a new action to a command's chain. */
-  addCommandAction: (input: { packId: PackId; commandId: CommandId; action: Action }) => void;
-  /** Remove a command's action at the given index. */
-  removeCommandAction: (input: {
+  /** Insert a step into a command's step tree. */
+  addCommandStep: (input: {
     packId: PackId;
     commandId: CommandId;
-    actionIndex: number;
+    frames: StepFrame[];
+    index: number;
+    step: Step;
   }) => void;
-  /** Reorder a command's actions. */
-  moveCommandAction: (input: {
+  removeCommandStep: (input: {
     packId: PackId;
     commandId: CommandId;
+    path: StepPath;
+  }) => void;
+  moveCommandStep: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
     fromIndex: number;
     toIndex: number;
+  }) => void;
+  addCommandIfCase: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
+    ifStepIndex: number;
+  }) => void;
+  removeCommandIfCase: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+  }) => void;
+  setCommandIfCaseConditions: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+    conditions: Condition[];
+  }) => void;
+  toggleCommandIfElse: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    enabled: boolean;
   }) => void;
   /**
    * Insert a fully-formed element (already given a fresh id) into a menu's
@@ -273,6 +338,43 @@ interface AccountState {
     commands: Command[];
     offset: { x: number; y: number };
   }) => void;
+}
+
+/**
+ * Tiny helpers shared by the step-tree mutations. They walk the immer
+ * draft and return live references so callers can splice in place.
+ */
+function findElementHandler(
+  draft: AccountState,
+  packId: PackId,
+  menuId: MenuId,
+  elementId: ElementId,
+  appearanceIndex: number,
+  clickType: ClickType,
+) {
+  const pack = draft.account.packs.find((p) => p.id === packId);
+  if (!pack) return null;
+  const menu = pack.menus.find((m) => m.id === menuId);
+  if (!menu) return null;
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (el.id !== elementId) continue;
+      const handler = el.appearances[appearanceIndex]?.click?.[clickType];
+      return handler ?? null;
+    }
+  }
+  return null;
+}
+
+function findCommand(draft: AccountState, packId: PackId, commandId: CommandId) {
+  const pack = draft.account.packs.find((p) => p.id === packId);
+  if (!pack) return null;
+  return pack.commands.find((c) => c.id === commandId) ?? null;
+}
+
+function touch(draft: AccountState, packId: PackId) {
+  const pack = draft.account.packs.find((p) => p.id === packId);
+  if (pack) pack.updatedAt = new Date().toISOString();
 }
 
 /**
@@ -561,143 +663,232 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
-        setElementAction: ({
+        setElementStep: ({
           packId: pId,
           menuId: mId,
           elementId,
           appearanceIndex,
           clickType,
-          fallback,
-          actionIndex,
-          action,
+          path,
+          step,
         }) =>
           set(
             produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              for (const layer of menu.layers) {
-                for (const el of layer.elements) {
-                  if (el.id !== elementId) continue;
-                  const appearance = el.appearances[appearanceIndex];
-                  if (!appearance?.click) return;
-                  const handler = appearance.click[clickType];
-                  if (!handler) return;
-                  const list = fallback ? handler.fallback : handler.actions;
-                  if (!list || actionIndex < 0 || actionIndex >= list.length) return;
-                  list[actionIndex] = action;
-                  pack.updatedAt = new Date().toISOString();
-                  return;
-                }
-              }
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              parent[path.index] = step;
+              touch(draft, pId);
             }),
           ),
-        addElementAction: ({
+        addElementStep: ({
           packId: pId,
           menuId: mId,
           elementId,
           appearanceIndex,
           clickType,
-          fallback,
-          action,
+          frames,
+          index,
+          step,
         }) =>
           set(
             produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              for (const layer of menu.layers) {
-                for (const el of layer.elements) {
-                  if (el.id !== elementId) continue;
-                  const appearance = el.appearances[appearanceIndex];
-                  if (!appearance) return;
-                  if (!appearance.click) appearance.click = {};
-                  if (!appearance.click[clickType]) {
-                    appearance.click[clickType] = { actions: [] };
-                  }
-                  const handler = appearance.click[clickType]!;
-                  if (fallback) {
-                    if (!handler.fallback) handler.fallback = [];
-                    handler.fallback.push(action);
-                  } else {
-                    handler.actions.push(action);
-                  }
-                  pack.updatedAt = new Date().toISOString();
-                  return;
-                }
-              }
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              if (!parent) return;
+              const at = index < 0 || index > parent.length ? parent.length : index;
+              parent.splice(at, 0, step);
+              touch(draft, pId);
             }),
           ),
-        removeElementAction: ({
+        removeElementStep: ({
           packId: pId,
           menuId: mId,
           elementId,
           appearanceIndex,
           clickType,
-          fallback,
-          actionIndex,
+          path,
         }) =>
           set(
             produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              for (const layer of menu.layers) {
-                for (const el of layer.elements) {
-                  if (el.id !== elementId) continue;
-                  const appearance = el.appearances[appearanceIndex];
-                  const handler = appearance?.click?.[clickType];
-                  if (!handler) return;
-                  const list = fallback ? handler.fallback : handler.actions;
-                  if (!list || actionIndex < 0 || actionIndex >= list.length) return;
-                  list.splice(actionIndex, 1);
-                  if (fallback && handler.fallback?.length === 0) handler.fallback = undefined;
-                  pack.updatedAt = new Date().toISOString();
-                  return;
-                }
-              }
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              parent.splice(path.index, 1);
+              touch(draft, pId);
             }),
           ),
-        moveElementAction: ({
+        moveElementStep: ({
           packId: pId,
           menuId: mId,
           elementId,
           appearanceIndex,
           clickType,
-          fallback,
+          frames,
           fromIndex,
           toIndex,
         }) =>
           set(
             produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              for (const layer of menu.layers) {
-                for (const el of layer.elements) {
-                  if (el.id !== elementId) continue;
-                  const appearance = el.appearances[appearanceIndex];
-                  const handler = appearance?.click?.[clickType];
-                  if (!handler) return;
-                  const list = fallback ? handler.fallback : handler.actions;
-                  if (!list) return;
-                  if (
-                    fromIndex < 0 ||
-                    fromIndex >= list.length ||
-                    toIndex < 0 ||
-                    toIndex >= list.length
-                  )
-                    return;
-                  const [moved] = list.splice(fromIndex, 1);
-                  if (moved) list.splice(toIndex, 0, moved);
-                  pack.updatedAt = new Date().toISOString();
-                  return;
-                }
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              if (!parent) return;
+              if (fromIndex < 0 || fromIndex >= parent.length) return;
+              if (toIndex < 0 || toIndex >= parent.length) return;
+              const [moved] = parent.splice(fromIndex, 1);
+              if (moved) parent.splice(toIndex, 0, moved);
+              touch(draft, pId);
+            }),
+          ),
+        addIfCase: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              ifStep.cases.push({ conditions: [], steps: [] });
+              touch(draft, pId);
+            }),
+          ),
+        removeIfCase: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+          caseIndex,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+              ifStep.cases.splice(caseIndex, 1);
+              touch(draft, pId);
+            }),
+          ),
+        setIfCaseConditions: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+          caseIndex,
+          conditions,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              c.conditions = conditions;
+              touch(draft, pId);
+            }),
+          ),
+        toggleIfElse: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+          enabled,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (enabled) {
+                if (!ifStep.else) ifStep.else = [];
+              } else {
+                ifStep.else = undefined;
               }
+              touch(draft, pId);
             }),
           ),
         addElementClickHandler: ({
@@ -720,7 +911,7 @@ export const useAccountStore = create<AccountState>()(
                   if (!appearance) return;
                   if (!appearance.click) appearance.click = {};
                   if (!appearance.click[clickType]) {
-                    appearance.click[clickType] = { actions: [] };
+                    appearance.click[clickType] = { steps: [] };
                     pack.updatedAt = new Date().toISOString();
                   }
                   return;
@@ -842,84 +1033,114 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
-        setHandlerRequirements: ({
+        setCommandStep: ({ packId: pId, commandId: cId, path, step }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              parent[path.index] = step;
+              touch(draft, pId);
+            }),
+          ),
+        addCommandStep: ({ packId: pId, commandId: cId, frames, index, step }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              if (!parent) return;
+              const at = index < 0 || index > parent.length ? parent.length : index;
+              parent.splice(at, 0, step);
+              touch(draft, pId);
+            }),
+          ),
+        removeCommandStep: ({ packId: pId, commandId: cId, path }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              parent.splice(path.index, 1);
+              touch(draft, pId);
+            }),
+          ),
+        moveCommandStep: ({ packId: pId, commandId: cId, frames, fromIndex, toIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              if (!parent) return;
+              if (fromIndex < 0 || fromIndex >= parent.length) return;
+              if (toIndex < 0 || toIndex >= parent.length) return;
+              const [moved] = parent.splice(fromIndex, 1);
+              if (moved) parent.splice(toIndex, 0, moved);
+              touch(draft, pId);
+            }),
+          ),
+        addCommandIfCase: ({ packId: pId, commandId: cId, frames, ifStepIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              ifStep.cases.push({ conditions: [], steps: [] });
+              touch(draft, pId);
+            }),
+          ),
+        removeCommandIfCase: ({ packId: pId, commandId: cId, frames, ifStepIndex, caseIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+              ifStep.cases.splice(caseIndex, 1);
+              touch(draft, pId);
+            }),
+          ),
+        setCommandIfCaseConditions: ({
           packId: pId,
-          menuId: mId,
-          elementId,
-          appearanceIndex,
-          clickType,
+          commandId: cId,
+          frames,
+          ifStepIndex,
+          caseIndex,
           conditions,
         }) =>
           set(
             produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              for (const layer of menu.layers) {
-                for (const el of layer.elements) {
-                  if (el.id !== elementId) continue;
-                  const handler = el.appearances[appearanceIndex]?.click?.[clickType];
-                  if (!handler) return;
-                  handler.requirements = conditions.length > 0 ? conditions : undefined;
-                  pack.updatedAt = new Date().toISOString();
-                  return;
-                }
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              c.conditions = conditions;
+              touch(draft, pId);
+            }),
+          ),
+        toggleCommandIfElse: ({ packId: pId, commandId: cId, frames, ifStepIndex, enabled }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (enabled) {
+                if (!ifStep.else) ifStep.else = [];
+              } else {
+                ifStep.else = undefined;
               }
-            }),
-          ),
-        setCommandAction: ({ packId: pId, commandId: cId, actionIndex, action }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const cmd = pack.commands.find((c) => c.id === cId);
-              if (!cmd) return;
-              if (actionIndex < 0 || actionIndex >= cmd.actions.length) return;
-              cmd.actions[actionIndex] = action;
-              pack.updatedAt = new Date().toISOString();
-            }),
-          ),
-        addCommandAction: ({ packId: pId, commandId: cId, action }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const cmd = pack.commands.find((c) => c.id === cId);
-              if (!cmd) return;
-              cmd.actions.push(action);
-              pack.updatedAt = new Date().toISOString();
-            }),
-          ),
-        removeCommandAction: ({ packId: pId, commandId: cId, actionIndex }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const cmd = pack.commands.find((c) => c.id === cId);
-              if (!cmd) return;
-              if (actionIndex < 0 || actionIndex >= cmd.actions.length) return;
-              cmd.actions.splice(actionIndex, 1);
-              pack.updatedAt = new Date().toISOString();
-            }),
-          ),
-        moveCommandAction: ({ packId: pId, commandId: cId, fromIndex, toIndex }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const cmd = pack.commands.find((c) => c.id === cId);
-              if (!cmd) return;
-              if (
-                fromIndex < 0 ||
-                fromIndex >= cmd.actions.length ||
-                toIndex < 0 ||
-                toIndex >= cmd.actions.length
-              )
-                return;
-              const [moved] = cmd.actions.splice(fromIndex, 1);
-              if (moved) cmd.actions.splice(toIndex, 0, moved);
-              pack.updatedAt = new Date().toISOString();
+              touch(draft, pId);
             }),
           ),
         addElement: ({ packId: pId, menuId: mId, element }) =>
@@ -1111,7 +1332,14 @@ export const useAccountStore = create<AccountState>()(
           set({ account: next });
         },
       }),
-      { name: "interfaze:account" },
+      {
+        name: "interfaze:account",
+        version: 2,
+        migrate: (persisted, version) => {
+          if (version >= 2) return persisted;
+          return migrateV1ToV2(persisted);
+        },
+      },
     ),
     {
       // Track only the account slice so action references aren't diffed.
@@ -1124,3 +1352,72 @@ export const useAccountStore = create<AccountState>()(
     },
   ),
 );
+
+// ────────────────────────────────────────────────────────────────────────────
+// v1 → v2 migration. v1 had ClickHandler.{requirements?, actions, fallback?}
+// and Command.actions; v2 has ClickHandler.steps and Command.steps with the
+// recursive Step tree. Wrap the old flat lists; if requirements/fallback are
+// present, fold them into a single outer if-step.
+//
+// We accept `unknown` because zustand's migrate only knows the shape from the
+// schema version stored in localStorage — not the current types.
+// ────────────────────────────────────────────────────────────────────────────
+type V1Action = { type: string; [k: string]: unknown };
+type V1ClickHandler = {
+  requirements?: unknown[];
+  actions: V1Action[];
+  fallback?: V1Action[];
+};
+type V1Command = { actions: V1Action[]; steps?: never; [k: string]: unknown };
+
+const wrapV1Actions = (actions: V1Action[]) =>
+  actions.map((action) => ({ kind: "action" as const, action }));
+
+const migrateClickHandler = (h: V1ClickHandler) => {
+  const wrappedActions = wrapV1Actions(h.actions ?? []);
+  const wrappedFallback = h.fallback ? wrapV1Actions(h.fallback) : undefined;
+  const conditions = (h.requirements ?? []) as Condition[];
+  if (conditions.length === 0 && !wrappedFallback) {
+    return { steps: wrappedActions };
+  }
+  // Fold gate + chain + fallback into a single outer if-step.
+  const ifStep = {
+    kind: "if" as const,
+    cases: [{ conditions, steps: wrappedActions }],
+    else: wrappedFallback,
+  };
+  return { steps: [ifStep] };
+};
+
+const migrateV1ToV2 = (persisted: unknown): unknown => {
+  if (!persisted || typeof persisted !== "object") return persisted;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy v1 shape — we don't model it in TS
+  const account = (persisted as any).account;
+  if (!account) return persisted;
+  for (const pack of account.packs ?? []) {
+    for (const menu of pack.menus ?? []) {
+      for (const layer of menu.layers ?? []) {
+        for (const el of layer.elements ?? []) {
+          for (const appearance of el.appearances ?? []) {
+            const clickMap = appearance.click;
+            if (!clickMap) continue;
+            for (const key of Object.keys(clickMap)) {
+              const handler = clickMap[key];
+              if (handler && "actions" in handler) {
+                clickMap[key] = migrateClickHandler(handler);
+              }
+            }
+          }
+        }
+      }
+    }
+    for (const cmd of pack.commands ?? []) {
+      const v1 = cmd as V1Command;
+      if (Array.isArray(v1.actions)) {
+        cmd.steps = wrapV1Actions(v1.actions);
+        cmd.actions = undefined;
+      }
+    }
+  }
+  return persisted;
+};
