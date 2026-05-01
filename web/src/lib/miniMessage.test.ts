@@ -51,4 +51,54 @@ describe("parseMiniMessage", () => {
   it("plainTextFromMiniMessage strips tags", () => {
     expect(plainTextFromMiniMessage("<red>Hello <bold>world</bold></red>!")).toBe("Hello world!");
   });
+
+  it("<newline> and <br/> emit a real \\n", () => {
+    expect(parseMiniMessage("a<newline>b")).toEqual([
+      { text: "a", style: {} },
+      { text: "\n", style: {} },
+      { text: "b", style: {} },
+    ]);
+    expect(parseMiniMessage("a<br/>b")[1]?.text).toBe("\n");
+  });
+
+  it("<!bold> turns bold off inside its scope", () => {
+    const segs = parseMiniMessage("<bold>a<!bold>b</!bold>c</bold>");
+    expect(segs).toEqual([
+      { text: "a", style: { bold: true } },
+      { text: "b", style: { bold: false } },
+      { text: "c", style: { bold: true } },
+    ]);
+  });
+
+  it("<gradient:red:gold> assigns per-char interpolated colors", () => {
+    const segs = parseMiniMessage("<gradient:red:gold>abc</gradient>");
+    expect(segs).toHaveLength(3);
+    expect(segs[0]?.style.color).toBe("#ff5555");
+    expect(segs[2]?.style.color).toBe("#ffaa00");
+    // middle char is interpolated halfway
+    expect(segs[1]?.style.color).toMatch(/^#/);
+  });
+
+  it("<rainbow> emits per-char colors with HSL hue cycle", () => {
+    const segs = parseMiniMessage("<rainbow>abcd</rainbow>");
+    expect(segs).toHaveLength(4);
+    for (const s of segs) expect(s.style.color).toMatch(/^#[0-9a-f]{6}$/);
+    // first and last should differ
+    expect(segs[0]?.style.color).not.toBe(segs[3]?.style.color);
+  });
+
+  it("nested formatting inside <gradient> survives the explode", () => {
+    const segs = parseMiniMessage("<gradient:red:gold><bold>ab</bold>c</gradient>");
+    expect(segs).toHaveLength(3);
+    expect(segs[0]?.style.bold).toBe(true);
+    expect(segs[1]?.style.bold).toBe(true);
+    expect(segs[2]?.style.bold).toBeFalsy();
+    // gradient colors still apply per-char
+    expect(segs[0]?.style.color).toBe("#ff5555");
+  });
+
+  it("<shadow:gold:0.5> stores shadow on style", () => {
+    const segs = parseMiniMessage("<shadow:gold:0.5>x");
+    expect(segs[0]?.style.shadow).toEqual({ color: "#ffaa00", alpha: 0.5 });
+  });
 });
