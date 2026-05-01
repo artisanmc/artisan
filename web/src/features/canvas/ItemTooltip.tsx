@@ -59,12 +59,16 @@ export function ItemTooltip({ packId }: ItemTooltipProps) {
         <MiniMessageInline source={title} className="block font-mono text-xs text-white" />
         {lore.length > 0 && (
           <div className="mt-0.5 flex flex-col gap-0">
+            {/* Vanilla MC default lore styling: dark_purple + italic. Per-segment
+                MiniMessage tags override these via their own CSS, and <!italic>
+                explicitly drops italic (CSS font-style: normal wins over parent). */}
             {lore.map((line, i) => (
               <MiniMessageInline
                 // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                 key={i}
                 source={line}
-                className="block font-mono text-[10px] text-zinc-400"
+                className="block font-mono text-[10px] italic"
+                style={{ color: "#aa00aa" }}
               />
             ))}
           </div>

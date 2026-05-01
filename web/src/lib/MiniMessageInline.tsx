@@ -43,17 +43,22 @@ const hexWithAlpha = (hex: string, alpha: number): string => {
 interface MiniMessageInlineProps {
   source: string;
   className?: string;
+  style?: CSSProperties;
 }
 
 /**
  * DOM renderer: emit styled <span>s for each parsed segment. Use anywhere
  * MiniMessage text appears as HTML — properties pane previews, tooltips,
  * sidebar labels, etc. For Konva canvas text, use MiniMessageKonvaText.
+ *
+ * Pass `style` (or class-based color/italic) on the wrapper to set defaults
+ * — MM tags inside the source override on a per-segment basis (the segment
+ * span's color wins over the wrapper's color via cascade).
  */
-export function MiniMessageInline({ source, className }: MiniMessageInlineProps) {
+export function MiniMessageInline({ source, className, style }: MiniMessageInlineProps) {
   const segments = parseMiniMessage(source);
   return (
-    <span className={className}>
+    <span className={className} style={style}>
       {segments.map((seg, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: segments are stable for a given source
         <Fragment key={i}>
