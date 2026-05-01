@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu, type ContextMenuState, type ContextMenuTarget } from "./ContextMenu";
 import { Edges } from "./Edges";
-import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
+import { MATERIAL_DRAG_MIME } from "./Library";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { TextEditor } from "./TextEditor";

@@ -16,9 +16,9 @@ test("canvas redesign smoke", async ({ page }) => {
   // Konva canvas is mounted (Konva renders to a <canvas> inside the wrapper).
   await expect(page.locator("main canvas").first()).toBeVisible();
 
-  // Bottom palette dock and right properties pane are present.
-  await expect(page.getByText("Materials")).toBeVisible();
-  await expect(page.getByText("Pack", { exact: true })).toBeVisible();
+  // Right sidebar tabs are present.
+  await expect(page.getByRole("tab", { name: "Properties" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Library" })).toBeVisible();
 
   // Click another pack mini → URL switches.
   await page.locator("[data-pack-id='p_shop_system']").click();

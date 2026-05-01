@@ -7,9 +7,11 @@ import { PackProperties } from "./properties/PackProperties";
 
 interface PropertiesPaneProps {
   packId: PackId;
+  /** When true, render only the body (no <aside> wrapper). Used by RightSidebar. */
+  embedded?: boolean;
 }
 
-export function PropertiesPane({ packId }: PropertiesPaneProps) {
+export function PropertiesPane({ packId, embedded }: PropertiesPaneProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const ids = useSelectionStore((s) => s.ids);
 
@@ -35,6 +37,15 @@ export function PropertiesPane({ packId }: PropertiesPaneProps) {
   } else {
     title = "Pack";
     body = <PackProperties pack={pack} />;
+  }
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col gap-3 text-sm">
+        <div className="text-xs uppercase text-zinc-500">{title}</div>
+        {body}
+      </div>
+    );
   }
 
   return (
