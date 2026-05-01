@@ -1,8 +1,26 @@
-import type { Command, Menu, PackId } from "@/domain/types";
+import type { Command, ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect } from "react";
 import { readClipboard, rewriteIds, writeClipboard } from "./clipboard";
+
+/**
+ * Locate an element by id within a pack and return enough context
+ * (the owning menu) to call element-scoped actions on it.
+ */
+const findElement = (packId: PackId, elementId: ElementId): { menuId: MenuId } | null => {
+  const account = useAccountStore.getState().account;
+  const pack = account.packs.find((p) => p.id === packId);
+  if (!pack) return null;
+  for (const menu of pack.menus) {
+    for (const layer of menu.layers) {
+      if (layer.elements.some((el) => el.id === elementId)) {
+        return { menuId: menu.id };
+      }
+    }
+  }
+  return null;
+};
 
 const isEditableTarget = (target: EventTarget | null) => {
   const el = target as HTMLElement | null;
@@ -110,10 +128,35 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
       }
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        const ids = [...useSelectionStore.getState().ids];
+        const sel = useSelectionStore.getState();
+        const ids = [...sel.ids];
         if (ids.length === 0) return;
         e.preventDefault();
         try {
+          // If the lone selection is an element, honour the selection mode:
+          //   instance mode (focusedSlot set) → drop only that position
+          //   button mode (focusedSlot null)  → delete the whole element
+          if (ids.length === 1) {
+            const candidate = findElement(packId, ids[0]! as ElementId);
+            if (candidate) {
+              const elementId = ids[0]! as ElementId;
+              if (sel.focusedSlot != null) {
+                useAccountStore.getState().clearSlot({
+                  packId,
+                  menuId: candidate.menuId,
+                  position: sel.focusedSlot,
+                });
+              } else {
+                useAccountStore.getState().deleteElement({
+                  packId,
+                  menuId: candidate.menuId,
+                  elementId,
+                });
+              }
+              useSelectionStore.getState().clear();
+              return;
+            }
+          }
           useAccountStore.getState().deleteFromPack({ packId, nodeIds: ids });
           useSelectionStore.getState().clear();
         } catch (err) {

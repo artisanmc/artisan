@@ -4,6 +4,7 @@ import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { PropertyField } from "./PropertyField";
 
@@ -42,9 +43,33 @@ export function ElementProperties({ packId, menuId, element }: ElementProperties
     setPositionsDraft(canonical);
   };
   const positionsCount = parsePositions(element.positions).length;
+  const focusedSlot = useSelectionStore((s) => s.focusedSlot);
+  const setSelection = useSelectionStore((s) => s.set);
+  const isMultiPos = positionsCount > 1;
+  const inInstanceMode = focusedSlot != null;
 
   return (
     <div className="flex flex-col gap-3">
+      {isMultiPos ? (
+        <button
+          type="button"
+          onClick={() => {
+            // Toggle: instance → button (null), button → instance on first slot.
+            const firstPos = parsePositions(element.positions)[0] ?? null;
+            setSelection([element.id], inInstanceMode ? null : firstPos);
+          }}
+          className={`rounded border px-2 py-1.5 text-left text-[10px] uppercase tracking-wide transition-colors ${
+            inInstanceMode
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+              : "border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"
+          }`}
+          title="Click to switch mode (or cmd-click any slot to enter button mode)"
+        >
+          {inInstanceMode
+            ? `Editing slot ${focusedSlot} · click for button mode`
+            : `Editing button · ${positionsCount} slots`}
+        </button>
+      ) : null}
       <div className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900 p-2">
         <div className="flex h-12 w-12 items-center justify-center rounded border border-zinc-800 bg-[var(--color-bg)]">
           {textureUrl ? (
