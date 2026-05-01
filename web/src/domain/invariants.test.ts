@@ -43,7 +43,12 @@ describe("assertPackHermetic", () => {
                     {
                       click: {
                         left: {
-                          actions: [{ type: "open_menu", menuId: "m_outside" as never }],
+                          steps: [
+                            {
+                              kind: "action",
+                              action: { type: "open_menu", menuId: "m_outside" as never },
+                            },
+                          ],
                         },
                       },
                     },
