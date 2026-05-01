@@ -1,6 +1,8 @@
 import type { Menu, MenuId, PackId } from "@/domain/types";
+import type { ElementId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
+import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
@@ -344,6 +346,15 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                   }
                 : undefined
             }
+            onMouseEnter={
+              filled
+                ? () => {
+                    if (el?.elementId)
+                      useHoverStore.getState().setElement(el.elementId as ElementId);
+                  }
+                : undefined
+            }
+            onMouseLeave={filled ? () => useHoverStore.getState().setElement(null) : undefined}
             onDragEnd={
               filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
             }
