@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
-import { ContextMenu, type ContextMenuState } from "./ContextMenu";
+import { ContextMenu, type ContextMenuState, type ContextMenuTarget } from "./ContextMenu";
 import { Edges } from "./Edges";
 import { MATERIAL_DRAG_MIME } from "./MaterialPalette";
 import { MenuGroup } from "./MenuGroup";
@@ -20,6 +20,21 @@ import { usePanZoom } from "./usePanZoom";
 interface StageProps {
   packId: PackId;
 }
+
+const slotIsFilled = (
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number],
+  menuId: string,
+  position: number,
+): boolean => {
+  const menu = pack.menus.find((m) => m.id === menuId);
+  if (!menu) return false;
+  const positionStr = String(position);
+  return menu.layers.some((l) =>
+    l.elements.some((el) => el.positions === positionStr && el.appearances[0]?.material),
+  );
+};
+
+const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 export function Stage({ packId }: StageProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
@@ -51,24 +66,59 @@ export function Stage({ packId }: StageProps) {
     open: false,
     x: 0,
     y: 0,
-    selectedIds: [],
+    target: emptyTarget,
   });
 
-  const onStageContextMenu = useCallback((e: Konva.KonvaEventObject<PointerEvent>) => {
-    e.evt.preventDefault();
-    const target = e.target;
-    const id = target === target.getStage() ? null : target.findAncestor("Group", true)?.id();
-    const ids = id ? [id] : [];
-    if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
-      useSelectionStore.getState().set(ids);
-    }
-    setCtxMenu({
-      open: true,
-      x: e.evt.clientX,
-      y: e.evt.clientY,
-      selectedIds: ids.length > 0 ? ids : [...useSelectionStore.getState().ids],
-    });
-  }, []);
+  const onStageContextMenu = useCallback(
+    (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      if (!pack) return;
+
+      // Slot path: manual hit-test in world coords (slots have listening=false
+      // so Konva's own target won't surface them).
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const wrapper = wrapperRef.current;
+        if (wrapper) {
+          const world = screenToWorld(pointer, viewport);
+          const slotHit = hitTestSlot(pack, layout, world.x, world.y);
+          if (slotHit) {
+            setCtxMenu({
+              open: true,
+              x: e.evt.clientX,
+              y: e.evt.clientY,
+              target: {
+                kind: "slot",
+                menuId: slotHit.menuId,
+                position: slotHit.position,
+                filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
+              },
+            });
+            return;
+          }
+        }
+      }
+
+      // Entity path: nearest Group ancestor (menu or command).
+      const target = e.target;
+      const id = target === target.getStage() ? null : target.findAncestor("Group", true)?.id();
+      const ids = id ? [id] : [];
+      if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
+        useSelectionStore.getState().set(ids);
+      }
+      setCtxMenu({
+        open: true,
+        x: e.evt.clientX,
+        y: e.evt.clientY,
+        target: {
+          kind: "entity",
+          selectedIds: ids.length > 0 ? ids : [...useSelectionStore.getState().ids],
+        },
+      });
+    },
+    [pack, layout, viewport],
+  );
 
   const closeCtx = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
@@ -111,6 +161,8 @@ export function Stage({ packId }: StageProps) {
   }, []);
 
   if (!pack) return <div className="p-8 text-zinc-500">Pack not found.</div>;
+
+  const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 
   return (
     <div
@@ -164,9 +216,7 @@ export function Stage({ packId }: StageProps) {
         state={ctxMenu}
         onClose={closeCtx}
         onCopy={() => {
-          void canvasClipboardActions.copySelection(packId, ctxMenu.selectedIds, (m) =>
-            toast.error(m),
-          );
+          void canvasClipboardActions.copySelection(packId, entityIds, (m) => toast.error(m));
           closeCtx();
         }}
         onPaste={() => {
@@ -174,15 +224,13 @@ export function Stage({ packId }: StageProps) {
           closeCtx();
         }}
         onDuplicate={() => {
-          canvasClipboardActions.duplicateSelection(packId, ctxMenu.selectedIds, (m) =>
-            toast.error(m),
-          );
+          canvasClipboardActions.duplicateSelection(packId, entityIds, (m) => toast.error(m));
           closeCtx();
         }}
         onDelete={() => {
-          if (ctxMenu.selectedIds.length === 0) return;
+          if (entityIds.length === 0) return;
           try {
-            useAccountStore.getState().deleteFromPack({ packId, nodeIds: ctxMenu.selectedIds });
+            useAccountStore.getState().deleteFromPack({ packId, nodeIds: entityIds });
             useSelectionStore.getState().clear();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "delete failed");
@@ -190,16 +238,29 @@ export function Stage({ packId }: StageProps) {
           closeCtx();
         }}
         onMoveTo={(toPackId) => {
-          if (ctxMenu.selectedIds.length !== 1) return;
+          if (entityIds.length !== 1) return;
           try {
             useAccountStore.getState().moveMenuToPack({
-              menuId: ctxMenu.selectedIds[0]! as MenuId,
+              menuId: entityIds[0]! as MenuId,
               fromPackId: packId,
               toPackId,
             });
             toast.success(`Moved to ${toPackId}`);
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "move failed");
+          }
+          closeCtx();
+        }}
+        onClearSlot={() => {
+          if (ctxMenu.target.kind !== "slot") return;
+          try {
+            useAccountStore.getState().clearSlot({
+              packId,
+              menuId: ctxMenu.target.menuId as MenuId,
+              position: ctxMenu.target.position,
+            });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "clear failed");
           }
           closeCtx();
         }}
