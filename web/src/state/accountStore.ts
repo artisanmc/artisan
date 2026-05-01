@@ -10,7 +10,7 @@ import type {
   MenuId,
   PackId,
 } from "@/domain/types";
-import { parsePositions, positionsContains, removePosition } from "@/lib/positions";
+import { addPosition, parsePositions, positionsContains, removePosition } from "@/lib/positions";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -69,6 +69,31 @@ interface AccountState {
     elementId: ElementId;
     positions: string;
   }) => void;
+  /**
+   * Move one position of an element to another slot — atomically replaces
+   * `fromPosition` with `toPosition` in the element's positions list, and
+   * removes `toPosition` from any other element that might have owned it
+   * (positions are unique across elements within a menu).
+   */
+  moveElementPosition: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    fromPosition: number;
+    toPosition: number;
+  }) => void;
+  /**
+   * Add a position to an element's list (Alt+drag duplicate). If another
+   * element already owns the position, it loses it.
+   */
+  addElementPosition: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    position: number;
+  }) => void;
+  /** Remove an element from its menu, regardless of how many positions it has. */
+  deleteElement: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
   /**
    * Set (or clear) a menu's background image. When `dataUrl` is provided we
    * also create a new Asset on the pack with the given metadata. When null, the
@@ -192,9 +217,7 @@ export const useAccountStore = create<AccountState>()(
               if (typeof value !== "number") return;
               const maxPos = value * 9 - 1;
               const overflow = menu.layers.some((l) =>
-                l.elements.some((el) =>
-                  parsePositions(el.positions).some((p) => p > maxPos),
-                ),
+                l.elements.some((el) => parsePositions(el.positions).some((p) => p > maxPos)),
               );
               if (overflow) {
                 throw new Error(
@@ -290,6 +313,80 @@ export const useAccountStore = create<AccountState>()(
                 for (const el of layer.elements) {
                   if (el.id !== elementId) continue;
                   el.positions = positions;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        moveElementPosition: ({ packId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              // First, strip toPosition from any element that owns it.
+              for (const layer of menu.layers) {
+                for (const otherEl of layer.elements) {
+                  if (otherEl.id === elementId) continue;
+                  if (positionsContains(otherEl.positions, toPosition)) {
+                    otherEl.positions = removePosition(otherEl.positions, toPosition);
+                  }
+                }
+                layer.elements = layer.elements.filter((el) => el.positions !== "");
+              }
+              // Then update the source element: remove from, add to.
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  el.positions = addPosition(
+                    removePosition(el.positions, fromPosition),
+                    toPosition,
+                  );
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        addElementPosition: ({ packId: pId, menuId: mId, elementId, position }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const otherEl of layer.elements) {
+                  if (otherEl.id === elementId) continue;
+                  if (positionsContains(otherEl.positions, position)) {
+                    otherEl.positions = removePosition(otherEl.positions, position);
+                  }
+                }
+                layer.elements = layer.elements.filter((el) => el.positions !== "");
+              }
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  el.positions = addPosition(el.positions, position);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        deleteElement: ({ packId: pId, menuId: mId, elementId }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                const idx = layer.elements.findIndex((el) => el.id === elementId);
+                if (idx !== -1) {
+                  layer.elements.splice(idx, 1);
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }

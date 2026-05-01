@@ -1,7 +1,17 @@
-import { menuId, packId } from "@/domain/ids";
+import { elementId, menuId, packId } from "@/domain/ids";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+
+const PERSONAL = packId("p_personal");
+const SHOP_MAIN = menuId("m_shop_main");
+const PROFILE_BTN = elementId("el_btn_profile");
+
+const findElement = (mId = SHOP_MAIN, eId = PROFILE_BTN) => {
+  const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+  const menu = pack.menus.find((m) => m.id === mId)!;
+  return menu.layers[0]!.elements.find((el) => el.id === eId);
+};
 
 describe("accountStore", () => {
   beforeEach(() => {
@@ -135,6 +145,113 @@ describe("accountStore", () => {
         .menus.find((m) => m.id === "m_shop_main")!
         .layers[0]!.elements.find((e) => e.positions === "13")?.appearances[0]?.material,
     ).not.toBe("EMERALD");
+  });
+
+  it("setElementPositions replaces the element's positions string", () => {
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0-2,13",
+    });
+    expect(findElement()?.positions).toBe("0-2,13");
+  });
+
+  it("addElementPosition (Alt+drag duplicate) extends the positions list", () => {
+    useAccountStore.getState().addElementPosition({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      position: 14,
+    });
+    expect(findElement()?.positions).toBe("13-14");
+  });
+
+  it("addElementPosition steals the slot from another element", () => {
+    // Seed a second element at position 22, then duplicate the profile button onto it.
+    useAccountStore.getState().setSlotMaterial({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      position: 22,
+      material: "DIRT",
+    });
+    useAccountStore.getState().addElementPosition({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      position: 22,
+    });
+    expect(findElement()?.positions).toBe("13,22");
+    // The DIRT element lost its only position and was pruned entirely.
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+    const dirt = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "DIRT");
+    expect(dirt).toBeUndefined();
+  });
+
+  it("moveElementPosition relocates a single position", () => {
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "13",
+    });
+    useAccountStore.getState().moveElementPosition({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      fromPosition: 13,
+      toPosition: 4,
+    });
+    expect(findElement()?.positions).toBe("4");
+  });
+
+  it("moveElementPosition keeps multi-pos elements in sync", () => {
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0-2",
+    });
+    useAccountStore.getState().moveElementPosition({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      fromPosition: 1,
+      toPosition: 5,
+    });
+    expect(findElement()?.positions).toBe("0,2,5");
+  });
+
+  it("clearSlot on a multi-pos element removes only that position", () => {
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0-3",
+    });
+    useAccountStore.getState().clearSlot({ packId: PERSONAL, menuId: SHOP_MAIN, position: 1 });
+    expect(findElement()?.positions).toBe("0,2-3");
+  });
+
+  it("clearSlot deletes the element when its last position goes", () => {
+    useAccountStore.getState().clearSlot({ packId: PERSONAL, menuId: SHOP_MAIN, position: 13 });
+    expect(findElement()).toBeUndefined();
+  });
+
+  it("deleteElement removes the entire element regardless of position count", () => {
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0-8",
+    });
+    useAccountStore.getState().deleteElement({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+    });
+    expect(findElement()).toBeUndefined();
   });
 
   it("createPack clears the temporal stack", () => {

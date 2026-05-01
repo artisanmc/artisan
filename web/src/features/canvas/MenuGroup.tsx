@@ -1,5 +1,4 @@
-import type { Menu, MenuId, PackId } from "@/domain/types";
-import type { ElementId } from "@/domain/types";
+import type { ElementId, Menu, PackId } from "@/domain/types";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
@@ -147,6 +146,8 @@ interface MenuGroupProps {
 export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
+  const selectedIds = useSelectionStore((s) => s.ids);
+  const focusedSlot = useSelectionStore((s) => s.focusedSlot);
   const customBgUrl = useAccountStore((s) => {
     if (!menu.background) return undefined;
     const pack = s.account.packs.find((p) => p.id === packId);
@@ -213,8 +214,19 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     e.target.moveToTop();
   }, []);
 
+  /**
+   * Slot drag-end router:
+   *   - drop outside any menu          → remove this position from the source element
+   *   - drop on another slot, no Alt   → MOVE the position within the source
+   *                                       element (replaces the target if owned by
+   *                                       a different element)
+   *   - drop on another slot, Alt held → DUPLICATE — add target position to the
+   *                                       source element, source position stays
+   *   - drop on a slot already owned by the source element → no-op
+   *   - cross-menu drops are deferred (treated as drag-out for now)
+   */
   const onSlotDragEnd = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, material: string) => {
+    (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, sourceElementId: ElementId) => {
       e.cancelBubble = true;
       const node = e.target;
       const localX = node.x();
@@ -228,27 +240,34 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       const pack = account.packs.find((p) => p.id === packId);
       if (!pack) return;
       const hit = hitTestSlot(pack, layout, worldX, worldY);
-
-      if (hit && hit.menuId === menu.id && hit.position === srcPosition) return;
+      const altKey = (e.evt as MouseEvent).altKey;
 
       try {
-        if (!hit) {
+        if (!hit || hit.menuId !== menu.id) {
           useAccountStore.getState().clearSlot({
             packId,
             menuId: menu.id,
             position: srcPosition,
+          });
+          return;
+        }
+
+        if (hit.position === srcPosition) return;
+
+        if (altKey) {
+          useAccountStore.getState().addElementPosition({
+            packId,
+            menuId: menu.id,
+            elementId: sourceElementId,
+            position: hit.position,
           });
         } else {
-          useAccountStore.getState().setSlotMaterial({
-            packId,
-            menuId: hit.menuId as MenuId,
-            position: hit.position,
-            material,
-          });
-          useAccountStore.getState().clearSlot({
+          useAccountStore.getState().moveElementPosition({
             packId,
             menuId: menu.id,
-            position: srcPosition,
+            elementId: sourceElementId,
+            fromPosition: srcPosition,
+            toPosition: hit.position,
           });
         }
       } catch (err) {
@@ -365,6 +384,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         const filled = Boolean(el?.material);
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
+        const elementSelected = Boolean(el?.elementId && selectedIds.has(el.elementId));
+        const isFocusedSlot = elementSelected && focusedSlot === i;
+        const isButtonMode = elementSelected && focusedSlot === null;
         return (
           <Group
             // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
@@ -372,7 +394,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             x={x}
             y={y}
             name={`slot:${menu.id}:${i}`}
-            id={el?.elementId}
             listening={filled}
             draggable={filled}
             onDragStart={filled ? onSlotDragStart : undefined}
@@ -380,7 +401,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               filled
                 ? (e) => {
                     e.cancelBubble = true;
-                    if (el?.elementId) useSelectionStore.getState().set([el.elementId]);
+                    if (!el?.elementId) return;
+                    const evt = e.evt as MouseEvent;
+                    // Cmd/Ctrl-click → button mode (focus all positions of this
+                    // element). Plain click → instance mode (focus this slot).
+                    const buttonMode = evt.metaKey || evt.ctrlKey;
+                    useSelectionStore.getState().set([el.elementId], buttonMode ? null : i);
                   }
                 : undefined
             }
@@ -388,7 +414,8 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               filled
                 ? (e) => {
                     e.cancelBubble = true;
-                    if (el?.elementId) useSelectionStore.getState().set([el.elementId]);
+                    if (!el?.elementId) return;
+                    useSelectionStore.getState().set([el.elementId], i);
                   }
                 : undefined
             }
@@ -402,7 +429,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             }
             onMouseLeave={filled ? () => useHoverStore.getState().setElement(null) : undefined}
             onDragEnd={
-              filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
+              filled && el?.elementId
+                ? (e) => onSlotDragEnd(e, i, el.elementId as ElementId)
+                : undefined
             }
           >
             {filled ? (
@@ -411,6 +440,21 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 innerX={innerX}
                 innerY={innerY}
                 count={el?.count}
+              />
+            ) : null}
+            {/* Selection outlines: every position of the selected element
+                gets a soft outline; the focused-instance slot gets a brighter
+                one; cmd-click button mode highlights all positions equally. */}
+            {elementSelected ? (
+              <Rect
+                x={innerX - 1}
+                y={innerY - 1}
+                width={TEX_SLOT_INNER + 2}
+                height={TEX_SLOT_INNER + 2}
+                stroke={isFocusedSlot ? "#22c55e" : isButtonMode ? "#3b82f6" : "#22c55e80"}
+                strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1}
+                listening={false}
+                perfectDrawEnabled={false}
               />
             ) : null}
           </Group>
