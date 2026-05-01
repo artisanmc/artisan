@@ -5,7 +5,7 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PropertyField } from "./PropertyField";
 
 interface ElementPropertiesProps {
@@ -27,14 +27,15 @@ export function ElementProperties({ packId, menuId, element }: ElementProperties
   const loreText = (appearance?.lore ?? []).join("\n");
   const textureUrl = itemTextureUrl(material);
   const [positionsDraft, setPositionsDraft] = useState(element.positions);
-  // Keep the draft in sync if the element is mutated outside this pane (e.g.
-  // a slot is dropped/cleared elsewhere); reset on element id change.
-  if (
-    element.positions !== formatPositions(parsePositions(positionsDraft)) &&
-    element.positions !== positionsDraft
-  ) {
-    // Don't fight active typing — only reset when the parsed canonical drifts.
-  }
+  // Keep the draft in sync when the element changes outside this pane (drag,
+  // duplicate, clear). The input isn't focused during those operations so we
+  // won't clobber active typing in practice. element.id is in the deps so a
+  // selection switch between two elements with identical positions still
+  // resets the draft.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: element.id forces draft reset on element switch
+  useEffect(() => {
+    setPositionsDraft(element.positions);
+  }, [element.id, element.positions]);
   const commitPositions = () => {
     const canonical = formatPositions(parsePositions(positionsDraft));
     if (canonical !== element.positions) {
@@ -44,32 +45,15 @@ export function ElementProperties({ packId, menuId, element }: ElementProperties
   };
   const positionsCount = parsePositions(element.positions).length;
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
-  const setSelection = useSelectionStore((s) => s.set);
   const isMultiPos = positionsCount > 1;
-  const inInstanceMode = focusedSlot != null;
+  const modeLabel = !isMultiPos
+    ? null
+    : focusedSlot != null
+      ? `slot ${focusedSlot} · click again to widen`
+      : "whole button · click any slot to focus it";
 
   return (
     <div className="flex flex-col gap-3">
-      {isMultiPos ? (
-        <button
-          type="button"
-          onClick={() => {
-            // Toggle: instance → button (null), button → instance on first slot.
-            const firstPos = parsePositions(element.positions)[0] ?? null;
-            setSelection([element.id], inInstanceMode ? null : firstPos);
-          }}
-          className={`rounded border px-2 py-1.5 text-left text-[10px] uppercase tracking-wide transition-colors ${
-            inInstanceMode
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-              : "border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"
-          }`}
-          title="Click to switch mode (or cmd-click any slot to enter button mode)"
-        >
-          {inInstanceMode
-            ? `Editing slot ${focusedSlot} · click for button mode`
-            : `Editing button · ${positionsCount} slots`}
-        </button>
-      ) : null}
       <div className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900 p-2">
         <div className="flex h-12 w-12 items-center justify-center rounded border border-zinc-800 bg-[var(--color-bg)]">
           {textureUrl ? (
@@ -89,6 +73,13 @@ export function ElementProperties({ packId, menuId, element }: ElementProperties
           <div className="text-[10px] text-zinc-500">
             {positionsCount} slot{positionsCount > 1 ? "s" : ""} · element {element.id}
           </div>
+          {modeLabel ? (
+            <div
+              className={`text-[10px] ${focusedSlot != null ? "text-emerald-400" : "text-blue-400"}`}
+            >
+              {modeLabel}
+            </div>
+          ) : null}
         </div>
       </div>
 
