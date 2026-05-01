@@ -96,9 +96,18 @@ export type Step =
   | { kind: "action"; action: Action }
   | { kind: "if"; cases: IfCase[]; else?: Step[] };
 
-/** One arm of an if/else-if chain. `conditions` is AND-ed (matches the existing requirements semantics). */
+/**
+ * One arm of an if/else-if chain.
+ *
+ *   match = "all" (default) → AND-join the conditions
+ *   match = "any"           → OR-join the conditions
+ *
+ * For mixed boolean expressions, wrap nested conditions inside a `not` (the
+ * Condition tree itself doesn't yet have AND/OR — fold via nested cases).
+ */
 export interface IfCase {
   conditions: Condition[];
+  match?: "all" | "any";
   steps: Step[];
 }
 
