@@ -10,6 +10,7 @@ import type {
   MenuId,
   PackId,
 } from "@/domain/types";
+import { parsePositions, positionsContains, removePosition } from "@/lib/positions";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -60,6 +61,13 @@ interface AccountState {
     menuId: MenuId;
     elementId: ElementId;
     lines: string[];
+  }) => void;
+  /** Replace the element's positions string (e.g. "0-8,17,26"). */
+  setElementPositions: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    positions: string;
   }) => void;
   /**
    * Set (or clear) a menu's background image. When `dataUrl` is provided we
@@ -184,7 +192,9 @@ export const useAccountStore = create<AccountState>()(
               if (typeof value !== "number") return;
               const maxPos = value * 9 - 1;
               const overflow = menu.layers.some((l) =>
-                l.elements.some((el) => Number(el.positions) > maxPos),
+                l.elements.some((el) =>
+                  parsePositions(el.positions).some((p) => p > maxPos),
+                ),
               );
               if (overflow) {
                 throw new Error(
@@ -219,10 +229,11 @@ export const useAccountStore = create<AccountState>()(
               if (!pack) return;
               const menu = pack.menus.find((m) => m.id === mId);
               if (!menu) return;
-              const positionStr = String(position);
+              // Find the element that currently owns this position (single OR
+              // multi-pos), update its material — preserves title/lore/count.
               for (const layer of menu.layers) {
                 for (const el of layer.elements) {
-                  if (el.positions !== positionStr) continue;
+                  if (!positionsContains(el.positions, position)) continue;
                   const appearance = el.appearances[0];
                   if (appearance) appearance.material = material;
                   pack.updatedAt = new Date().toISOString();
@@ -236,7 +247,7 @@ export const useAccountStore = create<AccountState>()(
               }
               firstLayer.elements.push({
                 id: newElementId(),
-                positions: positionStr,
+                positions: String(position),
                 appearances: [{ material }],
               });
               pack.updatedAt = new Date().toISOString();
@@ -262,6 +273,23 @@ export const useAccountStore = create<AccountState>()(
                     if (Number.isNaN(n) || n < 1 || n > 64) return;
                     appearance.count = n === 1 ? undefined : n;
                   }
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setElementPositions: ({ packId: pId, menuId: mId, elementId, positions }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  el.positions = positions;
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }
@@ -294,14 +322,21 @@ export const useAccountStore = create<AccountState>()(
               if (!pack) return;
               const menu = pack.menus.find((m) => m.id === mId);
               if (!menu) return;
-              const positionStr = String(position);
               for (const layer of menu.layers) {
-                const idx = layer.elements.findIndex((el) => el.positions === positionStr);
-                if (idx !== -1) {
+                const idx = layer.elements.findIndex((el) =>
+                  positionsContains(el.positions, position),
+                );
+                if (idx === -1) continue;
+                const el = layer.elements[idx]!;
+                const remaining = removePosition(el.positions, position);
+                if (remaining === "") {
+                  // Last position — drop the element entirely.
                   layer.elements.splice(idx, 1);
-                  pack.updatedAt = new Date().toISOString();
-                  return;
+                } else {
+                  el.positions = remaining;
                 }
+                pack.updatedAt = new Date().toISOString();
+                return;
               }
             }),
           ),
