@@ -4,18 +4,23 @@ import { useEditingStore } from "@/state/editingStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
-import { Group, Rect, Text } from "react-konva";
+import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
-import { BackgroundImage } from "./BackgroundImage";
+import useImage from "use-image";
 import { hitTestSlot } from "./hitTest";
 import {
   COLS,
-  GRID_PADDING,
-  MENU_HEADER_HEIGHT,
-  SLOT_GAP,
-  SLOT_SIZE,
+  TEX_FIRST_SLOT_X,
+  TEX_SCALE,
+  TEX_SLOT_INNER,
+  TEX_SLOT_INNER_OFFSET,
+  TEX_SLOT_STRIDE,
+  TEX_URL,
+  bottomPieceCrop,
+  bottomPieceY,
   menuBoxSize,
   slotXY,
+  topPieceCrop,
 } from "./menuLayout";
 
 interface MenuGroupProps {
@@ -28,36 +33,38 @@ interface MenuGroupProps {
 }
 
 /**
- * Perf notes:
- * - No Canvas2D shadows (they force an offscreen buffer per shape; with ~200
- *   nodes per menu × N menus that tanks the drag frame rate). The 1px stroke
- *   provides enough definition.
- * - perfectDrawEnabled={false} on every Rect: skips the precise stroke/fill
- *   double-pass that's irrelevant at our visual fidelity.
- * - listening={false} on slot Rects/Text and the header/title Text: drag
- *   targets ride on the parent Group; per-slot interactivity is opt-in
- *   (Task 6 will flip slots back to listening for palette drop hit-testing).
+ * MenuGroup is a Konva Group composing a vanilla-Minecraft chest GUI
+ * representation: title bar + N-row chest slot grid + 4-row player inventory
+ * (always visible, non-interactive). The default rendering uses the actual
+ * `generic_54.png` vanilla texture, sliced into top + bottom pieces so the
+ * chest height adapts to `menu.rows`. A custom uploaded background image
+ * replaces BOTH slices and covers the full menu box.
+ *
+ * Slot interactivity (click-bubbles-up to select menu, drag-out to clear/move)
+ * sits on Group overlays positioned at each chest slot's outer cell. The
+ * texture itself draws the visual slot wells; we just overlay material text
+ * + interaction targets.
  */
 export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
-  const backgroundUrl = useAccountStore((s) => {
+  const customBgUrl = useAccountStore((s) => {
     if (!menu.background) return undefined;
     const pack = s.account.packs.find((p) => p.id === packId);
     return pack?.assets.find((a) => a.id === menu.background!.assetId)?.url;
   });
+  const [vanillaTex] = useImage(TEX_URL);
+  const [customTex] = useImage(customBgUrl ?? "");
+  const usingCustom = Boolean(customBgUrl);
+
   const box = menuBoxSize(menu.rows);
 
-  // Bring the menu Group to the top of its layer when its drag begins so it
-  // visibly floats above other menus while moving.
   const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
   }, []);
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      // Cross-pack drop: if the drag ends with the cursor over a pack mini in
-      // the sidebar, route to moveMenuToPack instead of saving the position.
       const sourceEvent = e.evt;
       const cx = sourceEvent.clientX;
       const cy = sourceEvent.clientY;
@@ -67,8 +74,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
         const targetPackId = m.getAttribute("data-pack-id") as PackId | null;
         if (!targetPackId || targetPackId === packId) continue;
-        // Reset Konva node back to original position so the source pack
-        // doesn't pick up a stale offset before the move clears the menu.
         e.target.position({ x: position.x, y: position.y });
         try {
           useAccountStore
@@ -104,51 +109,37 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id],
   );
 
-  // Bring the parent menu Group to the top so the dragged slot renders above
-  // other menus (otherwise it disappears under the next menu it crosses).
   const onSlotDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.getParent()?.moveToTop();
     e.target.moveToTop();
   }, []);
 
-  /**
-   * Slot drag-out router: drop outside any menu → clear; drop on another slot
-   * → move (set destination, clear source). Self-drop is a no-op. Always
-   * resets the dragged Konva node back to its layout XY so the visual returns
-   * even when the data didn't change.
-   */
   const onSlotDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, material: string) => {
       e.cancelBubble = true;
       const node = e.target;
-      // Compute drop point in pack-canvas world coords. The slot Group's final
-      // x/y is in menu-local space; we need world = menu position + local.
       const localX = node.x();
       const localY = node.y();
-      // Reset visual immediately so any data outcome aligns with what user sees.
       const original = slotXY(srcPosition);
       node.position({ x: original.x, y: original.y });
 
-      const worldX = position.x + localX + SLOT_SIZE / 2;
-      const worldY = position.y + localY + SLOT_SIZE / 2;
+      const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
+      const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
       const account = useAccountStore.getState().account;
       const pack = account.packs.find((p) => p.id === packId);
       if (!pack) return;
-
       const hit = hitTestSlot(pack, layout, worldX, worldY);
 
-      if (hit && hit.menuId === menu.id && hit.position === srcPosition) return; // self-drop
+      if (hit && hit.menuId === menu.id && hit.position === srcPosition) return;
 
       try {
         if (!hit) {
-          // Outside any menu → clear source.
           useAccountStore.getState().clearSlot({
             packId,
             menuId: menu.id,
             position: srcPosition,
           });
         } else {
-          // Move: set target material, then clear source.
           useAccountStore.getState().setSlotMaterial({
             packId,
             menuId: hit.menuId as MenuId,
@@ -181,6 +172,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   }
 
   const slotCount = menu.rows * COLS;
+  const top = topPieceCrop(menu.rows);
+  const bottom = bottomPieceCrop();
+  const bottomY = bottomPieceY(menu.rows);
 
   return (
     <Group
@@ -196,50 +190,81 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       name={`menu:${menu.id}`}
       id={menu.id}
     >
-      <Rect
-        width={box.width}
-        height={box.height}
-        cornerRadius={6}
-        fill="#1f1f23"
-        stroke={isSelected ? "#22c55e" : "#3a3a3f"}
-        strokeWidth={isSelected ? 2 : 1}
-        perfectDrawEnabled={false}
-      />
-      {backgroundUrl ? (
-        <BackgroundImage
-          url={backgroundUrl}
-          x={GRID_PADDING}
-          y={GRID_PADDING + MENU_HEADER_HEIGHT}
-          width={COLS * SLOT_SIZE + (COLS - 1) * SLOT_GAP}
-          height={menu.rows * SLOT_SIZE + (menu.rows - 1) * SLOT_GAP}
+      {/* Background. Custom upload covers the full menu box; vanilla mode
+          renders two slices so the chest height adapts to `rows`. */}
+      {usingCustom && customTex ? (
+        <KonvaImage
+          image={customTex}
+          x={0}
+          y={0}
+          width={box.width}
+          height={box.height}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      ) : vanillaTex ? (
+        <>
+          <KonvaImage
+            image={vanillaTex}
+            x={0}
+            y={0}
+            width={top.width * TEX_SCALE}
+            height={top.height * TEX_SCALE}
+            crop={top}
+            listening={false}
+            perfectDrawEnabled={false}
+            imageSmoothingEnabled={false}
+          />
+          <KonvaImage
+            image={vanillaTex}
+            x={0}
+            y={bottomY}
+            width={bottom.width * TEX_SCALE}
+            height={bottom.height * TEX_SCALE}
+            crop={bottom}
+            listening={false}
+            perfectDrawEnabled={false}
+            imageSmoothingEnabled={false}
+          />
+        </>
+      ) : (
+        // Fallback while textures load.
+        <Rect
+          width={box.width}
+          height={box.height}
+          fill="#c6c6c6"
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )}
+      {/* Selection halo */}
+      {isSelected ? (
+        <Rect
+          width={box.width}
+          height={box.height}
+          stroke="#22c55e"
+          strokeWidth={2}
+          listening={false}
+          perfectDrawEnabled={false}
         />
       ) : null}
+      {/* Title text in the texture's title bar (drawn on top of the bar) */}
       <Text
-        x={GRID_PADDING}
-        y={GRID_PADDING}
+        x={TEX_FIRST_SLOT_X + 1}
+        y={5 * TEX_SCALE}
         text={menu.title}
         fontFamily="ui-monospace, monospace"
-        fontSize={12}
-        fontStyle="600"
-        fill="#e5e5e5"
+        fontSize={7 * TEX_SCALE}
+        fill="#404040"
         listening={false}
       />
-      <Text
-        x={GRID_PADDING}
-        y={GRID_PADDING + 12}
-        text={`${menu.id} · ${menu.rows}×${COLS}`}
-        fontFamily="ui-monospace, monospace"
-        fontSize={9}
-        fill="#71717a"
-        listening={false}
-      />
+      {/* Slot interaction overlays */}
       {Array.from({ length: slotCount }, (_, i) => {
         const { x, y } = slotXY(i);
         const el = elementsByPosition.get(String(i));
         const filled = Boolean(el?.material);
-        // Filled slots are listening + draggable so they can be dragged out
-        // (drop outside any menu → clear, drop on another slot → move).
-        // Empty slots stay non-interactive so menu drag still picks up gap clicks.
+        const innerX = TEX_SLOT_INNER_OFFSET;
+        const innerY = TEX_SLOT_INNER_OFFSET;
         return (
           <Group
             // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
@@ -254,27 +279,33 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
             }
           >
-            <Rect
-              width={SLOT_SIZE}
-              height={SLOT_SIZE}
-              cornerRadius={3}
-              fill={filled ? "#27272a" : backgroundUrl ? "rgba(0,0,0,0.25)" : "#18181b"}
-              stroke={filled ? "#52525b" : "#27272a"}
-              strokeWidth={1}
-              perfectDrawEnabled={false}
-            />
-            {el?.material ? (
-              <Text
-                width={SLOT_SIZE}
-                height={SLOT_SIZE}
-                text={el.material.slice(0, 4)}
-                fontFamily="ui-monospace, monospace"
-                fontSize={8}
-                fill="#d4d4d8"
-                align="center"
-                verticalAlign="middle"
-                listening={false}
-              />
+            {filled ? (
+              <>
+                {/* Subtle dark overlay so material text is readable on any background */}
+                <Rect
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  fill="rgba(20,20,20,0.55)"
+                  cornerRadius={2}
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+                <Text
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  text={el?.material?.slice(0, 4) ?? ""}
+                  fontFamily="ui-monospace, monospace"
+                  fontSize={6 * TEX_SCALE}
+                  fill="#fafafa"
+                  align="center"
+                  verticalAlign="middle"
+                  listening={false}
+                />
+              </>
             ) : null}
           </Group>
         );
@@ -282,5 +313,3 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     </Group>
   );
 }
-
-export const menuHeaderHeight = MENU_HEADER_HEIGHT;

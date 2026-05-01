@@ -3,7 +3,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { GRID_PADDING, menuBoxSize } from "./menuLayout";
+import { TEX_FIRST_SLOT_X, TEX_SCALE, menuBoxSize } from "./menuLayout";
 import type { ViewportState } from "./usePanZoom";
 
 interface TextEditorProps {
@@ -14,9 +14,9 @@ interface TextEditorProps {
 
 /**
  * Inline editor for the active menu's title. Renders an absolutely-positioned
- * <input> on top of the Konva canvas, transformed to track the menu's title
- * position through pan/zoom (re-positioned on every viewport change because
- * Stage re-renders us on viewport state updates).
+ * <input> on top of the Konva canvas, positioned over the title bar (mapped
+ * to the same x/y the Konva Text uses on the texture). Re-positioned on
+ * every viewport change because Stage re-renders us on viewport state updates.
  *
  * Commit: blur or Enter → setMenuField. Cancel: Escape.
  */
@@ -48,9 +48,12 @@ export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
   if (!pos) return null;
 
   const box = menuBoxSize(menu.rows);
-  const screenX = pos.x * viewport.scale + viewport.x + GRID_PADDING * viewport.scale;
-  const screenY = pos.y * viewport.scale + viewport.y + GRID_PADDING * viewport.scale;
-  const screenW = (box.width - GRID_PADDING * 2) * viewport.scale;
+  // Title sits in the texture's title bar — same x as the Konva Text in MenuGroup.
+  const titleOffsetX = TEX_FIRST_SLOT_X + 1;
+  const titleOffsetY = 5 * TEX_SCALE;
+  const screenX = (pos.x + titleOffsetX) * viewport.scale + viewport.x;
+  const screenY = (pos.y + titleOffsetY) * viewport.scale + viewport.y;
+  const screenW = (box.width - titleOffsetX * 2) * viewport.scale;
 
   const commit = () => {
     if (!editingMenuId) return;
@@ -83,15 +86,14 @@ export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
         left: screenX,
         top: screenY,
         width: screenW,
-        height: 14 * viewport.scale,
+        height: 9 * TEX_SCALE * viewport.scale,
         padding: 0,
         border: 0,
         outline: "1px solid #22c55e",
-        background: "#1f1f23",
-        color: "#e5e5e5",
+        background: "rgba(198,198,198,0.95)",
+        color: "#404040",
         fontFamily: "ui-monospace, monospace",
-        fontSize: 12 * viewport.scale,
-        fontWeight: 600,
+        fontSize: 7 * TEX_SCALE * viewport.scale,
       }}
     />
   );
