@@ -541,7 +541,7 @@ function ElementIfCard({
   const addIfCase = useAccountStore((s) => s.addIfCase);
   const removeIfCase = useAccountStore((s) => s.removeIfCase);
   const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
-  const setIfCaseMatch = useAccountStore((s) => s.setIfCaseMatch);
+  const setIfCaseJoin = useAccountStore((s) => s.setIfCaseJoin);
   return (
     <div
       className={cx(
@@ -603,8 +603,8 @@ function ElementIfCard({
                       conditions,
                     })
                   }
-                  onMatchChange={(match) =>
-                    setIfCaseMatch({
+                  onJoinChange={(joinIndex, op) =>
+                    setIfCaseJoin({
                       packId,
                       menuId,
                       elementId,
@@ -613,7 +613,8 @@ function ElementIfCard({
                       frames,
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
-                      match,
+                      joinIndex,
+                      op,
                     })
                   }
                   renderSteps={(steps, childFrames) => (
@@ -886,7 +887,7 @@ function CaseRow({
   renderSteps,
   onRemoveCase,
   onConditionsChange,
-  onMatchChange,
+  onJoinChange,
   defaultCollapsed = false,
 }: {
   label: string;
@@ -901,20 +902,23 @@ function CaseRow({
    * properties pane to edit them.
    */
   onConditionsChange?: (conditions: Condition[]) => void;
-  /** When provided, expose a match-all/any (AND/OR) toggle on the inline editor. */
-  onMatchChange?: (match: "all" | "any") => void;
+  /** When provided, expose per-joiner AND/OR toggles on the inline editor. */
+  onJoinChange?: (joinIndex: number, op: "and" | "or") => void;
   /** Initial collapse state. Useful when the parent has many cases. */
   defaultCollapsed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const stepCount = ifCase?.steps.length ?? 0;
-  const join = ifCase?.match === "any" ? " OR " : " AND ";
-  const conditionsSummary =
-    ifCase && ifCase.conditions.length > 0
-      ? ifCase.conditions.map(conditionSummary).join(join)
-      : ifCase
-        ? "(always)"
-        : null;
+  const conditionsSummary = ifCase
+    ? ifCase.conditions.length === 0
+      ? "(always)"
+      : ifCase.conditions
+          .map((c, i) => {
+            const op = (ifCase.joins?.[i - 1] ?? "and").toUpperCase();
+            return i === 0 ? conditionSummary(c) : ` ${op} ${conditionSummary(c)}`;
+          })
+          .join("")
+    : null;
   return (
     <div className="rounded border border-zinc-800 bg-zinc-950/50 p-1.5">
       <div className="mb-1 flex items-center gap-1">
@@ -960,8 +964,8 @@ function CaseRow({
                 conditions={ifCase.conditions}
                 onChange={onConditionsChange}
                 emptyHint="(always — drop a condition here to gate this case)"
-                match={ifCase.match ?? "all"}
-                onMatchChange={onMatchChange}
+                joins={ifCase.joins}
+                onJoinChange={onJoinChange}
               />
             </div>
           ) : null}
@@ -1238,7 +1242,7 @@ function CommandIfCard({
   const toggleCommandIfElse = useAccountStore((s) => s.toggleCommandIfElse);
   const removeCommandIfCase = useAccountStore((s) => s.removeCommandIfCase);
   const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
-  const setCommandIfCaseMatch = useAccountStore((s) => s.setCommandIfCaseMatch);
+  const setCommandIfCaseJoin = useAccountStore((s) => s.setCommandIfCaseJoin);
   return (
     <div
       className={cx(
@@ -1291,14 +1295,15 @@ function CommandIfCard({
                       conditions,
                     })
                   }
-                  onMatchChange={(match) =>
-                    setCommandIfCaseMatch({
+                  onJoinChange={(joinIndex, op) =>
+                    setCommandIfCaseJoin({
                       packId,
                       commandId,
                       frames,
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
-                      match,
+                      joinIndex,
+                      op,
                     })
                   }
                   renderSteps={(steps, childFrames) => (
