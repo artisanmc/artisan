@@ -5,7 +5,7 @@ import { useEditingStore } from "@/state/editingStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
@@ -209,9 +209,38 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id],
   );
 
-  const onSlotDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+  // Active drag-source for the Alt-duplicate ghost: when the user holds Alt
+  // mid-drag we render a non-interactive copy of the source slot so they see
+  // the original "stay" while the cursor copy moves.
+  const [dragSource, setDragSource] = useState<{ position: number; altKey: boolean } | null>(null);
+
+  // Watch Alt key changes while a slot is being dragged; mousemove also
+  // refreshes altKey via dragmove, but key events catch presses while idle.
+  const isDragging = dragSource !== null;
+  useEffect(() => {
+    if (!isDragging) return;
+    const sync = (e: KeyboardEvent) => {
+      setDragSource((prev) =>
+        prev && prev.altKey !== e.altKey ? { ...prev, altKey: e.altKey } : prev,
+      );
+    };
+    window.addEventListener("keydown", sync);
+    window.addEventListener("keyup", sync);
+    return () => {
+      window.removeEventListener("keydown", sync);
+      window.removeEventListener("keyup", sync);
+    };
+  }, [isDragging]);
+
+  const onSlotDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>, position: number) => {
     e.target.getParent()?.moveToTop();
     e.target.moveToTop();
+    setDragSource({ position, altKey: (e.evt as MouseEvent).altKey });
+  }, []);
+
+  const onSlotDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    const altKey = (e.evt as MouseEvent).altKey;
+    setDragSource((prev) => (prev && prev.altKey !== altKey ? { ...prev, altKey } : prev));
   }, []);
 
   /**
@@ -228,6 +257,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const onSlotDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, sourceElementId: ElementId) => {
       e.cancelBubble = true;
+      setDragSource(null);
       const node = e.target;
       const localX = node.x();
       const localY = node.y();
@@ -396,17 +426,27 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             name={`slot:${menu.id}:${i}`}
             listening={filled}
             draggable={filled}
-            onDragStart={filled ? onSlotDragStart : undefined}
+            onDragStart={filled ? (e) => onSlotDragStart(e, i) : undefined}
+            onDragMove={filled ? onSlotDragMove : undefined}
             onClick={
               filled
                 ? (e) => {
                     e.cancelBubble = true;
                     if (!el?.elementId) return;
                     const evt = e.evt as MouseEvent;
-                    // Cmd/Ctrl-click → button mode (focus all positions of this
-                    // element). Plain click → instance mode (focus this slot).
-                    const buttonMode = evt.metaKey || evt.ctrlKey;
-                    useSelectionStore.getState().set([el.elementId], buttonMode ? null : i);
+                    const sel = useSelectionStore.getState();
+                    // Cmd/Ctrl-click is the explicit "back to button mode"
+                    // shortcut. Otherwise: first click selects the whole
+                    // button (focusedSlot null); a follow-up click on any
+                    // slot of the already-selected element narrows focus to
+                    // that slot.
+                    if (evt.metaKey || evt.ctrlKey) {
+                      sel.set([el.elementId], null);
+                    } else if (sel.ids.has(el.elementId)) {
+                      sel.set([el.elementId], i);
+                    } else {
+                      sel.set([el.elementId], null);
+                    }
                   }
                 : undefined
             }
@@ -415,7 +455,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 ? (e) => {
                     e.cancelBubble = true;
                     if (!el?.elementId) return;
-                    useSelectionStore.getState().set([el.elementId], i);
+                    const sel = useSelectionStore.getState();
+                    if (sel.ids.has(el.elementId)) sel.set([el.elementId], i);
+                    else sel.set([el.elementId], null);
                   }
                 : undefined
             }
@@ -442,17 +484,18 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 count={el?.count}
               />
             ) : null}
-            {/* Selection outlines: every position of the selected element
-                gets a soft outline; the focused-instance slot gets a brighter
-                one; cmd-click button mode highlights all positions equally. */}
+            {/* Selection outlines:
+                  - button mode: every position outlined in solid blue
+                  - instance mode: focused slot in emerald, siblings in blue
+                    (so the user always sees the rest of the button) */}
             {elementSelected ? (
               <Rect
                 x={innerX - 1}
                 y={innerY - 1}
                 width={TEX_SLOT_INNER + 2}
                 height={TEX_SLOT_INNER + 2}
-                stroke={isFocusedSlot ? "#22c55e" : isButtonMode ? "#3b82f6" : "#22c55e80"}
-                strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1}
+                stroke={isFocusedSlot ? "#22c55e" : "#3b82f6"}
+                strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1.5}
                 listening={false}
                 perfectDrawEnabled={false}
               />
@@ -460,6 +503,26 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           </Group>
         );
       })}
+      {/* Alt-drag duplicate ghost: a static copy of the source slot pinned
+          at its original coordinates while the actual draggable Group
+          follows the cursor. Only shown when Alt is held — without it the
+          drag looks like a move (source disappears at cursor). */}
+      {dragSource?.altKey && elementsByPosition.get(dragSource.position)?.material
+        ? (() => {
+            const info = elementsByPosition.get(dragSource.position)!;
+            const { x, y } = slotXY(dragSource.position);
+            return (
+              <Group x={x} y={y} listening={false} opacity={0.9}>
+                <SlotItem
+                  material={info.material!}
+                  innerX={TEX_SLOT_INNER_OFFSET}
+                  innerY={TEX_SLOT_INNER_OFFSET}
+                  count={info.count}
+                />
+              </Group>
+            );
+          })()
+        : null}
     </Group>
   );
 }
