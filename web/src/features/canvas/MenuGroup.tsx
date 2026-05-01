@@ -8,6 +8,7 @@ import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { hitTestSlot } from "./hitTest";
+import { itemTextureUrl } from "./itemTextures";
 import {
   COLS,
   TEX_FIRST_SLOT_X,
@@ -22,6 +23,62 @@ import {
   slotXY,
   topPieceCrop,
 } from "./menuLayout";
+
+interface SlotItemProps {
+  material: string;
+  innerX: number;
+  innerY: number;
+}
+
+/**
+ * Renders the visual content of a filled slot — vanilla MC item texture if
+ * we have it bundled (most cases), or a small fallback Rect with the first 4
+ * letters of the material name otherwise. The Rect is the slot Group's hit
+ * shape; the Image draws on top of it so click/drag still register.
+ */
+function SlotItem({ material, innerX, innerY }: SlotItemProps) {
+  const url = itemTextureUrl(material);
+  const [image] = useImage(url ?? "");
+  return (
+    <>
+      {/* Backdrop Rect — also acts as the slot Group's hit shape. */}
+      <Rect
+        x={innerX}
+        y={innerY}
+        width={TEX_SLOT_INNER}
+        height={TEX_SLOT_INNER}
+        fill={url ? "transparent" : "rgba(20,20,20,0.55)"}
+        cornerRadius={2}
+        perfectDrawEnabled={false}
+      />
+      {url && image ? (
+        <KonvaImage
+          image={image}
+          x={innerX}
+          y={innerY}
+          width={TEX_SLOT_INNER}
+          height={TEX_SLOT_INNER}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      ) : (
+        <Text
+          x={innerX}
+          y={innerY}
+          width={TEX_SLOT_INNER}
+          height={TEX_SLOT_INNER}
+          text={material.slice(0, 4)}
+          fontFamily="ui-monospace, monospace"
+          fontSize={6 * TEX_SCALE}
+          fill="#fafafa"
+          align="center"
+          verticalAlign="middle"
+          listening={false}
+        />
+      )}
+    </>
+  );
+}
 
 interface MenuGroupProps {
   packId: PackId;
@@ -271,32 +328,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             }
           >
             {filled ? (
-              <>
-                {/* Subtle dark overlay — also serves as the slot Group's hit
-                    shape so click/drag hits register inside the well. */}
-                <Rect
-                  x={innerX}
-                  y={innerY}
-                  width={TEX_SLOT_INNER}
-                  height={TEX_SLOT_INNER}
-                  fill="rgba(20,20,20,0.55)"
-                  cornerRadius={2}
-                  perfectDrawEnabled={false}
-                />
-                <Text
-                  x={innerX}
-                  y={innerY}
-                  width={TEX_SLOT_INNER}
-                  height={TEX_SLOT_INNER}
-                  text={el?.material?.slice(0, 4) ?? ""}
-                  fontFamily="ui-monospace, monospace"
-                  fontSize={6 * TEX_SCALE}
-                  fill="#fafafa"
-                  align="center"
-                  verticalAlign="middle"
-                  listening={false}
-                />
-              </>
+              <SlotItem material={el?.material ?? ""} innerX={innerX} innerY={innerY} />
             ) : null}
           </Group>
         );
