@@ -91,9 +91,11 @@ export function ConditionListEditor({
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-[10px] uppercase text-zinc-500">{label}</span>
-      </div>
+      {label ? (
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-[10px] uppercase text-zinc-500">{label}</span>
+        </div>
+      ) : null}
       {conditions.length === 0 ? (
         <div className="flex items-center gap-1.5">
           <div className="flex-1 rounded border border-zinc-800 border-dashed bg-zinc-900/30 px-2 py-1.5 text-[11px] text-zinc-500">
