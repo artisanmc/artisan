@@ -1,5 +1,6 @@
 import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu, type ContextMenuState, type ContextMenuTarget } from "./ContextMenu";
 import { Edges } from "./Edges";
+import { ItemTooltip } from "./ItemTooltip";
 import { MATERIAL_DRAG_MIME } from "./Library";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
@@ -160,6 +162,16 @@ export function Stage({ packId }: StageProps) {
     }
   }, []);
 
+  const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    useHoverStore.getState().setCursor(e.clientX, e.clientY);
+  }, []);
+
+  const onWrapperMouseLeave = useCallback(() => {
+    // Clear hover when the cursor leaves the canvas entirely (Konva
+    // mouseleave on a slot doesn't fire if we exit the whole stage at speed).
+    useHoverStore.getState().setElement(null);
+  }, []);
+
   if (!pack) return <div className="p-8 text-zinc-500">Pack not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
@@ -170,6 +182,8 @@ export function Stage({ packId }: StageProps) {
       className="relative h-full w-full bg-[var(--color-bg)]"
       onDrop={onDrop}
       onDragOver={onDragOver}
+      onMouseMove={onWrapperMouseMove}
+      onMouseLeave={onWrapperMouseLeave}
     >
       <KonvaStage
         ref={stageRef}
@@ -212,6 +226,7 @@ export function Stage({ packId }: StageProps) {
         </Layer>
       </KonvaStage>
       <TextEditor packId={packId} layout={layout} viewport={viewport} />
+      <ItemTooltip packId={packId} />
       <ContextMenu
         packId={packId}
         state={ctxMenu}
