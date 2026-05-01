@@ -45,6 +45,14 @@ export function conditionSummary(condition: Condition): string {
       return `has $${condition.amount}`;
     case "not":
       return `NOT (${conditionSummary(condition.of)})`;
+    case "and":
+      return condition.of.length <= 1
+        ? condition.of.map(conditionSummary).join("")
+        : `(${condition.of.map(conditionSummary).join(" AND ")})`;
+    case "or":
+      return condition.of.length <= 1
+        ? condition.of.map(conditionSummary).join("")
+        : `(${condition.of.map(conditionSummary).join(" OR ")})`;
   }
 }
 
