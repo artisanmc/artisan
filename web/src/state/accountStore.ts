@@ -184,8 +184,8 @@ interface AccountState {
     caseIndex: number;
     conditions: Condition[];
   }) => void;
-  /** Toggle a case's match mode (AND-all vs OR-any). */
-  setIfCaseMatch: (input: {
+  /** Set the operator for one joiner inside a case (between conditions[i] and [i+1]). */
+  setIfCaseJoin: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
@@ -194,7 +194,8 @@ interface AccountState {
     frames: StepFrame[];
     ifStepIndex: number;
     caseIndex: number;
-    match: "all" | "any";
+    joinIndex: number;
+    op: "and" | "or";
   }) => void;
   /** Toggle the else-branch of an if-step on or off. */
   toggleIfElse: (input: {
@@ -306,13 +307,14 @@ interface AccountState {
     caseIndex: number;
     conditions: Condition[];
   }) => void;
-  setCommandIfCaseMatch: (input: {
+  setCommandIfCaseJoin: (input: {
     packId: PackId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
     caseIndex: number;
-    match: "all" | "any";
+    joinIndex: number;
+    op: "and" | "or";
   }) => void;
   toggleCommandIfElse: (input: {
     packId: PackId;
@@ -879,7 +881,7 @@ export const useAccountStore = create<AccountState>()(
               touch(draft, pId);
             }),
           ),
-        setIfCaseMatch: ({
+        setIfCaseJoin: ({
           packId: pId,
           menuId: mId,
           elementId,
@@ -888,7 +890,8 @@ export const useAccountStore = create<AccountState>()(
           frames,
           ifStepIndex,
           caseIndex,
-          match,
+          joinIndex,
+          op,
         }) =>
           set(
             produce((draft: AccountState) => {
@@ -906,7 +909,11 @@ export const useAccountStore = create<AccountState>()(
               if (!ifStep || ifStep.kind !== "if") return;
               const c = ifStep.cases[caseIndex];
               if (!c) return;
-              c.match = match === "any" ? "any" : undefined;
+              const max = Math.max(0, c.conditions.length - 1);
+              if (joinIndex < 0 || joinIndex >= max) return;
+              if (!c.joins) c.joins = Array(max).fill("and");
+              while (c.joins.length < max) c.joins.push("and");
+              c.joins[joinIndex] = op;
               touch(draft, pId);
             }),
           ),
@@ -1178,13 +1185,14 @@ export const useAccountStore = create<AccountState>()(
               touch(draft, pId);
             }),
           ),
-        setCommandIfCaseMatch: ({
+        setCommandIfCaseJoin: ({
           packId: pId,
           commandId: cId,
           frames,
           ifStepIndex,
           caseIndex,
-          match,
+          joinIndex,
+          op,
         }) =>
           set(
             produce((draft: AccountState) => {
@@ -1195,7 +1203,11 @@ export const useAccountStore = create<AccountState>()(
               if (!ifStep || ifStep.kind !== "if") return;
               const c = ifStep.cases[caseIndex];
               if (!c) return;
-              c.match = match === "any" ? "any" : undefined;
+              const max = Math.max(0, c.conditions.length - 1);
+              if (joinIndex < 0 || joinIndex >= max) return;
+              if (!c.joins) c.joins = Array(max).fill("and");
+              while (c.joins.length < max) c.joins.push("and");
+              c.joins[joinIndex] = op;
               touch(draft, pId);
             }),
           ),
