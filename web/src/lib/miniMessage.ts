@@ -6,20 +6,24 @@
  *   - Hex colors:   <color:#ff5555>, <#ff5555>, aliases <colour:>, <c:>
  *   - Decorations:  <bold>, <italic>, <underlined>, <strikethrough>,
  *                   <obfuscated>, with shorthands <b>/<em>/<i>/<u>/<st>/<obf>
- *   - Decoration negation: <!bold>, <!italic>, … (turns the decoration off
- *                          inside its scope)
+ *   - Decoration negation: <!bold>, <!italic>, …
  *   - <reset>: closes every active style
  *   - <newline> / <br/>: inserts a "\n" character
- *   - <gradient:c1:c2[:c3:…][:phase]>: per-character linear interpolation
- *   - <rainbow[:!][:phase]>: per-character HSL cycle, "!" reverses
- *   - <shadow:color[:alpha]>: stored on the style for the DOM renderer
- *                              (Konva renderer ignores for now)
+ *   - <gradient:c1:c2[:c3:…][:phase]>: per-char linear interpolation
+ *   - <rainbow[:!][:phase]>: per-char HSL cycle, "!" reverses
+ *   - <pride[:flag][:phase]>: predefined gradient palette per flag
+ *   - <transition:c1:c2[:c3:…][:phase]>: single color sampled from list
+ *   - <shadow:color[:alpha]>: text-shadow (DOM renderer)
+ *   - <font:[ns:]key>: font-family change in preview
+ *   - <click:..>, <hover:..>, <insert:..>: marks scope as "interactive"
+ *     (DOM renderer underlines + cursor pointer)
+ *   - <key>, <lang>, <selector>, <score>, <nbt>: emit a literal placeholder
+ *     like [key.jump] so the user sees where runtime-replacement happens
  *   - Escapes: \< \> \\
  *   - Closing tags </gold>, </bold>, … must match an open tag
  *
- * Anything else (click/hover/key/lang/insert/selector/score/nbt/font/sprite/
- * head/transition/pride/etc.) is left as literal text — the parser does not
- * throw on unknown tags so the editor stays usable while typing.
+ * Skipped (would need extra assets/data — passed through as literal text):
+ *   <sprite>, <head>
  */
 
 export interface Shadow {
@@ -35,6 +39,10 @@ export interface Style {
   strikethrough?: boolean;
   obfuscated?: boolean;
   shadow?: Shadow;
+  font?: string;
+  /** True when inside <click>/<hover>/<insert> — DOM renderer hints with
+   *  underline + cursor:pointer. */
+  interactive?: boolean;
 }
 
 export interface Segment {
@@ -222,6 +230,101 @@ const parseShadowArgs = (parts: string[]): Shadow | null => {
   return { color, alpha };
 };
 
+/* --- pride flag palettes ------------------------------------------------ */
+
+const PRIDE_PALETTES: Record<string, string[]> = {
+  // Default 6-stripe pride flag.
+  pride: ["#e50000", "#ff8d00", "#ffee00", "#028121", "#004cff", "#770088"],
+  queer: ["#e50000", "#ff8d00", "#ffee00", "#028121", "#004cff", "#770088"],
+  // Trans flag.
+  trans: ["#5bcefa", "#f5a9b8", "#ffffff", "#f5a9b8", "#5bcefa"],
+  transgender: ["#5bcefa", "#f5a9b8", "#ffffff", "#f5a9b8", "#5bcefa"],
+  // Non-binary.
+  nb: ["#fff430", "#ffffff", "#9c59d1", "#000000"],
+  nonbinary: ["#fff430", "#ffffff", "#9c59d1", "#000000"],
+  // Bisexual.
+  bi: ["#d60270", "#9b4f96", "#0038a8"],
+  bisexual: ["#d60270", "#9b4f96", "#0038a8"],
+  // Pansexual.
+  pan: ["#ff1b8d", "#ffd700", "#1bb3ff"],
+  pansexual: ["#ff1b8d", "#ffd700", "#1bb3ff"],
+  // Lesbian.
+  lesbian: ["#d62900", "#ff9b55", "#ffffff", "#d461a6", "#a50062"],
+  // Gay (mlm).
+  gay: ["#078d70", "#26ceaa", "#98e8c1", "#ffffff", "#7bade2", "#5049cc", "#3d1a78"],
+  mlm: ["#078d70", "#26ceaa", "#98e8c1", "#ffffff", "#7bade2", "#5049cc", "#3d1a78"],
+  // Asexual.
+  ace: ["#000000", "#a3a3a3", "#ffffff", "#800080"],
+  asexual: ["#000000", "#a3a3a3", "#ffffff", "#800080"],
+  // Aromantic.
+  aro: ["#3da542", "#a7d379", "#ffffff", "#a9a9a9", "#000000"],
+  aromantic: ["#3da542", "#a7d379", "#ffffff", "#a9a9a9", "#000000"],
+  // Genderfluid.
+  fluid: ["#ff75a2", "#ffffff", "#be18d6", "#000000", "#333ebd"],
+  genderfluid: ["#ff75a2", "#ffffff", "#be18d6", "#000000", "#333ebd"],
+};
+
+const parsePrideArgs = (parts: string[]): { palette: string[]; phase: number } => {
+  // parts[0] = "pride"; rest = optional flag, optional phase.
+  let palette: string[] = PRIDE_PALETTES.pride!;
+  let phase = 0;
+  for (const a of parts.slice(1)) {
+    if (a in PRIDE_PALETTES) palette = PRIDE_PALETTES[a]!;
+    else if (!Number.isNaN(Number(a))) phase = Number(a);
+  }
+  return { palette, phase };
+};
+
+const parseTransitionArgs = (parts: string[]): { colors: string[]; phase: number } | null =>
+  parseGradientArgs(parts);
+
+/* --- placeholder generators for server-rendered tags -------------------- */
+
+const placeholderFor = (head: string, parts: string[]): string => {
+  // [foo:bar] — gives the user something visible without pretending it's real
+  // content. We strip the head when it's redundant for legibility.
+  switch (head) {
+    case "key":
+      return `[${parts.slice(1).join(":")}]`;
+    case "lang":
+    case "tr":
+    case "translate":
+      return `[lang:${parts.slice(1).join(":")}]`;
+    case "lang_or":
+    case "tr_or":
+    case "translate_or":
+      // <lang_or:key:fallback…> — show the fallback if present.
+      return parts[2] ? parts[2].replace(/^['"]|['"]$/g, "") : `[lang:${parts[1] ?? ""}]`;
+    case "selector":
+    case "sel":
+      return `[${parts.slice(1).join(":")}]`;
+    case "score":
+      return `[score:${parts.slice(1).join(":")}]`;
+    case "nbt":
+    case "data":
+      return `[nbt:${parts.slice(1).join(":")}]`;
+    default:
+      return `[${head}]`;
+  }
+};
+
+const SELF_REPLACING = new Set([
+  "key",
+  "lang",
+  "tr",
+  "translate",
+  "lang_or",
+  "tr_or",
+  "translate_or",
+  "selector",
+  "sel",
+  "score",
+  "nbt",
+  "data",
+]);
+
+const INTERACTIVE = new Set(["click", "hover", "insert"]);
+
 /* --- per-character explosion for gradient/rainbow ----------------------- */
 
 const explodePerChar = (segs: Segment[]): Segment[] => {
@@ -386,6 +489,87 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const inner = parseFragment(innerContent, { startStyle: style });
       segments.push(...applyRainbow(inner, args.phase, args.reverse));
       i = closeAt + "</rainbow>".length;
+      continue;
+    }
+
+    // <pride[:flag][:phase]>
+    if (head === "pride") {
+      const args = parsePrideArgs(parts);
+      const closeAt = findMatchingClose(input, i, "pride");
+      if (closeAt === -1) {
+        buf += `<${innerRaw}>`;
+        continue;
+      }
+      const innerContent = input.slice(i, closeAt);
+      flush();
+      const inner = parseFragment(innerContent, { startStyle: style });
+      segments.push(...applyGradient(inner, args.palette, args.phase));
+      i = closeAt + "</pride>".length;
+      continue;
+    }
+
+    // <transition:c1:c2:…[:phase]> — single color sampled from the list at
+    // the phase position. All inner chars get that one color.
+    if (head === "transition") {
+      const args = parseTransitionArgs(parts);
+      const closeAt = findMatchingClose(input, i, "transition");
+      if (!args || closeAt === -1) {
+        buf += `<${innerRaw}>`;
+        continue;
+      }
+      const innerContent = input.slice(i, closeAt);
+      flush();
+      const inner = parseFragment(innerContent, { startStyle: style });
+      const sampled = sampleGradient(args.colors, Math.max(0, Math.min(1, (args.phase + 1) / 2)));
+      const recolored = inner.map((seg) => ({
+        text: seg.text,
+        style: { ...seg.style, color: sampled },
+      }));
+      segments.push(...recolored);
+      i = closeAt + "</transition>".length;
+      continue;
+    }
+
+    // <font:[ns:]key>
+    if (head === "font") {
+      const closeAt = findMatchingClose(input, i, "font");
+      if (closeAt === -1) {
+        buf += `<${innerRaw}>`;
+        continue;
+      }
+      const innerContent = input.slice(i, closeAt);
+      const fontKey = parts.slice(1).join(":") || "minecraft:default";
+      flush();
+      const inner = parseFragment(innerContent, {
+        startStyle: { ...style, font: fontKey },
+      });
+      segments.push(...inner);
+      i = closeAt + "</font>".length;
+      continue;
+    }
+
+    // <click:...>, <hover:...>, <insert:...> — visual hint only (underline +
+    // pointer cursor), the actual action happens at runtime.
+    if (INTERACTIVE.has(head)) {
+      const closeAt = findMatchingClose(input, i, head);
+      if (closeAt === -1) {
+        buf += `<${innerRaw}>`;
+        continue;
+      }
+      const innerContent = input.slice(i, closeAt);
+      flush();
+      const inner = parseFragment(innerContent, {
+        startStyle: { ...style, interactive: true },
+      });
+      segments.push(...inner);
+      i = closeAt + `</${head}>`.length;
+      continue;
+    }
+
+    // Self-replacing data tags — emit a placeholder text segment.
+    if (SELF_REPLACING.has(head)) {
+      flush();
+      segments.push({ text: placeholderFor(head, parts), style: cloneStyle(style) });
       continue;
     }
 

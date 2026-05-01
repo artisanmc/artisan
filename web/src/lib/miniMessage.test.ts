@@ -101,4 +101,45 @@ describe("parseMiniMessage", () => {
     const segs = parseMiniMessage("<shadow:gold:0.5>x");
     expect(segs[0]?.style.shadow).toEqual({ color: "#ffaa00", alpha: 0.5 });
   });
+
+  it("<pride:trans> uses the trans flag palette", () => {
+    const segs = parseMiniMessage("<pride:trans>abcde</pride>");
+    expect(segs).toHaveLength(5);
+    // first/last char should match the trans palette ends (light blue)
+    expect(segs[0]?.style.color).toBe("#5bcefa");
+    expect(segs[4]?.style.color).toBe("#5bcefa");
+  });
+
+  it("<transition:red:gold:0> picks red across all chars", () => {
+    const segs = parseMiniMessage("<transition:red:gold:-1>abc</transition>");
+    expect(segs).toHaveLength(1);
+    expect(segs[0]?.text).toBe("abc");
+    // phase=-1 normalizes to 0 → first color (red)
+    expect(segs[0]?.style.color).toBe("#ff5555");
+  });
+
+  it("<font:uniform> sets style.font", () => {
+    const segs = parseMiniMessage("<font:uniform>x</font>");
+    expect(segs[0]?.style.font).toBe("uniform");
+  });
+
+  it("<click:run_command:/say hi> marks scope as interactive", () => {
+    const segs = parseMiniMessage("<click:run_command:/say hi>click me</click>");
+    expect(segs[0]?.style.interactive).toBe(true);
+    expect(segs[0]?.text).toBe("click me");
+  });
+
+  it("<key> emits a placeholder text segment", () => {
+    expect(parseMiniMessage("Press <key:key.jump> to jump")).toEqual([
+      { text: "Press ", style: {} },
+      { text: "[key.jump]", style: {} },
+      { text: " to jump", style: {} },
+    ]);
+  });
+
+  it("<lang:foo> emits a [lang:foo] placeholder", () => {
+    expect(parseMiniMessage("<lang:gui.cancel>")).toEqual([
+      { text: "[lang:gui.cancel]", style: {} },
+    ]);
+  });
 });
