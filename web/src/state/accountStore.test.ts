@@ -344,6 +344,122 @@ describe("accountStore", () => {
     expect(findElement()?.positions).toBe("13");
   });
 
+  it("addAppearance pushes a conditional state seeded with a placeholder permission", () => {
+    useAccountStore
+      .getState()
+      .addAppearance({ packId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN });
+    const el = findElement()!;
+    expect(el.appearances).toHaveLength(2);
+    const seeded = el.appearances[1]!;
+    expect(seeded.if?.[0]?.type).toBe("has_permission");
+  });
+
+  it("removeAppearance keeps at least one appearance and is otherwise idempotent on out-of-range", () => {
+    // Add a state, then remove it.
+    useAccountStore
+      .getState()
+      .addAppearance({ packId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN });
+    useAccountStore.getState().removeAppearance({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 1,
+    });
+    expect(findElement()!.appearances).toHaveLength(1);
+    // Removing the lone remaining appearance is a no-op (we keep one).
+    useAccountStore.getState().removeAppearance({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+    });
+    expect(findElement()!.appearances).toHaveLength(1);
+  });
+
+  it("addElementClickHandler creates an empty handler at clickType, removeElementClickHandler clears it", () => {
+    useAccountStore.getState().addElementClickHandler({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "right",
+    });
+    expect(findElement()!.appearances[0]?.click?.right?.actions).toEqual([]);
+    useAccountStore.getState().removeElementClickHandler({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "right",
+    });
+    expect(findElement()!.appearances[0]?.click?.right).toBeUndefined();
+  });
+
+  it("addElementAction appends and removeElementAction drops by index", () => {
+    useAccountStore.getState().addElementAction({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      fallback: false,
+      action: { type: "close_menu" },
+    });
+    let actions = findElement()!.appearances[0]!.click!.left!.actions;
+    expect(actions).toHaveLength(2);
+    expect(actions[1]?.type).toBe("close_menu");
+    useAccountStore.getState().removeElementAction({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      fallback: false,
+      actionIndex: 1,
+    });
+    actions = findElement()!.appearances[0]!.click!.left!.actions;
+    expect(actions).toHaveLength(1);
+    expect(actions[0]?.type).toBe("open_menu");
+  });
+
+  it("moveElementAction reorders actions within a chain", () => {
+    useAccountStore.getState().addElementAction({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      fallback: false,
+      action: { type: "send_message", text: "hi" },
+    });
+    useAccountStore.getState().moveElementAction({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      fallback: false,
+      fromIndex: 1,
+      toIndex: 0,
+    });
+    const actions = findElement()!.appearances[0]!.click!.left!.actions;
+    expect(actions[0]?.type).toBe("send_message");
+    expect(actions[1]?.type).toBe("open_menu");
+  });
+
+  it("addElementAction into fallback creates the fallback chain on demand", () => {
+    useAccountStore.getState().addElementAction({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      fallback: true,
+      action: { type: "close_menu" },
+    });
+    expect(findElement()!.appearances[0]?.click?.left?.fallback?.[0]?.type).toBe("close_menu");
+  });
+
   it("createPack clears the temporal stack", () => {
     useAccountStore.getState().setSlotMaterial({
       packId: packId("p_personal"),
