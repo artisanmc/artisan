@@ -254,6 +254,96 @@ describe("accountStore", () => {
     expect(findElement()).toBeUndefined();
   });
 
+  it("addElement inserts a new element and strips conflicting positions from siblings", () => {
+    // Seed a sibling element at position 5
+    useAccountStore
+      .getState()
+      .setSlotMaterial({ packId: PERSONAL, menuId: SHOP_MAIN, position: 5, material: "DIRT" });
+    useAccountStore.getState().addElement({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      element: {
+        id: elementId("el_pasted"),
+        positions: "5,6",
+        appearances: [{ material: "GOLD_INGOT" }],
+      },
+    });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+    const pasted = menu.layers[0]!.elements.find((el) => el.id === "el_pasted");
+    expect(pasted?.positions).toBe("5-6");
+    // The DIRT element lost its only position and was pruned.
+    const dirt = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "DIRT");
+    expect(dirt).toBeUndefined();
+  });
+
+  it("moveSelectionByDelta shifts every selected element by (dCol, dRow)", () => {
+    // m_shop_main has rows=3 → row indices 0..2.
+    useAccountStore.getState().setElementPositions({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0,1",
+    });
+    useAccountStore
+      .getState()
+      .setSlotMaterial({ packId: PERSONAL, menuId: SHOP_MAIN, position: 9, material: "STONE" });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+    const stoneId = menu.layers[0]!.elements.find(
+      (el) => el.appearances[0]?.material === "STONE",
+    )!.id;
+
+    useAccountStore.getState().moveSelectionByDelta({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementIds: [PROFILE_BTN, stoneId],
+      dCol: 1,
+      dRow: 1,
+    });
+
+    expect(findElement()?.positions).toBe("10-11");
+    const stoneAfter = useAccountStore
+      .getState()
+      .account.packs.find((p) => p.id === PERSONAL)!
+      .menus.find((m) => m.id === SHOP_MAIN)!
+      .layers[0]!.elements.find((el) => el.id === stoneId);
+    expect(stoneAfter?.positions).toBe("19");
+  });
+
+  it("moveSelectionByDelta strips claimed positions from non-target elements", () => {
+    // PROFILE_BTN at 13. Add another element at 14, then drag PROFILE_BTN by +1
+    useAccountStore
+      .getState()
+      .setSlotMaterial({ packId: PERSONAL, menuId: SHOP_MAIN, position: 14, material: "DIRT" });
+    useAccountStore.getState().moveSelectionByDelta({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementIds: [PROFILE_BTN],
+      dCol: 1,
+      dRow: 0,
+    });
+    expect(findElement()?.positions).toBe("14");
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+    const dirt = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "DIRT");
+    expect(dirt).toBeUndefined();
+  });
+
+  it("moveSelectionByDelta throws when the move goes out of bounds", () => {
+    expect(() =>
+      useAccountStore.getState().moveSelectionByDelta({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        elementIds: [PROFILE_BTN],
+        dCol: 0,
+        dRow: 99,
+      }),
+    ).toThrow(/outside the menu/);
+    // Source unchanged.
+    expect(findElement()?.positions).toBe("13");
+  });
+
   it("createPack clears the temporal stack", () => {
     useAccountStore.getState().setSlotMaterial({
       packId: packId("p_personal"),

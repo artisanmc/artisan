@@ -12,13 +12,20 @@ import type {
 } from "@/domain/types";
 
 const CLIPBOARD_KIND = "interfaze.clipboard" as const;
-const CLIPBOARD_VERSION = 1;
+export const CLIPBOARD_VERSION = 2;
+
+export interface ElementCopy {
+  /** Menu the element was copied from — used as a fallback paste target. */
+  sourceMenuId: MenuId;
+  element: Element;
+}
 
 export interface ClipboardPayload {
   kind: typeof CLIPBOARD_KIND;
-  version: typeof CLIPBOARD_VERSION;
+  version: number;
   menus: Menu[];
   commands: Command[];
+  elements: ElementCopy[];
 }
 
 /** In-memory fallback when the system clipboard isn't available (permission denied, file:// origin, etc). */
@@ -48,13 +55,19 @@ export async function readClipboard(): Promise<ClipboardPayload | null> {
     if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
       const text = await navigator.clipboard.readText();
       const parsed = JSON.parse(text);
-      if (isPayload(parsed)) return parsed;
+      if (isPayload(parsed)) return normalize(parsed);
     }
   } catch {
     // fallthrough to memory clipboard
   }
   return memoryClipboard;
 }
+
+/** Backfill missing fields so v1 payloads behave like v2. */
+const normalize = (p: ClipboardPayload): ClipboardPayload => ({
+  ...p,
+  elements: Array.isArray(p.elements) ? p.elements : [],
+});
 
 /**
  * Deep-clone menus and commands with brand-new ids on every menu, command,
@@ -67,7 +80,8 @@ export async function readClipboard(): Promise<ClipboardPayload | null> {
 export function rewriteIds(input: {
   menus: Menu[];
   commands: Command[];
-}): { menus: Menu[]; commands: Command[] } {
+  elements?: ElementCopy[];
+}): { menus: Menu[]; commands: Command[]; elements: ElementCopy[] } {
   const menuRemap = new Map<MenuId, MenuId>();
   for (const m of input.menus) menuRemap.set(m.id, newMenuId());
 
@@ -112,6 +126,10 @@ export function rewriteIds(input: {
     id: newCommandId(),
     actions: c.actions.map(remapAction),
   }));
+  const elements = (input.elements ?? []).map<ElementCopy>((ec) => ({
+    sourceMenuId: ec.sourceMenuId,
+    element: remapElement(ec.element),
+  }));
 
-  return { menus, commands };
+  return { menus, commands, elements };
 }
