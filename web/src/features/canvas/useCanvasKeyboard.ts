@@ -1,8 +1,15 @@
-import type { Command, ElementId, Menu, MenuId, PackId } from "@/domain/types";
+import type { Command, Element, ElementId, Menu, MenuId, PackId } from "@/domain/types";
+import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect } from "react";
-import { readClipboard, rewriteIds, writeClipboard } from "./clipboard";
+import {
+  CLIPBOARD_VERSION,
+  type ElementCopy,
+  readClipboard,
+  rewriteIds,
+  writeClipboard,
+} from "./clipboard";
 
 /**
  * Locate an element by id within a pack and return enough context
@@ -32,20 +39,124 @@ const isEditableTarget = (target: EventTarget | null) => {
 const findSelectedEntities = (packId: PackId, ids: string[]) => {
   const account = useAccountStore.getState().account;
   const pack = account.packs.find((p) => p.id === packId);
-  if (!pack) return { menus: [] as Menu[], commands: [] as Command[] };
+  if (!pack)
+    return { menus: [] as Menu[], commands: [] as Command[], elements: [] as ElementCopy[] };
   const idSet = new Set(ids);
+  const elements: ElementCopy[] = [];
+  for (const menu of pack.menus) {
+    for (const layer of menu.layers) {
+      for (const el of layer.elements) {
+        if (idSet.has(el.id)) elements.push({ sourceMenuId: menu.id, element: el });
+      }
+    }
+  }
   return {
     menus: pack.menus.filter((m) => idSet.has(m.id)),
     commands: pack.commands.filter((c) => idSet.has(c.id)),
+    elements,
   };
+};
+
+/**
+ * Pick the menu we should drop pasted elements into. Priority:
+ *   1. A menu that is currently selected
+ *   2. The menu that owns the currently selected element
+ *   3. The clipboard's source menu (if it still exists in this pack)
+ *   4. The first menu in the pack
+ */
+const resolveTargetMenu = (packId: PackId, elements: ElementCopy[]): MenuId | null => {
+  const account = useAccountStore.getState().account;
+  const pack = account.packs.find((p) => p.id === packId);
+  if (!pack) return null;
+  const sel = [...useSelectionStore.getState().ids];
+  for (const id of sel) {
+    if (pack.menus.some((m) => m.id === id)) return id as MenuId;
+  }
+  for (const id of sel) {
+    for (const m of pack.menus) {
+      if (m.layers.some((l) => l.elements.some((el) => el.id === id))) return m.id;
+    }
+  }
+  for (const ec of elements) {
+    if (pack.menus.some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
+  }
+  return pack.menus[0]?.id ?? null;
+};
+
+/**
+ * Find the smallest non-negative linear delta `d` such that every position
+ * in `original` shifted by `d` is within bounds AND not in `occupied`.
+ * Returns null when nothing fits.
+ */
+const findFreePositions = (
+  menu: Menu,
+  original: number[],
+  occupiedExtra?: ReadonlySet<number>,
+): number[] | null => {
+  const occupied = new Set<number>(occupiedExtra ?? []);
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      for (const p of parsePositions(el.positions)) occupied.add(p);
+    }
+  }
+  const max = menu.rows * 9;
+  for (let delta = 0; delta < max; delta++) {
+    const shifted = original.map((p) => p + delta);
+    if (shifted.every((p) => p < max && !occupied.has(p))) return shifted;
+  }
+  return null;
+};
+
+const placeElements = (
+  packId: PackId,
+  menuId: MenuId,
+  elements: ElementCopy[],
+  options: { skipSourcePositions: boolean },
+  onError?: (m: string) => void,
+) => {
+  const account = useAccountStore.getState().account;
+  const pack = account.packs.find((p) => p.id === packId);
+  const menu = pack?.menus.find((m) => m.id === menuId);
+  if (!menu) {
+    onError?.("Target menu not found");
+    return;
+  }
+  // We accumulate `extra` as we place elements so two clipboard items don't
+  // land on top of each other.
+  const extra = new Set<number>();
+  for (const ec of elements) {
+    const original = parsePositions(ec.element.positions);
+    if (original.length === 0) continue;
+    const initialOccupied = options.skipSourcePositions
+      ? new Set([...extra, ...original])
+      : new Set(extra);
+    const fit = findFreePositions(menu, original, initialOccupied);
+    if (!fit) {
+      onError?.(`No room in menu ${menu.id} for the pasted button`);
+      continue;
+    }
+    for (const p of fit) extra.add(p);
+    const placed: Element = { ...ec.element, positions: formatPositions(fit) };
+    try {
+      useAccountStore.getState().addElement({ packId, menuId, element: placed });
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : "paste failed");
+    }
+  }
 };
 
 const copySelection = async (packId: PackId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands } = findSelectedEntities(packId, ids);
-  if (menus.length === 0 && commands.length === 0) return;
+  const { menus, commands, elements } = findSelectedEntities(packId, ids);
+  if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   try {
-    await writeClipboard({ kind: "interfaze.clipboard", version: 1, menus, commands });
+    await writeClipboard({
+      kind: "interfaze.clipboard",
+      version: CLIPBOARD_VERSION,
+      menus,
+      commands,
+      elements,
+    });
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "copy failed");
   }
@@ -57,14 +168,34 @@ const pasteFromClipboard = async (packId: PackId, onError?: (m: string) => void)
     onError?.("Clipboard is empty");
     return;
   }
-  const rewritten = rewriteIds({ menus: payload.menus, commands: payload.commands });
+  const rewritten = rewriteIds({
+    menus: payload.menus,
+    commands: payload.commands,
+    elements: payload.elements,
+  });
   try {
-    useAccountStore.getState().pasteEntities({
-      packId,
-      menus: rewritten.menus,
-      commands: rewritten.commands,
-      offset: { x: 80, y: 80 },
-    });
+    if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
+      useAccountStore.getState().pasteEntities({
+        packId,
+        menus: rewritten.menus,
+        commands: rewritten.commands,
+        offset: { x: 80, y: 80 },
+      });
+    }
+    if (rewritten.elements.length > 0) {
+      const targetMenu = resolveTargetMenu(packId, rewritten.elements);
+      if (!targetMenu) {
+        onError?.("No target menu — select a menu before pasting");
+      } else {
+        placeElements(
+          packId,
+          targetMenu,
+          rewritten.elements,
+          { skipSourcePositions: false },
+          onError,
+        );
+      }
+    }
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "paste failed");
   }
@@ -72,16 +203,30 @@ const pasteFromClipboard = async (packId: PackId, onError?: (m: string) => void)
 
 const duplicateSelection = (packId: PackId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands } = findSelectedEntities(packId, ids);
-  if (menus.length === 0 && commands.length === 0) return;
-  const rewritten = rewriteIds({ menus, commands });
+  const { menus, commands, elements } = findSelectedEntities(packId, ids);
+  if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
+  const rewritten = rewriteIds({ menus, commands, elements });
   try {
-    useAccountStore.getState().pasteEntities({
-      packId,
-      menus: rewritten.menus,
-      commands: rewritten.commands,
-      offset: { x: 24, y: 24 },
-    });
+    if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
+      useAccountStore.getState().pasteEntities({
+        packId,
+        menus: rewritten.menus,
+        commands: rewritten.commands,
+        offset: { x: 24, y: 24 },
+      });
+    }
+    // Group element duplicates by their source menu so each lands in its own
+    // menu. skipSourcePositions=true forces a non-zero shift so the duplicate
+    // doesn't land on top of the original.
+    const byMenu = new Map<MenuId, ElementCopy[]>();
+    for (const ec of rewritten.elements) {
+      const list = byMenu.get(ec.sourceMenuId) ?? [];
+      list.push(ec);
+      byMenu.set(ec.sourceMenuId, list);
+    }
+    for (const [menuId, list] of byMenu) {
+      placeElements(packId, menuId, list, { skipSourcePositions: true }, onError);
+    }
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "duplicate failed");
   }

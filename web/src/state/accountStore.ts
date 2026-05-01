@@ -4,13 +4,20 @@ import type {
   Account,
   Command,
   CommandId,
+  Element,
   ElementId,
   Layer,
   Menu,
   MenuId,
   PackId,
 } from "@/domain/types";
-import { addPosition, parsePositions, positionsContains, removePosition } from "@/lib/positions";
+import {
+  addPosition,
+  formatPositions,
+  parsePositions,
+  positionsContains,
+  removePosition,
+} from "@/lib/positions";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -94,6 +101,25 @@ interface AccountState {
   }) => void;
   /** Remove an element from its menu, regardless of how many positions it has. */
   deleteElement: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  /**
+   * Insert a fully-formed element (already given a fresh id) into a menu's
+   * first layer. Any positions claimed by the new element are stripped from
+   * sibling elements (positions are unique within a menu).
+   */
+  addElement: (input: { packId: PackId; menuId: MenuId; element: Element }) => void;
+  /**
+   * Shift every position of every element in `elementIds` by (dCol, dRow)
+   * within the menu's grid. Throws if any new position would fall outside
+   * the menu. Positions claimed by the move are stripped from non-target
+   * elements (takeover semantics, matching addElementPosition).
+   */
+  moveSelectionByDelta: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementIds: ElementId[];
+    dCol: number;
+    dRow: number;
+  }) => void;
   /**
    * Set (or clear) a menu's background image. When `dataUrl` is provided we
    * also create a new Asset on the pack with the given metadata. When null, the
@@ -393,6 +419,80 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
+        addElement: ({ packId: pId, menuId: mId, element }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              const newPositions = parsePositions(element.positions);
+              for (const layer of menu.layers) {
+                for (const otherEl of layer.elements) {
+                  for (const p of newPositions) {
+                    if (positionsContains(otherEl.positions, p)) {
+                      otherEl.positions = removePosition(otherEl.positions, p);
+                    }
+                  }
+                }
+                layer.elements = layer.elements.filter((el) => el.positions !== "");
+              }
+              let firstLayer: Layer | undefined = menu.layers[0];
+              if (!firstLayer) {
+                firstLayer = { id: newLayerId(), name: "default", elements: [] };
+                menu.layers.push(firstLayer);
+              }
+              firstLayer.elements.push({ ...element, positions: formatPositions(newPositions) });
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        moveSelectionByDelta: ({ packId: pId, menuId: mId, elementIds, dCol, dRow }) => {
+          const next = produce(get().account, (draft) => {
+            const pack = draft.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const menu = pack.menus.find((m) => m.id === mId);
+            if (!menu) return;
+            const targetSet = new Set(elementIds);
+            // First pass: compute new positions and validate bounds.
+            const plans = new Map<ElementId, number[]>();
+            for (const layer of menu.layers) {
+              for (const el of layer.elements) {
+                if (!targetSet.has(el.id)) continue;
+                const newPositions: number[] = [];
+                for (const p of parsePositions(el.positions)) {
+                  const newCol = (p % 9) + dCol;
+                  const newRow = Math.floor(p / 9) + dRow;
+                  if (newCol < 0 || newCol >= 9 || newRow < 0 || newRow >= menu.rows) {
+                    throw new Error("selection drag would land outside the menu");
+                  }
+                  newPositions.push(newRow * 9 + newCol);
+                }
+                plans.set(el.id, newPositions);
+              }
+            }
+            if (plans.size === 0) return;
+            // Strip new positions from non-target elements (takeover).
+            const claimed = new Set<number>();
+            for (const ps of plans.values()) for (const p of ps) claimed.add(p);
+            for (const layer of menu.layers) {
+              for (const otherEl of layer.elements) {
+                if (targetSet.has(otherEl.id)) continue;
+                const filtered = parsePositions(otherEl.positions).filter((p) => !claimed.has(p));
+                otherEl.positions = formatPositions(filtered);
+              }
+              layer.elements = layer.elements.filter((el) => el.positions !== "");
+            }
+            // Apply new positions to target elements.
+            for (const layer of menu.layers) {
+              for (const el of layer.elements) {
+                const plan = plans.get(el.id);
+                if (plan) el.positions = formatPositions(plan);
+              }
+            }
+            pack.updatedAt = new Date().toISOString();
+          });
+          set({ account: next });
+        },
         setAppearanceLore: ({ packId: pId, menuId: mId, elementId, lines }) =>
           set(
             produce((draft: AccountState) => {
