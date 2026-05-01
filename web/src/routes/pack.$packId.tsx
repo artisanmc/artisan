@@ -32,6 +32,7 @@ function PackCanvasPage() {
           bottom={<FlowCanvas packId={pId} />}
           bottomHeight={flowCanvasHeight}
           onBottomHeightChange={setFlowCanvasHeight}
+          collapsedHeight={32}
         />
       </main>
       <RightSidebar packId={pId} />

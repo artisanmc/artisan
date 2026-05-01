@@ -1,6 +1,7 @@
 import type { Command, Element, ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect } from "react";
 import {
@@ -274,7 +275,62 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
 
       if (e.key === "Delete" || e.key === "Backspace") {
         const sel = useSelectionStore.getState();
+        const flow = useFlowSelectionStore.getState();
         const ids = [...sel.ids];
+
+        // Flow sub-selection takes priority: if the user is editing a
+        // specific state / action / command-action, Delete should remove
+        // that node rather than the whole entity.
+        if (flow.sub) {
+          e.preventDefault();
+          try {
+            if (flow.sub.kind === "action" && ids.length === 1) {
+              const candidate = findElement(packId, ids[0]! as ElementId);
+              if (candidate) {
+                useAccountStore.getState().removeElementAction({
+                  packId,
+                  menuId: candidate.menuId,
+                  elementId: ids[0]! as ElementId,
+                  appearanceIndex: flow.sub.stateIndex,
+                  clickType: flow.sub.clickType,
+                  fallback: flow.sub.fallback,
+                  actionIndex: flow.sub.actionIndex,
+                });
+                flow.clear();
+                return;
+              }
+            }
+            if (flow.sub.kind === "state" && ids.length === 1) {
+              const candidate = findElement(packId, ids[0]! as ElementId);
+              if (candidate && flow.sub.stateIndex > 0) {
+                // Don't allow deleting state 0 (the default) via this path —
+                // that's the only state for many elements.
+                useAccountStore.getState().removeAppearance({
+                  packId,
+                  menuId: candidate.menuId,
+                  elementId: ids[0]! as ElementId,
+                  appearanceIndex: flow.sub.stateIndex,
+                });
+                flow.clear();
+                return;
+              }
+            }
+            if (flow.sub.kind === "commandAction" && ids.length === 1) {
+              const commandId = ids[0]!;
+              useAccountStore.getState().removeCommandAction({
+                packId,
+                commandId: commandId as never,
+                actionIndex: flow.sub.actionIndex,
+              });
+              flow.clear();
+              return;
+            }
+          } catch (err) {
+            onError?.(err instanceof Error ? err.message : "delete failed");
+            return;
+          }
+        }
+
         if (ids.length === 0) return;
         e.preventDefault();
         try {
@@ -310,6 +366,12 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
       }
 
       if (e.key === "Escape") {
+        // Esc clears the deepest selection first (flow → entity).
+        const flow = useFlowSelectionStore.getState();
+        if (flow.sub) {
+          flow.clear();
+          return;
+        }
         useSelectionStore.getState().clear();
       }
     };
