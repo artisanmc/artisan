@@ -64,7 +64,7 @@ interface AccountState {
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
-    field: "title" | "count";
+    field: "title" | "count" | "material";
     value: string | number;
   }) => void;
   /** Replace the element's appearance lore lines at the given index (default 0). */
@@ -596,6 +596,9 @@ export const useAccountStore = create<AccountState>()(
                     const n = typeof value === "number" ? value : Number(value);
                     if (Number.isNaN(n) || n < 1 || n > 64) return;
                     appearance.count = n === 1 ? undefined : n;
+                  } else if (field === "material") {
+                    if (typeof value !== "string") return;
+                    appearance.material = value || undefined;
                   }
                   pack.updatedAt = new Date().toISOString();
                   return;
