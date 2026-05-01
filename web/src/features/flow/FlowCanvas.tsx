@@ -109,6 +109,8 @@ function ElementFlow({
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
+  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
+  const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -144,14 +146,13 @@ function ElementFlow({
           <div className="flex flex-wrap gap-2">
             {element.appearances.map((appearance, i) => {
               const focused = focusedStateIndex === i;
-              const conds = appearance.if ?? [];
-              const isDefault = conds.length === 0;
+              const isDefault = (appearance.if ?? []).length === 0;
               return (
                 <div
                   // biome-ignore lint/suspicious/noArrayIndexKey: state index is stable
                   key={i}
                   className={cx(
-                    "group relative flex min-w-[160px] flex-col rounded border px-2 py-1.5 text-xs transition-colors",
+                    "group relative flex w-[260px] flex-col gap-1.5 rounded border px-2 py-1.5 text-xs transition-colors",
                     focused
                       ? "border-emerald-500 bg-emerald-500/10 text-emerald-100"
                       : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600",
@@ -172,17 +173,36 @@ function ElementFlow({
                         </span>
                       ) : null}
                     </div>
-                    {!isDefault && (
-                      <div className="mt-1 text-[10px] text-zinc-500">
-                        {conds.map((c, j) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: condition index is stable
-                          <div key={j} className="truncate">
-                            • {conditionSummary(c)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </button>
+                  <ConditionListEditor
+                    label=""
+                    conditions={appearance.if ?? []}
+                    joins={appearance.ifJoins}
+                    emptyHint={
+                      isDefault
+                        ? "default · always visible"
+                        : "(always — drop a condition here to gate this state)"
+                    }
+                    onChange={(conditions) =>
+                      setAppearanceConditions({
+                        packId,
+                        menuId: menu.id,
+                        elementId: element.id,
+                        appearanceIndex: i,
+                        conditions,
+                      })
+                    }
+                    onJoinChange={(joinIndex, op) =>
+                      setAppearanceJoin({
+                        packId,
+                        menuId: menu.id,
+                        elementId: element.id,
+                        appearanceIndex: i,
+                        joinIndex,
+                        op,
+                      })
+                    }
+                  />
                   {element.appearances.length > 1 ? (
                     <button
                       type="button"

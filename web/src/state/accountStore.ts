@@ -259,6 +259,15 @@ interface AccountState {
     appearanceIndex: number;
     conditions: Condition[];
   }) => void;
+  /** Set the operator for one joiner between if-conditions on an appearance. */
+  setAppearanceJoin: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    joinIndex: number;
+    op: "and" | "or";
+  }) => void;
   /** Replace one step inside a command's step tree at the given path. */
   setCommandStep: (input: {
     packId: PackId;
@@ -1085,6 +1094,44 @@ export const useAccountStore = create<AccountState>()(
                   const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
                   appearance.if = conditions.length > 0 ? conditions : undefined;
+                  // Trim joins past the new conditions length so the array
+                  // doesn't carry stale entries when conditions shrink.
+                  const maxJoins = Math.max(0, conditions.length - 1);
+                  if (appearance.ifJoins) {
+                    if (maxJoins === 0) appearance.ifJoins = undefined;
+                    else if (appearance.ifJoins.length > maxJoins)
+                      appearance.ifJoins.length = maxJoins;
+                  }
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setAppearanceJoin: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          joinIndex,
+          op,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance) return;
+                  const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
+                  if (joinIndex < 0 || joinIndex >= max) return;
+                  if (!appearance.ifJoins) appearance.ifJoins = Array(max).fill("and");
+                  while (appearance.ifJoins.length < max) appearance.ifJoins.push("and");
+                  appearance.ifJoins[joinIndex] = op;
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }

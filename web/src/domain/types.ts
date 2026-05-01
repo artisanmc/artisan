@@ -70,6 +70,8 @@ export interface Element {
 
 export interface Appearance {
   if?: Condition[];
+  /** Per-joiner ops between consecutive `if` conditions. Defaults to "and". */
+  ifJoins?: ("and" | "or")[];
   assetId?: AssetId;
   material?: string;
   count?: number;
