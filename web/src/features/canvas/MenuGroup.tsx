@@ -425,19 +425,21 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   // any change to the element propagates to all of them automatically.
   const elementsByPosition = new Map<
     number,
-    { material?: string; title?: string; count?: number; elementId: string }
+    { material?: string; title?: string; count?: number; elementId: string; multiPos: boolean }
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
       const appearance = el.appearances[0];
       if (!appearance) continue;
+      const positions = parsePositions(el.positions);
       const info = {
         material: appearance.material,
         title: appearance.title,
         count: appearance.count,
         elementId: el.id,
+        multiPos: positions.length > 1,
       };
-      for (const p of parsePositions(el.positions)) {
+      for (const p of positions) {
         elementsByPosition.set(p, info);
       }
     }
@@ -580,11 +582,18 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                       sel.set(next, null);
                       return;
                     }
-                    // Cmd/Ctrl-click is the explicit "back to button mode"
-                    // shortcut. Otherwise: first click selects the whole
-                    // button (focusedSlot null); a follow-up click on any
-                    // slot of the already-selected element narrows focus to
-                    // that slot.
+                    // Single-pos elements: button mode and instance mode
+                    // would render identically (only one slot to outline),
+                    // so the toggle is just visual noise. Always pick
+                    // instance mode for consistency.
+                    if (!el.multiPos) {
+                      sel.set([el.elementId], i);
+                      return;
+                    }
+                    // Multi-pos: cmd/ctrl-click forces button mode.
+                    // Otherwise first click = button mode; a follow-up
+                    // click on any slot of the already-selected element
+                    // narrows focus to that slot.
                     if (evt.metaKey || evt.ctrlKey) {
                       sel.set([el.elementId], null);
                     } else if (sel.ids.has(el.elementId) && sel.ids.size === 1) {
@@ -601,6 +610,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                     e.cancelBubble = true;
                     if (!el?.elementId) return;
                     const sel = useSelectionStore.getState();
+                    if (!el.multiPos) {
+                      sel.set([el.elementId], i);
+                      return;
+                    }
                     if (sel.ids.has(el.elementId) && sel.ids.size === 1) sel.set([el.elementId], i);
                     else sel.set([el.elementId], null);
                   }
