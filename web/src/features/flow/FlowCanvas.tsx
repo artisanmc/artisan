@@ -21,6 +21,7 @@ import type {
   Step,
 } from "@/domain/types";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
+import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { cx } from "@/lib/cx";
 import { useAccountStore } from "@/state/accountStore";
@@ -432,6 +433,7 @@ function ElementStepNode({
   const setSub = useFlowSelectionStore((s) => s.set);
   const removeElementStep = useAccountStore((s) => s.removeElementStep);
   const moveElementStep = useAccountStore((s) => s.moveElementStep);
+  const setElementStep = useAccountStore((s) => s.setElementStep);
 
   const focused =
     sub?.kind === "step" &&
@@ -482,8 +484,20 @@ function ElementStepNode({
         <ActionCard
           action={step.action}
           focused={focused}
+          packId={packId}
           onSelect={onSelect}
           onRemove={onRemove}
+          onActionChange={(next) =>
+            setElementStep({
+              packId,
+              menuId,
+              elementId,
+              appearanceIndex: stateIndex,
+              clickType,
+              path: { frames, index: stepIndex },
+              step: { kind: "action", action: next },
+            })
+          }
           onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
           onMoveRight={!isLast ? onMoveRight : undefined}
         />
@@ -748,22 +762,27 @@ function ToggleElseButton({
 function ActionCard({
   action,
   focused,
+  packId,
   onSelect,
   onRemove,
+  onActionChange,
   onMoveLeft,
   onMoveRight,
 }: {
   action: Action;
   focused: boolean;
+  packId: PackId;
   onSelect: () => void;
   onRemove: () => void;
+  /** When provided, render the per-type editor inline on the card. */
+  onActionChange?: (next: Action) => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
 }) {
   return (
     <div
       className={cx(
-        "group flex flex-col rounded border transition-colors",
+        "group flex w-[240px] flex-col rounded border transition-colors",
         focused ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-700 bg-zinc-900",
       )}
     >
@@ -776,13 +795,19 @@ function ActionCard({
         onMoveLeft={onMoveLeft}
         onMoveRight={onMoveRight}
       />
-      <button
-        type="button"
-        onClick={onSelect}
-        className="px-2 py-1 text-left font-mono text-[11px] text-zinc-200"
-      >
-        {actionSummary(action)}
-      </button>
+      {onActionChange ? (
+        <div className="p-2">
+          <ActionEditor packId={packId} action={action} onChange={onActionChange} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onSelect}
+          className="px-2 py-1 text-left font-mono text-[11px] text-zinc-200"
+        >
+          {actionSummary(action)}
+        </button>
+      )}
     </div>
   );
 }
@@ -1167,6 +1192,7 @@ function CommandStepNode({
   const setSub = useFlowSelectionStore((s) => s.set);
   const removeCommandStep = useAccountStore((s) => s.removeCommandStep);
   const moveCommandStep = useAccountStore((s) => s.moveCommandStep);
+  const setCommandStep = useAccountStore((s) => s.setCommandStep);
 
   const focused =
     sub?.kind === "step" &&
@@ -1191,8 +1217,17 @@ function CommandStepNode({
         <ActionCard
           action={step.action}
           focused={focused}
+          packId={packId}
           onSelect={onSelect}
           onRemove={onRemove}
+          onActionChange={(next) =>
+            setCommandStep({
+              packId,
+              commandId,
+              path: { frames, index: stepIndex },
+              step: { kind: "action", action: next },
+            })
+          }
           onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
           onMoveRight={!isLast ? onMoveRight : undefined}
         />
