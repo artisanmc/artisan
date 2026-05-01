@@ -32,7 +32,6 @@ interface ContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toPackId: PackId) => void;
-  onClearSlot: () => void;
 }
 
 export function ContextMenu({
@@ -44,7 +43,6 @@ export function ContextMenu({
   onDuplicate,
   onDelete,
   onMoveTo,
-  onClearSlot,
 }: ContextMenuProps) {
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
   const packs = useAccountStore((s) => s.account.packs);
@@ -60,11 +58,8 @@ export function ContextMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={2}>
         {state.target.kind === "slot" ? (
-          <DropdownMenuItem onSelect={onClearSlot} disabled={!state.target.filled}>
-            Clear slot
-            <span className="ml-auto text-[10px] text-zinc-500">
-              {state.target.filled ? "" : "(empty)"}
-            </span>
+          <DropdownMenuItem disabled>
+            <span className="text-zinc-500">No slot actions yet — drag a slot out to clear it</span>
           </DropdownMenuItem>
         ) : (
           <>

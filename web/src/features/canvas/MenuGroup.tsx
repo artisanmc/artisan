@@ -1,4 +1,4 @@
-import type { Menu, PackId } from "@/domain/types";
+import type { Menu, MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import { BackgroundImage } from "./BackgroundImage";
+import { hitTestSlot } from "./hitTest";
 import {
   COLS,
   GRID_PADDING,
@@ -21,6 +22,9 @@ interface MenuGroupProps {
   packId: PackId;
   menu: Menu;
   position: { x: number; y: number };
+  /** Full pack-canvas layout — needed by the slot drag-out handler to
+   *  resolve which menu (if any) the cursor was over on dragend. */
+  layout: Record<string, { x: number; y: number }>;
 }
 
 /**
@@ -34,7 +38,7 @@ interface MenuGroupProps {
  *   targets ride on the parent Group; per-slot interactivity is opt-in
  *   (Task 6 will flip slots back to listening for palette drop hit-testing).
  */
-export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
+export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const backgroundUrl = useAccountStore((s) => {
@@ -92,6 +96,63 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
       useEditingStore.getState().setEditing(menu.id);
     },
     [menu.id],
+  );
+
+  /**
+   * Slot drag-out router: drop outside any menu → clear; drop on another slot
+   * → move (set destination, clear source). Self-drop is a no-op. Always
+   * resets the dragged Konva node back to its layout XY so the visual returns
+   * even when the data didn't change.
+   */
+  const onSlotDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, material: string) => {
+      e.cancelBubble = true;
+      const node = e.target;
+      // Compute drop point in pack-canvas world coords. The slot Group's final
+      // x/y is in menu-local space; we need world = menu position + local.
+      const localX = node.x();
+      const localY = node.y();
+      // Reset visual immediately so any data outcome aligns with what user sees.
+      const original = slotXY(srcPosition);
+      node.position({ x: original.x, y: original.y });
+
+      const worldX = position.x + localX + SLOT_SIZE / 2;
+      const worldY = position.y + localY + SLOT_SIZE / 2;
+      const account = useAccountStore.getState().account;
+      const pack = account.packs.find((p) => p.id === packId);
+      if (!pack) return;
+
+      const hit = hitTestSlot(pack, layout, worldX, worldY);
+
+      if (hit && hit.menuId === menu.id && hit.position === srcPosition) return; // self-drop
+
+      try {
+        if (!hit) {
+          // Outside any menu → clear source.
+          useAccountStore.getState().clearSlot({
+            packId,
+            menuId: menu.id,
+            position: srcPosition,
+          });
+        } else {
+          // Move: set target material, then clear source.
+          useAccountStore.getState().setSlotMaterial({
+            packId,
+            menuId: hit.menuId as MenuId,
+            position: hit.position,
+            material,
+          });
+          useAccountStore.getState().clearSlot({
+            packId,
+            menuId: menu.id,
+            position: srcPosition,
+          });
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "slot drag failed");
+      }
+    },
+    [packId, menu.id, position.x, position.y, layout],
   );
 
   const elementsByPosition = new Map<string, { material?: string; title?: string }>();
@@ -162,9 +223,22 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
         const { x, y } = slotXY(i);
         const el = elementsByPosition.get(String(i));
         const filled = Boolean(el?.material);
+        // Filled slots are listening + draggable so they can be dragged out
+        // (drop outside any menu → clear, drop on another slot → move).
+        // Empty slots stay non-interactive so menu drag still picks up gap clicks.
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
-          <Group key={i} x={x} y={y} name={`slot:${menu.id}:${i}`} listening={false}>
+          <Group
+            // biome-ignore lint/suspicious/noArrayIndexKey: slot position is the stable identifier
+            key={i}
+            x={x}
+            y={y}
+            name={`slot:${menu.id}:${i}`}
+            listening={filled}
+            draggable={filled}
+            onDragEnd={
+              filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
+            }
+          >
             <Rect
               width={SLOT_SIZE}
               height={SLOT_SIZE}
@@ -184,6 +258,7 @@ export function MenuGroup({ packId, menu, position }: MenuGroupProps) {
                 fill="#d4d4d8"
                 align="center"
                 verticalAlign="middle"
+                listening={false}
               />
             ) : null}
           </Group>

@@ -195,6 +195,7 @@ export function Stage({ packId }: StageProps) {
               packId={packId}
               menu={menu}
               position={layout[menu.id] ?? { x: 0, y: 0 }}
+              layout={layout}
             />
           ))}
           {pack.commands.map((command) => (
@@ -248,19 +249,6 @@ export function Stage({ packId }: StageProps) {
             toast.success(`Moved to ${toPackId}`);
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "move failed");
-          }
-          closeCtx();
-        }}
-        onClearSlot={() => {
-          if (ctxMenu.target.kind !== "slot") return;
-          try {
-            useAccountStore.getState().clearSlot({
-              packId,
-              menuId: ctxMenu.target.menuId as MenuId,
-              position: ctxMenu.target.position,
-            });
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : "clear failed");
           }
           closeCtx();
         }}
