@@ -365,7 +365,7 @@ const applyRainbow = (segs: Segment[], phase: number, reverse: boolean): Segment
   return exploded;
 };
 
-/* --- matching-close finder for tags that wrap nested content ------------ */
+/* --- scope helpers for tags that wrap nested content ------------------- */
 
 const findMatchingClose = (input: string, startIdx: number, tagName: string): number => {
   let depth = 1;
@@ -385,6 +385,23 @@ const findMatchingClose = (input: string, startIdx: number, tagName: string): nu
     i = close + 1;
   }
   return -1;
+};
+
+/**
+ * Returns the inner content + position to resume parsing for a wrapping tag.
+ * If the matching `</tag>` is found, scope ends right before it. If there's
+ * no closing tag (the user chose to leave it open, e.g. "<rainbow>just text"),
+ * the scope extends to the end of the input — matching Adventure semantics
+ * where these tags apply to the rest of the message until reset/EOF.
+ */
+const scopeOf = (
+  input: string,
+  startIdx: number,
+  tagName: string,
+): { content: string; next: number } => {
+  const closeAt = findMatchingClose(input, startIdx, tagName);
+  if (closeAt === -1) return { content: input.slice(startIdx), next: input.length };
+  return { content: input.slice(startIdx, closeAt), next: closeAt + `</${tagName}>`.length };
 };
 
 /* --- main parser -------------------------------------------------------- */
@@ -460,109 +477,83 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       continue;
     }
 
-    // <gradient:...> — recursive scope
+    // <gradient:...> — applies to rest of input if no closing tag found.
     if (head === "gradient") {
       const args = parseGradientArgs(parts);
-      const closeAt = findMatchingClose(input, i, "gradient");
-      if (!args || closeAt === -1) {
+      if (!args) {
         buf += `<${innerRaw}>`;
         continue;
       }
-      const innerContent = input.slice(i, closeAt);
+      const scope = scopeOf(input, i, "gradient");
       flush();
-      const inner = parseFragment(innerContent, { startStyle: style });
+      const inner = parseFragment(scope.content, { startStyle: style });
       segments.push(...applyGradient(inner, args.colors, args.phase));
-      i = closeAt + "</gradient>".length;
+      i = scope.next;
       continue;
     }
 
     // <rainbow[:!][:phase]>
     if (head === "rainbow") {
       const args = parseRainbowArgs(parts);
-      const closeAt = findMatchingClose(input, i, "rainbow");
-      if (closeAt === -1) {
-        buf += `<${innerRaw}>`;
-        continue;
-      }
-      const innerContent = input.slice(i, closeAt);
+      const scope = scopeOf(input, i, "rainbow");
       flush();
-      const inner = parseFragment(innerContent, { startStyle: style });
+      const inner = parseFragment(scope.content, { startStyle: style });
       segments.push(...applyRainbow(inner, args.phase, args.reverse));
-      i = closeAt + "</rainbow>".length;
+      i = scope.next;
       continue;
     }
 
     // <pride[:flag][:phase]>
     if (head === "pride") {
       const args = parsePrideArgs(parts);
-      const closeAt = findMatchingClose(input, i, "pride");
-      if (closeAt === -1) {
-        buf += `<${innerRaw}>`;
-        continue;
-      }
-      const innerContent = input.slice(i, closeAt);
+      const scope = scopeOf(input, i, "pride");
       flush();
-      const inner = parseFragment(innerContent, { startStyle: style });
+      const inner = parseFragment(scope.content, { startStyle: style });
       segments.push(...applyGradient(inner, args.palette, args.phase));
-      i = closeAt + "</pride>".length;
+      i = scope.next;
       continue;
     }
 
-    // <transition:c1:c2:…[:phase]> — single color sampled from the list at
-    // the phase position. All inner chars get that one color.
+    // <transition:c1:c2:…[:phase]>
     if (head === "transition") {
       const args = parseTransitionArgs(parts);
-      const closeAt = findMatchingClose(input, i, "transition");
-      if (!args || closeAt === -1) {
+      if (!args) {
         buf += `<${innerRaw}>`;
         continue;
       }
-      const innerContent = input.slice(i, closeAt);
+      const scope = scopeOf(input, i, "transition");
       flush();
-      const inner = parseFragment(innerContent, { startStyle: style });
+      const inner = parseFragment(scope.content, { startStyle: style });
       const sampled = sampleGradient(args.colors, Math.max(0, Math.min(1, (args.phase + 1) / 2)));
       const recolored = inner.map((seg) => ({
         text: seg.text,
         style: { ...seg.style, color: sampled },
       }));
       segments.push(...recolored);
-      i = closeAt + "</transition>".length;
+      i = scope.next;
       continue;
     }
 
     // <font:[ns:]key>
     if (head === "font") {
-      const closeAt = findMatchingClose(input, i, "font");
-      if (closeAt === -1) {
-        buf += `<${innerRaw}>`;
-        continue;
-      }
-      const innerContent = input.slice(i, closeAt);
       const fontKey = parts.slice(1).join(":") || "minecraft:default";
+      const scope = scopeOf(input, i, "font");
       flush();
-      const inner = parseFragment(innerContent, {
-        startStyle: { ...style, font: fontKey },
-      });
+      const inner = parseFragment(scope.content, { startStyle: { ...style, font: fontKey } });
       segments.push(...inner);
-      i = closeAt + "</font>".length;
+      i = scope.next;
       continue;
     }
 
-    // <click:...>, <hover:...>, <insert:...> — visual hint only (underline +
-    // pointer cursor), the actual action happens at runtime.
+    // <click:...>, <hover:...>, <insert:...>
     if (INTERACTIVE.has(head)) {
-      const closeAt = findMatchingClose(input, i, head);
-      if (closeAt === -1) {
-        buf += `<${innerRaw}>`;
-        continue;
-      }
-      const innerContent = input.slice(i, closeAt);
+      const scope = scopeOf(input, i, head);
       flush();
-      const inner = parseFragment(innerContent, {
+      const inner = parseFragment(scope.content, {
         startStyle: { ...style, interactive: true },
       });
       segments.push(...inner);
-      i = closeAt + `</${head}>`.length;
+      i = scope.next;
       continue;
     }
 
