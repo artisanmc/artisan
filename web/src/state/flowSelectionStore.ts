@@ -22,6 +22,7 @@ export type FlowSubSelection =
       actionIndex: number;
       fallback: boolean;
     }
+  | { kind: "commandAction"; actionIndex: number }
   | null;
 
 interface FlowSelectionState {

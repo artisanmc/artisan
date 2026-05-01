@@ -2,6 +2,8 @@ import { newAssetId, newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
 import type {
   Account,
+  Action,
+  ClickType,
   Command,
   CommandId,
   Element,
@@ -54,19 +56,21 @@ interface AccountState {
   }) => void;
   /** Removes the element at the given position from the menu's first layer. */
   clearSlot: (input: { packId: PackId; menuId: MenuId; position: number }) => void;
-  /** Update a scalar field on the element's first appearance. */
+  /** Update a scalar field on the element's appearance at the given index (default 0). */
   setAppearanceField: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
+    appearanceIndex?: number;
     field: "title" | "count";
     value: string | number;
   }) => void;
-  /** Replace the element's first-appearance lore lines. */
+  /** Replace the element's appearance lore lines at the given index (default 0). */
   setAppearanceLore: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
+    appearanceIndex?: number;
     lines: string[];
   }) => void;
   /** Replace the element's positions string (e.g. "0-8,17,26"). */
@@ -101,6 +105,30 @@ interface AccountState {
   }) => void;
   /** Remove an element from its menu, regardless of how many positions it has. */
   deleteElement: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  /**
+   * Replace one action inside a click handler (or its fallback) with a new
+   * Action object. The new action's `type` may differ from the old one — the
+   * caller is responsible for shape correctness.
+   */
+  setElementAction: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    fallback: boolean;
+    actionIndex: number;
+    action: Action;
+  }) => void;
+  /**
+   * Replace one action inside a command's action chain.
+   */
+  setCommandAction: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    actionIndex: number;
+    action: Action;
+  }) => void;
   /**
    * Insert a fully-formed element (already given a fresh id) into a menu's
    * first layer. Any positions claimed by the new element are stripped from
@@ -302,7 +330,14 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
-        setAppearanceField: ({ packId: pId, menuId: mId, elementId, field, value }) =>
+        setAppearanceField: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex = 0,
+          field,
+          value,
+        }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -312,7 +347,7 @@ export const useAccountStore = create<AccountState>()(
               for (const layer of menu.layers) {
                 for (const el of layer.elements) {
                   if (el.id !== elementId) continue;
-                  const appearance = el.appearances[0];
+                  const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
                   if (field === "title") {
                     if (typeof value !== "string") return;
@@ -419,6 +454,50 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
+        setElementAction: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          fallback,
+          actionIndex,
+          action,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance?.click) return;
+                  const handler = appearance.click[clickType];
+                  if (!handler) return;
+                  const list = fallback ? handler.fallback : handler.actions;
+                  if (!list || actionIndex < 0 || actionIndex >= list.length) return;
+                  list[actionIndex] = action;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setCommandAction: ({ packId: pId, commandId: cId, actionIndex, action }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd) return;
+              if (actionIndex < 0 || actionIndex >= cmd.actions.length) return;
+              cmd.actions[actionIndex] = action;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
         addElement: ({ packId: pId, menuId: mId, element }) =>
           set(
             produce((draft: AccountState) => {
@@ -493,7 +572,7 @@ export const useAccountStore = create<AccountState>()(
           });
           set({ account: next });
         },
-        setAppearanceLore: ({ packId: pId, menuId: mId, elementId, lines }) =>
+        setAppearanceLore: ({ packId: pId, menuId: mId, elementId, appearanceIndex = 0, lines }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -503,7 +582,7 @@ export const useAccountStore = create<AccountState>()(
               for (const layer of menu.layers) {
                 for (const el of layer.elements) {
                   if (el.id !== elementId) continue;
-                  const appearance = el.appearances[0];
+                  const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
                   appearance.lore = lines.length > 0 ? lines : undefined;
                   pack.updatedAt = new Date().toISOString();
