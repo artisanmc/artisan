@@ -217,7 +217,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [packId, menu.id, position.x, position.y, layout],
   );
 
-  const elementsByPosition = new Map<string, { material?: string; title?: string }>();
+  const elementsByPosition = new Map<
+    string,
+    { material?: string; title?: string; elementId: string }
+  >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
       const appearance = el.appearances[0];
@@ -225,6 +228,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       elementsByPosition.set(el.positions, {
         material: appearance.material,
         title: appearance.title,
+        elementId: el.id,
       });
     }
   }
@@ -320,9 +324,26 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             x={x}
             y={y}
             name={`slot:${menu.id}:${i}`}
+            id={el?.elementId}
             listening={filled}
             draggable={filled}
             onDragStart={filled ? onSlotDragStart : undefined}
+            onClick={
+              filled
+                ? (e) => {
+                    e.cancelBubble = true;
+                    if (el?.elementId) useSelectionStore.getState().set([el.elementId]);
+                  }
+                : undefined
+            }
+            onTap={
+              filled
+                ? (e) => {
+                    e.cancelBubble = true;
+                    if (el?.elementId) useSelectionStore.getState().set([el.elementId]);
+                  }
+                : undefined
+            }
             onDragEnd={
               filled && el?.material ? (e) => onSlotDragEnd(e, i, el.material!) : undefined
             }
