@@ -22,8 +22,12 @@ function PackCanvasPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <PackMiniSidebar activePackId={pId} />
-      <div className="flex flex-1 flex-col">
-        <main className="flex-1">
+      {/* min-w-0 lets this flex-1 column actually shrink below its content's
+          min-content size; without it, the Konva canvas's intrinsic width
+          pushes the column past its allocation and shoves the right pane
+          off-screen. Same fix on <main> for the canvas wrapper. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <main className="min-w-0 flex-1 overflow-hidden">
           <Stage packId={pId} />
         </main>
         <MaterialPalette />
