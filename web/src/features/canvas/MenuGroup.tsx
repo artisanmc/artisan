@@ -31,6 +31,7 @@ interface SlotItemProps {
   material: string;
   innerX: number;
   innerY: number;
+  count?: number;
 }
 
 /**
@@ -38,10 +39,16 @@ interface SlotItemProps {
  * we have it bundled (most cases), or a small fallback Rect with the first 4
  * letters of the material name otherwise. The Rect is the slot Group's hit
  * shape; the Image draws on top of it so click/drag still register.
+ *
+ * Stack count (when > 1) is drawn bottom-right with a dark drop shadow,
+ * matching the vanilla MC tooltip look.
  */
-function SlotItem({ material, innerX, innerY }: SlotItemProps) {
+function SlotItem({ material, innerX, innerY, count }: SlotItemProps) {
   const url = itemTextureUrl(material);
   const [image] = useImage(url ?? "");
+  const showCount = (count ?? 0) > 1;
+  const countText = String(count ?? 0);
+  const countFontSize = 7 * TEX_SCALE;
   return (
     <>
       {/* Backdrop Rect — also acts as the slot Group's hit shape. */}
@@ -78,6 +85,37 @@ function SlotItem({ material, innerX, innerY }: SlotItemProps) {
           verticalAlign="middle"
           listening={false}
         />
+      )}
+      {showCount && (
+        <>
+          {/* Drop shadow — same offset as vanilla's 1px shadow at our 2× scale. */}
+          <Text
+            x={innerX + TEX_SCALE}
+            y={innerY + TEX_SLOT_INNER - countFontSize - TEX_SCALE + TEX_SCALE}
+            width={TEX_SLOT_INNER}
+            height={countFontSize}
+            text={countText}
+            fontFamily="ui-monospace, monospace"
+            fontSize={countFontSize}
+            fontStyle="bold"
+            fill="#3f3f3f"
+            align="right"
+            listening={false}
+          />
+          <Text
+            x={innerX}
+            y={innerY + TEX_SLOT_INNER - countFontSize - TEX_SCALE}
+            width={TEX_SLOT_INNER}
+            height={countFontSize}
+            text={countText}
+            fontFamily="ui-monospace, monospace"
+            fontSize={countFontSize}
+            fontStyle="bold"
+            fill="#ffffff"
+            align="right"
+            listening={false}
+          />
+        </>
       )}
     </>
   );
@@ -221,7 +259,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const elementsByPosition = new Map<
     string,
-    { material?: string; title?: string; elementId: string }
+    { material?: string; title?: string; count?: number; elementId: string }
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -230,6 +268,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       elementsByPosition.set(el.positions, {
         material: appearance.material,
         title: appearance.title,
+        count: appearance.count,
         elementId: el.id,
       });
     }
@@ -360,7 +399,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             }
           >
             {filled ? (
-              <SlotItem material={el?.material ?? ""} innerX={innerX} innerY={innerY} />
+              <SlotItem
+                material={el?.material ?? ""}
+                innerX={innerX}
+                innerY={innerY}
+                count={el?.count}
+              />
             ) : null}
           </Group>
         );
