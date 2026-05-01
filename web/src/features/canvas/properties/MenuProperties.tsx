@@ -1,4 +1,5 @@
 import type { Menu, PackId } from "@/domain/types";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useAccountStore } from "@/state/accountStore";
 import { useState } from "react";
 import { BackgroundUpload } from "./BackgroundUpload";
@@ -30,11 +31,19 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         <div className="mb-1 text-[10px] uppercase text-zinc-500">id</div>
         <div className="font-mono text-xs text-zinc-400">{menu.id}</div>
       </div>
-      <PropertyField
-        label="title"
-        value={menu.title}
-        onChange={(v) => setMenuField({ packId, menuId: menu.id, field: "title", value: v })}
-      />
+      <div>
+        <PropertyField
+          label="title"
+          value={menu.title}
+          onChange={(v) => setMenuField({ packId, menuId: menu.id, field: "title", value: v })}
+        />
+        {menu.title.includes("<") && (
+          <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+            <span className="mr-2 text-[9px] uppercase text-zinc-600">preview</span>
+            <MiniMessageInline source={menu.title} className="font-mono text-xs" />
+          </div>
+        )}
+      </div>
       <PropertyField
         label="permission"
         value={menu.permission ?? ""}
