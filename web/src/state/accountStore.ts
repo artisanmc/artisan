@@ -120,6 +120,77 @@ interface AccountState {
     actionIndex: number;
     action: Action;
   }) => void;
+  /** Append a new action to a click handler's main chain or fallback. */
+  addElementAction: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    fallback: boolean;
+    action: Action;
+  }) => void;
+  /** Remove the action at `actionIndex` from the chain. */
+  removeElementAction: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    fallback: boolean;
+    actionIndex: number;
+  }) => void;
+  /** Reorder actions within a click handler's chain. */
+  moveElementAction: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    fallback: boolean;
+    fromIndex: number;
+    toIndex: number;
+  }) => void;
+  /**
+   * Add an empty click handler at clickType on the given appearance. No-op
+   * if a handler already exists there.
+   */
+  addElementClickHandler: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+  }) => void;
+  /** Remove the click handler at clickType (with its actions and fallback). */
+  removeElementClickHandler: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+  }) => void;
+  /**
+   * Append a new appearance to an element. Seeds with a placeholder permission
+   * condition so the new state is clearly "conditional" and doesn't shadow the
+   * default state (which has no `if`).
+   */
+  addAppearance: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  /** Remove the appearance at the given index. The element must keep at least one. */
+  removeAppearance: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+  }) => void;
+  /** Reorder an element's appearances (priority = position in the array). */
+  moveAppearance: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    fromIndex: number;
+    toIndex: number;
+  }) => void;
   /**
    * Replace one action inside a command's action chain.
    */
@@ -128,6 +199,21 @@ interface AccountState {
     commandId: CommandId;
     actionIndex: number;
     action: Action;
+  }) => void;
+  /** Append a new action to a command's chain. */
+  addCommandAction: (input: { packId: PackId; commandId: CommandId; action: Action }) => void;
+  /** Remove a command's action at the given index. */
+  removeCommandAction: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    actionIndex: number;
+  }) => void;
+  /** Reorder a command's actions. */
+  moveCommandAction: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    fromIndex: number;
+    toIndex: number;
   }) => void;
   /**
    * Insert a fully-formed element (already given a fresh id) into a menu's
@@ -486,6 +572,230 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
+        addElementAction: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          fallback,
+          action,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance) return;
+                  if (!appearance.click) appearance.click = {};
+                  if (!appearance.click[clickType]) {
+                    appearance.click[clickType] = { actions: [] };
+                  }
+                  const handler = appearance.click[clickType]!;
+                  if (fallback) {
+                    if (!handler.fallback) handler.fallback = [];
+                    handler.fallback.push(action);
+                  } else {
+                    handler.actions.push(action);
+                  }
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        removeElementAction: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          fallback,
+          actionIndex,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  const handler = appearance?.click?.[clickType];
+                  if (!handler) return;
+                  const list = fallback ? handler.fallback : handler.actions;
+                  if (!list || actionIndex < 0 || actionIndex >= list.length) return;
+                  list.splice(actionIndex, 1);
+                  if (fallback && handler.fallback?.length === 0) handler.fallback = undefined;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        moveElementAction: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          fallback,
+          fromIndex,
+          toIndex,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  const handler = appearance?.click?.[clickType];
+                  if (!handler) return;
+                  const list = fallback ? handler.fallback : handler.actions;
+                  if (!list) return;
+                  if (
+                    fromIndex < 0 ||
+                    fromIndex >= list.length ||
+                    toIndex < 0 ||
+                    toIndex >= list.length
+                  )
+                    return;
+                  const [moved] = list.splice(fromIndex, 1);
+                  if (moved) list.splice(toIndex, 0, moved);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        addElementClickHandler: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance) return;
+                  if (!appearance.click) appearance.click = {};
+                  if (!appearance.click[clickType]) {
+                    appearance.click[clickType] = { actions: [] };
+                    pack.updatedAt = new Date().toISOString();
+                  }
+                  return;
+                }
+              }
+            }),
+          ),
+        removeElementClickHandler: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance?.click) return;
+                  delete appearance.click[clickType];
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        addAppearance: ({ packId: pId, menuId: mId, elementId }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  // Seed with a placeholder permission condition so the new
+                  // state is clearly conditional and doesn't shadow the
+                  // default state (which is the one with no `if`).
+                  el.appearances.push({ if: [{ type: "has_permission", perm: "" }] });
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        removeAppearance: ({ packId: pId, menuId: mId, elementId, appearanceIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  if (el.appearances.length <= 1) return; // keep at least one
+                  if (appearanceIndex < 0 || appearanceIndex >= el.appearances.length) return;
+                  el.appearances.splice(appearanceIndex, 1);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        moveAppearance: ({ packId: pId, menuId: mId, elementId, fromIndex, toIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  if (
+                    fromIndex < 0 ||
+                    fromIndex >= el.appearances.length ||
+                    toIndex < 0 ||
+                    toIndex >= el.appearances.length
+                  )
+                    return;
+                  const [moved] = el.appearances.splice(fromIndex, 1);
+                  if (moved) el.appearances.splice(toIndex, 0, moved);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
         setCommandAction: ({ packId: pId, commandId: cId, actionIndex, action }) =>
           set(
             produce((draft: AccountState) => {
@@ -495,6 +805,48 @@ export const useAccountStore = create<AccountState>()(
               if (!cmd) return;
               if (actionIndex < 0 || actionIndex >= cmd.actions.length) return;
               cmd.actions[actionIndex] = action;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        addCommandAction: ({ packId: pId, commandId: cId, action }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd) return;
+              cmd.actions.push(action);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        removeCommandAction: ({ packId: pId, commandId: cId, actionIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd) return;
+              if (actionIndex < 0 || actionIndex >= cmd.actions.length) return;
+              cmd.actions.splice(actionIndex, 1);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        moveCommandAction: ({ packId: pId, commandId: cId, fromIndex, toIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd) return;
+              if (
+                fromIndex < 0 ||
+                fromIndex >= cmd.actions.length ||
+                toIndex < 0 ||
+                toIndex >= cmd.actions.length
+              )
+                return;
+              const [moved] = cmd.actions.splice(fromIndex, 1);
+              if (moved) cmd.actions.splice(toIndex, 0, moved);
               pack.updatedAt = new Date().toISOString();
             }),
           ),
