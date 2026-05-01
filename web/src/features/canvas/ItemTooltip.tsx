@@ -59,16 +59,15 @@ export function ItemTooltip({ packId }: ItemTooltipProps) {
         <MiniMessageInline source={title} className="block font-mono text-xs text-white" />
         {lore.length > 0 && (
           <div className="mt-0.5 flex flex-col gap-0">
-            {/* Default lore color is vanilla dark_purple. No italic by default —
-                if a user wants italic they add <italic> explicitly. Per-segment
-                MiniMessage tags override the wrapper color via CSS cascade. */}
+            {/* Default lore color: white. Vanilla actually defaults to dark_purple
+                but most users don't want that — anyone who does adds an explicit
+                <dark_purple>/<#aa00aa> tag. Per-segment MM tags override via CSS. */}
             {lore.map((line, i) => (
               <MiniMessageInline
                 // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                 key={i}
                 source={line}
-                className="block font-mono text-[10px]"
-                style={{ color: "#aa00aa" }}
+                className="block font-mono text-[10px] text-white"
               />
             ))}
           </div>
