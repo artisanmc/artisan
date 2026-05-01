@@ -26,7 +26,7 @@ import { cx } from "@/lib/cx";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ACTION_TYPES, defaultAction } from "./defaults";
 import {
   CLICK_TYPE_ORDER,
@@ -550,7 +550,7 @@ function ElementIfCard({
     >
       <CardHeader
         kind="if"
-        label="if"
+        label="branch"
         focused={focused}
         onSelect={onSelect}
         onRemove={onRemove}
@@ -558,20 +558,39 @@ function ElementIfCard({
         onMoveRight={onMoveRight}
       />
       <div className="flex flex-col gap-1.5 p-2">
-        {step.cases.map((c, ci) => (
-          <CaseRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
-            key={ci}
-            label={ci === 0 ? "if" : "else if"}
-            ifCase={c}
-            childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
-            // Only allow removing else-if cases — the first `if` case is the
-            // anchor of the if-step and removing it would leave a degenerate
-            // shape; users delete the whole if-step via the card × instead.
-            onRemoveCase={
-              ci > 0
-                ? () =>
-                    removeIfCase({
+        {(() => {
+          const totalCases = step.cases.length + (step.else ? 1 : 0);
+          const autoCollapse = totalCases >= 3;
+          return (
+            <>
+              {step.cases.map((c, ci) => (
+                <CaseRow
+                  // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
+                  key={ci}
+                  label={ci === 0 ? "if" : "else if"}
+                  ifCase={c}
+                  defaultCollapsed={autoCollapse && ci > 0}
+                  childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+                  // Only allow removing else-if cases — the first `if` case is the
+                  // anchor of the if-step and removing it would leave a degenerate
+                  // shape; users delete the whole if-step via the card × instead.
+                  onRemoveCase={
+                    ci > 0
+                      ? () =>
+                          removeIfCase({
+                            packId,
+                            menuId,
+                            elementId,
+                            appearanceIndex: stateIndex,
+                            clickType,
+                            frames,
+                            ifStepIndex: stepIndex,
+                            caseIndex: ci,
+                          })
+                      : undefined
+                  }
+                  onConditionsChange={(conditions) =>
+                    setIfCaseConditions({
                       packId,
                       menuId,
                       elementId,
@@ -580,64 +599,55 @@ function ElementIfCard({
                       frames,
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
+                      conditions,
                     })
-                : undefined
-            }
-            onConditionsChange={(conditions) =>
-              setIfCaseConditions({
-                packId,
-                menuId,
-                elementId,
-                appearanceIndex: stateIndex,
-                clickType,
-                frames,
-                ifStepIndex: stepIndex,
-                caseIndex: ci,
-                conditions,
-              })
-            }
-            renderSteps={(steps, childFrames) => (
-              <ElementStepFlow
-                packId={packId}
-                menuId={menuId}
-                elementId={elementId}
-                stateIndex={stateIndex}
-                clickType={clickType}
-                steps={steps}
-                frames={childFrames}
-              />
-            )}
-          />
-        ))}
-        {step.else ? (
-          <CaseRow
-            label="else"
-            childFrames={[...frames, { stepIndex, descend: "else" }]}
-            onRemoveCase={() =>
-              useAccountStore.getState().toggleIfElse({
-                packId,
-                menuId,
-                elementId,
-                appearanceIndex: stateIndex,
-                clickType,
-                frames,
-                ifStepIndex: stepIndex,
-                enabled: false,
-              })
-            }
-            renderSteps={(_steps, childFrames) => (
-              <ElementStepFlow
-                packId={packId}
-                menuId={menuId}
-                elementId={elementId}
-                stateIndex={stateIndex}
-                clickType={clickType}
-                steps={step.else!}
-                frames={childFrames}
-              />
-            )}
-          />
-        ) : null}
+                  }
+                  renderSteps={(steps, childFrames) => (
+                    <ElementStepFlow
+                      packId={packId}
+                      menuId={menuId}
+                      elementId={elementId}
+                      stateIndex={stateIndex}
+                      clickType={clickType}
+                      steps={steps}
+                      frames={childFrames}
+                    />
+                  )}
+                />
+              ))}
+              {step.else ? (
+                <CaseRow
+                  label="else"
+                  defaultCollapsed={autoCollapse}
+                  childFrames={[...frames, { stepIndex, descend: "else" }]}
+                  onRemoveCase={() =>
+                    useAccountStore.getState().toggleIfElse({
+                      packId,
+                      menuId,
+                      elementId,
+                      appearanceIndex: stateIndex,
+                      clickType,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      enabled: false,
+                    })
+                  }
+                  renderSteps={(_steps, childFrames) => (
+                    <ElementStepFlow
+                      packId={packId}
+                      menuId={menuId}
+                      elementId={elementId}
+                      stateIndex={stateIndex}
+                      clickType={clickType}
+                      steps={step.else!}
+                      frames={childFrames}
+                    />
+                  )}
+                />
+              ) : null}
+            </>
+          );
+        })()}
         <div className="flex gap-1.5">
           <button
             type="button"
@@ -862,6 +872,7 @@ function CaseRow({
   renderSteps,
   onRemoveCase,
   onConditionsChange,
+  defaultCollapsed = false,
 }: {
   label: string;
   ifCase?: IfCase;
@@ -875,35 +886,68 @@ function CaseRow({
    * properties pane to edit them.
    */
   onConditionsChange?: (conditions: Condition[]) => void;
+  /** Initial collapse state. Useful when the parent has many cases. */
+  defaultCollapsed?: boolean;
 }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const stepCount = ifCase?.steps.length ?? 0;
+  const conditionsSummary =
+    ifCase && ifCase.conditions.length > 0
+      ? ifCase.conditions.map(conditionSummary).join(" AND ")
+      : ifCase
+        ? "(always)"
+        : null;
   return (
     <div className="rounded border border-zinc-800 bg-zinc-950/50 p-1.5">
       <div className="mb-1 flex items-center gap-1">
+        <button
+          type="button"
+          title={collapsed ? "Expand" : "Collapse"}
+          onClick={() => setCollapsed((v) => !v)}
+          className="rounded px-1 font-mono text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        >
+          {collapsed ? "▶" : "▼"}
+        </button>
         <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
           {label}
         </span>
+        {/* When collapsed, show a compact summary in the header so the user
+            can see what's there without expanding. */}
+        {collapsed ? (
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">
+            {conditionsSummary ? `${conditionsSummary} · ` : ""}
+            {stepCount} step{stepCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
         {onRemoveCase ? (
           <button
             type="button"
             title="Remove this case"
             onClick={onRemoveCase}
-            className="ml-auto rounded px-1 text-[10px] text-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+            className={cx(
+              "rounded px-1 text-[10px] text-zinc-600 hover:bg-zinc-800 hover:text-zinc-200",
+              collapsed ? "" : "ml-auto",
+            )}
           >
             ×
           </button>
         ) : null}
       </div>
-      {ifCase && onConditionsChange ? (
-        <div className="mb-2 rounded border border-zinc-800/60 bg-zinc-900/40 p-1.5">
-          <ConditionListEditor
-            label="when"
-            conditions={ifCase.conditions}
-            onChange={onConditionsChange}
-            emptyHint="(always — drop a condition here to gate this case)"
-          />
-        </div>
+      {!collapsed ? (
+        <>
+          {ifCase && onConditionsChange ? (
+            <div className="mb-2">
+              <ConditionListEditor
+                label=""
+                conditions={ifCase.conditions}
+                onChange={onConditionsChange}
+                emptyHint="(always — drop a condition here to gate this case)"
+              />
+            </div>
+          ) : null}
+          <div className="overflow-x-auto">{renderSteps(ifCase?.steps ?? [], childFrames)}</div>
+        </>
       ) : null}
-      <div className="overflow-x-auto">{renderSteps(ifCase?.steps ?? [], childFrames)}</div>
     </div>
   );
 }
@@ -1183,7 +1227,7 @@ function CommandIfCard({
     >
       <CardHeader
         kind="if"
-        label="if"
+        label="branch"
         focused={focused}
         onSelect={onSelect}
         onRemove={onRemove}
@@ -1191,68 +1235,78 @@ function CommandIfCard({
         onMoveRight={onMoveRight}
       />
       <div className="flex flex-col gap-1.5 p-2">
-        {step.cases.map((c, ci) => (
-          <CaseRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
-            key={ci}
-            label={ci === 0 ? "if" : "else if"}
-            ifCase={c}
-            childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
-            onRemoveCase={
-              ci > 0
-                ? () =>
-                    removeCommandIfCase({
+        {(() => {
+          const totalCases = step.cases.length + (step.else ? 1 : 0);
+          const autoCollapse = totalCases >= 3;
+          return (
+            <>
+              {step.cases.map((c, ci) => (
+                <CaseRow
+                  // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
+                  key={ci}
+                  label={ci === 0 ? "if" : "else if"}
+                  ifCase={c}
+                  defaultCollapsed={autoCollapse && ci > 0}
+                  childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+                  onRemoveCase={
+                    ci > 0
+                      ? () =>
+                          removeCommandIfCase({
+                            packId,
+                            commandId,
+                            frames,
+                            ifStepIndex: stepIndex,
+                            caseIndex: ci,
+                          })
+                      : undefined
+                  }
+                  onConditionsChange={(conditions) =>
+                    setCommandIfCaseConditions({
                       packId,
                       commandId,
                       frames,
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
+                      conditions,
                     })
-                : undefined
-            }
-            onConditionsChange={(conditions) =>
-              setCommandIfCaseConditions({
-                packId,
-                commandId,
-                frames,
-                ifStepIndex: stepIndex,
-                caseIndex: ci,
-                conditions,
-              })
-            }
-            renderSteps={(steps, childFrames) => (
-              <CommandStepFlow
-                packId={packId}
-                commandId={commandId}
-                steps={steps}
-                frames={childFrames}
-              />
-            )}
-          />
-        ))}
-        {step.else ? (
-          <CaseRow
-            label="else"
-            childFrames={[...frames, { stepIndex, descend: "else" }]}
-            onRemoveCase={() =>
-              toggleCommandIfElse({
-                packId,
-                commandId,
-                frames,
-                ifStepIndex: stepIndex,
-                enabled: false,
-              })
-            }
-            renderSteps={(_, childFrames) => (
-              <CommandStepFlow
-                packId={packId}
-                commandId={commandId}
-                steps={step.else!}
-                frames={childFrames}
-              />
-            )}
-          />
-        ) : null}
+                  }
+                  renderSteps={(steps, childFrames) => (
+                    <CommandStepFlow
+                      packId={packId}
+                      commandId={commandId}
+                      steps={steps}
+                      frames={childFrames}
+                    />
+                  )}
+                />
+              ))}
+              {step.else ? (
+                <CaseRow
+                  label="else"
+                  defaultCollapsed={autoCollapse}
+                  childFrames={[...frames, { stepIndex, descend: "else" }]}
+                  onRemoveCase={() =>
+                    toggleCommandIfElse({
+                      packId,
+                      commandId,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      enabled: false,
+                    })
+                  }
+                  renderSteps={(_, childFrames) => (
+                    <CommandStepFlow
+                      packId={packId}
+                      commandId={commandId}
+                      steps={step.else!}
+                      frames={childFrames}
+                    />
+                  )}
+                />
+              ) : null}
+            </>
+          );
+        })()}
         <div className="flex gap-1.5">
           <button
             type="button"
