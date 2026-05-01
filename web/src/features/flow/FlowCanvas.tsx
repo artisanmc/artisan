@@ -541,6 +541,7 @@ function ElementIfCard({
   const addIfCase = useAccountStore((s) => s.addIfCase);
   const removeIfCase = useAccountStore((s) => s.removeIfCase);
   const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
+  const setIfCaseMatch = useAccountStore((s) => s.setIfCaseMatch);
   return (
     <div
       className={cx(
@@ -600,6 +601,19 @@ function ElementIfCard({
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
                       conditions,
+                    })
+                  }
+                  onMatchChange={(match) =>
+                    setIfCaseMatch({
+                      packId,
+                      menuId,
+                      elementId,
+                      appearanceIndex: stateIndex,
+                      clickType,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      caseIndex: ci,
+                      match,
                     })
                   }
                   renderSteps={(steps, childFrames) => (
@@ -872,6 +886,7 @@ function CaseRow({
   renderSteps,
   onRemoveCase,
   onConditionsChange,
+  onMatchChange,
   defaultCollapsed = false,
 }: {
   label: string;
@@ -886,14 +901,17 @@ function CaseRow({
    * properties pane to edit them.
    */
   onConditionsChange?: (conditions: Condition[]) => void;
+  /** When provided, expose a match-all/any (AND/OR) toggle on the inline editor. */
+  onMatchChange?: (match: "all" | "any") => void;
   /** Initial collapse state. Useful when the parent has many cases. */
   defaultCollapsed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const stepCount = ifCase?.steps.length ?? 0;
+  const join = ifCase?.match === "any" ? " OR " : " AND ";
   const conditionsSummary =
     ifCase && ifCase.conditions.length > 0
-      ? ifCase.conditions.map(conditionSummary).join(" AND ")
+      ? ifCase.conditions.map(conditionSummary).join(join)
       : ifCase
         ? "(always)"
         : null;
@@ -942,6 +960,8 @@ function CaseRow({
                 conditions={ifCase.conditions}
                 onChange={onConditionsChange}
                 emptyHint="(always — drop a condition here to gate this case)"
+                match={ifCase.match ?? "all"}
+                onMatchChange={onMatchChange}
               />
             </div>
           ) : null}
@@ -1218,6 +1238,7 @@ function CommandIfCard({
   const toggleCommandIfElse = useAccountStore((s) => s.toggleCommandIfElse);
   const removeCommandIfCase = useAccountStore((s) => s.removeCommandIfCase);
   const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
+  const setCommandIfCaseMatch = useAccountStore((s) => s.setCommandIfCaseMatch);
   return (
     <div
       className={cx(
@@ -1268,6 +1289,16 @@ function CommandIfCard({
                       ifStepIndex: stepIndex,
                       caseIndex: ci,
                       conditions,
+                    })
+                  }
+                  onMatchChange={(match) =>
+                    setCommandIfCaseMatch({
+                      packId,
+                      commandId,
+                      frames,
+                      ifStepIndex: stepIndex,
+                      caseIndex: ci,
+                      match,
                     })
                   }
                   renderSteps={(steps, childFrames) => (

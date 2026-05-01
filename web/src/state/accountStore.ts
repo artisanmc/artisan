@@ -184,6 +184,18 @@ interface AccountState {
     caseIndex: number;
     conditions: Condition[];
   }) => void;
+  /** Toggle a case's match mode (AND-all vs OR-any). */
+  setIfCaseMatch: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex: number;
+    clickType: ClickType;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+    match: "all" | "any";
+  }) => void;
   /** Toggle the else-branch of an if-step on or off. */
   toggleIfElse: (input: {
     packId: PackId;
@@ -293,6 +305,14 @@ interface AccountState {
     ifStepIndex: number;
     caseIndex: number;
     conditions: Condition[];
+  }) => void;
+  setCommandIfCaseMatch: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    frames: StepFrame[];
+    ifStepIndex: number;
+    caseIndex: number;
+    match: "all" | "any";
   }) => void;
   toggleCommandIfElse: (input: {
     packId: PackId;
@@ -859,6 +879,37 @@ export const useAccountStore = create<AccountState>()(
               touch(draft, pId);
             }),
           ),
+        setIfCaseMatch: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+          caseIndex,
+          match,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const handler = findElementHandler(
+                draft,
+                pId,
+                mId,
+                elementId,
+                appearanceIndex,
+                clickType,
+              );
+              if (!handler) return;
+              const parent = resolveParentMut(handler.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              c.match = match === "any" ? "any" : undefined;
+              touch(draft, pId);
+            }),
+          ),
         toggleIfElse: ({
           packId: pId,
           menuId: mId,
@@ -1124,6 +1175,27 @@ export const useAccountStore = create<AccountState>()(
               const c = ifStep.cases[caseIndex];
               if (!c) return;
               c.conditions = conditions;
+              touch(draft, pId);
+            }),
+          ),
+        setCommandIfCaseMatch: ({
+          packId: pId,
+          commandId: cId,
+          frames,
+          ifStepIndex,
+          caseIndex,
+          match,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const cmd = findCommand(draft, pId, cId);
+              if (!cmd) return;
+              const parent = resolveParentMut(cmd.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              c.match = match === "any" ? "any" : undefined;
               touch(draft, pId);
             }),
           ),

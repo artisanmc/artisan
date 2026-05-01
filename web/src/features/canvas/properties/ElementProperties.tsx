@@ -290,6 +290,7 @@ function StepSubEditor({
 }) {
   const setElementStep = useAccountStore((s) => s.setElementStep);
   const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
+  const setIfCaseMatch = useAccountStore((s) => s.setIfCaseMatch);
   if (sub.clickType === undefined || sub.stateIndex === undefined) return null;
   const appearance = element.appearances[sub.stateIndex];
   const handler = appearance?.click?.[sub.clickType];
@@ -346,6 +347,20 @@ function StepSubEditor({
           key={ci}
           label={ci === 0 ? "if conditions" : `else if (#${ci}) conditions`}
           conditions={c.conditions}
+          match={c.match ?? "all"}
+          onMatchChange={(match) =>
+            setIfCaseMatch({
+              packId,
+              menuId,
+              elementId: element.id,
+              appearanceIndex: sub.stateIndex!,
+              clickType: sub.clickType!,
+              frames: sub.path.frames,
+              ifStepIndex: sub.path.index,
+              caseIndex: ci,
+              match,
+            })
+          }
           emptyHint="(no conditions — always matches)"
           onChange={(conditions) =>
             setIfCaseConditions({

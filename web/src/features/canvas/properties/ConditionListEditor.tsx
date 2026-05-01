@@ -33,6 +33,13 @@ interface ConditionListEditorProps {
   onChange: (next: Condition[]) => void;
   /** Hint shown when the list is empty. */
   emptyHint?: string;
+  /**
+   * Boolean join mode. "all" → AND-join the chips; "any" → OR-join. When
+   * undefined the editor falls back to AND and hides the toggle (used for
+   * legacy callers like state visibility — those can be opted in later).
+   */
+  match?: "all" | "any";
+  onMatchChange?: (match: "all" | "any") => void;
 }
 
 const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = [
@@ -59,7 +66,10 @@ export function ConditionListEditor({
   conditions,
   onChange,
   emptyHint,
+  match,
+  onMatchChange,
 }: ConditionListEditorProps) {
+  const joiner = match === "any" ? "OR" : "AND";
   const baseId = useId();
 
   const updateAt = (i: number, next: Condition) => {
@@ -89,11 +99,15 @@ export function ConditionListEditor({
   };
   const ids = conditions.map((_, i) => `${baseId}:${i}`);
 
+  const headerVisible = label || (onMatchChange && conditions.length > 1);
   return (
     <div>
-      {label ? (
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-[10px] uppercase text-zinc-500">{label}</span>
+      {headerVisible ? (
+        <div className="mb-1 flex items-center justify-between gap-2">
+          {label ? <span className="text-[10px] uppercase text-zinc-500">{label}</span> : <span />}
+          {onMatchChange && conditions.length > 1 ? (
+            <MatchToggle match={match ?? "all"} onChange={onMatchChange} />
+          ) : null}
         </div>
       ) : null}
       {conditions.length === 0 ? (
@@ -101,7 +115,7 @@ export function ConditionListEditor({
           <div className="flex-1 rounded border border-zinc-800 border-dashed bg-zinc-900/30 px-2 py-1.5 text-[11px] text-zinc-500">
             {emptyHint ?? "always (no condition)"}
           </div>
-          <AppendChip onPick={append} />
+          <AppendChip onPick={append} joiner={joiner} />
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -112,12 +126,12 @@ export function ConditionListEditor({
                   key={ids[i]}
                   id={ids[i]!}
                   condition={c}
-                  showAnd={i > 0}
+                  joiner={i > 0 ? joiner : null}
                   onChange={(next) => updateAt(i, next)}
                   onRemove={() => removeAt(i)}
                 />
               ))}
-              <AppendChip onPick={append} />
+              <AppendChip onPick={append} joiner={conditions.length > 0 ? joiner : null} />
             </div>
           </SortableContext>
         </DndContext>
@@ -129,12 +143,13 @@ export function ConditionListEditor({
 interface ConditionChipProps {
   id: string;
   condition: Condition;
-  showAnd: boolean;
+  /** When set, render this joiner badge before the chip ("AND" / "OR"). */
+  joiner: string | null;
   onChange: (next: Condition) => void;
   onRemove: () => void;
 }
 
-function ConditionChip({ id, condition, showAnd, onChange, onRemove }: ConditionChipProps) {
+function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -145,9 +160,9 @@ function ConditionChip({ id, condition, showAnd, onChange, onRemove }: Condition
   };
   return (
     <>
-      {showAnd ? (
+      {joiner ? (
         <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
-          AND
+          {joiner}
         </span>
       ) : null}
       <div
@@ -268,7 +283,13 @@ function ConditionInline({
   }
 }
 
-function AppendChip({ onPick }: { onPick: (type: Condition["type"]) => void }) {
+function AppendChip({
+  onPick,
+  joiner,
+}: {
+  onPick: (type: Condition["type"]) => void;
+  joiner?: string | null;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -276,7 +297,7 @@ function AppendChip({ onPick }: { onPick: (type: Condition["type"]) => void }) {
           type="button"
           className="rounded border border-zinc-700 border-dashed px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
         >
-          + AND
+          {joiner ? `+ ${joiner}` : "+ add"}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
@@ -291,5 +312,37 @@ function AppendChip({ onPick }: { onPick: (type: Condition["type"]) => void }) {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function MatchToggle({
+  match,
+  onChange,
+}: {
+  match: "all" | "any";
+  onChange: (match: "all" | "any") => void;
+}) {
+  return (
+    <div className="flex overflow-hidden rounded border border-zinc-700 text-[9px]">
+      {(["all", "any"] as const).map((value) => {
+        const active = match === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(value)}
+            className={cx(
+              "px-1.5 py-0.5 font-mono uppercase tracking-wide transition-colors",
+              active
+                ? "bg-emerald-500/20 text-emerald-200"
+                : "bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200",
+            )}
+            title={value === "all" ? "match ALL (AND)" : "match ANY (OR)"}
+          >
+            {value === "all" ? "AND" : "OR"}
+          </button>
+        );
+      })}
+    </div>
   );
 }
