@@ -19,6 +19,7 @@ import {
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
   TEX_SLOT_STRIDE,
+  TEX_TITLE_H,
   TEX_URL,
   bottomPieceCrop,
   bottomPieceY,
@@ -201,7 +202,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id],
   );
 
-  const onDblClick = useCallback(
+  const onTitleDblClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       useEditingStore.getState().setEditing(menu.id);
@@ -209,20 +210,42 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id],
   );
 
-  // Active drag-source for the Alt-duplicate ghost: when the user holds Alt
-  // mid-drag we render a non-interactive copy of the source slot so they see
-  // the original "stay" while the cursor copy moves.
-  const [dragSource, setDragSource] = useState<{ position: number; altKey: boolean } | null>(null);
+  /**
+   * Slot-drag state. Two flavours:
+   *   - single   : moves/duplicates one position of one element. Alt-drag
+   *                  shows a static copy at the source while the cursor
+   *                  follows the cursor copy.
+   *   - selection: shifts every position of every element in the current
+   *                  selection by a grid delta. Triggered when the dragged
+   *                  slot's element is part of a multi-element selection,
+   *                  OR when a single multi-pos element is selected in
+   *                  button mode (focusedSlot null). Ghost copies of every
+   *                  other selected slot follow the drag offset.
+   */
+  type SiblingGhost = { position: number; material: string; count?: number };
+  type DragState =
+    | null
+    | { kind: "single"; sourcePosition: number; altKey: boolean }
+    | {
+        kind: "selection";
+        sourcePosition: number;
+        elementIds: ElementId[];
+        siblings: SiblingGhost[];
+        offset: { dx: number; dy: number };
+        altKey: boolean;
+      };
+  const [dragState, setDragState] = useState<DragState>(null);
 
   // Watch Alt key changes while a slot is being dragged; mousemove also
   // refreshes altKey via dragmove, but key events catch presses while idle.
-  const isDragging = dragSource !== null;
+  const isDragging = dragState !== null;
   useEffect(() => {
     if (!isDragging) return;
     const sync = (e: KeyboardEvent) => {
-      setDragSource((prev) =>
-        prev && prev.altKey !== e.altKey ? { ...prev, altKey: e.altKey } : prev,
-      );
+      setDragState((prev) => {
+        if (!prev || prev.altKey === e.altKey) return prev;
+        return { ...prev, altKey: e.altKey };
+      });
     };
     window.addEventListener("keydown", sync);
     window.addEventListener("keyup", sync);
@@ -232,37 +255,107 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     };
   }, [isDragging]);
 
-  const onSlotDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>, position: number) => {
-    e.target.getParent()?.moveToTop();
-    e.target.moveToTop();
-    setDragSource({ position, altKey: (e.evt as MouseEvent).altKey });
-  }, []);
+  const onSlotDragStart = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>, position: number, sourceElementId: ElementId) => {
+      e.target.getParent()?.moveToTop();
+      e.target.moveToTop();
+      const altKey = (e.evt as MouseEvent).altKey;
+      const sel = useSelectionStore.getState();
+      const sourceInSelection = sel.ids.has(sourceElementId);
+      const useSelectionDrag = sourceInSelection && (sel.ids.size > 1 || sel.focusedSlot === null);
+      if (useSelectionDrag) {
+        // Capture every "non-source" slot that should ghost-follow the drag.
+        const siblings: SiblingGhost[] = [];
+        for (const layer of menu.layers) {
+          for (const el of layer.elements) {
+            if (!sel.ids.has(el.id)) continue;
+            const appearance = el.appearances[0];
+            if (!appearance?.material) continue;
+            for (const p of parsePositions(el.positions)) {
+              if (p === position) continue;
+              siblings.push({
+                position: p,
+                material: appearance.material,
+                count: appearance.count,
+              });
+            }
+          }
+        }
+        setDragState({
+          kind: "selection",
+          sourcePosition: position,
+          elementIds: [...sel.ids] as ElementId[],
+          siblings,
+          offset: { dx: 0, dy: 0 },
+          altKey,
+        });
+      } else {
+        setDragState({ kind: "single", sourcePosition: position, altKey });
+      }
+    },
+    [menu.layers],
+  );
 
   const onSlotDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     const altKey = (e.evt as MouseEvent).altKey;
-    setDragSource((prev) => (prev && prev.altKey !== altKey ? { ...prev, altKey } : prev));
+    const node = e.target;
+    setDragState((prev) => {
+      if (!prev) return prev;
+      if (prev.kind === "selection") {
+        const origin = slotXY(prev.sourcePosition);
+        const dx = node.x() - origin.x;
+        const dy = node.y() - origin.y;
+        if (prev.offset.dx === dx && prev.offset.dy === dy && prev.altKey === altKey) return prev;
+        return { ...prev, offset: { dx, dy }, altKey };
+      }
+      if (prev.altKey === altKey) return prev;
+      return { ...prev, altKey };
+    });
   }, []);
 
   /**
-   * Slot drag-end router:
-   *   - drop outside any menu          → remove this position from the source element
-   *   - drop on another slot, no Alt   → MOVE the position within the source
-   *                                       element (replaces the target if owned by
-   *                                       a different element)
-   *   - drop on another slot, Alt held → DUPLICATE — add target position to the
-   *                                       source element, source position stays
-   *   - drop on a slot already owned by the source element → no-op
-   *   - cross-menu drops are deferred (treated as drag-out for now)
+   * Slot drag-end router. Two paths depending on the captured drag state:
+   *
+   * Selection drag (multi-element OR single-element button mode):
+   *   - Compute grid delta from the dragged Group's offset
+   *   - Dispatch moveSelectionByDelta to shift every position of every
+   *     selected element together
+   *
+   * Single drag:
+   *   - drop outside any menu          → clear this position
+   *   - drop on another slot, no Alt   → move this position within source
+   *   - drop on another slot, Alt held → duplicate (add target to source)
+   *   - drop on a slot already owned   → no-op
    */
   const onSlotDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>, srcPosition: number, sourceElementId: ElementId) => {
       e.cancelBubble = true;
-      setDragSource(null);
+      const captured = dragState;
+      setDragState(null);
       const node = e.target;
       const localX = node.x();
       const localY = node.y();
       const original = slotXY(srcPosition);
       node.position({ x: original.x, y: original.y });
+
+      // Selection-drag: shift the whole selection by a grid delta.
+      if (captured?.kind === "selection") {
+        const dCol = Math.round((localX - original.x) / TEX_SLOT_STRIDE);
+        const dRow = Math.round((localY - original.y) / TEX_SLOT_STRIDE);
+        if (dCol === 0 && dRow === 0) return;
+        try {
+          useAccountStore.getState().moveSelectionByDelta({
+            packId,
+            menuId: menu.id,
+            elementIds: captured.elementIds,
+            dCol,
+            dRow,
+          });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "selection drag failed");
+        }
+        return;
+      }
 
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
       const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
@@ -304,7 +397,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         toast.error(err instanceof Error ? err.message : "slot drag failed");
       }
     },
-    [packId, menu.id, position.x, position.y, layout],
+    [dragState, packId, menu.id, position.x, position.y, layout],
   );
 
   // Fan out each element across every slot it occupies. Multi-position
@@ -344,8 +437,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={onDblClick}
-      onDblTap={onDblClick}
       name={`menu:${menu.id}`}
       id={menu.id}
     >
@@ -407,6 +498,19 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         fontSize={7 * TEX_SCALE}
         defaultColor="#404040"
       />
+      {/* Interactive title-bar overlay: dblclicking it opens the inline title
+          editor. Constrained to the title row only so dblclicks elsewhere on
+          the menu (e.g. on a slot) don't accidentally open the editor at the
+          wrong target. Single click bubbles through to select the menu. */}
+      <Rect
+        x={0}
+        y={0}
+        width={box.width}
+        height={TEX_TITLE_H}
+        fill="transparent"
+        onDblClick={onTitleDblClick}
+        onDblTap={onTitleDblClick}
+      />
       {/* Slot interaction overlays */}
       {Array.from({ length: slotCount }, (_, i) => {
         const { x, y } = slotXY(i);
@@ -426,7 +530,11 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             name={`slot:${menu.id}:${i}`}
             listening={filled}
             draggable={filled}
-            onDragStart={filled ? (e) => onSlotDragStart(e, i) : undefined}
+            onDragStart={
+              filled && el?.elementId
+                ? (e) => onSlotDragStart(e, i, el.elementId as ElementId)
+                : undefined
+            }
             onDragMove={filled ? onSlotDragMove : undefined}
             onClick={
               filled
@@ -435,6 +543,16 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                     if (!el?.elementId) return;
                     const evt = e.evt as MouseEvent;
                     const sel = useSelectionStore.getState();
+                    // Shift = additive multi-select (always button-mode for
+                    // every member, since instance focus only makes sense on
+                    // a single element).
+                    if (evt.shiftKey) {
+                      const next = new Set(sel.ids);
+                      if (next.has(el.elementId)) next.delete(el.elementId);
+                      else next.add(el.elementId);
+                      sel.set(next, null);
+                      return;
+                    }
                     // Cmd/Ctrl-click is the explicit "back to button mode"
                     // shortcut. Otherwise: first click selects the whole
                     // button (focusedSlot null); a follow-up click on any
@@ -442,7 +560,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                     // that slot.
                     if (evt.metaKey || evt.ctrlKey) {
                       sel.set([el.elementId], null);
-                    } else if (sel.ids.has(el.elementId)) {
+                    } else if (sel.ids.has(el.elementId) && sel.ids.size === 1) {
                       sel.set([el.elementId], i);
                     } else {
                       sel.set([el.elementId], null);
@@ -456,7 +574,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                     e.cancelBubble = true;
                     if (!el?.elementId) return;
                     const sel = useSelectionStore.getState();
-                    if (sel.ids.has(el.elementId)) sel.set([el.elementId], i);
+                    if (sel.ids.has(el.elementId) && sel.ids.size === 1) sel.set([el.elementId], i);
                     else sel.set([el.elementId], null);
                   }
                 : undefined
@@ -507,10 +625,15 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           at its original coordinates while the actual draggable Group
           follows the cursor. Only shown when Alt is held — without it the
           drag looks like a move (source disappears at cursor). */}
-      {dragSource?.altKey && elementsByPosition.get(dragSource.position)?.material
+      {/* Alt-drag duplicate ghost (single drag): a static copy of the source
+          slot pinned at its original coordinates while the dragged Group
+          follows the cursor. Without it, the drag looks like a move. */}
+      {dragState?.kind === "single" &&
+      dragState.altKey &&
+      elementsByPosition.get(dragState.sourcePosition)?.material
         ? (() => {
-            const info = elementsByPosition.get(dragSource.position)!;
-            const { x, y } = slotXY(dragSource.position);
+            const info = elementsByPosition.get(dragState.sourcePosition)!;
+            const { x, y } = slotXY(dragState.sourcePosition);
             return (
               <Group x={x} y={y} listening={false} opacity={0.9}>
                 <SlotItem
@@ -522,6 +645,29 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               </Group>
             );
           })()
+        : null}
+      {/* Selection-drag ghosts: every other selected slot follows the dragged
+          Group's offset so the user sees the whole selection translate. */}
+      {dragState?.kind === "selection"
+        ? dragState.siblings.map((sib) => {
+            const { x, y } = slotXY(sib.position);
+            return (
+              <Group
+                key={`ghost-${sib.position}`}
+                x={x + dragState.offset.dx}
+                y={y + dragState.offset.dy}
+                listening={false}
+                opacity={0.75}
+              >
+                <SlotItem
+                  material={sib.material}
+                  innerX={TEX_SLOT_INNER_OFFSET}
+                  innerY={TEX_SLOT_INNER_OFFSET}
+                  count={sib.count}
+                />
+              </Group>
+            );
+          })
         : null}
     </Group>
   );
