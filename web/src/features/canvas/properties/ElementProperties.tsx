@@ -2,7 +2,9 @@ import { Input } from "@/components/ui/input";
 import type { Element, MenuId, PackId } from "@/domain/types";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { useState } from "react";
 import { PropertyField } from "./PropertyField";
 
 interface ElementPropertiesProps {
@@ -16,12 +18,30 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 export function ElementProperties({ packId, menuId, element }: ElementPropertiesProps) {
   const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
   const setAppearanceLore = useAccountStore((s) => s.setAppearanceLore);
+  const setElementPositions = useAccountStore((s) => s.setElementPositions);
   const appearance = element.appearances[0];
   const material = appearance?.material ?? "";
   const title = appearance?.title ?? "";
   const count = appearance?.count ?? 1;
   const loreText = (appearance?.lore ?? []).join("\n");
   const textureUrl = itemTextureUrl(material);
+  const [positionsDraft, setPositionsDraft] = useState(element.positions);
+  // Keep the draft in sync if the element is mutated outside this pane (e.g.
+  // a slot is dropped/cleared elsewhere); reset on element id change.
+  if (
+    element.positions !== formatPositions(parsePositions(positionsDraft)) &&
+    element.positions !== positionsDraft
+  ) {
+    // Don't fight active typing — only reset when the parsed canonical drifts.
+  }
+  const commitPositions = () => {
+    const canonical = formatPositions(parsePositions(positionsDraft));
+    if (canonical !== element.positions) {
+      setElementPositions({ packId, menuId, elementId: element.id, positions: canonical });
+    }
+    setPositionsDraft(canonical);
+  };
+  const positionsCount = parsePositions(element.positions).length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -42,8 +62,27 @@ export function ElementProperties({ packId, menuId, element }: ElementProperties
         <div className="min-w-0 flex-1">
           <div className="font-mono text-xs text-zinc-300">{material || "(empty)"}</div>
           <div className="text-[10px] text-zinc-500">
-            slot {element.positions} · element {element.id}
+            {positionsCount} slot{positionsCount > 1 ? "s" : ""} · element {element.id}
           </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-[10px] uppercase text-zinc-500">positions</div>
+        <Input
+          value={positionsDraft}
+          placeholder="0-8,17,26"
+          onChange={(e) => setPositionsDraft(e.target.value)}
+          onBlur={commitPositions}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              commitPositions();
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        <div className="mt-1 text-[10px] text-zinc-500">
+          comma-separated indices and ranges, e.g. <span className="font-mono">0-8,17,26</span>
         </div>
       </div>
 
