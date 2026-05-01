@@ -35,6 +35,8 @@ interface AccountState {
     position: number;
     material: string;
   }) => void;
+  /** Removes the element at the given position from the menu's first layer. */
+  clearSlot: (input: { packId: PackId; menuId: MenuId; position: number }) => void;
   /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
   pasteEntities: (input: {
     packId: PackId;
@@ -203,6 +205,24 @@ export const useAccountStore = create<AccountState>()(
                 appearances: [{ material }],
               });
               pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        clearSlot: ({ packId: pId, menuId: mId, position }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              const positionStr = String(position);
+              for (const layer of menu.layers) {
+                const idx = layer.elements.findIndex((el) => el.positions === positionStr);
+                if (idx !== -1) {
+                  layer.elements.splice(idx, 1);
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
             }),
           ),
         pasteEntities: ({ packId: pId, menus, commands, offset }) => {
