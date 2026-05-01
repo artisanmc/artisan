@@ -78,7 +78,8 @@ interface ElementFlowProps {
 function ElementFlow({ menu, element }: ElementFlowProps) {
   const sub = useFlowSelectionStore((s) => s.sub);
   const setSub = useFlowSelectionStore((s) => s.set);
-  const focusedStateIndex = sub ? sub.stateIndex : 0;
+  const focusedStateIndex =
+    sub && (sub.kind === "state" || sub.kind === "action") ? sub.stateIndex : 0;
   const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
   const material = focusedState?.material ?? "(empty)";
@@ -344,25 +345,37 @@ function CommandFlow({ command }: CommandFlowProps) {
 }
 
 function CommandActionList({ actions }: { actions: Action[] }) {
+  const sub = useFlowSelectionStore((s) => s.sub);
+  const setSub = useFlowSelectionStore((s) => s.set);
   if (actions.length === 0) {
     return <div className="px-2 py-2 text-[10px] text-zinc-600 italic">(no actions)</div>;
   }
   return (
     <div className="flex flex-col gap-1 p-2">
-      {actions.map((action, i) => (
-        <div
-          // biome-ignore lint/suspicious/noArrayIndexKey: action index is stable
-          key={i}
-          className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950 px-2 py-1"
-        >
-          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
-            {actionTypeLabel(action.type)}
-          </span>
-          <span className="flex-1 truncate font-mono text-[11px] text-zinc-200">
-            {actionSummary(action)}
-          </span>
-        </div>
-      ))}
+      {actions.map((action, i) => {
+        const focused = sub?.kind === "commandAction" && sub.actionIndex === i;
+        return (
+          <button
+            // biome-ignore lint/suspicious/noArrayIndexKey: action index is stable
+            key={i}
+            type="button"
+            onClick={() => setSub({ kind: "commandAction", actionIndex: i })}
+            className={cx(
+              "flex items-center gap-2 rounded border px-2 py-1 text-left transition-colors",
+              focused
+                ? "border-emerald-500 bg-emerald-500/10"
+                : "border-zinc-800 bg-zinc-950 hover:border-zinc-600",
+            )}
+          >
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
+              {actionTypeLabel(action.type)}
+            </span>
+            <span className="flex-1 truncate font-mono text-[11px] text-zinc-200">
+              {actionSummary(action)}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
