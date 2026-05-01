@@ -1,4 +1,4 @@
-import { newElementId, newLayerId, newPackId } from "@/domain/ids";
+import { newAssetId, newElementId, newLayerId, newPackId } from "@/domain/ids";
 import { assertPackHermetic } from "@/domain/invariants";
 import type { Account, Command, CommandId, Layer, Menu, MenuId, PackId } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
@@ -37,6 +37,17 @@ interface AccountState {
   }) => void;
   /** Removes the element at the given position from the menu's first layer. */
   clearSlot: (input: { packId: PackId; menuId: MenuId; position: number }) => void;
+  /**
+   * Set (or clear) a menu's background image. When `dataUrl` is provided we
+   * also create a new Asset on the pack with the given metadata. When null, the
+   * background is detached (the asset stays in the pack so other menus can
+   * still reference it).
+   */
+  setMenuBackground: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    asset: { name: string; dataUrl: string; width: number; height: number } | null;
+  }) => void;
   /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
   pasteEntities: (input: {
     packId: PackId;
@@ -223,6 +234,30 @@ export const useAccountStore = create<AccountState>()(
                   return;
                 }
               }
+            }),
+          ),
+        setMenuBackground: ({ packId: pId, menuId: mId, asset }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              if (asset === null) {
+                menu.background = undefined;
+              } else {
+                const id = newAssetId();
+                pack.assets.push({
+                  id,
+                  packId: pId,
+                  name: asset.name,
+                  url: asset.dataUrl,
+                  width: asset.width,
+                  height: asset.height,
+                });
+                menu.background = { assetId: id };
+              }
+              pack.updatedAt = new Date().toISOString();
             }),
           ),
         pasteEntities: ({ packId: pId, menus, commands, offset }) => {
