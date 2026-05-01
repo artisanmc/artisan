@@ -23,7 +23,9 @@ describe("rewriteIds", () => {
     const { menus } = rewriteIds({ menus: [shopMain, profile], commands: [] });
     const newShopMain = menus[0]!;
     const newProfile = menus[1]!;
-    const action = newShopMain.layers[0]!.elements[0]!.appearances[0]!.click!.left!.actions[0]!;
+    const firstStep = newShopMain.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps[0]!;
+    if (firstStep.kind !== "action") throw new Error("expected action step");
+    const action = firstStep.action;
     expect(action.type).toBe("open_menu");
     if (action.type === "open_menu") {
       expect(action.menuId).toBe(newProfile.id);
@@ -33,7 +35,9 @@ describe("rewriteIds", () => {
   it("leaves open_menu targets that aren't in the paste set untouched", () => {
     const shopMain = personal.menus.find((m) => m.id === "m_shop_main")!;
     const { menus } = rewriteIds({ menus: [shopMain], commands: [] });
-    const action = menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!.actions[0]!;
+    const firstStep = menus[0]!.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps[0]!;
+    if (firstStep.kind !== "action") throw new Error("expected action step");
+    const action = firstStep.action;
     if (action.type === "open_menu") {
       expect(action.menuId).toBe("m_profile"); // dangling — assertPackHermetic rejects on paste
     }

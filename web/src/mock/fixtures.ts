@@ -44,7 +44,13 @@ const personalPack = (): Pack => {
                   {
                     material: "PAPER",
                     title: "Profil",
-                    click: { left: { actions: [{ type: "open_menu", menuId: profileId }] } },
+                    click: {
+                      left: {
+                        steps: [
+                          { kind: "action", action: { type: "open_menu", menuId: profileId } },
+                        ],
+                      },
+                    },
                   },
                 ],
               },
@@ -74,7 +80,7 @@ const personalPack = (): Pack => {
         name: "heal",
         permission: "interfaze.heal",
         arguments: [],
-        actions: [{ type: "send_message", text: "Healed!" }],
+        steps: [{ kind: "action", action: { type: "send_message", text: "Healed!" } }],
       },
     ],
   };
@@ -121,7 +127,7 @@ const shopSystemPack = (): Pack => ({
       packId: packId("p_shop_system"),
       name: "shop",
       arguments: [],
-      actions: [{ type: "open_menu", menuId: menuId("m_shop_root") }],
+      steps: [{ kind: "action", action: { type: "open_menu", menuId: menuId("m_shop_root") } }],
     },
   ],
 });

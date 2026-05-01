@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { getStep } from "@/domain/stepPath";
 import type { Action, Appearance, Element, MenuId, PackId } from "@/domain/types";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -26,17 +27,16 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
  */
 export function ElementProperties({ packId, menuId, element }: ElementPropertiesProps) {
   const sub = useFlowSelectionStore((s) => s.sub);
-  // commandAction sub-selections never reach this component (top selection is
-  // a command in that case), but the type allows it so we narrow defensively.
-  const stateIndex = sub && (sub.kind === "state" || sub.kind === "action") ? sub.stateIndex : 0;
+  const stateIndex =
+    sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
   const appearance = element.appearances[stateIndex] ?? element.appearances[0];
 
   return (
     <div className="flex flex-col gap-3">
       <ElementHeader packId={packId} element={element} appearance={appearance} />
       <PositionsField packId={packId} menuId={menuId} element={element} />
-      {sub?.kind === "action" ? (
-        <ActionSubEditor packId={packId} menuId={menuId} element={element} sub={sub} />
+      {sub?.kind === "step" && sub.clickType ? (
+        <StepSubEditor packId={packId} menuId={menuId} element={element} sub={sub} />
       ) : (
         <AppearanceFields
           packId={packId}
@@ -277,7 +277,7 @@ function AppearanceFields({
   );
 }
 
-function ActionSubEditor({
+function StepSubEditor({
   packId,
   menuId,
   element,
@@ -286,62 +286,82 @@ function ActionSubEditor({
   packId: PackId;
   menuId: MenuId;
   element: Element;
-  sub: Extract<FlowSubSelection, { kind: "action" }>;
+  sub: Extract<FlowSubSelection, { kind: "step" }>;
 }) {
-  const setElementAction = useAccountStore((s) => s.setElementAction);
-  const setHandlerRequirements = useAccountStore((s) => s.setHandlerRequirements);
+  const setElementStep = useAccountStore((s) => s.setElementStep);
+  const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
+  if (sub.clickType === undefined || sub.stateIndex === undefined) return null;
   const appearance = element.appearances[sub.stateIndex];
   const handler = appearance?.click?.[sub.clickType];
-  const list = sub.fallback ? handler?.fallback : handler?.actions;
-  const action = list?.[sub.actionIndex];
-  if (!action) {
+  if (!handler) {
     return (
       <div className="rounded border border-zinc-800 border-dashed bg-zinc-900/50 px-2 py-3 text-[11px] text-zinc-500">
-        Action no longer exists. Pick another in the flow canvas.
+        Step no longer exists. Pick another in the flow canvas.
       </div>
     );
   }
-  const onChange = (next: Action) =>
-    setElementAction({
-      packId,
-      menuId,
-      elementId: element.id,
-      appearanceIndex: sub.stateIndex,
-      clickType: sub.clickType,
-      fallback: sub.fallback,
-      actionIndex: sub.actionIndex,
-      action: next,
-    });
+  const step = getStep(handler.steps, sub.path);
+  if (!step) {
+    return (
+      <div className="rounded border border-zinc-800 border-dashed bg-zinc-900/50 px-2 py-3 text-[11px] text-zinc-500">
+        Step no longer exists. Pick another in the flow canvas.
+      </div>
+    );
+  }
+  if (step.kind === "action") {
+    const onChange = (next: Action) =>
+      setElementStep({
+        packId,
+        menuId,
+        elementId: element.id,
+        appearanceIndex: sub.stateIndex!,
+        clickType: sub.clickType!,
+        path: sub.path,
+        step: { kind: "action", action: next },
+      });
+    return (
+      <div className="flex flex-col gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zinc-300">
+            {step.action.type}
+          </span>
+          <span>{sub.clickType.replace("_", "+")} chain</span>
+        </div>
+        <ActionEditor packId={packId} action={step.action} onChange={onChange} />
+      </div>
+    );
+  }
+  // if-step: edit each case's conditions in turn.
   return (
     <div className="flex flex-col gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-2">
       <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-        <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zinc-300">
-          {action.type}
+        <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono uppercase tracking-wide text-blue-200">
+          if
         </span>
-        <span>
-          {sub.clickType.replace("_", "+")}
-          {sub.fallback ? " · on failure" : ""}
-        </span>
+        <span>{sub.clickType.replace("_", "+")} chain · edit case conditions</span>
       </div>
-      <ActionEditor packId={packId} action={action} onChange={onChange} />
-      {/* The handler's requirements predicate gates the whole chain. We
-          surface it here since action selection is the most natural entry
-          point — the same requirements apply to every action in the chain. */}
-      <ConditionListEditor
-        label={`requirements · gates the ${sub.clickType.replace("_", "+")} chain`}
-        conditions={handler?.requirements ?? []}
-        emptyHint="no requirements (always runs)"
-        onChange={(conditions) =>
-          setHandlerRequirements({
-            packId,
-            menuId,
-            elementId: element.id,
-            appearanceIndex: sub.stateIndex,
-            clickType: sub.clickType,
-            conditions,
-          })
-        }
-      />
+      {step.cases.map((c, ci) => (
+        <ConditionListEditor
+          // biome-ignore lint/suspicious/noArrayIndexKey: case index stable
+          key={ci}
+          label={ci === 0 ? "if conditions" : `else if (#${ci}) conditions`}
+          conditions={c.conditions}
+          emptyHint="(no conditions — always matches)"
+          onChange={(conditions) =>
+            setIfCaseConditions({
+              packId,
+              menuId,
+              elementId: element.id,
+              appearanceIndex: sub.stateIndex!,
+              clickType: sub.clickType!,
+              frames: sub.path.frames,
+              ifStepIndex: sub.path.index,
+              caseIndex: ci,
+              conditions,
+            })
+          }
+        />
+      ))}
     </div>
   );
 }

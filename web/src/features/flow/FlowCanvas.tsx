@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { StepFrame } from "@/domain/stepPath";
 import type {
   Action,
   ClickHandler,
@@ -12,9 +13,11 @@ import type {
   CommandId,
   Element,
   ElementId,
+  IfCase,
   Menu,
   MenuId,
   PackId,
+  Step,
 } from "@/domain/types";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { cx } from "@/lib/cx";
@@ -36,19 +39,16 @@ interface FlowCanvasProps {
 }
 
 /**
- * Bottom canvas. Resolves the current top-canvas selection to either an
- * element or a command and renders its action structure: states + click
- * handlers + actions. Clicking nodes updates the flowSelectionStore which
- * the properties pane consumes; ×/+/↑/↓ controls dispatch structural
- * mutations on accountStore.
+ * Bottom canvas. Renders the recursive Step tree of the selected element /
+ * command as a horizontal flow with `if`-branches fanning out vertically
+ * below their parent step. Clicking nodes drives the flowSelectionStore so
+ * the right-side properties pane edits the right thing.
  */
 export function FlowCanvas({ packId }: FlowCanvasProps) {
   const ids = useSelectionStore((s) => s.ids);
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
-  // Reset the sub-selection whenever the top selection changes — different
-  // entity = different state/action tree.
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids change is the trigger
   useEffect(() => {
     setSub(null);
@@ -81,17 +81,23 @@ function EmptyHint({ label }: { label: string }) {
   );
 }
 
-interface ElementFlowProps {
+// ────────────────────────────────────────────────────────────────────────────
+// Element flow
+// ────────────────────────────────────────────────────────────────────────────
+
+function ElementFlow({
+  packId,
+  menu,
+  element,
+}: {
   packId: PackId;
   menu: Menu;
   element: Element;
-}
-
-function ElementFlow({ packId, menu, element }: ElementFlowProps) {
+}) {
   const sub = useFlowSelectionStore((s) => s.sub);
   const setSub = useFlowSelectionStore((s) => s.set);
   const focusedStateIndex =
-    sub && (sub.kind === "state" || sub.kind === "action") ? sub.stateIndex : 0;
+    sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
   const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
   const material = focusedState?.material ?? "(empty)";
@@ -100,17 +106,6 @@ function ElementFlow({ packId, menu, element }: ElementFlowProps) {
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
-
-  const onAddAppearance = () => {
-    addAppearance({ packId, menuId: menu.id, elementId: element.id });
-    // Focus the just-added appearance.
-    setSub({ kind: "state", stateIndex: element.appearances.length });
-  };
-  const onRemoveAppearance = (i: number) => {
-    if (element.appearances.length <= 1) return;
-    removeAppearance({ packId, menuId: menu.id, elementId: element.id, appearanceIndex: i });
-    setSub(null);
-  };
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -150,7 +145,7 @@ function ElementFlow({ packId, menu, element }: ElementFlowProps) {
               const isDefault = conds.length === 0;
               return (
                 <div
-                  // biome-ignore lint/suspicious/noArrayIndexKey: state index is the stable identifier
+                  // biome-ignore lint/suspicious/noArrayIndexKey: state index is stable
                   key={i}
                   className={cx(
                     "group relative flex min-w-[160px] flex-col rounded border px-2 py-1.5 text-xs transition-colors",
@@ -177,7 +172,7 @@ function ElementFlow({ packId, menu, element }: ElementFlowProps) {
                     {!isDefault && (
                       <div className="mt-1 text-[10px] text-zinc-500">
                         {conds.map((c, j) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: condition index is stable in render
+                          // biome-ignore lint/suspicious/noArrayIndexKey: condition index is stable
                           <div key={j} className="truncate">
                             • {conditionSummary(c)}
                           </div>
@@ -191,7 +186,13 @@ function ElementFlow({ packId, menu, element }: ElementFlowProps) {
                       title="Remove this state"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRemoveAppearance(i);
+                        removeAppearance({
+                          packId,
+                          menuId: menu.id,
+                          elementId: element.id,
+                          appearanceIndex: i,
+                        });
+                        setSub(null);
                       }}
                       className="absolute top-0.5 right-0.5 rounded px-1 text-[10px] text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
                     >
@@ -203,7 +204,10 @@ function ElementFlow({ packId, menu, element }: ElementFlowProps) {
             })}
             <button
               type="button"
-              onClick={onAddAppearance}
+              onClick={() => {
+                addAppearance({ packId, menuId: menu.id, elementId: element.id });
+                setSub({ kind: "state", stateIndex: element.appearances.length });
+              }}
               className="rounded border border-zinc-700 border-dashed px-2 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
             >
               + Add state
@@ -239,29 +243,29 @@ function Lane({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-interface ClickHandlersGridProps {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  click: Element["appearances"][number]["click"];
-}
-
 function ClickHandlersGrid({
   packId,
   menuId,
   elementId,
   stateIndex,
   click,
-}: ClickHandlersGridProps) {
+}: {
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  click: Element["appearances"][number]["click"];
+}) {
   const populated = CLICK_TYPE_ORDER.filter((t) => click?.[t]);
   const unpopulated = CLICK_TYPE_ORDER.filter((t) => !click?.[t]);
   const addHandler = useAccountStore((s) => s.addElementClickHandler);
+  const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
+  const setSub = useFlowSelectionStore((s) => s.set);
 
   return (
-    <div className="grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1">
+    <div className="flex flex-col gap-3">
       {populated.map((clickType) => (
-        <ClickHandlerColumn
+        <ElementHandlerRow
           key={clickType}
           packId={packId}
           menuId={menuId}
@@ -269,245 +273,488 @@ function ClickHandlersGrid({
           stateIndex={stateIndex}
           clickType={clickType}
           handler={click![clickType]!}
+          onRemove={() => {
+            removeHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType });
+            setSub(null);
+          }}
         />
       ))}
       {unpopulated.length > 0 ? (
-        <div className="min-w-[220px]">
-          <ClickTypePicker
-            label="+ Add handler"
-            options={unpopulated}
-            onPick={(clickType) =>
-              addHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType })
-            }
-          />
-        </div>
+        <ClickTypePicker
+          label="+ Add click handler"
+          options={unpopulated}
+          onPick={(clickType) =>
+            addHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType })
+          }
+        />
       ) : null}
     </div>
   );
 }
 
-interface ClickHandlerColumnProps {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  handler: ClickHandler;
-}
-
-function ClickHandlerColumn({
+function ElementHandlerRow({
   packId,
   menuId,
   elementId,
   stateIndex,
   clickType,
   handler,
-}: ClickHandlerColumnProps) {
-  const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
-  const setSub = useFlowSelectionStore((s) => s.set);
+  onRemove,
+}: {
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  clickType: ClickType;
+  handler: ClickHandler;
+  onRemove: () => void;
+}) {
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/60">
+    <div className="rounded border border-zinc-800 bg-zinc-900/40">
       <div className="flex items-center justify-between border-zinc-800 border-b px-2 py-1.5">
-        <div>
-          <div className="font-mono text-[11px] text-zinc-200">{clickTypeLabel(clickType)}</div>
-          {handler.requirements && handler.requirements.length > 0 ? (
-            <div className="mt-0.5 text-[10px] text-zinc-500">
-              {handler.requirements.map((c, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: requirement index is stable in render
-                <div key={i} className="truncate">
-                  if {conditionSummary(c)}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <span className="font-mono text-[11px] text-zinc-200">{clickTypeLabel(clickType)}</span>
         <button
           type="button"
           title="Remove this click handler"
-          onClick={() => {
-            removeHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType });
-            setSub(null);
-          }}
+          onClick={onRemove}
           className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
         >
           ×
         </button>
       </div>
-      <ActionList
-        packId={packId}
-        menuId={menuId}
-        elementId={elementId}
-        stateIndex={stateIndex}
-        clickType={clickType}
-        actions={handler.actions}
-        fallback={false}
-      />
-      <div className="border-zinc-800 border-t">
-        <div className="px-2 pt-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
-          on failure
-        </div>
-        <ActionList
+      <div className="overflow-x-auto p-2">
+        <ElementStepFlow
           packId={packId}
           menuId={menuId}
           elementId={elementId}
           stateIndex={stateIndex}
           clickType={clickType}
-          actions={handler.fallback ?? []}
-          fallback={true}
+          steps={handler.steps}
+          frames={[]}
         />
       </div>
     </div>
   );
 }
 
-interface ActionListProps {
+// ────────────────────────────────────────────────────────────────────────────
+// Recursive step renderer (element)
+// ────────────────────────────────────────────────────────────────────────────
+
+interface ElementStepFlowProps {
   packId: PackId;
   menuId: MenuId;
   elementId: ElementId;
   stateIndex: number;
   clickType: ClickType;
-  actions: Action[];
-  fallback: boolean;
+  steps: Step[];
+  frames: StepFrame[];
 }
 
-function ActionList({
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  clickType,
-  actions,
-  fallback,
-}: ActionListProps) {
-  const sub = useFlowSelectionStore((s) => s.sub);
+function ElementStepFlow(props: ElementStepFlowProps) {
+  const { packId, menuId, elementId, stateIndex, clickType, steps, frames } = props;
+  const addElementStep = useAccountStore((s) => s.addElementStep);
   const setSub = useFlowSelectionStore((s) => s.set);
-  const addAction = useAccountStore((s) => s.addElementAction);
-  const removeAction = useAccountStore((s) => s.removeElementAction);
-  const moveAction = useAccountStore((s) => s.moveElementAction);
   const firstMenuId = useAccountStore(
     (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
   );
 
-  const onAdd = (type: Action["type"]) => {
-    addAction({
+  const handleAdd = (newStep: Step) => {
+    const newIndex = steps.length;
+    addElementStep({
       packId,
       menuId,
       elementId,
       appearanceIndex: stateIndex,
       clickType,
-      fallback,
-      action: defaultAction(type, firstMenuId),
+      frames,
+      index: newIndex,
+      step: newStep,
     });
     setSub({
-      kind: "action",
+      kind: "step",
       stateIndex,
       clickType,
-      actionIndex: actions.length,
-      fallback,
+      path: { frames, index: newIndex },
     });
   };
 
   return (
-    <div className="flex flex-col gap-1 p-2">
-      {actions.map((action, i) => {
-        const focused =
-          sub?.kind === "action" &&
-          sub.stateIndex === stateIndex &&
-          sub.clickType === clickType &&
-          sub.actionIndex === i &&
-          sub.fallback === fallback;
-        return (
-          <ActionRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: action index is the stable identifier
+    <div className="flex items-stretch gap-2">
+      {steps.length === 0 ? (
+        <EmptyChainHint />
+      ) : (
+        steps.map((step, i) => (
+          <ElementStepNode
+            // biome-ignore lint/suspicious/noArrayIndexKey: step index stable per render
             key={i}
-            action={action}
-            focused={focused}
+            step={step}
+            stepIndex={i}
+            isLast={i === steps.length - 1}
+            packId={packId}
+            menuId={menuId}
+            elementId={elementId}
+            stateIndex={stateIndex}
+            clickType={clickType}
+            frames={frames}
+          />
+        ))
+      )}
+      <AddStepPicker firstMenuId={firstMenuId} onPick={handleAdd} />
+    </div>
+  );
+}
+
+function ElementStepNode({
+  step,
+  stepIndex,
+  isLast,
+  packId,
+  menuId,
+  elementId,
+  stateIndex,
+  clickType,
+  frames,
+}: {
+  step: Step;
+  stepIndex: number;
+  isLast: boolean;
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  clickType: ClickType;
+  frames: StepFrame[];
+}) {
+  const sub = useFlowSelectionStore((s) => s.sub);
+  const setSub = useFlowSelectionStore((s) => s.set);
+  const removeElementStep = useAccountStore((s) => s.removeElementStep);
+  const moveElementStep = useAccountStore((s) => s.moveElementStep);
+
+  const focused =
+    sub?.kind === "step" &&
+    sub.clickType === clickType &&
+    sub.stateIndex === stateIndex &&
+    framesEqual(sub.path.frames, frames) &&
+    sub.path.index === stepIndex;
+
+  const onSelect = () =>
+    setSub({ kind: "step", stateIndex, clickType, path: { frames, index: stepIndex } });
+  const onRemove = () => {
+    removeElementStep({
+      packId,
+      menuId,
+      elementId,
+      appearanceIndex: stateIndex,
+      clickType,
+      path: { frames, index: stepIndex },
+    });
+    if (focused) setSub(null);
+  };
+  const onMoveLeft = () =>
+    moveElementStep({
+      packId,
+      menuId,
+      elementId,
+      appearanceIndex: stateIndex,
+      clickType,
+      frames,
+      fromIndex: stepIndex,
+      toIndex: stepIndex - 1,
+    });
+  const onMoveRight = () =>
+    moveElementStep({
+      packId,
+      menuId,
+      elementId,
+      appearanceIndex: stateIndex,
+      clickType,
+      frames,
+      fromIndex: stepIndex,
+      toIndex: stepIndex + 1,
+    });
+
+  return (
+    <>
+      {step.kind === "action" ? (
+        <ActionCard
+          action={step.action}
+          focused={focused}
+          onSelect={onSelect}
+          onRemove={onRemove}
+          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
+          onMoveRight={!isLast ? onMoveRight : undefined}
+        />
+      ) : (
+        <ElementIfCard
+          step={step}
+          stepIndex={stepIndex}
+          packId={packId}
+          menuId={menuId}
+          elementId={elementId}
+          stateIndex={stateIndex}
+          clickType={clickType}
+          frames={frames}
+          focused={focused}
+          onSelect={onSelect}
+          onRemove={onRemove}
+          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
+          onMoveRight={!isLast ? onMoveRight : undefined}
+        />
+      )}
+      {!isLast ? <Arrow /> : null}
+    </>
+  );
+}
+
+function ElementIfCard({
+  step,
+  stepIndex,
+  packId,
+  menuId,
+  elementId,
+  stateIndex,
+  clickType,
+  frames,
+  focused,
+  onSelect,
+  onRemove,
+  onMoveLeft,
+  onMoveRight,
+}: {
+  step: Extract<Step, { kind: "if" }>;
+  stepIndex: number;
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  clickType: ClickType;
+  frames: StepFrame[];
+  focused: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+}) {
+  const addIfCase = useAccountStore((s) => s.addIfCase);
+  return (
+    <div
+      className={cx(
+        "flex flex-col rounded border bg-zinc-900/60",
+        focused ? "border-emerald-500" : "border-zinc-700",
+      )}
+    >
+      <CardHeader
+        kind="if"
+        label="if"
+        focused={focused}
+        onSelect={onSelect}
+        onRemove={onRemove}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+      />
+      <div className="flex flex-col gap-1.5 p-2">
+        {step.cases.map((c, ci) => (
+          <CaseRow
+            // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
+            key={ci}
+            label={ci === 0 ? "if" : "else if"}
+            ifCase={c}
+            childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+            renderSteps={(steps, childFrames) => (
+              <ElementStepFlow
+                packId={packId}
+                menuId={menuId}
+                elementId={elementId}
+                stateIndex={stateIndex}
+                clickType={clickType}
+                steps={steps}
+                frames={childFrames}
+              />
+            )}
+          />
+        ))}
+        {step.else ? (
+          <CaseRow
+            label="else"
+            childFrames={[...frames, { stepIndex, descend: "else" }]}
+            renderSteps={(_steps, childFrames) => (
+              <ElementStepFlow
+                packId={packId}
+                menuId={menuId}
+                elementId={elementId}
+                stateIndex={stateIndex}
+                clickType={clickType}
+                steps={step.else!}
+                frames={childFrames}
+              />
+            )}
+          />
+        ) : null}
+        <div className="flex gap-1.5">
+          <button
+            type="button"
             onClick={() =>
-              setSub({ kind: "action", stateIndex, clickType, actionIndex: i, fallback })
-            }
-            onRemove={() => {
-              removeAction({
+              addIfCase({
                 packId,
                 menuId,
                 elementId,
                 appearanceIndex: stateIndex,
                 clickType,
-                fallback,
-                actionIndex: i,
-              });
-              if (focused) setSub(null);
-            }}
-            onMoveUp={
-              i > 0
-                ? () =>
-                    moveAction({
-                      packId,
-                      menuId,
-                      elementId,
-                      appearanceIndex: stateIndex,
-                      clickType,
-                      fallback,
-                      fromIndex: i,
-                      toIndex: i - 1,
-                    })
-                : undefined
+                frames,
+                ifStepIndex: stepIndex,
+              })
             }
-            onMoveDown={
-              i < actions.length - 1
-                ? () =>
-                    moveAction({
-                      packId,
-                      menuId,
-                      elementId,
-                      appearanceIndex: stateIndex,
-                      clickType,
-                      fallback,
-                      fromIndex: i,
-                      toIndex: i + 1,
-                    })
-                : undefined
-            }
-          />
-        );
-      })}
-      <ActionTypePicker label="+ Add action" onPick={onAdd} />
+            className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            + else if
+          </button>
+          {!step.else ? (
+            <ToggleElseButton
+              packId={packId}
+              menuId={menuId}
+              elementId={elementId}
+              stateIndex={stateIndex}
+              clickType={clickType}
+              frames={frames}
+              ifStepIndex={stepIndex}
+              enabled={false}
+            />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
 
-interface ActionRowProps {
-  action: Action;
-  focused: boolean;
-  onClick: () => void;
-  onRemove: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+function ToggleElseButton({
+  packId,
+  menuId,
+  elementId,
+  stateIndex,
+  clickType,
+  frames,
+  ifStepIndex,
+  enabled,
+}: {
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  clickType: ClickType;
+  frames: StepFrame[];
+  ifStepIndex: number;
+  enabled: boolean;
+}) {
+  const toggleIfElse = useAccountStore((s) => s.toggleIfElse);
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        toggleIfElse({
+          packId,
+          menuId,
+          elementId,
+          appearanceIndex: stateIndex,
+          clickType,
+          frames,
+          ifStepIndex,
+          enabled: !enabled,
+        })
+      }
+      className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+    >
+      + else
+    </button>
+  );
 }
 
-function ActionRow({ action, focused, onClick, onRemove, onMoveUp, onMoveDown }: ActionRowProps) {
+// ────────────────────────────────────────────────────────────────────────────
+// Card primitives shared by element and command flows
+// ────────────────────────────────────────────────────────────────────────────
+
+function ActionCard({
+  action,
+  focused,
+  onSelect,
+  onRemove,
+  onMoveLeft,
+  onMoveRight,
+}: {
+  action: Action;
+  focused: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+}) {
   return (
     <div
       className={cx(
-        "group flex items-center gap-1.5 rounded border px-2 py-1 transition-colors",
-        focused
-          ? "border-emerald-500 bg-emerald-500/10"
-          : "border-zinc-800 bg-zinc-950 hover:border-zinc-600",
+        "group flex flex-col rounded border transition-colors",
+        focused ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-700 bg-zinc-900",
       )}
     >
-      <button type="button" onClick={onClick} className="flex flex-1 items-center gap-2 text-left">
-        <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
-          {actionTypeLabel(action.type)}
-        </span>
-        <span className="flex-1 truncate font-mono text-[11px] text-zinc-200">
-          {actionSummary(action)}
-        </span>
+      <CardHeader
+        kind="action"
+        label={actionTypeLabel(action.type)}
+        focused={focused}
+        onSelect={onSelect}
+        onRemove={onRemove}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+      />
+      <button
+        type="button"
+        onClick={onSelect}
+        className="px-2 py-1 text-left font-mono text-[11px] text-zinc-200"
+      >
+        {actionSummary(action)}
       </button>
-      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-        <RowIconButton title="Move up" disabled={!onMoveUp} onClick={onMoveUp}>
-          ↑
+    </div>
+  );
+}
+
+function CardHeader({
+  kind,
+  label,
+  focused,
+  onSelect,
+  onRemove,
+  onMoveLeft,
+  onMoveRight,
+}: {
+  kind: "action" | "if";
+  label: string;
+  focused: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+}) {
+  return (
+    <div
+      className={cx(
+        "group/header flex items-center gap-1 border-b px-2 py-0.5",
+        focused ? "border-emerald-700/50 bg-emerald-500/5" : "border-zinc-800 bg-zinc-950/60",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cx(
+          "rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide",
+          kind === "if" ? "bg-blue-500/20 text-blue-200" : "bg-zinc-800 text-zinc-300",
+        )}
+      >
+        {label}
+      </button>
+      <div className="flex flex-1 items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover/header:opacity-100">
+        <RowIconButton title="Move left" disabled={!onMoveLeft} onClick={onMoveLeft}>
+          ←
         </RowIconButton>
-        <RowIconButton title="Move down" disabled={!onMoveDown} onClick={onMoveDown}>
-          ↓
+        <RowIconButton title="Move right" disabled={!onMoveRight} onClick={onMoveRight}>
+          →
         </RowIconButton>
         <RowIconButton title="Remove" onClick={onRemove}>
           ×
@@ -533,7 +780,10 @@ function RowIconButton({
       type="button"
       title={title}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
       className={cx(
         "rounded px-1 text-[10px]",
         disabled
@@ -546,20 +796,113 @@ function RowIconButton({
   );
 }
 
-interface ClickTypePickerProps {
+function Arrow() {
+  return (
+    <div className="flex shrink-0 items-center text-zinc-700">
+      <span className="font-mono text-xs">→</span>
+    </div>
+  );
+}
+
+function EmptyChainHint() {
+  return <div className="flex items-center text-[10px] text-zinc-600 italic">(empty chain)</div>;
+}
+
+function CaseRow({
+  label,
+  ifCase,
+  childFrames,
+  renderSteps,
+}: {
+  label: string;
+  ifCase?: IfCase;
+  childFrames: StepFrame[];
+  renderSteps: (steps: Step[], childFrames: StepFrame[]) => React.ReactNode;
+}) {
+  return (
+    <div className="rounded border border-zinc-800 bg-zinc-950/50 p-1.5">
+      <div className="mb-1 flex items-center gap-1">
+        <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
+          {label}
+        </span>
+        {ifCase ? (
+          <span className="truncate font-mono text-[10px] text-zinc-500">
+            {ifCase.conditions.length === 0
+              ? "(no conditions yet)"
+              : ifCase.conditions.map(conditionSummary).join(" AND ")}
+          </span>
+        ) : null}
+      </div>
+      <div className="overflow-x-auto">{renderSteps(ifCase?.steps ?? [], childFrames)}</div>
+    </div>
+  );
+}
+
+function AddStepPicker({
+  firstMenuId,
+  onPick,
+}: {
+  firstMenuId: MenuId | undefined;
+  onPick: (step: Step) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="self-stretch rounded border border-zinc-700 border-dashed px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        >
+          + Add
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        {ACTION_TYPES.map((type) => (
+          <DropdownMenuItem
+            key={type}
+            onSelect={() => onPick({ kind: "action", action: defaultAction(type, firstMenuId) })}
+            className="cursor-pointer focus:bg-zinc-800"
+          >
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
+              {actionTypeLabel(type)}
+            </span>
+            <span className="font-mono text-[11px] text-zinc-200">{type}</span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem
+          onSelect={() =>
+            onPick({
+              kind: "if",
+              cases: [{ conditions: [], steps: [] }],
+            })
+          }
+          className="cursor-pointer focus:bg-zinc-800"
+        >
+          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
+            if
+          </span>
+          <span className="font-mono text-[11px] text-zinc-200">if branch</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ClickTypePicker({
+  label,
+  options,
+  onPick,
+}: {
   label: string;
   options: ClickType[];
   onPick: (clickType: ClickType) => void;
-}
-
-function ClickTypePicker({ label, options, onPick }: ClickTypePickerProps) {
+}) {
   if (options.length === 0) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="w-full rounded border border-zinc-700 border-dashed px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          className="self-start rounded border border-zinc-700 border-dashed px-2 py-1.5 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
         >
           {label}
         </button>
@@ -579,117 +922,261 @@ function ClickTypePicker({ label, options, onPick }: ClickTypePickerProps) {
   );
 }
 
-interface ActionTypePickerProps {
-  label: string;
-  onPick: (type: Action["type"]) => void;
+function framesEqual(a: StepFrame[], b: StepFrame[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const fa = a[i]!;
+    const fb = b[i]!;
+    if (fa.stepIndex !== fb.stepIndex) return false;
+    if (fa.descend === "else") {
+      if (fb.descend !== "else") return false;
+    } else {
+      if (fb.descend === "else") return false;
+      if (fa.descend.case !== fb.descend.case) return false;
+    }
+  }
+  return true;
 }
 
-function ActionTypePicker({ label, onPick }: ActionTypePickerProps) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="w-full rounded border border-zinc-700 border-dashed px-2 py-1 text-left text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-        >
-          {label}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
-        {ACTION_TYPES.map((type) => (
-          <DropdownMenuItem
-            key={type}
-            onSelect={() => onPick(type)}
-            className="cursor-pointer focus:bg-zinc-800"
-          >
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
-              {actionTypeLabel(type)}
-            </span>
-            <span className="font-mono text-[11px] text-zinc-200">{type}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
+// ────────────────────────────────────────────────────────────────────────────
+// Command flow
+// ────────────────────────────────────────────────────────────────────────────
 
-interface CommandFlowProps {
-  packId: PackId;
-  command: Command;
-}
-
-function CommandFlow({ packId, command }: CommandFlowProps) {
+function CommandFlow({ packId, command }: { packId: PackId; command: Command }) {
   return (
     <div className="flex h-full flex-col bg-zinc-950">
       <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
         <div className="font-mono text-xs text-zinc-200">/{command.name}</div>
         <div className="text-[10px] text-zinc-500">
           {command.permission ? `perm: ${command.permission} · ` : ""}
-          {command.actions.length} action{command.actions.length === 1 ? "" : "s"}
+          step tree
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-3 py-3">
-        <Lane label="Actions">
-          <div className="rounded border border-zinc-800 bg-zinc-900/60">
-            <CommandActionList packId={packId} commandId={command.id} actions={command.actions} />
-          </div>
-        </Lane>
+      <div className="flex-1 overflow-auto p-3">
+        <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+          <CommandStepFlow
+            packId={packId}
+            commandId={command.id}
+            steps={command.steps}
+            frames={[]}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-interface CommandActionListProps {
+function CommandStepFlow({
+  packId,
+  commandId,
+  steps,
+  frames,
+}: {
   packId: PackId;
   commandId: CommandId;
-  actions: Action[];
-}
-
-function CommandActionList({ packId, commandId, actions }: CommandActionListProps) {
-  const sub = useFlowSelectionStore((s) => s.sub);
+  steps: Step[];
+  frames: StepFrame[];
+}) {
+  const addCommandStep = useAccountStore((s) => s.addCommandStep);
   const setSub = useFlowSelectionStore((s) => s.set);
-  const addAction = useAccountStore((s) => s.addCommandAction);
-  const removeAction = useAccountStore((s) => s.removeCommandAction);
-  const moveAction = useAccountStore((s) => s.moveCommandAction);
   const firstMenuId = useAccountStore(
     (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
   );
+  const handleAdd = (newStep: Step) => {
+    const newIndex = steps.length;
+    addCommandStep({ packId, commandId, frames, index: newIndex, step: newStep });
+    setSub({ kind: "step", path: { frames, index: newIndex } });
+  };
+  return (
+    <div className="flex items-stretch gap-2">
+      {steps.length === 0 ? (
+        <EmptyChainHint />
+      ) : (
+        steps.map((step, i) => (
+          <CommandStepNode
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable per render
+            key={i}
+            step={step}
+            stepIndex={i}
+            isLast={i === steps.length - 1}
+            packId={packId}
+            commandId={commandId}
+            frames={frames}
+          />
+        ))
+      )}
+      <AddStepPicker firstMenuId={firstMenuId} onPick={handleAdd} />
+    </div>
+  );
+}
+
+function CommandStepNode({
+  step,
+  stepIndex,
+  isLast,
+  packId,
+  commandId,
+  frames,
+}: {
+  step: Step;
+  stepIndex: number;
+  isLast: boolean;
+  packId: PackId;
+  commandId: CommandId;
+  frames: StepFrame[];
+}) {
+  const sub = useFlowSelectionStore((s) => s.sub);
+  const setSub = useFlowSelectionStore((s) => s.set);
+  const removeCommandStep = useAccountStore((s) => s.removeCommandStep);
+  const moveCommandStep = useAccountStore((s) => s.moveCommandStep);
+
+  const focused =
+    sub?.kind === "step" &&
+    sub.clickType === undefined &&
+    sub.stateIndex === undefined &&
+    framesEqual(sub.path.frames, frames) &&
+    sub.path.index === stepIndex;
+
+  const onSelect = () => setSub({ kind: "step", path: { frames, index: stepIndex } });
+  const onRemove = () => {
+    removeCommandStep({ packId, commandId, path: { frames, index: stepIndex } });
+    if (focused) setSub(null);
+  };
+  const onMoveLeft = () =>
+    moveCommandStep({ packId, commandId, frames, fromIndex: stepIndex, toIndex: stepIndex - 1 });
+  const onMoveRight = () =>
+    moveCommandStep({ packId, commandId, frames, fromIndex: stepIndex, toIndex: stepIndex + 1 });
 
   return (
-    <div className="flex flex-col gap-1 p-2">
-      {actions.map((action, i) => {
-        const focused = sub?.kind === "commandAction" && sub.actionIndex === i;
-        return (
-          <ActionRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: action index is stable
-            key={i}
-            action={action}
-            focused={focused}
-            onClick={() => setSub({ kind: "commandAction", actionIndex: i })}
-            onRemove={() => {
-              removeAction({ packId, commandId, actionIndex: i });
-              if (focused) setSub(null);
-            }}
-            onMoveUp={
-              i > 0
-                ? () => moveAction({ packId, commandId, fromIndex: i, toIndex: i - 1 })
-                : undefined
-            }
-            onMoveDown={
-              i < actions.length - 1
-                ? () => moveAction({ packId, commandId, fromIndex: i, toIndex: i + 1 })
-                : undefined
-            }
-          />
-        );
-      })}
-      <ActionTypePicker
-        label="+ Add action"
-        onPick={(type) => {
-          addAction({ packId, commandId, action: defaultAction(type, firstMenuId) });
-          setSub({ kind: "commandAction", actionIndex: actions.length });
-        }}
+    <>
+      {step.kind === "action" ? (
+        <ActionCard
+          action={step.action}
+          focused={focused}
+          onSelect={onSelect}
+          onRemove={onRemove}
+          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
+          onMoveRight={!isLast ? onMoveRight : undefined}
+        />
+      ) : (
+        <CommandIfCard
+          step={step}
+          stepIndex={stepIndex}
+          packId={packId}
+          commandId={commandId}
+          frames={frames}
+          focused={focused}
+          onSelect={onSelect}
+          onRemove={onRemove}
+          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
+          onMoveRight={!isLast ? onMoveRight : undefined}
+        />
+      )}
+      {!isLast ? <Arrow /> : null}
+    </>
+  );
+}
+
+function CommandIfCard({
+  step,
+  stepIndex,
+  packId,
+  commandId,
+  frames,
+  focused,
+  onSelect,
+  onRemove,
+  onMoveLeft,
+  onMoveRight,
+}: {
+  step: Extract<Step, { kind: "if" }>;
+  stepIndex: number;
+  packId: PackId;
+  commandId: CommandId;
+  frames: StepFrame[];
+  focused: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+}) {
+  const addCommandIfCase = useAccountStore((s) => s.addCommandIfCase);
+  const toggleCommandIfElse = useAccountStore((s) => s.toggleCommandIfElse);
+  return (
+    <div
+      className={cx(
+        "flex flex-col rounded border bg-zinc-900/60",
+        focused ? "border-emerald-500" : "border-zinc-700",
+      )}
+    >
+      <CardHeader
+        kind="if"
+        label="if"
+        focused={focused}
+        onSelect={onSelect}
+        onRemove={onRemove}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
       />
+      <div className="flex flex-col gap-1.5 p-2">
+        {step.cases.map((c, ci) => (
+          <CaseRow
+            // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
+            key={ci}
+            label={ci === 0 ? "if" : "else if"}
+            ifCase={c}
+            childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
+            renderSteps={(steps, childFrames) => (
+              <CommandStepFlow
+                packId={packId}
+                commandId={commandId}
+                steps={steps}
+                frames={childFrames}
+              />
+            )}
+          />
+        ))}
+        {step.else ? (
+          <CaseRow
+            label="else"
+            childFrames={[...frames, { stepIndex, descend: "else" }]}
+            renderSteps={(_, childFrames) => (
+              <CommandStepFlow
+                packId={packId}
+                commandId={commandId}
+                steps={step.else!}
+                frames={childFrames}
+              />
+            )}
+          />
+        ) : null}
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => addCommandIfCase({ packId, commandId, frames, ifStepIndex: stepIndex })}
+            className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            + else if
+          </button>
+          {!step.else ? (
+            <button
+              type="button"
+              onClick={() =>
+                toggleCommandIfElse({
+                  packId,
+                  commandId,
+                  frames,
+                  ifStepIndex: stepIndex,
+                  enabled: true,
+                })
+              }
+              className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            >
+              + else
+            </button>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

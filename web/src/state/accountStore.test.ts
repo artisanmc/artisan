@@ -384,7 +384,7 @@ describe("accountStore", () => {
       appearanceIndex: 0,
       clickType: "right",
     });
-    expect(findElement()!.appearances[0]?.click?.right?.actions).toEqual([]);
+    expect(findElement()!.appearances[0]?.click?.right?.steps).toEqual([]);
     useAccountStore.getState().removeElementClickHandler({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
@@ -395,69 +395,83 @@ describe("accountStore", () => {
     expect(findElement()!.appearances[0]?.click?.right).toBeUndefined();
   });
 
-  it("addElementAction appends and removeElementAction drops by index", () => {
-    useAccountStore.getState().addElementAction({
+  it("addElementStep appends and removeElementStep drops by path", () => {
+    useAccountStore.getState().addElementStep({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      fallback: false,
-      action: { type: "close_menu" },
+      frames: [],
+      index: -1,
+      step: { kind: "action", action: { type: "close_menu" } },
     });
-    let actions = findElement()!.appearances[0]!.click!.left!.actions;
-    expect(actions).toHaveLength(2);
-    expect(actions[1]?.type).toBe("close_menu");
-    useAccountStore.getState().removeElementAction({
+    let steps = findElement()!.appearances[0]!.click!.left!.steps;
+    expect(steps).toHaveLength(2);
+    expect(steps[1]?.kind).toBe("action");
+    useAccountStore.getState().removeElementStep({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      fallback: false,
-      actionIndex: 1,
+      path: { frames: [], index: 1 },
     });
-    actions = findElement()!.appearances[0]!.click!.left!.actions;
-    expect(actions).toHaveLength(1);
-    expect(actions[0]?.type).toBe("open_menu");
+    steps = findElement()!.appearances[0]!.click!.left!.steps;
+    expect(steps).toHaveLength(1);
   });
 
-  it("moveElementAction reorders actions within a chain", () => {
-    useAccountStore.getState().addElementAction({
+  it("moveElementStep reorders steps within a chain", () => {
+    useAccountStore.getState().addElementStep({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      fallback: false,
-      action: { type: "send_message", text: "hi" },
+      frames: [],
+      index: -1,
+      step: { kind: "action", action: { type: "send_message", text: "hi" } },
     });
-    useAccountStore.getState().moveElementAction({
+    useAccountStore.getState().moveElementStep({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      fallback: false,
+      frames: [],
       fromIndex: 1,
       toIndex: 0,
     });
-    const actions = findElement()!.appearances[0]!.click!.left!.actions;
-    expect(actions[0]?.type).toBe("send_message");
-    expect(actions[1]?.type).toBe("open_menu");
+    const steps = findElement()!.appearances[0]!.click!.left!.steps;
+    expect(steps[0]?.kind === "action" && steps[0].action.type).toBe("send_message");
+    expect(steps[1]?.kind === "action" && steps[1].action.type).toBe("open_menu");
   });
 
-  it("addElementAction into fallback creates the fallback chain on demand", () => {
-    useAccountStore.getState().addElementAction({
+  it("addElementStep into an if-step's case descends through the path", () => {
+    // Replace the existing chain with an if-step.
+    useAccountStore.getState().setElementStep({
       packId: PERSONAL,
       menuId: SHOP_MAIN,
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      fallback: true,
-      action: { type: "close_menu" },
+      path: { frames: [], index: 0 },
+      step: { kind: "if", cases: [{ conditions: [], steps: [] }] },
     });
-    expect(findElement()!.appearances[0]?.click?.left?.fallback?.[0]?.type).toBe("close_menu");
+    useAccountStore.getState().addElementStep({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      appearanceIndex: 0,
+      clickType: "left",
+      frames: [{ stepIndex: 0, descend: { case: 0 } }],
+      index: 0,
+      step: { kind: "action", action: { type: "close_menu" } },
+    });
+    const root = findElement()!.appearances[0]!.click!.left!.steps[0]!;
+    if (root.kind !== "if") throw new Error("expected if");
+    expect(root.cases[0]!.steps).toHaveLength(1);
+    expect(root.cases[0]!.steps[0]?.kind).toBe("action");
   });
 
   it("createPack clears the temporal stack", () => {

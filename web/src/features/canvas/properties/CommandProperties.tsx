@@ -1,7 +1,9 @@
+import { getStep } from "@/domain/stepPath";
 import type { Action, Command, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { ActionEditor } from "./ActionEditor";
+import { ConditionListEditor } from "./ConditionListEditor";
 import { PropertyField } from "./PropertyField";
 
 interface CommandPropertiesProps {
@@ -11,38 +13,67 @@ interface CommandPropertiesProps {
 
 export function CommandProperties({ packId, command }: CommandPropertiesProps) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
-  const setCommandAction = useAccountStore((s) => s.setCommandAction);
+  const setCommandStep = useAccountStore((s) => s.setCommandStep);
+  const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
   const sub = useFlowSelectionStore((s) => s.sub);
 
-  // When the user has clicked an action card in the flow canvas, edit
-  // that action's parameters; otherwise show the command's identity fields.
-  if (sub?.kind === "commandAction") {
-    const action = command.actions[sub.actionIndex];
-    if (!action) {
+  // When a step in the command's tree is sub-selected, edit it inline.
+  if (sub?.kind === "step" && sub.clickType === undefined && sub.stateIndex === undefined) {
+    const step = getStep(command.steps, sub.path);
+    if (!step) {
       return (
         <div className="rounded border border-zinc-800 border-dashed bg-zinc-900/50 px-2 py-3 text-[11px] text-zinc-500">
-          Action no longer exists. Pick another in the flow canvas.
+          Step no longer exists. Pick another in the flow canvas.
         </div>
       );
     }
-    const onChange = (next: Action) =>
-      setCommandAction({
-        packId,
-        commandId: command.id,
-        actionIndex: sub.actionIndex,
-        action: next,
-      });
-    return (
-      <div className="flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zinc-300">
-            {action.type}
-          </span>
-          <span>
-            action {sub.actionIndex + 1} of {command.actions.length}
-          </span>
+    if (step.kind === "action") {
+      const onChange = (next: Action) =>
+        setCommandStep({
+          packId,
+          commandId: command.id,
+          path: sub.path,
+          step: { kind: "action", action: next },
+        });
+      return (
+        <div className="flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+          <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zinc-300">
+              {step.action.type}
+            </span>
+            <span>command step</span>
+          </div>
+          <ActionEditor packId={packId} action={step.action} onChange={onChange} />
         </div>
-        <ActionEditor packId={packId} action={action} onChange={onChange} />
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono uppercase tracking-wide text-blue-200">
+            if
+          </span>
+          <span>command step · edit case conditions</span>
+        </div>
+        {step.cases.map((c, ci) => (
+          <ConditionListEditor
+            // biome-ignore lint/suspicious/noArrayIndexKey: case index stable
+            key={ci}
+            label={ci === 0 ? "if conditions" : `else if (#${ci}) conditions`}
+            conditions={c.conditions}
+            emptyHint="(no conditions — always matches)"
+            onChange={(conditions) =>
+              setCommandIfCaseConditions({
+                packId,
+                commandId: command.id,
+                frames: sub.path.frames,
+                ifStepIndex: sub.path.index,
+                caseIndex: ci,
+                conditions,
+              })
+            }
+          />
+        ))}
       </div>
     );
   }

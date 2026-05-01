@@ -81,10 +81,25 @@ export interface Appearance {
 export type ClickType = "left" | "right" | "shift_left" | "shift_right" | "middle";
 export type ClickMap = Partial<Record<ClickType, ClickHandler>>;
 
+/**
+ * Click handler is a sequential list of `Step`s. Each step is either a
+ * leaf action or an `if`-branch with one or more cases (the if/else-if
+ * list) and an optional else-branch. This recursive shape lets the user
+ * compose chains with arbitrary branching, which is what real Minecraft
+ * GUI plugins actually need.
+ */
 export interface ClickHandler {
-  requirements?: Condition[];
-  actions: Action[];
-  fallback?: Action[];
+  steps: Step[];
+}
+
+export type Step =
+  | { kind: "action"; action: Action }
+  | { kind: "if"; cases: IfCase[]; else?: Step[] };
+
+/** One arm of an if/else-if chain. `conditions` is AND-ed (matches the existing requirements semantics). */
+export interface IfCase {
+  conditions: Condition[];
+  steps: Step[];
 }
 
 export type Action =
@@ -108,7 +123,7 @@ export interface Command {
   permission?: string;
   description?: string;
   arguments: CommandArg[];
-  actions: Action[];
+  steps: Step[];
 }
 
 export interface CommandArg {
