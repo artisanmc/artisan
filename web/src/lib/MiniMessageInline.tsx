@@ -1,19 +1,25 @@
 import { type CSSProperties, Fragment } from "react";
 import { type Style, parseMiniMessage } from "./miniMessage";
 
-const styleToCss = (s: Style): CSSProperties => ({
-  color: s.color,
-  fontWeight: s.bold ? 600 : undefined,
-  fontStyle: s.italic ? "italic" : undefined,
-  textDecoration:
-    s.underlined && s.strikethrough
-      ? "underline line-through"
-      : s.underlined
-        ? "underline"
-        : s.strikethrough
-          ? "line-through"
-          : undefined,
-});
+const styleToCss = (s: Style): CSSProperties => {
+  const decorationParts: string[] = [];
+  if (s.underlined) decorationParts.push("underline");
+  if (s.strikethrough) decorationParts.push("line-through");
+  return {
+    color: s.color,
+    fontWeight: s.bold === true ? 600 : s.bold === false ? 400 : undefined,
+    fontStyle: s.italic === true ? "italic" : s.italic === false ? "normal" : undefined,
+    textDecoration: decorationParts.join(" ") || undefined,
+    textShadow: s.shadow ? `0 0 0.15em ${hexWithAlpha(s.shadow.color, s.shadow.alpha)}` : undefined,
+  };
+};
+
+const hexWithAlpha = (hex: string, alpha: number): string => {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${hex}${a}`;
+};
 
 interface MiniMessageInlineProps {
   source: string;
