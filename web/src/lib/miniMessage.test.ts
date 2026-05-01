@@ -142,4 +142,29 @@ describe("parseMiniMessage", () => {
       { text: "[lang:gui.cancel]", style: {} },
     ]);
   });
+
+  it("scoping tags without a closing tag apply to the rest of the input", () => {
+    // Gradient with no </gradient> still colors the trailing text.
+    const segs = parseMiniMessage("<gradient:red:gold>abc");
+    expect(segs).toHaveLength(3);
+    expect(segs[0]?.style.color).toBe("#ff5555");
+    expect(segs[2]?.style.color).toBe("#ffaa00");
+  });
+
+  it("rainbow without closing tag applies to rest", () => {
+    const segs = parseMiniMessage("<rainbow>abcd");
+    expect(segs).toHaveLength(4);
+    for (const s of segs) expect(s.style.color).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it("font without closing tag applies to rest", () => {
+    const segs = parseMiniMessage("<font:uniform>x");
+    expect(segs[0]?.style.font).toBe("uniform");
+  });
+
+  it("click without closing tag applies to rest", () => {
+    const segs = parseMiniMessage("<click:run_command:/say hi>click here");
+    expect(segs[0]?.style.interactive).toBe(true);
+    expect(segs[0]?.text).toBe("click here");
+  });
 });
