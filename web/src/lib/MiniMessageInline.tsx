@@ -1,16 +1,35 @@
 import { type CSSProperties, Fragment } from "react";
 import { type Style, parseMiniMessage } from "./miniMessage";
 
+const fontFamilyFor = (font: string | undefined): string | undefined => {
+  if (!font) return undefined;
+  const key = font.replace(/^minecraft:/, "");
+  switch (key) {
+    case "default":
+      return undefined;
+    case "uniform":
+      return '"GNU Unifont", "DejaVu Sans Mono", monospace';
+    case "alt":
+    case "illageralt":
+      return "fantasy, cursive";
+    default:
+      return "fantasy, cursive";
+  }
+};
+
 const styleToCss = (s: Style): CSSProperties => {
   const decorationParts: string[] = [];
-  if (s.underlined) decorationParts.push("underline");
+  if (s.underlined || s.interactive) decorationParts.push("underline");
   if (s.strikethrough) decorationParts.push("line-through");
   return {
     color: s.color,
     fontWeight: s.bold === true ? 600 : s.bold === false ? 400 : undefined,
     fontStyle: s.italic === true ? "italic" : s.italic === false ? "normal" : undefined,
     textDecoration: decorationParts.join(" ") || undefined,
+    textDecorationStyle: s.interactive ? "dotted" : undefined,
     textShadow: s.shadow ? `0 0 0.15em ${hexWithAlpha(s.shadow.color, s.shadow.alpha)}` : undefined,
+    fontFamily: fontFamilyFor(s.font),
+    cursor: s.interactive ? "pointer" : undefined,
   };
 };
 
