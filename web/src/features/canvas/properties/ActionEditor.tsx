@@ -112,6 +112,11 @@ export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
       return <TakeMoneyEditor action={action} onChange={onChange} />;
     case "paginate":
       return <PaginateEditor packId={packId} action={action} onChange={onChange} />;
+    case "set_arg":
+      return <SetArgEditor action={action} onChange={onChange} />;
+    case "set_arg_cycle_next":
+    case "set_arg_cycle_prev":
+      return <SetArgCycleEditor action={action} onChange={onChange} />;
   }
 }
 
@@ -470,6 +475,79 @@ function PaginateEditor({
           ))}
         </select>
         <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.paginateHint")}</div>
+      </div>
+    </div>
+  );
+}
+
+function SetArgEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "set_arg" }>;
+  onChange: (action: Action) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-2">
+      <div>
+        <FieldLabel>{t("actionEditor.setArgArgLabel")}</FieldLabel>
+        <Input
+          value={action.arg}
+          placeholder={t("actionEditor.setArgArgPlaceholder")}
+          onChange={(e) => onChange({ ...action, arg: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+      </div>
+      <div>
+        <FieldLabel>{t("actionEditor.setArgValueLabel")}</FieldLabel>
+        <Input
+          value={action.value}
+          placeholder={t("actionEditor.setArgValuePlaceholder")}
+          onChange={(e) => onChange({ ...action, value: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.setArgValueHint")}</div>
+      </div>
+    </div>
+  );
+}
+
+function SetArgCycleEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "set_arg_cycle_next" | "set_arg_cycle_prev" }>;
+  onChange: (action: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const directionKey =
+    action.type === "set_arg_cycle_next"
+      ? "actionEditor.setArgCycleDirectionNext"
+      : "actionEditor.setArgCycleDirectionPrev";
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] uppercase text-zinc-500">{t(directionKey)}</div>
+      <div>
+        <FieldLabel>{t("actionEditor.setArgArgLabel")}</FieldLabel>
+        <Input
+          value={action.arg}
+          placeholder={t("actionEditor.setArgArgPlaceholder")}
+          onChange={(e) => onChange({ ...action, arg: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+      </div>
+      <div>
+        <FieldLabel>{t("actionEditor.setArgCycleListLabel")}</FieldLabel>
+        <Input
+          value={action.list}
+          placeholder={t("actionEditor.setArgCycleListPlaceholder")}
+          onChange={(e) => onChange({ ...action, list: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+        <div className="mt-1 text-[10px] text-zinc-500">
+          {t("actionEditor.setArgCycleListHint")}
+        </div>
       </div>
     </div>
   );
