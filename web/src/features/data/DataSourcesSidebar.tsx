@@ -1,6 +1,9 @@
 import type { DataSourceId, Pack } from "@/domain/types";
+import { parseConnectorYaml } from "@/lib/connectors/parser";
 import { useAccountStore } from "@/state/accountStore";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { summarizeFieldType } from "./helpers";
 
 interface DataSourcesSidebarProps {
@@ -12,6 +15,27 @@ interface DataSourcesSidebarProps {
 export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSidebarProps) {
   const { t } = useTranslation();
   const addPackDataSource = useAccountStore((s) => s.addPackDataSource);
+  const addImportedConnector = useAccountStore((s) => s.addImportedConnector);
+  const removeImportedConnector = useAccountStore((s) => s.removeImportedConnector);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    let added = 0;
+    for (const file of Array.from(files)) {
+      const text = await file.text();
+      const result = parseConnectorYaml(text);
+      if (result.ok) {
+        addImportedConnector({ packId: pack.id, spec: result.spec });
+        added++;
+      } else {
+        toast.error(t("dataSources.importError", { file: file.name, error: result.error }));
+      }
+    }
+    if (added > 0) {
+      toast.success(t("dataSources.importSuccess", { count: added }));
+    }
+  };
 
   return (
     <div className="flex w-64 flex-col gap-4 border-r border-zinc-800 bg-zinc-950 p-3">
@@ -69,15 +93,43 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
         ) : (
           <ul className="flex flex-col gap-1">
             {pack.importedConnectors.map((c) => (
-              <li key={c.ref}>
-                <div className="flex items-center gap-1 px-2 py-1 text-[12px] text-zinc-400">
-                  <span>🔌</span>
-                  <span className="truncate font-mono">{c.ref}</span>
-                </div>
+              <li
+                key={c.ref}
+                className="group flex items-center gap-1 px-2 py-1 text-[12px] text-zinc-400"
+              >
+                <span>🔌</span>
+                <span className="flex-1 truncate font-mono">{c.ref}</span>
+                <button
+                  type="button"
+                  onClick={() => removeImportedConnector({ packId: pack.id, ref: c.ref })}
+                  title={t("dataSources.removeConnector")}
+                  className="flex h-5 w-5 items-center justify-center rounded text-[12px] text-zinc-500 opacity-100 hover:bg-zinc-800 hover:text-rose-300 lg:opacity-0 lg:group-hover:opacity-100"
+                >
+                  ×
+                </button>
               </li>
             ))}
           </ul>
         )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-2 self-start rounded border border-zinc-700 border-dashed px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        >
+          {t("dataSources.importConnectors")}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".yaml,.yml"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            // reset so the same file can be re-imported
+            e.target.value = "";
+          }}
+        />
       </section>
     </div>
   );
