@@ -72,3 +72,48 @@ describe("evaluator — PAPI", () => {
     expect(evalSrc("%player_name%", s)).toBe("Steve");
   });
 });
+
+describe("evaluator — list methods", () => {
+  it(".join(sep) joins with separator", () => {
+    const s = new Scope({ xs: ["a", "b", "c"] });
+    expect(evalSrc(`xs.join(", ")`, s)).toBe("a, b, c");
+  });
+
+  it(".length returns the array length", () => {
+    const s = new Scope({ xs: ["a", "b", "c"] });
+    expect(evalSrc("xs.length()", s)).toBe(3);
+  });
+
+  it(".first / .last return endpoints", () => {
+    const s = new Scope({ xs: ["a", "b", "c"] });
+    expect(evalSrc("xs.first()", s)).toBe("a");
+    expect(evalSrc("xs.last()", s)).toBe("c");
+  });
+
+  it(".at(n) indexes (alias of [n])", () => {
+    const s = new Scope({ xs: ["a", "b", "c"] });
+    expect(evalSrc("xs.at(1)", s)).toBe("b");
+  });
+
+  it(".contains(x) checks membership", () => {
+    const s = new Scope({ xs: ["a", "b", "c"] });
+    expect(evalSrc(`xs.contains("b")`, s)).toBe(true);
+    expect(evalSrc(`xs.contains("z")`, s)).toBe(false);
+  });
+
+  it(".length on null returns 0", () => {
+    expect(evalSrc("xs.length()", new Scope({ xs: null }))).toBe(0);
+  });
+
+  it(".join on null returns ''", () => {
+    expect(evalSrc(`xs.join(",")`, new Scope({ xs: null }))).toBe("");
+  });
+
+  it(".first on empty returns null", () => {
+    expect(evalSrc("xs.first()", new Scope({ xs: [] }))).toBeNull();
+  });
+
+  it(".join on a non-array returns '' and does not throw", () => {
+    expect(evalSrc(`xs.join(",")`, new Scope({ xs: 42 }))).toBe("");
+  });
+});
