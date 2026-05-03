@@ -1,0 +1,98 @@
+[
+  {
+    "name": "literal number",
+    "expr": "42",
+    "scope": {},
+    "expected": 42
+  },
+  {
+    "name": "literal string",
+    "expr": "\"hello\"",
+    "scope": {},
+    "expected": "hello"
+  },
+  {
+    "name": "identifier lookup",
+    "expr": "x",
+    "scope": { "x": 7 },
+    "expected": 7
+  },
+  {
+    "name": "dotted path",
+    "expr": "quest.gold",
+    "scope": { "quest": { "gold": 100 } },
+    "expected": 100
+  },
+  {
+    "name": "join list",
+    "expr": "tags.join(\", \")",
+    "scope": { "tags": ["a", "b", "c"] },
+    "expected": "a, b, c"
+  },
+  {
+    "name": "length on list",
+    "expr": "tags.length()",
+    "scope": { "tags": ["a", "b"] },
+    "expected": 2
+  },
+  {
+    "name": "ternary picks branch",
+    "expr": "x > 5 ? \"big\" : \"small\"",
+    "scope": { "x": 10 },
+    "expected": "big"
+  },
+  {
+    "name": "null == empty string",
+    "expr": "x == \"\"",
+    "scope": { "x": null },
+    "expected": true
+  },
+  {
+    "name": "numeric coercion in compare",
+    "expr": "\"100\" > 50",
+    "scope": {},
+    "expected": true
+  },
+  {
+    "name": "string concat with +",
+    "expr": "\"a\" + 1",
+    "scope": {},
+    "expected": "a1"
+  },
+  {
+    "name": "arithmetic precedence",
+    "expr": "1 + 2 == 3",
+    "scope": {},
+    "expected": true
+  },
+  {
+    "name": "short-circuit &&",
+    "expr": "false && missing.field",
+    "scope": {},
+    "expected": false
+  },
+  {
+    "name": "first / last",
+    "expr": "tags.first() == \"a\" && tags.last() == \"c\"",
+    "scope": { "tags": ["a", "b", "c"] },
+    "expected": true
+  },
+  {
+    "name": "contains",
+    "expr": "tags.contains(\"b\")",
+    "scope": { "tags": ["a", "b"] },
+    "expected": true
+  },
+  {
+    "name": "index access",
+    "expr": "tags[1]",
+    "scope": { "tags": ["a", "b", "c"] },
+    "expected": "b"
+  },
+  {
+    "name": "safe path on null",
+    "expr": "x.y.z",
+    "scope": { "x": null },
+    "expected": null
+  }
+]
