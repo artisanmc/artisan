@@ -379,6 +379,7 @@ export default {
     objectWith: "Object with",
     fields: "fields",
     fieldName: "field name",
+    objectFields: "Fields",
     addField: "+ Add field",
     addItem: "+ Add item",
     addRow: "+ Add row",
