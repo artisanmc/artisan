@@ -25,13 +25,14 @@ class Parser {
     return t;
   }
 
-  /** Consume and return true if the next token matches `kind`, otherwise no-op. */
-  private match(kind: TokenKind): boolean {
-    if (this.tokens[this.i]!.kind === kind) {
+  /** Consume and return the matched token if its kind is `kind`, otherwise null and no-op. */
+  private match(kind: TokenKind): Token | null {
+    const t = this.tokens[this.i]!;
+    if (t.kind === kind) {
       this.i++;
-      return true;
+      return t;
     }
-    return false;
+    return null;
   }
 
   /** Entry point — parses an expression then asserts EOF. */
