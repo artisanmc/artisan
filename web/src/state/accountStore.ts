@@ -625,6 +625,8 @@ export const useAccountStore = create<AccountState>()(
                 commands: [],
                 templates: [],
                 assets: [],
+                dataSources: [],
+                importedConnectors: [],
                 i18nKeys: {},
                 defaultLang: "en",
                 canvasLayout: {},
