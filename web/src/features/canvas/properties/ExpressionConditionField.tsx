@@ -14,6 +14,7 @@ import {
 } from "@/lib/expr/tryParseAsComparison";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpressionPreview } from "./ExpressionPreview";
 
 interface ExpressionConditionFieldProps {
   expr: string;
@@ -66,68 +67,74 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
 
   if (mode === "freetext") {
     return (
-      <div className="flex items-center gap-1">
-        <Input
-          placeholder={t("conditions.exprPlaceholder")}
-          value={expr}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-6 w-[200px] px-1.5 py-0 font-mono text-[11px]"
-        />
-        <button
-          type="button"
-          onClick={switchToForm}
-          title={t("conditions.exprFormMode")}
-          className="rounded px-1 text-[9px] uppercase text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          {t("conditions.exprFormModeShort")}
-        </button>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1">
+          <Input
+            placeholder={t("conditions.exprPlaceholder")}
+            value={expr}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-6 w-[200px] px-1.5 py-0 font-mono text-[11px]"
+          />
+          <button
+            type="button"
+            onClick={switchToForm}
+            title={t("conditions.exprFormMode")}
+            className="rounded px-1 text-[9px] uppercase text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            {t("conditions.exprFormModeShort")}
+          </button>
+        </div>
+        <ExpressionPreview expr={expr} />
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <Input
-        placeholder={t("conditions.exprFormLeftPlaceholder")}
-        value={parts.left}
-        onChange={(e) => updateParts({ ...parts, left: e.target.value })}
-        className="h-6 w-[100px] px-1.5 py-0 font-mono text-[11px]"
-      />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200 hover:bg-zinc-700"
-          >
-            {parts.op}
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
-          {COMPARISON_OPS.map((op) => (
-            <DropdownMenuItem
-              key={op}
-              onSelect={() => updateParts({ ...parts, op: op as ComparisonOp })}
-              className="cursor-pointer font-mono text-[11px] focus:bg-zinc-800"
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1">
+        <Input
+          placeholder={t("conditions.exprFormLeftPlaceholder")}
+          value={parts.left}
+          onChange={(e) => updateParts({ ...parts, left: e.target.value })}
+          className="h-6 w-[100px] px-1.5 py-0 font-mono text-[11px]"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200 hover:bg-zinc-700"
             >
-              {op}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <Input
-        placeholder={t("conditions.exprFormRightPlaceholder")}
-        value={parts.right}
-        onChange={(e) => updateParts({ ...parts, right: e.target.value })}
-        className="h-6 w-[100px] px-1.5 py-0 font-mono text-[11px]"
-      />
-      <button
-        type="button"
-        onClick={switchToFreetext}
-        title={t("conditions.exprFreeTextMode")}
-        className="rounded px-1 text-[9px] uppercase text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-      >
-        {t("conditions.exprFreeTextModeShort")}
-      </button>
+              {parts.op}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+            {COMPARISON_OPS.map((op) => (
+              <DropdownMenuItem
+                key={op}
+                onSelect={() => updateParts({ ...parts, op: op as ComparisonOp })}
+                className="cursor-pointer font-mono text-[11px] focus:bg-zinc-800"
+              >
+                {op}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Input
+          placeholder={t("conditions.exprFormRightPlaceholder")}
+          value={parts.right}
+          onChange={(e) => updateParts({ ...parts, right: e.target.value })}
+          className="h-6 w-[100px] px-1.5 py-0 font-mono text-[11px]"
+        />
+        <button
+          type="button"
+          onClick={switchToFreetext}
+          title={t("conditions.exprFreeTextMode")}
+          className="rounded px-1 text-[9px] uppercase text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        >
+          {t("conditions.exprFreeTextModeShort")}
+        </button>
+      </div>
+      <ExpressionPreview expr={expr} />
     </div>
   );
 }
