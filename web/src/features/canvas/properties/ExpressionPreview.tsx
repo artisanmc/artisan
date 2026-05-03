@@ -1,6 +1,7 @@
 import { toStringValue } from "@/lib/expr/coercion";
 import { ParseError } from "@/lib/expr/errors";
 import { evaluate } from "@/lib/expr/evaluator";
+import { formatParseError } from "@/lib/expr/formatParseError";
 import { parse } from "@/lib/expr/parser";
 import { Scope } from "@/lib/expr/scope";
 import { useTranslation } from "react-i18next";
@@ -42,11 +43,8 @@ export function ExpressionPreview({ expr }: ExpressionPreviewProps) {
   const state = computeExpressionPreview(expr);
   if (state === null) return null;
   if (state.kind === "parseError") {
-    return (
-      <div className="text-[10px] text-rose-300">
-        {t("conditions.exprPreviewParseError", { message: state.message })}
-      </div>
-    );
+    const { key, params } = formatParseError(state.message);
+    return <div className="text-[10px] text-rose-300">{t(key, params)}</div>;
   }
   return (
     <div className="font-mono text-[10px] text-emerald-300">
