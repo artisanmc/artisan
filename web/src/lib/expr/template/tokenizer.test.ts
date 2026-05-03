@@ -3,9 +3,7 @@ import { tokenizeTemplate } from "./tokenizer";
 
 describe("tokenizeTemplate", () => {
   it("returns a single literal segment when there are no braces", () => {
-    expect(tokenizeTemplate("hello world")).toEqual([
-      { kind: "literal", text: "hello world" },
-    ]);
+    expect(tokenizeTemplate("hello world")).toEqual([{ kind: "literal", text: "hello world" }]);
   });
 
   it("splits literal + expression", () => {
@@ -51,8 +49,6 @@ describe("tokenizeTemplate", () => {
   });
 
   it("treats {} (empty) as literal", () => {
-    expect(tokenizeTemplate("a{}b")).toEqual([
-      { kind: "literal", text: "a{}b" },
-    ]);
+    expect(tokenizeTemplate("a{}b")).toEqual([{ kind: "literal", text: "a{}b" }]);
   });
 });
