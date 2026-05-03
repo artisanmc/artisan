@@ -17,8 +17,11 @@ import type {
   CommandId,
   Condition,
   ContextInput,
+  DataSource,
+  DataSourceId,
   Element,
   ElementId,
+  FieldType,
   LText,
   Layer,
   Menu,
@@ -491,6 +494,11 @@ interface AccountState {
     commands: Command[];
     offset: { x: number; y: number };
   }) => void;
+  addPackDataSource: (args: { packId: PackId; kind: "list" | "object" }) => void;
+  removePackDataSource: (args: { packId: PackId; id: DataSourceId }) => void;
+  renamePackDataSource: (args: { packId: PackId; id: DataSourceId; newName: string }) => void;
+  setPackDataSourceValue: (args: { packId: PackId; id: DataSourceId; value: unknown }) => void;
+  setPackDataSourceSchema: (args: { packId: PackId; id: DataSourceId; type: FieldType }) => void;
 }
 
 /**
@@ -576,6 +584,38 @@ function gcMenuLTexts(pack: Pack, menu: Menu): void {
 /** GC every LText held by a command (every send_message in its step tree). */
 function gcCommandLTexts(pack: Pack, command: Command): void {
   gcStepLTexts(pack, command.steps);
+}
+
+function generateDataSourceId(): DataSourceId {
+  return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
+}
+
+function nextAvailableName(existing: DataSource[], base: string): string {
+  if (!existing.some((d) => d.name === base)) return base;
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${base}_${n}`;
+    if (!existing.some((d) => d.name === candidate)) return candidate;
+  }
+  return `${base}_${Date.now()}`;
+}
+
+function defaultValueForFieldType(type: FieldType): unknown {
+  switch (type.kind) {
+    case "string":
+      return "";
+    case "number":
+    case "integer":
+      return 0;
+    case "boolean":
+      return false;
+    case "list":
+      return [];
+    case "object": {
+      const obj: Record<string, unknown> = {};
+      for (const f of type.fields) obj[f.name] = defaultValueForFieldType(f.type);
+      return obj;
+    }
+  }
 }
 
 /** Throws if any required arg follows an optional one. */
@@ -2110,6 +2150,60 @@ export const useAccountStore = create<AccountState>()(
           });
           set({ account: next });
         },
+        addPackDataSource: ({ packId, kind }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              if (!pack.dataSources) pack.dataSources = [];
+              const id = generateDataSourceId();
+              const baseName = kind === "list" ? "new_list" : "new_object";
+              const name = nextAvailableName(pack.dataSources, baseName);
+              const type: FieldType =
+                kind === "list"
+                  ? { kind: "list", of: { kind: "string" } }
+                  : { kind: "object", fields: [] };
+              const value: unknown = kind === "list" ? [] : {};
+              pack.dataSources.push({ id, name, type, value });
+            }),
+          ),
+        removePackDataSource: ({ packId, id }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              pack.dataSources = pack.dataSources.filter((d) => d.id !== id);
+            }),
+          ),
+        renamePackDataSource: ({ packId, id, newName }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              const ds = pack.dataSources.find((d) => d.id === id);
+              if (ds) ds.name = newName;
+            }),
+          ),
+        setPackDataSourceValue: ({ packId, id, value }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              const ds = pack.dataSources.find((d) => d.id === id);
+              if (ds) ds.value = value;
+            }),
+          ),
+        setPackDataSourceSchema: ({ packId, id, type }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              const ds = pack.dataSources.find((d) => d.id === id);
+              if (!ds) return;
+              ds.type = type;
+              ds.value = defaultValueForFieldType(type);
+            }),
+          ),
         deleteFromPack: ({ packId: pId, nodeIds }) => {
           const ids = new Set(nodeIds);
           const next = produce(get().account, (draft) => {
