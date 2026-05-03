@@ -125,3 +125,45 @@ describe("parse — path access", () => {
     });
   });
 });
+
+describe("parse — arithmetic and compare", () => {
+  it("parses addition left-associatively", () => {
+    expect(stripPos(parse("1 + 2 + 3"))).toEqual({
+      kind: "binary",
+      op: "+",
+      left: {
+        kind: "binary",
+        op: "+",
+        left: { kind: "literal", value: 1 },
+        right: { kind: "literal", value: 2 },
+      },
+      right: { kind: "literal", value: 3 },
+    });
+  });
+
+  it("parses subtraction", () => {
+    expect(stripPos(parse("a - b"))).toMatchObject({
+      kind: "binary",
+      op: "-",
+    });
+  });
+
+  it("parses comparison with arith on each side", () => {
+    expect(stripPos(parse("a + 1 > b - 2"))).toMatchObject({
+      kind: "binary",
+      op: ">",
+      left: { kind: "binary", op: "+" },
+      right: { kind: "binary", op: "-" },
+    });
+  });
+
+  it("parses each compare operator", () => {
+    for (const op of ["==", "!=", "<", "<=", ">", ">="] as const) {
+      expect(stripPos(parse(`a ${op} b`))).toMatchObject({ kind: "binary", op });
+    }
+  });
+
+  it("rejects chained comparisons (e.g. a < b < c)", () => {
+    expect(() => parse("a < b < c")).toThrow();
+  });
+});
