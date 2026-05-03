@@ -14,7 +14,9 @@ import { useMemo } from "react";
 
 export type ContextMenuTarget =
   | { kind: "entity"; selectedIds: string[] }
-  | { kind: "slot"; menuId: string; position: number; filled: boolean };
+  | { kind: "slot"; menuId: string; position: number; filled: boolean }
+  /** Right-click on empty canvas. World coords for "create here" actions. */
+  | { kind: "empty"; world: { x: number; y: number } };
 
 interface ContextMenuState {
   open: boolean;
@@ -32,6 +34,8 @@ interface ContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveTo: (toPackId: PackId) => void;
+  onCreateMenuAt: (world: { x: number; y: number }) => void;
+  onCreateCommandAt: (world: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({
@@ -43,6 +47,8 @@ export function ContextMenu({
   onDuplicate,
   onDelete,
   onMoveTo,
+  onCreateMenuAt,
+  onCreateCommandAt,
 }: ContextMenuProps) {
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
   const packs = useAccountStore((s) => s.account.packs);
@@ -61,6 +67,28 @@ export function ContextMenu({
           <DropdownMenuItem disabled>
             <span className="text-zinc-500">No slot actions yet — drag a slot out to clear it</span>
           </DropdownMenuItem>
+        ) : state.target.kind === "empty" ? (
+          <>
+            <DropdownMenuItem
+              onSelect={() => {
+                if (state.target.kind === "empty") onCreateMenuAt(state.target.world);
+              }}
+            >
+              New menu here
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                if (state.target.kind === "empty") onCreateCommandAt(state.target.world);
+              }}
+            >
+              New command here
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onPaste}>
+              Paste
+              <span className="ml-auto text-[10px] text-zinc-500">⌘V</span>
+            </DropdownMenuItem>
+          </>
         ) : (
           <>
             <DropdownMenuItem onSelect={onCopy} disabled={state.target.selectedIds.length === 0}>

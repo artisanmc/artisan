@@ -1,20 +1,34 @@
-import { newAssetId, newElementId, newLayerId, newPackId } from "@/domain/ids";
-import { assertPackHermetic } from "@/domain/invariants";
-import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
+import {
+  newAssetId,
+  newCommandId,
+  newElementId,
+  newLayerId,
+  newMenuId,
+  newPackId,
+} from "@/domain/ids";
+import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
   Account,
+  Action,
+  Appearance,
   ClickType,
   Command,
+  CommandArg,
   CommandId,
   Condition,
+  ContextInput,
   Element,
   ElementId,
+  LText,
   Layer,
   Menu,
   MenuId,
+  Pack,
   PackId,
   Step,
 } from "@/domain/types";
+import { createLText, deleteLText, deleteLTexts, setLText } from "@/lib/i18n";
+import { migratePackToI18n } from "@/lib/i18nMigration";
 import {
   addPosition,
   formatPositions,
@@ -33,6 +47,33 @@ type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 interface AccountState {
   account: Account;
   createPack: (input: { name: string; description?: string }) => void;
+  /**
+   * Import a pack object as a *new* pack: assigns a fresh PackId, marks
+   * source=imported, retags every contained menu/command with the new
+   * packId. Throws on malformed input.
+   */
+  importPack: (input: { pack: Pack }) => PackId;
+  /**
+   * Create a new menu in `packId` with sensible defaults (rows=3, single
+   * default layer, no elements). Optional canvas position; falls back to
+   * autoLayout's grid if omitted. Returns the new id so callers can route
+   * to it.
+   */
+  createMenu: (input: {
+    packId: PackId;
+    title?: string;
+    rows?: MenuRows;
+    position?: { x: number; y: number };
+  }) => MenuId;
+  /**
+   * Create a new command in `packId` with sensible defaults (no args, no
+   * steps). Returns the new id.
+   */
+  createCommand: (input: {
+    packId: PackId;
+    name?: string;
+    position?: { x: number; y: number };
+  }) => CommandId;
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
@@ -41,14 +82,64 @@ interface AccountState {
   setMenuField: (input: {
     packId: PackId;
     menuId: MenuId;
-    field: "title" | "permission" | "rows";
+    field: "permission" | "rows";
     value: string | MenuRows;
   }) => void;
+  /** Update the menu's title in the given language. Allocates the LText on first write. */
+  setMenuTitle: (input: { packId: PackId; menuId: MenuId; lang: string; value: string }) => void;
   setCommandField: (input: {
     packId: PackId;
     commandId: CommandId;
     field: "name" | "permission" | "description";
     value: string;
+  }) => void;
+  /** Append a new argument at the end of a command's argument list. */
+  addCommandArg: (input: { packId: PackId; commandId: CommandId; arg?: CommandArg }) => void;
+  /** Replace the argument at `index` (whole-arg replace; immer drafts handle the merge). */
+  setCommandArg: (input: {
+    packId: PackId;
+    commandId: CommandId;
+    index: number;
+    arg: CommandArg;
+  }) => void;
+  removeCommandArg: (input: { packId: PackId; commandId: CommandId; index: number }) => void;
+  /** Append a new context input to a menu (auto-named ctxN, type=string). */
+  addMenuContextInput: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    input?: ContextInput;
+  }) => void;
+  setMenuContextInput: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    index: number;
+    input: ContextInput;
+  }) => void;
+  removeMenuContextInput: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
+  /** Editor-only mock context. Pass undefined to clear. */
+  setMenuSampleContext: (input: { packId: PackId; menuId: MenuId; value: unknown }) => void;
+  /** Element iteration: bind this element's slots to a list source in the menu context. */
+  setElementIterates: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    iterates: { source: string; alias: string } | undefined;
+  }) => void;
+  /**
+   * Rename a menu's id. Rejects if newId already exists in the pack.
+   * Atomically rewrites all `open_menu` refs in the pack and the
+   * canvasLayout key. Cross-pack refs to this menu (which we don't track)
+   * become dangling — runtime handles.
+   */
+  setMenuId: (input: { packId: PackId; oldId: MenuId; newId: MenuId }) => void;
+  /** Rename a command's id. Rejects if newId already exists in the pack. */
+  setCommandId: (input: { packId: PackId; oldId: CommandId; newId: CommandId }) => void;
+  /** Rename an element's id. Rejects if newId already exists in the same menu. */
+  setElementId: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    oldId: ElementId;
+    newId: ElementId;
   }) => void;
   setSlotMaterial: (input: {
     packId: PackId;
@@ -64,17 +155,45 @@ interface AccountState {
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
-    field: "title" | "count" | "material";
+    field: "count" | "material";
     value: string | number;
   }) => void;
-  /** Replace the element's appearance lore lines at the given index (default 0). */
+  /** Update an appearance title for the given language. Allocates the LText on first write. */
+  setAppearanceTitle: (input: {
+    packId: PackId;
+    menuId: MenuId;
+    elementId: ElementId;
+    appearanceIndex?: number;
+    lang: string;
+    value: string;
+  }) => void;
+  /**
+   * Replace the element's appearance lore lines at the given index (default 0).
+   * Diffs against the existing LText[] — overlapping indices get their
+   * value updated under the same key, surplus indices are GC'd, new
+   * indices are allocated.
+   */
   setAppearanceLore: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
+    lang: string;
     lines: string[];
   }) => void;
+  /**
+   * Update the value of an i18n entry under `lang`. Used by every text
+   * field whose component already holds the `LText` ref (menu title,
+   * appearance title/lore lines, send_message text in actions). Path-
+   * based step mutators handle structure; this handles content.
+   */
+  setI18nValue: (input: { packId: PackId; lt: LText; lang: string; value: string }) => void;
+  /** Add a new language to the pack (clones empty entries from defaultLang for every existing key). */
+  addLanguage: (input: { packId: PackId; lang: string }) => void;
+  /** Remove a language and all its translations. No-op on `defaultLang`. */
+  removeLanguage: (input: { packId: PackId; lang: string }) => void;
+  /** Change the pack's default language (the fallback when a key has no entry in the active lang). */
+  setPackDefaultLang: (input: { packId: PackId; lang: string }) => void;
   /** Replace the element's positions string (e.g. "0-8,17,26"). */
   setElementPositions: (input: {
     packId: PackId;
@@ -116,6 +235,7 @@ interface AccountState {
     clickType: ClickType;
     path: StepPath;
     step: Step;
+    lang: string;
   }) => void;
   /**
    * Insert a step into a click handler's step tree. `frames` describes how
@@ -131,6 +251,7 @@ interface AccountState {
     frames: StepFrame[];
     index: number;
     step: Step;
+    lang: string;
   }) => void;
   removeElementStep: (input: {
     packId: PackId;
@@ -274,6 +395,7 @@ interface AccountState {
     commandId: CommandId;
     path: StepPath;
     step: Step;
+    lang: string;
   }) => void;
   /** Insert a step into a command's step tree. */
   addCommandStep: (input: {
@@ -282,6 +404,7 @@ interface AccountState {
     frames: StepFrame[];
     index: number;
     step: Step;
+    lang: string;
   }) => void;
   removeCommandStep: (input: {
     packId: PackId;
@@ -409,6 +532,66 @@ function touch(draft: AccountState, packId: PackId) {
 }
 
 /**
+ * Walk a step tree and, for any send_message action whose `text.key` is
+ * the unallocated sentinel ("" — see `defaultAction`), allocate a fresh
+ * i18n entry seeded with "" in `lang`. Mutates the draft in place.
+ *
+ * Symmetric `gcStepLTexts` walks the tree and drops every text key from
+ * `pack.i18nKeys`. Use it when removing/replacing a step subtree so the
+ * pack's lang map doesn't leak orphaned entries.
+ */
+function allocStepLTexts(pack: Pack, steps: Step[], lang: string): void {
+  for (const action of walkActions(steps)) {
+    if (action.type === "send_message" && action.text.key === "") {
+      action.text = createLText(pack, "", lang);
+    }
+  }
+}
+function gcStepLTexts(pack: Pack, steps: Step[]): void {
+  for (const action of walkActions(steps)) {
+    if (action.type === "send_message") deleteLText(pack, action.text);
+  }
+}
+
+/** GC every LText held by a single appearance (title + every lore line + click trees). */
+function gcAppearanceLTexts(pack: Pack, appearance: Appearance): void {
+  deleteLText(pack, appearance.title);
+  if (appearance.lore) deleteLTexts(pack, appearance.lore);
+  if (appearance.click) {
+    for (const handler of Object.values(appearance.click)) {
+      if (handler) gcStepLTexts(pack, handler.steps);
+    }
+  }
+}
+/** GC every LText held by an element (across all its appearances). */
+function gcElementLTexts(pack: Pack, element: Element): void {
+  for (const a of element.appearances) gcAppearanceLTexts(pack, a);
+}
+/** GC every LText held by a menu (title + every element). */
+function gcMenuLTexts(pack: Pack, menu: Menu): void {
+  deleteLText(pack, menu.title);
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) gcElementLTexts(pack, el);
+  }
+}
+/** GC every LText held by a command (every send_message in its step tree). */
+function gcCommandLTexts(pack: Pack, command: Command): void {
+  gcStepLTexts(pack, command.steps);
+}
+
+/** Throws if any required arg follows an optional one. */
+function validateArgOrder(args: CommandArg[]): void {
+  let seenOptional = false;
+  for (const arg of args) {
+    if (!arg.required) {
+      seenOptional = true;
+    } else if (seenOptional) {
+      throw new Error(`required arg "${arg.name}" cannot follow an optional arg`);
+    }
+  }
+}
+
+/**
  * Middleware order: temporal(persist(stateCreator)).
  *
  * `temporal` wraps the persisted state creator so undo/redo replays the
@@ -451,6 +634,88 @@ export const useAccountStore = create<AccountState>()(
           );
           clearTemporal();
         },
+        importPack: ({ pack: incoming }) => {
+          // Light shape check — the input came from a user-supplied file so
+          // we don't fully trust it, but we don't deep-validate either.
+          if (!incoming || typeof incoming !== "object") {
+            throw new Error("invalid pack: not an object");
+          }
+          if (typeof incoming.name !== "string") throw new Error("invalid pack: missing name");
+          if (!Array.isArray(incoming.menus)) throw new Error("invalid pack: missing menus");
+          if (!Array.isArray(incoming.commands)) throw new Error("invalid pack: missing commands");
+
+          const id = newPackId();
+          set(
+            produce((draft: AccountState) => {
+              const next = {
+                ...incoming,
+                id,
+                // Force fresh source/timestamps even if the file claimed otherwise.
+                source: "imported" as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                // Retag children so their packId matches the new pack id.
+                menus: incoming.menus.map((m) => ({ ...m, packId: id })),
+                commands: incoming.commands.map((c) => ({ ...c, packId: id })),
+                templates: (incoming.templates ?? []).map((t) => ({ ...t, packId: id })),
+                assets: (incoming.assets ?? []).map((a) => ({ ...a, packId: id })),
+                i18nKeys: incoming.i18nKeys ?? {},
+                defaultLang: incoming.defaultLang ?? "en",
+                canvasLayout: incoming.canvasLayout ?? {},
+              };
+              // Imported pack may use the legacy plain-string shape — migrate
+              // in place so it lines up with the current LText-based domain.
+              migratePackToI18n(next, next.defaultLang);
+              draft.account.packs.push(next);
+              draft.account.packOrder.push(id);
+            }),
+          );
+          clearTemporal();
+          return id;
+        },
+        createMenu: ({ packId: pId, title, rows, position }) => {
+          const id = newMenuId();
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const titleLText = createLText(pack, title ?? "Untitled menu", pack.defaultLang);
+              pack.menus.push({
+                id,
+                packId: pId,
+                title: titleLText,
+                rows: rows ?? 3,
+                layers: [{ id: newLayerId(), name: "default", elements: [] }],
+              });
+              if (position) {
+                (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+          return id;
+        },
+        createCommand: ({ packId: pId, name, position }) => {
+          const id = newCommandId();
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              pack.commands.push({
+                id,
+                packId: pId,
+                name: name ?? "newcmd",
+                arguments: [],
+                steps: [],
+              });
+              if (position) {
+                (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+          return id;
+        },
         reorderPacks: (newOrder) => {
           set(
             produce((draft: AccountState) => {
@@ -471,10 +736,6 @@ export const useAccountStore = create<AccountState>()(
             moved.packId = toPackId;
             to.menus.push(moved);
           });
-          const fromAfter = next.packs.find((p) => p.id === fromPackId)!;
-          const toAfter = next.packs.find((p) => p.id === toPackId)!;
-          assertPackHermetic(fromAfter);
-          assertPackHermetic(toAfter);
           set({ account: next });
         },
         setCanvasPosition: ({ packId: pId, nodeId, x, y }) =>
@@ -495,16 +756,65 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
+        setI18nValue: ({ packId: pId, lt, lang, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              setLText(pack, lt, lang, value);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        addLanguage: ({ packId: pId, lang }) => {
+          if (!lang) throw new Error("language code cannot be empty");
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              // Idempotent: re-adding an existing lang is a no-op. We
+              // don't seed empty entries for every key — fallback to
+              // defaultLang at read time covers untranslated keys. Just
+              // touch one entry so future enumeration code can spot the
+              // language. (If the pack has no keys at all, the language
+              // doesn't need recording anywhere.)
+              for (const entry of Object.values(pack.i18nKeys)) {
+                if (!entry) continue;
+                if (!(lang in entry)) entry[lang] = "";
+                break;
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+        },
+        removeLanguage: ({ packId: pId, lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              if (lang === pack.defaultLang) return; // refuse to drop the default
+              for (const entry of Object.values(pack.i18nKeys)) {
+                if (entry) delete entry[lang];
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setPackDefaultLang: ({ packId: pId, lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              if (!lang) return;
+              pack.defaultLang = lang;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
         setMenuField: ({ packId: pId, menuId: mId, field, value }) => {
           const next = produce(get().account, (draft) => {
             const pack = draft.packs.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
-            if (field === "title") {
-              if (typeof value !== "string") return;
-              menu.title = value;
-            } else if (field === "permission") {
+            if (field === "permission") {
               if (typeof value !== "string") return;
               menu.permission = value || undefined;
             } else if (field === "rows") {
@@ -522,10 +832,22 @@ export const useAccountStore = create<AccountState>()(
             }
             pack.updatedAt = new Date().toISOString();
           });
-          const after = next.packs.find((p) => p.id === pId);
-          if (after) assertPackHermetic(after);
           set({ account: next });
         },
+        setMenuTitle: ({ packId: pId, menuId: mId, lang, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              // Defensive: a menu created via the typed path always has a
+              // title LText, but legacy paths might not — lazy-allocate.
+              if (!menu.title) menu.title = createLText(pack, value, lang);
+              else setLText(pack, menu.title, lang, value);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
         setCommandField: ({ packId: pId, commandId: cId, field, value }) =>
           set(
             produce((draft: AccountState) => {
@@ -539,6 +861,214 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
+        addCommandArg: ({ packId: pId, commandId: cId, arg }) => {
+          const next = produce(get().account, (draft) => {
+            const pack = draft.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const cmd = pack.commands.find((c) => c.id === cId);
+            if (!cmd) return;
+            const used = new Set(cmd.arguments.map((a) => a.name));
+            const defaultName = (() => {
+              for (let i = 1; ; i++) {
+                const candidate = `arg${i}`;
+                if (!used.has(candidate)) return candidate;
+              }
+            })();
+            const newArg = arg ?? { name: defaultName, type: "string" as const, required: true };
+            validateArgOrder([...cmd.arguments, newArg]);
+            cmd.arguments.push(newArg);
+            pack.updatedAt = new Date().toISOString();
+          });
+          set({ account: next });
+        },
+        setCommandArg: ({ packId: pId, commandId: cId, index, arg }) => {
+          const next = produce(get().account, (draft) => {
+            const pack = draft.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const cmd = pack.commands.find((c) => c.id === cId);
+            if (!cmd || index < 0 || index >= cmd.arguments.length) return;
+            const newArgs = [...cmd.arguments];
+            newArgs[index] = arg;
+            validateArgOrder(newArgs);
+            cmd.arguments[index] = arg;
+            pack.updatedAt = new Date().toISOString();
+          });
+          set({ account: next });
+        },
+        removeCommandArg: ({ packId: pId, commandId: cId, index }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd || index < 0 || index >= cmd.arguments.length) return;
+              cmd.arguments.splice(index, 1);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        addMenuContextInput: ({ packId: pId, menuId: mId, input }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              if (!menu.contextInputs) menu.contextInputs = [];
+              const used = new Set(menu.contextInputs.map((c) => c.name));
+              const defaultName = (() => {
+                for (let i = 1; ; i++) {
+                  const candidate = `ctx${i}`;
+                  if (!used.has(candidate)) return candidate;
+                }
+              })();
+              menu.contextInputs.push(input ?? { name: defaultName, type: "string" });
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setMenuContextInput: ({ packId: pId, menuId: mId, index, input }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu?.contextInputs) return;
+              if (index < 0 || index >= menu.contextInputs.length) return;
+              menu.contextInputs[index] = input;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        removeMenuContextInput: ({ packId: pId, menuId: mId, index }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu?.contextInputs) return;
+              if (index < 0 || index >= menu.contextInputs.length) return;
+              menu.contextInputs.splice(index, 1);
+              if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setMenuSampleContext: ({ packId: pId, menuId: mId, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              menu.sampleContext = value;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setElementIterates: ({ packId: pId, menuId: mId, elementId: eId, iterates }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                const el = layer.elements.find((e) => e.id === eId);
+                if (el) {
+                  el.iterates = iterates;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setMenuId: ({ packId: pId, oldId, newId }) => {
+          if (oldId === newId) return;
+          if (!newId) throw new Error("menu id cannot be empty");
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              if (pack.menus.some((m) => m.id === newId)) {
+                throw new Error(`menu id "${newId}" already exists in pack`);
+              }
+              const menu = pack.menus.find((m) => m.id === oldId);
+              if (!menu) return;
+              menu.id = newId;
+              // Rewrite open_menu refs across the entire pack — both
+              // element click handlers and command step trees.
+              const rewrite = (action: Action) => {
+                if (action.type === "open_menu" && action.menuId === oldId) {
+                  action.menuId = newId;
+                }
+              };
+              for (const m of pack.menus) {
+                for (const layer of m.layers) {
+                  for (const el of layer.elements) {
+                    for (const appearance of el.appearances) {
+                      if (!appearance.click) continue;
+                      for (const handler of Object.values(appearance.click)) {
+                        if (!handler) continue;
+                        for (const a of walkActions(handler.steps)) rewrite(a);
+                      }
+                    }
+                  }
+                }
+              }
+              for (const cmd of pack.commands) {
+                for (const a of walkActions(cmd.steps)) rewrite(a);
+              }
+              const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
+              if (oldId in layout) {
+                layout[newId] = layout[oldId]!;
+                delete layout[oldId];
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+        },
+        setCommandId: ({ packId: pId, oldId, newId }) => {
+          if (oldId === newId) return;
+          if (!newId) throw new Error("command id cannot be empty");
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              if (pack.commands.some((c) => c.id === newId)) {
+                throw new Error(`command id "${newId}" already exists in pack`);
+              }
+              const cmd = pack.commands.find((c) => c.id === oldId);
+              if (!cmd) return;
+              cmd.id = newId;
+              const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
+              if (oldId in layout) {
+                layout[newId] = layout[oldId]!;
+                delete layout[oldId];
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+        },
+        setElementId: ({ packId: pId, menuId: mId, oldId, newId }) => {
+          if (oldId === newId) return;
+          if (!newId) throw new Error("element id cannot be empty");
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              const allElements = menu.layers.flatMap((l) => l.elements);
+              if (allElements.some((el) => el.id === newId)) {
+                throw new Error(`element id "${newId}" already exists in menu`);
+              }
+              for (const layer of menu.layers) {
+                const el = layer.elements.find((e) => e.id === oldId);
+                if (el) {
+                  el.id = newId;
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          );
+        },
         setSlotMaterial: ({ packId: pId, menuId: mId, position, material }) =>
           set(
             produce((draft: AccountState) => {
@@ -589,10 +1119,7 @@ export const useAccountStore = create<AccountState>()(
                   if (el.id !== elementId) continue;
                   const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
-                  if (field === "title") {
-                    if (typeof value !== "string") return;
-                    appearance.title = value || undefined;
-                  } else if (field === "count") {
+                  if (field === "count") {
                     const n = typeof value === "number" ? value : Number(value);
                     if (Number.isNaN(n) || n < 1 || n > 64) return;
                     appearance.count = n === 1 ? undefined : n;
@@ -600,6 +1127,37 @@ export const useAccountStore = create<AccountState>()(
                     if (typeof value !== "string") return;
                     appearance.material = value || undefined;
                   }
+                  pack.updatedAt = new Date().toISOString();
+                  return;
+                }
+              }
+            }),
+          ),
+        setAppearanceTitle: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex = 0,
+          lang,
+          value,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              for (const layer of menu.layers) {
+                for (const el of layer.elements) {
+                  if (el.id !== elementId) continue;
+                  const appearance = el.appearances[appearanceIndex];
+                  if (!appearance) return;
+                  // Lazy-allocate: brand-new appearances start with no title
+                  // LText, so the first edit creates one. If the user clears
+                  // the field, we keep the LText (they may want to re-edit
+                  // or translate it later) but write "" into the active lang.
+                  if (!appearance.title) appearance.title = createLText(pack, value, lang);
+                  else setLText(pack, appearance.title, lang, value);
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }
@@ -690,6 +1248,7 @@ export const useAccountStore = create<AccountState>()(
               for (const layer of menu.layers) {
                 const idx = layer.elements.findIndex((el) => el.id === elementId);
                 if (idx !== -1) {
+                  gcElementLTexts(pack, layer.elements[idx]!);
                   layer.elements.splice(idx, 1);
                   pack.updatedAt = new Date().toISOString();
                   return;
@@ -705,9 +1264,12 @@ export const useAccountStore = create<AccountState>()(
           clickType,
           path,
           step,
+          lang,
         }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const handler = findElementHandler(
                 draft,
                 pId,
@@ -719,7 +1281,9 @@ export const useAccountStore = create<AccountState>()(
               if (!handler) return;
               const parent = resolveParentMut(handler.steps, path.frames);
               if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
               parent[path.index] = step;
+              allocStepLTexts(pack, [step], lang);
               touch(draft, pId);
             }),
           ),
@@ -732,9 +1296,12 @@ export const useAccountStore = create<AccountState>()(
           frames,
           index,
           step,
+          lang,
         }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const handler = findElementHandler(
                 draft,
                 pId,
@@ -748,6 +1315,7 @@ export const useAccountStore = create<AccountState>()(
               if (!parent) return;
               const at = index < 0 || index > parent.length ? parent.length : index;
               parent.splice(at, 0, step);
+              allocStepLTexts(pack, [step], lang);
               touch(draft, pId);
             }),
           ),
@@ -761,6 +1329,8 @@ export const useAccountStore = create<AccountState>()(
         }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const handler = findElementHandler(
                 draft,
                 pId,
@@ -772,6 +1342,7 @@ export const useAccountStore = create<AccountState>()(
               if (!handler) return;
               const parent = resolveParentMut(handler.steps, path.frames);
               if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
               parent.splice(path.index, 1);
               touch(draft, pId);
             }),
@@ -845,6 +1416,8 @@ export const useAccountStore = create<AccountState>()(
         }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const handler = findElementHandler(
                 draft,
                 pId,
@@ -858,6 +1431,7 @@ export const useAccountStore = create<AccountState>()(
               const ifStep = parent?.[ifStepIndex];
               if (!ifStep || ifStep.kind !== "if") return;
               if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+              gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
               ifStep.cases.splice(caseIndex, 1);
               touch(draft, pId);
             }),
@@ -941,6 +1515,8 @@ export const useAccountStore = create<AccountState>()(
         }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const handler = findElementHandler(
                 draft,
                 pId,
@@ -956,6 +1532,7 @@ export const useAccountStore = create<AccountState>()(
               if (enabled) {
                 if (!ifStep.else) ifStep.else = [];
               } else {
+                if (ifStep.else) gcStepLTexts(pack, ifStep.else);
                 ifStep.else = undefined;
               }
               touch(draft, pId);
@@ -1007,6 +1584,8 @@ export const useAccountStore = create<AccountState>()(
                   if (el.id !== elementId) continue;
                   const appearance = el.appearances[appearanceIndex];
                   if (!appearance?.click) return;
+                  const handler = appearance.click[clickType];
+                  if (handler) gcStepLTexts(pack, handler.steps);
                   delete appearance.click[clickType];
                   pack.updatedAt = new Date().toISOString();
                   return;
@@ -1046,6 +1625,7 @@ export const useAccountStore = create<AccountState>()(
                   if (el.id !== elementId) continue;
                   if (el.appearances.length <= 1) return; // keep at least one
                   if (appearanceIndex < 0 || appearanceIndex >= el.appearances.length) return;
+                  gcAppearanceLTexts(pack, el.appearances[appearanceIndex]!);
                   el.appearances.splice(appearanceIndex, 1);
                   pack.updatedAt = new Date().toISOString();
                   return;
@@ -1141,36 +1721,46 @@ export const useAccountStore = create<AccountState>()(
               }
             }),
           ),
-        setCommandStep: ({ packId: pId, commandId: cId, path, step }) =>
+        setCommandStep: ({ packId: pId, commandId: cId, path, step, lang }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const cmd = findCommand(draft, pId, cId);
               if (!cmd) return;
               const parent = resolveParentMut(cmd.steps, path.frames);
               if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
               parent[path.index] = step;
+              allocStepLTexts(pack, [step], lang);
               touch(draft, pId);
             }),
           ),
-        addCommandStep: ({ packId: pId, commandId: cId, frames, index, step }) =>
+        addCommandStep: ({ packId: pId, commandId: cId, frames, index, step, lang }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const cmd = findCommand(draft, pId, cId);
               if (!cmd) return;
               const parent = resolveParentMut(cmd.steps, frames);
               if (!parent) return;
               const at = index < 0 || index > parent.length ? parent.length : index;
               parent.splice(at, 0, step);
+              allocStepLTexts(pack, [step], lang);
               touch(draft, pId);
             }),
           ),
         removeCommandStep: ({ packId: pId, commandId: cId, path }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const cmd = findCommand(draft, pId, cId);
               if (!cmd) return;
               const parent = resolveParentMut(cmd.steps, path.frames);
               if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
               parent.splice(path.index, 1);
               touch(draft, pId);
             }),
@@ -1204,12 +1794,15 @@ export const useAccountStore = create<AccountState>()(
         removeCommandIfCase: ({ packId: pId, commandId: cId, frames, ifStepIndex, caseIndex }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const cmd = findCommand(draft, pId, cId);
               if (!cmd) return;
               const parent = resolveParentMut(cmd.steps, frames);
               const ifStep = parent?.[ifStepIndex];
               if (!ifStep || ifStep.kind !== "if") return;
               if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+              gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
               ifStep.cases.splice(caseIndex, 1);
               touch(draft, pId);
             }),
@@ -1264,6 +1857,8 @@ export const useAccountStore = create<AccountState>()(
         toggleCommandIfElse: ({ packId: pId, commandId: cId, frames, ifStepIndex, enabled }) =>
           set(
             produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
               const cmd = findCommand(draft, pId, cId);
               if (!cmd) return;
               const parent = resolveParentMut(cmd.steps, frames);
@@ -1272,6 +1867,7 @@ export const useAccountStore = create<AccountState>()(
               if (enabled) {
                 if (!ifStep.else) ifStep.else = [];
               } else {
+                if (ifStep.else) gcStepLTexts(pack, ifStep.else);
                 ifStep.else = undefined;
               }
               touch(draft, pId);
@@ -1351,7 +1947,14 @@ export const useAccountStore = create<AccountState>()(
           });
           set({ account: next });
         },
-        setAppearanceLore: ({ packId: pId, menuId: mId, elementId, appearanceIndex = 0, lines }) =>
+        setAppearanceLore: ({
+          packId: pId,
+          menuId: mId,
+          elementId,
+          appearanceIndex = 0,
+          lang,
+          lines,
+        }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -1363,7 +1966,25 @@ export const useAccountStore = create<AccountState>()(
                   if (el.id !== elementId) continue;
                   const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
-                  appearance.lore = lines.length > 0 ? lines : undefined;
+                  // Diff against existing LText[] so reorderings within the
+                  // length and edits in place keep their keys (and therefore
+                  // their other-language translations). Surplus old lines
+                  // get GC'd; extra new lines get fresh keys allocated.
+                  const old: LText[] = appearance.lore ?? [];
+                  const next: LText[] = [];
+                  const overlap = Math.min(old.length, lines.length);
+                  for (let i = 0; i < overlap; i++) {
+                    const lt = old[i]!;
+                    setLText(pack, lt, lang, lines[i]!);
+                    next.push(lt);
+                  }
+                  for (let i = overlap; i < lines.length; i++) {
+                    next.push(createLText(pack, lines[i]!, lang));
+                  }
+                  for (let i = overlap; i < old.length; i++) {
+                    deleteLText(pack, old[i]);
+                  }
+                  appearance.lore = next.length > 0 ? next : undefined;
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }
@@ -1386,6 +2007,7 @@ export const useAccountStore = create<AccountState>()(
                 const remaining = removePosition(el.positions, position);
                 if (remaining === "") {
                   // Last position — drop the element entirely.
+                  gcElementLTexts(pack, el);
                   layer.elements.splice(idx, 1);
                 } else {
                   el.positions = remaining;
@@ -1423,8 +2045,49 @@ export const useAccountStore = create<AccountState>()(
           const next = produce(get().account, (draft) => {
             const pack = draft.packs.find((p) => p.id === pId);
             if (!pack) return;
+            // Clone every LText held by the pasted entities under fresh
+            // keys, copying the value map from the source. Otherwise the
+            // copies would share keys with the originals — editing one
+            // would silently alter the other.
+            const cloneAppearanceLTexts = (a: Appearance) => {
+              if (a.title) {
+                const src = pack.i18nKeys[a.title.key];
+                a.title = createLText(pack, "", pack.defaultLang);
+                if (src) pack.i18nKeys[a.title.key] = { ...src };
+              }
+              if (a.lore) {
+                a.lore = a.lore.map((lt) => {
+                  const src = pack.i18nKeys[lt.key];
+                  const fresh = createLText(pack, "", pack.defaultLang);
+                  if (src) pack.i18nKeys[fresh.key] = { ...src };
+                  return fresh;
+                });
+              }
+              if (a.click) {
+                for (const handler of Object.values(a.click)) {
+                  if (!handler) continue;
+                  for (const action of walkActions(handler.steps)) {
+                    if (action.type === "send_message") {
+                      const src = pack.i18nKeys[action.text.key];
+                      action.text = createLText(pack, "", pack.defaultLang);
+                      if (src) pack.i18nKeys[action.text.key] = { ...src };
+                    }
+                  }
+                }
+              }
+            };
             for (const m of menus) {
               const stamped: Menu = { ...m, packId: pId };
+              if (stamped.title) {
+                const src = pack.i18nKeys[stamped.title.key];
+                stamped.title = createLText(pack, "", pack.defaultLang);
+                if (src) pack.i18nKeys[stamped.title.key] = { ...src };
+              }
+              for (const layer of stamped.layers) {
+                for (const el of layer.elements) {
+                  for (const a of el.appearances) cloneAppearanceLTexts(a);
+                }
+              }
               pack.menus.push(stamped);
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
                 x: offset.x,
@@ -1435,6 +2098,13 @@ export const useAccountStore = create<AccountState>()(
             }
             for (const c of commands) {
               const stamped: Command = { ...c, packId: pId };
+              for (const action of walkActions(stamped.steps)) {
+                if (action.type === "send_message") {
+                  const src = pack.i18nKeys[action.text.key];
+                  action.text = createLText(pack, "", pack.defaultLang);
+                  if (src) pack.i18nKeys[action.text.key] = { ...src };
+                }
+              }
               pack.commands.push(stamped);
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
                 x: offset.x,
@@ -1444,9 +2114,6 @@ export const useAccountStore = create<AccountState>()(
               offset.y += 24;
             }
           });
-          const after = next.packs.find((p) => p.id === pId);
-          if (!after) return;
-          assertPackHermetic(after);
           set({ account: next });
         },
         deleteFromPack: ({ packId: pId, nodeIds }) => {
@@ -1454,24 +2121,29 @@ export const useAccountStore = create<AccountState>()(
           const next = produce(get().account, (draft) => {
             const pack = draft.packs.find((p) => p.id === pId);
             if (!pack) return;
+            for (const m of pack.menus) {
+              if (ids.has(m.id)) gcMenuLTexts(pack, m);
+            }
+            for (const c of pack.commands) {
+              if (ids.has(c.id)) gcCommandLTexts(pack, c);
+            }
             pack.menus = pack.menus.filter((m) => !ids.has(m.id));
             pack.commands = pack.commands.filter((c) => !ids.has(c.id));
             for (const id of ids) {
               delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[id];
             }
           });
-          const after = next.packs.find((p) => p.id === pId);
-          if (!after) return;
-          assertPackHermetic(after);
           set({ account: next });
         },
       }),
       {
         name: "interfaze:account",
-        version: 2,
+        version: 3,
         migrate: (persisted, version) => {
-          if (version >= 2) return persisted;
-          return migrateV1ToV2(persisted);
+          let p = persisted;
+          if (version < 2) p = migrateV1ToV2(p);
+          if (version < 3) p = migrateV2ToV3(p);
+          return p;
         },
       },
     ),
@@ -1521,6 +2193,24 @@ const migrateClickHandler = (h: V1ClickHandler) => {
     else: wrappedFallback,
   };
   return { steps: [ifStep] };
+};
+
+/**
+ * v2 → v3: lift every plain user-facing string (menu/appearance titles,
+ * lore lines, send_message text) into an `LText` ref, populating
+ * `pack.i18nKeys[key][pack.defaultLang]` with the original value. The
+ * actual walker lives in `lib/i18nMigration` so it can be reused for
+ * imported packs at runtime.
+ */
+const migrateV2ToV3 = (persisted: unknown): unknown => {
+  if (!persisted || typeof persisted !== "object") return persisted;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy shape
+  const account = (persisted as any).account;
+  if (!account) return persisted;
+  for (const pack of account.packs ?? []) {
+    migratePackToI18n(pack, pack.defaultLang ?? "en");
+  }
+  return persisted;
 };
 
 const migrateV1ToV2 = (persisted: unknown): unknown => {

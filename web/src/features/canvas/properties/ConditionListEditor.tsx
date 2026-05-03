@@ -25,6 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useId } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ConditionListEditorProps {
   /** Label shown above the list (e.g. "visibility", "when"). */
@@ -46,6 +47,8 @@ interface ConditionListEditorProps {
 const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = [
   { value: "has_permission", label: "has permission", chip: "perm" },
   { value: "has_money", label: "has money", chip: "$" },
+  { value: "placeholder_equals", label: "placeholder = value", chip: "= value" },
+  { value: "placeholder_match", label: "placeholder ~ regex", chip: "~ regex" },
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
@@ -57,6 +60,10 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "has_permission", perm: "" };
     case "has_money":
       return { type: "has_money", amount: 0 };
+    case "placeholder_equals":
+      return { type: "placeholder_equals", placeholder: "", value: "" };
+    case "placeholder_match":
+      return { type: "placeholder_match", placeholder: "", regex: "" };
     case "not":
       return { type: "not", of: { type: "has_permission", perm: "" } };
     case "and":
@@ -76,6 +83,7 @@ export function ConditionListEditor({
   joins,
   onJoinChange,
 }: ConditionListEditorProps) {
+  const { t } = useTranslation();
   const joinAt = (i: number): "and" | "or" => joins?.[i] ?? "and";
   const baseId = useId();
 
@@ -117,7 +125,7 @@ export function ConditionListEditor({
       {conditions.length === 0 ? (
         <div className="flex items-center gap-1.5">
           <div className="flex-1 rounded border border-zinc-800 border-dashed bg-zinc-900/30 px-2 py-1.5 text-[11px] text-zinc-500">
-            {emptyHint ?? "always (no condition)"}
+            {emptyHint ?? t("conditions.alwaysNoCondition")}
           </div>
           <AppendChip onPick={append} joiner="AND" />
         </div>
@@ -166,6 +174,7 @@ interface ConditionChipProps {
 }
 
 function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionChipProps) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -211,9 +220,9 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
         <ConditionInline condition={condition} onChange={onChange} />
         <button
           type="button"
-          title="Remove"
+          title={t("conditions.removeCondition")}
           onClick={onRemove}
-          className="rounded px-1 text-[10px] text-zinc-500 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
+          className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-zinc-500 opacity-100 hover:bg-zinc-800 hover:text-zinc-200 lg:opacity-0 lg:group-hover:opacity-100"
         >
           ×
         </button>
@@ -233,6 +242,7 @@ function ConditionInline({
   condition: Condition;
   onChange: (next: Condition) => void;
 }) {
+  const { t } = useTranslation();
   switch (condition.type) {
     case "has_permission":
       return (
@@ -256,6 +266,42 @@ function ConditionInline({
               if (!Number.isNaN(n) && n >= 0) onChange({ ...condition, amount: n });
             }}
             className="h-6 w-[80px] px-1.5 py-0 text-[11px]"
+          />
+        </>
+      );
+    case "placeholder_equals":
+      return (
+        <>
+          <Input
+            placeholder={t("conditions.placeholderPlaceholder")}
+            value={condition.placeholder}
+            onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
+            className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
+          />
+          <span className="font-mono text-[10px] text-zinc-500">=</span>
+          <Input
+            placeholder={t("conditions.placeholderValuePlaceholder")}
+            value={condition.value}
+            onChange={(e) => onChange({ ...condition, value: e.target.value })}
+            className="h-6 w-[100px] px-1.5 py-0 text-[11px]"
+          />
+        </>
+      );
+    case "placeholder_match":
+      return (
+        <>
+          <Input
+            placeholder={t("conditions.placeholderPlaceholder")}
+            value={condition.placeholder}
+            onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
+            className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
+          />
+          <span className="font-mono text-[10px] text-zinc-500">~</span>
+          <Input
+            placeholder={t("conditions.placeholderRegexPlaceholder")}
+            value={condition.regex}
+            onChange={(e) => onChange({ ...condition, regex: e.target.value })}
+            className="h-6 w-[100px] px-1.5 py-0 font-mono text-[11px]"
           />
         </>
       );
@@ -362,6 +408,7 @@ function InnerChip({
   onChange: (next: Condition) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="group flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5">
       <DropdownMenu>
@@ -388,7 +435,7 @@ function InnerChip({
       <ConditionInline condition={condition} onChange={onChange} />
       <button
         type="button"
-        title="Remove"
+        title={t("conditions.removeCondition")}
         onClick={onRemove}
         className="rounded px-1 text-[10px] text-zinc-500 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
       >
@@ -436,6 +483,7 @@ function AppendChip({
  * badge renders read-only.
  */
 function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => void }) {
+  const { t } = useTranslation();
   const label = op === "or" ? "OR" : "AND";
   if (!onToggle) {
     return (
@@ -448,7 +496,7 @@ function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => voi
     <button
       type="button"
       onClick={onToggle}
-      title="Click to switch operator"
+      title={t("conditions.switchOperator")}
       className={cx(
         "rounded px-1 font-mono text-[9px] uppercase tracking-wide transition-colors",
         op === "or"

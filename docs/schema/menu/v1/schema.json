@@ -20,7 +20,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 256,
-      "description": "Titre affiché en haut de l'inventaire. Supporte les codes couleur §a et placeholders."
+      "description": "Titre affiché en haut de l'inventaire. Format MiniMessage. Supporte placeholders et {i18n:key}."
     },
     "size": {
       "type": "integer",
@@ -39,6 +39,11 @@
     "background": {
       "$ref": "#/$defs/Appearance",
       "description": "Apparence par défaut des positions Minecraft non couvertes par un Element visible."
+    },
+    "contextInputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ContextInput" },
+      "description": "Slots nommées exposées par le menu. Peuplées à l'ouverture par auto-binding par nom (cf. §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte."
     },
     "open_requirements": {
       "type": "array",
@@ -59,7 +64,7 @@
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/Layer" },
-      "description": "Liste des layers du menu, ordonnés bottom → top. Au render, le moteur parcourt les layers de haut en bas et prend le premier Element visible à chaque position."
+      "description": "Liste des layers du menu, ordonnés bottom → top."
     },
     "metadata": {
       "type": "object",
@@ -69,7 +74,7 @@
         "uses_plugins": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Liste des plugins tiers référencés via component_ref. Calculée automatiquement."
+          "description": "Liste des plugins tiers référencés via component_ref ou ContextInput.source. Calculée automatiquement."
         },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },
@@ -127,6 +132,10 @@
           "items": { "$ref": "#/$defs/Appearance" },
           "description": "Apparences évaluées dans l'ordre. Première dont `if` matche gagne. Aucune match → fall-through au layer suivant."
         },
+        "iterates": {
+          "$ref": "#/$defs/Iterates",
+          "description": "Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source` (de type \"list\"), le moteur évalue les appearances avec l'item courant exposé sous `alias`, accessible via {alias.field}. Mutuellement exclusif avec component_ref."
+        },
         "template_ref": {
           "oneOf": [
             { "type": "null" },
@@ -144,10 +153,91 @@
         }
       }
     },
+    "ContextInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "description": "Slot nommée et typée exposée par le menu. Peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs de l'appelant, alias d'iteration courant — cf. §15.4) ou via un ConnectorBinding attaché.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Slug exposé comme {name} dans les champs du menu. Unique au sein du menu."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["player", "string", "integer", "number", "boolean", "list", "object"]
+        },
+        "default": {
+          "type": "string",
+          "description": "Valeur fallback si l'appelant ne passe rien et qu'aucun connecteur n'est attaché. Supporte les placeholders."
+        },
+        "source": {
+          "$ref": "#/$defs/ConnectorBinding",
+          "description": "Si présent, la valeur de la slot est fetchée par un connecteur au lieu d'être passée par l'appelant. Valide uniquement sur type=\"list\" ou type=\"object\"."
+        }
+      }
+    },
+    "ConnectorBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "description": "Référence vers un connecteur (homemade Interfaze ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle le connecteur au render et obtient une liste/objet typé qui peuple la slot.",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
+          "description": "Identifiant du connecteur sous forme \"namespace:source\". Ex: \"chestshop:items\", \"essentials:warps\", \"jobs:list\"."
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Paramètres passés au connecteur (varient par connecteur). Supportent {name} pour interpoler les autres contextInputs du menu, ainsi que placeholders PAPI et {i18n:key}."
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Filtres appliqués sur les champs de la data. Supportent {name} pour interpoler les autres contextInputs. Ex: { \"category\": \"{category}\" } ne garde que les items dont category == valeur de l'input \"category\"."
+        },
+        "sort": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by"],
+          "properties": {
+            "by": { "type": "string", "description": "Nom du champ de tri." },
+            "direction": { "type": "string", "enum": ["asc", "desc"], "default": "asc" }
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Nombre max d'items retournés. Default = nombre de positions occupées par l'Element qui itère cette slot."
+        }
+      }
+    },
+    "Iterates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "alias"],
+      "description": "Iteration : pour chaque item du contextInput `source` (type \"list\"), le moteur évalue les appearances de l'Element avec l'item courant exposé sous `alias`. Les champs accèdent aux propriétés de l'item via {alias.field}.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Nom d'un contextInput de type \"list\" déclaré sur le menu."
+        },
+        "alias": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "Nom local de l'item courant dans la scope de l'Element. Exposé comme {alias} et {alias.field}."
+        }
+      }
+    },
     "Appearance": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active.",
+      "description": "Une apparence complète et auto-suffisante. Le `if` détermine si cette apparence s'active. Si l'Element a `iterates`, les champs peuvent référencer {alias.field} pour accéder aux propriétés de l'item courant.",
       "properties": {
         "if": {
           "type": "array",
@@ -156,7 +246,7 @@
           "description": "Conditions ANDées. Si absent, matche toujours (fallback)."
         },
         "asset": { "type": "string" },
-        "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "material": { "type": "string", "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère." },
         "count": { "type": "integer", "minimum": 1, "maximum": 64, "default": 1 },
         "title": { "type": "string" },
         "lore": { "type": "array", "items": { "type": "string" } },
@@ -245,7 +335,7 @@
       "required": ["type"],
       "oneOf": [
         { "additionalProperties": false, "required": ["type", "command"], "properties": { "type": { "const": "run_command" }, "command": { "type": "string" }, "as": { "type": "string", "enum": ["player", "console"], "default": "player" } } },
-        { "additionalProperties": false, "required": ["type", "menu_id"], "properties": { "type": { "const": "open_menu" }, "menu_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "close_current": { "type": "boolean", "default": true }, "clear_context": { "type": "boolean", "default": false, "description": "Si true, ne propage pas le contexte d'arguments hérité (ex. d'une commande). Par défaut le contexte est propagé." } } },
+        { "additionalProperties": false, "required": ["type", "menu_id"], "properties": { "type": { "const": "open_menu" }, "menu_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "close_current": { "type": "boolean", "default": true }, "context": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Override explicite de l'auto-binding par nom (cf. §15.4). Chaque entrée peuple un contextInput du menu cible ; les valeurs supportent {name} pour interpoler la scope courante." }, "clear_context": { "type": "boolean", "default": false, "description": "Désactive l'auto-binding par nom (l'override `context` reste actif)." } } },
         { "additionalProperties": false, "required": ["type"],            "properties": { "type": { "const": "close_menu" } } },
         { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "give_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1, "maximum": 64 }, "nbt": { "type": "string" }, "name": { "type": "string" }, "lore": { "type": "array", "items": { "type": "string" } } } },
         { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "take_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1, "maximum": 64 }, "nbt": { "type": "string" } } },
@@ -270,7 +360,7 @@
         { "additionalProperties": false, "required": ["type", "material", "count"], "properties": { "type": { "const": "has_item" }, "material": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "count": { "type": "integer", "minimum": 1 }, "nbt": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "has_xp" }, "amount": { "type": "integer", "minimum": 1 } } },
         { "additionalProperties": false, "required": ["type", "level"], "properties": { "type": { "const": "has_level" }, "level": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "placeholder", "value"], "properties": { "type": { "const": "placeholder_equals" }, "placeholder": { "type": "string" }, "value": { "type": "string" } } },
+        { "additionalProperties": false, "required": ["type", "placeholder", "value"], "properties": { "type": { "const": "placeholder_equals" }, "placeholder": { "type": "string", "description": "PAPI (%vault_eco_balance%), contextInput ({category}), ou champ d'iteration ({alias.field})." }, "value": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type", "placeholder", "regex"], "properties": { "type": { "const": "placeholder_match" }, "placeholder": { "type": "string" }, "regex": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type", "cooldown_id"], "properties": { "type": { "const": "cooldown_passed" }, "cooldown_id": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type", "world"], "properties": { "type": { "const": "world_is" }, "world": { "type": "string" } } },

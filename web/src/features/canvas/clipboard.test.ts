@@ -39,7 +39,7 @@ describe("rewriteIds", () => {
     if (firstStep.kind !== "action") throw new Error("expected action step");
     const action = firstStep.action;
     if (action.type === "open_menu") {
-      expect(action.menuId).toBe("m_profile"); // dangling — assertPackHermetic rejects on paste
+      expect(action.menuId).toBe("m_profile"); // left dangling — runtime no-ops on missing targets
     }
   });
 });

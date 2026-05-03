@@ -1,11 +1,16 @@
-import type { ElementId, Menu, PackId } from "@/domain/types";
+import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
+import { getText } from "@/lib/i18n";
+import { lookupPath, resolvePlaceholders } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { usePaginationStore } from "@/state/paginationStore";
+import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
@@ -154,6 +159,24 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     const pack = s.account.packs.find((p) => p.id === packId);
     return pack?.assets.find((a) => a.id === menu.background!.assetId)?.url;
   });
+  const hoveredEdge = useEdgeHoverStore((s) => s.edge);
+  // Walk layers directly (not elementsByPosition) so out-of-range positions
+  // still get highlighted — the element may have been moved outside the grid.
+  const edgeTriggerPositions = useMemo(() => {
+    if (!hoveredEdge) return null;
+    const triggerIds = new Set(
+      hoveredEdge.triggers.filter((t) => t.kind === "element").map((t) => t.elementId),
+    );
+    const positions = new Set<number>();
+    for (const layer of menu.layers) {
+      for (const el of layer.elements) {
+        if (!triggerIds.has(el.id)) continue;
+        for (const p of parsePositions(el.positions)) positions.add(p);
+      }
+    }
+    return positions;
+  }, [hoveredEdge, menu.layers]);
+
   const [vanillaTex] = useImage(TEX_URL);
   const [customTex] = useImage(customBgUrl ?? "");
   const usingCustom = Boolean(customBgUrl);
@@ -166,12 +189,30 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      const sourceEvent = e.evt;
-      const cx = sourceEvent.clientX;
-      const cy = sourceEvent.clientY;
+      // TouchEvent has no clientX/Y — those live on changedTouches[0]. Without
+      // this branching the rect-check below short-circuits to "all conditions
+      // false" on touch, and the first pack-mini in the DOM (often hidden
+      // ones from the desktop sidebar) receives the menu by accident.
+      const evt = e.evt as unknown as MouseEvent & TouchEvent;
+      let cx: number;
+      let cy: number;
+      if (typeof evt.clientX === "number" && Number.isFinite(evt.clientX)) {
+        cx = evt.clientX;
+        cy = evt.clientY;
+      } else if (evt.changedTouches?.[0]) {
+        cx = evt.changedTouches[0].clientX;
+        cy = evt.changedTouches[0].clientY;
+      } else {
+        // No pointer info — just persist the new position in this pack.
+        setCanvasPosition({ packId, nodeId: menu.id, x: e.target.x(), y: e.target.y() });
+        return;
+      }
+
       const minis = document.querySelectorAll<HTMLElement>("[data-pack-mini='true']");
       for (const m of minis) {
         const rect = m.getBoundingClientRect();
+        // Skip elements that are display:none / detached (zero rect).
+        if (rect.width === 0 && rect.height === 0) continue;
         if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
         const targetPackId = m.getAttribute("data-pack-id") as PackId | null;
         if (!targetPackId || targetPackId === packId) continue;
@@ -194,12 +235,47 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const onClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
+
+      // Touch/desktop tap-to-place: if a Library item is "armed", clicking
+      // anywhere on this menu places it at the slot under the pointer (if
+      // any) instead of selecting the menu. Skip if no slot is hit so a tap
+      // on the title bar still selects.
+      const armed = useUiStore.getState().armedMaterial;
+      if (armed) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer && stage) {
+          const world = {
+            x: (pointer.x - stage.x()) / stage.scaleX(),
+            y: (pointer.y - stage.y()) / stage.scaleY(),
+          };
+          const account = useAccountStore.getState().account;
+          const pack = account.packs.find((p) => p.id === packId);
+          if (pack) {
+            const hit = hitTestSlot(pack, layout, world.x, world.y);
+            if (hit && hit.menuId === menu.id) {
+              try {
+                useAccountStore.getState().setSlotMaterial({
+                  packId,
+                  menuId: hit.menuId as MenuId,
+                  position: hit.position,
+                  material: armed,
+                });
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "place failed");
+              }
+              return;
+            }
+          }
+        }
+      }
+
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(menu.id);
       else if (!ids.has(menu.id) || ids.size > 1) set([menu.id]);
     },
-    [menu.id],
+    [menu.id, packId, layout],
   );
 
   const onTitleDblClick = useCallback(
@@ -421,8 +497,62 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   );
 
   // Fan out each element across every slot it occupies. Multi-position
-  // elements (e.g. positions: "0-8") render the same material in every cell;
-  // any change to the element propagates to all of them automatically.
+  // elements (e.g. positions: "0-8") render the same material in every cell.
+  // For elements with `iterates`, we *unroll* across positions: each position
+  // i binds the i-th item from `menu.sampleContext[iterates.source]` and
+  // resolves placeholders in material/title/count against that item-scoped
+  // context. Excess positions (more positions than items) stay empty.
+  const sampleCtx =
+    menu.sampleContext && typeof menu.sampleContext === "object"
+      ? (menu.sampleContext as Record<string, unknown>)
+      : {};
+  // Active language + pack ref so we can resolve `LText` refs (menu
+  // title, appearance titles, lore lines) into the actually-displayed
+  // string. Pack ref is stable thanks to immer; the resolver reads
+  // `pack.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const activeLang = useUiStore((s) => s.activeLang);
+  // Per-element page index for iteration overflow. Shared via
+  // paginationStore so the ItemTooltip (which renders outside MenuGroup)
+  // can resolve placeholders against the right item on hover.
+  const pageByElement = usePaginationStore((s) => s.pageByElement);
+  const setPage = usePaginationStore((s) => s.setPage);
+  // Iterating elements that overflow their position count → eligible for
+  // pagination. We collect them as we build elementsByPosition so the
+  // overlay below can render controls per-element.
+  const overflowing: { elementId: string; page: number; totalPages: number }[] = [];
+
+  // First pass: walk all iterating elements to compute pagination state
+  // per-element. We expose this through the resolution context so users
+  // can write `{pagination.page}` / `{pagination.totalPages}` (defaults
+  // to the first iterable in the menu) or `{pagination.<source>.page}`
+  // / `{pagination.<source>.totalPages}` to disambiguate when several
+  // iterables coexist. Pages are 1-indexed for display.
+  const paginationCtx: Record<string, unknown> = {};
+  let firstIterable: { page: number; totalPages: number } | null = null;
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (!el.iterates) continue;
+      const appearance = el.appearances[0];
+      if (!appearance) continue;
+      const positions = parsePositions(el.positions);
+      const list = lookupPath(sampleCtx, el.iterates.source);
+      const items = Array.isArray(list) ? list : [];
+      const perPage = Math.max(1, positions.length);
+      const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+      const rawPage = pageByElement[el.id] ?? 0;
+      const page = Math.min(Math.max(0, rawPage), totalPages - 1);
+      const entry = { page: page + 1, totalPages };
+      paginationCtx[el.iterates.source] = entry;
+      if (!firstIterable) firstIterable = entry;
+    }
+  }
+  if (firstIterable) {
+    paginationCtx.page = firstIterable.page;
+    paginationCtx.totalPages = firstIterable.totalPages;
+  }
+  const enhancedCtx: Record<string, unknown> = { ...sampleCtx, pagination: paginationCtx };
+
   const elementsByPosition = new Map<
     number,
     { material?: string; title?: string; count?: number; elementId: string; multiPos: boolean }
@@ -432,9 +562,74 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       const appearance = el.appearances[0];
       if (!appearance) continue;
       const positions = parsePositions(el.positions);
+
+      if (el.iterates) {
+        const list = lookupPath(sampleCtx, el.iterates.source);
+        const items = Array.isArray(list) ? list : [];
+        const perPage = Math.max(1, positions.length);
+        const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+        const rawPage = pageByElement[el.id] ?? 0;
+        const page = Math.min(Math.max(0, rawPage), totalPages - 1);
+        const offset = page * perPage;
+        if (totalPages > 1) overflowing.push({ elementId: el.id, page, totalPages });
+
+        // First, claim every position with a phantom entry (no material
+        // → renders the dashed-outline placeholder + remains clickable
+        // and selectable). This way the user can SEE which slots are
+        // reserved by the iterating element even when the data list is
+        // shorter than the position count or empty entirely. Slots that
+        // resolve to an item below override their phantom with the real
+        // appearance.
+        for (const p of positions) {
+          elementsByPosition.set(p, {
+            elementId: el.id,
+            multiPos: false,
+          });
+        }
+
+        // Empty-list preview: still render the first slot with the bare
+        // appearance (literal placeholders like {shop.name}) so the user
+        // sees the button shape they're configuring even before
+        // sampleContext is wired up.
+        if (items.length === 0) {
+          const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
+          elementsByPosition.set(positions[0]!, {
+            material: appearance.material
+              ? resolvePlaceholders(appearance.material, enhancedCtx)
+              : undefined,
+            title: titleRaw ? resolvePlaceholders(titleRaw, enhancedCtx) : undefined,
+            count: appearance.count,
+            elementId: el.id,
+            multiPos: false,
+          });
+          continue;
+        }
+
+        for (let i = 0; i < perPage && offset + i < items.length; i++) {
+          const item = items[offset + i];
+          const itemCtx = { ...enhancedCtx, [el.iterates.alias]: item };
+          const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
+          elementsByPosition.set(positions[i]!, {
+            material: appearance.material
+              ? resolvePlaceholders(appearance.material, itemCtx)
+              : undefined,
+            title: titleRaw ? resolvePlaceholders(titleRaw, itemCtx) : undefined,
+            count: appearance.count,
+            elementId: el.id,
+            multiPos: false,
+          });
+        }
+        continue;
+      }
+
+      // Non-iterating: still resolve placeholders against enhancedCtx so
+      // `{player}`, `{pagination.page}`, etc. show preview values.
+      const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
       const info = {
-        material: appearance.material,
-        title: appearance.title,
+        material: appearance.material
+          ? resolvePlaceholders(appearance.material, enhancedCtx)
+          : undefined,
+        title: titleRaw ? resolvePlaceholders(titleRaw, enhancedCtx) : undefined,
         count: appearance.count,
         elementId: el.id,
         multiPos: positions.length > 1,
@@ -511,10 +706,27 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           perfectDrawEnabled={false}
         />
       ) : null}
+      {/* Edge-hover halo: amber border when this menu is the source of the hovered edge */}
+      {hoveredEdge?.source === menu.id ? (
+        <Rect
+          width={box.width}
+          height={box.height}
+          stroke="#f59e0b"
+          strokeWidth={2}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      ) : null}
       {/* Title text in the texture's title bar — MiniMessage-aware so e.g.
-          "<gold>Profil</gold>" actually renders gold. */}
+          "<gold>Profil</gold>" actually renders gold. Resolved against
+          enhancedCtx so users can write `<gold>Page {pagination.page}/
+          {pagination.totalPages}</gold>` or interpolate any sample-context
+          field directly into the title. */}
       <MiniMessageKonvaText
-        source={menu.title}
+        source={resolvePlaceholders(
+          pack ? getText(pack, menu.title, activeLang) : "",
+          enhancedCtx,
+        )}
         x={TEX_FIRST_SLOT_X + 1}
         y={5 * TEX_SCALE}
         fontSize={7 * TEX_SCALE}
@@ -537,12 +749,14 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       {Array.from({ length: slotCount }, (_, i) => {
         const { x, y } = slotXY(i);
         const el = elementsByPosition.get(i);
+        const present = Boolean(el);
         const filled = Boolean(el?.material);
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
         const elementSelected = Boolean(el?.elementId && selectedIds.has(el.elementId));
         const isFocusedSlot = elementSelected && focusedSlot === i;
         const isButtonMode = elementSelected && focusedSlot === null;
+        const isEdgeTrigger = Boolean(edgeTriggerPositions?.has(i));
         // During selection drag, hide the SlotItem at the source's "sibling"
         // positions so the user only sees the offset ghost, not a stale copy
         // pinned at the original spot.
@@ -557,7 +771,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             x={x}
             y={y}
             name={`slot:${menu.id}:${i}`}
-            listening={filled}
+            listening={present}
             draggable={filled}
             onDragStart={
               filled && el?.elementId
@@ -566,9 +780,24 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             }
             onDragMove={filled ? onSlotDragMove : undefined}
             onClick={
-              filled
+              present
                 ? (e) => {
                     e.cancelBubble = true;
+                    // Armed-from-Library: replace the material at this slot.
+                    const armed = useUiStore.getState().armedMaterial;
+                    if (armed) {
+                      try {
+                        useAccountStore.getState().setSlotMaterial({
+                          packId,
+                          menuId: menu.id,
+                          position: i,
+                          material: armed,
+                        });
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "place failed");
+                      }
+                      return;
+                    }
                     if (!el?.elementId) return;
                     const evt = e.evt as MouseEvent;
                     const sel = useSelectionStore.getState();
@@ -605,9 +834,23 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 : undefined
             }
             onTap={
-              filled
+              present
                 ? (e) => {
                     e.cancelBubble = true;
+                    const armed = useUiStore.getState().armedMaterial;
+                    if (armed) {
+                      try {
+                        useAccountStore.getState().setSlotMaterial({
+                          packId,
+                          menuId: menu.id,
+                          position: i,
+                          material: armed,
+                        });
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "place failed");
+                      }
+                      return;
+                    }
                     if (!el?.elementId) return;
                     const sel = useSelectionStore.getState();
                     if (!el.multiPos) {
@@ -620,14 +863,16 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 : undefined
             }
             onMouseEnter={
-              filled
+              present
                 ? () => {
                     if (el?.elementId)
-                      useHoverStore.getState().setElement(el.elementId as ElementId);
+                      useHoverStore.getState().setElement(el.elementId as ElementId, i);
                   }
                 : undefined
             }
-            onMouseLeave={filled ? () => useHoverStore.getState().setElement(null) : undefined}
+            onMouseLeave={
+              present ? () => useHoverStore.getState().setElement(null, null) : undefined
+            }
             onDragEnd={
               filled && el?.elementId
                 ? (e) => onSlotDragEnd(e, i, el.elementId as ElementId)
@@ -642,6 +887,33 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 count={el?.count}
               />
             ) : null}
+            {present && !filled && !isSelectionSibling ? (
+              <>
+                {/* Transparent hit area so the group receives pointer events */}
+                <Rect
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  fill="rgba(0,0,0,0.001)"
+                  listening={true}
+                  perfectDrawEnabled={false}
+                />
+                <Rect
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  stroke="rgba(255,255,255,0.45)"
+                  strokeWidth={1.5}
+                  dash={[3, 3]}
+                  cornerRadius={2}
+                  fill="transparent"
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+              </>
+            ) : null}
             {/* Selection outlines:
                   - button mode: every position outlined in solid blue
                   - instance mode: focused slot in emerald, siblings in blue
@@ -654,6 +926,18 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 height={TEX_SLOT_INNER + 2}
                 stroke={isFocusedSlot ? "#22c55e" : "#3b82f6"}
                 strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1.5}
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            ) : null}
+            {isEdgeTrigger ? (
+              <Rect
+                x={innerX - 2}
+                y={innerY - 2}
+                width={TEX_SLOT_INNER + 4}
+                height={TEX_SLOT_INNER + 4}
+                stroke="#f59e0b"
+                strokeWidth={2}
                 listening={false}
                 perfectDrawEnabled={false}
               />
@@ -706,6 +990,109 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             );
           })
         : null}
+      {/* Pagination preview controls — one row per iterating element with
+          overflow. Stacked below the menu's bottom edge so the menu's
+          texture stays clean. Editor-only; not part of the runtime menu. */}
+      {overflowing.map((info, ix) => (
+        <PaginationControls
+          key={info.elementId}
+          y={box.height + 6 + ix * 22}
+          width={box.width}
+          page={info.page}
+          totalPages={info.totalPages}
+          onPrev={() => setPage(info.elementId, Math.max(0, info.page - 1))}
+          onNext={() => setPage(info.elementId, Math.min(info.totalPages - 1, info.page + 1))}
+        />
+      ))}
+    </Group>
+  );
+}
+
+interface PaginationControlsProps {
+  y: number;
+  width: number;
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+/**
+ * Editor-only Konva pagination row rendered beneath a menu when an
+ * iterating element's source list overflows its position count. Lets the
+ * user step through pages of sample data without touching the JSON.
+ */
+function PaginationControls({
+  y,
+  width,
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: PaginationControlsProps) {
+  const btnW = 28;
+  const btnH = 18;
+  const labelW = width - btnW * 2 - 8;
+  const fontSize = 10;
+  const canPrev = page > 0;
+  const canNext = page < totalPages - 1;
+  return (
+    <Group y={y}>
+      <Group
+        x={0}
+        listening={canPrev}
+        opacity={canPrev ? 1 : 0.4}
+        onClick={canPrev ? onPrev : undefined}
+        onTap={canPrev ? onPrev : undefined}
+      >
+        <Rect width={btnW} height={btnH} fill="#27272a" cornerRadius={3} />
+        <Text
+          x={0}
+          y={0}
+          width={btnW}
+          height={btnH}
+          text="◀"
+          fontSize={fontSize}
+          fill="#a1a1aa"
+          align="center"
+          verticalAlign="middle"
+          listening={false}
+        />
+      </Group>
+      <Rect x={btnW + 4} width={labelW} height={btnH} fill="#18181b" cornerRadius={3} />
+      <Text
+        x={btnW + 4}
+        y={0}
+        width={labelW}
+        height={btnH}
+        text={`Page ${page + 1} / ${totalPages}`}
+        fontSize={fontSize}
+        fill="#a1a1aa"
+        align="center"
+        verticalAlign="middle"
+        listening={false}
+      />
+      <Group
+        x={btnW + 4 + labelW + 4}
+        listening={canNext}
+        opacity={canNext ? 1 : 0.4}
+        onClick={canNext ? onNext : undefined}
+        onTap={canNext ? onNext : undefined}
+      >
+        <Rect width={btnW} height={btnH} fill="#27272a" cornerRadius={3} />
+        <Text
+          x={0}
+          y={0}
+          width={btnW}
+          height={btnH}
+          text="▶"
+          fontSize={fontSize}
+          fill="#a1a1aa"
+          align="center"
+          verticalAlign="middle"
+          listening={false}
+        />
+      </Group>
     </Group>
   );
 }
