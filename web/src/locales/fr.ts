@@ -284,6 +284,12 @@ const fr: typeof en = {
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
     exprPlaceholder: "quest.gold > 1000",
+    exprFormLeftPlaceholder: "quest.tag",
+    exprFormRightPlaceholder: '"weapon"',
+    exprFreeTextMode: "Passer en mode libre",
+    exprFreeTextModeShort: "libre",
+    exprFormMode: "Passer en mode form",
+    exprFormModeShort: "form",
     nestedHint: "(ET/OU imbriqué)",
     type: {
       has_permission: "has_permission",
