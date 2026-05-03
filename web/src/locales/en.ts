@@ -120,7 +120,7 @@ export default {
     inputSourceCaller: "caller",
     inputSourceConnector: "connector",
     inputSourceHint:
-      "\"caller\" = the value comes from the command or parent menu. \"connector\" = a third-party plugin populates it on open.",
+      '"caller" = the value comes from the command or parent menu. "connector" = a third-party plugin populates it on open.',
     connectorRef: "connector",
     connectorRefPlaceholder: "chestshop:items",
     connectorParams: "params",
@@ -265,6 +265,7 @@ export default {
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
+    exprPlaceholder: "quest.gold > 1000",
     nestedHint: "(nested AND/OR)",
     type: {
       has_permission: "has_permission",
