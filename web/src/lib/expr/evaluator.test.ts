@@ -117,3 +117,76 @@ describe("evaluator — list methods", () => {
     expect(evalSrc(`xs.join(",")`, new Scope({ xs: 42 }))).toBe("");
   });
 });
+
+describe("evaluator — operators", () => {
+  const empty = new Scope({});
+
+  it("unary not", () => {
+    expect(evalSrc("!true", empty)).toBe(false);
+    expect(evalSrc("!0", empty)).toBe(true);
+    expect(evalSrc("!null", empty)).toBe(true);
+  });
+
+  it("addition: number + number", () => {
+    expect(evalSrc("2 + 3", empty)).toBe(5);
+  });
+
+  it("addition: string + anything = concat (JS-style)", () => {
+    expect(evalSrc(`"abc" + 1`, empty)).toBe("abc1");
+    expect(evalSrc(`1 + "abc"`, empty)).toBe("1abc");
+  });
+
+  it("subtraction: number - number", () => {
+    expect(evalSrc("10 - 4", empty)).toBe(6);
+  });
+
+  it("subtraction: string - anything returns null (warn)", () => {
+    expect(evalSrc(`"abc" - 1`, empty)).toBeNull();
+  });
+
+  it("compare: numeric coercion", () => {
+    const s = new Scope({}, { papi: (k) => (k === "x" ? "10" : "") });
+    expect(evalSrc("%x% > 5", s)).toBe(true);
+    expect(evalSrc("%x% < 5", s)).toBe(false);
+  });
+
+  it("eq: null == empty string", () => {
+    expect(evalSrc(`null == ""`, empty)).toBe(true);
+  });
+
+  it("eq: null != 0", () => {
+    expect(evalSrc("null == 0", empty)).toBe(false);
+  });
+
+  it("&& short-circuits", () => {
+    let called = false;
+    const s = new Scope({
+      a: false,
+      get b() {
+        called = true;
+        return true;
+      },
+    });
+    evalSrc("a && b", s);
+    expect(called).toBe(false);
+  });
+
+  it("|| short-circuits", () => {
+    let called = false;
+    const s = new Scope({
+      a: true,
+      get b() {
+        called = true;
+        return true;
+      },
+    });
+    evalSrc("a || b", s);
+    expect(called).toBe(false);
+  });
+
+  it("ternary picks branch by truthy condition", () => {
+    expect(evalSrc(`true ? "yes" : "no"`, empty)).toBe("yes");
+    expect(evalSrc(`false ? "yes" : "no"`, empty)).toBe("no");
+    expect(evalSrc(`null ? "yes" : "no"`, empty)).toBe("no");
+  });
+});
