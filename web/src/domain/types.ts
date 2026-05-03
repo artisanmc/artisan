@@ -123,7 +123,13 @@ export type Action =
   | { type: "run_command"; command: string; as: "player" | "console" }
   | { type: "send_message"; text: string }
   | { type: "give_item"; material: string; count: number }
-  | { type: "take_money"; amount: number };
+  | { type: "take_money"; amount: number }
+  /**
+   * Mutate a context input of the current menu. `value` is an Expression
+   * (DSL). After the mutation, the runtime triggers a re-render of the
+   * current menu. `arg` MUST match an existing Menu.contextInputs[*].name.
+   */
+  | { type: "set_arg"; arg: string; value: string };
 
 export type Condition =
   | { type: "has_permission"; perm: string }

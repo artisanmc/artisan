@@ -20,6 +20,8 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "give_item", material: "DIAMOND", count: 1 };
     case "take_money":
       return { type: "take_money", amount: 0 };
+    case "set_arg":
+      return { type: "set_arg", arg: "", value: '""' };
   }
 }
 
@@ -30,4 +32,5 @@ export const ACTION_TYPES: Action["type"][] = [
   "send_message",
   "give_item",
   "take_money",
+  "set_arg",
 ];
