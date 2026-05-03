@@ -16,6 +16,7 @@ import type {
   CommandArg,
   CommandId,
   Condition,
+  ConnectorSpec,
   ContextInput,
   DataSource,
   DataSourceId,
@@ -499,6 +500,8 @@ interface AccountState {
   renamePackDataSource: (args: { packId: PackId; id: DataSourceId; newName: string }) => void;
   setPackDataSourceValue: (args: { packId: PackId; id: DataSourceId; value: unknown }) => void;
   setPackDataSourceSchema: (args: { packId: PackId; id: DataSourceId; type: FieldType }) => void;
+  addImportedConnector: (args: { packId: PackId; spec: ConnectorSpec }) => void;
+  removeImportedConnector: (args: { packId: PackId; ref: string }) => void;
 }
 
 /**
@@ -2202,6 +2205,25 @@ export const useAccountStore = create<AccountState>()(
               if (!ds) return;
               ds.type = type;
               ds.value = defaultValueForFieldType(type);
+            }),
+          ),
+        addImportedConnector: ({ packId, spec }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              pack.importedConnectors ??= [];
+              const idx = pack.importedConnectors.findIndex((c) => c.ref === spec.ref);
+              if (idx >= 0) pack.importedConnectors[idx] = spec;
+              else pack.importedConnectors.push(spec);
+            }),
+          ),
+        removeImportedConnector: ({ packId, ref }) =>
+          set((state) =>
+            produce(state, (draft) => {
+              const pack = draft.account.packs.find((p) => p.id === packId);
+              if (!pack) return;
+              pack.importedConnectors = pack.importedConnectors.filter((c) => c.ref !== ref);
             }),
           ),
         deleteFromPack: ({ packId: pId, nodeIds }) => {
