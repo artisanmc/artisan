@@ -55,3 +55,73 @@ describe("parse — basics", () => {
     expect(() => parse("(42")).toThrow(ParseError);
   });
 });
+
+describe("parse — path access", () => {
+  it("parses a dot field access", () => {
+    expect(stripPos(parse("a.b"))).toEqual({
+      kind: "path",
+      target: { kind: "identifier", name: "a" },
+      field: "b",
+    });
+  });
+
+  it("parses a chain of dot accesses", () => {
+    expect(stripPos(parse("a.b.c"))).toEqual({
+      kind: "path",
+      target: {
+        kind: "path",
+        target: { kind: "identifier", name: "a" },
+        field: "b",
+      },
+      field: "c",
+    });
+  });
+
+  it("parses an index access with literal", () => {
+    expect(stripPos(parse("arr[0]"))).toEqual({
+      kind: "index",
+      target: { kind: "identifier", name: "arr" },
+      index: { kind: "literal", value: 0 },
+    });
+  });
+
+  it("parses an index access with expression", () => {
+    expect(stripPos(parse("arr[i]"))).toEqual({
+      kind: "index",
+      target: { kind: "identifier", name: "arr" },
+      index: { kind: "identifier", name: "i" },
+    });
+  });
+
+  it("parses a method call without args", () => {
+    expect(stripPos(parse("xs.length()"))).toEqual({
+      kind: "method",
+      target: { kind: "identifier", name: "xs" },
+      method: "length",
+      args: [],
+    });
+  });
+
+  it("parses a method call with args", () => {
+    expect(stripPos(parse(`xs.join(", ")`))).toEqual({
+      kind: "method",
+      target: { kind: "identifier", name: "xs" },
+      method: "join",
+      args: [{ kind: "literal", value: ", " }],
+    });
+  });
+
+  it("treats trailing dot-id followed by lparen as a method call", () => {
+    const node = parse("a.b.c(1)");
+    expect(stripPos(node)).toEqual({
+      kind: "method",
+      target: {
+        kind: "path",
+        target: { kind: "identifier", name: "a" },
+        field: "b",
+      },
+      method: "c",
+      args: [{ kind: "literal", value: 1 }],
+    });
+  });
+});
