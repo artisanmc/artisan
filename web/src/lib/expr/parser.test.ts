@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { AstNode } from "./ast";
 import { ParseError } from "./errors";
 import { parse } from "./parser";
 
