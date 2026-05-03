@@ -78,11 +78,7 @@ describe("tokenize", () => {
   });
 
   it("skips whitespace", () => {
-    expect(tokenize("  42   foo  ").map((t) => t.kind)).toEqual([
-      "number",
-      "identifier",
-      "eof",
-    ]);
+    expect(tokenize("  42   foo  ").map((t) => t.kind)).toEqual(["number", "identifier", "eof"]);
   });
 
   it("tokenizes a complex expression", () => {
