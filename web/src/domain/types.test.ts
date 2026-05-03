@@ -53,3 +53,28 @@ describe("Condition union — expression variant", () => {
     }
   });
 });
+
+describe("Action union — context mutation variants", () => {
+  it("constructs set_arg", () => {
+    const a: Action = { type: "set_arg", arg: "current_tag", value: `"weapon"` };
+    expect(a.type).toBe("set_arg");
+  });
+
+  it("constructs set_arg_cycle_next", () => {
+    const a: Action = {
+      type: "set_arg_cycle_next",
+      arg: "current_tag",
+      list: "categories",
+    };
+    expect(a.type).toBe("set_arg_cycle_next");
+  });
+
+  it("constructs set_arg_cycle_prev", () => {
+    const a: Action = {
+      type: "set_arg_cycle_prev",
+      arg: "current_tag",
+      list: "categories",
+    };
+    expect(a.type).toBe("set_arg_cycle_prev");
+  });
+});

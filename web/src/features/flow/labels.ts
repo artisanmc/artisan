@@ -17,6 +17,10 @@ export function actionSummary(action: Action): string {
       return `Take $${action.amount}`;
     case "set_arg":
       return `Set ${action.arg} = ${action.value}`;
+    case "set_arg_cycle_next":
+      return `Cycle next ${action.arg}`;
+    case "set_arg_cycle_prev":
+      return `Cycle prev ${action.arg}`;
   }
 }
 
@@ -37,6 +41,10 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "$";
     case "set_arg":
       return "set";
+    case "set_arg_cycle_next":
+      return "next";
+    case "set_arg_cycle_prev":
+      return "prev";
   }
 }
 
