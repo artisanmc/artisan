@@ -167,3 +167,72 @@ describe("parse — arithmetic and compare", () => {
     expect(() => parse("a < b < c")).toThrow();
   });
 });
+
+describe("parse — boolean and ternary", () => {
+  it("parses unary not", () => {
+    expect(stripPos(parse("!a"))).toEqual({
+      kind: "unary",
+      op: "!",
+      operand: { kind: "identifier", name: "a" },
+    });
+  });
+
+  it("parses && left-associatively", () => {
+    expect(stripPos(parse("a && b && c"))).toMatchObject({
+      kind: "binary",
+      op: "&&",
+      left: { kind: "binary", op: "&&" },
+    });
+  });
+
+  it("parses || left-associatively", () => {
+    expect(stripPos(parse("a || b || c"))).toMatchObject({
+      kind: "binary",
+      op: "||",
+    });
+  });
+
+  it("&& binds tighter than ||", () => {
+    expect(stripPos(parse("a || b && c"))).toEqual({
+      kind: "binary",
+      op: "||",
+      left: { kind: "identifier", name: "a" },
+      right: {
+        kind: "binary",
+        op: "&&",
+        left: { kind: "identifier", name: "b" },
+        right: { kind: "identifier", name: "c" },
+      },
+    });
+  });
+
+  it("parses a ternary", () => {
+    expect(stripPos(parse("a ? b : c"))).toEqual({
+      kind: "ternary",
+      cond: { kind: "identifier", name: "a" },
+      whenTrue: { kind: "identifier", name: "b" },
+      whenFalse: { kind: "identifier", name: "c" },
+    });
+  });
+
+  it("parses nested ternary right-associatively", () => {
+    expect(stripPos(parse("a ? b : c ? d : e"))).toMatchObject({
+      kind: "ternary",
+      whenFalse: { kind: "ternary" },
+    });
+  });
+
+  it("ternary lowest precedence", () => {
+    expect(stripPos(parse("a > b ? 1 : 2"))).toEqual({
+      kind: "ternary",
+      cond: {
+        kind: "binary",
+        op: ">",
+        left: { kind: "identifier", name: "a" },
+        right: { kind: "identifier", name: "b" },
+      },
+      whenTrue: { kind: "literal", value: 1 },
+      whenFalse: { kind: "literal", value: 2 },
+    });
+  });
+});

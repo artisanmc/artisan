@@ -46,6 +46,40 @@ class Parser {
   }
 
   private ternary(): AstNode {
+    const cond = this.orExpr();
+    if (this.match("question")) {
+      const whenTrue = this.ternary();
+      this.consume("colon", "':'");
+      const whenFalse = this.ternary();
+      return { kind: "ternary", cond, whenTrue, whenFalse, pos: cond.pos };
+    }
+    return cond;
+  }
+
+  private orExpr(): AstNode {
+    let node = this.andExpr();
+    while (this.match("or")) {
+      const right = this.andExpr();
+      node = { kind: "binary", op: "||", left: node, right, pos: node.pos };
+    }
+    return node;
+  }
+
+  private andExpr(): AstNode {
+    let node = this.notExpr();
+    while (this.match("and")) {
+      const right = this.notExpr();
+      node = { kind: "binary", op: "&&", left: node, right, pos: node.pos };
+    }
+    return node;
+  }
+
+  private notExpr(): AstNode {
+    const bang = this.match("bang");
+    if (bang) {
+      const operand = this.notExpr();
+      return { kind: "unary", op: "!", operand, pos: bang.pos };
+    }
     return this.compareExpr();
   }
 
