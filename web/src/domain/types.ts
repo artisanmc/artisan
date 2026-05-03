@@ -79,12 +79,6 @@ export interface Menu {
    * via `{name}` placeholders.
    */
   contextInputs?: ContextInput[];
-  /**
-   * Mock context used only by the editor — JSON object the user provides
-   * so the canvas can resolve `{name}` placeholders to concrete values
-   * during preview, and drive iteration mockups. Never shipped at runtime.
-   */
-  sampleContext?: unknown;
 }
 
 export type ContextInput =
