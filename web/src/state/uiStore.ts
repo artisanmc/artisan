@@ -4,7 +4,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type EditorTab = "edit" | "library";
-export type SampleContextFormat = "yaml" | "json";
 
 /**
  * Best-effort detection of the user's preferred language from the
@@ -47,9 +46,6 @@ interface UiState {
   /** Active tab inside the editor pane. */
   editorTab: EditorTab;
   setEditorTab: (t: EditorTab) => void;
-  /** Preferred format for the sample-context textarea on a menu. */
-  sampleContextFormat: SampleContextFormat;
-  setSampleContextFormat: (f: SampleContextFormat) => void;
   /**
    * Material name currently "armed" from the Library — the next slot tap
    * places it. Touch fallback when drag-and-drop isn't practical.
@@ -78,8 +74,6 @@ export const useUiStore = create<UiState>()(
       setEditorPaneWidth: (w) => set({ editorPaneWidth: w }),
       editorTab: "edit",
       setEditorTab: (t) => set({ editorTab: t }),
-      sampleContextFormat: "yaml",
-      setSampleContextFormat: (f) => set({ sampleContextFormat: f }),
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
     }),
@@ -93,7 +87,6 @@ export const useUiStore = create<UiState>()(
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
         editorTab: state.editorTab,
-        sampleContextFormat: state.sampleContextFormat,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
       // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push

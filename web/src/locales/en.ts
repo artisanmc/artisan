@@ -137,11 +137,6 @@ export default {
     connectorAddPair: "+ add",
     connectorPairKey: "key",
     connectorPairValue: "value",
-    sampleContext: "Sample context",
-    sampleContextHint:
-      "Fake data for editor previews. Toggle the format above — both views stay in sync via the underlying object.",
-    parseFailed: "{{format}} parse: {{error}}",
-    invalidFormat: "invalid {{format}}",
   },
   backgroundUpload: {
     label: "background",
