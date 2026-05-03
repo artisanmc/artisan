@@ -185,6 +185,12 @@ export default {
     sourceMenuContext: "menu context",
     sourceClickContext: "click context",
     insertHint: "Insert {{name}}{{type}} — {{source}}",
+    setArgArgLabel: "context input to set",
+    setArgArgPlaceholder: "current_tag",
+    setArgValueLabel: "new value (expression)",
+    setArgValuePlaceholder: '"weapon"',
+    setArgValueHint:
+      'An expression — strings need quotes (e.g. "weapon"), numbers don\'t (e.g. 5).',
   },
   flow: {
     headerStateOne: "{{count}} state",
