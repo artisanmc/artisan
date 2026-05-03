@@ -22,6 +22,10 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "take_money", amount: 0 };
     case "set_arg":
       return { type: "set_arg", arg: "", value: '""' };
+    case "set_arg_cycle_next":
+      return { type: "set_arg_cycle_next", arg: "", list: "[]" };
+    case "set_arg_cycle_prev":
+      return { type: "set_arg_cycle_prev", arg: "", list: "[]" };
   }
 }
 
@@ -33,4 +37,6 @@ export const ACTION_TYPES: Action["type"][] = [
   "give_item",
   "take_money",
   "set_arg",
+  "set_arg_cycle_next",
+  "set_arg_cycle_prev",
 ];
