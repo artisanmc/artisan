@@ -278,6 +278,12 @@ export default {
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
     exprPlaceholder: "quest.gold > 1000",
+    exprFormLeftPlaceholder: "quest.tag",
+    exprFormRightPlaceholder: '"weapon"',
+    exprFreeTextMode: "Switch to free text",
+    exprFreeTextModeShort: "raw",
+    exprFormMode: "Switch to form",
+    exprFormModeShort: "form",
     nestedHint: "(nested AND/OR)",
     type: {
       has_permission: "has_permission",
