@@ -1,3 +1,4 @@
+import type { AstNode } from "../ast";
 import type { AstCache } from "../cache";
 import { toStringValue } from "../coercion";
 import { ParseError } from "../errors";
@@ -55,14 +56,14 @@ export function renderTemplate(template: string, opts: RenderOptions): string {
 }
 
 function evalSegment(expr: string, opts: RenderOptions): string {
-  let ast;
+  let ast: AstNode;
   try {
     ast = opts.cache.get(opts.packId, opts.packVersion, expr);
   } catch (e) {
     if (e instanceof ParseError) {
       return `⚠️ ${e.message}`;
     }
-    return `⚠️ parse failed`;
+    return "⚠️ parse failed";
   }
   try {
     const v = evaluate(ast, opts.scope);

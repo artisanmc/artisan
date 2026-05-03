@@ -23,7 +23,7 @@ function resolve(
   depth: number,
 ): string {
   if (depth > MAX_DEPTH) {
-    return `⚠️ i18n depth exceeded`;
+    return "⚠️ i18n depth exceeded";
   }
   return template.replace(I18N_RE, (_, key: string) => {
     if (visiting.has(key)) {
