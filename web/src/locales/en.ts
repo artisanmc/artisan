@@ -120,7 +120,7 @@ export default {
     inputSourceCaller: "caller",
     inputSourceConnector: "connector",
     inputSourceHint:
-      "\"caller\" = the value comes from the command or parent menu. \"connector\" = a third-party plugin populates it on open.",
+      '"caller" = the value comes from the command or parent menu. "connector" = a third-party plugin populates it on open.',
     connectorRef: "connector",
     connectorRefPlaceholder: "chestshop:items",
     connectorParams: "params",
@@ -185,6 +185,18 @@ export default {
     sourceMenuContext: "menu context",
     sourceClickContext: "click context",
     insertHint: "Insert {{name}}{{type}} — {{source}}",
+    setArgArgLabel: "context input to set",
+    setArgArgPlaceholder: "current_tag",
+    setArgValueLabel: "new value (expression)",
+    setArgValuePlaceholder: '"weapon"',
+    setArgValueHint:
+      'An expression — strings need quotes (e.g. "weapon"), numbers don\'t (e.g. 5).',
+    setArgCycleDirectionNext: "Cycle to next value",
+    setArgCycleDirectionPrev: "Cycle to previous value",
+    setArgCycleListLabel: "list to cycle through (expression)",
+    setArgCycleListPlaceholder: "categories",
+    setArgCycleListHint:
+      "Expression evaluating to a list — typically a context input name like categories or quest.tags.",
   },
   flow: {
     headerStateOne: "{{count}} state",
@@ -265,6 +277,7 @@ export default {
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
+    exprPlaceholder: "quest.gold > 1000",
     nestedHint: "(nested AND/OR)",
     type: {
       has_permission: "has_permission",
