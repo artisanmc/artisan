@@ -8,6 +8,7 @@ import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
+import { buildPreviewScope } from "./menuPreviewScope";
 
 interface ItemTooltipProps {
   packId: PackId;
@@ -43,40 +44,6 @@ const humanize = (material: string): string =>
     .join(" ");
 
 /**
- * Coerce the string default value of a primitive ContextInput to its declared
- * type. Used to build a preview scope from contextInputs for the tooltip.
- */
-function coerceDefault(
-  value: string | undefined,
-  type: "player" | "string" | "integer" | "number" | "boolean",
-): unknown {
-  if (value === undefined || value === "") {
-    switch (type) {
-      case "player":
-      case "string":
-        return "";
-      case "integer":
-      case "number":
-        return 0;
-      case "boolean":
-        return false;
-    }
-  }
-  switch (type) {
-    case "integer":
-    case "number": {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
-    }
-    case "boolean":
-      return value === "true";
-    case "player":
-    case "string":
-      return value;
-  }
-}
-
-/**
  * In-canvas item tooltip — fixed-position DOM overlay that follows the cursor.
  * Reads the hovered element id + slot from useHoverStore. If the element
  * iterates over a list, the slot's position picks the right item from the
@@ -106,15 +73,10 @@ export function ItemTooltip({ packId }: ItemTooltipProps) {
   const appearance = element.appearances[0];
   if (!appearance) return null;
 
-  // Build a preview scope from contextInputs.
-  //  - primitive: coerce default to its declared type
-  //  - sourceRef: skipped for C1 (full resolution comes in C2)
-  const sampleCtx: Record<string, unknown> = {};
-  for (const input of menu.contextInputs ?? []) {
-    if (input.kind === "primitive") {
-      sampleCtx[input.name] = coerceDefault(input.default, input.type);
-    }
-  }
+  // Build a preview scope from contextInputs — primitives are coerced to their
+  // declared type; sourceRefs are resolved against pack.dataSources /
+  // pack.importedConnectors (Plan C4).
+  const sampleCtx = buildPreviewScope(menu, pack);
 
   // Mirror MenuGroup's pagination context so `{pagination.page}` and
   // friends resolve consistently in tooltips. Walk every iterating
