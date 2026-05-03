@@ -112,6 +112,8 @@ export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
       return <TakeMoneyEditor action={action} onChange={onChange} />;
     case "paginate":
       return <PaginateEditor packId={packId} action={action} onChange={onChange} />;
+    case "set_arg":
+      return <SetArgEditor action={action} onChange={onChange} />;
   }
 }
 
@@ -470,6 +472,39 @@ function PaginateEditor({
           ))}
         </select>
         <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.paginateHint")}</div>
+      </div>
+    </div>
+  );
+}
+
+function SetArgEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "set_arg" }>;
+  onChange: (action: Action) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-2">
+      <div>
+        <FieldLabel>{t("actionEditor.setArgArgLabel")}</FieldLabel>
+        <Input
+          value={action.arg}
+          placeholder={t("actionEditor.setArgArgPlaceholder")}
+          onChange={(e) => onChange({ ...action, arg: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+      </div>
+      <div>
+        <FieldLabel>{t("actionEditor.setArgValueLabel")}</FieldLabel>
+        <Input
+          value={action.value}
+          placeholder={t("actionEditor.setArgValuePlaceholder")}
+          onChange={(e) => onChange({ ...action, value: e.target.value })}
+          className="h-7 text-[11px] font-mono"
+        />
+        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.setArgValueHint")}</div>
       </div>
     </div>
   );
