@@ -191,6 +191,12 @@ const fr: typeof en = {
     sourceMenuContext: "contexte de menu",
     sourceClickContext: "contexte de clic",
     insertHint: "Insérer {{name}}{{type}} — {{source}}",
+    setArgArgLabel: "input de contexte à modifier",
+    setArgArgPlaceholder: "current_tag",
+    setArgValueLabel: "nouvelle valeur (expression)",
+    setArgValuePlaceholder: '"weapon"',
+    setArgValueHint:
+      'Une expression — les strings ont besoin de guillemets (ex. "weapon"), les nombres non (ex. 5).',
   },
   flow: {
     headerStateOne: "{{count}} état",
