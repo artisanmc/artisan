@@ -2,10 +2,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { ContextInput, Menu, MenuId, PackId, SourceRef } from "@/domain/types";
+import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
+import { summarizeFieldType } from "@/features/data/helpers";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
@@ -233,6 +236,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
                 />
               ) : (
                 <SourceRefInputRow
+                  packId={packId}
                   input={input}
                   onChange={(patch) => update(i, patch)}
                   onRemove={() => removeInput({ packId, menuId: menu.id, index: i })}
@@ -358,15 +362,18 @@ function PrimitiveInputRow({
 }
 
 function SourceRefInputRow({
+  packId,
   input,
   onChange,
   onRemove,
 }: {
+  packId: PackId;
   input: Extract<ContextInput, { kind: "sourceRef" }>;
   onChange: (patch: Partial<Extract<ContextInput, { kind: "sourceRef" }>>) => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   return (
     <div className="flex items-center gap-1.5">
       <Input
@@ -375,12 +382,20 @@ function SourceRefInputRow({
         onChange={(e) => onChange({ name: e.target.value })}
         className="h-8 w-28 px-2 py-0 font-mono text-xs"
       />
-      <Input
-        value={input.ref}
-        placeholder="pack:<id> or chestshop:items"
-        onChange={(e) => onChange({ ref: e.target.value as SourceRef })}
-        className="h-8 flex-1 px-2 py-0 font-mono text-xs"
-      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-0 font-mono text-xs text-zinc-200 hover:bg-zinc-800"
+          >
+            <span className="truncate">{input.ref || t("menuProperties.refPickPlaceholder")}</span>
+            <span className="text-zinc-500">▾</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+          {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <button
         type="button"
         title={t("menuProperties.removeInput")}
@@ -390,5 +405,65 @@ function SourceRefInputRow({
         ×
       </button>
     </div>
+  );
+}
+
+function SourcePickerOptions({
+  pack,
+  onPick,
+}: {
+  pack: Pack;
+  onPick: (ref: SourceRef) => void;
+}) {
+  const { t } = useTranslation();
+  const hasPackData = pack.dataSources.length > 0;
+  const hasConnectors = pack.importedConnectors.length > 0;
+  return (
+    <>
+      {hasPackData ? (
+        <>
+          <DropdownMenuLabel className="text-[9px] uppercase text-zinc-500">
+            {t("menuProperties.refSectionPackData")}
+          </DropdownMenuLabel>
+          {pack.dataSources.map((d) => (
+            <DropdownMenuItem
+              key={d.id}
+              onSelect={() => onPick(`pack:${d.id}` as SourceRef)}
+              title={summarizeFieldType(d.type)}
+              className="cursor-pointer text-[11px] focus:bg-zinc-800"
+            >
+              <span className="mr-1">{d.type.kind === "list" ? "🗂" : "📦"}</span>
+              <span className="font-mono">{d.name}</span>
+              <span className="ml-auto text-[9px] text-zinc-500">{summarizeFieldType(d.type)}</span>
+            </DropdownMenuItem>
+          ))}
+        </>
+      ) : null}
+      {hasPackData && hasConnectors ? <DropdownMenuSeparator /> : null}
+      {hasConnectors ? (
+        <>
+          <DropdownMenuLabel className="text-[9px] uppercase text-zinc-500">
+            {t("menuProperties.refSectionConnectors")}
+          </DropdownMenuLabel>
+          {pack.importedConnectors.map((c) => (
+            <DropdownMenuItem
+              key={c.ref}
+              onSelect={() => onPick(c.ref as SourceRef)}
+              title={summarizeFieldType(c.type)}
+              className="cursor-pointer text-[11px] focus:bg-zinc-800"
+            >
+              <span className="mr-1">🔌</span>
+              <span className="font-mono">{c.ref}</span>
+              <span className="ml-auto text-[9px] text-zinc-500">{summarizeFieldType(c.type)}</span>
+            </DropdownMenuItem>
+          ))}
+        </>
+      ) : null}
+      {!hasPackData && !hasConnectors ? (
+        <DropdownMenuItem disabled className="cursor-not-allowed text-[11px] text-zinc-500">
+          {t("menuProperties.refNoSources")}
+        </DropdownMenuItem>
+      ) : null}
+    </>
   );
 }

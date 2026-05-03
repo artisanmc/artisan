@@ -32,40 +32,7 @@ import {
   slotXY,
   topPieceCrop,
 } from "./menuLayout";
-
-/**
- * Coerce the string default value of a primitive ContextInput to its declared
- * type. Used to build a preview scope from contextInputs for the canvas.
- */
-function coerceDefault(
-  value: string | undefined,
-  type: "player" | "string" | "integer" | "number" | "boolean",
-): unknown {
-  if (value === undefined || value === "") {
-    switch (type) {
-      case "player":
-      case "string":
-        return "";
-      case "integer":
-      case "number":
-        return 0;
-      case "boolean":
-        return false;
-    }
-  }
-  switch (type) {
-    case "integer":
-    case "number": {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
-    }
-    case "boolean":
-      return value === "true";
-    case "player":
-    case "string":
-      return value;
-  }
-}
+import { buildPreviewScope } from "./menuPreviewScope";
 
 interface SlotItemProps {
   material: string;
@@ -536,21 +503,15 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   // i binds the i-th item from the preview scope and resolves placeholders
   // in material/title/count against that item-scoped context. Excess
   // positions (more positions than items) stay empty.
-  // Build a preview scope from contextInputs.
-  //  - primitive: coerce default to its declared type
-  //  - sourceRef: skipped for C1 (full resolution comes in C2)
-  const sampleCtx: Record<string, unknown> = {};
-  for (const input of menu.contextInputs ?? []) {
-    if (input.kind === "primitive") {
-      sampleCtx[input.name] = coerceDefault(input.default, input.type);
-    }
-    // sourceRef inputs not yet resolved — preview shows them as undefined
-  }
   // Active language + pack ref so we can resolve `LText` refs (menu
   // title, appearance titles, lore lines) into the actually-displayed
   // string. Pack ref is stable thanks to immer; the resolver reads
   // `pack.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  // Build a preview scope from contextInputs — primitives are coerced to their
+  // declared type; sourceRefs are resolved against pack.dataSources /
+  // pack.importedConnectors (Plan C4).
+  const sampleCtx = pack ? buildPreviewScope(menu, pack) : {};
   const activeLang = useUiStore((s) => s.activeLang);
   // Per-element page index for iteration overflow. Shared via
   // paginationStore so the ItemTooltip (which renders outside MenuGroup)
