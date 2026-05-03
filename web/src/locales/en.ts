@@ -286,6 +286,19 @@ export default {
     exprFormModeShort: "form",
     exprPreviewValid: "→ {{display}}",
     exprPreviewParseError: "syntax: {{message}}",
+    parseError: {
+      unexpectedChar:
+        "Unexpected character '{{char}}' at column {{col}} — did you forget a quote or operator?",
+      unterminatedString:
+        "Missing closing quote — string started at column {{col}} and never ends.",
+      unterminatedPapi: "PAPI placeholder must end with %. Unclosed % starting at column {{col}}.",
+      invalidPapi:
+        "PAPI placeholder must start with a lowercase letter or underscore (column {{col}}).",
+      expected: "Expected {{expected}} but got {{got}} at column {{col}}.",
+      unexpectedToken: "Unexpected {{token}} at column {{col}}.",
+      empty: "Type an expression to see the result.",
+      raw: "{{message}}",
+    },
     nestedHint: "(nested AND/OR)",
     type: {
       has_permission: "has_permission",

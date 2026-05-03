@@ -292,6 +292,20 @@ const fr: typeof en = {
     exprFormModeShort: "form",
     exprPreviewValid: "→ {{display}}",
     exprPreviewParseError: "syntaxe : {{message}}",
+    parseError: {
+      unexpectedChar:
+        "Caractère inattendu '{{char}}' à la colonne {{col}} — il manque peut-être un guillemet ou un opérateur.",
+      unterminatedString:
+        "Guillemet fermant manquant — la chaîne commence à la colonne {{col}} et ne finit pas.",
+      unterminatedPapi:
+        "Un placeholder PAPI doit se terminer par %. Caractère % non fermé à la colonne {{col}}.",
+      invalidPapi:
+        "Un placeholder PAPI doit commencer par une lettre minuscule ou un underscore (colonne {{col}}).",
+      expected: "Attendu {{expected}} mais trouvé {{got}} à la colonne {{col}}.",
+      unexpectedToken: "Token inattendu {{token}} à la colonne {{col}}.",
+      empty: "Tape une expression pour voir le résultat.",
+      raw: "{{message}}",
+    },
     nestedHint: "(ET/OU imbriqué)",
     type: {
       has_permission: "has_permission",
