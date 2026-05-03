@@ -15,6 +15,8 @@ export function actionSummary(action: Action): string {
       return `Give ${action.count}× ${action.material}`;
     case "take_money":
       return `Take $${action.amount}`;
+    case "set_arg":
+      return `Set ${action.arg} = ${action.value}`;
   }
 }
 
@@ -33,6 +35,8 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "give";
     case "take_money":
       return "$";
+    case "set_arg":
+      return "set";
   }
 }
 
@@ -53,6 +57,8 @@ export function conditionSummary(condition: Condition): string {
       return condition.of.length <= 1
         ? condition.of.map(conditionSummary).join("")
         : `(${condition.of.map(conditionSummary).join(" OR ")})`;
+    case "expression":
+      return `expr(${condition.expr})`;
   }
 }
 

@@ -63,6 +63,8 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "and", of: [{ type: "has_permission", perm: "" }] };
     case "or":
       return { type: "or", of: [{ type: "has_permission", perm: "" }] };
+    case "expression":
+      return { type: "expression", expr: "" };
   }
 };
 
