@@ -7,14 +7,12 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, MenuId, PackId, SourceRef } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { cx } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
-import { type SampleContextFormat, useUiStore } from "@/state/uiStore";
+import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { BackgroundUpload } from "./BackgroundUpload";
 import { PropertyField } from "./PropertyField";
 
@@ -120,7 +118,6 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
       </div>
       <BackgroundUpload packId={packId} menu={menu} />
       <ContextInputsEditor packId={packId} menu={menu} />
-      <SampleContextEditor packId={packId} menu={menu} />
     </div>
   );
 }
@@ -394,147 +391,4 @@ function SourceRefInputRow({
       </button>
     </div>
   );
-}
-
-/**
- * Sample context — purely an editor-preview aid. Lets the user mock the
- * data their menu would receive at runtime so the canvas can resolve
- * `{name}` placeholders + drive iteration mockups. Not persisted to
- * runtime config.
- *
- * Toggle YAML/JSON: the source of truth is the parsed object stored in
- * `menu.sampleContext`. Re-serializing it in the chosen format keeps the
- * two views in sync (formatting / comments are lost on round-trip — the
- * tradeoff for staying decoupled from the user's exact text).
- */
-function SampleContextEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
-  const setSampleContext = useAccountStore((s) => s.setMenuSampleContext);
-  const format = useUiStore((s) => s.sampleContextFormat);
-  const setFormat = useUiStore((s) => s.setSampleContextFormat);
-  const { t } = useTranslation();
-
-  // Local draft of the textarea contents — re-derived from the stored
-  // object whenever (a) the active menu changes or (b) the format flips.
-  const [draft, setDraft] = useState(() => serialize(menu.sampleContext, format));
-  const [error, setError] = useState<string | null>(null);
-  // Track which menu+format the current draft was derived from so we don't
-  // overwrite user-in-progress text on unrelated re-renders.
-  const lastDerivedRef = useRef({ menuId: menu.id, format });
-
-  useEffect(() => {
-    const last = lastDerivedRef.current;
-    if (last.menuId === menu.id && last.format === format) return;
-    setDraft(serialize(menu.sampleContext, format));
-    setError(null);
-    lastDerivedRef.current = { menuId: menu.id, format };
-  }, [menu.id, menu.sampleContext, format]);
-
-  const commit = () => {
-    if (draft.trim() === "") {
-      setSampleContext({ packId, menuId: menu.id, value: undefined });
-      setError(null);
-      return;
-    }
-    try {
-      const parsed = format === "json" ? JSON.parse(draft) : parseYaml(draft);
-      setSampleContext({ packId, menuId: menu.id, value: parsed });
-      setError(null);
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : t("menuProperties.invalidFormat", { format: format.toUpperCase() }),
-      );
-    }
-  };
-
-  const switchFormat = (next: SampleContextFormat) => {
-    if (next === format) return;
-    // Try to commit the current draft before flipping so the new view
-    // shows the up-to-date object. If parsing fails, flip anyway —
-    // re-serialization of the last good stored value will replace the bad
-    // draft so the user can keep working.
-    if (draft.trim() !== "") {
-      try {
-        const parsed = format === "json" ? JSON.parse(draft) : parseYaml(draft);
-        setSampleContext({ packId, menuId: menu.id, value: parsed });
-        setError(null);
-      } catch {
-        // ignore — fall through to flip
-      }
-    }
-    setFormat(next);
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
-          {t("menuProperties.sampleContext")}
-        </div>
-        <div className="flex overflow-hidden rounded border border-zinc-700 text-[10px]">
-          <FormatTab active={format === "yaml"} onClick={() => switchFormat("yaml")}>
-            YAML
-          </FormatTab>
-          <FormatTab active={format === "json"} onClick={() => switchFormat("json")}>
-            JSON
-          </FormatTab>
-        </div>
-      </div>
-      <p className="text-[10px] text-zinc-500">{t("menuProperties.sampleContextHint")}</p>
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        placeholder={
-          format === "yaml"
-            ? "player: Steve\nquests:\n  - name: First quest"
-            : '{ "player": "Steve", "quests": [{ "name": "First quest" }] }'
-        }
-        className={
-          error
-            ? "min-h-[7rem] w-full rounded border border-red-500/60 bg-zinc-900 p-2 font-mono text-xs"
-            : "min-h-[7rem] w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
-        }
-      />
-      {error ? (
-        <div className="text-[10px] text-red-300">
-          {t("menuProperties.parseFailed", { format: format.toUpperCase(), error })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FormatTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        "px-2 py-0.5 font-mono uppercase tracking-wide transition-colors",
-        active
-          ? "bg-emerald-500/20 text-emerald-200"
-          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function serialize(value: unknown, format: SampleContextFormat): string {
-  if (value === undefined || value === null) return "";
-  if (format === "json") return JSON.stringify(value, null, 2);
-  // `yaml` returns an empty document for primitive values like "" — the
-  // `lineWidth: 0` flag disables wrapping so long strings stay readable.
-  return stringifyYaml(value, { lineWidth: 0 });
 }

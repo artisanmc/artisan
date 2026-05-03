@@ -3,10 +3,10 @@ import { getText } from "@/lib/i18n";
 import { lookupPath, resolvePlaceholders } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useEditingStore } from "@/state/editingStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
-import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -32,6 +32,40 @@ import {
   slotXY,
   topPieceCrop,
 } from "./menuLayout";
+
+/**
+ * Coerce the string default value of a primitive ContextInput to its declared
+ * type. Used to build a preview scope from contextInputs for the canvas.
+ */
+function coerceDefault(
+  value: string | undefined,
+  type: "player" | "string" | "integer" | "number" | "boolean",
+): unknown {
+  if (value === undefined || value === "") {
+    switch (type) {
+      case "player":
+      case "string":
+        return "";
+      case "integer":
+      case "number":
+        return 0;
+      case "boolean":
+        return false;
+    }
+  }
+  switch (type) {
+    case "integer":
+    case "number": {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
+    case "boolean":
+      return value === "true";
+    case "player":
+    case "string":
+      return value;
+  }
+}
 
 interface SlotItemProps {
   material: string;
@@ -499,13 +533,19 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   // Fan out each element across every slot it occupies. Multi-position
   // elements (e.g. positions: "0-8") render the same material in every cell.
   // For elements with `iterates`, we *unroll* across positions: each position
-  // i binds the i-th item from `menu.sampleContext[iterates.source]` and
-  // resolves placeholders in material/title/count against that item-scoped
-  // context. Excess positions (more positions than items) stay empty.
-  const sampleCtx =
-    menu.sampleContext && typeof menu.sampleContext === "object"
-      ? (menu.sampleContext as Record<string, unknown>)
-      : {};
+  // i binds the i-th item from the preview scope and resolves placeholders
+  // in material/title/count against that item-scoped context. Excess
+  // positions (more positions than items) stay empty.
+  // Build a preview scope from contextInputs.
+  //  - primitive: coerce default to its declared type
+  //  - sourceRef: skipped for C1 (full resolution comes in C2)
+  const sampleCtx: Record<string, unknown> = {};
+  for (const input of menu.contextInputs ?? []) {
+    if (input.kind === "primitive") {
+      sampleCtx[input.name] = coerceDefault(input.default, input.type);
+    }
+    // sourceRef inputs not yet resolved — preview shows them as undefined
+  }
   // Active language + pack ref so we can resolve `LText` refs (menu
   // title, appearance titles, lore lines) into the actually-displayed
   // string. Pack ref is stable thanks to immer; the resolver reads
@@ -589,8 +629,8 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
         // Empty-list preview: still render the first slot with the bare
         // appearance (literal placeholders like {shop.name}) so the user
-        // sees the button shape they're configuring even before
-        // sampleContext is wired up.
+        // sees the button shape they're configuring even when the data
+        // list is empty.
         if (items.length === 0) {
           const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[0]!, {
@@ -723,10 +763,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           {pagination.totalPages}</gold>` or interpolate any sample-context
           field directly into the title. */}
       <MiniMessageKonvaText
-        source={resolvePlaceholders(
-          pack ? getText(pack, menu.title, activeLang) : "",
-          enhancedCtx,
-        )}
+        source={resolvePlaceholders(pack ? getText(pack, menu.title, activeLang) : "", enhancedCtx)}
         x={TEX_FIRST_SLOT_X + 1}
         y={5 * TEX_SCALE}
         fontSize={7 * TEX_SCALE}
