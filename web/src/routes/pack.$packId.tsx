@@ -32,8 +32,18 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { BookOpen, Boxes, Download, Globe, Languages, Redo2, Undo2, Upload } from "lucide-react";
+import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import {
+  BookOpen,
+  Boxes,
+  Database,
+  Download,
+  Globe,
+  Languages,
+  Redo2,
+  Undo2,
+  Upload,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -53,6 +63,7 @@ function PackCanvasPage() {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === pId));
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [packsOpen, setPacksOpen] = useState(false);
   const [translationsOpen, setTranslationsOpen] = useState(false);
@@ -152,6 +163,14 @@ function PackCanvasPage() {
             <TopBarIconButton title={t("patterns.title")} onClick={() => setPatternsOpen(true)}>
               <BookOpen className="h-4 w-4" />
             </TopBarIconButton>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/pack/$packId/data", params: { packId: pId } })}
+              title={t("dataSources.title")}
+              className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              <Database className="h-4 w-4" />
+            </button>
             <EditorLangSwitcher />
             <UndoRedoButtons />
           </div>
