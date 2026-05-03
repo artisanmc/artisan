@@ -25,6 +25,7 @@ import type {
   MenuId,
   Pack,
   PackId,
+  SourceRef,
   Step,
 } from "@/domain/types";
 import { createLText, deleteLText, deleteLTexts, setLText } from "@/lib/i18n";
@@ -103,11 +104,11 @@ interface AccountState {
     arg: CommandArg;
   }) => void;
   removeCommandArg: (input: { packId: PackId; commandId: CommandId; index: number }) => void;
-  /** Append a new context input to a menu (auto-named ctxN, type=string). */
+  /** Append a new context input to a menu (auto-named ctxN). */
   addMenuContextInput: (input: {
     packId: PackId;
     menuId: MenuId;
-    input?: ContextInput;
+    kind?: "primitive" | "sourceRef";
   }) => void;
   setMenuContextInput: (input: {
     packId: PackId;
@@ -908,7 +909,7 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
-        addMenuContextInput: ({ packId: pId, menuId: mId, input }) =>
+        addMenuContextInput: ({ packId: pId, menuId: mId, kind }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -923,7 +924,11 @@ export const useAccountStore = create<AccountState>()(
                   if (!used.has(candidate)) return candidate;
                 }
               })();
-              menu.contextInputs.push(input ?? { name: defaultName, type: "string" });
+              const newInput: ContextInput =
+                kind === "sourceRef"
+                  ? { kind: "sourceRef", name: defaultName, ref: "" as SourceRef }
+                  : { kind: "primitive", name: defaultName, type: "string" };
+              menu.contextInputs.push(newInput);
               pack.updatedAt = new Date().toISOString();
             }),
           ),

@@ -1,5 +1,11 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { ConnectorBinding, ContextInput, Menu, MenuId, PackId } from "@/domain/types";
+import type { ContextInput, Menu, MenuId, PackId, SourceRef } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
@@ -18,14 +24,12 @@ interface MenuPropertiesProps {
 }
 
 const ROWS_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
-const CTX_TYPES: ContextInput["type"][] = [
+const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = [
   "player",
   "string",
   "integer",
   "number",
   "boolean",
-  "list",
-  "object",
 ];
 
 export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
@@ -195,7 +199,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
   const update = (index: number, patch: Partial<ContextInput>) => {
     const current = inputs[index];
     if (!current) return;
-    setInput({ packId, menuId: menu.id, index, input: { ...current, ...patch } });
+    setInput({ packId, menuId: menu.id, index, input: { ...current, ...patch } as ContextInput });
   };
 
   return (
@@ -223,73 +227,20 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
                   : "flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
               }
             >
-              {/* Row 1: name + type + remove button */}
-              <div className="flex items-center gap-1.5">
-                <Input
-                  value={input.name}
-                  placeholder={t("menuProperties.inputName")}
-                  onChange={(e) => update(i, { name: e.target.value })}
-                  className={
-                    isInvalid
-                      ? "h-8 w-28 border-red-500/60 px-2 py-0 font-mono text-xs"
-                      : "h-8 w-28 px-2 py-0 font-mono text-xs"
-                  }
-                />
-                <select
-                  value={input.type}
-                  onChange={(e) => update(i, { type: e.target.value as ContextInput["type"] })}
-                  className="h-8 rounded border border-zinc-800 bg-zinc-900 px-1.5 font-mono text-xs text-zinc-200"
-                >
-                  {CTX_TYPES.map((typeOption) => (
-                    <option key={typeOption} value={typeOption}>
-                      {typeOption}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  title={t("menuProperties.removeInput")}
-                  onClick={() => removeInput({ packId, menuId: menu.id, index: i })}
-                  className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                >
-                  ×
-                </button>
-              </div>
-              {/* Row 2: default value */}
-              <div className="flex items-center gap-2 pl-0.5">
-                <div className="flex items-center gap-1">
-                  <span className="font-mono text-[10px] text-zinc-500">
-                    {t("menuProperties.inputDefault")}:
-                  </span>
-                  <Input
-                    value={input.default === "{sender}" ? "" : (input.default ?? "")}
-                    placeholder={t("menuProperties.inputDefaultPlaceholder")}
-                    disabled={input.default === "{sender}"}
-                    onChange={(e) => update(i, { default: e.target.value || undefined })}
-                    className="h-7 w-28 px-2 py-0 font-mono text-xs disabled:opacity-40"
-                  />
-                </div>
-                {input.type === "player" ? (
-                  <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
-                    <input
-                      type="checkbox"
-                      checked={input.default === "{sender}"}
-                      onChange={(e) =>
-                        update(i, { default: e.target.checked ? "{sender}" : undefined })
-                      }
-                      className="h-3.5 w-3.5 accent-emerald-500"
-                    />
-                    {t("menuProperties.inputSenderDefault")}
-                  </label>
-                ) : null}
-              </div>
-              {/* Row 3: source toggle (caller / connector) — only on list/object */}
-              {input.type === "list" || input.type === "object" ? (
-                <InputSourceEditor
+              {input.kind === "primitive" ? (
+                <PrimitiveInputRow
                   input={input}
                   onChange={(patch) => update(i, patch)}
+                  onRemove={() => removeInput({ packId, menuId: menu.id, index: i })}
+                  isInvalid={isInvalid}
                 />
-              ) : null}
+              ) : (
+                <SourceRefInputRow
+                  input={input}
+                  onChange={(patch) => update(i, patch)}
+                  onRemove={() => removeInput({ packId, menuId: menu.id, index: i })}
+                />
+              )}
               {isInvalid ? (
                 <div className="text-[10px] text-red-300">
                   {input.name === ""
@@ -301,259 +252,146 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
           );
         })
       )}
-      <button
-        type="button"
-        onClick={() => addInput({ packId, menuId: menu.id })}
-        className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-      >
-        {t("menuProperties.addInput")}
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            {t("menuProperties.addInput")}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+          <DropdownMenuItem
+            onSelect={() => addInput({ packId, menuId: menu.id, kind: "primitive" })}
+            className="cursor-pointer text-[11px] focus:bg-zinc-800"
+          >
+            Primitive (caller-passed)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => addInput({ packId, menuId: menu.id, kind: "sourceRef" })}
+            className="cursor-pointer text-[11px] focus:bg-zinc-800"
+          >
+            Source ref (manual for now)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
 
-/**
- * Source picker for a list/object input. "caller" = value flows in via
- * open_menu auto-binding (default). "connector" = the value is auto-fetched
- * by a third-party plugin connector at runtime.
- */
-function InputSourceEditor({
+function PrimitiveInputRow({
   input,
   onChange,
+  onRemove,
+  isInvalid,
 }: {
-  input: ContextInput;
-  onChange: (patch: Partial<ContextInput>) => void;
+  input: Extract<ContextInput, { kind: "primitive" }>;
+  onChange: (patch: Partial<Extract<ContextInput, { kind: "primitive" }>>) => void;
+  onRemove: () => void;
+  isInvalid: boolean;
 }) {
   const { t } = useTranslation();
-  const isConnector = input.source !== undefined;
-
   return (
-    <div className="flex flex-col gap-1 pl-0.5">
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-[10px] text-zinc-500">
-          {t("menuProperties.inputSource")}:
-        </span>
-        <div className="flex overflow-hidden rounded border border-zinc-700 text-[10px]">
-          <button
-            type="button"
-            onClick={() => onChange({ source: undefined })}
-            className={cx(
-              "px-2 py-0.5 font-mono",
-              !isConnector
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "text-zinc-400 hover:bg-zinc-800",
-            )}
-          >
-            {t("menuProperties.inputSourceCaller")}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (isConnector) return;
-              onChange({ source: { ref: "" } });
-            }}
-            className={cx(
-              "px-2 py-0.5 font-mono",
-              isConnector
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "text-zinc-400 hover:bg-zinc-800",
-            )}
-          >
-            {t("menuProperties.inputSourceConnector")}
-          </button>
-        </div>
-      </div>
-      {isConnector ? (
-        <ConnectorBindingEditor
-          binding={input.source!}
-          onChange={(next) => onChange({ source: next })}
-        />
-      ) : (
-        <p className="text-[10px] text-zinc-500">{t("menuProperties.inputSourceHint")}</p>
-      )}
-    </div>
-  );
-}
-
-function ConnectorBindingEditor({
-  binding,
-  onChange,
-}: {
-  binding: ConnectorBinding;
-  onChange: (next: ConnectorBinding) => void;
-}) {
-  const { t } = useTranslation();
-  const update = (patch: Partial<ConnectorBinding>) => onChange({ ...binding, ...patch });
-
-  return (
-    <div className="ml-1 flex flex-col gap-1.5 border-zinc-800 border-l pl-2">
-      <LabeledField label={t("menuProperties.connectorRef")}>
-        <Input
-          value={binding.ref}
-          placeholder={t("menuProperties.connectorRefPlaceholder")}
-          onChange={(e) => update({ ref: e.target.value })}
-          className="h-7 px-2 py-0 font-mono text-xs"
-        />
-      </LabeledField>
-
-      <RecordEditor
-        label={t("menuProperties.connectorParams")}
-        hint={t("menuProperties.connectorParamsHint", { tag: "{name}" })}
-        record={binding.params}
-        onChange={(next) => update({ params: next })}
-      />
-
-      <RecordEditor
-        label={t("menuProperties.connectorFilter")}
-        hint={t("menuProperties.connectorFilterHint", { tag: "{name}" })}
-        record={binding.filter}
-        onChange={(next) => update({ filter: next })}
-      />
-
-      <LabeledField label={t("menuProperties.connectorSort")}>
-        <div className="flex items-center gap-1">
-          <Input
-            value={binding.sort?.by ?? ""}
-            placeholder={t("menuProperties.connectorSortBy")}
-            onChange={(e) => {
-              const by = e.target.value;
-              if (!by) {
-                update({ sort: undefined });
-                return;
-              }
-              update({ sort: { by, direction: binding.sort?.direction ?? "asc" } });
-            }}
-            className="h-7 w-32 px-2 py-0 font-mono text-xs"
-          />
-          {binding.sort ? (
-            <select
-              value={binding.sort.direction ?? "asc"}
-              onChange={(e) => {
-                const dir = e.target.value as "asc" | "desc";
-                update({ sort: { by: binding.sort!.by, direction: dir } });
-              }}
-              className="h-7 rounded border border-zinc-800 bg-zinc-900 px-1 font-mono text-[10px] text-zinc-200"
-            >
-              <option value="asc">{t("menuProperties.connectorSortDirAsc")}</option>
-              <option value="desc">{t("menuProperties.connectorSortDirDesc")}</option>
-            </select>
-          ) : null}
-        </div>
-      </LabeledField>
-
-      <LabeledField label={t("menuProperties.connectorLimit")}>
-        <Input
-          type="number"
-          value={binding.limit ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            update({ limit: v === "" ? undefined : Number(v) });
-          }}
-          className="h-7 w-20 px-2 py-0 font-mono text-xs"
-        />
-      </LabeledField>
-    </div>
-  );
-}
-
-function LabeledField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="w-12 shrink-0 font-mono text-[10px] text-zinc-500">{label}:</span>
-      {children}
-    </div>
-  );
-}
-
-/**
- * Compact key/value pair editor for connector params and filter. The local
- * `pairs` state is the source of truth for what's displayed (so the user can
- * have intermediate empty/duplicate-key states while typing); we only push a
- * cleaned record up to the parent on each change.
- */
-function RecordEditor({
-  label,
-  hint,
-  record,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  record: Record<string, string> | undefined;
-  onChange: (next: Record<string, string> | undefined) => void;
-}) {
-  const { t } = useTranslation();
-  const [pairs, setPairs] = useState<[string, string][]>(() => Object.entries(record ?? {}));
-
-  // Re-sync from parent when the underlying record changes from outside (history undo,
-  // switching menus, etc) and doesn't match our local view.
-  useEffect(() => {
-    const fromRecord = Object.entries(record ?? {});
-    const same =
-      pairs.length === fromRecord.length &&
-      pairs.every(([k, v], i) => k === fromRecord[i]?.[0] && v === fromRecord[i]?.[1]);
-    if (!same) setPairs(fromRecord);
-    // Intentionally exclude `pairs` from deps — we sync FROM record TO pairs only.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
-  }, [record]);
-
-  const writeBack = (next: [string, string][]) => {
-    setPairs(next);
-    const seen = new Set<string>();
-    const result: Record<string, string> = {};
-    for (const [k, v] of next) {
-      if (k === "" || seen.has(k)) continue;
-      seen.add(k);
-      result[k] = v;
-    }
-    onChange(Object.keys(result).length === 0 ? undefined : result);
-  };
-
-  return (
-    <div className="flex flex-col gap-0.5">
+    <>
+      {/* Row 1: name + type + remove button */}
       <div className="flex items-center gap-1.5">
-        <span className="w-12 shrink-0 font-mono text-[10px] text-zinc-500">{label}:</span>
+        <Input
+          value={input.name}
+          placeholder={t("menuProperties.inputName")}
+          onChange={(e) => onChange({ name: e.target.value })}
+          className={
+            isInvalid
+              ? "h-8 w-28 border-red-500/60 px-2 py-0 font-mono text-xs"
+              : "h-8 w-28 px-2 py-0 font-mono text-xs"
+          }
+        />
+        <select
+          value={input.type}
+          onChange={(e) =>
+            onChange({
+              type: e.target.value as Extract<ContextInput, { kind: "primitive" }>["type"],
+            })
+          }
+          className="h-8 rounded border border-zinc-800 bg-zinc-900 px-1.5 font-mono text-xs text-zinc-200"
+        >
+          {PRIMITIVE_TYPES.map((typeOption) => (
+            <option key={typeOption} value={typeOption}>
+              {typeOption}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
-          onClick={() => writeBack([...pairs, ["", ""]])}
-          className="rounded border border-zinc-700 border-dashed px-1.5 py-0 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          title={t("menuProperties.removeInput")}
+          onClick={onRemove}
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
         >
-          {t("menuProperties.connectorAddPair")}
+          ×
         </button>
       </div>
-      {pairs.map((entry, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: index is the stable identity for an in-progress pair
-        <div key={i} className="ml-12 flex items-center gap-1">
+      {/* Row 2: default value */}
+      <div className="flex items-center gap-2 pl-0.5">
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-[10px] text-zinc-500">
+            {t("menuProperties.inputDefault")}:
+          </span>
           <Input
-            value={entry[0]}
-            placeholder={t("menuProperties.connectorPairKey")}
-            onChange={(e) => {
-              const next = [...pairs];
-              next[i] = [e.target.value, entry[1]];
-              writeBack(next);
-            }}
-            className="h-6 w-24 px-1.5 py-0 font-mono text-[10px]"
+            value={input.default === "{sender}" ? "" : (input.default ?? "")}
+            placeholder={t("menuProperties.inputDefaultPlaceholder")}
+            disabled={input.default === "{sender}"}
+            onChange={(e) => onChange({ default: e.target.value || undefined })}
+            className="h-7 w-28 px-2 py-0 font-mono text-xs disabled:opacity-40"
           />
-          <Input
-            value={entry[1]}
-            placeholder={t("menuProperties.connectorPairValue")}
-            onChange={(e) => {
-              const next = [...pairs];
-              next[i] = [entry[0], e.target.value];
-              writeBack(next);
-            }}
-            className="h-6 flex-1 px-1.5 py-0 font-mono text-[10px]"
-          />
-          <button
-            type="button"
-            onClick={() => writeBack(pairs.filter((_, j) => j !== i))}
-            className="flex h-5 w-5 items-center justify-center text-zinc-500 hover:text-zinc-200"
-          >
-            ×
-          </button>
         </div>
-      ))}
-      {pairs.length > 0 ? <p className="ml-12 text-[9px] text-zinc-600">{hint}</p> : null}
+        {input.type === "player" ? (
+          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
+            <input
+              type="checkbox"
+              checked={input.default === "{sender}"}
+              onChange={(e) => onChange({ default: e.target.checked ? "{sender}" : undefined })}
+              className="h-3.5 w-3.5 accent-emerald-500"
+            />
+            {t("menuProperties.inputSenderDefault")}
+          </label>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function SourceRefInputRow({
+  input,
+  onChange,
+  onRemove,
+}: {
+  input: Extract<ContextInput, { kind: "sourceRef" }>;
+  onChange: (patch: Partial<Extract<ContextInput, { kind: "sourceRef" }>>) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        value={input.name}
+        placeholder={t("menuProperties.inputName")}
+        onChange={(e) => onChange({ name: e.target.value })}
+        className="h-8 w-28 px-2 py-0 font-mono text-xs"
+      />
+      <Input
+        value={input.ref}
+        placeholder="pack:<id> or chestshop:items"
+        onChange={(e) => onChange({ ref: e.target.value as SourceRef })}
+        className="h-8 flex-1 px-2 py-0 font-mono text-xs"
+      />
+      <button
+        type="button"
+        title={t("menuProperties.removeInput")}
+        onClick={onRemove}
+        className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+      >
+        ×
+      </button>
     </div>
   );
 }

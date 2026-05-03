@@ -204,20 +204,19 @@ function IterationField({
   const { t } = useTranslation();
   const setElementIterates = useAccountStore((s) => s.setElementIterates);
   const iterates = element.iterates;
-  // Suggest both list and object inputs — a list resolves directly, an object
-  // input is the entry point to a nested path like `profile.recentQuests`.
+  // Suggest sourceRef inputs — these carry list/object data from a data source.
   const sourceSuggestions = (menu.contextInputs ?? [])
-    .filter((c) => c.type === "list" || c.type === "object")
+    .filter((c) => c.kind === "sourceRef")
     .map((c) => c.name);
   const datalistId = `iter-source-${menu.id}-${element.id}`;
 
   const enable = () => {
-    const firstList = (menu.contextInputs ?? []).find((c) => c.type === "list");
+    const firstSourceRef = (menu.contextInputs ?? []).find((c) => c.kind === "sourceRef");
     setElementIterates({
       packId,
       menuId: menu.id,
       elementId: element.id,
-      iterates: { source: firstList?.name ?? "", alias: "item" },
+      iterates: { source: firstSourceRef?.name ?? "", alias: "item" },
     });
   };
   const disable = () => {
@@ -819,7 +818,11 @@ function elementPlaceholders(menu: Menu, element: Element): readonly Placeholder
   ];
   for (const input of menu.contextInputs ?? []) {
     if (!input.name) continue;
-    list.push({ name: input.name, type: input.type, source: "menu-context" });
+    list.push({
+      name: input.name,
+      type: input.kind === "primitive" ? input.type : "sourceRef",
+      source: "menu-context",
+    });
   }
   if (element.iterates?.alias) {
     list.push({
