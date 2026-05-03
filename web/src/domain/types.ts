@@ -87,29 +87,18 @@ export interface Menu {
   sampleContext?: unknown;
 }
 
-export interface ContextInput {
-  name: string;
-  type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
-  default?: string;
-  /**
-   * If present, the slot's value is fetched by a connector at runtime instead
-   * of being passed by the caller. Only valid on type "list" (connector returns
-   * a list of objects) or "object" (connector returns a single object). The
-   * `params` and `filter` values can interpolate other contextInputs of the
-   * menu via `{name}` template strings.
-   */
-  source?: ConnectorBinding;
-}
-
-export interface ConnectorBinding {
-  /** "namespace:source", e.g. "chestshop:items", "essentials:warps". */
-  ref: string;
-  params?: Record<string, string>;
-  filter?: Record<string, string>;
-  sort?: { by: string; direction?: "asc" | "desc" };
-  /** Default = number of positions of the iterating Element. Max 1000. */
-  limit?: number;
-}
+export type ContextInput =
+  | {
+      kind: "primitive";
+      name: string;
+      type: "player" | "string" | "integer" | "number" | "boolean";
+      default?: string;
+    }
+  | {
+      kind: "sourceRef";
+      name: string;
+      ref: SourceRef;
+    };
 
 export interface Layer {
   id: LayerId;
