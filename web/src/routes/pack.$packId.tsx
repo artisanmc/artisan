@@ -15,6 +15,7 @@ import { Stage } from "@/features/canvas/Stage";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanel } from "@/features/translations/TranslationPanel";
 import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
 import { totalMissing } from "@/lib/i18nUsages";
@@ -32,7 +33,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { Boxes, Download, Globe, Languages, Redo2, Undo2, Upload } from "lucide-react";
+import { BookOpen, Boxes, Download, Globe, Languages, Redo2, Undo2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -55,6 +56,7 @@ function PackCanvasPage() {
 
   const [packsOpen, setPacksOpen] = useState(false);
   const [translationsOpen, setTranslationsOpen] = useState(false);
+  const [patternsOpen, setPatternsOpen] = useState(false);
   // Material being dragged from the Library — used to render the
   // <DragOverlay> ghost following the pointer.
   const [activeDragMaterial, setActiveDragMaterial] = useState<string | null>(null);
@@ -147,6 +149,9 @@ function PackCanvasPage() {
                 <Languages className="h-4 w-4" />
               </TopBarIconButton>
             ) : null}
+            <TopBarIconButton title={t("patterns.title")} onClick={() => setPatternsOpen(true)}>
+              <BookOpen className="h-4 w-4" />
+            </TopBarIconButton>
             <EditorLangSwitcher />
             <UndoRedoButtons />
           </div>
@@ -187,6 +192,9 @@ function PackCanvasPage() {
             onOpenChange={setTranslationsOpen}
           />
         ) : null}
+
+        {/* Patterns Gallery cheat sheet (right-side sheet). */}
+        <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
 
         {/* Mobile pack drawer. */}
         <Sheet open={packsOpen} onOpenChange={setPacksOpen}>
