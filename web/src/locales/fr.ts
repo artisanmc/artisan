@@ -290,6 +290,8 @@ const fr: typeof en = {
     exprFreeTextModeShort: "libre",
     exprFormMode: "Passer en mode form",
     exprFormModeShort: "form",
+    exprPreviewValid: "→ {{display}}",
+    exprPreviewParseError: "syntaxe : {{message}}",
     nestedHint: "(ET/OU imbriqué)",
     type: {
       has_permission: "has_permission",
