@@ -197,6 +197,12 @@ const fr: typeof en = {
     setArgValuePlaceholder: '"weapon"',
     setArgValueHint:
       'Une expression — les strings ont besoin de guillemets (ex. "weapon"), les nombres non (ex. 5).',
+    setArgCycleDirectionNext: "Cycler vers la valeur suivante",
+    setArgCycleDirectionPrev: "Cycler vers la valeur précédente",
+    setArgCycleListLabel: "liste à cycler (expression)",
+    setArgCycleListPlaceholder: "categories",
+    setArgCycleListHint:
+      "Expression qui évalue à une liste — typiquement un nom d'input de contexte comme categories ou quest.tags.",
   },
   flow: {
     headerStateOne: "{{count}} état",
