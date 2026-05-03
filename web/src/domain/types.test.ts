@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Action, Element, Menu, Pack } from "./types";
+import type { Account, Action, Condition, Element, Menu, Pack } from "./types";
 
 describe("domain types — compile-time shape", () => {
   it("an Account composes Packs", () => {
@@ -41,5 +41,40 @@ describe("domain types — compile-time shape", () => {
       canvasLayout: {},
     };
     expect(pack.defaultLang).toBe("en");
+  });
+});
+
+describe("Condition union — expression variant", () => {
+  it("allows construction of expression conditions", () => {
+    const c: Condition = { type: "expression", expr: "quest.gold > 1000" };
+    expect(c.type).toBe("expression");
+    if (c.type === "expression") {
+      expect(c.expr).toBe("quest.gold > 1000");
+    }
+  });
+});
+
+describe("Action union — context mutation variants", () => {
+  it("constructs set_arg", () => {
+    const a: Action = { type: "set_arg", arg: "current_tag", value: `"weapon"` };
+    expect(a.type).toBe("set_arg");
+  });
+
+  it("constructs set_arg_cycle_next", () => {
+    const a: Action = {
+      type: "set_arg_cycle_next",
+      arg: "current_tag",
+      list: "categories",
+    };
+    expect(a.type).toBe("set_arg_cycle_next");
+  });
+
+  it("constructs set_arg_cycle_prev", () => {
+    const a: Action = {
+      type: "set_arg_cycle_prev",
+      arg: "current_tag",
+      list: "categories",
+    };
+    expect(a.type).toBe("set_arg_cycle_prev");
   });
 });

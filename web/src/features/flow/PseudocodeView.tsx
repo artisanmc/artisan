@@ -1026,6 +1026,12 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
       return `$${action.amount}`;
     case "paginate":
       return `${action.direction}${action.targetElementId ? ` ${action.targetElementId}` : " (all)"}`;
+    case "set_arg":
+      return `${action.arg} = ${action.value}`;
+    case "set_arg_cycle_next":
+      return `${action.arg} ↻ next ${action.list}`;
+    case "set_arg_cycle_prev":
+      return `${action.arg} ↻ prev ${action.list}`;
   }
 }
 

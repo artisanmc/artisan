@@ -17,6 +17,12 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "$";
     case "paginate":
       return "page";
+    case "set_arg":
+      return "set";
+    case "set_arg_cycle_next":
+      return "next";
+    case "set_arg_cycle_prev":
+      return "prev";
   }
 }
 
@@ -41,6 +47,8 @@ export function conditionSummary(condition: Condition): string {
       return condition.of.length <= 1
         ? condition.of.map(conditionSummary).join("")
         : `(${condition.of.map(conditionSummary).join(" OR ")})`;
+    case "expression":
+      return `expr(${condition.expr})`;
   }
 }
 
