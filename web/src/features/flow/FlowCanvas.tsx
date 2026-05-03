@@ -1,52 +1,65 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { StepFrame } from "@/domain/stepPath";
+import type { Appearance } from "@/domain/types";
 import type {
-  Action,
-  ClickHandler,
-  ClickType,
   Command,
+  CommandArg,
   CommandId,
-  Condition,
   Element,
   ElementId,
-  IfCase,
   Menu,
   MenuId,
   PackId,
-  Step,
 } from "@/domain/types";
+import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
-import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
+import {
+  ArgInsertBar,
+  type PlaceholderInfo,
+  PlaceholderProvider,
+} from "@/features/canvas/properties/ActionEditor";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
-import { cx } from "@/lib/cx";
+import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
+import { PackProperties } from "@/features/canvas/properties/PackProperties";
+import { PropertyField } from "@/features/canvas/properties/PropertyField";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { formatPositions, parsePositions } from "@/lib/positions";
+import { useGetText } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useEffect, useState } from "react";
-import { ACTION_TYPES, defaultAction } from "./defaults";
+import { useUiStore } from "@/state/uiStore";
 import {
-  CLICK_TYPE_ORDER,
-  actionSummary,
-  actionTypeLabel,
-  clickTypeLabel,
-  conditionSummary,
-} from "./labels";
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { CommandStepPseudocode, ElementClickHandlersPseudocode } from "./PseudocodeView";
 
 interface FlowCanvasProps {
   packId: PackId;
 }
 
+const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
+
 /**
- * Bottom canvas. Renders the recursive Step tree of the selected element /
- * command as a horizontal flow with `if`-branches fanning out vertically
- * below their parent step. Clicking nodes drives the flowSelectionStore so
- * the right-side properties pane edits the right thing.
+ * Unified editor for the current selection. Routes by kind:
+ *   Pack            → pack-level fields (description, source).
+ *   Menu            → title / permission / rows / background.
+ *   Element         → identity + per-state cards (with all state-level
+ *                     fields embedded) + click handlers for the focused state.
+ *   Command         → command identity + step tree.
+ *
+ * The "Properties" / "Code" split is gone: everything for the current
+ * selection is rendered together so users always see how state-level
+ * fields (title, count, lore, conditions) and click handlers belong to a
+ * specific state card.
  */
 export function FlowCanvas({ packId }: FlowCanvasProps) {
   const ids = useSelectionStore((s) => s.ids);
@@ -59,22 +72,38 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   }, [setSub, [...ids].sort().join(",")]);
 
   if (!pack) return <EmptyHint label="Pack not found." />;
-  if (ids.size === 0) return <EmptyHint label="Select an element or command to edit its flow." />;
-  if (ids.size > 1) return <EmptyHint label="Flow editing is per-button — narrow the selection." />;
+  if (ids.size > 1) {
+    return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
+  }
+  if (ids.size === 0) {
+    return (
+      <div className="h-full overflow-y-auto p-3">
+        <PackProperties pack={pack} />
+      </div>
+    );
+  }
 
   const id = [...ids][0]!;
   const command = pack.commands.find((c) => c.id === id);
-  if (command) return <CommandFlow packId={packId} command={command} />;
+  if (command) return <CommandEditor packId={packId} command={command} />;
 
   for (const menu of pack.menus) {
     for (const layer of menu.layers) {
       const el = layer.elements.find((e) => e.id === id);
-      if (el) return <ElementFlow packId={packId} menu={menu} element={el} />;
+      if (el) return <ElementEditor packId={packId} menu={menu} element={el} />;
     }
   }
-  if (pack.menus.some((m) => m.id === id))
-    return <EmptyHint label="Menu selected — click an item or command to edit its flow." />;
-  return <EmptyHint label="Selection has no flow." />;
+
+  const menu = pack.menus.find((m) => m.id === id);
+  if (menu) {
+    return (
+      <div className="h-full overflow-y-auto p-3">
+        <MenuProperties packId={packId} menu={menu} />
+      </div>
+    );
+  }
+
+  return <EmptyHint label="Selection has no editor." />;
 }
 
 function EmptyHint({ label }: { label: string }) {
@@ -86,10 +115,10 @@ function EmptyHint({ label }: { label: string }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Element flow
+// Element editor
 // ────────────────────────────────────────────────────────────────────────────
 
-function ElementFlow({
+function ElementEditor({
   packId,
   menu,
   element,
@@ -104,193 +133,1134 @@ function ElementFlow({
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
   const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
-  const material = focusedState?.material ?? "(empty)";
-  const textureUrl = itemTextureUrl(material);
-  const title = focusedState?.title ?? "";
+  const headerMaterial = focusedState?.material ?? "";
+  const headerTextureUrl = itemTextureUrl(headerMaterial);
+  const getText = useGetText(packId);
+  const headerTitle = getText(focusedState?.title);
+  const menuTitle = getText(menu.title);
+  const { t } = useTranslation();
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
-  const removeAppearance = useAccountStore((s) => s.removeAppearance);
-  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
-  const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
-  const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
-      {/* Header strip */}
+      {/* Element identity strip — preview of the focused state. */}
       <div className="flex items-center gap-3 border-zinc-800 border-b bg-zinc-900 px-3 py-2">
         <div className="flex h-8 w-8 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
-          {textureUrl ? (
+          {headerTextureUrl ? (
             <img
-              src={textureUrl}
-              alt={material}
+              src={headerTextureUrl}
+              alt={headerMaterial}
               draggable={false}
               className="h-3/4 w-3/4 object-contain"
               style={{ imageRendering: "pixelated" }}
             />
           ) : (
-            <span className="text-[8px] text-zinc-500">{material.slice(0, 4)}</span>
+            <span className="text-[8px] text-zinc-500">{headerMaterial.slice(0, 4)}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-zinc-200">{title || material}</div>
+          <div className="font-mono text-xs text-zinc-200">{headerTitle || headerMaterial}</div>
           <div className="text-[10px] text-zinc-500">
-            {menu.title} · slot
-            {element.positions.includes(",") || element.positions.includes("-") ? "s" : ""}{" "}
-            {element.positions} · {element.appearances.length} state
-            {element.appearances.length > 1 ? "s" : ""}
+            {menuTitle} ·{" "}
+            {t(element.appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
+              count: element.appearances.length,
+            })}
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto px-3 py-3">
-        {/* States lane */}
-        <Lane label="States">
-          <div className="flex flex-wrap gap-2">
-            {element.appearances.map((appearance, i) => {
-              const focused = focusedStateIndex === i;
-              const isDefault = (appearance.if ?? []).length === 0;
-              const material = appearance.material ?? "";
-              const textureUrl = itemTextureUrl(material);
-              return (
-                <div
-                  // biome-ignore lint/suspicious/noArrayIndexKey: state index is stable
-                  key={i}
-                  className={cx(
-                    "group relative flex w-[320px] flex-col gap-1.5 overflow-hidden rounded border px-2 py-1.5 text-xs transition-colors",
-                    focused
-                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-100"
-                      : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSub({ kind: "state", stateIndex: i })}
-                    className="text-left"
-                  >
-                    <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
-                      {isDefault ? "default" : `state ${i}`}
-                    </span>
-                  </button>
-                  {/* Material row — item icon + editable name. */}
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
-                      {textureUrl ? (
-                        <img
-                          src={textureUrl}
-                          alt={material}
-                          draggable={false}
-                          className="h-3/4 w-3/4 object-contain"
-                          style={{ imageRendering: "pixelated" }}
-                        />
-                      ) : (
-                        <span className="text-[8px] text-zinc-600">
-                          {material.slice(0, 3) || "—"}
-                        </span>
-                      )}
-                    </div>
-                    <Input
-                      value={material}
-                      placeholder="DIAMOND"
-                      onChange={(e) =>
-                        setAppearanceField({
-                          packId,
-                          menuId: menu.id,
-                          elementId: element.id,
-                          appearanceIndex: i,
-                          field: "material",
-                          value: e.target.value.toUpperCase(),
-                        })
-                      }
-                      className="h-6 flex-1 px-1.5 py-0 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div className="overflow-x-auto">
-                    <ConditionListEditor
-                      label=""
-                      conditions={appearance.if ?? []}
-                      joins={appearance.ifJoins}
-                      emptyHint={
-                        isDefault
-                          ? "default · always visible"
-                          : "(always — drop a condition here to gate this state)"
-                      }
-                      onChange={(conditions) =>
-                        setAppearanceConditions({
-                          packId,
-                          menuId: menu.id,
-                          elementId: element.id,
-                          appearanceIndex: i,
-                          conditions,
-                        })
-                      }
-                      onJoinChange={(joinIndex, op) =>
-                        setAppearanceJoin({
-                          packId,
-                          menuId: menu.id,
-                          elementId: element.id,
-                          appearanceIndex: i,
-                          joinIndex,
-                          op,
-                        })
-                      }
-                    />
-                  </div>
-                  {element.appearances.length > 1 ? (
-                    <button
-                      type="button"
-                      title="Remove this state"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeAppearance({
-                          packId,
-                          menuId: menu.id,
-                          elementId: element.id,
-                          appearanceIndex: i,
-                        });
-                        setSub(null);
-                      }}
-                      className="absolute top-0.5 right-0.5 rounded px-1 text-[10px] text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
-                    >
-                      ×
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => {
-                addAppearance({ packId, menuId: menu.id, elementId: element.id });
-                setSub({ kind: "state", stateIndex: element.appearances.length });
-              }}
-              className="rounded border border-zinc-700 border-dashed px-2 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-            >
-              + Add state
-            </button>
-          </div>
-        </Lane>
+        <ElementIdField packId={packId} menuId={menu.id} elementId={element.id} />
+        <PositionsField packId={packId} menuId={menu.id} element={element} />
+        <IterationField packId={packId} menu={menu} element={element} />
 
-        {/* Click handlers for the focused state */}
-        <Lane
-          label={`Click handlers · ${focusedStateIndex === 0 ? "default" : `state ${focusedStateIndex}`}`}
-        >
-          <ClickHandlersGrid
+        <Lane label={t("flow.states")}>
+          <SortableStates
             packId={packId}
-            menuId={menu.id}
-            elementId={element.id}
-            stateIndex={focusedStateIndex}
-            click={focusedState?.click}
+            menu={menu}
+            element={element}
+            focusedStateIndex={focusedStateIndex}
+            onAdd={() => {
+              addAppearance({ packId, menuId: menu.id, elementId: element.id });
+              setSub({ kind: "state", stateIndex: element.appearances.length });
+            }}
           />
         </Lane>
       </div>
     </div>
   );
 }
+
+function IterationField({
+  packId,
+  menu,
+  element,
+}: {
+  packId: PackId;
+  menu: Menu;
+  element: Element;
+}) {
+  const { t } = useTranslation();
+  const setElementIterates = useAccountStore((s) => s.setElementIterates);
+  const iterates = element.iterates;
+  // Suggest both list and object inputs — a list resolves directly, an object
+  // input is the entry point to a nested path like `profile.recentQuests`.
+  const sourceSuggestions = (menu.contextInputs ?? [])
+    .filter((c) => c.type === "list" || c.type === "object")
+    .map((c) => c.name);
+  const datalistId = `iter-source-${menu.id}-${element.id}`;
+
+  const enable = () => {
+    const firstList = (menu.contextInputs ?? []).find((c) => c.type === "list");
+    setElementIterates({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      iterates: { source: firstList?.name ?? "", alias: "item" },
+    });
+  };
+  const disable = () => {
+    setElementIterates({ packId, menuId: menu.id, elementId: element.id, iterates: undefined });
+  };
+  const update = (patch: Partial<NonNullable<Element["iterates"]>>) => {
+    if (!iterates) return;
+    setElementIterates({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      iterates: { ...iterates, ...patch },
+    });
+  };
+
+  if (!iterates) {
+    return (
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={enable}
+          className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          title={t("flow.iterateBindHint")}
+        >
+          {t("flow.iterationEnable")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-3 flex flex-col gap-1.5 rounded border border-purple-500/40 border-dashed bg-purple-500/5 p-2">
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[10px] text-purple-300 uppercase tracking-wide">
+          {t("flow.iteration")}
+        </span>
+        <button
+          type="button"
+          onClick={disable}
+          title={t("flow.iterationDisable")}
+          className="flex h-6 w-6 items-center justify-center rounded text-[12px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        >
+          ×
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-mono text-[10px] text-zinc-400">{t("flow.iterationForEach")}</span>
+        <Input
+          value={iterates.alias}
+          placeholder="item"
+          onChange={(e) => update({ alias: e.target.value })}
+          className="h-7 w-24 px-2 py-0 font-mono text-xs"
+        />
+        <span className="font-mono text-[10px] text-zinc-400">{t("flow.iterationIn")}</span>
+        <Input
+          value={iterates.source}
+          placeholder="shops"
+          list={datalistId}
+          onChange={(e) => update({ source: e.target.value })}
+          className="h-7 w-40 px-2 py-0 font-mono text-xs"
+        />
+        <datalist id={datalistId}>
+          {sourceSuggestions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+      </div>
+      <p className="text-[10px] text-zinc-500">
+        {t("flow.iterationFieldsHint", { example: `{${iterates.alias}.field}` })}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * State cards list with drag-and-drop reordering. The order is meaningful
+ * (first matching appearance wins at runtime), so users can push the
+ * "common" state up and the fallback default down. Uses ref-stable ids
+ * per Appearance object — same trick as the pseudocode steps — so
+ * @dnd-kit doesn't re-shuffle anything on the post-drop re-render.
+ */
+function SortableStates({
+  packId,
+  menu,
+  element,
+  focusedStateIndex,
+  onAdd,
+}: {
+  packId: PackId;
+  menu: Menu;
+  element: Element;
+  focusedStateIndex: number;
+  onAdd: () => void;
+}) {
+  const { t } = useTranslation();
+  const moveAppearance = useAccountStore((s) => s.moveAppearance);
+  const setSub = useFlowSelectionStore((s) => s.set);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const ids = useStableAppearanceIds(element.appearances);
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const fromIndex = ids.indexOf(active.id as string);
+    const toIndex = ids.indexOf(over.id as string);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    moveAppearance({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      fromIndex,
+      toIndex,
+    });
+
+    // Track focus across the move so the user keeps editing the state
+    // they had focused, not whatever state lands at the old index.
+    let newFocus = focusedStateIndex;
+    if (focusedStateIndex === fromIndex) newFocus = toIndex;
+    else if (fromIndex < focusedStateIndex && focusedStateIndex <= toIndex) newFocus -= 1;
+    else if (toIndex <= focusedStateIndex && focusedStateIndex < fromIndex) newFocus += 1;
+    if (newFocus !== focusedStateIndex) {
+      setSub({ kind: "state", stateIndex: newFocus });
+    }
+  };
+
+  return (
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2">
+          {element.appearances.map((_appearance, i) => (
+            <StateCard
+              // biome-ignore lint/suspicious/noArrayIndexKey: state index stable per list-render
+              key={i}
+              dragId={ids[i]!}
+              packId={packId}
+              menu={menu}
+              element={element}
+              stateIndex={i}
+              focused={focusedStateIndex === i}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={onAdd}
+            className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            {t("flow.addState")}
+          </button>
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+export const STATE_DROP_PREFIX = "state:";
+
+/**
+ * Build a stable drop target id for a state card's material icon. Format:
+ * `state:{menuId}:{elementId}:{stateIndex}`. The pack route's onDragEnd
+ * checks for this prefix to dispatch a Library drop into the right state.
+ */
+export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: number): string {
+  return `${STATE_DROP_PREFIX}${menuId}:${elementId}:${stateIndex}`;
+}
+
+interface StateMaterialIconProps {
+  menuId: MenuId;
+  elementId: ElementId;
+  stateIndex: number;
+  material: string;
+  textureUrl: string | undefined;
+  onPick: (material: string) => void;
+}
+
+/**
+ * Material icon on a state card. Doubles as:
+ *   - a `<MaterialPicker>` trigger (click → modal item grid),
+ *   - a `useDroppable` target for Library item drags (drop → set material).
+ *
+ * isOver shows an emerald ring while a Library drag is hovering.
+ */
+function StateMaterialIcon({
+  menuId,
+  elementId,
+  stateIndex,
+  material,
+  textureUrl,
+  onPick,
+}: StateMaterialIconProps) {
+  const droppable = useDroppable({ id: stateDropId(menuId, elementId, stateIndex) });
+  return (
+    <div ref={droppable.setNodeRef}>
+      <MaterialPicker
+        trigger={
+          <button
+            type="button"
+            title="Pick item from library — or drag a library item here"
+            className={
+              droppable.isOver
+                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500"
+                : "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950 hover:border-emerald-500"
+            }
+          >
+            {textureUrl ? (
+              <img
+                src={textureUrl}
+                alt={material}
+                draggable={false}
+                className="h-3/4 w-3/4 object-contain"
+                style={{ imageRendering: "pixelated" }}
+              />
+            ) : (
+              <span className="text-[8px] text-zinc-600">{material.slice(0, 3) || "—"}</span>
+            )}
+          </button>
+        }
+        onPick={onPick}
+      />
+    </div>
+  );
+}
+
+/**
+ * Small grip button on the left of a state card. Holds the @dnd-kit
+ * sortable listeners + attributes so dragging it triggers reorder while
+ * leaving the rest of the card free to handle clicks/inputs.
+ */
+function DragHandleButton({
+  sortable,
+}: {
+  sortable: ReturnType<typeof useSortable>;
+}) {
+  return (
+    <button
+      type="button"
+      title="Drag to reorder state"
+      {...sortable.attributes}
+      {...sortable.listeners}
+      className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-l border-zinc-800 border-r font-mono text-[12px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 active:cursor-grabbing"
+    >
+      ⠿
+    </button>
+  );
+}
+
+/** Per-Appearance stable IDs via WeakMap. Immer keeps refs across moves. */
+function useStableAppearanceIds(appearances: readonly Appearance[]): string[] {
+  const mapRef = useRef<WeakMap<Appearance, string>>(new WeakMap());
+  return useMemo(() => {
+    const map = mapRef.current;
+    return appearances.map((a) => {
+      let id = map.get(a);
+      if (!id) {
+        id = `appearance-${Math.random().toString(36).slice(2, 11)}`;
+        map.set(a, id);
+      }
+      return id;
+    });
+  }, [appearances]);
+}
+
+function StateCard({
+  dragId,
+  packId,
+  menu,
+  element,
+  stateIndex,
+  focused,
+}: {
+  dragId: string;
+  packId: PackId;
+  menu: Menu;
+  element: Element;
+  stateIndex: number;
+  focused: boolean;
+}) {
+  const { t } = useTranslation();
+  const sortable = useSortable({ id: dragId });
+  const dragStyle: CSSProperties = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+    opacity: sortable.isDragging ? 0.5 : 1,
+  };
+  const setSub = useFlowSelectionStore((s) => s.set);
+  const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
+  const setAppearanceTitle = useAccountStore((s) => s.setAppearanceTitle);
+  const setAppearanceLore = useAccountStore((s) => s.setAppearanceLore);
+  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
+  const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
+  const removeAppearance = useAccountStore((s) => s.removeAppearance);
+  const activeLang = useUiStore((s) => s.activeLang);
+  const getText = useGetText(packId);
+
+  const appearance = element.appearances[stateIndex];
+  if (!appearance) return null;
+  const isDefault = stateIndex === 0;
+  const material = appearance.material ?? "";
+  const textureUrl = itemTextureUrl(material);
+  const title = getText(appearance.title);
+  const count = appearance.count ?? 1;
+  const lore = (appearance.lore ?? []).map((lt) => getText(lt));
+  const loreText = lore.join("\n");
+
+  const update = (field: "material" | "count", value: string | number) =>
+    setAppearanceField({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      appearanceIndex: stateIndex,
+      field,
+      value,
+    });
+  const updateTitle = (value: string) =>
+    setAppearanceTitle({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      appearanceIndex: stateIndex,
+      lang: activeLang,
+      value,
+    });
+  const updateLore = (lines: string[]) =>
+    setAppearanceLore({
+      packId,
+      menuId: menu.id,
+      elementId: element.id,
+      appearanceIndex: stateIndex,
+      lang: activeLang,
+      lines,
+    });
+
+  // Collapsed state — tooltip-style summary. Click anywhere to focus and
+  // expand. Mirrors the in-canvas hover tooltip layout (icon left, MM-
+  // formatted title + lore right) so the visual link is obvious.
+  if (!focused) {
+    const displayTitle = title.trim() || material || "(empty)";
+    return (
+      <div
+        ref={sortable.setNodeRef}
+        style={dragStyle}
+        className="flex w-full items-stretch gap-1 rounded border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600"
+      >
+        <DragHandleButton sortable={sortable} />
+        <button
+          type="button"
+          onClick={() => setSub({ kind: "state", stateIndex })}
+          className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-left"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
+            {textureUrl ? (
+              <img
+                src={textureUrl}
+                alt={material}
+                draggable={false}
+                className="h-3/4 w-3/4 object-contain"
+                style={{ imageRendering: "pixelated" }}
+              />
+            ) : (
+              <span className="text-[8px] text-zinc-600">{material.slice(0, 3) || "—"}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
+              {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
+              {!isDefault && (appearance.if ?? []).length > 0 ? (
+                <span className="ml-1.5 normal-case text-zinc-600">
+                  ·{" "}
+                  {t(
+                    (appearance.if ?? []).length === 1
+                      ? "flow.stateConditionsOne"
+                      : "flow.stateConditionsOther",
+                    { count: (appearance.if ?? []).length },
+                  )}
+                </span>
+              ) : null}
+            </div>
+            <MiniMessageInline
+              source={displayTitle}
+              className="block truncate font-mono text-xs text-zinc-200"
+            />
+            {lore.length > 0
+              ? lore.slice(0, 2).map((line, i) => (
+                  <MiniMessageInline
+                    // biome-ignore lint/suspicious/noArrayIndexKey: lore lines stable per render
+                    key={i}
+                    source={line}
+                    className="block truncate font-mono text-[10px] text-zinc-400"
+                  />
+                ))
+              : null}
+            {lore.length > 2 ? (
+              <div className="font-mono text-[10px] text-zinc-600">
+                {t(lore.length - 2 === 1 ? "flow.moreLinesOne" : "flow.moreLinesOther", {
+                  count: lore.length - 2,
+                })}
+              </div>
+            ) : null}
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <PlaceholderProvider value={elementPlaceholders(menu, element)}>
+      <div
+        ref={sortable.setNodeRef}
+        style={dragStyle}
+        className="relative flex w-full items-stretch gap-1 rounded border border-emerald-500 bg-emerald-500/10 text-xs transition-colors"
+      >
+        <DragHandleButton sortable={sortable} />
+        <div className="flex flex-1 flex-col gap-2 px-2.5 py-2">
+          {/* Header row — state name + delete. Click header to collapse. */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
+              {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
+            </span>
+            <span className="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[9px] text-emerald-200 uppercase">
+              {t("flow.editing")}
+            </span>
+            <span className="ml-auto" />
+            {element.appearances.length > 1 ? (
+              <button
+                type="button"
+                title={t("flow.removeState")}
+                onClick={() => {
+                  removeAppearance({
+                    packId,
+                    menuId: menu.id,
+                    elementId: element.id,
+                    appearanceIndex: stateIndex,
+                  });
+                  setSub(null);
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+
+          {/* Material row */}
+          <div className="flex items-center gap-1.5">
+            <StateMaterialIcon
+              menuId={menu.id}
+              elementId={element.id}
+              stateIndex={stateIndex}
+              material={material}
+              textureUrl={textureUrl}
+              onPick={(picked) => update("material", picked)}
+            />
+            <Input
+              value={material}
+              placeholder="DIAMOND"
+              onChange={(e) => update("material", e.target.value.toUpperCase())}
+              onFocus={() => setSub({ kind: "state", stateIndex })}
+              className="h-8 flex-1 px-2 py-0 font-mono text-xs"
+            />
+          </div>
+
+          {/* Title + count */}
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <FieldLabel>{t("flow.titleLabel", { lang: activeLang })}</FieldLabel>
+              <Input
+                value={title}
+                placeholder={t("flow.titlePlaceholder")}
+                onChange={(e) => updateTitle(e.target.value)}
+                onFocus={() => setSub({ kind: "state", stateIndex })}
+                className="h-8 px-2 py-0 text-xs"
+              />
+              <ArgInsertBar onInsert={(name) => updateTitle(`${title}{${name}}`)} />
+              {looksLikeMiniMessage(title) ? (
+                <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+                  <span className="mr-2 text-[9px] text-zinc-600 uppercase">
+                    {t("menuProperties.preview")}
+                  </span>
+                  <MiniMessageInline source={title} className="font-mono text-xs" />
+                </div>
+              ) : null}
+            </div>
+            <div className="w-20 shrink-0">
+              <FieldLabel>{t("flow.countLabel")}</FieldLabel>
+              <Input
+                type="number"
+                min={1}
+                max={64}
+                value={count}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isNaN(n) && n >= 1 && n <= 64) update("count", n);
+                }}
+                onFocus={() => setSub({ kind: "state", stateIndex })}
+                className="h-8 px-2 py-0 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Lore */}
+          <div>
+            <FieldLabel>{t("flow.loreLabel", { lang: activeLang })}</FieldLabel>
+            <textarea
+              rows={lore.length > 2 ? 4 : 2}
+              placeholder={t("flow.lorePlaceholder")}
+              value={loreText}
+              onFocus={() => setSub({ kind: "state", stateIndex })}
+              onChange={(e) => {
+                const lines = e.target.value
+                  .split("\n")
+                  .filter((_, i, arr) => i < arr.length - 1 || arr[i] !== "");
+                updateLore(lines);
+              }}
+              className="w-full rounded border border-zinc-800 bg-zinc-950 p-2 font-mono text-xs"
+            />
+            <ArgInsertBar
+              onInsert={(name) => {
+                const next = `${loreText}{${name}}`;
+                const lines = next
+                  .split("\n")
+                  .filter((_, i, arr) => i < arr.length - 1 || arr[i] !== "");
+                updateLore(lines);
+              }}
+            />
+            {lore.length > 0 ? (
+              <div className="mt-1 flex flex-col gap-0.5 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+                <span className="text-[9px] text-zinc-600 uppercase">preview</span>
+                {lore.map((line, i) => (
+                  <MiniMessageInline
+                    // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
+                    key={i}
+                    source={line}
+                    className="font-mono text-xs"
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Visibility conditions */}
+          <div className="overflow-x-auto">
+            <ConditionListEditor
+              label={t("flow.visibility")}
+              conditions={appearance.if ?? []}
+              joins={appearance.ifJoins}
+              emptyHint={isDefault ? t("flow.visibilityAlwaysDefault") : t("flow.visibilityAlways")}
+              onChange={(conditions) => {
+                setSub({ kind: "state", stateIndex });
+                setAppearanceConditions({
+                  packId,
+                  menuId: menu.id,
+                  elementId: element.id,
+                  appearanceIndex: stateIndex,
+                  conditions,
+                });
+              }}
+              onJoinChange={(joinIndex, op) =>
+                setAppearanceJoin({
+                  packId,
+                  menuId: menu.id,
+                  elementId: element.id,
+                  appearanceIndex: stateIndex,
+                  joinIndex,
+                  op,
+                })
+              }
+            />
+          </div>
+
+          {/* Click handlers — nested inside the focused state so the
+          ownership is obvious (these handlers belong to *this* state). */}
+          <div className="mt-1">
+            <FieldLabel>{t("flow.clickHandlers")}</FieldLabel>
+            <ElementClickHandlersPseudocode
+              packId={packId}
+              menuId={menu.id}
+              elementId={element.id}
+              stateIndex={stateIndex}
+              click={appearance.click}
+            />
+          </div>
+        </div>
+      </div>
+    </PlaceholderProvider>
+  );
+}
+
+/**
+ * Placeholders available inside an element's click handlers:
+ *   - Implicit click context (player, slot, material) — always there.
+ *   - Menu context inputs — declared by the parent menu.
+ *   - This element's iteration alias, when set.
+ */
+function elementPlaceholders(menu: Menu, element: Element): readonly PlaceholderInfo[] {
+  const list: PlaceholderInfo[] = [
+    { name: "player", type: "player", source: "click-implicit" },
+    { name: "slot", type: "integer", source: "click-implicit" },
+    { name: "material", type: "string", source: "click-implicit" },
+  ];
+  for (const input of menu.contextInputs ?? []) {
+    if (!input.name) continue;
+    list.push({ name: input.name, type: input.type, source: "menu-context" });
+  }
+  if (element.iterates?.alias) {
+    list.push({
+      name: element.iterates.alias,
+      type: "iteration item",
+      source: "menu-context",
+    });
+  }
+  // Pagination placeholders — computed from menu state at render time.
+  // `pagination.page` / `pagination.totalPages` default to the first
+  // iterable in the menu; per-source variants disambiguate when several
+  // iterables coexist on the same screen.
+  const iterSources = new Set<string>();
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (el.iterates?.source) iterSources.add(el.iterates.source);
+    }
+  }
+  if (iterSources.size > 0) {
+    list.push({ name: "pagination.page", type: "integer", source: "menu-context" });
+    list.push({ name: "pagination.totalPages", type: "integer", source: "menu-context" });
+    if (iterSources.size > 1) {
+      for (const src of iterSources) {
+        list.push({ name: `pagination.${src}.page`, type: "integer", source: "menu-context" });
+        list.push({
+          name: `pagination.${src}.totalPages`,
+          type: "integer",
+          source: "menu-context",
+        });
+      }
+    }
+  }
+  return list;
+}
+
+function CommandIdField({ packId, commandId }: { packId: PackId; commandId: CommandId }) {
+  const { t } = useTranslation();
+  const setCommandId = useAccountStore((s) => s.setCommandId);
+  const [draft, setDraft] = useState(commandId as string);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setDraft(commandId);
+    setError(null);
+  }, [commandId]);
+
+  const commit = () => {
+    if (draft === commandId) return;
+    try {
+      setCommandId({ packId, oldId: commandId, newId: draft as CommandId });
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
+      setDraft(commandId);
+    }
+  };
+
+  return (
+    <div>
+      <FieldLabel>{t("flow.elementId")}</FieldLabel>
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(commandId);
+            setError(null);
+            e.currentTarget.blur();
+          }
+        }}
+        className={
+          error
+            ? "h-8 border-red-500/60 px-2 py-0 font-mono text-xs"
+            : "h-8 px-2 py-0 font-mono text-xs"
+        }
+      />
+      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+    </div>
+  );
+}
+
+function ElementIdField({
+  packId,
+  menuId,
+  elementId,
+}: {
+  packId: PackId;
+  menuId: MenuId;
+  elementId: ElementId;
+}) {
+  const { t } = useTranslation();
+  const setElementId = useAccountStore((s) => s.setElementId);
+  const [draft, setDraft] = useState(elementId as string);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setDraft(elementId);
+    setError(null);
+  }, [elementId]);
+
+  const commit = () => {
+    if (draft === elementId) return;
+    try {
+      setElementId({ packId, menuId, oldId: elementId, newId: draft as ElementId });
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
+      setDraft(elementId);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <FieldLabel>{t("flow.elementId")}</FieldLabel>
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(elementId);
+            setError(null);
+            e.currentTarget.blur();
+          }
+        }}
+        className={
+          error
+            ? "h-8 border-red-500/60 px-2 py-0 font-mono text-xs"
+            : "h-8 px-2 py-0 font-mono text-xs"
+        }
+      />
+      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+    </div>
+  );
+}
+
+function PositionsField({
+  packId,
+  menuId,
+  element,
+}: {
+  packId: PackId;
+  menuId: MenuId;
+  element: Element;
+}) {
+  const { t } = useTranslation();
+  const setElementPositions = useAccountStore((s) => s.setElementPositions);
+  const [draft, setDraft] = useState(element.positions);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: element.id forces draft reset on element switch
+  useEffect(() => {
+    setDraft(element.positions);
+  }, [element.id, element.positions]);
+  const commit = () => {
+    const canonical = formatPositions(parsePositions(draft));
+    if (canonical !== element.positions) {
+      setElementPositions({ packId, menuId, elementId: element.id, positions: canonical });
+    }
+    setDraft(canonical);
+  };
+  const positionsCount = parsePositions(element.positions).length;
+  return (
+    <div className="mb-3">
+      <FieldLabel>
+        {t(positionsCount === 1 ? "flow.positionsLabelOne" : "flow.positionsLabelOther", {
+          count: positionsCount,
+        })}
+      </FieldLabel>
+      <Input
+        value={draft}
+        placeholder="0-8,17,26"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          }
+        }}
+        className="h-8 px-2 py-0 font-mono text-xs"
+      />
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Command editor
+// ────────────────────────────────────────────────────────────────────────────
+
+function CommandEditor({ packId, command }: { packId: PackId; command: Command }) {
+  const setCommandField = useAccountStore((s) => s.setCommandField);
+  const { t } = useTranslation();
+  return (
+    <div className="flex h-full flex-col bg-zinc-950">
+      <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
+        <div className="font-mono text-xs text-zinc-200">{commandSignature(command)}</div>
+        <div className="text-[10px] text-zinc-500">
+          {command.permission ? `perm: ${command.permission} · ` : ""}command
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto px-3 py-3">
+        <Lane label={t("flow.elementId")}>
+          <div className="flex flex-col gap-2">
+            <CommandIdField packId={packId} commandId={command.id} />
+            <PropertyField
+              label={t("command.nameLabel")}
+              value={command.name}
+              onChange={(v) =>
+                setCommandField({ packId, commandId: command.id, field: "name", value: v })
+              }
+            />
+            <PropertyField
+              label={t("command.permissionLabel")}
+              value={command.permission ?? ""}
+              placeholder={t("command.permissionPlaceholder")}
+              onChange={(v) =>
+                setCommandField({ packId, commandId: command.id, field: "permission", value: v })
+              }
+            />
+            <PropertyField
+              label={t("command.descriptionLabel")}
+              value={command.description ?? ""}
+              placeholder={t("command.descriptionPlaceholder")}
+              multiline
+              onChange={(v) =>
+                setCommandField({ packId, commandId: command.id, field: "description", value: v })
+              }
+            />
+          </div>
+        </Lane>
+        <Lane label={t("command.argumentsLabel")}>
+          <CommandArgsEditor packId={packId} command={command} />
+        </Lane>
+        <Lane label={t("command.steps")}>
+          <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+            {/* Args declared above are referenceable as {name} in any text
+                field of the actions inside this step tree. */}
+            <PlaceholderProvider
+              value={command.arguments.map<PlaceholderInfo>((a) => ({
+                name: a.name,
+                type: a.type,
+                source: "command-arg",
+              }))}
+            >
+              <CommandStepPseudocode
+                packId={packId}
+                commandId={command.id}
+                steps={command.steps}
+                frames={[]}
+              />
+            </PlaceholderProvider>
+          </div>
+        </Lane>
+      </div>
+    </div>
+  );
+}
+
+const ARG_TYPES: CommandArg["type"][] = ["player", "string", "integer", "number", "boolean"];
+
+/** `/cmd <player> [amount=10]` — Minecraft-y signature for the header. */
+function commandSignature(command: Command): string {
+  const parts = [`/${command.name}`];
+  for (const arg of command.arguments) {
+    const piece = arg.required
+      ? `<${arg.name}>`
+      : arg.default
+        ? `[${arg.name}=${arg.default}]`
+        : `[${arg.name}]`;
+    parts.push(piece);
+  }
+  return parts.join(" ");
+}
+
+function CommandArgsEditor({ packId, command }: { packId: PackId; command: Command }) {
+  const addCommandArg = useAccountStore((s) => s.addCommandArg);
+  const setCommandArg = useAccountStore((s) => s.setCommandArg);
+  const removeCommandArg = useAccountStore((s) => s.removeCommandArg);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const { t } = useTranslation();
+
+  const dupNames = new Set<string>();
+  const seen = new Set<string>();
+  for (const a of command.arguments) {
+    if (a.name === "") continue;
+    if (seen.has(a.name)) dupNames.add(a.name);
+    seen.add(a.name);
+  }
+
+  const update = (index: number, patch: Partial<CommandArg>) => {
+    const current = command.arguments[index];
+    if (!current) return;
+    try {
+      setCommandArg({ packId, commandId: command.id, index, arg: { ...current, ...patch } });
+      setOrderError(null);
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
+    }
+  };
+
+  const addArg = () => {
+    try {
+      addCommandArg({ packId, commandId: command.id });
+      setOrderError(null);
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[10px] text-zinc-500">{t("command.argumentsHint", { tag: "{name}" })}</p>
+      {orderError && (
+        <div className="rounded border border-amber-500/60 bg-amber-500/5 px-2 py-1.5 text-[10px] text-amber-300">
+          {orderError}
+        </div>
+      )}
+      {command.arguments.length === 0 ? (
+        <div className="rounded border border-zinc-800 border-dashed bg-zinc-900/40 px-2 py-3 text-[11px] text-zinc-500">
+          {t("command.noArguments", { name: command.name })}
+        </div>
+      ) : (
+        command.arguments.map((arg, i) => {
+          const isInvalid = arg.name === "" || dupNames.has(arg.name);
+          return (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: arg index stable per render
+              key={i}
+              className={
+                isInvalid
+                  ? "flex flex-col gap-1 rounded border border-red-500/60 bg-red-500/5 p-1.5"
+                  : "flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+              }
+            >
+              {/* Row 1: identity controls + remove button */}
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={arg.name}
+                  placeholder={t("command.argName")}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                  className={
+                    isInvalid
+                      ? "h-8 w-28 border-red-500/60 px-2 py-0 font-mono text-xs"
+                      : "h-8 w-28 px-2 py-0 font-mono text-xs"
+                  }
+                />
+                <select
+                  value={arg.type}
+                  onChange={(e) => update(i, { type: e.target.value as CommandArg["type"] })}
+                  className="h-8 rounded border border-zinc-800 bg-zinc-900 px-1.5 font-mono text-xs text-zinc-200"
+                >
+                  {ARG_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => update(i, { required: !arg.required })}
+                  className={
+                    arg.required
+                      ? "h-8 rounded border border-emerald-500 bg-emerald-500/10 px-2 font-mono text-[11px] text-emerald-200"
+                      : "h-8 rounded border border-zinc-700 px-2 font-mono text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                  }
+                >
+                  {arg.required ? t("command.required") : t("command.optional")}
+                </button>
+                <button
+                  type="button"
+                  title={t("command.removeArg")}
+                  onClick={() => removeCommandArg({ packId, commandId: command.id, index: i })}
+                  className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                >
+                  ×
+                </button>
+              </div>
+              {/* Row 2: default value (optional args only) */}
+              {!arg.required ? (
+                <div className="flex items-center gap-2 pl-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[10px] text-zinc-500">
+                      {t("command.defaultLabel")}:
+                    </span>
+                    <Input
+                      value={arg.default === "{sender}" ? "" : (arg.default ?? "")}
+                      placeholder={t("command.defaultPlaceholder")}
+                      disabled={arg.default === "{sender}"}
+                      onChange={(e) => update(i, { default: e.target.value || undefined })}
+                      className="h-7 w-28 px-2 py-0 font-mono text-xs disabled:opacity-40"
+                    />
+                  </div>
+                  {arg.type === "player" ? (
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
+                      <input
+                        type="checkbox"
+                        checked={arg.default === "{sender}"}
+                        onChange={(e) =>
+                          update(i, { default: e.target.checked ? "{sender}" : undefined })
+                        }
+                        className="h-3.5 w-3.5 accent-emerald-500"
+                      />
+                      {t("command.senderDefault")}
+                    </label>
+                  ) : null}
+                </div>
+              ) : null}
+              {isInvalid ? (
+                <div className="text-[10px] text-red-300">
+                  {arg.name === ""
+                    ? t("command.argNeedsName")
+                    : t("command.argNameDup", { name: arg.name })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })
+      )}
+      <button
+        type="button"
+        onClick={addArg}
+        className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+      >
+        {t("command.addArg")}
+      </button>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Shared
+// ────────────────────────────────────────────────────────────────────────────
 
 function Lane({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+      <div className="mb-1.5 font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
         {label}
       </div>
       {children}
@@ -298,1165 +1268,6 @@ function Lane({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function ClickHandlersGrid({
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  click,
-}: {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  click: Element["appearances"][number]["click"];
-}) {
-  const populated = CLICK_TYPE_ORDER.filter((t) => click?.[t]);
-  const unpopulated = CLICK_TYPE_ORDER.filter((t) => !click?.[t]);
-  const addHandler = useAccountStore((s) => s.addElementClickHandler);
-  const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
-  const setSub = useFlowSelectionStore((s) => s.set);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {populated.map((clickType) => (
-        <ElementHandlerRow
-          key={clickType}
-          packId={packId}
-          menuId={menuId}
-          elementId={elementId}
-          stateIndex={stateIndex}
-          clickType={clickType}
-          handler={click![clickType]!}
-          onRemove={() => {
-            removeHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType });
-            setSub(null);
-          }}
-        />
-      ))}
-      {unpopulated.length > 0 ? (
-        <ClickTypePicker
-          label="+ Add click handler"
-          options={unpopulated}
-          onPick={(clickType) =>
-            addHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType })
-          }
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function ElementHandlerRow({
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  clickType,
-  handler,
-  onRemove,
-}: {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  handler: ClickHandler;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/40">
-      <div className="flex items-center justify-between border-zinc-800 border-b px-2 py-1.5">
-        <span className="font-mono text-[11px] text-zinc-200">{clickTypeLabel(clickType)}</span>
-        <button
-          type="button"
-          title="Remove this click handler"
-          onClick={onRemove}
-          className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          ×
-        </button>
-      </div>
-      <div className="overflow-x-auto p-2">
-        <ElementStepFlow
-          packId={packId}
-          menuId={menuId}
-          elementId={elementId}
-          stateIndex={stateIndex}
-          clickType={clickType}
-          steps={handler.steps}
-          frames={[]}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Recursive step renderer (element)
-// ────────────────────────────────────────────────────────────────────────────
-
-interface ElementStepFlowProps {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  steps: Step[];
-  frames: StepFrame[];
-}
-
-function ElementStepFlow(props: ElementStepFlowProps) {
-  const { packId, menuId, elementId, stateIndex, clickType, steps, frames } = props;
-  const addElementStep = useAccountStore((s) => s.addElementStep);
-  const setSub = useFlowSelectionStore((s) => s.set);
-  const firstMenuId = useAccountStore(
-    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
-  );
-
-  const handleAdd = (newStep: Step) => {
-    const newIndex = steps.length;
-    addElementStep({
-      packId,
-      menuId,
-      elementId,
-      appearanceIndex: stateIndex,
-      clickType,
-      frames,
-      index: newIndex,
-      step: newStep,
-    });
-    setSub({
-      kind: "step",
-      stateIndex,
-      clickType,
-      path: { frames, index: newIndex },
-    });
-  };
-
-  return (
-    <div className="flex items-stretch gap-2">
-      {steps.length === 0 ? (
-        <EmptyChainHint />
-      ) : (
-        steps.map((step, i) => (
-          <ElementStepNode
-            // biome-ignore lint/suspicious/noArrayIndexKey: step index stable per render
-            key={i}
-            step={step}
-            stepIndex={i}
-            isLast={i === steps.length - 1}
-            packId={packId}
-            menuId={menuId}
-            elementId={elementId}
-            stateIndex={stateIndex}
-            clickType={clickType}
-            frames={frames}
-          />
-        ))
-      )}
-      <AddStepPicker firstMenuId={firstMenuId} onPick={handleAdd} />
-    </div>
-  );
-}
-
-function ElementStepNode({
-  step,
-  stepIndex,
-  isLast,
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  clickType,
-  frames,
-}: {
-  step: Step;
-  stepIndex: number;
-  isLast: boolean;
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  frames: StepFrame[];
-}) {
-  const sub = useFlowSelectionStore((s) => s.sub);
-  const setSub = useFlowSelectionStore((s) => s.set);
-  const removeElementStep = useAccountStore((s) => s.removeElementStep);
-  const moveElementStep = useAccountStore((s) => s.moveElementStep);
-  const setElementStep = useAccountStore((s) => s.setElementStep);
-
-  const focused =
-    sub?.kind === "step" &&
-    sub.clickType === clickType &&
-    sub.stateIndex === stateIndex &&
-    framesEqual(sub.path.frames, frames) &&
-    sub.path.index === stepIndex;
-
-  const onSelect = () =>
-    setSub({ kind: "step", stateIndex, clickType, path: { frames, index: stepIndex } });
-  const onRemove = () => {
-    removeElementStep({
-      packId,
-      menuId,
-      elementId,
-      appearanceIndex: stateIndex,
-      clickType,
-      path: { frames, index: stepIndex },
-    });
-    if (focused) setSub(null);
-  };
-  const onMoveLeft = () =>
-    moveElementStep({
-      packId,
-      menuId,
-      elementId,
-      appearanceIndex: stateIndex,
-      clickType,
-      frames,
-      fromIndex: stepIndex,
-      toIndex: stepIndex - 1,
-    });
-  const onMoveRight = () =>
-    moveElementStep({
-      packId,
-      menuId,
-      elementId,
-      appearanceIndex: stateIndex,
-      clickType,
-      frames,
-      fromIndex: stepIndex,
-      toIndex: stepIndex + 1,
-    });
-
-  return (
-    <>
-      {step.kind === "action" ? (
-        <ActionCard
-          action={step.action}
-          focused={focused}
-          packId={packId}
-          onSelect={onSelect}
-          onRemove={onRemove}
-          onActionChange={(next) =>
-            setElementStep({
-              packId,
-              menuId,
-              elementId,
-              appearanceIndex: stateIndex,
-              clickType,
-              path: { frames, index: stepIndex },
-              step: { kind: "action", action: next },
-            })
-          }
-          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
-          onMoveRight={!isLast ? onMoveRight : undefined}
-        />
-      ) : (
-        <ElementIfCard
-          step={step}
-          stepIndex={stepIndex}
-          packId={packId}
-          menuId={menuId}
-          elementId={elementId}
-          stateIndex={stateIndex}
-          clickType={clickType}
-          frames={frames}
-          focused={focused}
-          onSelect={onSelect}
-          onRemove={onRemove}
-          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
-          onMoveRight={!isLast ? onMoveRight : undefined}
-        />
-      )}
-      {!isLast ? <Arrow /> : null}
-    </>
-  );
-}
-
-function ElementIfCard({
-  step,
-  stepIndex,
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  clickType,
-  frames,
-  focused,
-  onSelect,
-  onRemove,
-  onMoveLeft,
-  onMoveRight,
-}: {
-  step: Extract<Step, { kind: "if" }>;
-  stepIndex: number;
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  frames: StepFrame[];
-  focused: boolean;
-  onSelect: () => void;
-  onRemove: () => void;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
-}) {
-  const addIfCase = useAccountStore((s) => s.addIfCase);
-  const removeIfCase = useAccountStore((s) => s.removeIfCase);
-  const setIfCaseConditions = useAccountStore((s) => s.setIfCaseConditions);
-  const setIfCaseJoin = useAccountStore((s) => s.setIfCaseJoin);
-  return (
-    <div
-      className={cx(
-        "flex flex-col rounded border bg-zinc-900/60",
-        focused ? "border-emerald-500" : "border-zinc-700",
-      )}
-    >
-      <CardHeader
-        kind="if"
-        label="branch"
-        focused={focused}
-        onSelect={onSelect}
-        onRemove={onRemove}
-        onMoveLeft={onMoveLeft}
-        onMoveRight={onMoveRight}
-      />
-      <div className="flex flex-col gap-1.5 p-2">
-        {(() => {
-          const totalCases = step.cases.length + (step.else ? 1 : 0);
-          const autoCollapse = totalCases >= 3;
-          return (
-            <>
-              {step.cases.map((c, ci) => (
-                <CaseRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
-                  key={ci}
-                  label={ci === 0 ? "if" : "else if"}
-                  ifCase={c}
-                  defaultCollapsed={autoCollapse && ci > 0}
-                  childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
-                  // Only allow removing else-if cases — the first `if` case is the
-                  // anchor of the if-step and removing it would leave a degenerate
-                  // shape; users delete the whole if-step via the card × instead.
-                  onRemoveCase={
-                    ci > 0
-                      ? () =>
-                          removeIfCase({
-                            packId,
-                            menuId,
-                            elementId,
-                            appearanceIndex: stateIndex,
-                            clickType,
-                            frames,
-                            ifStepIndex: stepIndex,
-                            caseIndex: ci,
-                          })
-                      : undefined
-                  }
-                  onConditionsChange={(conditions) =>
-                    setIfCaseConditions({
-                      packId,
-                      menuId,
-                      elementId,
-                      appearanceIndex: stateIndex,
-                      clickType,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      caseIndex: ci,
-                      conditions,
-                    })
-                  }
-                  onJoinChange={(joinIndex, op) =>
-                    setIfCaseJoin({
-                      packId,
-                      menuId,
-                      elementId,
-                      appearanceIndex: stateIndex,
-                      clickType,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      caseIndex: ci,
-                      joinIndex,
-                      op,
-                    })
-                  }
-                  renderSteps={(steps, childFrames) => (
-                    <ElementStepFlow
-                      packId={packId}
-                      menuId={menuId}
-                      elementId={elementId}
-                      stateIndex={stateIndex}
-                      clickType={clickType}
-                      steps={steps}
-                      frames={childFrames}
-                    />
-                  )}
-                />
-              ))}
-              {step.else ? (
-                <CaseRow
-                  label="else"
-                  defaultCollapsed={autoCollapse}
-                  childFrames={[...frames, { stepIndex, descend: "else" }]}
-                  onRemoveCase={() =>
-                    useAccountStore.getState().toggleIfElse({
-                      packId,
-                      menuId,
-                      elementId,
-                      appearanceIndex: stateIndex,
-                      clickType,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      enabled: false,
-                    })
-                  }
-                  renderSteps={(_steps, childFrames) => (
-                    <ElementStepFlow
-                      packId={packId}
-                      menuId={menuId}
-                      elementId={elementId}
-                      stateIndex={stateIndex}
-                      clickType={clickType}
-                      steps={step.else!}
-                      frames={childFrames}
-                    />
-                  )}
-                />
-              ) : null}
-            </>
-          );
-        })()}
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() =>
-              addIfCase({
-                packId,
-                menuId,
-                elementId,
-                appearanceIndex: stateIndex,
-                clickType,
-                frames,
-                ifStepIndex: stepIndex,
-              })
-            }
-            className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-          >
-            + else if
-          </button>
-          {!step.else ? (
-            <ToggleElseButton
-              packId={packId}
-              menuId={menuId}
-              elementId={elementId}
-              stateIndex={stateIndex}
-              clickType={clickType}
-              frames={frames}
-              ifStepIndex={stepIndex}
-              enabled={false}
-            />
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ToggleElseButton({
-  packId,
-  menuId,
-  elementId,
-  stateIndex,
-  clickType,
-  frames,
-  ifStepIndex,
-  enabled,
-}: {
-  packId: PackId;
-  menuId: MenuId;
-  elementId: ElementId;
-  stateIndex: number;
-  clickType: ClickType;
-  frames: StepFrame[];
-  ifStepIndex: number;
-  enabled: boolean;
-}) {
-  const toggleIfElse = useAccountStore((s) => s.toggleIfElse);
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        toggleIfElse({
-          packId,
-          menuId,
-          elementId,
-          appearanceIndex: stateIndex,
-          clickType,
-          frames,
-          ifStepIndex,
-          enabled: !enabled,
-        })
-      }
-      className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-    >
-      + else
-    </button>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Card primitives shared by element and command flows
-// ────────────────────────────────────────────────────────────────────────────
-
-function ActionCard({
-  action,
-  focused,
-  packId,
-  onSelect,
-  onRemove,
-  onActionChange,
-  onMoveLeft,
-  onMoveRight,
-}: {
-  action: Action;
-  focused: boolean;
-  packId: PackId;
-  onSelect: () => void;
-  onRemove: () => void;
-  /** When provided, render the per-type editor inline on the card. */
-  onActionChange?: (next: Action) => void;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
-}) {
-  return (
-    <div
-      className={cx(
-        "group flex w-[240px] flex-col rounded border transition-colors",
-        focused ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-700 bg-zinc-900",
-      )}
-    >
-      <CardHeader
-        kind="action"
-        label={actionTypeLabel(action.type)}
-        focused={focused}
-        onSelect={onSelect}
-        onRemove={onRemove}
-        onMoveLeft={onMoveLeft}
-        onMoveRight={onMoveRight}
-      />
-      {onActionChange ? (
-        <div className="p-2">
-          <ActionEditor packId={packId} action={action} onChange={onActionChange} />
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onSelect}
-          className="px-2 py-1 text-left font-mono text-[11px] text-zinc-200"
-        >
-          {actionSummary(action)}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function CardHeader({
-  kind,
-  label,
-  focused,
-  onSelect,
-  onRemove,
-  onMoveLeft,
-  onMoveRight,
-}: {
-  kind: "action" | "if";
-  label: string;
-  focused: boolean;
-  onSelect: () => void;
-  onRemove: () => void;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
-}) {
-  return (
-    <div
-      className={cx(
-        "group/header flex items-center gap-1 border-b px-2 py-0.5",
-        focused ? "border-emerald-700/50 bg-emerald-500/5" : "border-zinc-800 bg-zinc-950/60",
-      )}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        className={cx(
-          "rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide",
-          kind === "if" ? "bg-blue-500/20 text-blue-200" : "bg-zinc-800 text-zinc-300",
-        )}
-      >
-        {label}
-      </button>
-      <div className="flex flex-1 items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover/header:opacity-100">
-        <RowIconButton title="Move left" disabled={!onMoveLeft} onClick={onMoveLeft}>
-          ←
-        </RowIconButton>
-        <RowIconButton title="Move right" disabled={!onMoveRight} onClick={onMoveRight}>
-          →
-        </RowIconButton>
-        <RowIconButton title="Remove" onClick={onRemove}>
-          ×
-        </RowIconButton>
-      </div>
-    </div>
-  );
-}
-
-function RowIconButton({
-  children,
-  title,
-  disabled,
-  onClick,
-}: {
-  children: React.ReactNode;
-  title: string;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      className={cx(
-        "rounded px-1 text-[10px]",
-        disabled
-          ? "cursor-not-allowed text-zinc-700"
-          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Arrow() {
-  return (
-    <div className="flex shrink-0 items-center text-zinc-700">
-      <span className="font-mono text-xs">→</span>
-    </div>
-  );
-}
-
-function EmptyChainHint() {
-  return <div className="flex items-center text-[10px] text-zinc-600 italic">(empty chain)</div>;
-}
-
-function CaseRow({
-  label,
-  ifCase,
-  childFrames,
-  renderSteps,
-  onRemoveCase,
-  onConditionsChange,
-  onJoinChange,
-  defaultCollapsed = false,
-}: {
-  label: string;
-  ifCase?: IfCase;
-  childFrames: StepFrame[];
-  renderSteps: (steps: Step[], childFrames: StepFrame[]) => React.ReactNode;
-  /** Optional × button on the row header. Provided for else-if/else cases. */
-  onRemoveCase?: () => void;
-  /**
-   * When provided, render an inline ConditionListEditor for the case's
-   * conditions right inside the row — so users don't have to find the
-   * properties pane to edit them.
-   */
-  onConditionsChange?: (conditions: Condition[]) => void;
-  /** When provided, expose per-joiner AND/OR toggles on the inline editor. */
-  onJoinChange?: (joinIndex: number, op: "and" | "or") => void;
-  /** Initial collapse state. Useful when the parent has many cases. */
-  defaultCollapsed?: boolean;
-}) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const stepCount = ifCase?.steps.length ?? 0;
-  const conditionsSummary = ifCase
-    ? ifCase.conditions.length === 0
-      ? "(always)"
-      : ifCase.conditions
-          .map((c, i) => {
-            const op = (ifCase.joins?.[i - 1] ?? "and").toUpperCase();
-            return i === 0 ? conditionSummary(c) : ` ${op} ${conditionSummary(c)}`;
-          })
-          .join("")
-    : null;
-  return (
-    <div className="rounded border border-zinc-800 bg-zinc-950/50 p-1.5">
-      <div className="mb-1 flex items-center gap-1">
-        <button
-          type="button"
-          title={collapsed ? "Expand" : "Collapse"}
-          onClick={() => setCollapsed((v) => !v)}
-          className="rounded px-1 font-mono text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          {collapsed ? "▶" : "▼"}
-        </button>
-        <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
-          {label}
-        </span>
-        {/* When collapsed, show a compact summary in the header so the user
-            can see what's there without expanding. */}
-        {collapsed ? (
-          <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">
-            {conditionsSummary ? `${conditionsSummary} · ` : ""}
-            {stepCount} step{stepCount === 1 ? "" : "s"}
-          </span>
-        ) : null}
-        {onRemoveCase ? (
-          <button
-            type="button"
-            title="Remove this case"
-            onClick={onRemoveCase}
-            className={cx(
-              "rounded px-1 text-[10px] text-zinc-600 hover:bg-zinc-800 hover:text-zinc-200",
-              collapsed ? "" : "ml-auto",
-            )}
-          >
-            ×
-          </button>
-        ) : null}
-      </div>
-      {!collapsed ? (
-        <>
-          {ifCase && onConditionsChange ? (
-            <div className="mb-2">
-              <ConditionListEditor
-                label=""
-                conditions={ifCase.conditions}
-                onChange={onConditionsChange}
-                emptyHint="(always — drop a condition here to gate this case)"
-                joins={ifCase.joins}
-                onJoinChange={onJoinChange}
-              />
-            </div>
-          ) : null}
-          <div className="overflow-x-auto">{renderSteps(ifCase?.steps ?? [], childFrames)}</div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function AddStepPicker({
-  firstMenuId,
-  onPick,
-}: {
-  firstMenuId: MenuId | undefined;
-  onPick: (step: Step) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="self-stretch rounded border border-zinc-700 border-dashed px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-        >
-          + Add
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
-        {ACTION_TYPES.map((type) => (
-          <DropdownMenuItem
-            key={type}
-            onSelect={() => onPick({ kind: "action", action: defaultAction(type, firstMenuId) })}
-            className="cursor-pointer focus:bg-zinc-800"
-          >
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
-              {actionTypeLabel(type)}
-            </span>
-            <span className="font-mono text-[11px] text-zinc-200">{type}</span>
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuItem
-          onSelect={() =>
-            onPick({
-              kind: "if",
-              cases: [{ conditions: [], steps: [] }],
-            })
-          }
-          className="cursor-pointer focus:bg-zinc-800"
-        >
-          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
-            if
-          </span>
-          <span className="font-mono text-[11px] text-zinc-200">if branch</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function ClickTypePicker({
-  label,
-  options,
-  onPick,
-}: {
-  label: string;
-  options: ClickType[];
-  onPick: (clickType: ClickType) => void;
-}) {
-  if (options.length === 0) return null;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="self-start rounded border border-zinc-700 border-dashed px-2 py-1.5 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-        >
-          {label}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
-        {options.map((opt) => (
-          <DropdownMenuItem
-            key={opt}
-            onSelect={() => onPick(opt)}
-            className="cursor-pointer font-mono text-[11px] focus:bg-zinc-800"
-          >
-            {clickTypeLabel(opt)}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function framesEqual(a: StepFrame[], b: StepFrame[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const fa = a[i]!;
-    const fb = b[i]!;
-    if (fa.stepIndex !== fb.stepIndex) return false;
-    if (fa.descend === "else") {
-      if (fb.descend !== "else") return false;
-    } else {
-      if (fb.descend === "else") return false;
-      if (fa.descend.case !== fb.descend.case) return false;
-    }
-  }
-  return true;
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Command flow
-// ────────────────────────────────────────────────────────────────────────────
-
-function CommandFlow({ packId, command }: { packId: PackId; command: Command }) {
-  return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
-        <div className="font-mono text-xs text-zinc-200">/{command.name}</div>
-        <div className="text-[10px] text-zinc-500">
-          {command.permission ? `perm: ${command.permission} · ` : ""}
-          step tree
-        </div>
-      </div>
-      <div className="flex-1 overflow-auto p-3">
-        <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
-          <CommandStepFlow
-            packId={packId}
-            commandId={command.id}
-            steps={command.steps}
-            frames={[]}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CommandStepFlow({
-  packId,
-  commandId,
-  steps,
-  frames,
-}: {
-  packId: PackId;
-  commandId: CommandId;
-  steps: Step[];
-  frames: StepFrame[];
-}) {
-  const addCommandStep = useAccountStore((s) => s.addCommandStep);
-  const setSub = useFlowSelectionStore((s) => s.set);
-  const firstMenuId = useAccountStore(
-    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
-  );
-  const handleAdd = (newStep: Step) => {
-    const newIndex = steps.length;
-    addCommandStep({ packId, commandId, frames, index: newIndex, step: newStep });
-    setSub({ kind: "step", path: { frames, index: newIndex } });
-  };
-  return (
-    <div className="flex items-stretch gap-2">
-      {steps.length === 0 ? (
-        <EmptyChainHint />
-      ) : (
-        steps.map((step, i) => (
-          <CommandStepNode
-            // biome-ignore lint/suspicious/noArrayIndexKey: stable per render
-            key={i}
-            step={step}
-            stepIndex={i}
-            isLast={i === steps.length - 1}
-            packId={packId}
-            commandId={commandId}
-            frames={frames}
-          />
-        ))
-      )}
-      <AddStepPicker firstMenuId={firstMenuId} onPick={handleAdd} />
-    </div>
-  );
-}
-
-function CommandStepNode({
-  step,
-  stepIndex,
-  isLast,
-  packId,
-  commandId,
-  frames,
-}: {
-  step: Step;
-  stepIndex: number;
-  isLast: boolean;
-  packId: PackId;
-  commandId: CommandId;
-  frames: StepFrame[];
-}) {
-  const sub = useFlowSelectionStore((s) => s.sub);
-  const setSub = useFlowSelectionStore((s) => s.set);
-  const removeCommandStep = useAccountStore((s) => s.removeCommandStep);
-  const moveCommandStep = useAccountStore((s) => s.moveCommandStep);
-  const setCommandStep = useAccountStore((s) => s.setCommandStep);
-
-  const focused =
-    sub?.kind === "step" &&
-    sub.clickType === undefined &&
-    sub.stateIndex === undefined &&
-    framesEqual(sub.path.frames, frames) &&
-    sub.path.index === stepIndex;
-
-  const onSelect = () => setSub({ kind: "step", path: { frames, index: stepIndex } });
-  const onRemove = () => {
-    removeCommandStep({ packId, commandId, path: { frames, index: stepIndex } });
-    if (focused) setSub(null);
-  };
-  const onMoveLeft = () =>
-    moveCommandStep({ packId, commandId, frames, fromIndex: stepIndex, toIndex: stepIndex - 1 });
-  const onMoveRight = () =>
-    moveCommandStep({ packId, commandId, frames, fromIndex: stepIndex, toIndex: stepIndex + 1 });
-
-  return (
-    <>
-      {step.kind === "action" ? (
-        <ActionCard
-          action={step.action}
-          focused={focused}
-          packId={packId}
-          onSelect={onSelect}
-          onRemove={onRemove}
-          onActionChange={(next) =>
-            setCommandStep({
-              packId,
-              commandId,
-              path: { frames, index: stepIndex },
-              step: { kind: "action", action: next },
-            })
-          }
-          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
-          onMoveRight={!isLast ? onMoveRight : undefined}
-        />
-      ) : (
-        <CommandIfCard
-          step={step}
-          stepIndex={stepIndex}
-          packId={packId}
-          commandId={commandId}
-          frames={frames}
-          focused={focused}
-          onSelect={onSelect}
-          onRemove={onRemove}
-          onMoveLeft={stepIndex > 0 ? onMoveLeft : undefined}
-          onMoveRight={!isLast ? onMoveRight : undefined}
-        />
-      )}
-      {!isLast ? <Arrow /> : null}
-    </>
-  );
-}
-
-function CommandIfCard({
-  step,
-  stepIndex,
-  packId,
-  commandId,
-  frames,
-  focused,
-  onSelect,
-  onRemove,
-  onMoveLeft,
-  onMoveRight,
-}: {
-  step: Extract<Step, { kind: "if" }>;
-  stepIndex: number;
-  packId: PackId;
-  commandId: CommandId;
-  frames: StepFrame[];
-  focused: boolean;
-  onSelect: () => void;
-  onRemove: () => void;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
-}) {
-  const addCommandIfCase = useAccountStore((s) => s.addCommandIfCase);
-  const toggleCommandIfElse = useAccountStore((s) => s.toggleCommandIfElse);
-  const removeCommandIfCase = useAccountStore((s) => s.removeCommandIfCase);
-  const setCommandIfCaseConditions = useAccountStore((s) => s.setCommandIfCaseConditions);
-  const setCommandIfCaseJoin = useAccountStore((s) => s.setCommandIfCaseJoin);
-  return (
-    <div
-      className={cx(
-        "flex flex-col rounded border bg-zinc-900/60",
-        focused ? "border-emerald-500" : "border-zinc-700",
-      )}
-    >
-      <CardHeader
-        kind="if"
-        label="branch"
-        focused={focused}
-        onSelect={onSelect}
-        onRemove={onRemove}
-        onMoveLeft={onMoveLeft}
-        onMoveRight={onMoveRight}
-      />
-      <div className="flex flex-col gap-1.5 p-2">
-        {(() => {
-          const totalCases = step.cases.length + (step.else ? 1 : 0);
-          const autoCollapse = totalCases >= 3;
-          return (
-            <>
-              {step.cases.map((c, ci) => (
-                <CaseRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
-                  key={ci}
-                  label={ci === 0 ? "if" : "else if"}
-                  ifCase={c}
-                  defaultCollapsed={autoCollapse && ci > 0}
-                  childFrames={[...frames, { stepIndex, descend: { case: ci } }]}
-                  onRemoveCase={
-                    ci > 0
-                      ? () =>
-                          removeCommandIfCase({
-                            packId,
-                            commandId,
-                            frames,
-                            ifStepIndex: stepIndex,
-                            caseIndex: ci,
-                          })
-                      : undefined
-                  }
-                  onConditionsChange={(conditions) =>
-                    setCommandIfCaseConditions({
-                      packId,
-                      commandId,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      caseIndex: ci,
-                      conditions,
-                    })
-                  }
-                  onJoinChange={(joinIndex, op) =>
-                    setCommandIfCaseJoin({
-                      packId,
-                      commandId,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      caseIndex: ci,
-                      joinIndex,
-                      op,
-                    })
-                  }
-                  renderSteps={(steps, childFrames) => (
-                    <CommandStepFlow
-                      packId={packId}
-                      commandId={commandId}
-                      steps={steps}
-                      frames={childFrames}
-                    />
-                  )}
-                />
-              ))}
-              {step.else ? (
-                <CaseRow
-                  label="else"
-                  defaultCollapsed={autoCollapse}
-                  childFrames={[...frames, { stepIndex, descend: "else" }]}
-                  onRemoveCase={() =>
-                    toggleCommandIfElse({
-                      packId,
-                      commandId,
-                      frames,
-                      ifStepIndex: stepIndex,
-                      enabled: false,
-                    })
-                  }
-                  renderSteps={(_, childFrames) => (
-                    <CommandStepFlow
-                      packId={packId}
-                      commandId={commandId}
-                      steps={step.else!}
-                      frames={childFrames}
-                    />
-                  )}
-                />
-              ) : null}
-            </>
-          );
-        })()}
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => addCommandIfCase({ packId, commandId, frames, ifStepIndex: stepIndex })}
-            className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-          >
-            + else if
-          </button>
-          {!step.else ? (
-            <button
-              type="button"
-              onClick={() =>
-                toggleCommandIfElse({
-                  packId,
-                  commandId,
-                  frames,
-                  ifStepIndex: stepIndex,
-                  enabled: true,
-                })
-              }
-              className="rounded border border-zinc-700 border-dashed px-2 py-0.5 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-            >
-              + else
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <div className="mb-1 font-mono text-[10px] text-zinc-500 uppercase">{children}</div>;
 }

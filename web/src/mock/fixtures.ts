@@ -1,9 +1,18 @@
 import { accountId, commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
 import type { Account, Pack } from "@/domain/types";
+import { migratePackToI18n } from "@/lib/i18nMigration";
 
 const ts = "2026-04-30T10:00:00Z";
 
-const personalPack = (): Pack => {
+// Fixtures are authored with plain user-facing strings (title, send_message
+// text, etc.) for readability — the runtime expects `LText` refs, so we run
+// the i18n migration over each pack before exposing it. The cast keeps TS
+// happy without duplicating the legacy shape as a separate type.
+//
+// biome-ignore lint/suspicious/noExplicitAny: legacy fixture shape, see comment
+type LegacyPack = any;
+
+const personalPack = (): LegacyPack => {
   const shopMainId = menuId("m_shop_main");
   const profileId = menuId("m_profile");
   const aboutId = menuId("m_about");
@@ -86,7 +95,7 @@ const personalPack = (): Pack => {
   };
 };
 
-const shopSystemPack = (): Pack => ({
+const shopSystemPack = (): LegacyPack => ({
   id: packId("p_shop_system"),
   name: "Shop System",
   description: "Multi-category shop with VIP rank",
@@ -132,7 +141,7 @@ const shopSystemPack = (): Pack => ({
   ],
 });
 
-const dailyQuestsPack = (): Pack => ({
+const dailyQuestsPack = (): LegacyPack => ({
   id: packId("p_daily_quests"),
   name: "Daily Quests",
   description: "Imported pack from @creator-x",
@@ -158,8 +167,12 @@ const dailyQuestsPack = (): Pack => ({
   commands: [],
 });
 
-export const mockAccount = (): Account => ({
-  id: accountId("acc_local"),
-  packs: [personalPack(), shopSystemPack(), dailyQuestsPack()],
-  packOrder: [packId("p_personal"), packId("p_shop_system"), packId("p_daily_quests")],
-});
+export const mockAccount = (): Account => {
+  const packs = [personalPack(), shopSystemPack(), dailyQuestsPack()];
+  for (const p of packs) migratePackToI18n(p, p.defaultLang ?? "en");
+  return {
+    id: accountId("acc_local"),
+    packs: packs as Pack[],
+    packOrder: [packId("p_personal"), packId("p_shop_system"), packId("p_daily_quests")],
+  };
+};

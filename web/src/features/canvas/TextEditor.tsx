@@ -1,6 +1,8 @@
 import type { MenuId, PackId } from "@/domain/types";
+import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useEditingStore } from "@/state/editingStore";
+import { useUiStore } from "@/state/uiStore";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TEX_FIRST_SLOT_X, TEX_SCALE, menuBoxSize } from "./menuLayout";
@@ -23,19 +25,20 @@ interface TextEditorProps {
 export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
   const editingMenuId = useEditingStore((s) => s.editingMenuId);
   const setEditing = useEditingStore((s) => s.setEditing);
-  const setMenuField = useAccountStore((s) => s.setMenuField);
-  const menu = useAccountStore((s) =>
-    editingMenuId
-      ? s.account.packs.find((p) => p.id === packId)?.menus.find((m) => m.id === editingMenuId)
-      : undefined,
-  );
+  const setMenuTitle = useAccountStore((s) => s.setMenuTitle);
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const menu = editingMenuId ? pack?.menus.find((m) => m.id === editingMenuId) : undefined;
+  const activeLang = useUiStore((s) => s.activeLang);
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
+  // Re-derive the displayed title each time the editor opens on a new menu —
+  // pulled through `getText` so we author/edit the active-language entry.
+  const initialTitle = menu && pack ? getText(pack, menu.title, activeLang) : "";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: open the editor when menu becomes available
   useEffect(() => {
     if (menu) {
-      setDraft(menu.title);
+      setDraft(initialTitle);
       requestAnimationFrame(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -58,9 +61,14 @@ export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
   const commit = () => {
     if (!editingMenuId) return;
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== menu.title) {
+    if (trimmed && trimmed !== initialTitle) {
       try {
-        setMenuField({ packId, menuId: editingMenuId as MenuId, field: "title", value: trimmed });
+        setMenuTitle({
+          packId,
+          menuId: editingMenuId as MenuId,
+          lang: activeLang,
+          value: trimmed,
+        });
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "title edit failed");
       }

@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/Toaster";
+import "@/i18n"; // bootstraps i18next before any component reads translations
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

@@ -1,4 +1,5 @@
 import { elementId, menuId, packId } from "@/domain/ids";
+import type { I18nKey } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
@@ -38,11 +39,9 @@ describe("accountStore", () => {
     expect(useAccountStore.getState().account.packOrder).toEqual(reversed);
   });
 
-  it("moveMenuToPack moves the menu and keeps packs hermetic", () => {
+  it("moveMenuToPack moves the menu across packs", () => {
     const fromId = packId("p_personal");
     const toId = packId("p_shop_system");
-    // m_about is a leaf menu with no inbound references in p_personal,
-    // so moving it leaves both source and target hermetic.
     const menuToMove = menuId("m_about");
 
     useAccountStore
@@ -57,19 +56,23 @@ describe("accountStore", () => {
     expect(to.menus.find((m) => m.id === menuToMove)!.packId).toBe(toId);
   });
 
-  it("moveMenuToPack rejects when destination would break hermeticity", () => {
+  it("moveMenuToPack succeeds even when refs become dangling", () => {
+    // m_shop_main has open_menu actions targeting menus in p_personal.
+    // We no longer enforce hermeticity — the runtime is responsible for
+    // tolerating missing targets — so the move just goes through.
     const fromId = packId("p_personal");
     const toId = packId("p_shop_system");
     const sourceMenu = menuId("m_shop_main");
 
-    expect(() =>
-      useAccountStore
-        .getState()
-        .moveMenuToPack({ menuId: sourceMenu, fromPackId: fromId, toPackId: toId }),
-    ).toThrow(/cross-pack open_menu/);
+    useAccountStore
+      .getState()
+      .moveMenuToPack({ menuId: sourceMenu, fromPackId: fromId, toPackId: toId });
 
     const a = useAccountStore.getState().account;
-    expect(a.packs.find((p) => p.id === fromId)!.menus.some((m) => m.id === sourceMenu)).toBe(true);
+    expect(a.packs.find((p) => p.id === fromId)!.menus.some((m) => m.id === sourceMenu)).toBe(
+      false,
+    );
+    expect(a.packs.find((p) => p.id === toId)!.menus.some((m) => m.id === sourceMenu)).toBe(true);
   });
 
   it("deleteFromPack removes a leaf menu and its canvas position", () => {
@@ -80,14 +83,14 @@ describe("accountStore", () => {
     expect("m_about" in pack.canvasLayout).toBe(false);
   });
 
-  it("deleteFromPack rejects when removed menu has inbound refs", () => {
+  it("deleteFromPack succeeds even when the menu has inbound refs", () => {
+    // m_profile is referenced by m_shop_main's actions. Deleting it leaves
+    // those refs dangling — that's fine; the runtime no-ops on missing
+    // open_menu targets.
     const pId = packId("p_personal");
-    expect(() =>
-      useAccountStore.getState().deleteFromPack({ packId: pId, nodeIds: ["m_profile"] }),
-    ).toThrow(/cross-pack open_menu/);
-    // Source unchanged.
+    useAccountStore.getState().deleteFromPack({ packId: pId, nodeIds: ["m_profile"] });
     const pack = useAccountStore.getState().account.packs.find((p) => p.id === pId)!;
-    expect(pack.menus.some((m) => m.id === "m_profile")).toBe(true);
+    expect(pack.menus.some((m) => m.id === "m_profile")).toBe(false);
   });
 
   it("setSlotMaterial updates an existing element at that position", () => {
@@ -405,6 +408,7 @@ describe("accountStore", () => {
       frames: [],
       index: -1,
       step: { kind: "action", action: { type: "close_menu" } },
+      lang: "en",
     });
     let steps = findElement()!.appearances[0]!.click!.left!.steps;
     expect(steps).toHaveLength(2);
@@ -430,7 +434,11 @@ describe("accountStore", () => {
       clickType: "left",
       frames: [],
       index: -1,
-      step: { kind: "action", action: { type: "send_message", text: "hi" } },
+      step: {
+        kind: "action",
+        action: { type: "send_message", text: { key: "" as I18nKey } },
+      },
+      lang: "en",
     });
     useAccountStore.getState().moveElementStep({
       packId: PERSONAL,
@@ -457,6 +465,7 @@ describe("accountStore", () => {
       clickType: "left",
       path: { frames: [], index: 0 },
       step: { kind: "if", cases: [{ conditions: [], steps: [] }] },
+      lang: "en",
     });
     useAccountStore.getState().addElementStep({
       packId: PERSONAL,
@@ -467,11 +476,157 @@ describe("accountStore", () => {
       frames: [{ stepIndex: 0, descend: { case: 0 } }],
       index: 0,
       step: { kind: "action", action: { type: "close_menu" } },
+      lang: "en",
     });
     const root = findElement()!.appearances[0]!.click!.left!.steps[0]!;
     if (root.kind !== "if") throw new Error("expected if");
     expect(root.cases[0]!.steps).toHaveLength(1);
     expect(root.cases[0]!.steps[0]?.kind).toBe("action");
+  });
+
+  describe("command arg order validation", () => {
+    const pId = packId("p_personal");
+
+    it("addCommandArg throws when appending required after optional", () => {
+      const cId = useAccountStore.getState().createCommand({ packId: pId });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
+      expect(() =>
+        useAccountStore
+          .getState()
+          .addCommandArg({ packId: pId, commandId: cId, arg: { name: "req", type: "string", required: true } }),
+      ).toThrow(/cannot follow/);
+    });
+
+    it("setCommandArg throws when making an arg required after an optional one", () => {
+      const cId = useAccountStore.getState().createCommand({ packId: pId });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "second", type: "string", required: false } });
+      expect(() =>
+        useAccountStore.getState().setCommandArg({
+          packId: pId,
+          commandId: cId,
+          index: 1,
+          arg: { name: "second", type: "string", required: true },
+        }),
+      ).toThrow(/cannot follow/);
+    });
+
+    it("valid order (required then optional) succeeds", () => {
+      const cId = useAccountStore.getState().createCommand({ packId: pId });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "target", type: "player", required: true } });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "amount", type: "integer", required: false } });
+      const cmd = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .commands.find((c) => c.id === cId)!;
+      expect(cmd.arguments).toHaveLength(2);
+      expect(cmd.arguments[0]!.required).toBe(true);
+      expect(cmd.arguments[1]!.required).toBe(false);
+    });
+
+    it("state is unchanged when validation throws", () => {
+      const cId = useAccountStore.getState().createCommand({ packId: pId });
+      useAccountStore
+        .getState()
+        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
+      try {
+        useAccountStore
+          .getState()
+          .addCommandArg({ packId: pId, commandId: cId, arg: { name: "req", type: "string", required: true } });
+      } catch {
+        // expected
+      }
+      const cmd = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .commands.find((c) => c.id === cId)!;
+      expect(cmd.arguments).toHaveLength(1);
+    });
+  });
+
+  describe("menu contextInput source", () => {
+    it("setMenuContextInput persists ConnectorBinding on a list-typed input", () => {
+      const pId = packId("p_personal");
+      const mId = menuId("m_shop_main");
+      // First add a "shops" list input.
+      useAccountStore.getState().addMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        input: { name: "shops", type: "list" },
+      });
+      const before = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!;
+      const idx = (before.contextInputs ?? []).findIndex((c) => c.name === "shops");
+      expect(idx).toBeGreaterThanOrEqual(0);
+
+      // Attach a ConnectorBinding via setMenuContextInput (UI patch path).
+      useAccountStore.getState().setMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        index: idx,
+        input: {
+          name: "shops",
+          type: "list",
+          source: {
+            ref: "chestshop:items",
+            filter: { category: "{category}" },
+            sort: { by: "price", direction: "asc" },
+            limit: 28,
+          },
+        },
+      });
+
+      const after = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!;
+      const stored = (after.contextInputs ?? []).find((c) => c.name === "shops");
+      expect(stored?.source?.ref).toBe("chestshop:items");
+      expect(stored?.source?.filter).toEqual({ category: "{category}" });
+      expect(stored?.source?.sort).toEqual({ by: "price", direction: "asc" });
+      expect(stored?.source?.limit).toBe(28);
+    });
+
+    it("setMenuContextInput can detach the ConnectorBinding by writing source: undefined", () => {
+      const pId = packId("p_personal");
+      const mId = menuId("m_shop_main");
+      useAccountStore.getState().addMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        input: { name: "things", type: "list", source: { ref: "essentials:warps" } },
+      });
+      const idx0 = (useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!
+        .contextInputs ?? []).findIndex((c) => c.name === "things");
+
+      useAccountStore.getState().setMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        index: idx0,
+        input: { name: "things", type: "list", source: undefined },
+      });
+
+      const stored = (useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!
+        .contextInputs ?? []).find((c) => c.name === "things");
+      expect(stored?.source).toBeUndefined();
+    });
   });
 
   it("createPack clears the temporal stack", () => {
