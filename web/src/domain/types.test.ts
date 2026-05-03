@@ -36,6 +36,8 @@ describe("domain types — compile-time shape", () => {
       commands: [],
       templates: [],
       assets: [],
+      dataSources: [],
+      importedConnectors: [],
       i18nKeys: { greeting: { en: "Hi" } } as Pack["i18nKeys"],
       defaultLang: "en",
       canvasLayout: {},

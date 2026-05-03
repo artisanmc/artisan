@@ -182,7 +182,9 @@ function OpenMenuEditor({
               <div key={input.name} className="rounded border border-zinc-800 bg-zinc-900/40 p-1.5">
                 <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
                   <span className="text-purple-300">{input.name}</span>
-                  <span className="text-zinc-500">: {input.type}</span>
+                  <span className="text-zinc-500">
+                    : {input.kind === "primitive" ? input.type : "sourceRef"}
+                  </span>
                 </div>
                 <Input
                   value={ctxValues[input.name] ?? ""}

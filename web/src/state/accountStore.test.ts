@@ -489,24 +489,32 @@ describe("accountStore", () => {
 
     it("addCommandArg throws when appending required after optional", () => {
       const cId = useAccountStore.getState().createCommand({ packId: pId });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "opt", type: "string", required: false },
+      });
       expect(() =>
-        useAccountStore
-          .getState()
-          .addCommandArg({ packId: pId, commandId: cId, arg: { name: "req", type: "string", required: true } }),
+        useAccountStore.getState().addCommandArg({
+          packId: pId,
+          commandId: cId,
+          arg: { name: "req", type: "string", required: true },
+        }),
       ).toThrow(/cannot follow/);
     });
 
     it("setCommandArg throws when making an arg required after an optional one", () => {
       const cId = useAccountStore.getState().createCommand({ packId: pId });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "second", type: "string", required: false } });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "opt", type: "string", required: false },
+      });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "second", type: "string", required: false },
+      });
       expect(() =>
         useAccountStore.getState().setCommandArg({
           packId: pId,
@@ -519,12 +527,16 @@ describe("accountStore", () => {
 
     it("valid order (required then optional) succeeds", () => {
       const cId = useAccountStore.getState().createCommand({ packId: pId });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "target", type: "player", required: true } });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "amount", type: "integer", required: false } });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "target", type: "player", required: true },
+      });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "amount", type: "integer", required: false },
+      });
       const cmd = useAccountStore
         .getState()
         .account.packs.find((p) => p.id === pId)!
@@ -536,13 +548,17 @@ describe("accountStore", () => {
 
     it("state is unchanged when validation throws", () => {
       const cId = useAccountStore.getState().createCommand({ packId: pId });
-      useAccountStore
-        .getState()
-        .addCommandArg({ packId: pId, commandId: cId, arg: { name: "opt", type: "string", required: false } });
+      useAccountStore.getState().addCommandArg({
+        packId: pId,
+        commandId: cId,
+        arg: { name: "opt", type: "string", required: false },
+      });
       try {
-        useAccountStore
-          .getState()
-          .addCommandArg({ packId: pId, commandId: cId, arg: { name: "req", type: "string", required: true } });
+        useAccountStore.getState().addCommandArg({
+          packId: pId,
+          commandId: cId,
+          arg: { name: "req", type: "string", required: true },
+        });
       } catch {
         // expected
       }
@@ -554,37 +570,65 @@ describe("accountStore", () => {
     });
   });
 
-  describe("menu contextInput source", () => {
-    it("setMenuContextInput persists ConnectorBinding on a list-typed input", () => {
+  describe("menu contextInput discriminated union", () => {
+    it("addMenuContextInput with kind='primitive' adds a primitive input", () => {
       const pId = packId("p_personal");
       const mId = menuId("m_shop_main");
-      // First add a "shops" list input.
       useAccountStore.getState().addMenuContextInput({
         packId: pId,
         menuId: mId,
-        input: { name: "shops", type: "list" },
+        kind: "primitive",
+      });
+      const menu = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!;
+      const added = (menu.contextInputs ?? []).at(-1);
+      expect(added?.kind).toBe("primitive");
+      if (added?.kind === "primitive") {
+        expect(added.type).toBe("string");
+      }
+    });
+
+    it("addMenuContextInput with kind='sourceRef' adds a sourceRef input", () => {
+      const pId = packId("p_personal");
+      const mId = menuId("m_shop_main");
+      useAccountStore.getState().addMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        kind: "sourceRef",
+      });
+      const menu = useAccountStore
+        .getState()
+        .account.packs.find((p) => p.id === pId)!
+        .menus.find((m) => m.id === mId)!;
+      const added = (menu.contextInputs ?? []).at(-1);
+      expect(added?.kind).toBe("sourceRef");
+    });
+
+    it("setMenuContextInput persists a sourceRef input", () => {
+      const pId = packId("p_personal");
+      const mId = menuId("m_shop_main");
+      useAccountStore.getState().addMenuContextInput({
+        packId: pId,
+        menuId: mId,
+        kind: "sourceRef",
       });
       const before = useAccountStore
         .getState()
         .account.packs.find((p) => p.id === pId)!
         .menus.find((m) => m.id === mId)!;
-      const idx = (before.contextInputs ?? []).findIndex((c) => c.name === "shops");
+      const idx = (before.contextInputs ?? []).findIndex((c) => c.kind === "sourceRef");
       expect(idx).toBeGreaterThanOrEqual(0);
 
-      // Attach a ConnectorBinding via setMenuContextInput (UI patch path).
       useAccountStore.getState().setMenuContextInput({
         packId: pId,
         menuId: mId,
         index: idx,
         input: {
+          kind: "sourceRef",
           name: "shops",
-          type: "list",
-          source: {
-            ref: "chestshop:items",
-            filter: { category: "{category}" },
-            sort: { by: "price", direction: "asc" },
-            limit: 28,
-          },
+          ref: "chestshop:items" as import("@/domain/types").SourceRef,
         },
       });
 
@@ -593,39 +637,43 @@ describe("accountStore", () => {
         .account.packs.find((p) => p.id === pId)!
         .menus.find((m) => m.id === mId)!;
       const stored = (after.contextInputs ?? []).find((c) => c.name === "shops");
-      expect(stored?.source?.ref).toBe("chestshop:items");
-      expect(stored?.source?.filter).toEqual({ category: "{category}" });
-      expect(stored?.source?.sort).toEqual({ by: "price", direction: "asc" });
-      expect(stored?.source?.limit).toBe(28);
+      expect(stored?.kind).toBe("sourceRef");
+      if (stored?.kind === "sourceRef") {
+        expect(stored.ref).toBe("chestshop:items");
+      }
     });
 
-    it("setMenuContextInput can detach the ConnectorBinding by writing source: undefined", () => {
+    it("setMenuContextInput can update a primitive input to a different type", () => {
       const pId = packId("p_personal");
       const mId = menuId("m_shop_main");
       useAccountStore.getState().addMenuContextInput({
         packId: pId,
         menuId: mId,
-        input: { name: "things", type: "list", source: { ref: "essentials:warps" } },
+        kind: "primitive",
       });
-      const idx0 = (useAccountStore
+      const before = useAccountStore
         .getState()
         .account.packs.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!
-        .contextInputs ?? []).findIndex((c) => c.name === "things");
+        .menus.find((m) => m.id === mId)!;
+      const idx = (before.contextInputs ?? []).findIndex((c) => c.kind === "primitive");
 
       useAccountStore.getState().setMenuContextInput({
         packId: pId,
         menuId: mId,
-        index: idx0,
-        input: { name: "things", type: "list", source: undefined },
+        index: idx,
+        input: { kind: "primitive", name: "category", type: "player" },
       });
 
-      const stored = (useAccountStore
-        .getState()
-        .account.packs.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!
-        .contextInputs ?? []).find((c) => c.name === "things");
-      expect(stored?.source).toBeUndefined();
+      const stored = (
+        useAccountStore
+          .getState()
+          .account.packs.find((p) => p.id === pId)!
+          .menus.find((m) => m.id === mId)!.contextInputs ?? []
+      ).find((c) => c.name === "category");
+      expect(stored?.kind).toBe("primitive");
+      if (stored?.kind === "primitive") {
+        expect(stored.type).toBe("player");
+      }
     });
   });
 
