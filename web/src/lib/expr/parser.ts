@@ -45,9 +45,55 @@ class Parser {
     return node;
   }
 
-  // For now, ternary just delegates to postfix — we'll layer in operators in later tasks.
   private ternary(): AstNode {
-    return this.postfix();
+    return this.compareExpr();
+  }
+
+  private compareExpr(): AstNode {
+    const left = this.addExpr();
+    const op = this.matchCompareOp();
+    if (op) {
+      const right = this.addExpr();
+      return { kind: "binary", op, left, right, pos: left.pos };
+    }
+    return left;
+  }
+
+  private matchCompareOp(): "==" | "!=" | "<" | "<=" | ">" | ">=" | null {
+    const map: Record<string, "==" | "!=" | "<" | "<=" | ">" | ">="> = {
+      eq: "==",
+      neq: "!=",
+      lt: "<",
+      lte: "<=",
+      gt: ">",
+      gte: ">=",
+    };
+    const t = this.peek();
+    if (t.kind in map) {
+      this.i++;
+      return map[t.kind]!;
+    }
+    return null;
+  }
+
+  private addExpr(): AstNode {
+    let node = this.postfix();
+    while (true) {
+      const t = this.peek();
+      if (t.kind === "plus" || t.kind === "minus") {
+        this.i++;
+        const right = this.postfix();
+        node = {
+          kind: "binary",
+          op: t.kind === "plus" ? "+" : "-",
+          left: node,
+          right,
+          pos: node.pos,
+        };
+      } else {
+        return node;
+      }
+    }
   }
 
   private postfix(): AstNode {
