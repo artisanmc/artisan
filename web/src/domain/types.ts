@@ -129,7 +129,18 @@ export type Action =
    * (DSL). After the mutation, the runtime triggers a re-render of the
    * current menu. `arg` MUST match an existing Menu.contextInputs[*].name.
    */
-  | { type: "set_arg"; arg: string; value: string };
+  | { type: "set_arg"; arg: string; value: string }
+  /**
+   * Cycle a context input through a list. `list` is an Expression
+   * evaluating to a list. The runtime finds the current value's index
+   * (looseEq), advances by ±1 wrapping at endpoints, and writes the
+   * new value to contextInput[arg]. Then triggers re-render.
+   *
+   * If `arg` is unknown or `list` doesn't evaluate to a non-empty list,
+   * the action is a no-op (warn-logged).
+   */
+  | { type: "set_arg_cycle_next"; arg: string; list: string }
+  | { type: "set_arg_cycle_prev"; arg: string; list: string };
 
 export type Condition =
   | { type: "has_permission"; perm: string }
