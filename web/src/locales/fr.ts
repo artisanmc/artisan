@@ -191,6 +191,18 @@ const fr: typeof en = {
     sourceMenuContext: "contexte de menu",
     sourceClickContext: "contexte de clic",
     insertHint: "Insérer {{name}}{{type}} — {{source}}",
+    setArgArgLabel: "input de contexte à modifier",
+    setArgArgPlaceholder: "current_tag",
+    setArgValueLabel: "nouvelle valeur (expression)",
+    setArgValuePlaceholder: '"weapon"',
+    setArgValueHint:
+      'Une expression — les strings ont besoin de guillemets (ex. "weapon"), les nombres non (ex. 5).',
+    setArgCycleDirectionNext: "Cycler vers la valeur suivante",
+    setArgCycleDirectionPrev: "Cycler vers la valeur précédente",
+    setArgCycleListLabel: "liste à cycler (expression)",
+    setArgCycleListPlaceholder: "categories",
+    setArgCycleListHint:
+      "Expression qui évalue à une liste — typiquement un nom d'input de contexte comme categories ou quest.tags.",
   },
   flow: {
     headerStateOne: "{{count}} état",
@@ -271,6 +283,7 @@ const fr: typeof en = {
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
+    exprPlaceholder: "quest.gold > 1000",
     nestedHint: "(ET/OU imbriqué)",
     type: {
       has_permission: "has_permission",
