@@ -26,6 +26,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useId } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpressionConditionField } from "./ExpressionConditionField";
 
 interface ConditionListEditorProps {
   /** Label shown above the list (e.g. "visibility", "when"). */
@@ -343,11 +344,9 @@ function ConditionInline({
       );
     case "expression":
       return (
-        <Input
-          placeholder={t("conditions.exprPlaceholder")}
-          value={condition.expr}
-          onChange={(e) => onChange({ ...condition, expr: e.target.value })}
-          className="h-6 w-[200px] px-1.5 py-0 font-mono text-[11px]"
+        <ExpressionConditionField
+          expr={condition.expr}
+          onChange={(expr) => onChange({ ...condition, expr })}
         />
       );
     case "and":
