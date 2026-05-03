@@ -387,6 +387,7 @@ const fr: typeof en = {
     objectWith: "Objet avec",
     fields: "champs",
     fieldName: "nom du champ",
+    objectFields: "Champs",
     addField: "+ Ajouter un champ",
     addItem: "+ Ajouter un item",
     addRow: "+ Ajouter une ligne",
