@@ -343,4 +343,72 @@ export default {
     slotDragFailed: "slot drag failed",
     selectionDragOutside: "selection drag would land outside the menu",
   },
+  patterns: {
+    title: "Cheat sheet",
+    intro: "Click copy on any snippet to use it in your own fields.",
+    copy: "Copy",
+    copied: "Copied!",
+    entries: {
+      placeholder: {
+        name: "Show a placeholder",
+        desc: "The simplest case — display a context value or iteration field.",
+      },
+      colorByAmount: {
+        name: "Color by amount",
+        desc: "Different MiniMessage tag depending on a numeric threshold.",
+      },
+      vipBadge: {
+        name: "VIP badge if permission",
+        desc: "Show a label only when the player has a permission.",
+      },
+      joinComma: {
+        name: "Join a list with commas",
+        desc: "Concatenate every item of a list using a separator.",
+      },
+      joinNewline: {
+        name: "Join a list on new lines",
+        desc: "One item per line, e.g. for multi-line lores.",
+      },
+      pageOfN: {
+        name: "Page index of total",
+        desc: "Display the current iteration position in 'Page X of N' style.",
+      },
+      starOnFirst: {
+        name: "Star on first item",
+        desc: "Add a marker on the first iteration only.",
+      },
+      lockedIfNoPerm: {
+        name: "Locked text if missing perm",
+        desc: "Show a 'VIP required' hint when the player lacks the permission.",
+      },
+      compareBalanceToPrice: {
+        name: "Compare balance to price",
+        desc: "Green vs red label depending on whether the player can afford it.",
+      },
+      rarityPrefix: {
+        name: "Rarity prefix",
+        desc: "Add a star prefix only for legendary items.",
+      },
+      countTags: {
+        name: "Count items in a list",
+        desc: "Display the length of a list value.",
+      },
+      firstOrDefault: {
+        name: "First item of a list",
+        desc: "Pick the first element — empty string when the list is empty.",
+      },
+      cycleCategory: {
+        name: "Cycle a category at click",
+        desc: "Action shape for moving an arg to the next value of a list.",
+      },
+      resetCategory: {
+        name: "Reset a category",
+        desc: "Action shape for setting an arg to a literal value.",
+      },
+      i18nReuse: {
+        name: "Reuse a translation key",
+        desc: "Inline reference to another translation — handy for shared terms.",
+      },
+    },
+  },
 };
