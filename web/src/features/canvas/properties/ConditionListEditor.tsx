@@ -52,6 +52,7 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
+  { value: "expression", label: "expression (advanced)", chip: "expr" },
 ];
 
 const defaultCondition = (type: Condition["type"]): Condition => {
@@ -339,6 +340,15 @@ function ConditionInline({
             onChange={(next) => onChange({ type: "not", of: next })}
           />
         </div>
+      );
+    case "expression":
+      return (
+        <Input
+          placeholder={t("conditions.exprPlaceholder")}
+          value={condition.expr}
+          onChange={(e) => onChange({ ...condition, expr: e.target.value })}
+          className="h-6 w-[200px] px-1.5 py-0 font-mono text-[11px]"
+        />
       );
     case "and":
     case "or":

@@ -271,6 +271,7 @@ const fr: typeof en = {
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
     placeholderRegexPlaceholder: "^Diamond.*",
+    exprPlaceholder: "quest.gold > 1000",
     nestedHint: "(ET/OU imbriqué)",
     type: {
       has_permission: "has_permission",
