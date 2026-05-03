@@ -66,17 +66,7 @@ export interface UnaryOpNode extends NodeBase {
   operand: AstNode;
 }
 
-export type BinaryOp =
-  | "+"
-  | "-"
-  | "=="
-  | "!="
-  | "<"
-  | "<="
-  | ">"
-  | ">="
-  | "&&"
-  | "||";
+export type BinaryOp = "+" | "-" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "&&" | "||";
 
 export interface BinaryOpNode extends NodeBase {
   kind: "binary";

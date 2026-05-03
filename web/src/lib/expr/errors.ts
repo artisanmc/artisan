@@ -9,12 +9,12 @@ export class ParseError extends Error {
   }
 }
 
-export class EvalError extends Error {
+export class ExpressionEvalError extends Error {
   constructor(
     message: string,
     public readonly pos?: number,
   ) {
     super(message);
-    this.name = "EvalError";
+    this.name = "ExpressionEvalError";
   }
 }
