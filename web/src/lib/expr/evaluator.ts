@@ -1,4 +1,5 @@
 import type { AstNode } from "./ast";
+import { compare, looseEq, toBoolean, toNumber, toStringValue } from "./coercion";
 import type { Scope } from "./scope";
 
 /**
@@ -43,6 +44,57 @@ export function evaluate(node: AstNode, scope: Scope): unknown {
       const target = evaluate(node.target, scope);
       const args = node.args.map((a) => evaluate(a, scope));
       return invokeMethod(target, node.method, args);
+    }
+    case "unary": {
+      const v = evaluate(node.operand, scope);
+      return !toBoolean(v);
+    }
+    case "binary": {
+      // Short-circuit for && / ||
+      if (node.op === "&&") {
+        const l = evaluate(node.left, scope);
+        return toBoolean(l) ? toBoolean(evaluate(node.right, scope)) : false;
+      }
+      if (node.op === "||") {
+        const l = evaluate(node.left, scope);
+        return toBoolean(l) ? true : toBoolean(evaluate(node.right, scope));
+      }
+      const left = evaluate(node.left, scope);
+      const right = evaluate(node.right, scope);
+      switch (node.op) {
+        case "+": {
+          if (typeof left === "string" || typeof right === "string") {
+            return toStringValue(left) + toStringValue(right);
+          }
+          const ln = toNumber(left);
+          const rn = toNumber(right);
+          if (ln !== null && rn !== null) return ln + rn;
+          return null;
+        }
+        case "-": {
+          if (typeof left === "string" && !Array.isArray(left)) {
+            return null;
+          }
+          const ln = toNumber(left);
+          const rn = toNumber(right);
+          if (ln !== null && rn !== null) return ln - rn;
+          return null;
+        }
+        case "==":
+          return looseEq(left, right);
+        case "!=":
+          return !looseEq(left, right);
+        case "<":
+        case "<=":
+        case ">":
+        case ">=":
+          return compare(left, right, node.op);
+      }
+      return null;
+    }
+    case "ternary": {
+      const c = evaluate(node.cond, scope);
+      return toBoolean(c) ? evaluate(node.whenTrue, scope) : evaluate(node.whenFalse, scope);
     }
     default:
       throw new Error(`evaluator: kind '${(node as { kind: string }).kind}' not yet implemented`);
