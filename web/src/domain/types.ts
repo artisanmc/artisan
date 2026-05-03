@@ -130,7 +130,14 @@ export type Condition =
   | { type: "has_money"; amount: number }
   | { type: "not"; of: Condition }
   | { type: "and"; of: Condition[] }
-  | { type: "or"; of: Condition[] };
+  | { type: "or"; of: Condition[] }
+  /**
+   * Free-form boolean expression evaluated via the DSL (cf.
+   * web/src/lib/expr/). Used when typed conditions don't fit, e.g.
+   * comparisons with operators other than == or against runtime
+   * iteration fields.
+   */
+  | { type: "expression"; expr: string };
 
 export interface Command {
   id: CommandId;
