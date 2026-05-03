@@ -25,6 +25,15 @@ class Parser {
     return t;
   }
 
+  /** Consume and return true if the next token matches `kind`, otherwise no-op. */
+  private match(kind: TokenKind): boolean {
+    if (this.tokens[this.i]!.kind === kind) {
+      this.i++;
+      return true;
+    }
+    return false;
+  }
+
   /** Entry point — parses an expression then asserts EOF. */
   parseExpression(): AstNode {
     const node = this.ternary();
@@ -35,9 +44,39 @@ class Parser {
     return node;
   }
 
-  // For now, ternary just delegates to primary — we'll layer in operators in later tasks.
+  // For now, ternary just delegates to postfix — we'll layer in operators in later tasks.
   private ternary(): AstNode {
-    return this.primary();
+    return this.postfix();
+  }
+
+  private postfix(): AstNode {
+    let node = this.primary();
+    while (true) {
+      if (this.match("dot")) {
+        const name = this.consume("identifier", "field name");
+        // method call vs path access depends on what follows
+        if (this.peek().kind === "lparen") {
+          this.i++; // consume lparen
+          const args: AstNode[] = [];
+          if (this.peek().kind !== "rparen") {
+            args.push(this.ternary());
+            while (this.match("comma")) {
+              args.push(this.ternary());
+            }
+          }
+          this.consume("rparen", "')'");
+          node = { kind: "method", target: node, method: name.text, args, pos: node.pos };
+        } else {
+          node = { kind: "path", target: node, field: name.text, pos: node.pos };
+        }
+      } else if (this.match("lbracket")) {
+        const index = this.ternary();
+        this.consume("rbracket", "']'");
+        node = { kind: "index", target: node, index, pos: node.pos };
+      } else {
+        return node;
+      }
+    }
   }
 
   private primary(): AstNode {
