@@ -96,10 +96,7 @@ export function tokenize(src: string): Token[] {
         i++;
       }
       if (i >= src.length || char(src, i) !== "%") {
-        throw new ParseError(
-          `Unterminated PAPI placeholder starting at column ${start}`,
-          start,
-        );
+        throw new ParseError(`Unterminated PAPI placeholder starting at column ${start}`, start);
       }
       i++; // closing %
       out.push({ kind: "papi", text: src.slice(start, i), value: name, pos: start });

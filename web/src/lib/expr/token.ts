@@ -1,30 +1,30 @@
 export type TokenKind =
-  | "number"        // 42, 3.14
-  | "string"        // "hi" or 'hi'
-  | "identifier"    // foo, foo_bar
-  | "papi"          // %player_name%
+  | "number" // 42, 3.14
+  | "string" // "hi" or 'hi'
+  | "identifier" // foo, foo_bar
+  | "papi" // %player_name%
   | "true"
   | "false"
   | "null"
-  | "lparen"        // (
-  | "rparen"        // )
-  | "lbracket"      // [
-  | "rbracket"      // ]
+  | "lparen" // (
+  | "rparen" // )
+  | "lbracket" // [
+  | "rbracket" // ]
   | "comma"
   | "dot"
-  | "question"      // ?
-  | "colon"         // :
-  | "bang"          // !
+  | "question" // ?
+  | "colon" // :
+  | "bang" // !
   | "plus"
   | "minus"
-  | "eq"            // ==
-  | "neq"           // !=
+  | "eq" // ==
+  | "neq" // !=
   | "lt"
   | "lte"
   | "gt"
   | "gte"
-  | "and"           // &&
-  | "or"            // ||
+  | "and" // &&
+  | "or" // ||
   | "eof";
 
 export interface Token {
