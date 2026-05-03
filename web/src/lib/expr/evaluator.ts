@@ -39,7 +39,49 @@ export function evaluate(node: AstNode, scope: Scope): unknown {
       }
       return undefined;
     }
+    case "method": {
+      const target = evaluate(node.target, scope);
+      const args = node.args.map((a) => evaluate(a, scope));
+      return invokeMethod(target, node.method, args);
+    }
     default:
       throw new Error(`evaluator: kind '${(node as { kind: string }).kind}' not yet implemented`);
+  }
+}
+
+function invokeMethod(target: unknown, method: string, args: unknown[]): unknown {
+  switch (method) {
+    case "join": {
+      if (!Array.isArray(target)) return "";
+      const sep = args[0] === undefined ? "" : String(args[0]);
+      return target.map((x) => (x === null || x === undefined ? "" : String(x))).join(sep);
+    }
+    case "length": {
+      if (target === null || target === undefined) return 0;
+      if (Array.isArray(target)) return target.length;
+      if (typeof target === "string") return target.length;
+      return 0;
+    }
+    case "first": {
+      if (!Array.isArray(target) || target.length === 0) return null;
+      return target[0];
+    }
+    case "last": {
+      if (!Array.isArray(target) || target.length === 0) return null;
+      return target[target.length - 1];
+    }
+    case "at": {
+      if (!Array.isArray(target)) return null;
+      const n = typeof args[0] === "number" ? args[0] : Number(args[0]);
+      if (!Number.isInteger(n)) return null;
+      const v = target[n];
+      return v === undefined ? null : v;
+    }
+    case "contains": {
+      if (!Array.isArray(target)) return false;
+      return target.some((x) => x === args[0]);
+    }
+    default:
+      return null;
   }
 }
