@@ -1,6 +1,8 @@
 import type { DataSource, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useTranslation } from "react-i18next";
+import { SchemaEditor } from "./SchemaEditor";
+import { ValueEditor } from "./ValueEditor";
 
 interface DataSourceEditorProps {
   packId: PackId;
@@ -29,7 +31,13 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
           {t("dataSources.remove")}
         </button>
       </header>
-      <p className="text-[11px] text-zinc-500">{t("dataSources.editorPlaceholder")}</p>
+      <SchemaEditor packId={packId} source={source} />
+      <div>
+        <div className="mb-2 font-mono text-[10px] uppercase text-zinc-500">
+          {t("dataSources.values")}
+        </div>
+        <ValueEditor packId={packId} source={source} />
+      </div>
     </div>
   );
 }
