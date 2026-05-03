@@ -769,4 +769,49 @@ describe("accountStore", () => {
     // pastStates should be empty after createPack clears the stack
     expect(useAccountStore.temporal.getState().pastStates.length).toBe(0);
   });
+
+  describe("Connector reducers", () => {
+    it("adds an imported connector", () => {
+      useAccountStore.getState().addImportedConnector({
+        packId: PERSONAL,
+        spec: {
+          ref: "chestshop:items",
+          type: { kind: "list", of: { kind: "string" } },
+          sample: ["a"],
+        },
+      });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      expect(pack.importedConnectors).toHaveLength(1);
+      expect(pack.importedConnectors[0]!.ref).toBe("chestshop:items");
+    });
+
+    it("replaces existing connector by ref", () => {
+      const spec1 = {
+        ref: "x:y",
+        type: { kind: "string" } as const,
+        sample: "first",
+      };
+      const spec2 = {
+        ref: "x:y",
+        type: { kind: "string" } as const,
+        sample: "second",
+      };
+      useAccountStore.getState().addImportedConnector({ packId: PERSONAL, spec: spec1 });
+      useAccountStore.getState().addImportedConnector({ packId: PERSONAL, spec: spec2 });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      expect(pack.importedConnectors).toHaveLength(1);
+      expect(pack.importedConnectors[0]!.sample).toBe("second");
+    });
+
+    it("removes a connector by ref", () => {
+      useAccountStore.getState().addImportedConnector({
+        packId: PERSONAL,
+        spec: { ref: "x:y", type: { kind: "string" }, sample: "s" },
+      });
+      useAccountStore.getState().removeImportedConnector({ packId: PERSONAL, ref: "x:y" });
+      expect(
+        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.importedConnectors,
+      ).toHaveLength(0);
+    });
+  });
 });
