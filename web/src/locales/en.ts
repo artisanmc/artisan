@@ -191,6 +191,12 @@ export default {
     setArgValuePlaceholder: '"weapon"',
     setArgValueHint:
       'An expression — strings need quotes (e.g. "weapon"), numbers don\'t (e.g. 5).',
+    setArgCycleDirectionNext: "Cycle to next value",
+    setArgCycleDirectionPrev: "Cycle to previous value",
+    setArgCycleListLabel: "list to cycle through (expression)",
+    setArgCycleListPlaceholder: "categories",
+    setArgCycleListHint:
+      "Expression evaluating to a list — typically a context input name like categories or quest.tags.",
   },
   flow: {
     headerStateOne: "{{count}} state",
