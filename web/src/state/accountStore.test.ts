@@ -677,6 +677,87 @@ describe("accountStore", () => {
     });
   });
 
+  describe("DataSource reducers", () => {
+    it("adds a list data source with default name and shape", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      expect(pack.dataSources).toHaveLength(1);
+      expect(pack.dataSources[0]!.name).toBe("new_list");
+      expect(pack.dataSources[0]!.type).toEqual({ kind: "list", of: { kind: "string" } });
+      expect(pack.dataSources[0]!.value).toEqual([]);
+    });
+
+    it("adds an object data source", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "object" });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      expect(pack.dataSources[0]!.name).toBe("new_object");
+      expect(pack.dataSources[0]!.type).toEqual({ kind: "object", fields: [] });
+      expect(pack.dataSources[0]!.value).toEqual({});
+    });
+
+    it("disambiguates duplicate names", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      expect(pack.dataSources[0]!.name).toBe("new_list");
+      expect(pack.dataSources[1]!.name).toBe("new_list_2");
+    });
+
+    it("removes a data source by id", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!.id;
+      useAccountStore.getState().removePackDataSource({ packId: PERSONAL, id });
+      expect(
+        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources,
+      ).toHaveLength(0);
+    });
+
+    it("renames a data source", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!.id;
+      useAccountStore
+        .getState()
+        .renamePackDataSource({ packId: PERSONAL, id, newName: "categories" });
+      expect(
+        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources[0]!
+          .name,
+      ).toBe("categories");
+    });
+
+    it("setValue writes the value", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!.id;
+      useAccountStore
+        .getState()
+        .setPackDataSourceValue({ packId: PERSONAL, id, value: ["weapon", "armor"] });
+      expect(
+        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources[0]!
+          .value,
+      ).toEqual(["weapon", "armor"]);
+    });
+
+    it("setSchema resets value to schema default", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!.id;
+      useAccountStore
+        .getState()
+        .setPackDataSourceValue({ packId: PERSONAL, id, value: ["x", "y"] });
+      useAccountStore.getState().setPackDataSourceSchema({
+        packId: PERSONAL,
+        id,
+        type: { kind: "object", fields: [{ name: "title", type: { kind: "string" } }] },
+      });
+      expect(
+        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources[0]!
+          .value,
+      ).toEqual({ title: "" });
+    });
+  });
+
   it("createPack clears the temporal stack", () => {
     useAccountStore.getState().setSlotMaterial({
       packId: packId("p_personal"),
