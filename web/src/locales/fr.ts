@@ -350,5 +350,73 @@ const fr: typeof en = {
     slotDragFailed: "drag de slot échoué",
     selectionDragOutside: "le drag de la sélection sortirait du menu",
   },
+  patterns: {
+    title: "Aide-mémoire",
+    intro: "Clique sur copier pour réutiliser un snippet dans tes propres champs.",
+    copy: "Copier",
+    copied: "Copié !",
+    entries: {
+      placeholder: {
+        name: "Afficher un placeholder",
+        desc: "Le cas le plus simple — afficher une valeur de contexte ou un champ d'itération.",
+      },
+      colorByAmount: {
+        name: "Couleur selon le montant",
+        desc: "Tag MiniMessage différent selon un seuil numérique.",
+      },
+      vipBadge: {
+        name: "Badge VIP si permission",
+        desc: "Afficher un label uniquement si le joueur a une permission.",
+      },
+      joinComma: {
+        name: "Joindre une liste avec virgules",
+        desc: "Concatène chaque élément d'une liste avec un séparateur.",
+      },
+      joinNewline: {
+        name: "Joindre une liste sur des lignes",
+        desc: "Un élément par ligne, par exemple pour les lores multi-lignes.",
+      },
+      pageOfN: {
+        name: "Index sur total",
+        desc: "Affiche la position courante de l'itération en 'Page X sur N'.",
+      },
+      starOnFirst: {
+        name: "Étoile sur le premier",
+        desc: "Marqueur uniquement sur la première itération.",
+      },
+      lockedIfNoPerm: {
+        name: "Texte verrouillé sans perm",
+        desc: "Affiche '(VIP requis)' quand le joueur n'a pas la permission.",
+      },
+      compareBalanceToPrice: {
+        name: "Comparer solde et prix",
+        desc: "Label vert ou rouge selon que le joueur peut acheter.",
+      },
+      rarityPrefix: {
+        name: "Préfixe selon la rareté",
+        desc: "Ajoute une étoile uniquement aux items légendaires.",
+      },
+      countTags: {
+        name: "Compter les éléments d'une liste",
+        desc: "Affiche la longueur d'une valeur liste.",
+      },
+      firstOrDefault: {
+        name: "Premier élément d'une liste",
+        desc: "Prend le premier élément — chaîne vide si la liste est vide.",
+      },
+      cycleCategory: {
+        name: "Cycler une catégorie au clic",
+        desc: "Forme d'action pour passer un arg à la valeur suivante d'une liste.",
+      },
+      resetCategory: {
+        name: "Réinitialiser une catégorie",
+        desc: "Forme d'action pour définir un arg à une valeur littérale.",
+      },
+      i18nReuse: {
+        name: "Réutiliser une clé i18n",
+        desc: "Référence inline vers une autre traduction — pratique pour les termes partagés.",
+      },
+    },
+  },
 };
 export default fr;
