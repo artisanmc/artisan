@@ -25,6 +25,7 @@ import type {
   MenuId,
   Pack,
   PackId,
+  SourceRef,
   Step,
 } from "@/domain/types";
 import { createLText, deleteLText, deleteLTexts, setLText } from "@/lib/i18n";
@@ -103,11 +104,11 @@ interface AccountState {
     arg: CommandArg;
   }) => void;
   removeCommandArg: (input: { packId: PackId; commandId: CommandId; index: number }) => void;
-  /** Append a new context input to a menu (auto-named ctxN, type=string). */
+  /** Append a new context input to a menu (auto-named ctxN). */
   addMenuContextInput: (input: {
     packId: PackId;
     menuId: MenuId;
-    input?: ContextInput;
+    kind?: "primitive" | "sourceRef";
   }) => void;
   setMenuContextInput: (input: {
     packId: PackId;
@@ -116,8 +117,6 @@ interface AccountState {
     input: ContextInput;
   }) => void;
   removeMenuContextInput: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
-  /** Editor-only mock context. Pass undefined to clear. */
-  setMenuSampleContext: (input: { packId: PackId; menuId: MenuId; value: unknown }) => void;
   /** Element iteration: bind this element's slots to a list source in the menu context. */
   setElementIterates: (input: {
     packId: PackId;
@@ -625,6 +624,8 @@ export const useAccountStore = create<AccountState>()(
                 commands: [],
                 templates: [],
                 assets: [],
+                dataSources: [],
+                importedConnectors: [],
                 i18nKeys: {},
                 defaultLang: "en",
                 canvasLayout: {},
@@ -906,7 +907,7 @@ export const useAccountStore = create<AccountState>()(
               pack.updatedAt = new Date().toISOString();
             }),
           ),
-        addMenuContextInput: ({ packId: pId, menuId: mId, input }) =>
+        addMenuContextInput: ({ packId: pId, menuId: mId, kind }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -921,7 +922,11 @@ export const useAccountStore = create<AccountState>()(
                   if (!used.has(candidate)) return candidate;
                 }
               })();
-              menu.contextInputs.push(input ?? { name: defaultName, type: "string" });
+              const newInput: ContextInput =
+                kind === "sourceRef"
+                  ? { kind: "sourceRef", name: defaultName, ref: "" as SourceRef }
+                  : { kind: "primitive", name: defaultName, type: "string" };
+              menu.contextInputs.push(newInput);
               pack.updatedAt = new Date().toISOString();
             }),
           ),
@@ -947,17 +952,6 @@ export const useAccountStore = create<AccountState>()(
               if (index < 0 || index >= menu.contextInputs.length) return;
               menu.contextInputs.splice(index, 1);
               if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
-              pack.updatedAt = new Date().toISOString();
-            }),
-          ),
-        setMenuSampleContext: ({ packId: pId, menuId: mId, value }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              menu.sampleContext = value;
               pack.updatedAt = new Date().toISOString();
             }),
           ),

@@ -143,11 +143,6 @@ const fr: typeof en = {
     connectorAddPair: "+ ajouter",
     connectorPairKey: "clé",
     connectorPairValue: "valeur",
-    sampleContext: "Contexte d'exemple",
-    sampleContextHint:
-      "Données factices pour les aperçus de l'éditeur. Toggle le format ci-dessus — les deux vues restent synchronisées via l'objet sous-jacent.",
-    parseFailed: "{{format}} parse : {{error}}",
-    invalidFormat: "{{format}} invalide",
   },
   backgroundUpload: {
     label: "fond",
