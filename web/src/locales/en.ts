@@ -284,6 +284,8 @@ export default {
     exprFreeTextModeShort: "raw",
     exprFormMode: "Switch to form",
     exprFormModeShort: "form",
+    exprPreviewValid: "→ {{display}}",
+    exprPreviewParseError: "syntax: {{message}}",
     nestedHint: "(nested AND/OR)",
     type: {
       has_permission: "has_permission",
