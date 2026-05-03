@@ -143,6 +143,10 @@ const fr: typeof en = {
     connectorAddPair: "+ ajouter",
     connectorPairKey: "clé",
     connectorPairValue: "valeur",
+    refPickPlaceholder: "Choisis une source…",
+    refSectionPackData: "Données du pack",
+    refSectionConnectors: "Connecteurs",
+    refNoSources: "Aucune source — crée-en une dans la page Sources de données.",
   },
   backgroundUpload: {
     label: "fond",

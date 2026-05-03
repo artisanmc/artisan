@@ -137,6 +137,10 @@ export default {
     connectorAddPair: "+ add",
     connectorPairKey: "key",
     connectorPairValue: "value",
+    refPickPlaceholder: "Pick a source…",
+    refSectionPackData: "Pack data",
+    refSectionConnectors: "Connectors",
+    refNoSources: "No sources defined yet — create one in the Data sources page.",
   },
   backgroundUpload: {
     label: "background",
