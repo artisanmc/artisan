@@ -2,6 +2,7 @@ import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
@@ -9,15 +10,20 @@ import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu, type ContextMenuState, type ContextMenuTarget } from "./ContextMenu";
 import { Edges } from "./Edges";
+import { EdgeTooltip } from "./EdgeTooltip";
 import { ItemTooltip } from "./ItemTooltip";
-import { MATERIAL_DRAG_MIME } from "./Library";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { TextEditor } from "./TextEditor";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
+import { itemTextureUrl } from "./itemTextures";
+import { setStageDropTarget } from "./stageDropTarget";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
+
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE = 8;
 
 interface StageProps {
   packId: PackId;
@@ -43,7 +49,21 @@ export function Stage({ packId }: StageProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const { viewport, onWheel } = usePanZoom();
+  const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
+  // Long-press timer + start position (for touch-driven context menu).
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
+  // directly without going through React. Without this sync, the next
+  // re-render snaps the canvas back to the stale `viewport` prop, which
+  // also drifts every DOM overlay (TextEditor, ArmedBanner) and every
+  // pointer-to-world conversion (tap-to-place).
+  const syncViewportFromStage = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
+  }, [setViewport]);
 
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -58,11 +78,38 @@ export function Stage({ packId }: StageProps) {
 
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
-  const onStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (e.target === e.target.getStage()) {
-      useSelectionStore.getState().clear();
-    }
-  }, []);
+  // Also: if a material is "armed" from the Library (touch placement flow),
+  // a click on a slot places it. Hit-test in world coords.
+  const onStageClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const armed = useUiStore.getState().armedMaterial;
+      if (armed && pack) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+          const world = screenToWorld(pointer, viewport);
+          const hit = hitTestSlot(pack, layout, world.x, world.y);
+          if (hit) {
+            try {
+              useAccountStore.getState().setSlotMaterial({
+                packId,
+                menuId: hit.menuId as MenuId,
+                position: hit.position,
+                material: armed,
+              });
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "place failed");
+            }
+            return;
+          }
+        }
+      }
+      if (e.target === e.target.getStage()) {
+        useSelectionStore.getState().clear();
+      }
+    },
+    [pack, layout, viewport, packId],
+  );
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
     open: false,
@@ -71,76 +118,155 @@ export function Stage({ packId }: StageProps) {
     target: emptyTarget,
   });
 
-  const onStageContextMenu = useCallback(
-    (e: Konva.KonvaEventObject<PointerEvent>) => {
-      e.evt.preventDefault();
+  /**
+   * Open the context menu at a screen position, hit-testing through the
+   * stage to figure out whether it's a slot or entity context. Used by
+   * both right-click (mouse) and long-press (touch).
+   */
+  const openContextMenuAt = useCallback(
+    (clientX: number, clientY: number, konvaTarget?: Konva.Node) => {
       if (!pack) return;
+      const wrapper = wrapperRef.current;
+      const stage = stageRef.current;
+      if (!wrapper || !stage) return;
+      const rect = wrapper.getBoundingClientRect();
+      const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
+      const world = screenToWorld(stagePoint, viewport);
 
       // Slot path: manual hit-test in world coords (slots have listening=false
       // so Konva's own target won't surface them).
-      const stage = e.target.getStage();
-      const pointer = stage?.getPointerPosition();
-      if (pointer) {
-        const wrapper = wrapperRef.current;
-        if (wrapper) {
-          const world = screenToWorld(pointer, viewport);
-          const slotHit = hitTestSlot(pack, layout, world.x, world.y);
-          if (slotHit) {
-            setCtxMenu({
-              open: true,
-              x: e.evt.clientX,
-              y: e.evt.clientY,
-              target: {
-                kind: "slot",
-                menuId: slotHit.menuId,
-                position: slotHit.position,
-                filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
-              },
-            });
-            return;
-          }
-        }
+      const slotHit = hitTestSlot(pack, layout, world.x, world.y);
+      if (slotHit) {
+        setCtxMenu({
+          open: true,
+          x: clientX,
+          y: clientY,
+          target: {
+            kind: "slot",
+            menuId: slotHit.menuId,
+            position: slotHit.position,
+            filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
+          },
+        });
+        return;
       }
 
       // Entity path: nearest Group ancestor (menu or command).
-      const target = e.target;
-      const id = target === target.getStage() ? null : target.findAncestor("Group", true)?.id();
+      let id: string | undefined;
+      if (konvaTarget && konvaTarget !== stage) {
+        id = konvaTarget.findAncestor("Group", true)?.id();
+      }
       const ids = id ? [id] : [];
       if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
         useSelectionStore.getState().set(ids);
       }
+      const currentSelection = [...useSelectionStore.getState().ids];
+      const effectiveSelection = ids.length > 0 ? ids : currentSelection;
+
+      // Truly empty area + nothing selected → "create here" affordances.
+      if (effectiveSelection.length === 0) {
+        setCtxMenu({
+          open: true,
+          x: clientX,
+          y: clientY,
+          target: { kind: "empty", world },
+        });
+        return;
+      }
+
       setCtxMenu({
         open: true,
-        x: e.evt.clientX,
-        y: e.evt.clientY,
-        target: {
-          kind: "entity",
-          selectedIds: ids.length > 0 ? ids : [...useSelectionStore.getState().ids],
-        },
+        x: clientX,
+        y: clientY,
+        target: { kind: "entity", selectedIds: effectiveSelection },
       });
     },
     [pack, layout, viewport],
   );
 
+  const onStageContextMenu = useCallback(
+    (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      openContextMenuAt(e.evt.clientX, e.evt.clientY, e.target);
+    },
+    [openContextMenuAt],
+  );
+
   const closeCtx = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
-  useCanvasKeyboard({
-    packId,
-    onError: (msg) => toast.error(msg),
-  });
+  // ── Touch handling: long-press for context menu, pinch via usePanZoom ──
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressStartRef.current = null;
+  }, []);
 
-  const onDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      const material = e.dataTransfer.getData(MATERIAL_DRAG_MIME);
-      if (!material || !pack) return;
-      e.preventDefault();
+  const onStageTouchStart = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      if (e.evt.touches.length !== 1) {
+        cancelLongPress();
+        return;
+      }
+      const touch = e.evt.touches[0]!;
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      const target = e.target;
+      longPressStartRef.current = { x: startX, y: startY };
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        longPressStartRef.current = null;
+        openContextMenuAt(startX, startY, target);
+      }, LONG_PRESS_MS);
+    },
+    [cancelLongPress, openContextMenuAt],
+  );
+
+  const onStageTouchMove = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      // Cancel long-press if touch moves too far or a second finger lands.
+      if (longPressStartRef.current && e.evt.touches.length === 1) {
+        const touch = e.evt.touches[0]!;
+        const dx = touch.clientX - longPressStartRef.current.x;
+        const dy = touch.clientY - longPressStartRef.current.y;
+        if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) cancelLongPress();
+      } else if (e.evt.touches.length > 1) {
+        cancelLongPress();
+      }
+      onTouchMove(e);
+    },
+    [cancelLongPress, onTouchMove],
+  );
+
+  const onStageTouchEnd = useCallback(() => {
+    cancelLongPress();
+    onTouchEnd();
+  }, [cancelLongPress, onTouchEnd]);
+
+  useEffect(() => () => cancelLongPress(), [cancelLongPress]);
+
+  // Cross-platform Library drop: the top-level DndContext (in the pack
+  // route) calls this with the release coords + material. We hit-test the
+  // slot and place. Returns true if placed, so the route can decide
+  // whether to do anything else.
+  useEffect(() => {
+    setStageDropTarget((clientX, clientY, material) => {
       const wrapper = wrapperRef.current;
-      if (!wrapper) return;
+      if (!wrapper || !pack) return false;
       const rect = wrapper.getBoundingClientRect();
-      const stagePoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return false;
+      }
+      const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
       const world = screenToWorld(stagePoint, viewport);
       const hit = hitTestSlot(pack, layout, world.x, world.y);
-      if (!hit) return;
+      if (!hit) return false;
       try {
         useAccountStore.getState().setSlotMaterial({
           packId,
@@ -148,19 +274,19 @@ export function Stage({ packId }: StageProps) {
           position: hit.position,
           material,
         });
+        return true;
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "drop failed");
+        toast.error(err instanceof Error ? err.message : "place failed");
+        return false;
       }
-    },
-    [pack, layout, packId, viewport],
-  );
+    });
+    return () => setStageDropTarget(null);
+  }, [pack, layout, viewport, packId]);
 
-  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    if (e.dataTransfer.types.includes(MATERIAL_DRAG_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
+  useCanvasKeyboard({
+    packId,
+    onError: (msg) => toast.error(msg),
+  });
 
   const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     useHoverStore.getState().setCursor(e.clientX, e.clientY);
@@ -180,11 +306,10 @@ export function Stage({ packId }: StageProps) {
     <div
       ref={wrapperRef}
       className="relative h-full w-full bg-[var(--color-bg)]"
-      onDrop={onDrop}
-      onDragOver={onDragOver}
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
+      <ArmedBanner />
       <KonvaStage
         ref={stageRef}
         width={size.w}
@@ -198,6 +323,17 @@ export function Stage({ packId }: StageProps) {
         onClick={onStageClick}
         onTap={onStageClick}
         onContextMenu={onStageContextMenu}
+        onTouchStart={onStageTouchStart}
+        onTouchMove={onStageTouchMove}
+        onTouchEnd={onStageTouchEnd}
+        onDragMove={(e) => {
+          // Only sync when the drag target is the Stage itself (not a
+          // child Group like a menu or a slot, which fire dragmove too).
+          if (e.target === e.target.getStage()) syncViewportFromStage();
+        }}
+        onDragEnd={(e) => {
+          if (e.target === e.target.getStage()) syncViewportFromStage();
+        }}
       >
         <Layer name="edges">
           <Edges pack={pack} layout={layout} />
@@ -227,6 +363,7 @@ export function Stage({ packId }: StageProps) {
       </KonvaStage>
       <TextEditor packId={packId} layout={layout} viewport={viewport} />
       <ItemTooltip packId={packId} />
+      <EdgeTooltip pack={pack} />
       <ContextMenu
         packId={packId}
         state={ctxMenu}
@@ -267,7 +404,50 @@ export function Stage({ packId }: StageProps) {
           }
           closeCtx();
         }}
+        onCreateMenuAt={(world) => {
+          const id = useAccountStore.getState().createMenu({ packId, position: world });
+          useSelectionStore.getState().set([id]);
+          closeCtx();
+        }}
+        onCreateCommandAt={(world) => {
+          const id = useAccountStore.getState().createCommand({ packId, position: world });
+          useSelectionStore.getState().set([id]);
+          closeCtx();
+        }}
       />
+    </div>
+  );
+}
+
+/**
+ * Floating pill at the top of the Stage that shows when a Library item is
+ * "armed" (touch flow), with a × to cancel. The next slot tap on the stage
+ * places the armed material — see `onStageClick` above.
+ */
+function ArmedBanner() {
+  const armed = useUiStore((s) => s.armedMaterial);
+  const setArmed = useUiStore((s) => s.setArmedMaterial);
+  if (!armed) return null;
+  const url = itemTextureUrl(armed);
+  return (
+    <div className="-translate-x-1/2 absolute top-2 left-1/2 z-20 flex items-center gap-2 rounded-full border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-emerald-200 shadow-lg backdrop-blur">
+      {url ? (
+        <img
+          src={url}
+          alt={armed}
+          className="h-5 w-5 object-contain"
+          style={{ imageRendering: "pixelated" }}
+        />
+      ) : null}
+      <span className="font-mono text-[12px]">tap a slot to place {armed}</span>
+      <button
+        type="button"
+        onClick={() => setArmed(null)}
+        title="Cancel"
+        className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-emerald-200/80 hover:bg-emerald-500/20 hover:text-emerald-100"
+      >
+        ×
+      </button>
     </div>
   );
 }

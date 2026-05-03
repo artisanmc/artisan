@@ -75,8 +75,9 @@ const normalize = (p: ClipboardPayload): ClipboardPayload => ({
  * layer, and element. Within the rewritten set, open_menu actions that
  * pointed at one of the original menu ids are also rewritten so internal
  * references stay intact after the paste. open_menu actions targeting
- * something OUTSIDE the rewrite set are left as-is — assertPackHermetic
- * will catch them in the destination pack and reject the paste.
+ * something OUTSIDE the rewrite set are left as-is — they may end up
+ * dangling in the destination pack, which the runtime handles by
+ * no-op'ing on missing targets.
  */
 export function rewriteIds(input: {
   menus: Menu[];

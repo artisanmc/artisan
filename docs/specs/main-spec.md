@@ -72,64 +72,137 @@ Un troisième flavor **Staging** (preview gelée accessible à des testeurs invi
 
 ## 3. Modèle business
 
-### 3.1 Philosophie freemium
+### 3.1 Philosophie : free utile et perpétuel + paid pour la friction
 
-**Le free tier est généreux et complet.** L'admin solo / hobbyist a accès à toutes les capacités créatives de l'éditeur : menus illimités, custom assets illimités (sous un cap silencieux de storage), toutes les actions, apparences conditionnelles, templates, asset library, génération de resource pack, hosting CDN, intégrations plugins tiers.
+**Le free tier est utile, complet, et perpétuel.** L'admin gratuit a accès à tout l'éditeur visuel — toutes les actions, conditions, apparences, layers, templates, commandes, i18n + MiniMessage avec preview live, data sources et leurs connecteurs, asset library, génération de resource pack à télécharger en `.zip`. Le plugin Minecraft (.jar) est gratuit sur SpigotMC et Modrinth. C'est **déjà supérieur à zMenu et DeluxeMenus** sur l'UX, et c'est suffisant pour adopter et faire son contenu.
 
-**Le paywall est sur le scale, pas sur les features.** Les axes payants sont :
+**Ce qu'on monétise, c'est la friction enlevée.** Le free user fait son menu dans l'éditeur, exporte un `.json`, le drop dans `plugins/Interfaze/menus/` via SFTP, exécute `/interfaze reload`, teste en jeu. Pour un admin qui itère régulièrement (changer un prix, tester un layout, ajouter un bouton), ce cycle export-upload-reload-test prend 30 secondes à 2 minutes par itération. Au bout de 2 semaines d'usage régulier, **la friction se sent dans les doigts**.
 
-- **Seats (membres d'équipe)** : free = 1 seat. Tu invites un co-admin → tu upgrades. Aligné sur le moment où le serveur passe d'amateur à sérieux.
-- **Servers connectés** : free = 1 serveur. Multi-server signale un network ou un setup pro.
-- **Features à coût marginal réel** : import MCModels (gros payload + parsing CPU), assistant IA (Claude API), marketplace selling (curation, payment infra) — toutes payantes.
+Le tier payant supprime cette friction : **WebSocket sync, live edit en jeu, auto-deploy au save**. Plus aucune manipulation de fichier. C'est le moment où l'admin sérieux paie 3,5 €/mois — non pas comme une décision intellectuelle ("j'analyse le rapport coût/bénéfice"), mais comme un soulagement physique ("mon dos en peut plus de drag-drop").
 
-Cette structure préserve les solo creators comme ambassadeurs (ils stylisent, partagent, font des vidéos YouTube avec des menus complets, recrutent des nouveaux users), et capture le payant sur les signaux de "vrai usage" : équipe, multi-server, features avancées.
+Autres axes payants alignés sur des coûts marginaux réels :
 
-### 3.2 Tiers d'abonnement
+- **Multi-server** : free = 1 serveur (manuel). Paid = jusqu'à illimité, avec sync coordonnée.
+- **Multi-seat (équipes)** : free = 1 user. Paid = équipes 5 à illimités, avec attribution edit + audit.
+- **MCModels import** : free = ✗ (parsing CPU intensif). Paid = ✓.
+- **Assistant IA** : free = ✗. Paid = quotas tier-dépendants.
+- **CDN-hosted resource packs** : free = self-host (admin télécharge zip). Paid = auto CDN avec signature serveur.
+- **Marketplace selling** (V3) : Network+ uniquement.
 
-| | Free | Solo | Network | Unlimited |
+Cette structure préserve les solo creators comme ambassadeurs (ils stylisent, partagent sur YouTube, recrutent des nouveaux users en montrant leur workflow), et capture le payant sur les signaux de "vrai usage productif" : itération fréquente, équipe, multi-server.
+
+### 3.2 Mode local (free) vs mode cloud (paid)
+
+Le plugin Minecraft détecte automatiquement son mode au démarrage selon la présence ou non d'une `server_key` valide :
+
+**Mode local (free)** :
+- Plugin lit `plugins/Interfaze/menus/*.json` (ou `*.yaml`) depuis le disque.
+- Reload manuel via `/interfaze reload` après chaque modification.
+- Aucune connexion sortante, aucune dépendance réseau au runtime.
+- Resource pack : l'admin self-host (téléchargé en `.zip` depuis l'éditeur, hébergé via son webserver ou la fonctionnalité native Spigot `resource-pack`).
+- Limite : pas de live edit en jeu, pas de auto-deploy, pas de multi-server coordonné.
+
+**Mode cloud (paid)** :
+- Plugin se connecte à `wss://editor.interfaze.gg/ws/plugin` avec `server_key`.
+- Sync live, bundle pull depuis le CDN, signatures serveur-bound, version history côté backend.
+- Live edit en jeu : le menu se rafraîchit pour les joueurs au moment où l'admin save dans l'éditeur web.
+- Multi-server : un workspace pousse à plusieurs serveurs simultanément.
+
+Le code de rendu est identique dans les deux modes — c'est juste la source des menus qui diffère (FilesystemMenuProvider vs CloudMenuProvider en interne).
+
+### 3.3 Tiers d'abonnement
+
+| | **Free** | **Solo** | **Network** | **Unlimited** |
 |---|---|---|---|---|
-| Toutes les features de l'éditeur | ✓ | ✓ | ✓ | ✓ |
-| Menus | illimité | illimité | illimité | illimité |
-| Commandes custom | illimité | illimité | illimité | illimité |
-| Langues + clés i18n | illimité | illimité | illimité | illimité |
+| Éditeur visuel + live preview | ✓ | ✓ | ✓ | ✓ |
+| MiniMessage + i18n + layers + apparences + templates + commandes + data sources | ✓ | ✓ | ✓ | ✓ |
+| Export JSON / YAML | ✓ | ✓ | ✓ | ✓ |
+| Plugin Minecraft (`.jar` gratuit) | ✓ | ✓ | ✓ | ✓ |
+| Resource pack generation | ✓ (download `.zip`, self-host) | ✓ (auto CDN signé) | ✓ (auto CDN signé) | ✓ (auto CDN signé) |
 | Custom assets / textures | illimité | illimité | illimité | illimité |
-| Storage cap (safety silencieuse) | 500 MB | 2 GB | 20 GB | illimité |
-| **Seats (membres équipe)** | **1** | **1** | **5** | **illimité** |
-| **Serveurs connectés** | **1** | **3** | **10** | **illimité** |
-| Import MCModels (.zip) | ✗ | ✓ | ✓ | ✓ |
-| Assistant IA (V1.5) | 5 req/mois | 50/mois | 500/mois | illimité |
+| **Live edit + WebSocket sync** | ✗ | **✓** | **✓** | **✓** |
+| **Auto-deploy au save (zéro export/import)** | ✗ | **✓** | **✓** | **✓** |
+| Multi-server | 1 (manuel) | **3** | **10** | illimité |
+| Multi-seat (équipe) | 1 | 1 | **5** | illimité |
+| Storage cloud (workspace) | 100 MB | 2 GB | 20 GB | illimité |
+| MCModels import (.zip parsing) | ✗ | ✓ | ✓ | ✓ |
+| Assistant IA (V1.5) | ✗ | 50/mois | 500/mois | illimité |
+| Cloud backups, version history, rollback | ✗ | ✓ | ✓ | ✓ |
 | Vendre sur marketplace (V3) | ✗ | ✗ | ✓ | ✓ |
-| CDN priority | standard | standard | premium | premium |
-| Prix indicatif (TBD post-beta) | gratuit | ~5 € / mois | ~15 € / mois | ~30-40 € / mois |
+| CDN priority | — | standard | premium | premium |
+| **Mensuel** | gratuit | **3,5 €/mois** | **7 €/mois** | **15 €/mois** |
+| **Annuel (-29 %)** | — | 30 €/an | 60 €/an | 130 €/an |
+| **Lifetime** *(IA non incluse, cf. add-on)* | — | 80 € | 150 € | 300 € |
 
-**Personas servis :**
+Tarifs indicatifs, à recalibrer post-launch selon les conversions observées.
 
-- **Free** : solo / hobby admin avec un serveur, fait son contenu, aucune équipe. Reste gratuit indéfiniment, devient ambassadeur Discord/Reddit/YouTube.
-- **Solo** : admin solo qui veut MCModels (a investi dans des packs), ou qui gère 2-3 serveurs perso. Pas d'équipe.
-- **Network** : owner d'un public server avec 3-5 staff. Co-admins, builders, mods. Multi-serveur.
-- **Unlimited** : grand network, dev d'un produit basé sur Interfaze, créateur qui vend des packs sur la marketplace.
+#### Add-on Assistant IA
 
-**Conversion triggers concrets et lisibles :**
+Pour les lifetime users qui veulent l'IA, ou les abonnés qui dépassent leur quota mensuel :
 
-- Free user invite un co-admin → modal *"Tu as atteint la limite de 1 seat. Network (~15 €) débloque 5 seats."*
-- Free user achète un pack MCModels et tente l'import → *"L'import MCModels nécessite Solo (~5 €) ou plus."*
-- Free user ajoute un 2e serveur → *"Tu as 1 serveur Interfaze actif. Solo (~5 €) débloque jusqu'à 3 serveurs."*
+- **Pay-as-you-go** : 2 € = 50 credits IA, valides à vie.
+- **Subscription IA standalone** : 3 €/mois = 150 reqs/mois.
 
-Chaque trigger est attaché à un bénéfice tangible. Aucun ne dit *"tu ne peux pas créer de contenu"* — la création reste libre.
+L'IA en lifetime n'est pas incluse parce qu'une request coûte ~0,015 à 0,05 € en API Claude — sur 5+ ans à 50 reqs/mois, le coût marginal dépasse la valeur du lifetime.
 
-Calibration finale du pricing à faire post-beta après mesure des usages réels et survey des early users.
+#### Founder rate (launch pricing)
 
-### 3.3 Anti-cracking
+Sur les **3 premiers mois post-launch** (extendable de 1 mois one-shot si bugs critiques retardent l'adoption) : **-30 % sur tous les tiers payants, locked-in à vie tant que l'abonnement reste actif**.
 
-Approche minimaliste, alignée avec la philosophie "on ne pénalise pas, on facture la productivité" :
+| Tier | Founder mensuel | Founder annuel | Founder lifetime |
+|---|---|---|---|
+| Solo | 2,5 €/mois | 21 €/an | 56 € |
+| Network | 5 €/mois | 42 €/an | 105 € |
+| Unlimited | 11 €/mois | 91 €/an | 210 € |
 
-- **Validation au sync** : le plugin pull un bundle, l'éditeur valide la clé serveur, refuse si déjà utilisée par un autre serveur (fingerprint IP+port+motd).
+Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet psychologique majeur : urgence à l'inscription les 3 premiers mois, retention massive ensuite (pas envie de "perdre son prix"), communauté d'early adopters fidélisés.
+
+### 3.4 Programmes spéciaux
+
+**Creator program** : compte payant gratuit (tier Network) pour les créateurs vérifiés (>2k subs YouTube ou >5k followers Twitter sur Minecraft content). Les créateurs font des tutos, des reviews, des templates partagés sur Discord — leur visibilité compense largement le coût d'un compte gratuit.
+
+**Migration discount** : promo *"Je viens de [zMenu / DeluxeMenus / autre]"* → -50 % les 6 premiers mois. Coupon visible sur la landing page. On capture l'audience la plus convertible (déjà users de menu plugins).
+
+**Open source contributors** : compte payant gratuit pour les contributeurs significatifs sur les libs Interfaze publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT, etc.). Geste classique.
+
+**Demo publique sans signup** : `interfaze.gg/playground` — un éditeur live qui charge un menu d'exemple, sans login. L'utilisateur clique, modifie, voit la preview en temps réel. Une page, 30 secondes pour comprendre le produit, drive massif vers le free signup.
+
+### 3.5 Personas servis
+
+- **Free** : solo / hobby admin avec un serveur, fait son contenu, aucune équipe. Reste gratuit indéfiniment, devient ambassadeur Discord/Reddit/YouTube. Itère tranquillement avec son cycle export-upload-reload.
+- **Solo** (3,5 €/mois) : admin solo qui itère assez régulièrement pour que la friction du mode local lui pèse. Veut le live edit. Souvent gère 2-3 serveurs perso. *"Le sandwich par mois pour ne plus jamais drag-drop un fichier."*
+- **Network** (7 €/mois) : owner d'un public server avec 3-5 staff. Co-admins, builders, mods. Multi-serveur, attribution des edits, audit log. **Cible cœur des revenus.**
+- **Unlimited** (15 €/mois) : grand network, dev d'un produit basé sur Interfaze, créateur qui vend des packs sur la marketplace.
+- **Lifetime buyers** : admins qui détestent les subs (mentalité plugin Minecraft classique). Valeur perçue forte ("j'achète une fois, c'est à moi"), même si en pratique l'amortissement vs annuel se fait à ~2,5-3 ans.
+
+### 3.6 Conversion triggers concrets
+
+Chaque trigger est attaché à un bénéfice tangible et des chiffres qui se lisent comme une non-décision.
+
+**Frictions du mode local qui drivent l'upgrade** :
+- Après le 5ᵉ export-import dans la même session : modal *"Marre des allers-retours ? Solo à 2,5 €/mois (founder rate) débloque le live edit."*
+- Après 7 jours d'utilisation régulière : email *"On a vu que tu as exporté 23 menus cette semaine. Le live edit pourrait t'économiser ~10 minutes par jour. Solo founder rate à 2,5 €/mois."*
+
+**Hits de gates pendant l'usage payé** :
+- Solo user invite un co-admin → *"Tu as atteint la limite de 1 seat. Network à 7 €/mois (5 €/mois en founder rate) débloque 5 seats."*
+- Solo user ajoute un 4ᵉ serveur → *"Tu as 3 serveurs sur 3 utilisés. Network débloque jusqu'à 10."*
+- Solo user a brûlé ses 50 reqs IA → *"Tu as utilisé tes 50 requêtes IA du mois. Recharge 50 credits pour 2 €, ou upgrade Network pour 500/mois."*
+
+**Tier annuel proposé sur le checkout sub** : *"Solo annuel : 30 € (économise 12 € vs mensuel)"*. Affiché par défaut, mensuel en option.
+
+**Page pricing** : option Lifetime mise en avant pour les anti-sub (audience non négligeable dans le marché Minecraft).
+
+### 3.7 Anti-cracking
+
+Approche minimaliste, alignée avec la philosophie "on ne pénalise pas, on facture la productivité enlevée" :
+
+- **Validation au sync (mode cloud uniquement)** : le plugin pull un bundle, l'éditeur valide la clé serveur, refuse si déjà utilisée par un autre serveur (fingerprint IP+port+motd).
 - **Signature liée au serveur** : chaque bundle généré contient une signature qui n'est valide que pour la clé serveur cible. Empêche le partage entre admins ("tiens prends mon bundle").
-- **Pas de re-validation périodique** : un bundle reste valide indéfiniment une fois sur le serveur. L'admin qui annule son abo conserve ses menus existants en lecture seule (basculement vers free tier : 1 seat, 1 serveur). Les seats supplémentaires perdent l'accès à l'éditeur ; le plugin continue de servir les versions live des menus.
+- **Mode local ne nécessite aucune validation** — c'est gratuit, pas besoin d'anti-crack. Les fichiers JSON exportés sont libres de toute restriction.
+- **Fin d'abonnement (paid → free)** : le plugin bascule automatiquement en mode local si la `server_key` n'est plus valide. Les menus existants continuent à fonctionner (ils ont été synchronisés sur le disque par le plugin) en mode read-only manuel. L'admin ne perd rien — il revient juste au mode free, peut continuer à éditer via export/import.
+- **Lifetime users** : la même signature serveur s'applique. La revente du compte est limitée par le seat count = 1 sur Solo Lifetime.
 
-Le modèle seat-based renforce naturellement la résistance au crack : un cracker ne peut pas "se donner" des seats supplémentaires sans contrôler l'auth des comptes Interfaze. Pour les features serveur (MCModels parsing, AI quota), le coût marginal est côté backend Interfaze, donc les bypasser nécessite de répliquer l'infrastructure — au-delà de l'effort d'un cracker typique.
-
-Ce modèle assume une perte de revenus (admins qui sync une fois et arrêtent), compensée par une friction nulle pour les clients légitimes et une réputation produit favorable.
+Sur le partage de comptes (équipe sur 1 seul Solo, multi-comptes pour multi-serveurs) : on laisse couler en V1. Les frictions naturelles (soft-lock, pas d'attribution edit, fragmentation workspace, 1 Discord = 1 compte) écartent 80 % des abus. Le reste sont des non-customers de toute façon. **On observe les données post-launch et on durcit si la perte de revenus devient mesurable**.
 
 ---
 
@@ -205,7 +278,7 @@ Pour les opérations copier-coller dans l'éditeur :
 
 ### 4.6 Éditeur de commandes
 
-Les commandes (cf. section 14) ont leur propre éditeur dans le dashboard, accessible via l'onglet "Commandes" du pack courant. Pas de canvas slot, pas d'inventaire — juste un formulaire structuré : métadonnées (name, aliases, permission, description), liste d'arguments avec drag-handle pour réordonner, requirements + actions + fallback éditables avec les mêmes widgets que les click handlers de menu (réutilisation du composant React `<ActionsEditor>`).
+Les commandes (cf. section 15) ont leur propre éditeur dans le dashboard, accessible via l'onglet "Commandes" du pack courant. Pas de canvas slot, pas d'inventaire — juste un formulaire structuré : métadonnées (name, aliases, permission, description), liste d'arguments avec drag-handle pour réordonner, requirements + actions + fallback éditables avec les mêmes widgets que les click handlers de menu (réutilisation du composant React `<ActionsEditor>`).
 
 Le canvas multi-menu (section 4.4) affiche les commandes comme des nœuds distincts (forme et couleur dédiées), avec une flèche vers le menu qu'elles ouvrent (s'il y en a un).
 
@@ -220,7 +293,7 @@ Le canvas multi-menu (section 4.4) affiche les commandes comme des nœuds distin
 | Action | Paramètres |
 |---|---|
 | `run_command` | command (string), as (`player` / `console`) |
-| `open_menu` | menu_id, optional close_current (bool), optional clear_context (bool, cf. section 14.4) |
+| `open_menu` | menu_id, optional close_current (bool), optional context (Record<string,string> override de l'auto-binding), optional clear_context (bool — désactive l'auto-binding, cf. §15.4) |
 | `close_menu` | — |
 | `give_item` | material, count, optional nbt, optional name, optional lore |
 | `take_item` | material, count, optional nbt match |
@@ -661,7 +734,8 @@ Le plugin charge toutes les traductions en mémoire au sync (les fichiers `i18n/
 Quand un menu s'ouvre ou qu'une commande s'exécute, chaque champ texte traverse la chaîne :
 
 1. **Résolution i18n** : `{i18n:key}` → valeur stockée pour la langue active du joueur. Fallback `default_lang` si manquant. Fallback texte vide + log warning si manquant en default aussi.
-2. **Résolution PAPI** : `%player_name%`, `%vault_eco_balance%`, `%args_target%` (si ouvert depuis une commande), etc.
+2. **Résolution PAPI** : `%player_name%`, `%vault_eco_balance%`, etc. (placeholders du moteur PlaceholderAPI tiers).
+2bis. **Résolution contextInputs** : `{name}` et `{alias.field}` → valeurs du contexte du menu (cf. §14, §15.4) : args de commande propagés, valeurs passées par le menu parent, items d'iteration courants, données fetchées par les connecteurs.
 3. **Parse MiniMessage** : tags → Component Adventure final envoyé au client via Paper.
 
 Conséquence : une **traduction peut elle-même contenir** des placeholders et des tags MiniMessage. Un texte direct (sans `{i18n:...}`) saute juste l'étape 1.
@@ -698,6 +772,8 @@ Les clés i18n n'ont **aucun quota** dans aucun tier. Stockage négligeable (~qu
 ---
 
 ## 11. Workflow Live / Draft
+
+**Note** : ce workflow s'applique au **mode cloud** (paid tier). En **mode local** (free tier), le plugin lit les fichiers JSON depuis `plugins/Interfaze/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/interfaze reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
 
 ### 11.1 Cycle d'édition
 
@@ -1193,9 +1269,187 @@ Le plugin lit son `.itfz` embarqué dans son JAR (typiquement `resources/interfa
 
 À documenter en V2 dans la section dédiée plugin dev de `docs.interfaze.gg`.
 
+### 13.14 Plugins enregistrent leurs propres data sources (V2)
+
+Pendant que `registerComponent` (section 13.4) couvre les composants UI au layout owned by plugin, et que les **data sources homemade** (section 14) couvrent les plugins populaires avant qu'ils intègrent, V2 ajoute le pattern complémentaire : `registerDataSource(...)`. Un plugin author peut shipper son propre connecteur officiel, qui override notre homemade.
+
+```java
+// V2 — exemple d'API côté plugin tier
+InterfazeAPI.registerDataSource(DataSource.builder()
+    .ref("chestshop:items")              // override notre homemade
+    .schema(ItemDTO.class)               // shape des objets retournés
+    .fetcher((server, params) -> {
+        return chestShop.getAllItems().stream()
+            .filter(matches(params))
+            .map(this::toDTO)
+            .toList();
+    })
+    .suggestedLayout("templates/shop_grid.json")  // optionnel
+    .build());
+```
+
+Bénéfices pour l'auteur : contrôle de la shape (le schéma exposé est exactement ce qu'il veut), perf optimisée (accès direct à ses internals plutôt que via API publique), layout suggéré qu'il contrôle, sa marque visible dans la palette éditeur ("Officiel : ChestShop").
+
+
 ---
 
-## 14. Commandes
+## 14. Data sources et contexte du menu
+
+L'API plugins tiers (section 13) couvre le cas où un plugin **veut intégrer Interfaze** : il appelle `registerComponent`, livre son layout et son comportement. Mais ça suppose que le plugin author a fait l'effort. Pour Interfaze à V1, on ne peut pas attendre que QuestX, ChestShop ou EssentialsX prennent le temps d'intégrer.
+
+**La solution** : on retourne le modèle. Au lieu d'attendre que les plugins poussent leur data, **on l'aspire** via des connecteurs custom qu'on écrit nous-mêmes pour les plugins populaires. L'admin de ChestShop ouvre Interfaze, sélectionne *"Bind to ChestShop items"*, design son shop visuellement — sans que ChestShop ait fait quoi que ce soit. Quand le plugin author voudra prendre la main, il pourra (V2 via `registerDataSource`).
+
+### 14.1 Modèle : `contextInputs` du menu
+
+Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'un connecteur — passe par `Menu.contextInputs`. Un `ContextInput` est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources, choisies par champ :
+
+- **Appelant** : la commande (cf. §15) ou le menu parent passe la valeur à l'ouverture (auto-binding par nom, cf. §15.4).
+- **Connecteur** : l'input porte un `source: ConnectorBinding` ; le moteur appelle le connecteur référencé et stocke le résultat dans la slot.
+- **Default** : valeur littérale fallback si l'appelant n'a rien fourni et qu'aucun connecteur n'est attaché.
+
+```ts
+ContextInput = {
+  name: string,                    // slug de la slot, exposé comme {name} dans les champs
+  type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object",
+  default?: string,                // fallback littéral
+  source?: ConnectorBinding        // optionnel, mutuellement exclusif avec un appelant qui passerait la valeur
+}
+
+ConnectorBinding = {
+  ref: string,                     // "chestshop:items", "essentials:warps"
+  params?: Record<string, string>, // config spécifique connecteur, supporte {name} interpolation
+  filter?: Record<string, string>, // where-clauses sur les champs retournés, supporte {name}
+  sort?: { by: string, direction?: "asc" | "desc" },
+  limit?: number                   // default = nombre de positions de l'Element qui itère cette slot, max 1000
+}
+```
+
+`source` est valide sur `type: "list"` (le connecteur retourne une liste d'objets) et `type: "object"` (le connecteur retourne un objet unique).
+
+### 14.2 Iteration
+
+Un Element devient itératif via `iterates: { source, alias }`. `source` est le `name` d'un `ContextInput` de type `"list"` (peu importe que la liste vienne de l'appelant ou d'un connecteur — la slot est opaque). `alias` est le nom local que prend chaque item dans la scope de l'Element : ses champs (title, lore, material, click, conditions) accèdent aux champs de l'item via `{alias.field}`.
+
+```json
+{
+  "id": "shop_menu",
+  "contextInputs": [
+    { "name": "category", "type": "string" },
+    {
+      "name": "shops",
+      "type": "list",
+      "source": {
+        "ref": "chestshop:items",
+        "filter": { "category": "{category}" },
+        "sort": { "by": "price", "direction": "asc" },
+        "limit": 28
+      }
+    }
+  ],
+  "layers": [{
+    "id": "items",
+    "elements": [{
+      "id": "shop_grid",
+      "positions": "10-43",
+      "iterates": { "source": "shops", "alias": "shop" },
+      "appearances": [
+        {
+          "if": [{ "type": "placeholder_equals", "placeholder": "{shop.rarity}", "value": "legendary" }],
+          "material": "{shop.material}",
+          "title": "<gold><bold>{shop.name}</bold></gold>",
+          "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+          "enchanted": true,
+          "click": {
+            "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] }
+          }
+        },
+        {
+          "material": "{shop.material}",
+          "title": "<white>{shop.name}</white>",
+          "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+          "click": {
+            "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] }
+          }
+        }
+      ]
+    }]
+  }]
+}
+```
+
+Pour chaque item retourné par le connecteur, le moteur évalue les appearances dans l'ordre. Les conditions sur les champs de l'item utilisent `placeholder_equals` / `placeholder_match` avec `{alias.field}` ; les conditions joueur (`has_money`, `has_permission`, etc.) restent évaluées avec le contexte joueur normal.
+
+### 14.3 Trois patterns coexistants pour un Element
+
+| Pattern | Layout | Data | Use case |
+|---|---|---|---|
+| **`iterates` sur un input avec `source: ConnectorBinding`** | Admin (via Interfaze) | Plugin (via connecteur) | Connecteur Interfaze pour ChestShop, EssentialsX warps, etc. L'admin design son shop comme il veut. |
+| **`iterates` sur un input passé par l'appelant** | Admin | Caller (commande / menu parent) | Liste passée explicitement, ex. la commande `/shop <category>` passe `shops: [...]` après filtre côté commande. Rarement utilisé mais permis. |
+| **`appearance.component_ref` (plugin registered)** | Plugin author | Plugin | QuestX livre son bouton de quête avec son layout par défaut, l'admin peut juste override le click ou le title. |
+| **Element statique** | Admin | Admin | Bouton qui run une commande, sans data dynamique. |
+
+Tous cohabitent dans le même menu. Un menu peut mélanger un grid bindé à `chestshop:items` avec un bouton statique "Acheter de la monnaie" et un component `essentials:warp_button` paginable.
+
+`iterates` et `component_ref` **ne peuvent pas coexister sur un même Element** — `validateMenuLayout` flag les erreurs.
+
+### 14.4 Connecteurs au launch (V1)
+
+Cinq connecteurs **homemade Interfaze** qui couvrent ~80 % des serveurs Minecraft modernes :
+
+| Plugin | Data sources exposées |
+|---|---|
+| **EssentialsX** | `essentials:warps`, `essentials:kits`, `essentials:jails` |
+| **ChestShop** | `chestshop:items`, `chestshop:categories` |
+| **JobsReborn** | `jobs:list`, `jobs:player_progress` |
+| **LuckPerms** | `luckperms:groups`, `luckperms:tracks` |
+| **Quests** | `quests:active`, `quests:completed`, `quests:available` |
+
+Pour chaque connecteur, on documente le **schéma des objets retournés** (champs `id`, `name`, `material`, etc.) sur `docs.interfaze.gg/connectors`. Le code Java côté plugin Interfaze fetch les data via l'API publique du plugin source (ex: `EssentialsX#getWarps()`).
+
+V1.5+ : on étend le catalogue (ShopGUIPlus, mcMMO, BetonQuest, WorldGuard regions, Vault, etc.) selon la demande Discord/Reddit.
+
+### 14.5 Connecteurs : qui les écrit, comment
+
+**V1 — homemade Interfaze** : on écrit les connecteurs nous-mêmes en Java, packagés dans le plugin Interfaze. Ils dépendent des plugins sources via `softdepend` dans `paper-plugin.yml` (chargement conditionnel — pas de crash si EssentialsX absent).
+
+**V2 — registerDataSource (plugin author)** : un plugin author peut shipper son propre connecteur officiel via une nouvelle API `InterfazeAPI.registerDataSource(...)` (parallèle au `registerComponent` actuel). Override system : si un plugin officiel s'enregistre pour `chestshop:items`, il remplace notre homemade. Bénéfices pour l'auteur : contrôle de la shape, perf optimisée, layout suggéré par défaut.
+
+**V2.5+ — user-defined connectors** : un admin power user pourra définir ses propres connecteurs via un DSL YAML simple ("ce fichier de config plugin, lis ces clés, expose ces champs"). Permet de support des plugins de niche sans qu'on les ajoute officiellement.
+
+### 14.6 Maintenance des connecteurs homemade
+
+Risque réel : chaque update majeure d'EssentialsX/ChestShop/etc. peut casser notre connecteur. Mitigation :
+
+- **Tests d'intégration CI** : on spin un Paper avec EssentialsX dans Docker et on vérifie que `essentials:warps` retourne la bonne liste.
+- **Pin des versions supportées** : chaque connecteur déclare la version minimum/maximum supportée dans son metadata.
+- **Pression naturelle vers V2** : un plugin author qui voit son connecteur populaire chez les admins a une motivation à shipper l'officiel et reprendre le contrôle.
+- **Effort estimé** : ~2-4h/mois de maintenance par connecteur sur le long terme. Pour 5 connecteurs au launch, c'est 10-20h/mois — acceptable en solo dev.
+
+### 14.7 UX éditeur
+
+Le binding connecteur s'édite **au niveau du menu**, dans le panel `MenuProperties` à côté de la liste des `contextInputs` :
+
+- Sur un input de type `"list"` ou `"object"`, un sélecteur **"Source"** propose deux choix : *"passé par l'appelant"* (default) ou *"connecteur"*.
+- Mode *connecteur* : dropdown listant les connecteurs disponibles (filtré selon les plugins détectés sur le serveur connecté). Hover sur un connecteur affiche le schéma des objets retournés (champs disponibles).
+- **Filtres / sort / limit** : UI typée selon les champs du connecteur sélectionné. Les valeurs supportent `{name}` pour interpoler les autres `contextInputs` du menu (ex. `filter: { category: "{category}" }`).
+- **Auto-completion `{alias.field}`** : dans tous les champs texte d'un Element qui a `iterates: { source: input, alias }`, l'autocomplete propose les champs de l'objet du connecteur (ou de la liste passée par l'appelant) en plus des placeholders PAPI et i18n.
+- **Preview live** : si un `sampleContext` est fourni, la preview de l'éditeur l'utilise tel quel ; sinon, en mode connecteur, l'éditeur peut appeler le connecteur (via API mock du backend) pour render 3-5 items exemples.
+
+### 14.8 Synergie avec le MCP server (V2)
+
+Le MCP server `interfaze-mcp` expose nativement les connecteurs au LLM client (Claude Desktop / Cursor) sous forme de **tools MCP standardisés** : *"liste-moi tous les warps Essentials de ce serveur"*, *"crée un menu qui itère les items ChestShop sous 100 €"*. Aucun travail supplémentaire au-dessus du modèle `ConnectorBinding` — un connecteur enregistré devient un tool MCP automatiquement.
+
+### 14.9 Limites V1
+
+- Pas de **join/lookup cross-source** (ex: "items ChestShop dont le crafter est dans le top 10 LuckPerms"). Un input = une source. À V2 si la demande émerge.
+- Pas de **mutations** via connecteurs (ils sont read-only). Pour modifier la data d'un plugin, on passe par `run_command` ou par un `component_ref` qui exécute une action.
+- Pas de **caching cross-player** : le connecteur est appelé par opening de menu. Si la data est lourde à fetch, le connecteur lui-même implémente son cache. Documentation claire sur les bonnes pratiques cache pour les connecteurs.
+- **Limit max 1000 items** par `ConnectorBinding` pour éviter les abus runtime. En pratique, les inventaires Minecraft cap à 54 slots, donc cette limite n'est jamais atteinte légitimement.
+- **Pas de cycle entre `contextInputs`** : un `filter` qui interpole `{name}` ne peut référencer qu'un input dont la valeur est résoluble en amont (appelant ou connecteur sans dépendance circulaire). L'éditeur calcule un ordre topologique et flag les cycles.
+
+---
+
+## 15. Commandes
 
 Interfaze permet à l'admin de **créer ses propres commandes** depuis l'éditeur, au même niveau qu'un menu. Une commande est une entité de premier ordre : elle a son id, son nom, ses arguments, ses actions, et vit dans le même workspace que les menus (et le même pack `.itfz` à l'export).
 
@@ -1203,10 +1457,10 @@ Concept analogue à un `commands.yml` ou à un plugin de commandes custom (Comma
 
 - Le **catalogue d'actions du menu** réutilisé tel quel (cf. section 5).
 - Un **système d'arguments typés** avec tab-completion automatique.
-- Un **contexte d'arguments** propagé aux menus ouverts depuis la commande.
+- Les **valeurs d'arguments** auto-bindées par nom aux `contextInputs` des menus ouverts (cf. §15.4).
 - L'éditeur visuel : pas de YAML à taper, validation live, hints de placeholders.
 
-### 14.1 Modèle
+### 15.1 Modèle
 
 Une commande contient :
 
@@ -1219,7 +1473,7 @@ Une commande contient :
 
 Schéma complet : `docs/schema/command/v1/`.
 
-### 14.2 Types d'arguments (V1)
+### 15.2 Types d'arguments (V1)
 
 8 types initiaux, suffisants pour les use cases courants :
 
@@ -1240,40 +1494,48 @@ Règle d'ordre : les `required` doivent précéder les optionnels. L'éditeur l'
 
 V2+ ajoutera : `item_material`, `enchantment`, `entity_type`, `region` (depuis WorldGuard), suggestions custom via placeholders dynamiques.
 
-### 14.3 Contexte et placeholders
+### 15.3 Arguments et contexte
 
 Quand la commande s'exécute, les arguments sont parsés selon leur type. Un échec de parse (joueur introuvable, monde non chargé, valeur enum invalide) envoie un message d'erreur typé au joueur et la commande n'est **pas exécutée** (pas de fallback, c'est de l'input invalide, pas un requirement raté).
 
-Une fois parsés, les arguments deviennent disponibles via deux formes de placeholders :
+Une fois parsés, les arguments deviennent des **valeurs nommées dans la scope de la commande**, identifiées par leur nom d'argument. Quand la commande exécute un `open_menu`, ces valeurs sont passées au menu cible via l'auto-binding par nom (cf. §15.4) : un argument nommé `target` arrive automatiquement dans un `contextInput` `target` du menu ouvert.
 
-- `%args_<name>%` : valeur primaire en string (nom du joueur, valeur enum, nombre).
-- `%args_<name>_<champ>%` : champs dérivés sur les types complexes.
+Pour les types complexes (`player`, `online_player`), la valeur est un objet exposant des champs dérivés accessibles via `{<name>.<champ>}` dans tout champ texte du menu :
 
-Champs dérivés en V1 :
-
-| Type | Champs |
+| Type | Champs exposés |
 |---|---|
-| `player` / `online_player` | `_uuid`, `_displayname` |
+| `player` / `online_player` | `name` (string), `uuid` (string), `displayname` (string) |
 
-Ces placeholders sont **enregistrés dynamiquement** dans le moteur PlaceholderAPI au moment où la commande ouvre un menu, et nettoyés à la fermeture. Ils coexistent avec les placeholders standards (`%player_name%`, `%world%`, etc.) et sont utilisables dans :
+Dans les `actions`, `fallback` et `requirements` de la commande **elle-même** (avant qu'un menu ne soit ouvert), les arguments sont accessibles directement par leur nom via `{<name>}` et `{<name>.<champ>}` — la même syntaxe que dans les menus, pour rester uniforme.
 
-- Les `actions` et `fallback` de la commande elle-même (ex: `run_command "eco give %args_target% %args_amount%"`).
-- Les `requirements` de la commande (ex: `placeholder_match %args_target_uuid% ...`).
-- Toute apparence, click handler, ou action du menu ouvert depuis la commande.
+### 15.4 Propagation du contexte (auto-binding par nom)
 
-### 14.4 Propagation du contexte
+Quand un `open_menu` est exécuté (depuis une commande, un click handler de menu, ou un autre `open_menu`), le moteur peuple les `contextInputs` du menu cible en deux passes :
 
-Une `open_menu` action propage le contexte d'arguments **par défaut**. Quand le menu ouvert chaîne un autre menu via `open_menu`, le contexte continue à se propager.
+1. **Auto-binding par nom** : pour chaque `contextInput` du menu cible, si une valeur du même nom existe dans la scope courante (arguments de commande, `contextInputs` du menu appelant, alias d'iteration courant si l'`open_menu` est dans une boucle), elle est passée. Le typage doit matcher — sinon l'éditeur warn au design-time et le runtime ignore.
+2. **Override explicite** via `OpenMenuAction.context: Record<string, string>` : chaque entrée surcharge l'auto-binding. La valeur peut interpoler des placeholders de la scope courante (ex. `{ "shop": "{currentItem}" }` pour mapper sur un nom différent).
 
-Pour couper la propagation (ex: bouton "Retour à l'accueil" qui ne doit pas hériter d'un target spécifique) :
+```jsonc
+// shop_menu.contextInputs : [{ name: "category" }, { name: "shops", type: "list", source: {...} }]
+// shop_menu Element : iterates: { source: "shops", alias: "shop" }
+
+// Click handler dans shop_menu, target = item_detail (déclare contextInput "shop") :
+{ "type": "open_menu", "menu_id": "item_detail" }
+// → auto-bind "shop" depuis l'alias d'iteration courant. Aucun mapping nécessaire.
+
+// Si le menu cible déclare "item" au lieu de "shop", on mappe explicitement :
+{ "type": "open_menu", "menu_id": "item_detail", "context": { "item": "{shop}" } }
+```
+
+**`clear_context: true`** : coupe l'auto-binding (l'override explicite reste actif). Utile pour les boutons "Retour à l'accueil" qui ne doivent pas hériter d'un target spécifique. Si le menu cible déclare des `contextInputs` sans `default` ni `source: ConnectorBinding`, l'ouverture échoue avec un message au joueur.
 
 ```json
 { "type": "open_menu", "menu_id": "main_menu", "clear_context": true }
 ```
 
-Decision : par défaut **false** (propage), parce que le cas le plus fréquent est de chaîner un sous-menu qui hérite du contexte (ex: profile → inventaire de profile, pour le même target). Le clear est explicite et rare.
+Decision : auto-binding par défaut, override explicite quand les noms divergent, `clear_context` pour les ruptures intentionnelles. Ce modèle remplace la propagation implicite de `%args_*%` du proto initial — plus explicite, contractualisé via `Menu.contextInputs`, vérifiable au design-time.
 
-### 14.5 Use cases couverts
+### 15.5 Use cases couverts
 
 Avec ce modèle, l'admin peut couvrir sans plugin tiers :
 
@@ -1284,7 +1546,7 @@ Avec ce modèle, l'admin peut couvrir sans plugin tiers :
 - `/warp <name>` avec `name` typé `enum` → liste de warps autocomplétée.
 - `/admin-give <player> <material>` (perm admin) → give_item au joueur cible.
 
-### 14.6 Conflits de noms
+### 15.6 Conflits de noms
 
 Au démarrage, le plugin détecte les conflits avec les commandes déjà enregistrées sur le serveur :
 
@@ -1294,17 +1556,17 @@ Au démarrage, le plugin détecte les conflits avec les commandes déjà enregis
 
 Pas d'override silencieux jamais — un admin doit toujours savoir quelle commande est active pour quel nom.
 
-### 14.7 Pricing
+### 15.7 Pricing
 
 Les commandes **n'ont pas de quota** dans aucun tier. Une commande coûte ~1 KB de stockage et zéro runtime (pas de rendu, pas de WS persistant). Les quotas Interfaze sont sur les serveurs liés et les seats d'équipe, pas sur les ressources de contenu (cf. section 3).
 
-### 14.8 Workspace et packs
+### 15.8 Workspace et packs
 
 Les commandes apparaissent dans le dashboard à côté des menus, avec leur propre onglet/filtre. Sur le canvas multi-menu (cf. section 4.4), une commande est représentée comme un nœud distinct (forme/couleur dédiée), avec une flèche vers le menu qu'elle ouvre (s'il y en a un — sinon nœud "feuille").
 
 À l'export `.itfz`, le manifest pack inclut une section `commands[]` à côté de `menus[]`. Cf. `docs/schema/pack/v1/`.
 
-### 14.9 Limites V1
+### 15.9 Limites V1
 
 - Pas d'arguments **variadic** (ex: `/say <message...>`). Le dernier `string` capture tous les tokens restants par convention si on en a besoin, mais pas de syntaxe spéciale en V1.
 - Pas de **subcommands** branchées (ex: `/admin give|kick|ban`). À traiter via plusieurs commandes nommées (`/admin-give`, `/admin-kick`) ou un menu d'admin.
@@ -1312,13 +1574,13 @@ Les commandes apparaissent dans le dashboard à côté des menus, avec leur prop
 - Pas de **commands chaînées** (une commande qui appelle une autre commande). Possible via `run_command` mais ça repasse par le parser texte, pas idéal.
 
 ---
-## 15. Authentification et équipes
+## 16. Authentification et équipes
 
-### 15.1 Login
+### 16.1 Login
 
 **Discord OAuth** comme méthode principale. Choix culturellement aligné : 99% des admins Minecraft sont déjà sur Discord.
 
-### 15.2 Recovery email
+### 16.2 Recovery email
 
 À la création du compte, l'admin lie un email (non-Discord) de récupération. En cas de perte d'accès Discord (ban, compte suspendu), procédure manuelle de support :
 
@@ -1326,7 +1588,7 @@ Les commandes apparaissent dans le dashboard à côté des menus, avec leur prop
 2. Vérification d'identité (preuve d'ownership des serveurs Minecraft : commande sur les serveurs liés, screenshot, etc.).
 3. Re-binding manuel sur un nouveau compte Discord.
 
-### 15.3 Multi-utilisateur (équipes)
+### 16.3 Multi-utilisateur (équipes)
 
 Dans la spec V1, deux niveaux :
 
@@ -1337,15 +1599,17 @@ Dans la spec V1, deux niveaux :
 
 Permissions internes au compte : Owner (tout), Admin (édite et publie), Editor (édite, ne peut pas publier), Viewer (read-only).
 
-### 15.4 Sessions
+### 16.4 Sessions
 
 JWT avec rotation. Session valide 7 jours, refresh transparent. Si la connexion Discord est révoquée (ban), la session expire à la prochaine validation.
 
 ---
 
-## 16. Protocole WebSocket
+## 17. Protocole WebSocket
 
-### 16.1 Handshake
+**Note** : le WebSocket persistant n'est actif qu'en **mode cloud** (paid tier). Les free users en mode local n'ouvrent aucune connexion sortante depuis leur plugin. Tout ce qui suit décrit le mode cloud uniquement.
+
+### 17.1 Handshake
 
 Connexion sortante du plugin vers `wss://editor.interfaze.gg/ws/plugin`. Authentification via :
 
@@ -1372,7 +1636,7 @@ L'éditeur valide la `server_key`, vérifie l'unicité d'usage (fingerprint serv
 }
 ```
 
-### 16.2 Messages éditeur → plugin
+### 17.2 Messages éditeur → plugin
 
 | Message | Description |
 |---|---|
@@ -1384,7 +1648,7 @@ L'éditeur valide la `server_key`, vérifie l'unicité d'usage (fingerprint serv
 | `permission_query` | Demande la liste des permissions disponibles (LuckPerms, Vault) |
 | `material_query` | Demande la liste des matériaux/items du serveur |
 
-### 16.3 Messages plugin → éditeur
+### 17.3 Messages plugin → éditeur
 
 | Message | Description |
 |---|---|
@@ -1396,11 +1660,11 @@ L'éditeur valide la `server_key`, vérifie l'unicité d'usage (fingerprint serv
 | `event_menu_opened` | Métriques (qui a ouvert quel menu, quand) |
 | `event_action_executed` | Métriques (action déclenchée, succès/échec) |
 
-### 16.4 Reconnexion
+### 17.4 Reconnexion
 
 Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la reconnexion, le handshake inclut `current_bundle_hash` ; si l'éditeur a une version plus récente, push de `bundle_available`.
 
-### 16.5 Robustesse
+### 17.5 Robustesse
 
 - Messages idempotents quand possible (un `live_publish` re-reçu ne casse rien).
 - Heartbeat (`ping`/`pong`) toutes les 30 secondes.
@@ -1408,9 +1672,16 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 
 ---
 
-## 17. Stack technique
+## 18. Stack technique
 
-### 17.1 Plugin Minecraft
+### 18.1 Plugin Minecraft
+
+**Architecture interne** : le plugin a deux providers de menus selon le mode :
+- `FilesystemMenuProvider` (mode local, free users) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel.
+- `CloudMenuProvider` (mode cloud, paid users) : maintient le WebSocket vers `wss://editor.interfaze.gg/ws/plugin`, pull les bundles depuis le CDN.
+
+Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode est détecté au démarrage par la présence ou non d'une `server_key` valide dans `config.yml`.
+
 
 - **API** : Paper API (depuis 1.21.4), avec compatibilité Spigot. Préférer Paper pour les events plus riches et la perf.
 - **Langage** : Java 21 (LTS, requis par 1.21+) ou Kotlin (moderne, concis).
@@ -1422,7 +1693,7 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
   - LuckPerms (permissions, optionnelle)
 - **Persistence** : H2 ou SQLite embedded pour les cooldowns, métadonnées de bundles. Config `.yml` minimal (server_key, port HTTP local, tier override pour debug).
 
-### 17.2 Éditeur web
+### 18.2 Éditeur web
 
 - **Frontend** : React 18+ avec Vite. TypeScript strict.
 - **Drag & drop** : `@dnd-kit/core` (performant, accessible, moderne).
@@ -1430,7 +1701,7 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 - **UI components** : shadcn/ui ou Mantine (esthétique soignée nécessaire pour le positionnement).
 - **WebSocket client** : connection management custom + auto-reconnect.
 
-### 17.3 Backend éditeur
+### 18.3 Backend éditeur
 
 - **Runtime** : Node.js 20+ avec TypeScript.
 - **Framework** : Fastify (perf et type-safe) ou Hono (moderne, edge-ready).
@@ -1441,7 +1712,7 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 - **Paiement** : Stripe Subscriptions.
 - **Génération de packs** : workers Node + librairie sharp pour le redimensionnement, archiver pour le .zip.
 
-### 17.4 Infra
+### 18.4 Infra
 
 - **Hosting** : Fly.io ou Railway pour le backend (simple, scalable, multi-région).
 - **DB managée** : Supabase (PostgreSQL + auth assist) ou Neon (serverless Postgres).
@@ -1449,7 +1720,7 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 - **Monitoring** : Sentry (errors), Plausible ou PostHog (analytics produit).
 - **CI/CD** : GitHub Actions.
 
-### 17.5 Sécurité
+### 18.5 Sécurité
 
 - Tous les tokens en HttpOnly cookies (jamais localStorage).
 - Server keys hashed côté backend (Argon2).
@@ -1460,9 +1731,9 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 
 ---
 
-## 18. Distribution / GTM
+## 19. Distribution / GTM
 
-### 18.1 Plugin gratuit (vanilla)
+### 19.1 Plugin gratuit (vanilla)
 
 Distribué partout pour maximiser l'adoption :
 
@@ -1472,7 +1743,7 @@ Distribué partout pour maximiser l'adoption :
 
 Note : SpigotMC interdit les modèles d'abonnement. La version premium ne peut pas y être listée ; seule la version vanilla l'est.
 
-### 18.2 Premium (subscription)
+### 19.2 Premium (subscription)
 
 Distribué uniquement via :
 
@@ -1485,7 +1756,7 @@ Possibilité future :
 - **BuiltByBit** : pour vendre des packs de menus prêts (une fois la marketplace opérationnelle). Audience qualifiée.
 - **Polymart** : alternative possible, moins prioritaire.
 
-### 18.3 Marketing au launch
+### 19.3 Marketing au launch
 
 - **Démo serveur public** : `mc.interfaze.gg`. N'importe qui peut se connecter et tester le plugin en action. Le manque de démo de NxMenu est un avantage concurrentiel concret.
 - **Vidéo showcase** (2-3 minutes) : édition live (la WS est un feature visuel imbattable), construction d'un menu shop en 5 minutes, démo de cohabitation avec Nexo.
@@ -1494,7 +1765,7 @@ Possibilité future :
 - **Outreach YouTubers Minecraft** : créateurs de tuto serveurs (français et anglophones), envoi du plugin gratuit + accès premium pour test.
 - **Blog technique** : 1-2 articles initiaux ("comment on a résolu la cohabitation avec Nexo", "pourquoi on a choisi 1.21.4+"). SEO + crédibilité dev.
 
-### 18.4 Métriques de succès post-launch
+### 19.4 Métriques de succès post-launch
 
 - **Adoption (mois 1)** : >1000 téléchargements vanilla.
 - **Adoption (mois 3)** : >5000 serveurs actifs (plugin chargé et utilisé).
@@ -1504,9 +1775,9 @@ Possibilité future :
 
 ---
 
-## 19. Scope MVP explicite
+## 20. Scope MVP explicite
 
-### 19.1 Inclus dans le MVP (V1)
+### 20.1 Inclus dans le MVP (V1)
 
 Toute la fondation du produit décrite ci-dessus :
 
@@ -1516,7 +1787,7 @@ Toute la fondation du produit décrite ci-dessus :
 - Workflow Live / Draft avec rollback.
 - **Workspace organisé en packs** (Personal auto-créé + packs user-created), avec assignation des menus/commandes/templates/assets à un pack. Pas encore d'export/import de pack en V1 — uniquement export d'un menu seul (.menu.json) ou d'une commande seule (.cmd.json).
 - **Canvas multi-menu** (cf. section 4.4) : vue Figma-like avec cartes des menus et flèches `open_menu` auto-dérivées. Toggle "List/Canvas" dans la toolbar du dashboard. React Flow comme librairie de canvas. Implémentation cadrée parce que le code est généré par AI assist — quelques heures à quelques jours de plus que la List view.
-- **Commandes custom** (cf. section 14) : entité de premier ordre alongside les menus. Arguments typés avec tab-completion (8 types initiaux), requirements + fallback + cooldown, contexte d'arguments propagé aux menus ouverts via placeholders `%args_<name>%`. Pas de quota — illimitées dans tous les tiers.
+- **Commandes custom** (cf. section 15) : entité de premier ordre alongside les menus. Arguments typés avec tab-completion (8 types initiaux), requirements + fallback + cooldown, valeurs d'arguments auto-bindées par nom aux `contextInputs` des menus ouverts (cf. §15.4). Pas de quota — illimitées dans tous les tiers.
 - **Format texte unifié MiniMessage + i18n** (cf. section 10) : tous les champs texte (titres, lores, messages, descriptions de commandes) sont en MiniMessage avec preview live dans l'éditeur. Système d'i18n inline `{i18n:key}` scoped au workspace, avec création/édition de clés sans quitter le contexte d'édition (touche `{` pour autocomplete, "+ Nouvelle clé" pour créer avec auto-extract du texte courant). Modes serveur : langue unique, locale joueur (recommandé), ou placeholder PAPI. Pas de quota sur les clés, illimitées dans tous les tiers.
 - 15 actions atomiques.
 - Conditions, requirements, fallback, cooldowns.
@@ -1525,15 +1796,16 @@ Toute la fondation du produit décrite ci-dessus :
 - Asset library avec uploads, imports MCModels (.zip), folders, tags, search.
 - Resource pack generation (CMD strings 1.21.4+, polices custom, CDN hosting).
 - **API d'intégration plugins tiers** (registerComponent single/paginable, placeholders, actions par défaut, layouts suggérés, palette dans l'éditeur, sync via WS, dégradation passive sur composants manquants).
+- **Data sources via connecteurs** (cf. section 14) : `Menu.contextInputs` peuvent porter un `source: ConnectorBinding` qui auto-fetche une liste/objet depuis un plugin tiers ; les Elements iterent dessus via `iterates: { source, alias }` avec layout owned par l'admin. **5 connecteurs homemade au launch** : EssentialsX (warps, kits, jails), ChestShop (items, categories), JobsReborn (list, player_progress), LuckPerms (groups, tracks), Quests (active, completed, available). Couvre ~80 % des serveurs Minecraft modernes dès le jour 1.
 - Authentification Discord OAuth.
 - Multi-utilisateur (équipes) basique.
 - Soft-lock multi-admin.
-- Modèle freemium + 3 tiers Solo/Network/Unlimited.
+- **Modèle free perpétuel + paid pour la friction** : free = éditeur complet + plugin + export/import manuel. Paid = live edit + auto-sync + multi-server + IA. Tiers Solo (3,5 €/mois) / Network (7 €/mois) / Unlimited (15 €/mois), mensuel/annuel/lifetime + add-on IA + founder rate -30 % locked-in les 3 premiers mois post-launch.
 - Anti-crack léger (signature au sync).
 - Distribution multi-canal (SpigotMC, Modrinth, site, Stripe).
 - Documentation API tierce (Javadoc + tutoriel + 1-2 reference implementations).
 
-### 19.2 Explicitement hors scope MVP (V2+)
+### 20.2 Explicitement hors scope MVP (V2+)
 
 - **Variables natives** (player/server/session scopes). PlaceholderAPI suffit pour démarrer.
 - **Auto-convert** depuis configs zMenu / DeluxeMenus. À évaluer selon la demande.
@@ -1553,7 +1825,7 @@ Toute la fondation du produit décrite ci-dessus :
 
 ---
 
-## 20. Roadmap V2+ (indicative)
+## 21. Roadmap V2+ (indicative)
 
 | Version | Features | Cible (post-launch) |
 |---|---|---|
@@ -1565,7 +1837,7 @@ Toute la fondation du produit décrite ci-dessus :
 
 ---
 
-## 21. Risques et mitigations
+## 22. Risques et mitigations
 
 | Risque | Probabilité | Impact | Mitigation |
 |---|---|---|---|
@@ -1580,15 +1852,18 @@ Toute la fondation du produit décrite ci-dessus :
 
 ---
 
-## 22. Glossaire
+## 23. Glossaire
 
 | Terme | Définition |
 |---|---|
 | **Bundle** | Artefact runtime : .zip signé (config + resource pack) téléchargé par le plugin depuis le CDN. Opaque pour l'admin, généré automatiquement par le backend. |
 | **Pack** | Unité d'organisation dans le workspace (groupe de menus + commandes + templates + assets liés thématiquement). Aussi : format d'export/import partageable `.itfz` (cf. schéma `pack/v1`). |
-| **Command** | Commande custom Interfaze, entité de premier ordre alongside les menus (cf. section 14). Schéma `command/v1`. Réutilise les actions et conditions du catalogue menu, plus un système d'arguments typés. |
+| **Command** | Commande custom Interfaze, entité de premier ordre alongside les menus (cf. section 15). Schéma `command/v1`. Réutilise les actions et conditions du catalogue menu, plus un système d'arguments typés. |
 | **Argument** | Paramètre positionnel typé d'une commande (`player`, `online_player`, `string`, `integer`, `number`, `boolean`, `world`, `enum` en V1). Tab-completion automatique selon le type. |
-| **Contexte d'arguments** | Ensemble des valeurs résolues des arguments d'une commande, exposées comme placeholders `%args_<name>%` aux actions de la commande et propagées au menu ouvert. Coupable via `clear_context: true` sur `open_menu`. |
+| **Contexte du menu** | Slots nommées et typées que le menu déclare via `Menu.contextInputs`. Chaque slot est peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs du menu parent, alias d'iteration courant) ou par un connecteur attaché via `source: ConnectorBinding`. Override explicite via `OpenMenuAction.context`. Cf. §15.4. |
+| **ContextInput** | Une slot du contexte du menu. `{ name, type, default?, source? }`. Le `name` est exposé comme `{name}` dans tout champ texte du menu. |
+| **ConnectorBinding** | Configuration d'un connecteur attaché à un `ContextInput` : `{ ref, params?, filter?, sort?, limit? }`. Les valeurs de `params` et `filter` peuvent interpoler `{name}` pour référencer d'autres `contextInputs` du menu. Cf. §14. |
+| **Auto-binding par nom** | À l'ouverture d'un menu via `open_menu`, chaque `contextInput` du menu cible est peuplé depuis une valeur de même nom dans la scope courante (args de commande, contextInputs du menu appelant, alias d'iteration). Surchargeable par `OpenMenuAction.context`, désactivable par `clear_context: true`. Cf. §15.4. |
 | **Workspace** | L'espace de travail d'un admin, contenant ses packs (Personal + user-created + imported + forked). |
 | **Canvas** | Vue multi-menu de l'éditeur (V1), espace infini Figma-like où chaque menu est une carte preview, et les `open_menu` actions deviennent des flèches auto-dérivées. Toggle List/Canvas dans la toolbar. |
 | **Slim pack** | Mode d'export d'un pack : manifest + JSONs only, assets référencés par URL CDN. ~10-100 KB. Conçu pour embarquage dans un JAR plugin. |
@@ -1616,10 +1891,16 @@ Toute la fondation du produit décrite ci-dessus :
 | **Composant paginable** | Composant qui occupe une rangée de slots et génère N instances dynamiquement |
 | **Layout suggéré** | Menu pré-rempli proposé par un plugin tiers comme point de départ (purement indicatif) |
 | **component_ref** | Référence dans le JSON d'un menu vers un composant tiers (ex. `questx:quest_button`) |
+| **Connecteur** | Code qui implémente un binding vers un plugin tiers : interroge le plugin, expose une liste (ou un objet unique) d'objets typés. Référencé par `namespace:source` (ex. `chestshop:items`) depuis un `ContextInput.source`. Homemade Interfaze à V1, registered par plugin author en V2. |
+| **Iteration** | Mécanisme par lequel un Element rend un slot par item d'un `ContextInput` de type `"list"`, via `iterates: { source, alias }`. L'`alias` est le nom local de l'item courant, accessible dans les champs de l'Element via `{alias.field}`. La liste source peut venir de l'appelant ou d'un connecteur — transparent côté Element. |
+| **registerDataSource (V2)** | API Java pour qu'un plugin author publie son propre connecteur officiel, override des homemade Interfaze. Cf. section 13.14. |
+| **Mode local** | Mode de fonctionnement du plugin pour les free users : lit `plugins/Interfaze/menus/*.json` depuis le disque, reload manuel via `/interfaze reload`, aucune connexion sortante. |
+| **Mode cloud** | Mode de fonctionnement du plugin pour les paid users : connecté à Interfaze via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. |
+| **Founder rate** | Promo locked-in à vie pour les early adopters : -30 % sur tous les tiers payants pendant les 3 premiers mois post-launch (extendable de 1 mois si bugs critiques). |
 
 ---
 
-## 23. Prochaines étapes
+## 24. Prochaines étapes
 
 1. **Valider cette spec** avec l'équipe / les early users / les YouTubers ciblés.
 2. **Calibrer les prix** des tiers (Solo / Network / Unlimited) via une mini-survey ou benchmark.

@@ -13,6 +13,7 @@ Format intermédiaire d'un menu Interfaze. C'est le **contrat** entre l'éditeur
 | `examples/paginated-quests.json` | Liste paginée avec boutons prev/next auto-bind. |
 | `examples/multi-paginated.json` | Deux listes paginées dans le même menu, binding explicite via `element_id`. |
 | `examples/deco-with-conditional-button.json` | Pattern phare : layer décoration + layer items, fall-through quand un bouton est conditionnel. |
+| `examples/data-driven-shop.json` | Element itératif sur un `contextInput` de type `list` peuplé par le connecteur `chestshop:items` — un slot par item shop, avec apparences conditionnelles sur `{shop.rarity}`. |
 
 ## Vocabulaire
 
@@ -114,6 +115,62 @@ Tous les champs texte du schéma (`title`, `lore[]`, `send_message.text`, `broad
 Ordre de résolution côté plugin : (1) `{i18n:...}` → valeur stockée pour la langue active, (2) `%placeholder%` → résolu via PAPI, (3) parse MiniMessage final → Component Adventure envoyé au joueur.
 
 Schéma : aucun changement — les champs restent `string`. C'est une convention de contenu, validée et rendue par le moteur de l'éditeur et du plugin.
+
+## Contexte du menu et data sources
+
+Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'un connecteur tier — passe par `Menu.contextInputs`. Chaque entrée est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources :
+
+- **Appelant** : la commande ou le menu parent passe la valeur à l'ouverture (auto-binding par nom, cf. main-spec §15.4).
+- **Connecteur** : la slot porte un `source: ConnectorBinding` ; le moteur appelle le connecteur référencé et stocke le résultat.
+- **Default** : valeur littérale fallback.
+
+Un Element devient itératif en pointant `iterates: { source, alias }` vers une slot de type `"list"` (peu importe que la liste vienne de l'appelant ou d'un connecteur — c'est opaque côté Element). Les champs accèdent à l'item courant via `{alias.field}`. Concept détaillé en `main-spec.md` section 14.
+
+```json
+{
+  "contextInputs": [
+    { "name": "category", "type": "string" },
+    {
+      "name": "shops",
+      "type": "list",
+      "source": {
+        "ref": "chestshop:items",
+        "filter": { "category": "{category}" },
+        "sort": { "by": "price", "direction": "asc" },
+        "limit": 28
+      }
+    }
+  ],
+  "layers": [{
+    "id": "items",
+    "elements": [{
+      "id": "shop_grid",
+      "positions": "10-43",
+      "iterates": { "source": "shops", "alias": "shop" },
+      "appearances": [
+        {
+          "if": [{ "type": "placeholder_equals", "placeholder": "{shop.rarity}", "value": "legendary" }],
+          "material": "{shop.material}",
+          "title": "<gold>{shop.name}</gold>",
+          "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+          "enchanted": true,
+          "click": { "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] } }
+        }
+      ]
+    }]
+  }]
+}
+```
+
+Règles :
+
+- `iterates` et `appearance.component_ref` sont **mutuellement exclusifs** sur un même Element. `validateMenuLayout` flag les erreurs.
+- `iterates.source` doit pointer vers un `contextInput` déclaré et de type `"list"`. `validateMenuLayout` flag les erreurs.
+- `ConnectorBinding.source` est valide uniquement sur `type: "list"` et `type: "object"`.
+- Les valeurs `params` / `filter` du `ConnectorBinding` interpolent les autres `contextInputs` du menu via `{name}`.
+- Pas de cycle dans les dépendances entre `contextInputs` : si `filter` réfère `{X}`, la slot `X` doit être résoluble en amont (appelant ou connecteur sans dépendance circulaire).
+- Conditions sur les champs de l'item d'iteration : utiliser `placeholder_equals` / `placeholder_match` avec `{alias.field}` comme placeholder. Les anciennes conditions `data_field_*` ont été retirées.
+- Le namespace du `ref` (`chestshop`, `essentials`, `jobs`, ...) est ajouté automatiquement à `metadata.uses_plugins`.
 
 ## Limitations connues (cross-field non-exprimables en JSON Schema)
 

@@ -1,9 +1,13 @@
 import { Input } from "@/components/ui/input";
 import { cx } from "@/lib/cx";
-import { useRef, useState } from "react";
+import { useUiStore } from "@/state/uiStore";
+import { useDraggable } from "@dnd-kit/core";
+import { type CSSProperties, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { itemTextureUrl, knownMaterials } from "./itemTextures";
 
-export const MATERIAL_DRAG_MIME = "application/x-interfaze-material";
+/** ID prefix for Library items inside the top-level DndContext. */
+export const LIBRARY_DRAG_PREFIX = "lib:";
 
 interface ItemTileProps {
   name: string;
@@ -11,69 +15,48 @@ interface ItemTileProps {
 
 function ItemTile({ name }: ItemTileProps) {
   const url = itemTextureUrl(name);
-  // Pre-rendered, off-screen image used as the HTML5 drag preview so the
-  // cursor follows the actual MC item icon rather than a snapshot of the
-  // whole tile (border, hover label, etc).
-  const dragImageRef = useRef<HTMLImageElement>(null);
+  const armed = useUiStore((s) => s.armedMaterial === name);
+  const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `${LIBRARY_DRAG_PREFIX}${name}`,
+    data: { material: name },
+  });
+  const style: CSSProperties = {
+    opacity: isDragging ? 0.4 : 1,
+  };
+
   return (
-    <>
-      <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData(MATERIAL_DRAG_MIME, name);
-          e.dataTransfer.setData("text/plain", name);
-          e.dataTransfer.effectAllowed = "copy";
-          if (dragImageRef.current) {
-            // Centre the 32×32 preview under the cursor.
-            e.dataTransfer.setDragImage(dragImageRef.current, 16, 16);
-          }
-        }}
-        title={name}
-        className={cx(
-          "group relative flex aspect-square cursor-grab select-none items-center justify-center",
-          "rounded border border-zinc-800 bg-zinc-900 hover:border-zinc-600 active:cursor-grabbing",
-        )}
-      >
-        {url ? (
-          <img
-            src={url}
-            alt={name}
-            draggable={false}
-            className="pixelated h-3/4 w-3/4 object-contain"
-            style={{ imageRendering: "pixelated" }}
-          />
-        ) : (
-          <span className="text-[8px] text-zinc-400">{name.slice(0, 4)}</span>
-        )}
-        <span
-          className={cx(
-            "pointer-events-none absolute bottom-0 left-0 right-0 truncate rounded-b bg-black/60",
-            "px-1 py-px text-center font-mono text-[8px] text-zinc-300 opacity-0 group-hover:opacity-100",
-          )}
-        >
-          {name.toLowerCase()}
-        </span>
-      </div>
+    <button
+      ref={setNodeRef}
+      type="button"
+      style={style}
+      // Tap (without drag) toggles "armed" — the next slot tap places this
+      // material. Drag (≥8px) starts a @dnd-kit drag for cross-platform
+      // drop on the canvas.
+      onClick={() => setArmedMaterial(armed ? null : name)}
+      title={name}
+      {...listeners}
+      {...attributes}
+      className={cx(
+        "group relative flex h-12 w-12 shrink-0 select-none touch-none items-center justify-center",
+        "rounded border bg-zinc-900 active:cursor-grabbing",
+        armed
+          ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
+          : "border-zinc-800 cursor-grab hover:border-zinc-600",
+      )}
+    >
       {url ? (
         <img
-          ref={dragImageRef}
           src={url}
-          alt=""
-          aria-hidden
-          // Off-screen but rendered (the browser must be able to snapshot it
-          // when setDragImage runs). top:-9999 keeps it out of the viewport.
-          style={{
-            position: "fixed",
-            top: -9999,
-            left: -9999,
-            width: 32,
-            height: 32,
-            imageRendering: "pixelated",
-            pointerEvents: "none",
-          }}
+          alt={name}
+          draggable={false}
+          className="pixelated h-3/4 w-3/4 object-contain"
+          style={{ imageRendering: "pixelated" }}
         />
-      ) : null}
-    </>
+      ) : (
+        <span className="text-[8px] text-zinc-400">{name.slice(0, 4)}</span>
+      )}
+    </button>
   );
 }
 
@@ -81,20 +64,21 @@ export function Library() {
   const [search, setSearch] = useState("");
   const all = knownMaterials();
   const filtered = all.filter((m) => m.toLowerCase().includes(search.toLowerCase()));
+  const { t } = useTranslation();
 
   return (
     <div className="flex h-full flex-col gap-2">
       <Input
-        placeholder="Search items…"
+        placeholder={t("library.search")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <div className="grid grid-cols-4 gap-1.5 overflow-y-auto pb-2">
+      <div className="flex flex-wrap gap-1.5 overflow-y-auto pb-2">
         {filtered.map((m) => (
           <ItemTile key={m} name={m} />
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-4 py-4 text-center text-xs text-zinc-500">No items match.</div>
+          <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
         )}
       </div>
     </div>

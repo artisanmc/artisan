@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import type { Menu, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { type ChangeEvent, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 interface BackgroundUploadProps {
@@ -38,13 +39,14 @@ export function BackgroundUpload({ packId, menu }: BackgroundUploadProps) {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`File too large (>${MAX_FILE_SIZE_BYTES / 1024} KB).`);
+      toast.error(t("backgroundUpload.fileTooLarge", { kb: MAX_FILE_SIZE_BYTES / 1024 }));
       return;
     }
     setBusy(true);
@@ -56,7 +58,7 @@ export function BackgroundUpload({ packId, menu }: BackgroundUploadProps) {
         asset: { name: file.name, dataUrl, width, height },
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "upload failed");
+      toast.error(err instanceof Error ? err.message : t("backgroundUpload.uploadFailed"));
     } finally {
       setBusy(false);
     }
@@ -64,7 +66,7 @@ export function BackgroundUpload({ packId, menu }: BackgroundUploadProps) {
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-zinc-500">background</div>
+      <div className="mb-1 text-[10px] uppercase text-zinc-500">{t("backgroundUpload.label")}</div>
       {asset ? (
         <div className="flex items-center gap-2">
           <img
@@ -83,6 +85,7 @@ export function BackgroundUpload({ packId, menu }: BackgroundUploadProps) {
             variant="ghost"
             size="sm"
             className="h-6 px-2 text-[10px]"
+            title={t("backgroundUpload.remove")}
             onClick={() => setMenuBackground({ packId, menuId: menu.id, asset: null })}
           >
             ✕
@@ -97,7 +100,7 @@ export function BackgroundUpload({ packId, menu }: BackgroundUploadProps) {
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
-          {busy ? "Reading…" : "Upload image…"}
+          {busy ? t("backgroundUpload.reading") : t("backgroundUpload.upload")}
         </Button>
       )}
       <input
