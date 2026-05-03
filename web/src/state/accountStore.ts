@@ -117,8 +117,6 @@ interface AccountState {
     input: ContextInput;
   }) => void;
   removeMenuContextInput: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
-  /** Editor-only mock context. Pass undefined to clear. */
-  setMenuSampleContext: (input: { packId: PackId; menuId: MenuId; value: unknown }) => void;
   /** Element iteration: bind this element's slots to a list source in the menu context. */
   setElementIterates: (input: {
     packId: PackId;
@@ -954,17 +952,6 @@ export const useAccountStore = create<AccountState>()(
               if (index < 0 || index >= menu.contextInputs.length) return;
               menu.contextInputs.splice(index, 1);
               if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
-              pack.updatedAt = new Date().toISOString();
-            }),
-          ),
-        setMenuSampleContext: ({ packId: pId, menuId: mId, value }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              menu.sampleContext = value;
               pack.updatedAt = new Date().toISOString();
             }),
           ),
