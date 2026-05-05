@@ -54,6 +54,18 @@ export function createLText(pack: Pack, initialValue: string, lang: string): LTe
 }
 
 /**
+ * Like `createLText` but uses an explicit semantic key instead of a random
+ * one. If the key already exists in the pack, the existing entry is kept
+ * (idempotent). Caller must hold an immer draft.
+ */
+export function createLTextAt(pack: Pack, key: I18nKey, initialValue: string, lang: string): LText {
+  if (!pack.i18nKeys[key]) {
+    pack.i18nKeys[key] = { [lang]: initialValue };
+  }
+  return { key };
+}
+
+/**
  * Drop the entry from `pack.i18nKeys`. Call when the parent field
  * (menu/appearance/lore line/action) is being deleted — leaving entries
  * around isn't fatal (they just take space) but a leak in the editor's

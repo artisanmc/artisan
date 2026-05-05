@@ -1,34 +1,36 @@
 import { accountId, commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { Account, Pack } from "@/domain/types";
-import { migratePackToI18n } from "@/lib/i18nMigration";
+import type { Account, I18nKey, Pack } from "@/domain/types";
 
 const ts = "2026-04-30T10:00:00Z";
 
-// Fixtures are authored with plain user-facing strings (title, send_message
-// text, etc.) for readability — the runtime expects `LText` refs, so we run
-// the i18n migration over each pack before exposing it. The cast keeps TS
-// happy without duplicating the legacy shape as a separate type.
-//
-// biome-ignore lint/suspicious/noExplicitAny: legacy fixture shape, see comment
-type LegacyPack = any;
+const k = (key: string): I18nKey => key as I18nKey;
 
-const personalPack = (): LegacyPack => {
+const personalPack = (): Pack => {
   const shopMainId = menuId("m_shop_main");
   const profileId = menuId("m_profile");
   const aboutId = menuId("m_about");
   const healCmdId = commandId("c_heal");
+  const pId = packId("p_personal");
 
   return {
-    id: packId("p_personal"),
+    id: pId,
     name: "Personal",
     description: "Default workspace",
     source: "user_created",
     createdAt: ts,
     updatedAt: ts,
     defaultLang: "en",
-    i18nKeys: { greeting: { en: "Welcome" } } as Pack["i18nKeys"],
+    i18nKeys: {
+      [k("menus.m_shop_main.title")]: { en: "Shop principal" },
+      [k("menus.m_shop_main.elements.el_btn_profile.default.title")]: { en: "Profil" },
+      [k("menus.m_profile.title")]: { en: "Profil" },
+      [k("menus.m_about.title")]: { en: "About" },
+      [k("commands.c_heal.message")]: { en: "Healed!" },
+    } as Pack["i18nKeys"],
     assets: [],
     templates: [],
+    dataSources: [],
+    importedConnectors: [],
     canvasLayout: {
       [shopMainId]: { x: 60, y: 80 },
       [profileId]: { x: 320, y: 200 },
@@ -38,8 +40,8 @@ const personalPack = (): LegacyPack => {
     menus: [
       {
         id: shopMainId,
-        packId: packId("p_personal"),
-        title: "Shop principal",
+        packId: pId,
+        title: { key: k("menus.m_shop_main.title") },
         rows: 3,
         layers: [
           {
@@ -52,7 +54,7 @@ const personalPack = (): LegacyPack => {
                 appearances: [
                   {
                     material: "PAPER",
-                    title: "Profil",
+                    title: { key: k("menus.m_shop_main.elements.el_btn_profile.default.title") },
                     click: {
                       left: {
                         steps: [
@@ -69,15 +71,15 @@ const personalPack = (): LegacyPack => {
       },
       {
         id: profileId,
-        packId: packId("p_personal"),
-        title: "Profil",
+        packId: pId,
+        title: { key: k("menus.m_profile.title") },
         rows: 3,
         layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
       },
       {
         id: aboutId,
-        packId: packId("p_personal"),
-        title: "About",
+        packId: pId,
+        title: { key: k("menus.m_about.title") },
         rows: 3,
         layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
       },
@@ -85,94 +87,120 @@ const personalPack = (): LegacyPack => {
     commands: [
       {
         id: healCmdId,
-        packId: packId("p_personal"),
+        packId: pId,
         name: "heal",
         permission: "interfaze.heal",
         arguments: [],
-        steps: [{ kind: "action", action: { type: "send_message", text: "Healed!" } }],
+        steps: [
+          {
+            kind: "action",
+            action: { type: "send_message", text: { key: k("commands.c_heal.message") } },
+          },
+        ],
       },
     ],
   };
 };
 
-const shopSystemPack = (): LegacyPack => ({
-  id: packId("p_shop_system"),
-  name: "Shop System",
-  description: "Multi-category shop with VIP rank",
-  source: "user_created",
-  createdAt: ts,
-  updatedAt: ts,
-  defaultLang: "en",
-  i18nKeys: {},
-  assets: [],
-  templates: [],
-  canvasLayout: {},
-  menus: [
-    {
-      id: menuId("m_shop_root"),
-      packId: packId("p_shop_system"),
-      title: "Shop",
-      rows: 6,
-      layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
-    },
-    {
-      id: menuId("m_cat_armors"),
-      packId: packId("p_shop_system"),
-      title: "Armors",
-      rows: 6,
-      layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
-    },
-    {
-      id: menuId("m_cat_weapons"),
-      packId: packId("p_shop_system"),
-      title: "Weapons",
-      rows: 6,
-      layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
-    },
-  ],
-  commands: [
-    {
-      id: commandId("c_shop"),
-      packId: packId("p_shop_system"),
-      name: "shop",
-      arguments: [],
-      steps: [{ kind: "action", action: { type: "open_menu", menuId: menuId("m_shop_root") } }],
-    },
-  ],
-});
+const shopSystemPack = (): Pack => {
+  const pId = packId("p_shop_system");
+  const shopRootId = menuId("m_shop_root");
+  const catArmorsId = menuId("m_cat_armors");
+  const catWeaponsId = menuId("m_cat_weapons");
+  const shopCmdId = commandId("c_shop");
 
-const dailyQuestsPack = (): LegacyPack => ({
-  id: packId("p_daily_quests"),
-  name: "Daily Quests",
-  description: "Imported pack from @creator-x",
-  source: "imported",
-  sourcePackId: packId("p_remote_daily"),
-  sourceVersion: "2.1.0",
-  createdAt: ts,
-  updatedAt: ts,
-  defaultLang: "en",
-  i18nKeys: {},
-  assets: [],
-  templates: [],
-  canvasLayout: {},
-  menus: [
-    {
-      id: menuId("m_quests_main"),
-      packId: packId("p_daily_quests"),
-      title: "Daily Quests",
-      rows: 6,
-      layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
-    },
-  ],
-  commands: [],
-});
-
-export const mockAccount = (): Account => {
-  const packs = [personalPack(), shopSystemPack(), dailyQuestsPack()];
-  for (const p of packs) migratePackToI18n(p, p.defaultLang ?? "en");
   return {
-    id: accountId("acc_local"),
-    packs: packs as Pack[],
-    packOrder: [packId("p_personal"), packId("p_shop_system"), packId("p_daily_quests")],
+    id: pId,
+    name: "Shop System",
+    description: "Multi-category shop with VIP rank",
+    source: "user_created",
+    createdAt: ts,
+    updatedAt: ts,
+    defaultLang: "en",
+    i18nKeys: {
+      [k("menus.m_shop_root.title")]: { en: "Shop" },
+      [k("menus.m_cat_armors.title")]: { en: "Armors" },
+      [k("menus.m_cat_weapons.title")]: { en: "Weapons" },
+    } as Pack["i18nKeys"],
+    assets: [],
+    templates: [],
+    dataSources: [],
+    importedConnectors: [],
+    canvasLayout: {},
+    menus: [
+      {
+        id: shopRootId,
+        packId: pId,
+        title: { key: k("menus.m_shop_root.title") },
+        rows: 6,
+        layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
+      },
+      {
+        id: catArmorsId,
+        packId: pId,
+        title: { key: k("menus.m_cat_armors.title") },
+        rows: 6,
+        layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
+      },
+      {
+        id: catWeaponsId,
+        packId: pId,
+        title: { key: k("menus.m_cat_weapons.title") },
+        rows: 6,
+        layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
+      },
+    ],
+    commands: [
+      {
+        id: shopCmdId,
+        packId: pId,
+        name: "shop",
+        arguments: [],
+        steps: [
+          { kind: "action", action: { type: "open_menu", menuId: shopRootId } },
+        ],
+      },
+    ],
   };
 };
+
+const dailyQuestsPack = (): Pack => {
+  const pId = packId("p_daily_quests");
+  const questsMainId = menuId("m_quests_main");
+
+  return {
+    id: pId,
+    name: "Daily Quests",
+    description: "Imported pack from @creator-x",
+    source: "imported",
+    sourcePackId: packId("p_remote_daily"),
+    sourceVersion: "2.1.0",
+    createdAt: ts,
+    updatedAt: ts,
+    defaultLang: "en",
+    i18nKeys: {
+      [k("menus.m_quests_main.title")]: { en: "Daily Quests" },
+    } as Pack["i18nKeys"],
+    assets: [],
+    templates: [],
+    dataSources: [],
+    importedConnectors: [],
+    canvasLayout: {},
+    menus: [
+      {
+        id: questsMainId,
+        packId: pId,
+        title: { key: k("menus.m_quests_main.title") },
+        rows: 6,
+        layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
+      },
+    ],
+    commands: [],
+  };
+};
+
+export const mockAccount = (): Account => ({
+  id: accountId("acc_local"),
+  packs: [personalPack(), shopSystemPack(), dailyQuestsPack()],
+  packOrder: [packId("p_personal"), packId("p_shop_system"), packId("p_daily_quests")],
+});
