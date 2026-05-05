@@ -70,6 +70,7 @@ class SetupClientTest {
 
         assertTrue(linkedLatch.await(5, TimeUnit.SECONDS))
         assertEquals("sk_abc", receivedKey)
+        client.disconnect()
         server.shutdown()
     }
 }
