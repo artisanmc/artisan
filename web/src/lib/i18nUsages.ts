@@ -1,5 +1,6 @@
 import { walkActions } from "@/domain/stepPath";
 import type { Appearance, Element, I18nKey, Menu, Pack } from "@/domain/types";
+import { stateLabel } from "@/lib/i18nKeys";
 
 /**
  * Walk a pack and label every LText reference with a dotted-path
@@ -22,14 +23,10 @@ import type { Appearance, Element, I18nKey, Menu, Pack } from "@/domain/types";
 export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
   const out = new Map<I18nKey, string>();
 
-  const stateLabel = (i: number) => (i === 0 ? "default" : `state${i}`);
-
   const recordAppearance = (path: string, appearance: Appearance) => {
     if (appearance.title) out.set(appearance.title.key, `${path}.title`);
     if (appearance.lore) {
-      appearance.lore.forEach((lt, i) => {
-        out.set(lt.key, `${path}.lore[${i}]`);
-      });
+      out.set(appearance.lore.key, `${path}.lore`);
     }
     if (appearance.click) {
       for (const [clickType, handler] of Object.entries(appearance.click)) {

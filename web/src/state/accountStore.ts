@@ -32,7 +32,17 @@ import type {
   SourceRef,
   Step,
 } from "@/domain/types";
-import { createLText, deleteLText, deleteLTexts, setLText } from "@/lib/i18n";
+import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
+import {
+  clickHandlerKeyPrefix,
+  commandKeyPrefix,
+  elementLoreKey,
+  elementTitleKey,
+  menuTitleKey,
+  messageKeyAt,
+  rekeyCommandLTexts,
+  rekeyMenuLTexts,
+} from "@/lib/i18nKeys";
 import { migratePackToI18n } from "@/lib/i18nMigration";
 import {
   addPosition,
@@ -41,6 +51,8 @@ import {
   positionsContains,
   removePosition,
 } from "@/lib/positions";
+import { inferFieldTypeFromValue } from "@/features/data/helpers";
+import { parse as parseYaml } from "yaml";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -170,19 +182,14 @@ interface AccountState {
     lang: string;
     value: string;
   }) => void;
-  /**
-   * Replace the element's appearance lore lines at the given index (default 0).
-   * Diffs against the existing LText[] — overlapping indices get their
-   * value updated under the same key, surplus indices are GC'd, new
-   * indices are allocated.
-   */
+  /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
   setAppearanceLore: (input: {
     packId: PackId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
     lang: string;
-    lines: string[];
+    value: string;
   }) => void;
   /**
    * Update the value of an i18n entry under `lang`. Used by every text
@@ -495,11 +502,10 @@ interface AccountState {
     commands: Command[];
     offset: { x: number; y: number };
   }) => void;
-  addPackDataSource: (args: { packId: PackId; kind: "list" | "object" }) => void;
+  addPackDataSource: (args: { packId: PackId }) => void;
   removePackDataSource: (args: { packId: PackId; id: DataSourceId }) => void;
   renamePackDataSource: (args: { packId: PackId; id: DataSourceId; newName: string }) => void;
-  setPackDataSourceValue: (args: { packId: PackId; id: DataSourceId; value: unknown }) => void;
-  setPackDataSourceSchema: (args: { packId: PackId; id: DataSourceId; type: FieldType }) => void;
+  setPackDataSourceYaml: (args: { packId: PackId; id: DataSourceId; yaml: string }) => void;
   addImportedConnector: (args: { packId: PackId; spec: ConnectorSpec }) => void;
   removeImportedConnector: (args: { packId: PackId; ref: string }) => void;
 }
@@ -550,10 +556,14 @@ function touch(draft: AccountState, packId: PackId) {
  * `pack.i18nKeys`. Use it when removing/replacing a step subtree so the
  * pack's lang map doesn't leak orphaned entries.
  */
-function allocStepLTexts(pack: Pack, steps: Step[], lang: string): void {
+function allocStepLTexts(pack: Pack, steps: Step[], lang: string, keyPrefix: string): void {
+  let counter = 0;
   for (const action of walkActions(steps)) {
-    if (action.type === "send_message" && action.text.key === "") {
-      action.text = createLText(pack, "", lang);
+    if (action.type === "send_message") {
+      if (action.text.key === "") {
+        action.text = createLTextAt(pack, messageKeyAt(keyPrefix, counter), "", lang);
+      }
+      counter++;
     }
   }
 }
@@ -563,10 +573,10 @@ function gcStepLTexts(pack: Pack, steps: Step[]): void {
   }
 }
 
-/** GC every LText held by a single appearance (title + every lore line + click trees). */
+/** GC every LText held by a single appearance (title + lore + click trees). */
 function gcAppearanceLTexts(pack: Pack, appearance: Appearance): void {
   deleteLText(pack, appearance.title);
-  if (appearance.lore) deleteLTexts(pack, appearance.lore);
+  if (appearance.lore) deleteLText(pack, appearance.lore);
   if (appearance.click) {
     for (const handler of Object.values(appearance.click)) {
       if (handler) gcStepLTexts(pack, handler.steps);
@@ -602,24 +612,6 @@ function nextAvailableName(existing: DataSource[], base: string): string {
   return `${base}_${Date.now()}`;
 }
 
-function defaultValueForFieldType(type: FieldType): unknown {
-  switch (type.kind) {
-    case "string":
-      return "";
-    case "number":
-    case "integer":
-      return 0;
-    case "boolean":
-      return false;
-    case "list":
-      return [];
-    case "object": {
-      const obj: Record<string, unknown> = {};
-      for (const f of type.fields) obj[f.name] = defaultValueForFieldType(f.type);
-      return obj;
-    }
-  }
-}
 
 /** Throws if any required arg follows an optional one. */
 function validateArgOrder(args: CommandArg[]): void {
@@ -723,7 +715,7 @@ export const useAccountStore = create<AccountState>()(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
               if (!pack) return;
-              const titleLText = createLText(pack, title ?? "Untitled menu", pack.defaultLang);
+              const titleLText = createLTextAt(pack, menuTitleKey(id), title ?? "Untitled menu", pack.defaultLang);
               pack.menus.push({
                 id,
                 packId: pId,
@@ -887,7 +879,7 @@ export const useAccountStore = create<AccountState>()(
               if (!menu) return;
               // Defensive: a menu created via the typed path always has a
               // title LText, but legacy paths might not — lazy-allocate.
-              if (!menu.title) menu.title = createLText(pack, value, lang);
+              if (!menu.title) menu.title = createLTextAt(pack, menuTitleKey(mId), value, lang);
               else setLText(pack, menu.title, lang, value);
               pack.updatedAt = new Date().toISOString();
             }),
@@ -1056,6 +1048,7 @@ export const useAccountStore = create<AccountState>()(
                 layout[newId] = layout[oldId]!;
                 delete layout[oldId];
               }
+              rekeyMenuLTexts(pack, menu);
               pack.updatedAt = new Date().toISOString();
             }),
           );
@@ -1078,6 +1071,7 @@ export const useAccountStore = create<AccountState>()(
                 layout[newId] = layout[oldId]!;
                 delete layout[oldId];
               }
+              rekeyCommandLTexts(pack, cmd);
               pack.updatedAt = new Date().toISOString();
             }),
           );
@@ -1099,6 +1093,7 @@ export const useAccountStore = create<AccountState>()(
                 const el = layer.elements.find((e) => e.id === oldId);
                 if (el) {
                   el.id = newId;
+                  rekeyMenuLTexts(pack, menu);
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }
@@ -1193,7 +1188,13 @@ export const useAccountStore = create<AccountState>()(
                   // LText, so the first edit creates one. If the user clears
                   // the field, we keep the LText (they may want to re-edit
                   // or translate it later) but write "" into the active lang.
-                  if (!appearance.title) appearance.title = createLText(pack, value, lang);
+                  if (!appearance.title)
+                    appearance.title = createLTextAt(
+                      pack,
+                      elementTitleKey(mId, elementId, appearanceIndex),
+                      value,
+                      lang,
+                    );
                   else setLText(pack, appearance.title, lang, value);
                   pack.updatedAt = new Date().toISOString();
                   return;
@@ -1320,7 +1321,7 @@ export const useAccountStore = create<AccountState>()(
               if (!parent || path.index < 0 || path.index >= parent.length) return;
               gcStepLTexts(pack, [parent[path.index]!]);
               parent[path.index] = step;
-              allocStepLTexts(pack, [step], lang);
+              allocStepLTexts(pack, handler.steps, lang, clickHandlerKeyPrefix(mId, elementId, appearanceIndex, clickType));
               touch(draft, pId);
             }),
           ),
@@ -1352,7 +1353,7 @@ export const useAccountStore = create<AccountState>()(
               if (!parent) return;
               const at = index < 0 || index > parent.length ? parent.length : index;
               parent.splice(at, 0, step);
-              allocStepLTexts(pack, [step], lang);
+              allocStepLTexts(pack, handler.steps, lang, clickHandlerKeyPrefix(mId, elementId, appearanceIndex, clickType));
               touch(draft, pId);
             }),
           ),
@@ -1769,7 +1770,7 @@ export const useAccountStore = create<AccountState>()(
               if (!parent || path.index < 0 || path.index >= parent.length) return;
               gcStepLTexts(pack, [parent[path.index]!]);
               parent[path.index] = step;
-              allocStepLTexts(pack, [step], lang);
+              allocStepLTexts(pack, cmd.steps, lang, commandKeyPrefix(cId));
               touch(draft, pId);
             }),
           ),
@@ -1784,7 +1785,7 @@ export const useAccountStore = create<AccountState>()(
               if (!parent) return;
               const at = index < 0 || index > parent.length ? parent.length : index;
               parent.splice(at, 0, step);
-              allocStepLTexts(pack, [step], lang);
+              allocStepLTexts(pack, cmd.steps, lang, commandKeyPrefix(cId));
               touch(draft, pId);
             }),
           ),
@@ -1990,7 +1991,7 @@ export const useAccountStore = create<AccountState>()(
           elementId,
           appearanceIndex = 0,
           lang,
-          lines,
+          value,
         }) =>
           set(
             produce((draft: AccountState) => {
@@ -2003,25 +2004,16 @@ export const useAccountStore = create<AccountState>()(
                   if (el.id !== elementId) continue;
                   const appearance = el.appearances[appearanceIndex];
                   if (!appearance) return;
-                  // Diff against existing LText[] so reorderings within the
-                  // length and edits in place keep their keys (and therefore
-                  // their other-language translations). Surplus old lines
-                  // get GC'd; extra new lines get fresh keys allocated.
-                  const old: LText[] = appearance.lore ?? [];
-                  const next: LText[] = [];
-                  const overlap = Math.min(old.length, lines.length);
-                  for (let i = 0; i < overlap; i++) {
-                    const lt = old[i]!;
-                    setLText(pack, lt, lang, lines[i]!);
-                    next.push(lt);
+                  if (!appearance.lore) {
+                    appearance.lore = value
+                      ? createLTextAt(pack, elementLoreKey(mId, elementId, appearanceIndex), value, lang)
+                      : undefined;
+                  } else if (value) {
+                    setLText(pack, appearance.lore, lang, value);
+                  } else {
+                    deleteLText(pack, appearance.lore);
+                    appearance.lore = undefined;
                   }
-                  for (let i = overlap; i < lines.length; i++) {
-                    next.push(createLText(pack, lines[i]!, lang));
-                  }
-                  for (let i = overlap; i < old.length; i++) {
-                    deleteLText(pack, old[i]);
-                  }
-                  appearance.lore = next.length > 0 ? next : undefined;
                   pack.updatedAt = new Date().toISOString();
                   return;
                 }
@@ -2093,12 +2085,9 @@ export const useAccountStore = create<AccountState>()(
                 if (src) pack.i18nKeys[a.title.key] = { ...src };
               }
               if (a.lore) {
-                a.lore = a.lore.map((lt) => {
-                  const src = pack.i18nKeys[lt.key];
-                  const fresh = createLText(pack, "", pack.defaultLang);
-                  if (src) pack.i18nKeys[fresh.key] = { ...src };
-                  return fresh;
-                });
+                const src = pack.i18nKeys[a.lore.key];
+                a.lore = createLText(pack, "", pack.defaultLang);
+                if (src) pack.i18nKeys[a.lore.key] = { ...src };
               }
               if (a.click) {
                 for (const handler of Object.values(a.click)) {
@@ -2126,6 +2115,7 @@ export const useAccountStore = create<AccountState>()(
                 }
               }
               pack.menus.push(stamped);
+              rekeyMenuLTexts(pack, stamped);
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
                 x: offset.x,
                 y: offset.y,
@@ -2143,6 +2133,7 @@ export const useAccountStore = create<AccountState>()(
                 }
               }
               pack.commands.push(stamped);
+              rekeyCommandLTexts(pack, stamped);
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
                 x: offset.x,
                 y: offset.y,
@@ -2153,20 +2144,16 @@ export const useAccountStore = create<AccountState>()(
           });
           set({ account: next });
         },
-        addPackDataSource: ({ packId, kind }) =>
+        addPackDataSource: ({ packId }) =>
           set((state) =>
             produce(state, (draft) => {
               const pack = draft.account.packs.find((p) => p.id === packId);
               if (!pack) return;
               if (!pack.dataSources) pack.dataSources = [];
               const id = generateDataSourceId();
-              const baseName = kind === "list" ? "new_list" : "new_object";
-              const name = nextAvailableName(pack.dataSources, baseName);
-              const type: FieldType =
-                kind === "list"
-                  ? { kind: "list", of: { kind: "string" } }
-                  : { kind: "object", fields: [] };
-              const value: unknown = kind === "list" ? [] : {};
+              const name = nextAvailableName(pack.dataSources, "new_source");
+              const value: unknown[] = [];
+              const type: FieldType = { kind: "list", of: { kind: "string" } };
               pack.dataSources.push({ id, name, type, value });
             }),
           ),
@@ -2187,24 +2174,16 @@ export const useAccountStore = create<AccountState>()(
               if (ds) ds.name = newName;
             }),
           ),
-        setPackDataSourceValue: ({ packId, id, value }) =>
-          set((state) =>
-            produce(state, (draft) => {
-              const pack = draft.account.packs.find((p) => p.id === packId);
-              if (!pack) return;
-              const ds = pack.dataSources.find((d) => d.id === id);
-              if (ds) ds.value = value;
-            }),
-          ),
-        setPackDataSourceSchema: ({ packId, id, type }) =>
+        setPackDataSourceYaml: ({ packId, id, yaml }) =>
           set((state) =>
             produce(state, (draft) => {
               const pack = draft.account.packs.find((p) => p.id === packId);
               if (!pack) return;
               const ds = pack.dataSources.find((d) => d.id === id);
               if (!ds) return;
-              ds.type = type;
-              ds.value = defaultValueForFieldType(type);
+              const parsed = parseYaml(yaml);
+              ds.value = parsed ?? [];
+              ds.type = inferFieldTypeFromValue(ds.value);
             }),
           ),
         addImportedConnector: ({ packId, spec }) =>
@@ -2248,11 +2227,13 @@ export const useAccountStore = create<AccountState>()(
       }),
       {
         name: "interfaze:account",
-        version: 3,
+        version: 5,
         migrate: (persisted, version) => {
           let p = persisted;
           if (version < 2) p = migrateV1ToV2(p);
           if (version < 3) p = migrateV2ToV3(p);
+          if (version < 4) p = migrateV3ToV4(p);
+          if (version < 5) p = migrateV4ToV5(p);
           return p;
         },
       },
@@ -2303,6 +2284,93 @@ const migrateClickHandler = (h: V1ClickHandler) => {
     else: wrappedFallback,
   };
   return { steps: [ifStep] };
+};
+
+/**
+ * v3 → v4: collapse `lore: LText[]` (one key per line) into a single
+ * `lore: LText` whose i18n value is the lines joined by `\n`. Old
+ * per-line keys are GC'd. Each language gets its own joined string so
+ * FR and EN can have different line counts going forward.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
+const migrateV3ToV4 = (persisted: unknown): unknown => {
+  if (!persisted || typeof persisted !== "object") return persisted;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy shape
+  const account = (persisted as any).account;
+  if (!account) return persisted;
+
+  // biome-ignore lint/suspicious/noExplicitAny: legacy shape
+  const migrateAppearance = (appearance: any, i18nKeys: any) => {
+    if (!Array.isArray(appearance.lore)) return;
+    const arr: Array<{ key: string }> = appearance.lore;
+    if (arr.length === 0) {
+      appearance.lore = undefined;
+      return;
+    }
+    // Collect every language present across all old keys
+    const langs = new Set<string>();
+    for (const lt of arr) {
+      const entry = i18nKeys[lt.key];
+      if (entry && typeof entry === "object") {
+        for (const lang of Object.keys(entry)) langs.add(lang);
+      }
+    }
+    // Build new key
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let newKey: string;
+    do {
+      newKey = `lt_${Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("")}`;
+    } while (i18nKeys[newKey]);
+    i18nKeys[newKey] = {};
+    for (const lang of langs) {
+      const lines = arr.map((lt) => i18nKeys[lt.key]?.[lang] ?? "");
+      i18nKeys[newKey][lang] = lines.join("\n");
+    }
+    // GC old per-line keys
+    for (const lt of arr) delete i18nKeys[lt.key];
+    appearance.lore = { key: newKey };
+  };
+
+  for (const pack of account.packs ?? []) {
+    const i18nKeys = pack.i18nKeys ?? {};
+    for (const menu of pack.menus ?? []) {
+      for (const layer of menu.layers ?? []) {
+        for (const el of layer.elements ?? []) {
+          for (const appearance of el.appearances ?? []) {
+            migrateAppearance(appearance, i18nKeys);
+          }
+        }
+      }
+    }
+    for (const tpl of pack.templates ?? []) {
+      for (const appearance of tpl.appearances ?? []) {
+        migrateAppearance(appearance, i18nKeys);
+      }
+    }
+  }
+  return persisted;
+};
+
+/**
+ * v4 → v5: convert opaque `lt_xxx` i18n keys to semantic dotted-path keys
+ * (e.g. `menus.shop_main.title`). Uses `rekeyMenuLTexts` / `rekeyCommandLTexts`
+ * from `@/lib/i18nKeys` to walk each pack's entity tree.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
+const migrateV4ToV5 = (persisted: unknown): unknown => {
+  if (!persisted || typeof persisted !== "object") return persisted;
+  // biome-ignore lint/suspicious/noExplicitAny: legacy shape
+  const account = (persisted as any).account;
+  if (!account) return persisted;
+  for (const pack of account.packs ?? []) {
+    for (const menu of pack.menus ?? []) {
+      rekeyMenuLTexts(pack, menu);
+    }
+    for (const cmd of pack.commands ?? []) {
+      rekeyCommandLTexts(pack, cmd);
+    }
+  }
+  return persisted;
 };
 
 /**
