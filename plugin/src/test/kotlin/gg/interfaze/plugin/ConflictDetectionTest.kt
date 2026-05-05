@@ -30,4 +30,10 @@ class ConflictDetectionTest {
         val result = detectSyncAction(diskHash = "disk_v3", syncedHash = "original", backendHash = "backend_v2")
         assertEquals(SyncAction.CONFLICT, result)
     }
+
+    @Test
+    fun `all empty hashes treated as in sync (both sides have no content)`() {
+        val result = detectSyncAction(diskHash = "", syncedHash = "", backendHash = "")
+        assertEquals(SyncAction.IN_SYNC, result)
+    }
 }
