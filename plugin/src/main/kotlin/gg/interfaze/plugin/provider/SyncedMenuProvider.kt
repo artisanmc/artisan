@@ -21,6 +21,12 @@ import java.util.logging.Logger
 
 enum class SyncAction { IN_SYNC, AUTO_SYNC, LOCAL_ONLY, CONFLICT }
 
+/**
+ * Determines the sync action for a pack given three hashes.
+ * "" (empty string) is the canonical sentinel for "no content / never synced".
+ * BundleHasher.hash() returns "" for empty directories; SyncMetadata defaults syncedHash to "".
+ * When all three are "", the pack is considered IN_SYNC (both sides have nothing — correct).
+ */
 fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String): SyncAction {
     if (diskHash == backendHash) return SyncAction.IN_SYNC
     if (diskHash == syncedHash) return SyncAction.AUTO_SYNC          // backend is newer, no local changes
@@ -91,7 +97,10 @@ class SyncedMenuProvider(
                 val sessionId = node["session_id"]?.asText()
                 logger?.info("Connected to Interfaze backend (session=$sessionId)")
 
-                val packHashesNode = node["pack_hashes"] ?: return
+                val packHashesNode = node["pack_hashes"] ?: run {
+                    logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
+                    return
+                }
                 val packHashes: Map<String, String> = runCatching {
                     jsonMapper.convertValue(packHashesNode, object : TypeReference<Map<String, String>>() {})
                 }.getOrDefault(emptyMap())
