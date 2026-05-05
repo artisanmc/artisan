@@ -20,5 +20,5 @@ export async function publishBundle(opts: PublishOptions): Promise<PublishResult
   });
 
   if (!res.ok) throw new Error(`Publish failed: ${res.status}`);
-  return res.json() as Promise<PublishResult>;
+  return res.json() as PublishResult;
 }
