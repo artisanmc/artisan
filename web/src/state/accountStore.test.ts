@@ -1,5 +1,5 @@
 import { elementId, menuId, packId } from "@/domain/ids";
-import type { I18nKey } from "@/domain/types";
+import type { I18nKey, Menu } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
@@ -678,33 +678,25 @@ describe("accountStore", () => {
   });
 
   describe("DataSource reducers", () => {
-    it("adds a list data source with default name and shape", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+    it("adds a data source with default name and empty list shape", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       expect(pack.dataSources).toHaveLength(1);
-      expect(pack.dataSources[0]!.name).toBe("new_list");
+      expect(pack.dataSources[0]!.name).toBe("new_source");
       expect(pack.dataSources[0]!.type).toEqual({ kind: "list", of: { kind: "string" } });
       expect(pack.dataSources[0]!.value).toEqual([]);
     });
 
-    it("adds an object data source", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "object" });
-      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
-      expect(pack.dataSources[0]!.name).toBe("new_object");
-      expect(pack.dataSources[0]!.type).toEqual({ kind: "object", fields: [] });
-      expect(pack.dataSources[0]!.value).toEqual({});
-    });
-
     it("disambiguates duplicate names", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
-      expect(pack.dataSources[0]!.name).toBe("new_list");
-      expect(pack.dataSources[1]!.name).toBe("new_list_2");
+      expect(pack.dataSources[0]!.name).toBe("new_source");
+      expect(pack.dataSources[1]!.name).toBe("new_source_2");
     });
 
     it("removes a data source by id", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
         .dataSources[0]!.id;
       useAccountStore.getState().removePackDataSource({ packId: PERSONAL, id });
@@ -714,7 +706,7 @@ describe("accountStore", () => {
     });
 
     it("renames a data source", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
         .dataSources[0]!.id;
       useAccountStore
@@ -726,35 +718,36 @@ describe("accountStore", () => {
       ).toBe("categories");
     });
 
-    it("setValue writes the value", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+    it("setYaml parses YAML and infers type", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
         .dataSources[0]!.id;
       useAccountStore
         .getState()
-        .setPackDataSourceValue({ packId: PERSONAL, id, value: ["weapon", "armor"] });
-      expect(
-        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources[0]!
-          .value,
-      ).toEqual(["weapon", "armor"]);
+        .setPackDataSourceYaml({ packId: PERSONAL, id, yaml: "- weapon\n- armor\n" });
+      const ds = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      expect(ds.value).toEqual(["weapon", "armor"]);
+      expect(ds.type).toEqual({ kind: "list", of: { kind: "string" } });
     });
 
-    it("setSchema resets value to schema default", () => {
-      useAccountStore.getState().addPackDataSource({ packId: PERSONAL, kind: "list" });
+    it("setYaml infers object type from object YAML", () => {
+      useAccountStore.getState().addPackDataSource({ packId: PERSONAL });
       const id = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
         .dataSources[0]!.id;
       useAccountStore
         .getState()
-        .setPackDataSourceValue({ packId: PERSONAL, id, value: ["x", "y"] });
-      useAccountStore.getState().setPackDataSourceSchema({
-        packId: PERSONAL,
-        id,
-        type: { kind: "object", fields: [{ name: "title", type: { kind: "string" } }] },
+        .setPackDataSourceYaml({ packId: PERSONAL, id, yaml: "title: hello\ncount: 3\n" });
+      const ds = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      expect(ds.value).toEqual({ title: "hello", count: 3 });
+      expect(ds.type).toEqual({
+        kind: "object",
+        fields: [
+          { name: "title", type: { kind: "string" } },
+          { name: "count", type: { kind: "integer" } },
+        ],
       });
-      expect(
-        useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.dataSources[0]!
-          .value,
-      ).toEqual({ title: "" });
     });
   });
 
@@ -812,6 +805,133 @@ describe("accountStore", () => {
       expect(
         useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!.importedConnectors,
       ).toHaveLength(0);
+    });
+  });
+
+  describe("semantic i18n keys", () => {
+    it("createMenu gives the title a semantic key", () => {
+      const mId = useAccountStore.getState().createMenu({
+        packId: PERSONAL,
+        title: "My Menu",
+      });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const menu = pack.menus.find((m) => m.id === mId)!;
+      expect(menu.title?.key).toBe(`menus.${mId}.title`);
+      expect(pack.i18nKeys[`menus.${mId}.title` as I18nKey]).toEqual({ en: "My Menu" });
+    });
+
+    it("setMenuTitle lazy-allocates a semantic key on first write", () => {
+      // Reset to a pack without a title on shop_main (mock fixture gives it one,
+      // but we exercise the lazy-alloc path by using a freshly created menu).
+      const mId = useAccountStore.getState().createMenu({ packId: PERSONAL });
+      // Fresh menu already has a title from createMenu; clear it to test lazy-alloc.
+      useAccountStore.setState({
+        account: {
+          ...useAccountStore.getState().account,
+          packs: useAccountStore.getState().account.packs.map((p) =>
+            p.id !== PERSONAL
+              ? p
+              : {
+                  ...p,
+                  menus: p.menus.map((m) =>
+                    m.id !== mId ? m : ({ ...m, title: undefined } as unknown as Menu),
+                  ),
+                },
+          ),
+        },
+      });
+      useAccountStore.getState().setMenuTitle({ packId: PERSONAL, menuId: mId, lang: "en", value: "Lazy" });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const menu = pack.menus.find((m) => m.id === mId)!;
+      expect(menu.title?.key).toBe(`menus.${mId}.title`);
+    });
+
+    it("setMenuId renames i18n keys to new prefix", () => {
+      const pack0 = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const menu0 = pack0.menus.find((m) => m.id === SHOP_MAIN)!;
+      const oldTitleKey = menu0.title?.key;
+      expect(oldTitleKey).toBeDefined();
+
+      useAccountStore.getState().setMenuId({ packId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_shop_new") });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const menu = pack.menus.find((m) => m.id === menuId("m_shop_new"))!;
+
+      expect(menu.title?.key).toBe("menus.m_shop_new.title");
+      expect(pack.i18nKeys["menus.m_shop_new.title" as I18nKey]).toBeDefined();
+      expect(pack.i18nKeys[oldTitleKey!]).toBeUndefined();
+    });
+
+    it("setElementId renames element i18n keys to new semantic key", () => {
+      // The mock fixture already has an opaque title on PROFILE_BTN. Capture it
+      // before rename, then verify rekeyMenuLTexts moved it to the semantic slot.
+      const pack0 = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const el0 = pack0.menus.find((m) => m.id === SHOP_MAIN)!.layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
+      const oldKey = el0.appearances[0]!.title?.key;
+      expect(oldKey).toBeDefined(); // fixture has a title
+
+      useAccountStore.getState().setElementId({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        oldId: PROFILE_BTN,
+        newId: elementId("el_btn_new"),
+      });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+      const el = menu.layers[0]!.elements.find((e) => e.id === elementId("el_btn_new"))!;
+
+      const expectedKey = `menus.${SHOP_MAIN}.elements.el_btn_new.default.title` as I18nKey;
+      expect(el.appearances[0]!.title?.key).toBe(expectedKey);
+      expect(pack.i18nKeys[expectedKey]).toBeDefined();
+      expect(pack.i18nKeys[oldKey!]).toBeUndefined();
+    });
+
+    it("addElementStep allocates semantic key for send_message", () => {
+      useAccountStore.getState().addElementStep({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        elementId: PROFILE_BTN,
+        appearanceIndex: 0,
+        clickType: "left",
+        frames: [],
+        index: -1,
+        step: { kind: "action", action: { type: "send_message", text: { key: "" as I18nKey } } },
+        lang: "en",
+      });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const el = pack.menus.find((m) => m.id === SHOP_MAIN)!.layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
+      const steps = el.appearances[0]!.click!.left!.steps;
+      const last = steps[steps.length - 1]!;
+      if (last.kind !== "action" || last.action.type !== "send_message") throw new Error();
+      const expectedPrefix = `menus.${SHOP_MAIN}.elements.${PROFILE_BTN}.default.click.left`;
+      expect(last.action.text.key).toBe(`${expectedPrefix}.message`);
+    });
+
+    it("addElementStep allocates distinct keys for multiple send_message steps", () => {
+      const addMsg = () =>
+        useAccountStore.getState().addElementStep({
+          packId: PERSONAL,
+          menuId: SHOP_MAIN,
+          elementId: PROFILE_BTN,
+          appearanceIndex: 0,
+          clickType: "left",
+          frames: [],
+          index: -1,
+          step: { kind: "action", action: { type: "send_message", text: { key: "" as I18nKey } } },
+          lang: "en",
+        });
+
+      addMsg();
+      addMsg();
+
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const el = pack.menus.find((m) => m.id === SHOP_MAIN)!.layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
+      const steps = el.appearances[0]!.click!.left!.steps;
+      const msgSteps = steps.filter(
+        (s): s is Extract<typeof s, { kind: "action" }> =>
+          s.kind === "action" && s.action.type === "send_message",
+      );
+      const keys = msgSteps.map((s) => (s.action as { type: "send_message"; text: { key: string } }).text.key);
+      expect(new Set(keys).size).toBe(keys.length);
     });
   });
 });
