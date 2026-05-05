@@ -6,9 +6,11 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.render.MenuRenderer
+import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
 import gg.interfaze.plugin.ws.WsClient
 import gg.interfaze.plugin.yaml.PackReader
+import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -24,6 +26,7 @@ class SyncedMenuProvider(
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     private val jsonMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+    private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
 
     override fun load() {
@@ -44,6 +47,9 @@ class SyncedMenuProvider(
 
     override fun unload() {
         wsClient?.disconnect()
+        httpClient.dispatcher.cancelAll()
+        httpClient.connectionPool.evictAll()
+        httpClient.dispatcher.executorService.shutdown()
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
@@ -70,8 +76,14 @@ class SyncedMenuProvider(
             "hello_ack" ->
                 logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
 
-            "bundle_available" ->
-                logger?.info("bundle_available received for pack ${node["pack_id"]?.asText()} — download not yet implemented")
+            "bundle_available" -> {
+                val packId = node["pack_id"]?.asText() ?: return
+                val url    = node["url"]?.asText()     ?: return
+                val downloader = BundleDownloader(httpClient, packsDir, logger)
+                downloader.download(url = url, serverKey = serverKey, packId = packId)
+                reloadFromDisk()
+                draftMenus.clear()
+            }
 
             "draft_update" -> {
                 val menuId   = node["menu_id"]?.asText()   ?: return
