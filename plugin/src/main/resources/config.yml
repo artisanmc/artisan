@@ -1,0 +1,9 @@
+# "local" reads YAML from disk; "cloud" connects to the backend via WebSocket
+mode: local
+
+# Only used in cloud mode
+server_key: ""
+ws_url: "wss://editor.interfaze.gg/ws/plugin"
+
+# Path relative to the server root where exported pack bundles are placed
+packs_dir: "plugins/Interfaze/packs"

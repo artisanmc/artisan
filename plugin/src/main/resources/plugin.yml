@@ -1,0 +1,9 @@
+name: Interfaze
+version: '1.0.0'
+main: gg.interfaze.plugin.InterfazePlugin
+api-version: '1.21'
+description: Interfaze GUI editor plugin
+commands:
+  ifz:
+    description: Interfaze commands
+    usage: /ifz <menu|reload> [args]
