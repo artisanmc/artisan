@@ -1,5 +1,6 @@
 package gg.interfaze.plugin.provider
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -8,6 +9,7 @@ import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
+import gg.interfaze.plugin.sync.SyncMetadata
 import gg.interfaze.plugin.ws.WsClient
 import gg.interfaze.plugin.yaml.PackReader
 import okhttp3.OkHttpClient
@@ -16,6 +18,15 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
+
+enum class SyncAction { IN_SYNC, AUTO_SYNC, LOCAL_ONLY, CONFLICT }
+
+fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String): SyncAction {
+    if (diskHash == backendHash) return SyncAction.IN_SYNC
+    if (diskHash == syncedHash) return SyncAction.AUTO_SYNC          // backend is newer, no local changes
+    if (backendHash == syncedHash) return SyncAction.LOCAL_ONLY      // local changed, backend unchanged
+    return SyncAction.CONFLICT                                        // both sides changed
+}
 
 class SyncedMenuProvider(
     private val packsDir: File,
@@ -76,8 +87,35 @@ class SyncedMenuProvider(
     private fun handleMessage(raw: String) {
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
-            "hello_ack" ->
-                logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
+            "hello_ack" -> {
+                val sessionId = node["session_id"]?.asText()
+                logger?.info("Connected to Interfaze backend (session=$sessionId)")
+
+                val packHashesNode = node["pack_hashes"] ?: return
+                val packHashes: Map<String, String> = runCatching {
+                    jsonMapper.convertValue(packHashesNode, object : TypeReference<Map<String, String>>() {})
+                }.getOrDefault(emptyMap())
+
+                packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { packDir ->
+                    val packId = packDir.name
+                    val backendHash = packHashes[packId] ?: return@forEach
+                    val diskHash = BundleHasher.hash(packDir)
+                    val meta = SyncMetadata.read(packDir)
+
+                    when (detectSyncAction(diskHash, meta.syncedHash, backendHash)) {
+                        SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
+                        SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — syncing automatically")
+                        SyncAction.LOCAL_ONLY -> logger?.warning(
+                            "Pack $packId: local files were manually edited (disk differs from last sync). " +
+                            "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
+                        )
+                        SyncAction.CONFLICT   -> logger?.warning(
+                            "Pack $packId: CONFLICT — both local and backend changed since last sync. " +
+                            "Backend version will be applied. Use '/ifz sync reject' before reconnecting to keep local."
+                        )
+                    }
+                }
+            }
 
             "bundle_available" -> {
                 if (bundleDownloadInFlight) return
