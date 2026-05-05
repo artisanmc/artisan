@@ -13,7 +13,7 @@ object MenuRenderer {
 
     fun open(player: Player, menu: BundleMenu, lang: String) {
         val titleText = menu.resolveTitle(lang)
-        val inv = Bukkit.createInventory(null, menu.yaml.size, Component.text(titleText))
+        val inv = Bukkit.createInventory(null, menu.yaml.size, titleText)
         populate(inv, menu, lang)
         player.openInventory(inv)
     }
