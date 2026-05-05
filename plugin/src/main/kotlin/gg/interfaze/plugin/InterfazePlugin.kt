@@ -25,6 +25,7 @@ open class InterfazePlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        menuProvider.unload()
         logger.info("Interfaze disabled")
     }
 }
