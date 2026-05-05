@@ -35,12 +35,30 @@ export interface DraftUpdateMessage {
 export interface PingMessage { type: "ping" }
 export interface PongMessage { type: "pong" }
 
+export interface SetupRequestMessage { type: "setup_request" }
+export interface SetupClaimMessage   { type: "setup_claim"; code: string }
+
+export interface SetupCodeMessage {
+  type: "setup_code";
+  code: string;
+  url: string;
+  expires_at: string;
+}
+export interface LinkConfirmedMessage {
+  type: "link_confirmed";
+  server_key: string;
+}
+
+export type PluginToServerMessage =
+  | HelloMessage
+  | PongMessage
+  | SetupRequestMessage
+  | SetupClaimMessage;
+
 export type ServerToPluginMessage =
   | HelloAckMessage
   | BundleAvailableMessage
   | DraftUpdateMessage
-  | PingMessage;
-
-export type PluginToServerMessage =
-  | HelloMessage
-  | PongMessage;
+  | PingMessage
+  | SetupCodeMessage
+  | LinkConfirmedMessage;

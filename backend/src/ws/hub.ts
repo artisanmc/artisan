@@ -21,6 +21,7 @@ async function validateServerKey(rawKey: string): Promise<string | null> {
 }
 
 export async function handlePluginMessage(
+  connId: string,
   raw: string,
 ): Promise<{ reply: string | null; sessionId?: string; push?: string[] }> {
   let msg: { type: string };
@@ -85,4 +86,27 @@ export async function handlePluginMessage(
 export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
   sessionSenders.delete(sessionId);
+}
+
+// Per-connection send functions (authenticated or not)
+export const connSenders = new Map<string, (msg: string) => void>();
+const codeToConn = new Map<string, string>(); // link_code → connId
+
+export function registerConn(connId: string, send: (msg: string) => void): void {
+  connSenders.set(connId, send);
+}
+
+export function cleanupConn(connId: string): void {
+  connSenders.delete(connId);
+  for (const [code, cId] of codeToConn) {
+    if (cId === connId) codeToConn.delete(code);
+  }
+}
+
+export function pushLinkConfirmed(code: string, serverKey: string): void {
+  const connId = codeToConn.get(code);
+  if (!connId) return;
+  const send = connSenders.get(connId);
+  if (send) send(JSON.stringify({ type: "link_confirmed", server_key: serverKey }));
+  codeToConn.delete(code);
 }
