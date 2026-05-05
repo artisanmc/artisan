@@ -3,6 +3,7 @@ package gg.interfaze.plugin.ws
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SetupClient(
     private val url: String,
@@ -16,6 +17,7 @@ class SetupClient(
         .readTimeout(0, TimeUnit.SECONDS)   // no read timeout — we wait for the push
         .build()
     @Volatile private var socket: WebSocket? = null
+    private val disconnected = AtomicBoolean(false)
 
     fun connect() {
         val req = Request.Builder().url(url).build()
@@ -23,6 +25,7 @@ class SetupClient(
     }
 
     fun disconnect() {
+        if (!disconnected.compareAndSet(false, true)) return
         socket?.close(1000, "Setup done")
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()

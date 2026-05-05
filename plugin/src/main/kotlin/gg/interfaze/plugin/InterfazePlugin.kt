@@ -10,6 +10,7 @@ import java.io.File
 open class InterfazePlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
+    private lateinit var ifzCommand: IfzCommand
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -22,11 +23,13 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
         )
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
+        ifzCommand = IfzCommand(this)
+        getCommand("ifz")?.setExecutor(ifzCommand)
         logger.info("Interfaze ${description.version} enabled")
     }
 
     override fun onDisable() {
+        ifzCommand.shutdown()
         menuProvider.unload()
         logger.info("Interfaze disabled")
     }
@@ -41,6 +44,5 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
         )
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
     }
 }
