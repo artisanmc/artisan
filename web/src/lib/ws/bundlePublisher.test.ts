@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishBundle } from "./bundlePublisher";
 
 describe("publishBundle", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("POSTs files to /api/bundles/:packId with Bearer auth", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -29,14 +33,11 @@ describe("publishBundle", () => {
       }),
     );
     expect(result).toEqual({ hash: "abc123" });
-
-    vi.unstubAllGlobals();
   });
 
   it("throws when response is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }));
     await expect(publishBundle({ apiUrl: "http://x", serverKey: "k", packId: "p", files: {} }))
       .rejects.toThrow("401");
-    vi.unstubAllGlobals();
   });
 });
