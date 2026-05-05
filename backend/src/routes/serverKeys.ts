@@ -1,19 +1,13 @@
 import { Hono } from "hono";
 import { db } from "../db/index";
 import { serverKeys } from "../db/schema";
+import { generateServerKey } from "../lib/auth";
 
 const router = new Hono();
 
 router.post("/", async (c) => {
   const body = await c.req.json<{ label?: string }>();
-
-  const rawBytes = crypto.getRandomValues(new Uint8Array(32));
-  const key = "sk_" + Array.from(rawBytes, (b) => b.toString(16).padStart(2, "0")).join("");
-
-  const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
-  const hash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
-
-  const id = crypto.randomUUID();
+  const { id, key, hash } = await generateServerKey();
   await db.insert(serverKeys).values({
     id,
     hash,
