@@ -63,4 +63,10 @@ class BundleHasherTest {
         val empty = Files.createTempDirectory("bh7_").toFile()
         assertEquals("", BundleHasher.hashAll(empty))
     }
+
+    @Test
+    fun `hash of empty directory returns empty string`() {
+        val dir = Files.createTempDirectory("bh_empty_").toFile()
+        assertEquals("", BundleHasher.hash(dir))
+    }
 }

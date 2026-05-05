@@ -15,6 +15,7 @@ object BundleHasher {
                 sb.append(relPath).append('\n')
                 sb.append(file.readText(Charsets.UTF_8)).append('\n')
             }
+        if (sb.isEmpty()) return ""
         return sha256(sb.toString())
     }
 
