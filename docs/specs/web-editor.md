@@ -47,7 +47,12 @@ L'éditeur respecte cinq principes qui doivent guider toutes les décisions de d
 
 ### 3.1 Login
 
-Page d'accueil minimaliste avec un seul bouton "Login with Discord". OAuth standard. Au premier login, on demande un email de récupération (non-Discord) — ne bloque pas l'usage immédiat (skip possible) mais relance l'utilisateur après 24h s'il ne l'a pas fourni.
+Page d'accueil minimaliste avec deux options :
+
+- **"Login with Discord"** — OAuth standard. Option recommandée (un clic, pas de mot de passe à gérer).
+- **"Email + mot de passe"** — Inscription classique (email / password + confirmation). Email de validation obligatoire avant activation. Récupération par lien envoyé à l'email.
+
+Les deux méthodes produisent le même compte Interfaze. Un utilisateur Discord peut ultérieurement ajouter un email/password depuis son profil (et vice-versa), pour avoir les deux liens. Au premier login, on demande un email de récupération aux utilisateurs Discord-only — ne bloque pas l'usage immédiat (skip possible) mais relance l'utilisateur après 24h.
 
 ### 3.2 Onboarding (premier login)
 
@@ -59,7 +64,7 @@ Wizard en 3 étapes pour le tout premier usage. Skipable mais fortement recomman
 
 ### 3.3 Sessions et reconnexion
 
-Session JWT 7 jours, refresh transparent. Si Discord révoque l'accès (ban), session expire à la prochaine validation avec message "Reconnexion Discord requise". L'admin peut reconnecter (et lier un nouveau Discord à son compte si email recovery configuré).
+Session JWT 7 jours, refresh transparent. Si Discord révoque l'accès (ban), session expire à la prochaine validation avec message "Reconnexion Discord requise". L'admin peut reconnecter (et lier un nouveau Discord à son compte si un email/password est configuré en parallèle). Pour les comptes email/password, un refresh token HttpOnly (30 jours) permet le "remember me".
 
 ---
 
@@ -788,7 +793,7 @@ Liste des raccourcis disponibles dans l'éditeur :
 
 ### 20.1 Inclus dans le MVP V1
 
-- Login Discord OAuth + recovery email.
+- Login Discord OAuth ou email/password (les deux en V1).
 - Onboarding 3 étapes.
 - Dashboard avec sélecteur de serveur, liste de menus, activité récente.
 - Éditeur complet :
