@@ -30,4 +30,17 @@ open class InterfazePlugin : JavaPlugin() {
         menuProvider.unload()
         logger.info("Interfaze disabled")
     }
+
+    fun reinit(cfg: PluginConfig) {
+        menuProvider.unload()
+        val packsDir = File(dataFolder.parentFile, cfg.packsDir).also { it.mkdirs() }
+        menuProvider = SyncedMenuProvider(
+            packsDir  = packsDir,
+            serverKey = cfg.serverKey,
+            wsUrl     = cfg.wsUrl,
+            logger    = logger,
+        )
+        menuProvider.load()
+        getCommand("ifz")?.setExecutor(IfzCommand(this))
+    }
 }
