@@ -14,6 +14,7 @@ export interface HelloAckMessage {
   needs_sync: boolean;
   latest_bundle_hash: string;
   api_url: string;
+  pack_hashes: Record<string, string>;  // packId → latest stored hash on backend
 }
 
 export interface BundleAvailableMessage {
