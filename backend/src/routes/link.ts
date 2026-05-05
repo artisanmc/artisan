@@ -41,7 +41,10 @@ router.post("/:code/claim", async (c) => {
     await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id }).where(eq(linkCodes.code, code));
   });
 
-  pushLinkConfirmed(code, key); // no-op if plugin not connected (B2 HTTP flow)
+  // B1 flow: push server_key to the plugin WS session that sent setup_request for this code.
+  // No-op until Task 4 populates codeToConn via setup_request handling.
+  // Also a correct no-op in B2 (dashboard-first) where no plugin WS session is waiting.
+  pushLinkConfirmed(code, key);
 
   return c.json({ server_key_id: id }, 200);
 });
