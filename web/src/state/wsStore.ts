@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { publishBundle } from "@/lib/ws/bundlePublisher";
 import { createPluginBridge, type PluginBridge } from "@/lib/ws/pluginBridge";
 
+let _unsubMessage: (() => void) | null = null;
+
 interface WsState {
   connected: boolean;
   bridge: PluginBridge | null;
@@ -22,8 +24,9 @@ export const useWsStore = create<WsState>((set, get) => ({
 
   connect(url: string, serverKey = "") {
     get().bridge?.disconnect();
+    _unsubMessage?.();
     const bridge = createPluginBridge(url);
-    bridge.onMessage((raw) => {
+    _unsubMessage = bridge.onMessage((raw) => {
       try {
         const msg = JSON.parse(raw) as Record<string, unknown>;
         if (msg.type === "hello_ack") {
