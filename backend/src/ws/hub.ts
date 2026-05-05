@@ -6,7 +6,6 @@ import { computeAllPacksHash } from "../lib/hashUtils";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3001";
 
-/** session_id → server DB row id */
 const activeSessions = new Map<string, string>();
 export const sessionSenders = new Map<string, (msg: string) => void>();
 
@@ -17,30 +16,23 @@ async function validateServerKey(rawKey: string): Promise<string | null> {
   return rows.length > 0 ? rows[0].id : null;
 }
 
-/**
- * Processes a raw JSON string received from a plugin WebSocket.
- * Returns a JSON string to send back, or null if no response should be sent.
- * Optional `send` callback is stored for pushing future messages to this session.
- */
 export async function handlePluginMessage(
   raw: string,
-  send?: (msg: string) => void,
-): Promise<string | null> {
+): Promise<{ reply: string | null; sessionId?: string; push?: string[] }> {
   let msg: { type: string };
   try {
     msg = JSON.parse(raw);
   } catch {
-    return null;
+    return { reply: null };
   }
 
   if (msg.type === "hello") {
     const hello = msg as HelloMessage;
     const keyId = await validateServerKey(hello.server_key);
-    if (!keyId) return null;
+    if (!keyId) return { reply: null };
 
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
-    if (send) sessionSenders.set(sessionId, send);
 
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
@@ -59,27 +51,30 @@ export async function handlePluginMessage(
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
     };
-    const ackJson = JSON.stringify(ack);
 
-    if (needsSync && send) {
-      setTimeout(() => {
-        for (const pack of packs) {
-          const available: BundleAvailableMessage = {
-            type: "bundle_available",
-            pack_id: pack.packId,
-            url: `${API_BASE_URL}/api/bundles/${pack.packId}`,
-            hash: pack.hash,
-            signature: "",
-          };
-          send(JSON.stringify(available));
-        }
-      }, 0);
+    const push: string[] = [];
+    if (needsSync) {
+      for (const pack of packs) {
+        const available: BundleAvailableMessage = {
+          type: "bundle_available",
+          pack_id: pack.packId,
+          url: `${API_BASE_URL}/api/bundles/${pack.packId}`,
+          hash: pack.hash,
+          signature: "", // TODO: implement bundle signing
+        };
+        push.push(JSON.stringify(available));
+      }
     }
 
-    return ackJson;
+    return { reply: JSON.stringify(ack), sessionId, push };
   }
 
-  if (msg.type === "pong") return null;
+  if (msg.type === "pong") return { reply: null };
 
-  return null;
+  return { reply: null };
+}
+
+export function cleanupSession(sessionId: string): void {
+  activeSessions.delete(sessionId);
+  sessionSenders.delete(sessionId);
 }

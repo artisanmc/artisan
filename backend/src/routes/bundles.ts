@@ -15,16 +15,18 @@ router.post("/:packId", async (c) => {
   const body = await c.req.json<{ files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
 
-  await db.delete(packBundles).where(
-    and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId))
-  );
-  await db.insert(packBundles).values({
-    id: crypto.randomUUID(),
-    serverId,
-    packId,
-    hash,
-    filesJson: JSON.stringify(body.files),
-    createdAt: new Date(),
+  await db.transaction(async (tx) => {
+    await tx.delete(packBundles).where(
+      and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId))
+    );
+    await tx.insert(packBundles).values({
+      id: crypto.randomUUID(),
+      serverId,
+      packId,
+      hash,
+      filesJson: JSON.stringify(body.files),
+      createdAt: new Date(),
+    });
   });
 
   return c.json({ hash }, 201);
