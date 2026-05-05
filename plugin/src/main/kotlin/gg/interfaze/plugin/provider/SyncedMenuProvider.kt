@@ -107,20 +107,24 @@ class SyncedMenuProvider(
 
                 packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { packDir ->
                     val packId = packDir.name
-                    val backendHash = packHashes[packId] ?: return@forEach
+                    val backendHash = packHashes[packId] ?: run {
+                            logger?.fine("Pack $packId not found in backend pack_hashes — treating as local-only, no sync")
+                            return@forEach
+                        }
                     val diskHash = BundleHasher.hash(packDir)
                     val meta = SyncMetadata.read(packDir)
 
                     when (detectSyncAction(diskHash, meta.syncedHash, backendHash)) {
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
-                        SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — syncing automatically")
+                        SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — sync will be applied via bundle_available")
                         SyncAction.LOCAL_ONLY -> logger?.warning(
                             "Pack $packId: local files were manually edited (disk differs from last sync). " +
                             "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
                         )
                         SyncAction.CONFLICT   -> logger?.warning(
                             "Pack $packId: CONFLICT — both local and backend changed since last sync. " +
-                            "Backend version will be applied. Use '/ifz sync reject' before reconnecting to keep local."
+                            "Backend version will be applied if bundle_available is received. " +
+                            "Use '/ifz sync reject' before reconnecting to keep local."
                         )
                     }
                 }
@@ -129,15 +133,22 @@ class SyncedMenuProvider(
             "bundle_available" -> {
                 if (bundleDownloadInFlight) return
                 bundleDownloadInFlight = true
+                val packId = node["pack_id"]?.asText() ?: run { bundleDownloadInFlight = false; return }
+                val url    = node["url"]?.asText()     ?: run { bundleDownloadInFlight = false; return }
                 try {
-                    val packId = node["pack_id"]?.asText() ?: return
-                    val url    = node["url"]?.asText()     ?: return
-                    val downloader = BundleDownloader(httpClient, packsDir, logger)
-                    downloader.download(url = url, serverKey = serverKey, packId = packId)
-                    reloadFromDisk()
-                    draftMenus.clear()
-                } finally {
+                    httpClient.dispatcher.executorService.execute {
+                        try {
+                            val downloader = BundleDownloader(httpClient, packsDir, logger)
+                            downloader.download(url = url, serverKey = serverKey, packId = packId)
+                            reloadFromDisk()
+                            draftMenus.clear()
+                        } finally {
+                            bundleDownloadInFlight = false
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) {
                     bundleDownloadInFlight = false
+                    logger?.warning("Bundle download rejected — plugin is stopping")
                 }
             }
 
