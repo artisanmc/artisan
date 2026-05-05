@@ -1,42 +1,131 @@
 import type { DataSource, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { yaml as yamlLang } from "@codemirror/lang-yaml";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SchemaEditor } from "./SchemaEditor";
-import { ValueEditor } from "./ValueEditor";
+import { stringify, parse as parseYaml } from "yaml";
+import { inferFieldTypeFromValue, summarizeFieldType } from "./helpers";
 
 interface DataSourceEditorProps {
   packId: PackId;
   source: DataSource;
 }
 
+const CM_THEME = EditorView.theme({
+  "&": { background: "transparent", fontSize: "12px" },
+  ".cm-content": { padding: "8px 0", fontFamily: "ui-monospace, monospace" },
+  ".cm-line": { padding: "0 12px" },
+  ".cm-gutters": {
+    background: "#18181b",
+    border: "none",
+    color: "#52525b",
+    minWidth: "32px",
+  },
+  ".cm-activeLineGutter": { background: "#27272a" },
+  ".cm-activeLine": { background: "#27272a40" },
+  ".cm-cursor": { borderLeftColor: "#a1a1aa" },
+  ".cm-selectionBackground": { background: "#3f3f4660 !important" },
+  "&.cm-focused .cm-selectionBackground": { background: "#3f3f4680 !important" },
+  ".cm-foldPlaceholder": { background: "#3f3f46", border: "none", color: "#a1a1aa" },
+});
+
+function valueToYaml(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  return stringify(value, { lineWidth: 0 });
+}
+
 export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
   const renameDataSource = useAccountStore((s) => s.renamePackDataSource);
   const removeDataSource = useAccountStore((s) => s.removePackDataSource);
+  const setYaml = useAccountStore((s) => s.setPackDataSourceYaml);
+
+  const [localYaml, setLocalYaml] = useState(() => valueToYaml(source.value));
+  const [parseError, setParseError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync when the selected source changes (different source ID)
+  const prevIdRef = useRef(source.id);
+  useEffect(() => {
+    if (prevIdRef.current !== source.id) {
+      prevIdRef.current = source.id;
+      setLocalYaml(valueToYaml(source.value));
+      setParseError(null);
+    }
+  }, [source.id, source.value]);
+
+  const handleChange = useCallback(
+    (val: string) => {
+      setLocalYaml(val);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        try {
+          parseYaml(val);
+          setParseError(null);
+          setYaml({ packId, id: source.id, yaml: val });
+        } catch (e) {
+          setParseError(e instanceof Error ? e.message : String(e));
+        }
+      }, 400);
+    },
+    [packId, source.id, setYaml],
+  );
+
+  const inferredType = (() => {
+    try {
+      const parsed = parseYaml(localYaml);
+      return summarizeFieldType(inferFieldTypeFromValue(parsed ?? []));
+    } catch {
+      return null;
+    }
+  })();
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center justify-between">
+    <div className="flex h-full flex-col gap-3">
+      <header className="flex shrink-0 items-center justify-between gap-2">
         <input
           type="text"
           value={source.name}
           onChange={(e) => renameDataSource({ packId, id: source.id, newName: e.target.value })}
-          className="bg-transparent text-lg font-semibold text-zinc-100 outline-none focus:border-b focus:border-zinc-500"
+          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-zinc-100 outline-none focus:border-b focus:border-zinc-500"
         />
         <button
           type="button"
           onClick={() => removeDataSource({ packId, id: source.id })}
-          className="rounded px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-800 hover:text-rose-300"
+          className="shrink-0 rounded px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-800 hover:text-rose-300"
         >
           {t("dataSources.remove")}
         </button>
       </header>
-      <SchemaEditor packId={packId} source={source} />
-      <div>
-        <div className="mb-2 font-mono text-[10px] uppercase text-zinc-500">
-          {t("dataSources.values")}
-        </div>
-        <ValueEditor packId={packId} source={source} />
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-zinc-800">
+        <CodeMirror
+          value={localYaml}
+          extensions={[yamlLang(), CM_THEME]}
+          onChange={handleChange}
+          theme="dark"
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            autocompletion: false,
+            highlightActiveLine: true,
+            indentOnInput: true,
+            bracketMatching: true,
+          }}
+          className="min-h-0 flex-1 overflow-auto bg-zinc-900 text-zinc-100"
+          style={{ height: "100%" }}
+        />
+      </div>
+
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        {parseError ? (
+          <span className="font-mono text-[11px] text-rose-400">{parseError}</span>
+        ) : (
+          <span className="font-mono text-[11px] text-zinc-500">
+            {inferredType ?? "—"}
+          </span>
+        )}
       </div>
     </div>
   );
