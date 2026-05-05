@@ -42,20 +42,26 @@ class SetupClient(
             val node = runCatching { mapper.readTree(text) }.getOrNull() ?: return
             when (node["type"]?.asText()) {
                 "setup_code" -> {
-                    val c = node["code"]?.asText() ?: return
-                    val u = node["url"]?.asText() ?: return
+                    val c = node["code"]?.asText()?.takeIf { it.isNotBlank() } ?: return
+                    val u = node["url"]?.asText()?.takeIf { it.isNotBlank() } ?: return
                     onCode(c, u)
                 }
                 "link_confirmed" -> {
-                    val key = node["server_key"]?.asText() ?: return
-                    onLinked(key)
-                    disconnect()
+                    val key = node["server_key"]?.asText()?.takeIf { it.isNotBlank() } ?: return
+                    try {
+                        onLinked(key)
+                    } finally {
+                        disconnect()
+                    }
                 }
             }
         }
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             // No reconnect — user must re-run /ifz setup
+            httpClient.dispatcher.cancelAll()
+            httpClient.connectionPool.evictAll()
+            httpClient.dispatcher.executorService.shutdown()
         }
     }
 }
