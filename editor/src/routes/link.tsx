@@ -76,21 +76,31 @@ function GenerateFlow() {
   const [linkCode, setLinkCode] = useState<LinkCodeResponse | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "pending" | "claimed" | "expired">("idle");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
   async function generate() {
     setStatus("loading");
     try {
       const data = await createLinkCode();
+      if (!mountedRef.current) return;
       setLinkCode(data);
       setStatus("pending");
       pollRef.current = setInterval(async () => {
-        const s = await getLinkStatus(data.code);
-        if (s.status === "claimed") {
-          setStatus("claimed");
-          clearInterval(pollRef.current!);
-        } else if (s.status === "expired") {
-          setStatus("expired");
-          clearInterval(pollRef.current!);
+        try {
+          const s = await getLinkStatus(data.code);
+          if (!mountedRef.current) return;
+          if (s.status === "claimed") {
+            setStatus("claimed");
+            clearInterval(pollRef.current!);
+          } else if (s.status === "expired") {
+            setStatus("expired");
+            clearInterval(pollRef.current!);
+          }
+        } catch {
+          if (mountedRef.current) {
+            setStatus("idle");
+            clearInterval(pollRef.current!);
+          }
         }
       }, 2_000);
     } catch {
@@ -98,7 +108,10 @@ function GenerateFlow() {
     }
   }
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => () => {
+    mountedRef.current = false;
+    if (pollRef.current) clearInterval(pollRef.current);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
