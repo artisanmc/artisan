@@ -13,6 +13,7 @@ export interface HelloAckMessage {
   tier: "free" | "crew" | "network";
   needs_sync: boolean;
   latest_bundle_hash: string;
+  api_url: string;
 }
 
 export interface BundleAvailableMessage {
