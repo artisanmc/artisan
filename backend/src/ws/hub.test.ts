@@ -13,7 +13,7 @@ describe("handlePluginMessage", () => {
       current_bundle_hash: "",
     };
     const result = await handlePluginMessage(JSON.stringify(hello));
-    expect(result).toBeNull();
+    expect(result.reply).toBeNull();
   });
 
   test("hello with valid key returns hello_ack", async () => {
@@ -33,10 +33,11 @@ describe("handlePluginMessage", () => {
       current_bundle_hash: "",
     };
     const result = await handlePluginMessage(JSON.stringify(hello));
-    expect(result).not.toBeNull();
-    const ack = JSON.parse(result!) as HelloAckMessage;
+    expect(result.reply).not.toBeNull();
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
     expect(ack.type).toBe("hello_ack");
     expect(ack.session_id).toBeDefined();
     expect(ack.tier).toBe("free");
+    expect(ack.api_url).toBeDefined();
   });
 });
