@@ -116,6 +116,25 @@ describe("evaluator — list methods", () => {
   it(".join on a non-array returns '' and does not throw", () => {
     expect(evalSrc(`xs.join(",")`, new Scope({ xs: 42 }))).toBe("");
   });
+
+  it(".pluck extracts a field from each object", () => {
+    const s = new Scope({ ranks: [{ name: "VIP", price: 10 }, { name: "MVP", price: 50 }] });
+    expect(evalSrc(`ranks.pluck("name")`, s)).toEqual(["VIP", "MVP"]);
+  });
+
+  it(".pluck chained with .join", () => {
+    const s = new Scope({ ranks: [{ name: "VIP" }, { name: "MVP" }] });
+    expect(evalSrc(`ranks.pluck("name").join(", ")`, s)).toBe("VIP, MVP");
+  });
+
+  it(".pluck returns null for missing field", () => {
+    const s = new Scope({ xs: [{ a: 1 }, { b: 2 }] });
+    expect(evalSrc(`xs.pluck("a")`, s)).toEqual([1, null]);
+  });
+
+  it(".pluck on non-array returns []", () => {
+    expect(evalSrc(`xs.pluck("name")`, new Scope({ xs: 42 }))).toEqual([]);
+  });
 });
 
 describe("evaluator — operators", () => {
