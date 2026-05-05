@@ -124,7 +124,7 @@ export interface Appearance {
   material?: string;
   count?: number;
   title?: LText;
-  lore?: LText[];
+  lore?: LText | null;
   click?: ClickMap;
 }
 

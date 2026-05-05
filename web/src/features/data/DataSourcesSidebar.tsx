@@ -44,7 +44,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
           {t("dataSources.sectionPack")}
         </div>
         <ul className="flex flex-col gap-1">
-          {pack.dataSources.map((d) => (
+          {(pack.dataSources ?? []).map((d) => (
             <li key={d.id}>
               <button
                 type="button"
@@ -64,20 +64,15 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
             </li>
           ))}
         </ul>
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-2">
           <button
             type="button"
-            onClick={() => addPackDataSource({ packId: pack.id, kind: "list" })}
-            className="flex-1 rounded border border-dashed border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            onClick={() => {
+              addPackDataSource({ packId: pack.id });
+            }}
+            className="w-full rounded border border-dashed border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
           >
-            {t("dataSources.addList")}
-          </button>
-          <button
-            type="button"
-            onClick={() => addPackDataSource({ packId: pack.id, kind: "object" })}
-            className="flex-1 rounded border border-dashed border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-          >
-            {t("dataSources.addObject")}
+            {t("dataSources.add")}
           </button>
         </div>
       </section>
@@ -86,13 +81,13 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
         <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-zinc-500">
           {t("dataSources.sectionConnectors")}
         </div>
-        {pack.importedConnectors.length === 0 ? (
+        {(pack.importedConnectors ?? []).length === 0 ? (
           <div className="rounded border border-dashed border-zinc-800 bg-zinc-900/40 px-2 py-2 text-[11px] text-zinc-500">
             {t("dataSources.noConnectors")}
           </div>
         ) : (
           <ul className="flex flex-col gap-1">
-            {pack.importedConnectors.map((c) => (
+            {(pack.importedConnectors ?? []).map((c) => (
               <li
                 key={c.ref}
                 className="group flex items-center gap-1 px-2 py-1 text-[12px] text-zinc-400"
