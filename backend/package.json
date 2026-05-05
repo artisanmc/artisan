@@ -15,8 +15,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "better-sqlite3": "^12.9.0",
-    "drizzle-kit": "^0.22.0",
+"drizzle-kit": "^0.22.0",
     "typescript": "^5.4.5"
   }
 }
