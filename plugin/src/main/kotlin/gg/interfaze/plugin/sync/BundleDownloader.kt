@@ -48,6 +48,7 @@ class BundleDownloader(
         for ((path, content) in files) {
             val relPath = if (path.startsWith(prefix)) path.removePrefix(prefix) else continue
             val target = File(packDir, relPath)
+            if (!target.canonicalPath.startsWith(packDir.canonicalPath + File.separator)) continue
             target.parentFile?.mkdirs()
             target.writeText(content, Charsets.UTF_8)
         }
