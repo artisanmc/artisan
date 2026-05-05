@@ -1,14 +1,14 @@
 import type { Element, Menu, PackId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
-import { lookupPath, resolvePlaceholders } from "@/lib/placeholders";
+import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
-import { buildPreviewScope } from "./menuPreviewScope";
+import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 
 interface ItemTooltipProps {
   packId: PackId;
@@ -126,10 +126,11 @@ export function ItemTooltip({ packId }: ItemTooltipProps) {
 
   const titleSource = getText(pack, appearance.title, activeLang).trim();
   const rawTitle = titleSource || humanize(appearance.material ?? "");
-  const title = resolvePlaceholders(rawTitle, ctx);
-  const lore = (appearance.lore ?? []).map((lt) =>
-    resolvePlaceholders(getText(pack, lt, activeLang), ctx),
-  );
+  const title = renderPreview(rawTitle, ctx, pack, activeLang);
+  const loreRaw = appearance.lore ? getText(pack, appearance.lore, activeLang) : "";
+  const lore = loreRaw
+    ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, pack, activeLang))
+    : [];
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>
