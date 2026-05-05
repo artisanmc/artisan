@@ -1,6 +1,6 @@
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { Database } from "bun:sqlite";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-const sqlite = new Database(process.env.DB_PATH ?? "interfaze.db");
-export const db = drizzle(sqlite, { schema });
+const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/interfaze");
+export const db = drizzle(client, { schema });
