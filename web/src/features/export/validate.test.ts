@@ -1,0 +1,199 @@
+import { commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
+import type { I18nKey, Pack } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { validate } from "./validate";
+
+const makePack = (overrides: Partial<Pack> = {}): Pack =>
+  ({
+    id: packId("p_test"),
+    name: "Test",
+    description: "",
+    source: "user_created",
+    defaultLang: "en",
+    createdAt: "",
+    updatedAt: "",
+    i18nKeys: {},
+    menus: [],
+    commands: [],
+    assets: [],
+    templates: [],
+    canvasLayout: {},
+    ...overrides,
+  }) as Pack;
+
+describe("validate", () => {
+  it("returns valid for an empty pack", () => {
+    const result = validate(makePack());
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("errors when a referenced key has no entry at all", () => {
+    const pack = makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: { key: "menus.shop.title" as I18nKey },
+          layers: [],
+        },
+      ],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
+  });
+
+  it("errors when a referenced key has an empty default-lang value", () => {
+    const pack = makePack({
+      i18nKeys: { "menus.shop.title": { en: "  " } } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: { key: "menus.shop.title" as I18nKey },
+          layers: [],
+        },
+      ],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("menus.shop.title"))).toBe(true);
+  });
+
+  it("errors on stale undefined entry in i18nKeys", () => {
+    const pack = makePack({
+      i18nKeys: { stale_key: undefined } as unknown as Pack["i18nKeys"],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("stale_key"))).toBe(true);
+  });
+
+  it("warns when non-default language is missing a translation", () => {
+    const pack = makePack({
+      defaultLang: "en",
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop", fr: "" },
+      } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: { key: "menus.shop.title" as I18nKey },
+          layers: [],
+        },
+      ],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(true);
+    expect(result.warnings.some((w) => w.includes("fr"))).toBe(true);
+  });
+
+  it("validates send_message keys in element click handlers", () => {
+    const pack = makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: { key: "menus.shop.title" as I18nKey },
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [
+                    {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "send_message",
+                                text: { key: "menus.shop.elements.btn.default.click.left.message" as I18nKey },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+      } as Pack["i18nKeys"],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.message"))).toBe(true);
+  });
+
+  it("validates send_message keys in command steps", () => {
+    const pack = makePack({
+      commands: [
+        {
+          id: commandId("heal"),
+          packId: packId("p_test"),
+          name: "heal",
+          arguments: [],
+          steps: [
+            {
+              kind: "action",
+              action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
+            },
+          ],
+        },
+      ],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("commands.heal.message"))).toBe(true);
+  });
+
+  it("returns valid when all referenced keys have default-lang values", () => {
+    const pack = makePack({
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+        "menus.shop.elements.btn.default.title": { en: "Buy" },
+      } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: { key: "menus.shop.title" as I18nKey },
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [{ title: { key: "menus.shop.elements.btn.default.title" as I18nKey } }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+});

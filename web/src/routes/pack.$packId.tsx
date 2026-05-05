@@ -15,6 +15,8 @@ import { Stage } from "@/features/canvas/Stage";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
+import { ExportButton } from "@/features/export/ExportButton";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanel } from "@/features/translations/TranslationPanel";
 import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
@@ -32,7 +34,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 import {
   BookOpen,
   Boxes,
@@ -63,11 +65,11 @@ function PackCanvasPage() {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === pId));
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const [packsOpen, setPacksOpen] = useState(false);
   const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
   // Material being dragged from the Library — used to render the
   // <DragOverlay> ghost following the pointer.
   const [activeDragMaterial, setActiveDragMaterial] = useState<string | null>(null);
@@ -165,7 +167,7 @@ function PackCanvasPage() {
             </TopBarIconButton>
             <button
               type="button"
-              onClick={() => navigate({ to: "/pack/$packId/data", params: { packId: pId } })}
+              onClick={() => setDataSourcesOpen(true)}
               title={t("dataSources.title")}
               className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
             >
@@ -214,6 +216,15 @@ function PackCanvasPage() {
 
         {/* Patterns Gallery cheat sheet (right-side sheet). */}
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
+
+        {/* Data sources panel (right-side sheet). */}
+        {pack ? (
+          <DataSourcesPanel
+            packId={pId}
+            open={dataSourcesOpen}
+            onOpenChange={setDataSourcesOpen}
+          />
+        ) : null}
 
         {/* Mobile pack drawer. */}
         <Sheet open={packsOpen} onOpenChange={setPacksOpen}>
@@ -282,6 +293,7 @@ function PackIOButtons({ pack }: { pack: Pack }) {
 
   return (
     <div className="flex items-center gap-1">
+      <ExportButton pack={pack} />
       <TopBarIconButton title={t("topbar.exportPack")} onClick={onExport}>
         <Download className="h-4 w-4" />
       </TopBarIconButton>

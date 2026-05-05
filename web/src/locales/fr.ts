@@ -357,6 +357,15 @@ const fr: typeof en = {
   materialPicker: {
     title: "Choisir un item",
   },
+  export: {
+    button: "Exporter vers le serveur (.zip)",
+    success: "Exporté — extrayez le zip sur votre serveur et lancez /interfaze reload.",
+    failed: "Export échoué",
+    errorTitle: "Impossible d'exporter",
+    errorSubtitle: "Corrigez ces problèmes avant d'exporter :",
+    overwriteWarning:
+      "Les modifications côté serveur seront écrasées au prochain export. Extrayez le zip sur votre serveur et lancez /interfaze reload.",
+  },
   toast: {
     titleEditFailed: "édition du titre échouée",
     importedPack: "« {{name}} » importé",
@@ -376,25 +385,8 @@ const fr: typeof en = {
     importSuccess: "{{count}} connecteur(s) importé(s).",
     importError: "{{file}} : {{error}}",
     removeConnector: "Supprimer ce connecteur",
-    addList: "+ Liste",
-    addObject: "+ Objet",
+    add: "+ Nouvelle source",
     remove: "Supprimer",
-    schema: "Schema",
-    values: "Valeurs",
-    listOf: "Liste de",
-    listOfObjectWith: "Liste d'objets avec",
-    object: "objet",
-    objectWith: "Objet avec",
-    fields: "champs",
-    fieldName: "nom du champ",
-    objectFields: "Champs",
-    addField: "+ Ajouter un champ",
-    addItem: "+ Ajouter un item",
-    addRow: "+ Ajouter une ligne",
-    advancedSchemaNotice:
-      "Cette source a un schema avancé (imbriqué). L'édition viendra avec le schema editor complet (Plan C2.1).",
-    advancedValueNotice:
-      "Les valeurs pour cette shape seront éditables avec le schema editor complet (Plan C2.1).",
     editorPlaceholder: "Sélectionne une source pour l'éditer.",
   },
   patterns: {
