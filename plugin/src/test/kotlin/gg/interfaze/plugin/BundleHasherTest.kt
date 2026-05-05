@@ -1,0 +1,66 @@
+package gg.interfaze.plugin
+
+import gg.interfaze.plugin.sync.BundleHasher
+import java.io.File
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+
+class BundleHasherTest {
+
+    private fun makePack(dir: File) {
+        File(dir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: p_test\n")
+        File(dir, "menus").mkdirs()
+        File(dir, "menus/shop.yaml").writeText("id: shop\nsize: 27\n")
+        File(dir, "lang").mkdirs()
+        File(dir, "lang/en.yaml").writeText("title: Shop\n")
+    }
+
+    @Test
+    fun `same directory content produces same hash`() {
+        val dir1 = Files.createTempDirectory("bh1_").toFile().also { makePack(it) }
+        val dir2 = Files.createTempDirectory("bh2_").toFile().also { makePack(it) }
+        assertEquals(BundleHasher.hash(dir1), BundleHasher.hash(dir2))
+    }
+
+    @Test
+    fun `changed file content changes hash`() {
+        val dir = Files.createTempDirectory("bh3_").toFile().also { makePack(it) }
+        val before = BundleHasher.hash(dir)
+        File(dir, "menus/shop.yaml").writeText("id: shop\nsize: 54\n")
+        assertNotEquals(before, BundleHasher.hash(dir))
+    }
+
+    @Test
+    fun `added file changes hash`() {
+        val dir = Files.createTempDirectory("bh4_").toFile().also { makePack(it) }
+        val before = BundleHasher.hash(dir)
+        File(dir, "menus/extra.yaml").writeText("id: extra\n")
+        assertNotEquals(before, BundleHasher.hash(dir))
+    }
+
+    @Test
+    fun `dot-interfaze files are excluded from hash`() {
+        val dir = Files.createTempDirectory("bh5_").toFile().also { makePack(it) }
+        val before = BundleHasher.hash(dir)
+        File(dir, ".interfaze-sync.yaml").writeText("synced_hash: abc\n")
+        assertEquals(before, BundleHasher.hash(dir))
+    }
+
+    @Test
+    fun `hashAll over two packs is deterministic`() {
+        val packsDir = Files.createTempDirectory("bh6_").toFile()
+        makePack(File(packsDir, "p_a").apply { mkdirs() })
+        makePack(File(packsDir, "p_b").apply { mkdirs() })
+        val h1 = BundleHasher.hashAll(packsDir)
+        val h2 = BundleHasher.hashAll(packsDir)
+        assertEquals(h1, h2)
+    }
+
+    @Test
+    fun `hashAll returns empty string when no packs`() {
+        val empty = Files.createTempDirectory("bh7_").toFile()
+        assertEquals("", BundleHasher.hashAll(empty))
+    }
+}
