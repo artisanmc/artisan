@@ -1,9 +1,7 @@
-# "local" reads YAML from disk; "cloud" connects to the backend via WebSocket
-mode: local
-
-# Only used in cloud mode
+# Set to connect this server to the Interfaze editor backend for live sync.
+# Leave empty to run offline using only locally exported packs.
 server_key: ""
 ws_url: "wss://editor.interfaze.gg/ws/plugin"
 
-# Path relative to the server root where exported pack bundles are placed
+# Path relative to the server root where exported pack bundles are stored.
 packs_dir: "plugins/Interfaze/packs"

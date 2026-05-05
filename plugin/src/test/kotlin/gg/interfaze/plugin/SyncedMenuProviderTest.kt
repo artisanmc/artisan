@@ -2,12 +2,12 @@ package gg.interfaze.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
-import gg.interfaze.plugin.provider.FilesystemMenuProvider
+import gg.interfaze.plugin.provider.SyncedMenuProvider
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.*
 
-class FilesystemMenuProviderTest {
+class SyncedMenuProviderTest {
     private lateinit var server: ServerMock
     private lateinit var plugin: InterfazePlugin
 
@@ -57,10 +57,10 @@ class FilesystemMenuProviderTest {
     }
 
     @Test
-    fun `resolves menu by id`() {
+    fun `resolves menu by id from disk`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
         writePackFixture(packsRoot)
-        val provider = FilesystemMenuProvider(packsRoot)
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
         val menu = provider.findMenu("m_shop")
         assertNotNull(menu)
@@ -71,11 +71,19 @@ class FilesystemMenuProviderTest {
     fun `openMenu creates a 27-slot inventory for the player`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
         writePackFixture(packsRoot)
-        val provider = FilesystemMenuProvider(packsRoot)
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
         val player = server.addPlayer()
         provider.openMenu(player, "m_shop", "en")
         assertNotNull(player.openInventory)
         assertEquals(27, player.openInventory.topInventory.size)
+    }
+
+    @Test
+    fun `no WsClient created when serverKey is empty`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        provider.unload()  // must not throw
     }
 }
