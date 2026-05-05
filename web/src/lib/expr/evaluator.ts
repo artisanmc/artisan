@@ -133,6 +133,13 @@ function invokeMethod(target: unknown, method: string, args: unknown[]): unknown
       if (!Array.isArray(target)) return false;
       return target.some((x) => x === args[0]);
     }
+    case "pluck": {
+      if (!Array.isArray(target)) return [];
+      const field = args[0] === undefined ? "" : String(args[0]);
+      return target.map((x) =>
+        x !== null && typeof x === "object" ? (x as Record<string, unknown>)[field] ?? null : null,
+      );
+    }
     default:
       return null;
   }
