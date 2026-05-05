@@ -21,10 +21,22 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                 plugin.menuProvider.openMenu(sender, menuId, "en")
             }
             "reload" -> {
+                plugin.menuProvider.unload()
                 plugin.menuProvider.load()
                 sender.sendMessage("Interfaze reloaded.")
             }
-            else -> sender.sendMessage("Usage: /ifz menu <id> | /ifz reload")
+            "sync" -> {
+                when (args.getOrNull(1)?.lowercase()) {
+                    "status" -> sender.sendMessage("Check server logs for sync status details.")
+                    "reject" -> {
+                        plugin.menuProvider.unload()
+                        plugin.menuProvider.load()
+                        sender.sendMessage("Reconnecting to backend — backend version will be applied if available.")
+                    }
+                    else -> sender.sendMessage("Usage: /ifz sync <status|reject>")
+                }
+            }
+            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>>")
         }
         return true
     }
