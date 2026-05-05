@@ -24,53 +24,53 @@ class BundleDownloaderTest {
 
     @Test
     fun `download writes YAML files to pack dir under packsDir`() {
-        val server = MockWebServer()
-        val packId = "p_dl_test"
-        val files = makeBundle(packId)
-        val responseBody = mapper.writeValueAsString(mapOf("files" to files, "hash" to "abc123"))
-        server.enqueue(MockResponse().setBody(responseBody).setHeader("Content-Type", "application/json"))
-        server.start()
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_dl_test"
+            val files = makeBundle(packId)
+            val responseBody = mapper.writeValueAsString(mapOf("files" to files, "hash" to "abc123"))
+            server.enqueue(MockResponse().setBody(responseBody).setHeader("Content-Type", "application/json"))
 
-        val packsDir = Files.createTempDirectory("ifz_dl_").toFile()
-        val downloader = BundleDownloader(OkHttpClient(), packsDir)
-        downloader.download(
-            url       = server.url("/api/bundles/$packId").toString(),
-            serverKey = "sk_test",
-            packId    = packId,
-        )
+            val packsDir = Files.createTempDirectory("ifz_dl_").toFile()
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(
+                url       = server.url("/api/bundles/$packId").toString(),
+                serverKey = "sk_test",
+                packId    = packId,
+            )
 
-        assertTrue(File(packsDir, "$packId/manifest.yaml").exists())
-        assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
-        assertEquals("schema: manifest/v1\npack_id: $packId\n",
-            File(packsDir, "$packId/manifest.yaml").readText())
-        server.shutdown()
+            assertTrue(File(packsDir, "$packId/manifest.yaml").exists())
+            assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
+            assertEquals("schema: manifest/v1\npack_id: $packId\n",
+                File(packsDir, "$packId/manifest.yaml").readText())
+        }
     }
 
     @Test
     fun `download updates SyncMetadata after writing`() {
-        val server = MockWebServer()
-        val packId = "p_meta_test"
-        val files = makeBundle(packId)
-        val backendHash = "deadeef123"
-        server.enqueue(
-            MockResponse()
-                .setBody(mapper.writeValueAsString(mapOf("files" to files, "hash" to backendHash)))
-                .setHeader("Content-Type", "application/json")
-        )
-        server.start()
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_meta_test"
+            val files = makeBundle(packId)
+            val backendHash = "deadeef123"
+            server.enqueue(
+                MockResponse()
+                    .setBody(mapper.writeValueAsString(mapOf("files" to files, "hash" to backendHash)))
+                    .setHeader("Content-Type", "application/json")
+            )
 
-        val packsDir = Files.createTempDirectory("ifz_meta_").toFile()
-        val downloader = BundleDownloader(OkHttpClient(), packsDir)
-        downloader.download(
-            url       = server.url("/api/bundles/$packId").toString(),
-            serverKey = "sk_test",
-            packId    = packId,
-        )
+            val packsDir = Files.createTempDirectory("ifz_meta_").toFile()
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(
+                url       = server.url("/api/bundles/$packId").toString(),
+                serverKey = "sk_test",
+                packId    = packId,
+            )
 
-        val meta = SyncMetadata.read(File(packsDir, packId))
-        val diskHash = BundleHasher.hash(File(packsDir, packId))
-        assertEquals(diskHash, meta.syncedHash)
-        assertEquals(backendHash, meta.backendHash)
-        server.shutdown()
+            val meta = SyncMetadata.read(File(packsDir, packId))
+            val diskHash = BundleHasher.hash(File(packsDir, packId))
+            assertEquals(diskHash, meta.syncedHash)
+            assertEquals(backendHash, meta.backendHash)
+        }
     }
 }

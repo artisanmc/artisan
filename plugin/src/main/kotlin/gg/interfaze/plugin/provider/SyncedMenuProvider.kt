@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 class SyncedMenuProvider(
@@ -28,6 +29,7 @@ class SyncedMenuProvider(
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
+    @Volatile private var bundleDownloadInFlight = false
 
     override fun load() {
         reloadFromDisk()
@@ -50,6 +52,7 @@ class SyncedMenuProvider(
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
         httpClient.dispatcher.executorService.shutdown()
+        httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
@@ -77,12 +80,18 @@ class SyncedMenuProvider(
                 logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
 
             "bundle_available" -> {
-                val packId = node["pack_id"]?.asText() ?: return
-                val url    = node["url"]?.asText()     ?: return
-                val downloader = BundleDownloader(httpClient, packsDir, logger)
-                downloader.download(url = url, serverKey = serverKey, packId = packId)
-                reloadFromDisk()
-                draftMenus.clear()
+                if (bundleDownloadInFlight) return
+                bundleDownloadInFlight = true
+                try {
+                    val packId = node["pack_id"]?.asText() ?: return
+                    val url    = node["url"]?.asText()     ?: return
+                    val downloader = BundleDownloader(httpClient, packsDir, logger)
+                    downloader.download(url = url, serverKey = serverKey, packId = packId)
+                    reloadFromDisk()
+                    draftMenus.clear()
+                } finally {
+                    bundleDownloadInFlight = false
+                }
             }
 
             "draft_update" -> {
