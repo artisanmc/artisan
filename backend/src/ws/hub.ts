@@ -67,6 +67,7 @@ export async function handlePluginMessage(
 
   // ── authenticated hello ──────────────────────────────────────────────────
   if (msg.type === "hello") {
+    if (typeof (msg as Record<string, unknown>).server_key !== "string") return { reply: null };
     const hello = msg as HelloMessage;
     const keyId = await validateServerKey(hello.server_key);
     if (!keyId) return { reply: null };
@@ -120,6 +121,7 @@ export async function handlePluginMessage(
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
     await db.insert(linkCodes).values({ code, createdAt: now, expiresAt });
     codeToConn.set(code, connId);
+    setTimeout(() => codeToConn.delete(code), 10 * 60 * 1000);
 
     const reply: SetupCodeMessage = {
       type: "setup_code",
@@ -132,17 +134,27 @@ export async function handlePluginMessage(
 
   // ── setup_claim (B2): plugin claims a dashboard-generated code ───────────
   if (msg.type === "setup_claim") {
-    const { code } = msg as SetupClaimMessage;
-    const rows = await db.select().from(linkCodes).where(eq(linkCodes.code, code));
-    if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) {
-      return { reply: null };
-    }
+    const raw = msg as Record<string, unknown>;
+    if (typeof raw.code !== "string" || raw.code.length === 0) return { reply: null };
+    const { code } = raw as SetupClaimMessage;
 
     const { id, key, hash } = await generateServerKey();
-    await db.transaction(async (tx) => {
-      await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
-      await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id }).where(eq(linkCodes.code, code));
-    });
+    let valid = false;
+    try {
+      await db.transaction(async (tx) => {
+        const rows = await tx.select().from(linkCodes).where(eq(linkCodes.code, code));
+        if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) {
+          throw new Error("invalid");
+        }
+        await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
+        await tx.update(linkCodes)
+          .set({ claimedAt: new Date(), serverKeyId: id })
+          .where(eq(linkCodes.code, code));
+        valid = true;
+      });
+    } catch {
+      if (!valid) return { reply: null };
+    }
 
     const send = connSenders.get(connId);
     if (send) send(JSON.stringify({ type: "link_confirmed", server_key: key } satisfies LinkConfirmedMessage));
