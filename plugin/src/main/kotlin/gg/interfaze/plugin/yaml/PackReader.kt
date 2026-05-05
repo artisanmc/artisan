@@ -1,5 +1,6 @@
 package gg.interfaze.plugin.yaml
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -22,8 +23,7 @@ class PackReader(private val packsRoot: File) {
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
             val langFile = File(packDir, "lang/$lang.yaml")
             if (langFile.exists()) {
-                @Suppress("UNCHECKED_CAST")
-                mapper.readValue(langFile, Map::class.java) as Map<String, String>
+                mapper.readValue(langFile, object : TypeReference<Map<String, String>>() {})
             } else emptyMap()
         }
 
