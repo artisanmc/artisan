@@ -8,6 +8,7 @@ import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.ws.WsClient
 import org.bukkit.entity.Player
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
 class CloudMenuProvider(
@@ -15,8 +16,8 @@ class CloudMenuProvider(
     private val serverKey: String,
     private val logger: Logger?,
 ) : MenuProvider {
-    private val liveMenus  = mutableMapOf<String, BundleMenu>()
-    private val draftMenus = mutableMapOf<String, BundleMenu>()
+    private val liveMenus  = ConcurrentHashMap<String, BundleMenu>()
+    private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     private lateinit var wsClient: WsClient
     private val jsonMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
@@ -24,6 +25,12 @@ class CloudMenuProvider(
     override fun load() {
         wsClient = WsClient(wsUrl, serverKey, onMessage = ::handleMessage, logger = logger)
         wsClient.connect()
+    }
+
+    override fun unload() {
+        if (::wsClient.isInitialized) {
+            wsClient.disconnect()
+        }
     }
 
     override fun findMenu(menuId: String): BundleMenu? = liveMenus[menuId]
