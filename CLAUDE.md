@@ -27,12 +27,12 @@ cd plugin
 ./gradlew shadowJar     # → build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
-### Backend (Bun + Hono + SQLite)
+### Backend (Bun + Hono + PostgreSQL)
 
 ```bash
 cd backend
 bun install
-bun run db:push         # Applique le schéma Drizzle sur interfaze.db
+bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis)
 bun run dev             # Dev avec --watch sur port 3001
 bun test                # 11 tests (unit + intégration WS réel)
 ```
@@ -61,7 +61,7 @@ docker compose build minecraft  # rebuild le JAR + image Paper
 
 ```
 editor/          React 19 + Vite + Konva
-backend/         Bun + Hono + SQLite (Drizzle)
+backend/         Bun + Hono + PostgreSQL (Drizzle)
 plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
 docker/          Dockerfile multi-stage (Gradle JDK21 → Paper JRE21)
 docker-compose.yml
@@ -135,7 +135,7 @@ plugins/Interfaze/packs/
 | Variable | Défaut | Usage |
 |---|---|---|
 | `PORT` | `3001` | Port HTTP/WS du backend |
-| `DB_PATH` | `interfaze.db` | Chemin vers la base SQLite |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/interfaze` | URL de connexion PostgreSQL |
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (plugin → download) |
 
