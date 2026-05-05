@@ -1,7 +1,7 @@
 # Interfaze — Editor shell scaffold
 
-**Status :** draft (2026-04-30)
-**Scope :** spec du scaffold v0 de l'éditeur web — l'UI actuelle dans `web/` est jetée et remplacée par cette nouvelle shell qui introduit la notion de **workspace drag-and-drop** à 3 niveaux.
+**Status :** implémenté (2026-04-30 → 2026-05-05). Document de référence — le canvas Konva a remplacé React Flow (voir `docs/decisions/stack.md`), le répertoire `web/` a été renommé `editor/`. Le domaine (Pack, Menu, Element, i18n, hermétisme) est intact.
+**Scope :** spec du scaffold v0 de l'éditeur web — la shell qui introduit la notion de **workspace drag-and-drop** à 3 niveaux.
 
 Ce document complète :
 

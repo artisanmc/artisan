@@ -66,9 +66,11 @@ plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
 docker/          Dockerfile multi-stage (Gradle JDK21 → Paper JRE21)
 docker-compose.yml
 docs/
-  decisions/stack.md     ← stack technique et rationale
-  specs/                 ← spec produit et éditeur
-  superpowers/specs/     ← specs data sources, expression DSL
+  decisions/             ← ADRs (stack, state model)
+  specs/                 ← specs produit et éditeur (web-editor.md, main-spec.md)
+  schema/                ← JSON schemas menu/pack/command/translations
+  superpowers/specs/     ← design docs data-sources, expression DSL
+  superpowers/plans/     ← plans actifs (archive/ = plans complétés)
 CONTEXT.md               ← glossaire domaine (source de vérité pour les termes)
 ```
 
