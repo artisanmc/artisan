@@ -349,6 +349,15 @@ export default {
   materialPicker: {
     title: "Pick item",
   },
+  export: {
+    button: "Export to server (.zip)",
+    success: "Exported — extract the zip on your server and run /interfaze reload.",
+    failed: "Export failed",
+    errorTitle: "Cannot export",
+    errorSubtitle: "Fix these issues before exporting:",
+    overwriteWarning:
+      "Server edits will be overwritten on next export. Extract the zip on your server and run /interfaze reload.",
+  },
   toast: {
     titleEditFailed: "title edit failed",
     importedPack: 'Imported "{{name}}"',
@@ -368,25 +377,8 @@ export default {
     importSuccess: "Imported {{count}} connector(s).",
     importError: "{{file}}: {{error}}",
     removeConnector: "Remove this connector",
-    addList: "+ List",
-    addObject: "+ Object",
+    add: "+ New source",
     remove: "Remove",
-    schema: "Schema",
-    values: "Values",
-    listOf: "List of",
-    listOfObjectWith: "List of objects with",
-    object: "object",
-    objectWith: "Object with",
-    fields: "fields",
-    fieldName: "field name",
-    objectFields: "Fields",
-    addField: "+ Add field",
-    addItem: "+ Add item",
-    addRow: "+ Add row",
-    advancedSchemaNotice:
-      "This source has an advanced (nested) schema. Editing requires the full schema editor (Plan C2.1).",
-    advancedValueNotice:
-      "Values for this schema shape will be editable when the full schema editor lands (Plan C2.1).",
     editorPlaceholder: "Select a source to edit it.",
   },
   patterns: {
