@@ -12,7 +12,7 @@ describe("handlePluginMessage", () => {
       minecraft_version: "1.21.4",
       current_bundle_hash: "",
     };
-    const result = await handlePluginMessage(JSON.stringify(hello));
+    const result = await handlePluginMessage("test-conn", JSON.stringify(hello));
     expect(result.reply).toBeNull();
   });
 
@@ -32,7 +32,7 @@ describe("handlePluginMessage", () => {
       minecraft_version: "1.21.4",
       current_bundle_hash: "",
     };
-    const result = await handlePluginMessage(JSON.stringify(hello));
+    const result = await handlePluginMessage("test-conn", JSON.stringify(hello));
     expect(result.reply).not.toBeNull();
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
     expect(ack.type).toBe("hello_ack");
