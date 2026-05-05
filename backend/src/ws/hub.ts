@@ -42,6 +42,9 @@ export async function handlePluginMessage(
       .from(packBundles)
       .where(eq(packBundles.serverId, keyId));
 
+    const packHashesMap: Record<string, string> = {};
+    for (const p of packs) packHashesMap[p.packId] = p.hash;
+
     const ack: HelloAckMessage = {
       type: "hello_ack",
       session_id: sessionId,
@@ -50,6 +53,7 @@ export async function handlePluginMessage(
       needs_sync: needsSync,
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
+      pack_hashes: packHashesMap,
     };
 
     const push: string[] = [];
