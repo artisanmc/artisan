@@ -47,7 +47,7 @@ class WsClient(
                 "type" to "hello",
                 "server_key" to serverKey,
                 "plugin_version" to "1.0.0",
-                "minecraft_version" to "1.21.4",
+                "minecraft_version" to "1.21.1",
                 "current_bundle_hash" to currentBundleHash,
             )
             ws.send(mapper.writeValueAsString(hello))
