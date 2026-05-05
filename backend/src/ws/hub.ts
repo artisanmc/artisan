@@ -5,6 +5,10 @@ import type { BundleAvailableMessage, HelloAckMessage, HelloMessage } from "../p
 import { computeAllPacksHash } from "../lib/hashUtils";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3001";
+// BUNDLE_BASE_URL is the URL the *plugin* uses to download bundles.
+// In Docker, this should be the internal service URL (e.g. http://backend:3001)
+// while API_BASE_URL remains the browser-accessible URL.
+const BUNDLE_BASE_URL = process.env.BUNDLE_BASE_URL ?? API_BASE_URL;
 
 const activeSessions = new Map<string, string>();
 export const sessionSenders = new Map<string, (msg: string) => void>();
@@ -62,7 +66,7 @@ export async function handlePluginMessage(
         const available: BundleAvailableMessage = {
           type: "bundle_available",
           pack_id: pack.packId,
-          url: `${API_BASE_URL}/api/bundles/${pack.packId}`,
+          url: `${BUNDLE_BASE_URL}/api/bundles/${pack.packId}`,
           hash: pack.hash,
           signature: "", // TODO: implement bundle signing
         };
