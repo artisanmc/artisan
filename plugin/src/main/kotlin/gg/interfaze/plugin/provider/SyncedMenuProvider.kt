@@ -19,23 +19,24 @@ class SyncedMenuProvider(
     private val wsUrl: String,
     private val logger: Logger?,
 ) : MenuProvider {
-    private val menus      = ConcurrentHashMap<String, BundleMenu>()
+    @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     private val jsonMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
-    private var wsClient: WsClient? = null
+    @Volatile private var wsClient: WsClient? = null
 
     override fun load() {
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
-            wsClient = WsClient(
+            val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
                 currentBundleHash = "",   // replaced with real hash in Task 2
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
-            wsClient!!.connect()
+            wsClient = client
+            client.connect()
         }
     }
 
@@ -54,10 +55,11 @@ class SyncedMenuProvider(
     }
 
     private fun reloadFromDisk() {
-        menus.clear()
+        val fresh = ConcurrentHashMap<String, BundleMenu>()
         PackReader(packsDir).readAll().forEach { bundle ->
-            bundle.menus.forEach { menu -> menus[menu.id] = menu }
+            bundle.menus.forEach { menu -> fresh[menu.id] = menu }
         }
+        menus = fresh
     }
 
     private fun handleMessage(raw: String) {
