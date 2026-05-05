@@ -14,7 +14,7 @@ Dernière révision : 2026-05-05.
 | **Backend runtime** | Bun 1.x | Node 22, Deno | Startup rapide, TypeScript natif sans transpilation, `bun:sqlite` intégré. Suffisant pour le MVP et la prod à faible concurrence. |
 | **Backend framework** | Hono 4 | Fastify, Express | Léger, TypeScript-first, WebSocket via `hono/bun`. Zéro config. Pour le MVP, Fastify n'apporte rien de concret. |
 | **ORM** | Drizzle | Sequelize, Prisma | TS-native, types parfaits, proche du SQL, pas de codegen ni de moteur séparé. Dialecte swappable (SQLite → PostgreSQL en changeant 3 lignes). |
-| **DB** | SQLite (`bun:sqlite`) | PostgreSQL/Neon | Zéro ops pour le MVP. Un seul process d'écriture → pas de problème de concurrence. Migration vers PostgreSQL quand : multi-instance ou > 10 000 serveurs actifs. |
+| **DB** | PostgreSQL 16 (`drizzle-orm/postgres-js`) | SQLite (`bun:sqlite`) | SaaS multi-tenant : visualisation données, backups, requêtes ad-hoc, préparation multi-instance. Drizzle abstrait le dialecte — le switch depuis SQLite n'a nécessité que 3 lignes de config. |
 | **Canvas éditeur** | Konva + react-konva | React Flow | Un seul canvas Konva avec inventaires inlines. React Flow (node-based) ne correspond pas au modèle visuel : les menus ne sont pas des nœuds connectés, ce sont des compositions d'items dans une grille. |
 | **WS client (éditeur)** | Custom `pluginBridge.ts` (~60 LOC) | partysocket, socket.io | On contrôle le protocole JSON. partysocket n'est utile que si on veut le reconnect auto sans l'écrire — 60 lignes suffisent. |
 | **WS client (plugin)** | OkHttp 4 WebSocket | socket.io, Ktor | OkHttp est déjà la dépendance HTTP du plugin (bundle download). Un seul client HTTP+WS. Reconnect exponential backoff inclus. |
@@ -39,11 +39,8 @@ La spec initiale documentait Node 22 + Fastify + PostgreSQL + React Flow. L'impl
 | Spec initiale | Implémenté | Raison du pivot |
 |---|---|---|
 | Java 21 | **Kotlin 2.0** | Null-safety et data classes réduisent le boilerplate sur les modèles de domaine. |
-| Node 22 + Fastify | **Bun + Hono** | MVP : Bun simplifie le toolchain (pas de transpilation, `bun:sqlite` intégré). Fastify n'apporte rien de concret à cette échelle. |
-| PostgreSQL/Neon | **SQLite** | Zéro ops. Un process d'écriture = pas de contention. Drizzle rend la migration triviale si nécessaire. |
+| Node 22 + Fastify | **Bun + Hono** | MVP : Bun simplifie le toolchain (pas de transpilation). Fastify n'apporte rien de concret à cette échelle. |
 | React Flow | **Konva** | Le modèle visuel est un canvas d'inventaires Minecraft, pas un graphe de nœuds. Konva donne le contrôle pixel-perfect nécessaire. |
-
-**Condition de migration vers PostgreSQL :** multi-instance du backend OU > 10 000 serveurs actifs simultanés. Drizzle rend ce changement à 3 lignes de config + un changement de dialecte.
 
 **Condition de migration vers Fastify :** si on a besoin de la validation JSON Schema intégrée sur les routes bundle upload (quand le schéma menu v2 arrive), ou si on atteint les limites de Hono en production.
 
@@ -64,15 +61,15 @@ app.get("/ws/plugin", upgradeWebSocket(() => ({
 export default { port, fetch: app.fetch, websocket };
 ```
 
-### SQLite + Drizzle
+### PostgreSQL + Drizzle
 
 ```ts
 // db/index.ts
-const sqlite = new Database(process.env.DB_PATH ?? "interfaze.db");
-export const db = drizzle(sqlite, { schema });
+const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/interfaze");
+export const db = drizzle(client, { schema });
 ```
 
-Pour migrer vers PostgreSQL : remplacer `drizzle-orm/bun-sqlite` par `drizzle-orm/node-postgres`, changer le dialecte dans `drizzle.config.ts`, `sqliteTable` → `pgTable` dans le schéma. Les requêtes Drizzle ne changent pas.
+Le switch depuis SQLite n'a nécessité que : remplacer `drizzle-orm/bun-sqlite` par `drizzle-orm/postgres-js`, changer le dialecte dans `drizzle.config.ts`, et `sqliteTable` → `pgTable` dans le schéma. Les requêtes Drizzle n'ont pas changé.
 
 ### Sessions WS
 
@@ -124,7 +121,7 @@ TanStack Query n'est pas utilisé (pas de data fetching server-side côté edito
 ## Choses encore ouvertes
 
 - **Signature des bundles** : champ `signature` présent dans le protocole, non implémenté. ECDSA P-256 prévu.
-- **Auth Discord** : non implémentée. `server_key` manuel pour l'instant.
+- **Auth** : non implémentée. `server_key` manuel pour l'instant. Deux providers prévus : Discord OAuth + email/password (bcrypt + JWT). `server_key` reste le vecteur d'auth plugin → backend (ne change pas).
 - **TanStack Query** : non utilisé. À introduire si on ajoute du data fetching server-side (billing, équipes).
 - **Migration JSON menu v1 → v2** : moteur côté plugin uniquement, côté backend, ou les deux ? À trancher en V1.5.
 - **PlaceholderAPI** : intégration directe pour V1, abstraction si auto-completion riche nécessaire.
