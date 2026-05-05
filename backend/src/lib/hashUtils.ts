@@ -7,7 +7,7 @@ export async function computeBundleHash(files: Record<string, string>, packId: s
   const sorted = Object.entries(files)
     .filter(([k]) => k.startsWith(prefix))
     .map(([k, v]) => ({ path: k.slice(prefix.length), content: v }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
   if (sorted.length === 0) return "";
 
@@ -24,7 +24,7 @@ export async function computeAllPacksHash(serverId: string): Promise<string> {
 
   if (bundles.length === 0) return "";
 
-  const sorted = [...bundles].sort((a, b) => a.packId.localeCompare(b.packId));
+  const sorted = [...bundles].sort((a, b) => (a.packId < b.packId ? -1 : a.packId > b.packId ? 1 : 0));
   const data = sorted.map((b) => `${b.packId}:${b.hash}\n`).join("");
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
