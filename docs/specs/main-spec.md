@@ -72,67 +72,58 @@ Un troisième flavor **Staging** (preview gelée accessible à des testeurs invi
 
 ## 3. Modèle business
 
-### 3.1 Philosophie : free utile et perpétuel + paid pour la friction
+### 3.1 Philosophie : free utile et complet, paid pour la scale
 
-**Le free tier est utile, complet, et perpétuel.** L'admin gratuit a accès à tout l'éditeur visuel — toutes les actions, conditions, apparences, layers, templates, commandes, i18n + MiniMessage avec preview live, data sources et leurs connecteurs, asset library, génération de resource pack à télécharger en `.zip`. Le plugin Minecraft (.jar) est gratuit sur SpigotMC et Modrinth. C'est **déjà supérieur à zMenu et DeluxeMenus** sur l'UX, et c'est suffisant pour adopter et faire son contenu.
+**Le free tier est utile, complet, et perpétuel.** L'admin gratuit a accès à **toutes les capacités créatives de l'éditeur** : éditeur visuel + live edit + auto-sync vers le serveur, MiniMessage avec preview, i18n, layers, apparences conditionnelles, templates, commandes, data sources et leurs connecteurs, custom assets/textures avec auto CDN, asset library. Le plugin Minecraft (.jar) est gratuit sur SpigotMC et Modrinth. C'est **déjà supérieur à zMenu et DeluxeMenus** sur tous les axes.
 
-**Ce qu'on monétise, c'est la friction enlevée.** Le free user fait son menu dans l'éditeur, exporte un `.json`, le drop dans `plugins/Interfaze/menus/` via SFTP, exécute `/interfaze reload`, teste en jeu. Pour un admin qui itère régulièrement (changer un prix, tester un layout, ajouter un bouton), ce cycle export-upload-reload-test prend 30 secondes à 2 minutes par itération. Au bout de 2 semaines d'usage régulier, **la friction se sent dans les doigts**.
+**Aucune friction artificielle.** On ne pénalise pas les free users pour pousser à payer — ils ont un produit pleinement utilisable, qui marche, qui est agréable. Le paywall arrive **quand ils scalent**.
 
-Le tier payant supprime cette friction : **WebSocket sync, live edit en jeu, auto-deploy au save**. Plus aucune manipulation de fichier. C'est le moment où l'admin sérieux paie 3,5 €/mois — non pas comme une décision intellectuelle ("j'analyse le rapport coût/bénéfice"), mais comme un soulagement physique ("mon dos en peut plus de drag-drop").
+**Le paywall est sur les axes de scale, alignés sur des coûts marginaux réels** :
 
-Autres axes payants alignés sur des coûts marginaux réels :
+- **Multi-seat (équipe)** : free = 1 user. Au moment où tu invites un coéquipier → paid. Aligné sur "le serveur passe d'amateur à sérieux".
+- **Multi-server** : free = 1 serveur. Le 2ᵉ serveur signale du dev/staging ou du multi-mode → paid.
+- **Features à coût marginal réel** : import MCModels (parsing CPU intensif), assistant IA (Claude API tokens), marketplace selling V3 (curation + payment infra) → paid.
 
-- **Multi-server** : free = 1 serveur (manuel). Paid = jusqu'à illimité, avec sync coordonnée.
-- **Multi-seat (équipes)** : free = 1 user. Paid = équipes 5 à illimités, avec attribution edit + audit.
-- **MCModels import** : free = ✗ (parsing CPU intensif). Paid = ✓.
-- **Assistant IA** : free = ✗. Paid = quotas tier-dépendants.
-- **CDN-hosted resource packs** : free = self-host (admin télécharge zip). Paid = auto CDN avec signature serveur.
-- **Marketplace selling** (V3) : Network+ uniquement.
+Cette structure préserve les solo creators comme ambassadeurs (ils stylisent, partagent sur YouTube, recrutent des nouveaux users en montrant leur workflow), et capture le payant sur les signaux de "vrai usage productif" : équipe, multi-server, features avancées.
 
-Cette structure préserve les solo creators comme ambassadeurs (ils stylisent, partagent sur YouTube, recrutent des nouveaux users en montrant leur workflow), et capture le payant sur les signaux de "vrai usage productif" : itération fréquente, équipe, multi-server.
+### 3.2 Modes de fonctionnement du plugin
 
-### 3.2 Mode local (free) vs mode cloud (paid)
+Le plugin Minecraft supporte **deux modes** de récupération des menus, **disponibles dans tous les tiers** :
 
-Le plugin Minecraft détecte automatiquement son mode au démarrage selon la présence ou non d'une `server_key` valide :
-
-**Mode local (free)** :
-- Plugin lit `plugins/Interfaze/menus/*.json` (ou `*.yaml`) depuis le disque.
-- Reload manuel via `/interfaze reload` après chaque modification.
-- Aucune connexion sortante, aucune dépendance réseau au runtime.
-- Resource pack : l'admin self-host (téléchargé en `.zip` depuis l'éditeur, hébergé via son webserver ou la fonctionnalité native Spigot `resource-pack`).
-- Limite : pas de live edit en jeu, pas de auto-deploy, pas de multi-server coordonné.
-
-**Mode cloud (paid)** :
-- Plugin se connecte à `wss://editor.interfaze.gg/ws/plugin` avec `server_key`.
+**Mode cloud (défaut)** :
+- Plugin se connecte à `wss://editor.interfaze.gg/ws/plugin` avec une clé serveur.
 - Sync live, bundle pull depuis le CDN, signatures serveur-bound, version history côté backend.
 - Live edit en jeu : le menu se rafraîchit pour les joueurs au moment où l'admin save dans l'éditeur web.
-- Multi-server : un workspace pousse à plusieurs serveurs simultanément.
+- Multi-server : un workspace pousse à plusieurs serveurs simultanément (selon tier).
 
-Le code de rendu est identique dans les deux modes — c'est juste la source des menus qui diffère (FilesystemMenuProvider vs CloudMenuProvider en interne).
+**Mode local (offline / opt-in)** :
+- Plugin lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, watch optionnel sur les fichiers pour reload automatique.
+- Aucune connexion sortante, aucune dépendance réseau au runtime.
+- Pour les admins qui veulent zéro dépendance cloud (souveraineté, paranoïa réseau, environnements air-gapped).
+
+Le **mode cloud est le défaut** parce qu'il offre la meilleure expérience (live edit, multi-server, sync). Le mode local est documenté comme option pour les puristes du self-hosted. Les deux modes sont gratuits et fonctionnels — le tier Interfaze gate le cloud sur le multi-seat, multi-server, IA, etc., pas le mode lui-même.
 
 ### 3.3 Tiers d'abonnement
 
-| | **Free** | **Solo** | **Network** | **Unlimited** |
-|---|---|---|---|---|
-| Éditeur visuel + live preview | ✓ | ✓ | ✓ | ✓ |
-| MiniMessage + i18n + layers + apparences + templates + commandes + data sources | ✓ | ✓ | ✓ | ✓ |
-| Export JSON / YAML | ✓ | ✓ | ✓ | ✓ |
-| Plugin Minecraft (`.jar` gratuit) | ✓ | ✓ | ✓ | ✓ |
-| Resource pack generation | ✓ (download `.zip`, self-host) | ✓ (auto CDN signé) | ✓ (auto CDN signé) | ✓ (auto CDN signé) |
-| Custom assets / textures | illimité | illimité | illimité | illimité |
-| **Live edit + WebSocket sync** | ✗ | **✓** | **✓** | **✓** |
-| **Auto-deploy au save (zéro export/import)** | ✗ | **✓** | **✓** | **✓** |
-| Multi-server | 1 (manuel) | **3** | **10** | illimité |
-| Multi-seat (équipe) | 1 | 1 | **5** | illimité |
-| Storage cloud (workspace) | 100 MB | 2 GB | 20 GB | illimité |
-| MCModels import (.zip parsing) | ✗ | ✓ | ✓ | ✓ |
-| Assistant IA (V1.5) | ✗ | 50/mois | 500/mois | illimité |
-| Cloud backups, version history, rollback | ✗ | ✓ | ✓ | ✓ |
-| Vendre sur marketplace (V3) | ✗ | ✗ | ✓ | ✓ |
-| CDN priority | — | standard | premium | premium |
-| **Mensuel** | gratuit | **3,5 €/mois** | **7 €/mois** | **15 €/mois** |
-| **Annuel (-29 %)** | — | 30 €/an | 60 €/an | 130 €/an |
-| **Lifetime** *(IA non incluse, cf. add-on)* | — | 80 € | 150 € | 300 € |
+| | **Free** | **Crew** | **Network** |
+|---|---|---|---|
+| Éditeur visuel + live preview | ✓ | ✓ | ✓ |
+| Live edit + auto-sync (mode cloud) | ✓ | ✓ | ✓ |
+| Toutes features éditeur (apparences, layers, commandes, i18n, MiniMessage, data sources, templates) | ✓ | ✓ | ✓ |
+| Custom assets / textures + auto CDN | ✓ | ✓ | ✓ |
+| Plugin Minecraft (`.jar` gratuit Spigot/Modrinth) | ✓ | ✓ | ✓ |
+| Mode local (offline / opt-in) | ✓ | ✓ | ✓ |
+| **Seats (membres équipe)** | **1** | **5** | **illimité** |
+| **Serveurs connectés** | **1** | **2** | **10** |
+| Storage cloud (workspace) | 500 MB | 5 GB | 50 GB |
+| MCModels import (.zip parsing) | ✗ | ✓ | ✓ |
+| Assistant IA (V1.5) | ✗ | 50/mois | 500/mois |
+| Cloud backups, version history, rollback | ✓ (7j) | ✓ (illimité) | ✓ (illimité) |
+| Vendre sur marketplace (V3) | ✗ | ✗ | ✓ |
+| CDN priority | standard | standard | premium |
+| **Mensuel** | gratuit | **3,5 €/mois** | **9 €/mois** |
+| **Annuel (-29 %)** | — | 30 €/an | 80 €/an |
+| **Lifetime** *(IA non incluse, cf. add-on)* | — | 80 € | 200 € |
 
 Tarifs indicatifs, à recalibrer post-launch selon les conversions observées.
 
@@ -147,15 +138,14 @@ L'IA en lifetime n'est pas incluse parce qu'une request coûte ~0,015 à 0,05 �
 
 #### Founder rate (launch pricing)
 
-Sur les **3 premiers mois post-launch** (extendable de 1 mois one-shot si bugs critiques retardent l'adoption) : **-30 % sur tous les tiers payants, locked-in à vie tant que l'abonnement reste actif**.
+Sur les **3 premiers mois post-launch** (extendable de 1 mois si bugs critiques retardent l'adoption) : **-30 % sur tous les tiers payants, locked-in à vie tant que l'abonnement reste actif**.
 
 | Tier | Founder mensuel | Founder annuel | Founder lifetime |
 |---|---|---|---|
-| Solo | 2,5 €/mois | 21 €/an | 56 € |
-| Network | 5 €/mois | 42 €/an | 105 € |
-| Unlimited | 11 €/mois | 91 €/an | 210 € |
+| Crew | 2,5 €/mois | 21 €/an | 56 € |
+| Network | 6,3 €/mois | 56 €/an | 140 € |
 
-Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet psychologique majeur : urgence à l'inscription les 3 premiers mois, retention massive ensuite (pas envie de "perdre son prix"), communauté d'early adopters fidélisés.
+Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet : urgence à l'inscription, retention massive ensuite (pas envie de "perdre son prix"), communauté d'early adopters fidélisés.
 
 ### 3.4 Programmes spéciaux
 
@@ -163,46 +153,40 @@ Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet psycholo
 
 **Migration discount** : promo *"Je viens de [zMenu / DeluxeMenus / autre]"* → -50 % les 6 premiers mois. Coupon visible sur la landing page. On capture l'audience la plus convertible (déjà users de menu plugins).
 
-**Open source contributors** : compte payant gratuit pour les contributeurs significatifs sur les libs Interfaze publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT, etc.). Geste classique.
+**Open source contributors** : compte payant gratuit pour les contributeurs significatifs sur les libs Interfaze publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT, etc.).
 
-**Demo publique sans signup** : `interfaze.gg/playground` — un éditeur live qui charge un menu d'exemple, sans login. L'utilisateur clique, modifie, voit la preview en temps réel. Une page, 30 secondes pour comprendre le produit, drive massif vers le free signup.
+**Demo publique sans signup** : `interfaze.gg/playground` — un éditeur live qui charge un menu d'exemple, sans login. L'utilisateur clique, modifie, voit la preview en temps réel. Drive massif vers le free signup.
 
 ### 3.5 Personas servis
 
-- **Free** : solo / hobby admin avec un serveur, fait son contenu, aucune équipe. Reste gratuit indéfiniment, devient ambassadeur Discord/Reddit/YouTube. Itère tranquillement avec son cycle export-upload-reload.
-- **Solo** (3,5 €/mois) : admin solo qui itère assez régulièrement pour que la friction du mode local lui pèse. Veut le live edit. Souvent gère 2-3 serveurs perso. *"Le sandwich par mois pour ne plus jamais drag-drop un fichier."*
-- **Network** (7 €/mois) : owner d'un public server avec 3-5 staff. Co-admins, builders, mods. Multi-serveur, attribution des edits, audit log. **Cible cœur des revenus.**
-- **Unlimited** (15 €/mois) : grand network, dev d'un produit basé sur Interfaze, créateur qui vend des packs sur la marketplace.
+- **Free** : solo / hobby admin avec 1 serveur, fait son contenu, aucune équipe. Reste gratuit indéfiniment, devient ambassadeur Discord/Reddit/YouTube. **Le free a un produit complet et fonctionnel, pas une démo bridée**.
+- **Crew** (3,5 €/mois) : petit serveur ou network amateur avec 2-5 staff. L'admin + ses potes builders/mods. Souvent prod + 1 serveur de dev/staging. *"Le sandwich par mois pour avoir mes potes Discord dans l'éditeur."*
+- **Network** (9 €/mois) : public server avec staff complet, multi-mode (Survival + Skyblock + Creative + lobby Bungee), 5+ co-admins. **Cible cœur des revenus.**
 - **Lifetime buyers** : admins qui détestent les subs (mentalité plugin Minecraft classique). Valeur perçue forte ("j'achète une fois, c'est à moi"), même si en pratique l'amortissement vs annuel se fait à ~2,5-3 ans.
 
 ### 3.6 Conversion triggers concrets
 
 Chaque trigger est attaché à un bénéfice tangible et des chiffres qui se lisent comme une non-décision.
 
-**Frictions du mode local qui drivent l'upgrade** :
-- Après le 5ᵉ export-import dans la même session : modal *"Marre des allers-retours ? Solo à 2,5 €/mois (founder rate) débloque le live edit."*
-- Après 7 jours d'utilisation régulière : email *"On a vu que tu as exporté 23 menus cette semaine. Le live edit pourrait t'économiser ~10 minutes par jour. Solo founder rate à 2,5 €/mois."*
+- Free user invite un co-admin → modal *"Tu as atteint la limite de 1 seat. Crew à 3,5 €/mois (2,5 €/mois en founder rate) débloque 5 seats."*
+- Free user ajoute un 2ᵉ serveur → *"Tu as 1 serveur sur 1 utilisé. Crew débloque jusqu'à 2 serveurs (prod + dev/staging)."*
+- Free user achète un pack MCModels et tente l'import → *"L'import MCModels nécessite Crew (3,5 €/mois) ou plus."*
+- Crew user invite un 6ᵉ co-admin → *"Network à 9 €/mois (6,3 €/mois founder rate) débloque seats illimités."*
+- Crew user a brûlé ses 50 reqs IA → *"Recharge 50 credits pour 2 €, ou upgrade Network pour 500/mois."*
+- Tier annuel proposé par défaut sur le checkout : *"Crew annuel : 30 € (économise 12 € vs mensuel)"*.
+- Page pricing : option Lifetime mise en avant pour les anti-sub.
 
-**Hits de gates pendant l'usage payé** :
-- Solo user invite un co-admin → *"Tu as atteint la limite de 1 seat. Network à 7 €/mois (5 €/mois en founder rate) débloque 5 seats."*
-- Solo user ajoute un 4ᵉ serveur → *"Tu as 3 serveurs sur 3 utilisés. Network débloque jusqu'à 10."*
-- Solo user a brûlé ses 50 reqs IA → *"Tu as utilisé tes 50 requêtes IA du mois. Recharge 50 credits pour 2 €, ou upgrade Network pour 500/mois."*
+### 3.7 Anti-cracking et partage de comptes
 
-**Tier annuel proposé sur le checkout sub** : *"Solo annuel : 30 € (économise 12 € vs mensuel)"*. Affiché par défaut, mensuel en option.
+Approche minimaliste, alignée avec la philosophie "on facture la scale, pas l'usage" :
 
-**Page pricing** : option Lifetime mise en avant pour les anti-sub (audience non négligeable dans le marché Minecraft).
-
-### 3.7 Anti-cracking
-
-Approche minimaliste, alignée avec la philosophie "on ne pénalise pas, on facture la productivité enlevée" :
-
-- **Validation au sync (mode cloud uniquement)** : le plugin pull un bundle, l'éditeur valide la clé serveur, refuse si déjà utilisée par un autre serveur (fingerprint IP+port+motd).
+- **Validation au sync** : le plugin pull un bundle, l'éditeur valide la clé serveur, refuse si déjà utilisée par un autre serveur (fingerprint IP+port+motd).
 - **Signature liée au serveur** : chaque bundle généré contient une signature qui n'est valide que pour la clé serveur cible. Empêche le partage entre admins ("tiens prends mon bundle").
-- **Mode local ne nécessite aucune validation** — c'est gratuit, pas besoin d'anti-crack. Les fichiers JSON exportés sont libres de toute restriction.
-- **Fin d'abonnement (paid → free)** : le plugin bascule automatiquement en mode local si la `server_key` n'est plus valide. Les menus existants continuent à fonctionner (ils ont été synchronisés sur le disque par le plugin) en mode read-only manuel. L'admin ne perd rien — il revient juste au mode free, peut continuer à éditer via export/import.
-- **Lifetime users** : la même signature serveur s'applique. La revente du compte est limitée par le seat count = 1 sur Solo Lifetime.
+- **Mode local ne nécessite aucune validation** : c'est gratuit, pas besoin d'anti-crack. Les fichiers JSON exportés sont libres de toute restriction.
+- **Fin d'abonnement (paid → free)** : le compte bascule automatiquement au tier Free. Les seats supplémentaires perdent l'accès à l'éditeur, mais le plugin continue à servir les versions live des menus. L'admin ne perd pas ses données — il revient au workflow Free (1 seat, 1 serveur).
+- **Lifetime users** : la même signature serveur s'applique. La revente du compte est limitée par le seat count = 1 sur Crew Lifetime sans co-admins... mais avec 5 seats, le partage informel est possible. On accepte le trade-off (cf. plus bas).
 
-Sur le partage de comptes (équipe sur 1 seul Solo, multi-comptes pour multi-serveurs) : on laisse couler en V1. Les frictions naturelles (soft-lock, pas d'attribution edit, fragmentation workspace, 1 Discord = 1 compte) écartent 80 % des abus. Le reste sont des non-customers de toute façon. **On observe les données post-launch et on durcit si la perte de revenus devient mesurable**.
+**Sur le partage de comptes** : on **laisse couler en V1**, en cohérence avec l'auth multi-provider. Les admins radins qui veulent contourner les limits peuvent créer plusieurs comptes (email + password sans CB) et fragmenter leur workspace. Les frictions naturelles (workspace fragmenté, pas de partage de menus, pas d'attribution edit cross-account) écartent 80 % des abus structurels. Le reste sont des non-customers de toute façon — peut-être qu'au bout d'un moment ils se rendront compte de la valeur et passeront payants. **On observe les données post-launch et on durcit si la perte de revenus devient mesurable**.
 
 ---
 
@@ -773,7 +757,7 @@ Les clés i18n n'ont **aucun quota** dans aucun tier. Stockage négligeable (~qu
 
 ## 11. Workflow Live / Draft
 
-**Note** : ce workflow s'applique au **mode cloud** (paid tier). En **mode local** (free tier), le plugin lit les fichiers JSON depuis `plugins/Interfaze/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/interfaze reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
+**Note** : ce workflow s'applique au **mode cloud** (par défaut, tous tiers Free + Crew + Network). En **mode local** (opt-in, offline, tous tiers), le plugin lit les fichiers JSON depuis `plugins/Interfaze/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/interfaze reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
 
 ### 11.1 Cycle d'édition
 
@@ -1578,7 +1562,14 @@ Les commandes apparaissent dans le dashboard à côté des menus, avec leur prop
 
 ### 16.1 Login
 
-**Discord OAuth** comme méthode principale. Choix culturellement aligné : 99% des admins Minecraft sont déjà sur Discord.
+**Deux méthodes d'authentification** disponibles dès V1 :
+
+- **Discord OAuth** (primary, recommandée) : choix culturellement aligné — 99 % des admins Minecraft sont déjà sur Discord. SSO d'un click, 2FA via Discord built-in, identité stable.
+- **Email + password** : universel, fallback pour qui n'a pas de Discord (rare) ou qui en veut pas. Permet aussi de créer plusieurs comptes facilement avec des emails différents — ouverture pragmatique pour les admins qui veulent contourner légèrement le quota free (multi-workspaces). On accepte ce trade-off : la friction d'avoir N workspaces fragmentés finit souvent par convertir au paid.
+
+Implémentation côté backend : **Lucia Auth** (lib légère pour Fastify, gère sessions, refresh tokens, account linking). Email + password avec hashing argon2id, vérification email obligatoire pour activer le compte.
+
+**Account linking** : un email = un compte. L'admin peut linker un Discord OAuth en plus pour SSO, mais l'email reste l'identifiant canonique. Évite les emmerdes type "j'ai signé avec Discord puis j'ai changé de Discord, j'ai perdu mon compte".
 
 ### 16.2 Recovery email
 
@@ -1592,7 +1583,7 @@ Les commandes apparaissent dans le dashboard à côté des menus, avec leur prop
 
 Dans la spec V1, deux niveaux :
 
-- **Compte solo** : un seul utilisateur, tier Solo ou Network.
+- **Compte solo** : un seul utilisateur, tier Crew ou Network.
 - **Compte team** : plusieurs membres, possible sur tous les tiers payants. Les membres sont identifiés via Discord :
   - **Méthode 1** : invitation par username Discord.
   - **Méthode 2** (élégante) : "tous les membres avec le rôle @admin sur mon serveur Discord" — l'éditeur écoute les changements de rôle Discord.
@@ -1607,7 +1598,7 @@ JWT avec rotation. Session valide 7 jours, refresh transparent. Si la connexion 
 
 ## 17. Protocole WebSocket
 
-**Note** : le WebSocket persistant n'est actif qu'en **mode cloud** (paid tier). Les free users en mode local n'ouvrent aucune connexion sortante depuis leur plugin. Tout ce qui suit décrit le mode cloud uniquement.
+**Note** : le WebSocket persistant est actif en **mode cloud** (le défaut, disponible à tous les tiers Free + Crew + Network). En **mode local** (opt-in pour offline/self-hosted strict), aucune connexion sortante n'est ouverte. Tout ce qui suit décrit le mode cloud.
 
 ### 17.1 Handshake
 
@@ -1676,11 +1667,11 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 
 ### 18.1 Plugin Minecraft
 
-**Architecture interne** : le plugin a deux providers de menus selon le mode :
-- `FilesystemMenuProvider` (mode local, free users) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel.
-- `CloudMenuProvider` (mode cloud, paid users) : maintient le WebSocket vers `wss://editor.interfaze.gg/ws/plugin`, pull les bundles depuis le CDN.
+**Architecture interne** : le plugin a deux providers de menus, **disponibles dans tous les tiers** :
+- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://editor.interfaze.gg/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
+- `FilesystemMenuProvider` (opt-in, offline) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel. Pour les admins qui ne veulent aucune dépendance cloud (souveraineté, environnements air-gapped).
 
-Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode est détecté au démarrage par la présence ou non d'une `server_key` valide dans `config.yml`.
+Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode par défaut est cloud ; le mode local s'active via `config.yml` (`mode: local`).
 
 
 - **API** : Paper API (depuis 1.21.4), avec compatibilité Spigot. Préférer Paper pour les events plus riches et la perf.
@@ -1797,10 +1788,10 @@ Toute la fondation du produit décrite ci-dessus :
 - Resource pack generation (CMD strings 1.21.4+, polices custom, CDN hosting).
 - **API d'intégration plugins tiers** (registerComponent single/paginable, placeholders, actions par défaut, layouts suggérés, palette dans l'éditeur, sync via WS, dégradation passive sur composants manquants).
 - **Data sources via connecteurs** (cf. section 14) : `Menu.contextInputs` peuvent porter un `source: ConnectorBinding` qui auto-fetche une liste/objet depuis un plugin tiers ; les Elements iterent dessus via `iterates: { source, alias }` avec layout owned par l'admin. **5 connecteurs homemade au launch** : EssentialsX (warps, kits, jails), ChestShop (items, categories), JobsReborn (list, player_progress), LuckPerms (groups, tracks), Quests (active, completed, available). Couvre ~80 % des serveurs Minecraft modernes dès le jour 1.
-- Authentification Discord OAuth.
+- Authentification : Discord OAuth + Email/password (Lucia Auth côté Fastify), account linking via email canonique.
 - Multi-utilisateur (équipes) basique.
 - Soft-lock multi-admin.
-- **Modèle free perpétuel + paid pour la friction** : free = éditeur complet + plugin + export/import manuel. Paid = live edit + auto-sync + multi-server + IA. Tiers Solo (3,5 €/mois) / Network (7 €/mois) / Unlimited (15 €/mois), mensuel/annuel/lifetime + add-on IA + founder rate -30 % locked-in les 3 premiers mois post-launch.
+- **Modèle free perpétuel + paid pour la friction** : free = éditeur complet + plugin + export/import manuel. Paid = live edit + auto-sync + multi-server + IA. Tiers Crew (3,5 €/mois) / Network (7 €/mois) (15 €/mois), mensuel/annuel/lifetime + add-on IA + founder rate -30 % locked-in les 3 premiers mois post-launch.
 - Anti-crack léger (signature au sync).
 - Distribution multi-canal (SpigotMC, Modrinth, site, Stripe).
 - Documentation API tierce (Javadoc + tutoriel + 1-2 reference implementations).
@@ -1894,8 +1885,10 @@ Toute la fondation du produit décrite ci-dessus :
 | **Connecteur** | Code qui implémente un binding vers un plugin tiers : interroge le plugin, expose une liste (ou un objet unique) d'objets typés. Référencé par `namespace:source` (ex. `chestshop:items`) depuis un `ContextInput.source`. Homemade Interfaze à V1, registered par plugin author en V2. |
 | **Iteration** | Mécanisme par lequel un Element rend un slot par item d'un `ContextInput` de type `"list"`, via `iterates: { source, alias }`. L'`alias` est le nom local de l'item courant, accessible dans les champs de l'Element via `{alias.field}`. La liste source peut venir de l'appelant ou d'un connecteur — transparent côté Element. |
 | **registerDataSource (V2)** | API Java pour qu'un plugin author publie son propre connecteur officiel, override des homemade Interfaze. Cf. section 13.14. |
-| **Mode local** | Mode de fonctionnement du plugin pour les free users : lit `plugins/Interfaze/menus/*.json` depuis le disque, reload manuel via `/interfaze reload`, aucune connexion sortante. |
-| **Mode cloud** | Mode de fonctionnement du plugin pour les paid users : connecté à Interfaze via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. |
+| **Mode cloud** | Mode de fonctionnement par défaut du plugin (tous tiers) : connecté à Interfaze via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. Activé dès qu'une `server_key` valide est configurée. |
+| **Mode local** | Mode opt-in offline du plugin (tous tiers) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, reload manuel ou file-watch. Pour les admins qui refusent toute dépendance cloud. |
+| **Crew** | Tier d'abonnement payant d'entrée (3,5 €/mois, 30 €/an, 80 € lifetime) : 5 seats, 2 serveurs, MCModels, IA 50/mois. Cible petits serveurs avec une équipe de 2-5 staff. Renommé depuis "Solo" en V1 — le mot "solo" était incohérent avec le multi-seat à 5. |
+| **Network** | Tier d'abonnement payant haut (9 €/mois, 80 €/an, 200 € lifetime) : seats illimités, 10 serveurs, IA 500/mois, marketplace selling V3. Cible public networks Minecraft avec staff complet et multi-mode. |
 | **Founder rate** | Promo locked-in à vie pour les early adopters : -30 % sur tous les tiers payants pendant les 3 premiers mois post-launch (extendable de 1 mois si bugs critiques). |
 
 ---
@@ -1903,7 +1896,7 @@ Toute la fondation du produit décrite ci-dessus :
 ## 24. Prochaines étapes
 
 1. **Valider cette spec** avec l'équipe / les early users / les YouTubers ciblés.
-2. **Calibrer les prix** des tiers (Solo / Network / Unlimited) via une mini-survey ou benchmark.
+2. **Calibrer les prix** des tiers (Crew / Network) via une mini-survey ou benchmark.
 3. **Prototype d'éditeur** (1-2 semaines) pour valider l'UX drag & drop + édition live.
 4. **POC plugin** (1 semaine) pour valider la pipeline resource pack 1.21.4+ avec Nexo installé en parallèle.
 5. **Ouverture d'une closed beta** (50-100 admins triagés) pour le run-in avant launch public.
