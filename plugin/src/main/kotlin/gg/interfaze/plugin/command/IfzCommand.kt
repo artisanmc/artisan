@@ -14,6 +14,11 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
 
     @Volatile private var setupClient: SetupClient? = null
 
+    fun shutdown() {
+        setupClient?.disconnect()
+        setupClient = null
+    }
+
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
@@ -45,6 +50,7 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
 
     private fun setup(sender: CommandSender, code: String?) {
         setupClient?.disconnect()
+        setupClient = null
         val cfg = PluginConfig.from(plugin.config)
         if (cfg.wsUrl.isEmpty()) {
             sender.sendMessage("[Interfaze] ws_url is not configured in config.yml.")
