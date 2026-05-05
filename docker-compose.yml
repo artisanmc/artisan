@@ -15,11 +15,11 @@ services:
     command: >
       sh -c "bun install && bun run db:push && bun run start"
 
-  web:
+  editor:
     image: node:22-alpine
     working_dir: /app
     volumes:
-      - ./web:/app
+      - ./editor:/app
     ports:
       - "5173:5173"
     command: >
