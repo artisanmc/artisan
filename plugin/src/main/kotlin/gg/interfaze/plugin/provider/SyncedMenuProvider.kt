@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.render.MenuRenderer
+import gg.interfaze.plugin.sync.BundleHasher
 import gg.interfaze.plugin.ws.WsClient
 import gg.interfaze.plugin.yaml.PackReader
 import org.bukkit.entity.Player
@@ -28,10 +29,11 @@ class SyncedMenuProvider(
     override fun load() {
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
+            val currentHash = BundleHasher.hashAll(packsDir)
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
-                currentBundleHash = "",   // replaced with real hash in Task 2
+                currentBundleHash = currentHash,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
