@@ -17,3 +17,11 @@ export const packBundles = pgTable("pack_bundles", {
 }, (t) => [
   uniqueIndex("server_pack_uniq").on(t.serverId, t.packId),
 ]);
+
+export const linkCodes = pgTable("link_codes", {
+  code: text("code").primaryKey(),
+  createdAt: timestamp("created_at").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  claimedAt: timestamp("claimed_at"),
+  serverKeyId: text("server_key_id").references(() => serverKeys.id),
+});
