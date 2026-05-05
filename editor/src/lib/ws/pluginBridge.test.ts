@@ -25,7 +25,10 @@ describe("createPluginBridge", () => {
 
   it("unregisters handler when returned cleanup is called", () => {
     const ws = { send: vi.fn(), close: vi.fn(), readyState: WebSocket.OPEN,
-      onopen: null, onmessage: null, onclose: null, onerror: null };
+      onopen: null as ((e: Event) => void) | null,
+      onmessage: null as ((e: MessageEvent) => void) | null,
+      onclose: null as ((e: CloseEvent) => void) | null,
+      onerror: null as ((e: Event) => void) | null };
     const factory = vi.fn(() => ws as unknown as WebSocket);
 
     const received: string[] = [];
