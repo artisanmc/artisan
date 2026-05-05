@@ -1,6 +1,6 @@
 import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
-import { lookupPath, resolvePlaceholders } from "@/lib/placeholders";
+import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -32,7 +32,7 @@ import {
   slotXY,
   topPieceCrop,
 } from "./menuLayout";
-import { buildPreviewScope } from "./menuPreviewScope";
+import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 
 interface SlotItemProps {
   material: string;
@@ -596,9 +596,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[0]!, {
             material: appearance.material
-              ? resolvePlaceholders(appearance.material, enhancedCtx)
+              ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
               : undefined,
-            title: titleRaw ? resolvePlaceholders(titleRaw, enhancedCtx) : undefined,
+            title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
             multiPos: false,
@@ -612,9 +612,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[i]!, {
             material: appearance.material
-              ? resolvePlaceholders(appearance.material, itemCtx)
+              ? pack ? renderPreview(appearance.material, itemCtx, pack, activeLang) : appearance.material
               : undefined,
-            title: titleRaw ? resolvePlaceholders(titleRaw, itemCtx) : undefined,
+            title: titleRaw && pack ? renderPreview(titleRaw, itemCtx, pack, activeLang) : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
             multiPos: false,
@@ -628,9 +628,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
       const info = {
         material: appearance.material
-          ? resolvePlaceholders(appearance.material, enhancedCtx)
+          ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
           : undefined,
-        title: titleRaw ? resolvePlaceholders(titleRaw, enhancedCtx) : undefined,
+        title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
         count: appearance.count,
         elementId: el.id,
         multiPos: positions.length > 1,
@@ -724,7 +724,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           {pagination.totalPages}</gold>` or interpolate any sample-context
           field directly into the title. */}
       <MiniMessageKonvaText
-        source={resolvePlaceholders(pack ? getText(pack, menu.title, activeLang) : "", enhancedCtx)}
+        source={pack ? renderPreview(getText(pack, menu.title, activeLang), enhancedCtx, pack, activeLang) : ""}
         x={TEX_FIRST_SLOT_X + 1}
         y={5 * TEX_SCALE}
         fontSize={7 * TEX_SCALE}

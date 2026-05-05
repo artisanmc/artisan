@@ -374,6 +374,16 @@ function SourceRefInputRow({
 }) {
   const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+
+  const refLabel = (() => {
+    if (!input.ref) return null;
+    if (input.ref.startsWith("pack:")) {
+      const id = input.ref.slice("pack:".length);
+      return (pack?.dataSources ?? []).find((d) => d.id === id)?.name ?? input.ref;
+    }
+    return input.ref;
+  })();
+
   return (
     <div className="flex items-center gap-1.5">
       <Input
@@ -388,7 +398,7 @@ function SourceRefInputRow({
             type="button"
             className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-0 font-mono text-xs text-zinc-200 hover:bg-zinc-800"
           >
-            <span className="truncate">{input.ref || t("menuProperties.refPickPlaceholder")}</span>
+            <span className="truncate">{refLabel ?? t("menuProperties.refPickPlaceholder")}</span>
             <span className="text-zinc-500">▾</span>
           </button>
         </DropdownMenuTrigger>
@@ -416,8 +426,8 @@ function SourcePickerOptions({
   onPick: (ref: SourceRef) => void;
 }) {
   const { t } = useTranslation();
-  const hasPackData = pack.dataSources.length > 0;
-  const hasConnectors = pack.importedConnectors.length > 0;
+  const hasPackData = (pack.dataSources ?? []).length > 0;
+  const hasConnectors = (pack.importedConnectors ?? []).length > 0;
   return (
     <>
       {hasPackData ? (
@@ -425,7 +435,7 @@ function SourcePickerOptions({
           <DropdownMenuLabel className="text-[9px] uppercase text-zinc-500">
             {t("menuProperties.refSectionPackData")}
           </DropdownMenuLabel>
-          {pack.dataSources.map((d) => (
+          {(pack.dataSources ?? []).map((d) => (
             <DropdownMenuItem
               key={d.id}
               onSelect={() => onPick(`pack:${d.id}` as SourceRef)}
@@ -445,7 +455,7 @@ function SourcePickerOptions({
           <DropdownMenuLabel className="text-[9px] uppercase text-zinc-500">
             {t("menuProperties.refSectionConnectors")}
           </DropdownMenuLabel>
-          {pack.importedConnectors.map((c) => (
+          {(pack.importedConnectors ?? []).map((c) => (
             <DropdownMenuItem
               key={c.ref}
               onSelect={() => onPick(c.ref as SourceRef)}

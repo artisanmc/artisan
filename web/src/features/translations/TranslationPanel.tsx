@@ -10,6 +10,8 @@ import {
 } from "@/lib/i18nUsages";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
+import { yaml as yamlLang } from "@codemirror/lang-yaml";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { AlertCircle, Check, Copy as CopyIcon, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +28,24 @@ type Mode = "visual" | "yaml";
 type Filter = "missing" | "translated" | "all";
 
 const looksLikeMM = (s: string): boolean => s.includes("<");
+
+const CM_THEME = EditorView.theme({
+  "&": { background: "transparent", fontSize: "12px" },
+  ".cm-content": { padding: "8px 0", fontFamily: "ui-monospace, monospace" },
+  ".cm-line": { padding: "0 12px" },
+  ".cm-gutters": {
+    background: "#18181b",
+    border: "none",
+    color: "#52525b",
+    minWidth: "32px",
+  },
+  ".cm-activeLineGutter": { background: "#27272a" },
+  ".cm-activeLine": { background: "#27272a40" },
+  ".cm-cursor": { borderLeftColor: "#a1a1aa" },
+  ".cm-selectionBackground": { background: "#3f3f4660 !important" },
+  "&.cm-focused .cm-selectionBackground": { background: "#3f3f4680 !important" },
+  ".cm-foldPlaceholder": { background: "#3f3f46", border: "none", color: "#a1a1aa" },
+});
 
 /**
  * Bulk translation editor with two views:
@@ -379,16 +399,26 @@ function VisualRow({
           </span>
           <div className="min-w-0 flex-1">
             {row.source ? (
-              looksLikeMM(row.source) ? (
-                <MiniMessageInline
-                  source={row.source}
-                  className="block whitespace-pre-wrap break-words font-mono text-zinc-300"
-                />
-              ) : (
-                <span className="block whitespace-pre-wrap break-words font-mono text-zinc-300">
-                  {row.source}
-                </span>
-              )
+              <div className="flex flex-col">
+                {row.source.split("\n").map((line, i) =>
+                  looksLikeMM(line) ? (
+                    <MiniMessageInline
+                      // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
+                      key={i}
+                      source={line}
+                      className="block break-words font-mono text-zinc-300"
+                    />
+                  ) : (
+                    <span
+                      // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
+                      key={i}
+                      className="block break-words font-mono text-zinc-300"
+                    >
+                      {line}
+                    </span>
+                  ),
+                )}
+              </div>
             ) : (
               <span className="text-zinc-700 italic">{t("translations.emptySource")}</span>
             )}
@@ -418,12 +448,19 @@ function VisualRow({
               className="h-8 px-2 py-0 font-mono text-xs"
             />
           )}
-          {row.target && looksLikeMM(row.target) ? (
-            <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-              <span className="mr-2 font-mono text-[9px] text-zinc-600 uppercase">
+          {row.target && row.target.split("\n").some(looksLikeMM) ? (
+            <div className="mt-1 flex flex-col rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+              <span className="mb-0.5 font-mono text-[9px] text-zinc-600 uppercase">
                 {t("translations.previewLabel")}
               </span>
-              <MiniMessageInline source={row.target} className="font-mono text-xs" />
+              {row.target.split("\n").map((line, i) => (
+                <MiniMessageInline
+                  // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
+                  key={i}
+                  source={line}
+                  className="font-mono text-xs"
+                />
+              ))}
             </div>
           ) : null}
         </div>
@@ -535,20 +572,34 @@ function YamlBody({
         </label>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        <textarea
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            if (error) setError(null);
-          }}
-          spellCheck={false}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
           className={
             error
-              ? "flex-1 resize-none border-red-500/60 border-y bg-zinc-950 p-3 font-mono text-xs text-zinc-100 outline-none"
-              : "flex-1 resize-none bg-zinc-950 p-3 font-mono text-xs text-zinc-100 outline-none"
+              ? "min-h-0 flex-1 overflow-auto border-red-500/60 border-y bg-zinc-950"
+              : "min-h-0 flex-1 overflow-auto bg-zinc-950"
           }
-        />
+        >
+          <CodeMirror
+            value={draft}
+            extensions={[yamlLang(), CM_THEME]}
+            onChange={(val) => {
+              setDraft(val);
+              if (error) setError(null);
+            }}
+            theme="dark"
+            basicSetup={{
+              lineNumbers: true,
+              foldGutter: true,
+              autocompletion: false,
+              highlightActiveLine: true,
+              indentOnInput: true,
+              bracketMatching: true,
+            }}
+            className="bg-zinc-950 text-zinc-100"
+            style={{ height: "100%" }}
+          />
+        </div>
         {error ? (
           <div className="border-zinc-800 border-t bg-zinc-900/60 px-4 py-2 text-[11px] text-red-300">
             {error}
@@ -577,18 +628,6 @@ function YamlBody({
   );
 }
 
-/**
- * Serialize rows to YAML matching the runtime plugin's
- * `lang/<code>.yml` shape (flat `key: value` map). The value is always
- * the active-language target (even when empty) — translators need to
- * *see* which entries are still empty.
- *
- * The source-language value is emitted as a comment above each entry
- * (skipped when active === default — redundant). Without it, a
- * translator looking at `lt_xxx: ""` has no idea what to write. With
- * `includeContext`, the dotted path is also added so the register is
- * obvious (button title vs. lore line vs. broadcast message).
- */
 function serializeRows(
   rows: ReadonlyArray<TranslationRow>,
   defaultLang: string,

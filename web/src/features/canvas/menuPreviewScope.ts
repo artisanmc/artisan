@@ -1,4 +1,7 @@
-import type { Menu, Pack, SourceRef } from "@/domain/types";
+import type { I18nKey, Menu, Pack, SourceRef } from "@/domain/types";
+import { AstCache } from "@/lib/expr/cache";
+import { Scope } from "@/lib/expr/scope";
+import { renderTemplate } from "@/lib/expr/template/renderer";
 
 /**
  * Resolve a SourceRef against a pack:
@@ -38,6 +41,34 @@ export function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknow
     }
   }
   return scope;
+}
+
+const previewCache = new AstCache(256);
+
+/**
+ * Render a template string for canvas preview. Uses the full expression
+ * evaluator (ternary, comparisons, arithmetic, method calls) instead of
+ * the simple regex-based resolvePlaceholders, so `{x > 1 ? "★" : ""}` etc.
+ * work in lore/title previews exactly as they would at runtime.
+ */
+export function renderPreview(
+  template: string,
+  ctx: Record<string, unknown>,
+  pack: Pack,
+  activeLang: string,
+): string {
+  const scope = new Scope(ctx);
+  return renderTemplate(template, {
+    scope,
+    cache: previewCache,
+    packId: pack.id,
+    packVersion: 0,
+    i18nLookup: (key) => {
+      const entry = pack.i18nKeys[key as I18nKey];
+      if (!entry) return undefined;
+      return entry[activeLang] ?? entry[pack.defaultLang] ?? undefined;
+    },
+  });
 }
 
 function coerceDefault(
