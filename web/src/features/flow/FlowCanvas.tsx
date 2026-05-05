@@ -21,7 +21,9 @@ import { ConditionListEditor } from "@/features/canvas/properties/ConditionListE
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
 import { PackProperties } from "@/features/canvas/properties/PackProperties";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
+import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { lookupPath } from "@/lib/placeholders";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useGetText } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
@@ -518,8 +520,34 @@ function StateCard({
   const textureUrl = itemTextureUrl(material);
   const title = getText(appearance.title);
   const count = appearance.count ?? 1;
-  const lore = (appearance.lore ?? []).map((lt) => getText(lt));
-  const loreText = lore.join("\n");
+  const loreText = appearance.lore ? getText(appearance.lore) : "";
+  const lore = loreText ? loreText.split("\n") : [];
+
+  // Local draft state — decoupled from the store so Enter doesn't jump the
+  // cursor. Resets to loreText when element/stateIndex changes or on blur.
+  const [loreDraft, setLoreDraft] = useState(loreText);
+  const [loreHasFocus, setLoreHasFocus] = useState(false);
+  const loreKey = `${element.id}-${stateIndex}`;
+  const prevLoreKeyRef = useRef(loreKey);
+  if (prevLoreKeyRef.current !== loreKey) {
+    prevLoreKeyRef.current = loreKey;
+    setLoreDraft(loreText);
+  }
+  useEffect(() => {
+    if (!loreHasFocus) setLoreDraft(loreText);
+  }, [loreText, loreHasFocus]);
+
+  // Preview scope — binds the first list item when the element iterates so
+  // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const lorePreviewCtx = useMemo(() => {
+    if (!pack) return {};
+    const base = buildPreviewScope(menu, pack);
+    if (!element.iterates) return base;
+    const list = lookupPath(base, element.iterates.source);
+    if (!Array.isArray(list) || list.length === 0) return base;
+    return { ...base, [element.iterates.alias]: list[0] };
+  }, [pack, menu, element.iterates]);
 
   const update = (field: "material" | "count", value: string | number) =>
     setAppearanceField({
@@ -539,14 +567,14 @@ function StateCard({
       lang: activeLang,
       value,
     });
-  const updateLore = (lines: string[]) =>
+  const updateLore = (value: string) =>
     setAppearanceLore({
       packId,
       menuId: menu.id,
       elementId: element.id,
       appearanceIndex: stateIndex,
       lang: activeLang,
-      lines,
+      value,
     });
 
   // Collapsed state — tooltip-style summary. Click anywhere to focus and
@@ -722,33 +750,38 @@ function StateCard({
             <textarea
               rows={lore.length > 2 ? 4 : 2}
               placeholder={t("flow.lorePlaceholder")}
-              value={loreText}
-              onFocus={() => setSub({ kind: "state", stateIndex })}
+              value={loreDraft}
+              onFocus={() => {
+                setLoreHasFocus(true);
+                setSub({ kind: "state", stateIndex });
+              }}
+              onBlur={() => {
+                setLoreHasFocus(false);
+                const trimmed = loreDraft.replace(/\n+$/, "");
+                updateLore(trimmed);
+                setLoreDraft(trimmed);
+              }}
               onChange={(e) => {
-                const lines = e.target.value
-                  .split("\n")
-                  .filter((_, i, arr) => i < arr.length - 1 || arr[i] !== "");
-                updateLore(lines);
+                setLoreDraft(e.target.value);
+                updateLore(e.target.value.replace(/\n+$/, ""));
               }}
               className="w-full rounded border border-zinc-800 bg-zinc-950 p-2 font-mono text-xs"
             />
             <ArgInsertBar
               onInsert={(name) => {
-                const next = `${loreText}{${name}}`;
-                const lines = next
-                  .split("\n")
-                  .filter((_, i, arr) => i < arr.length - 1 || arr[i] !== "");
-                updateLore(lines);
+                const next = `${loreDraft}{${name}}`;
+                setLoreDraft(next);
+                updateLore(next.replace(/\n+$/, ""));
               }}
             />
-            {lore.length > 0 ? (
+            {lore.length > 0 && pack ? (
               <div className="mt-1 flex flex-col gap-0.5 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
                 <span className="text-[9px] text-zinc-600 uppercase">preview</span>
                 {lore.map((line, i) => (
                   <MiniMessageInline
                     // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                     key={i}
-                    source={line}
+                    source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
                     className="font-mono text-xs"
                   />
                 ))}
