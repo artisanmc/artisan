@@ -139,22 +139,16 @@ export async function handlePluginMessage(
     const { code } = raw as SetupClaimMessage;
 
     const { id, key, hash } = await generateServerKey();
-    let valid = false;
-    try {
-      await db.transaction(async (tx) => {
-        const rows = await tx.select().from(linkCodes).where(eq(linkCodes.code, code));
-        if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) {
-          throw new Error("invalid");
-        }
-        await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
-        await tx.update(linkCodes)
-          .set({ claimedAt: new Date(), serverKeyId: id })
-          .where(eq(linkCodes.code, code));
-        valid = true;
-      });
-    } catch {
-      if (!valid) return { reply: null };
-    }
+    const claimed = await db.transaction(async (tx) => {
+      const rows = await tx.select().from(linkCodes).where(eq(linkCodes.code, code));
+      if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) return false;
+      await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
+      await tx.update(linkCodes)
+        .set({ claimedAt: new Date(), serverKeyId: id })
+        .where(eq(linkCodes.code, code));
+      return true;
+    });
+    if (!claimed) return { reply: null };
 
     const send = connSenders.get(connId);
     if (send) send(JSON.stringify({ type: "link_confirmed", server_key: key } satisfies LinkConfirmedMessage));
