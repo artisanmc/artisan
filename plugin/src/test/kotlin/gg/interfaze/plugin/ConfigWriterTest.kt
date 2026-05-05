@@ -37,4 +37,11 @@ class ConfigWriterTest {
         ConfigWriter.writeServerKey(f, "sk_abc")
         assertTrue(f.readText().contains("server_key: \"sk_abc\""))
     }
+
+    @Test
+    fun `creates content when file does not exist`() {
+        val f = Files.createTempDirectory("ifz_").resolve("config.yml").toFile()
+        ConfigWriter.writeServerKey(f, "sk_new")
+        assertTrue(f.readText().contains("server_key: \"sk_new\""))
+    }
 }
