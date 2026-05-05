@@ -20,29 +20,30 @@ export function createPluginBridge(
 
   function connect() {
     if (stopped) return;
-    ws = wsFactory(url);
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    const currentWs = wsFactory(url);
+    ws = currentWs;
 
-    ws.onopen = () => {
+    currentWs.onopen = () => {
       retryDelay = 1_000;
     };
 
-    ws.onmessage = (evt) => {
+    currentWs.onmessage = (evt) => {
       const raw = typeof evt.data === "string" ? evt.data : "";
       if (raw) handlers.forEach((h) => h(raw));
     };
 
-    ws.onclose = () => {
+    currentWs.onclose = () => {
       if (!stopped) scheduleReconnect();
     };
 
-    ws.onerror = () => ws?.close();
+    currentWs.onerror = () => currentWs.close();
   }
 
   function scheduleReconnect() {
-    retryTimer = setTimeout(() => {
-      retryDelay = Math.min(retryDelay * 2, 60_000);
-      connect();
-    }, retryDelay);
+    if (retryTimer) clearTimeout(retryTimer);
+    retryDelay = Math.min(retryDelay * 2, 60_000);
+    retryTimer = setTimeout(connect, retryDelay);
   }
 
   return {
