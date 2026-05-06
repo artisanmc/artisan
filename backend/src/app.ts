@@ -1,6 +1,8 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { createBunWebSocket } from "hono/bun";
 import { bundlesRouter } from "./routes/bundles";
+import { editorSessionRouter } from "./routes/editorSession";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
 import { cleanupConn, cleanupSession, handlePluginMessage, registerConn } from "./ws/hub";
@@ -9,10 +11,14 @@ const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
 export { websocket };
 
+const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
+app.use("/api/*", cors({ origin: EDITOR_URL }));
+
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 app.route("/api/server-keys", serverKeysRouter);
 app.route("/api/bundles", bundlesRouter);
 app.route("/api/link", linkRouter);
+app.route("/api/editor-session", editorSessionRouter);
 
 app.get(
   "/ws/plugin",
