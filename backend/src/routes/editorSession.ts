@@ -79,8 +79,53 @@ router.put("/:token/packs/:packId", async (c) => {
     });
   });
 
+  return c.json({ hash }, 201);
+});
+
+router.post("/:token/packs/:packId/deploy", async (c) => {
+  const token = c.req.param("token");
+  const packId = c.req.param("packId");
+  const session = await validateEditorToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
+  const hash = await computeBundleHash(body.files, packId);
+
+  await db.transaction(async (tx) => {
+    await tx.delete(packBundles).where(
+      and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId))
+    );
+    await tx.insert(packBundles).values({
+      id: crypto.randomUUID(),
+      serverId: session.serverKeyId,
+      packId,
+      hash,
+      filesJson: JSON.stringify(body.files),
+      editorJson: JSON.stringify(body.pack),
+      deployedEditorJson: JSON.stringify(body.pack),
+      createdAt: new Date(),
+    });
+  });
+
   pushBundleAvailable(session.serverKeyId, packId, hash);
   return c.json({ hash }, 201);
+});
+
+router.get("/:token/packs/:packId/deployed", async (c) => {
+  const token = c.req.param("token");
+  const packId = c.req.param("packId");
+  const session = await validateEditorToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const rows = await db
+    .select()
+    .from(packBundles)
+    .where(and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId)));
+
+  if (rows.length === 0 || rows[0].deployedEditorJson == null) {
+    return c.json({ pack: null });
+  }
+  return c.json({ pack: JSON.parse(rows[0].deployedEditorJson) });
 });
 
 router.delete("/:token/packs/:packId", async (c) => {

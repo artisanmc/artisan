@@ -14,6 +14,7 @@ export const packBundles = pgTable("pack_bundles", {
   hash: text("hash").notNull(),
   filesJson: text("files_json").notNull(),
   editorJson: text("editor_json"),
+  deployedEditorJson: text("deployed_editor_json"),
   createdAt: timestamp("created_at").notNull(),
 }, (t) => [
   uniqueIndex("server_pack_uniq").on(t.serverId, t.packId),
