@@ -8,6 +8,7 @@ import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
+import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 
 class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
@@ -43,9 +44,48 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                 }
             }
             "setup" -> setup(sender, args.getOrNull(1)?.uppercase())
-            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]>")
+            "editor" -> {
+                when (args.getOrNull(1)?.lowercase()) {
+                    "revoke" -> editorRevoke(sender)
+                    null     -> editor(sender)
+                    else     -> sender.sendMessage("Usage: /ifz editor [revoke]")
+                }
+            }
+            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>")
         }
         return true
+    }
+
+    private fun editor(sender: CommandSender) {
+        val cfg = PluginConfig.from(plugin.config)
+        if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
+            sender.sendMessage("[Interfaze] /ifz editor est réservé à la console (editor.console_only=true).")
+            return
+        }
+        if (!sender.hasPermission("interfaze.editor")) {
+            sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+            return
+        }
+        if (cfg.wsUrl.isEmpty() || cfg.serverKey.isEmpty()) {
+            sender.sendMessage("[Interfaze] Le serveur n'est pas lié. Lancez /ifz setup.")
+            return
+        }
+        val senderName = if (sender is Player) sender.name else "CONSOLE"
+        plugin.menuProvider.requestEditorSession(senderName) { url, expiresAt ->
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                sender.sendMessage("[Interfaze] Éditeur → $url")
+                sender.sendMessage("[Interfaze] (expire le $expiresAt)")
+            })
+        }
+    }
+
+    private fun editorRevoke(sender: CommandSender) {
+        if (!sender.hasPermission("interfaze.editor")) {
+            sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+            return
+        }
+        plugin.menuProvider.revokeEditorSessions()
+        sender.sendMessage("[Interfaze] Toutes les sessions éditeur ont été révoquées.")
     }
 
     private fun setup(sender: CommandSender, code: String?) {
@@ -56,11 +96,8 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
             sender.sendMessage("[Interfaze] ws_url is not configured in config.yml.")
             return
         }
-
         sender.sendMessage("[Interfaze] Connexion au backend en cours...")
-
         val configFile = plugin.dataFolder.resolve("config.yml")
-
         setupClient = SetupClient(
             url = cfg.wsUrl,
             code = code,

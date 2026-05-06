@@ -6,4 +6,8 @@ description: Interfaze GUI editor plugin
 commands:
   ifz:
     description: Interfaze commands
-    usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]>
+    usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>
+permissions:
+  interfaze.editor:
+    description: Allows opening the Interfaze web editor
+    default: op
