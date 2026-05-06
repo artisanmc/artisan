@@ -91,3 +91,79 @@ describe("validateEditorToken", () => {
     expect(await validateEditorToken(token)).toBeNull();
   });
 });
+
+import { app } from "../app";
+
+async function createSession(serverId?: string): Promise<{ token: string; keyId: string }> {
+  const keyId = serverId ?? crypto.randomUUID();
+  if (!serverId) {
+    await db.insert(serverKeys).values({ id: keyId, hash: "sh" + keyId.slice(0,8), createdAt: new Date() });
+  }
+  const token = generateEditorToken();
+  await db.insert(editorSessions).values({
+    token, serverKeyId: keyId, createdBy: "CONSOLE",
+    createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+  });
+  return { token, keyId };
+}
+
+describe("GET /api/editor-session/:token", () => {
+  test("200 with server_key_id for valid token", async () => {
+    const { token, keyId } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { server_key_id: string };
+    expect(body.server_key_id).toBe(keyId);
+  });
+
+  test("401 for unknown token", async () => {
+    const res = await app.request("/api/editor-session/notavalidtoken0000000000000000");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("POST /api/editor-session/:token/refresh", () => {
+  test("200 and returns new expires_at", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/refresh`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { expires_at: string };
+    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/refresh", { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("DELETE /api/editor-session/:token", () => {
+  test("200 and revokes token", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}`, { method: "DELETE" });
+    expect(res.status).toBe(200);
+    const check = await app.request(`/api/editor-session/${token}`);
+    expect(check.status).toBe(401);
+  });
+});
+
+describe("POST /api/editor-session/:token/draft", () => {
+  test("200 for valid token and valid body", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack_id: "pack1", menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack_id: "p", menu_id: "m", menu_yaml: "" }),
+    });
+    expect(res.status).toBe(401);
+  });
+});

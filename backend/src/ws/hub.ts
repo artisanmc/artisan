@@ -159,3 +159,12 @@ export async function handlePluginMessage(
 
   return { reply: null };
 }
+
+// Stub — replaced in Task 6
+export function broadcastDraftUpdate(
+  _serverKeyId: string,
+  _packId: string,
+  _menuId: string,
+  _menuYaml: string,
+  _senderToken: string,
+): void {}
