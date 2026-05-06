@@ -21,6 +21,9 @@ import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanel } from "@/features/translations/TranslationPanel";
 import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
 import { totalMissing } from "@/lib/i18nUsages";
+import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
+import { transform } from "@/features/export/transform";
+import { deployPack, getDeployedPack } from "@/lib/packApi";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -180,6 +183,7 @@ function PackCanvasPage() {
             </button>
             <EditorLangSwitcher />
             <UndoRedoButtons />
+            {pack ? <DeployButtons pack={pack} /> : null}
           </div>
 
           {/* Editor layout: vertical split (Stage on top, EditorPane bottom)
@@ -509,6 +513,71 @@ function UndoRedoButtons() {
       <TopBarIconButton title={t("topbar.redo", { mod })} disabled={!canRedo} onClick={redo}>
         <Redo2 className="h-4 w-4" />
       </TopBarIconButton>
+    </div>
+  );
+}
+
+function DeployButtons({ pack }: { pack: Pack }) {
+  const token = useSessionStore((s) => s.token);
+  const replacePack = useAccountStore((s) => s.replacePack);
+  const [deploying, setDeploying] = useState(false);
+  const [reverting, setReverting] = useState(false);
+
+  const handleDeploy = async () => {
+    if (!token || deploying) return;
+    setDeploying(true);
+    try {
+      const cloned = structuredClone(pack);
+      for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
+      for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
+      const files = transform(cloned);
+      await deployPack(token, pack, files);
+      toast.success("Déployé ✓");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec du déploiement");
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!token || reverting) return;
+    setReverting(true);
+    try {
+      const deployed = await getDeployedPack(token, pack.id);
+      if (!deployed) {
+        toast.info("Ce pack n'a jamais été déployé — rien à restaurer.");
+        return;
+      }
+      replacePack(deployed);
+      toast.success("Modifications annulées — version live restaurée.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la restauration");
+    } finally {
+      setReverting(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={handleRevert}
+        disabled={reverting}
+        title="Annuler les modifications (revenir à la version live)"
+        className="flex h-8 items-center gap-1 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {reverting ? "…" : "Annuler"}
+      </button>
+      <button
+        type="button"
+        onClick={handleDeploy}
+        disabled={deploying}
+        title="Déployer — rendre les modifications visibles aux joueurs"
+        className="flex h-8 items-center gap-1 rounded bg-emerald-700 px-3 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {deploying ? "Déploiement…" : "Déployer"}
+      </button>
     </div>
   );
 }

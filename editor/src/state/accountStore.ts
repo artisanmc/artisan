@@ -71,6 +71,7 @@ interface AccountState {
    * packId. Throws on malformed input.
    */
   importPack: (input: { pack: Pack }) => PackId;
+  replacePack: (pack: Pack) => void;
   /**
    * Create a new menu in `packId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
@@ -712,6 +713,17 @@ export const useAccountStore = create<AccountState>()(
           );
           clearTemporal();
           return id;
+        },
+        replacePack: (pack) => {
+          clearTemporal();
+          set(
+            produce((draft: AccountState) => {
+              const idx = draft.account.packs.findIndex((p) => p.id === pack.id);
+              if (idx !== -1) {
+                draft.account.packs[idx] = pack;
+              }
+            }),
+          );
         },
         createMenu: ({ packId: pId, title, rows, position }) => {
           const id = newMenuId();
