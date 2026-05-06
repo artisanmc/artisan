@@ -5,3 +5,8 @@ ws_url: "wss://editor.interfaze.gg/ws/plugin"
 
 # Path relative to the server root where exported pack bundles are stored.
 packs_dir: "plugins/Interfaze/packs"
+
+# Editor access settings.
+editor:
+  # Set to true to restrict /ifz editor to console only (no in-game players).
+  console_only: false
