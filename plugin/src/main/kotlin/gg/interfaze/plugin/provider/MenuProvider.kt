@@ -8,4 +8,6 @@ interface MenuProvider {
     fun unload() {}
     fun findMenu(menuId: String): BundleMenu?
     fun openMenu(player: Player, menuId: String, lang: String)
+    fun requestEditorSession(sender: String, onReady: (url: String, expiresAt: String) -> Unit) {}
+    fun revokeEditorSessions() {}
 }
