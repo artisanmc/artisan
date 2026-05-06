@@ -215,6 +215,27 @@ export async function handlePluginMessage(
   return { reply: null };
 }
 
+export function pushBundleAvailable(
+  serverKeyId: string,
+  packId: string,
+  hash: string,
+): void {
+  const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}`;
+  const payload = JSON.stringify({
+    type: "bundle_available",
+    pack_id: packId,
+    url,
+    hash,
+    signature: "",
+  } satisfies BundleAvailableMessage);
+
+  for (const [connId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
+}
+
 export function broadcastDraftUpdate(
   serverKeyId: string,
   packId: string,
