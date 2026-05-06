@@ -220,6 +220,68 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
   });
 });
 
+describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
+  test("201 deploys pack, sets deployed_editor_json, pushes bundle", async () => {
+    const { token } = await createSession();
+    const fakePack = { id: "p_deploy", name: "Deploy Me", menus: [] };
+    const fakeFiles = { "manifest.yaml": "pack_id: p_deploy\n" };
+
+    const res = await app.request(`/api/editor-session/${token}/packs/p_deploy/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { hash: string };
+    expect(typeof body.hash).toBe("string");
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deploy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: {}, files: {} }),
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
+  test("returns null when pack never deployed", async () => {
+    const { token } = await createSession();
+    // Save a draft but never deploy
+    await app.request(`/api/editor-session/${token}/packs/p_nodeploy`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: { id: "p_nodeploy" }, files: { "manifest.yaml": "" } }),
+    });
+    const res = await app.request(`/api/editor-session/${token}/packs/p_nodeploy/deployed`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { pack: null };
+    expect(body.pack).toBeNull();
+  });
+
+  test("returns deployed pack after deploy", async () => {
+    const { token } = await createSession();
+    const fakePack = { id: "p_getdeployed", name: "Get Deployed", menus: [] };
+    // Deploy it
+    await app.request(`/api/editor-session/${token}/packs/p_getdeployed/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: { "manifest.yaml": "" } }),
+    });
+    const res = await app.request(`/api/editor-session/${token}/packs/p_getdeployed/deployed`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { pack: { id: string; name: string } };
+    expect(body.pack?.name).toBe("Get Deployed");
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deployed");
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("POST /api/editor-session/:token/draft", () => {
   test("200 for valid token and valid body", async () => {
     const { token } = await createSession();
