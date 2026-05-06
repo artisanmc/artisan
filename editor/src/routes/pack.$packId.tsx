@@ -34,7 +34,8 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { Navigate, createFileRoute, useParams } from "@tanstack/react-router";
+import { useSessionStore } from "@/state/sessionStore";
 import {
   BookOpen,
   Boxes,
@@ -58,6 +59,10 @@ export const Route = createFileRoute("/pack/$packId")({
 function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   const pId = packId as PackId;
+  const token = useSessionStore((s) => s.token);
+
+  // Redirect to landing page if no active session
+  if (!token) return <Navigate to="/" replace />;
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
