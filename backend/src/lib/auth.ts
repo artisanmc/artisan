@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { serverKeys } from "../db/schema";
+import { editorSessions, serverKeys } from "../db/schema";
 
 // 8-char uppercase alphanumeric, excludes I/O/0/1 (visually confusing)
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -30,4 +30,25 @@ export async function validateServerKeyHeader(c: Context): Promise<string | null
   const hash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
   const rows = await db.select().from(serverKeys).where(eq(serverKeys.hash, hash));
   return rows.length > 0 ? rows[0].id : null;
+}
+
+const TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+export function generateEditorToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(30));
+  return Array.from(bytes, (b) => TOKEN_CHARS[b % TOKEN_CHARS.length]).join("");
+}
+
+export async function validateEditorToken(
+  token: string,
+): Promise<{ serverKeyId: string } | null> {
+  const rows = await db
+    .select()
+    .from(editorSessions)
+    .where(eq(editorSessions.token, token));
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (row.revokedAt) return null;
+  if (row.expiresAt < new Date()) return null;
+  return { serverKeyId: row.serverKeyId };
 }
