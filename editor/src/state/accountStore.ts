@@ -57,12 +57,13 @@ import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+
 
 type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface AccountState {
   account: Account;
+  setAccount: (account: Account) => void;
   createPack: (input: { name: string; description?: string }) => void;
   /**
    * Import a pack object as a *new* pack: assigns a fresh PackId, marks
@@ -641,10 +642,13 @@ const clearTemporal = () => useAccountStore.temporal.getState().clear();
 
 export const useAccountStore = create<AccountState>()(
   temporal(
-    persist(
-      (set, get) => ({
-        account: mockAccount(),
-        createPack: ({ name, description }) => {
+    (set, get) => ({
+      account: mockAccount(),
+      setAccount: (account) => {
+        clearTemporal();
+        set({ account });
+      },
+      createPack: ({ name, description }) => {
           set(
             produce((draft: AccountState) => {
               const id = newPackId();
@@ -2224,20 +2228,7 @@ export const useAccountStore = create<AccountState>()(
           });
           set({ account: next });
         },
-      }),
-      {
-        name: "interfaze:account",
-        version: 5,
-        migrate: (persisted, version) => {
-          let p = persisted;
-          if (version < 2) p = migrateV1ToV2(p);
-          if (version < 3) p = migrateV2ToV3(p);
-          if (version < 4) p = migrateV3ToV4(p);
-          if (version < 5) p = migrateV4ToV5(p);
-          return p;
-        },
-      },
-    ),
+    }),
     {
       // Track only the account slice so action references aren't diffed.
       partialize: (state) => ({ account: state.account }),
@@ -2293,6 +2284,7 @@ const migrateClickHandler = (h: V1ClickHandler) => {
  * FR and EN can have different line counts going forward.
  */
 // biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
+// @ts-ignore — kept as dead code; was used by persist middleware
 const migrateV3ToV4 = (persisted: unknown): unknown => {
   if (!persisted || typeof persisted !== "object") return persisted;
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
@@ -2357,6 +2349,7 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
  * from `@/lib/i18nKeys` to walk each pack's entity tree.
  */
 // biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
+// @ts-ignore — kept as dead code; was used by persist middleware
 const migrateV4ToV5 = (persisted: unknown): unknown => {
   if (!persisted || typeof persisted !== "object") return persisted;
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
@@ -2380,6 +2373,7 @@ const migrateV4ToV5 = (persisted: unknown): unknown => {
  * actual walker lives in `lib/i18nMigration` so it can be reused for
  * imported packs at runtime.
  */
+// @ts-ignore — kept as dead code; was used by persist middleware
 const migrateV2ToV3 = (persisted: unknown): unknown => {
   if (!persisted || typeof persisted !== "object") return persisted;
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
@@ -2391,6 +2385,7 @@ const migrateV2ToV3 = (persisted: unknown): unknown => {
   return persisted;
 };
 
+// @ts-ignore — kept as dead code; was used by persist middleware
 const migrateV1ToV2 = (persisted: unknown): unknown => {
   if (!persisted || typeof persisted !== "object") return persisted;
   // biome-ignore lint/suspicious/noExplicitAny: legacy v1 shape — we don't model it in TS
