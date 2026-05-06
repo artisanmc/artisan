@@ -147,6 +147,79 @@ describe("DELETE /api/editor-session/:token", () => {
   });
 });
 
+describe("GET /api/editor-session/:token/packs", () => {
+  test("200 returns empty array when no packs", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/packs`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { packs: unknown[] };
+    expect(Array.isArray(body.packs)).toBe(true);
+    expect(body.packs.length).toBe(0);
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("PUT /api/editor-session/:token/packs/:packId", () => {
+  test("201 upserts pack and returns hash", async () => {
+    const { token } = await createSession();
+    const fakePack = { id: "p_test", name: "Test Pack", menus: [] };
+    const fakeFiles = { "plugins/Interfaze/packs/p_test/manifest.yaml": "pack_id: p_test\n" };
+    const res = await app.request(`/api/editor-session/${token}/packs/p_test`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { hash: string };
+    expect(typeof body.hash).toBe("string");
+    expect(body.hash.length).toBeGreaterThan(0);
+  });
+
+  test("GET after PUT returns the saved pack", async () => {
+    const { token } = await createSession();
+    const fakePack = { id: "p_roundtrip", name: "Round Trip", menus: [] };
+    const fakeFiles = { "plugins/Interfaze/packs/p_roundtrip/manifest.yaml": "pack_id: p_roundtrip\n" };
+    await app.request(`/api/editor-session/${token}/packs/p_roundtrip`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const body = await getRes.json() as { packs: { id: string; name: string }[] };
+    expect(body.packs.some((p) => p.id === "p_roundtrip")).toBe(true);
+  });
+
+  test("401 for invalid token", async () => {
+    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_test", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: {}, files: {} }),
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("DELETE /api/editor-session/:token/packs/:packId", () => {
+  test("200 deletes pack and it no longer appears in GET", async () => {
+    const { token } = await createSession();
+    const fakePack = { id: "p_delete", name: "To Delete", menus: [] };
+    await app.request(`/api/editor-session/${token}/packs/p_delete`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: { "plugins/Interfaze/packs/p_delete/manifest.yaml": "" } }),
+    });
+    const delRes = await app.request(`/api/editor-session/${token}/packs/p_delete`, { method: "DELETE" });
+    expect(delRes.status).toBe(200);
+    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const body = await getRes.json() as { packs: { id: string }[] };
+    expect(body.packs.some((p) => p.id === "p_delete")).toBe(false);
+  });
+});
+
 describe("POST /api/editor-session/:token/draft", () => {
   test("200 for valid token and valid body", async () => {
     const { token } = await createSession();
