@@ -25,3 +25,12 @@ export const linkCodes = pgTable("link_codes", {
   claimedAt: timestamp("claimed_at"),
   serverKeyId: text("server_key_id").references(() => serverKeys.id),
 });
+
+export const editorSessions = pgTable("editor_sessions", {
+  token:        text("token").primaryKey(),
+  serverKeyId:  text("server_key_id").notNull().references(() => serverKeys.id),
+  createdBy:    text("created_by").notNull(),
+  createdAt:    timestamp("created_at").notNull(),
+  expiresAt:    timestamp("expires_at").notNull(),
+  revokedAt:    timestamp("revoked_at"),
+});
