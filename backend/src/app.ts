@@ -5,7 +5,8 @@ import { bundlesRouter } from "./routes/bundles";
 import { editorSessionRouter } from "./routes/editorSession";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
-import { cleanupConn, cleanupSession, handlePluginMessage, registerConn } from "./ws/hub";
+import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn } from "./ws/hub";
+import { validateEditorToken } from "./lib/auth";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
@@ -41,6 +42,30 @@ app.get(
         if (sessionId) cleanupSession(sessionId);
       },
       onError: (err) => console.error("WS error:", err),
+    };
+  }),
+);
+
+app.get(
+  "/ws/editor",
+  async (c, next) => {
+    const token = new URL(c.req.url).searchParams.get("token") ?? "";
+    const session = token ? await validateEditorToken(token) : null;
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    c.set("editorToken", token);
+    c.set("editorServerId", session.serverKeyId);
+    return next();
+  },
+  upgradeWebSocket((c) => {
+    const token = c.get("editorToken") as string;
+    const serverId = c.get("editorServerId") as string;
+    return {
+      onOpen(_, ws) {
+        registerEditorConn(token, serverId, (msg) => ws.send(msg));
+      },
+      onMessage() {},
+      onClose() { cleanupEditorConn(token); },
+      onError: (err) => console.error("Editor WS error:", err),
     };
   }),
 );

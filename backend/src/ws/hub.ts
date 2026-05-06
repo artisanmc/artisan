@@ -1,13 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
-import { linkCodes, packBundles, serverKeys } from "../db/schema";
-import { generateCode, generateServerKey } from "../lib/auth";
+import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema";
+import { generateCode, generateEditorToken, generateServerKey } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import type {
   BundleAvailableMessage,
+  EditorDraftUpdateMessage,
+  EditorSessionReadyMessage,
   HelloAckMessage,
   HelloMessage,
   LinkConfirmedMessage,
+  SessionExpiredMessage,
   SetupClaimMessage,
   SetupCodeMessage,
 } from "../protocol";
@@ -25,6 +28,12 @@ export const connSenders = new Map<string, (msg: string) => void>();
 const activeSessions = new Map<string, string>();
 // link_code → connId (for B1: push link_confirmed to the plugin that generated the code)
 const codeToConn = new Map<string, string>();
+// Editor WS connections: token → sendFn
+export const editorSenders = new Map<string, (msg: string) => void>();
+// token → serverKeyId (for grouping editors by server)
+const editorTokenToServer = new Map<string, string>();
+// connId → serverKeyId (set after successful hello)
+const connToServerId = new Map<string, string>();
 
 export function registerConn(connId: string, send: (msg: string) => void): void {
   connSenders.set(connId, send);
@@ -32,6 +41,7 @@ export function registerConn(connId: string, send: (msg: string) => void): void 
 
 export function cleanupConn(connId: string): void {
   connSenders.delete(connId);
+  connToServerId.delete(connId);
   for (const [code, cId] of codeToConn) {
     if (cId === connId) codeToConn.delete(code);
   }
@@ -39,6 +49,16 @@ export function cleanupConn(connId: string): void {
 
 export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
+}
+
+export function registerEditorConn(token: string, serverKeyId: string, send: (msg: string) => void): void {
+  editorSenders.set(token, send);
+  editorTokenToServer.set(token, serverKeyId);
+}
+
+export function cleanupEditorConn(token: string): void {
+  editorSenders.delete(token);
+  editorTokenToServer.delete(token);
 }
 
 // Called by link.ts POST /:code/claim (B1 flow: browser claims plugin's code).
@@ -74,6 +94,7 @@ export async function handlePluginMessage(
 
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
+    connToServerId.set(connId, keyId);
 
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
@@ -155,16 +176,74 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
+  // ── editor_session_request: generate a browser session token ─────────────
+  if (msg.type === "editor_session_request") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const raw = msg as Record<string, unknown>;
+    const sender = typeof raw.sender === "string" ? raw.sender : "CONSOLE";
+    const token = generateEditorToken();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    await db.insert(editorSessions).values({ token, serverKeyId: serverId, createdBy: sender, createdAt: now, expiresAt });
+    const reply: EditorSessionReadyMessage = {
+      type: "editor_session_ready",
+      url: `${EDITOR_URL}/session?token=${token}`,
+      expires_at: expiresAt.toISOString(),
+    };
+    return { reply: JSON.stringify(reply) };
+  }
+
+  // ── editor_session_revoke: revoke all sessions for this server ────────────
+  if (msg.type === "editor_session_revoke") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    await db
+      .update(editorSessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(editorSessions.serverKeyId, serverId), isNull(editorSessions.revokedAt)));
+    for (const [token, sId] of editorTokenToServer) {
+      if (sId !== serverId) continue;
+      const send = editorSenders.get(token);
+      if (send) send(JSON.stringify({ type: "session_expired" } satisfies SessionExpiredMessage));
+    }
+    return { reply: null };
+  }
+
   if (msg.type === "pong") return { reply: null };
 
   return { reply: null };
 }
 
-// Stub — replaced in Task 6
 export function broadcastDraftUpdate(
-  _serverKeyId: string,
-  _packId: string,
-  _menuId: string,
-  _menuYaml: string,
-  _senderToken: string,
-): void {}
+  serverKeyId: string,
+  packId: string,
+  menuId: string,
+  menuYaml: string,
+  senderToken: string,
+): void {
+  const payload = JSON.stringify({
+    type: "draft_update",
+    pack_id: packId,
+    menu_id: menuId,
+    menu_yaml: menuYaml,
+    updated_by: senderToken,
+  } satisfies EditorDraftUpdateMessage);
+
+  for (const [token, send] of editorSenders) {
+    if (token === senderToken) continue;
+    if (editorTokenToServer.get(token) !== serverKeyId) continue;
+    send(payload);
+  }
+
+  for (const [connId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    const send = connSenders.get(connId);
+    if (send) send(JSON.stringify({
+      type: "draft_update",
+      pack_id: packId,
+      menu_id: menuId,
+      menu_yaml: menuYaml,
+    }));
+  }
+}
