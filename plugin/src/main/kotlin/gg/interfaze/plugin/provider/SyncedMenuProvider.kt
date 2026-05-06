@@ -47,6 +47,7 @@ class SyncedMenuProvider(
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
     @Volatile private var bundleDownloadInFlight = false
+    @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
 
     override fun load() {
         reloadFromDisk()
@@ -70,6 +71,15 @@ class SyncedMenuProvider(
         httpClient.connectionPool.evictAll()
         httpClient.dispatcher.executorService.shutdown()
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
+    }
+
+    override fun requestEditorSession(sender: String, onReady: (url: String, expiresAt: String) -> Unit) {
+        editorSessionCallback = onReady
+        wsClient?.send(mapOf("type" to "editor_session_request", "sender" to sender))
+    }
+
+    override fun revokeEditorSessions() {
+        wsClient?.send(mapOf("type" to "editor_session_revoke"))
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
@@ -158,6 +168,14 @@ class SyncedMenuProvider(
                 val parsed   = runCatching { yamlMapper.readValue(menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
                 draftMenus[menuId] = BundleMenu(parsed, emptyMap())
                 logger?.info("Draft updated for $menuId")
+            }
+
+            "editor_session_ready" -> {
+                val url = node["url"]?.asText() ?: return
+                val expiresAt = node["expires_at"]?.asText() ?: return
+                val cb = editorSessionCallback
+                editorSessionCallback = null
+                cb?.invoke(url, expiresAt)
             }
 
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
