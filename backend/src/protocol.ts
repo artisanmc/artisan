@@ -49,11 +49,39 @@ export interface LinkConfirmedMessage {
   server_key: string;
 }
 
+// Plugin → backend (on authenticated WS)
+export interface EditorSessionRequestMessage {
+  type: "editor_session_request";
+  sender: string;
+}
+export interface EditorSessionRevokeMessage {
+  type: "editor_session_revoke";
+}
+
+// Backend → plugin
+export interface EditorSessionReadyMessage {
+  type: "editor_session_ready";
+  url: string;
+  expires_at: string;
+}
+
+// Backend → editor (on /ws/editor)
+export interface SessionExpiredMessage { type: "session_expired" }
+export interface EditorDraftUpdateMessage {
+  type: "draft_update";
+  pack_id: string;
+  menu_id: string;
+  menu_yaml: string;
+  updated_by: string;
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
   | SetupRequestMessage
-  | SetupClaimMessage;
+  | SetupClaimMessage
+  | EditorSessionRequestMessage
+  | EditorSessionRevokeMessage;
 
 export type ServerToPluginMessage =
   | HelloAckMessage
@@ -61,4 +89,5 @@ export type ServerToPluginMessage =
   | DraftUpdateMessage
   | PingMessage
   | SetupCodeMessage
-  | LinkConfirmedMessage;
+  | LinkConfirmedMessage
+  | EditorSessionReadyMessage;
