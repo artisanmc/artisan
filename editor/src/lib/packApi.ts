@@ -26,3 +26,23 @@ export async function deletePack(token: string, packId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export async function deployPack(
+  token: string,
+  pack: Pack,
+  files: Record<string, string>,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${pack.id}/deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pack, files }),
+  });
+  if (!res.ok) throw new Error("Échec du déploiement");
+}
+
+export async function getDeployedPack(token: string, packId: string): Promise<Pack | null> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/deployed`);
+  if (!res.ok) throw new Error("Impossible de récupérer la version déployée");
+  const data = (await res.json()) as { pack: Pack | null };
+  return data.pack;
+}
