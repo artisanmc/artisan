@@ -350,6 +350,8 @@ export default {
     noMatch: "No items match.",
     armedHint: "Armed: tap a slot to place {{material}}",
     armedDisarm: "Disarm",
+    loading: "Loading…",
+    unavailable: "Library unavailable — server offline",
   },
   editorPane: {
     tabEdit: "Edit",
