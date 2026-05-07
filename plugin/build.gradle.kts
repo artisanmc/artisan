@@ -28,7 +28,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
@@ -57,7 +57,7 @@ tasks.shadowJar {
 val deployPlugin by tasks.registering(Copy::class) {
     dependsOn(tasks.shadowJar)
     val dest = rootDir.resolve("../docker/server/plugins")
-    onlyIf { dest.exists() }
+    doFirst { dest.mkdirs() }
     from(tasks.shadowJar.get().archiveFile)
     into(dest)
     rename { "InterfazePlugin.jar" }
