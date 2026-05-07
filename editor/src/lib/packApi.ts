@@ -2,6 +2,18 @@ import type { Pack } from "@/domain/types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
+export interface LibraryItem {
+  id: string;
+  label: string;
+  category: string;
+  texture: string;
+}
+
+export interface LibraryData {
+  version: string;
+  items: LibraryItem[];
+}
+
 export async function loadPacks(token: string): Promise<Pack[]> {
   const res = await fetch(`${API_URL}/api/editor-session/${token}/packs`);
   if (!res.ok) throw new Error("Failed to load packs");
@@ -14,11 +26,12 @@ export async function savePack(
   pack: Pack,
   files: Record<string, string>,
 ): Promise<void> {
-  await fetch(`${API_URL}/api/editor-session/${token}/packs/${pack.id}`, {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${pack.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
   });
+  if (!res.ok) throw new Error("Échec de la sauvegarde");
 }
 
 export async function deletePack(token: string, packId: string): Promise<void> {
@@ -45,4 +58,10 @@ export async function getDeployedPack(token: string, packId: string): Promise<Pa
   if (!res.ok) throw new Error("Impossible de récupérer la version déployée");
   const data = (await res.json()) as { pack: Pack | null };
   return data.pack;
+}
+
+export async function fetchItems(token: string): Promise<LibraryData> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/items`);
+  if (!res.ok) throw new Error(`fetchItems failed: ${res.status}`);
+  return res.json() as Promise<LibraryData>;
 }
