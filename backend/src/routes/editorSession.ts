@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
+import { join } from "path";
 import { db } from "../db/index";
 import { editorSessions, packBundles } from "../db/schema";
 import { validateEditorToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
-import { broadcastDraftUpdate, pushBundleAvailable } from "../ws/hub";
+import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion } from "../ws/hub";
 
 const router = new Hono();
 
@@ -147,6 +148,26 @@ router.post("/:token/draft", async (c) => {
   const body = await c.req.json<{ pack_id: string; menu_id: string; menu_yaml: string }>();
   broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, token);
   return c.json({ ok: true });
+});
+
+router.get("/:token/items", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateEditorToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const version = getMcVersion(session.serverKeyId);
+  if (!version) return c.json({ error: "server_offline" }, 503);
+
+  const dataPath = join(import.meta.dir, "../../data/items", `${version}.json`);
+  let items: unknown[];
+  try {
+    const file = Bun.file(dataPath);
+    items = await file.json() as unknown[];
+  } catch {
+    return c.json({ error: "unknown_version" }, 404);
+  }
+
+  return c.json({ version, items });
 });
 
 export { router as editorSessionRouter };
