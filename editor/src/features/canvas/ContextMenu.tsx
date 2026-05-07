@@ -78,14 +78,14 @@ export function ContextMenu({
                 if (state.target.kind === "empty") onCreateMenuAt(state.target.world);
               }}
             >
-              New menu here
+              {t("canvas.newMenuHere")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
                 if (state.target.kind === "empty") onCreateCommandAt(state.target.world);
               }}
             >
-              New command here
+              {t("canvas.newCommandHere")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
