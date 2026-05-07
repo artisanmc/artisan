@@ -18,9 +18,14 @@ import type {
   ContextInput,
   DataSource,
   DataSourceId,
+  Dialog,
+  DialogBody,
+  DialogId,
+  DialogInput,
   Element,
   ElementId,
   FieldType,
+  I18nKey,
   LText,
   Layer,
   Menu,
@@ -34,6 +39,11 @@ import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
   clickHandlerKeyPrefix,
   commandKeyPrefix,
+  dialogBodyTextKey,
+  dialogButtonKeyPrefix,
+  dialogButtonLabelKey,
+  dialogInputLabelKey,
+  dialogTitleKey,
   elementLoreKey,
   elementTitleKey,
   menuTitleKey,
@@ -90,6 +100,33 @@ interface AccountState {
     name?: string;
     position?: { x: number; y: number };
   }) => CommandId;
+  createDialog: (input: {
+    packId: PackId;
+    id: string;
+    position?: { x: number; y: number };
+  }) => DialogId;
+  setDialogTitle: (input: { packId: PackId; dialogId: DialogId; lang: string; value: string }) => void;
+  setDialogField: (input: { packId: PackId; dialogId: DialogId; field: "canCloseWithEscape"; value: boolean }) => void;
+  setDialogId: (input: { packId: PackId; oldId: DialogId; newId: DialogId }) => void;
+  addDialogBody: (input: { packId: PackId; dialogId: DialogId; body: DialogBody }) => void;
+  removeDialogBody: (input: { packId: PackId; dialogId: DialogId; index: number }) => void;
+  setDialogBodyText: (input: { packId: PackId; dialogId: DialogId; index: number; lang: string; value: string }) => void;
+  setDialogBodyMaterial: (input: { packId: PackId; dialogId: DialogId; index: number; material: string; count: number }) => void;
+  addDialogInput: (input: { packId: PackId; dialogId: DialogId; inputType: DialogInput["type"] }) => void;
+  removeDialogInput: (input: { packId: PackId; dialogId: DialogId; index: number }) => void;
+  setDialogInput: (input: { packId: PackId; dialogId: DialogId; index: number; patch: Partial<DialogInput> }) => void;
+  addDialogButton: (input: { packId: PackId; dialogId: DialogId }) => void;
+  removeDialogButton: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number }) => void;
+  setDialogButtonLabel: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; lang: string; value: string }) => void;
+  addDialogButtonStep: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; index: number; step: Step; lang: string }) => void;
+  moveDialogButtonStep: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; fromIndex: number; toIndex: number }) => void;
+  setDialogButtonStep: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; path: StepPath; step: Step; lang: string }) => void;
+  removeDialogButtonStep: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; path: StepPath }) => void;
+  addDialogButtonIfCase: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number }) => void;
+  removeDialogButtonIfCase: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number }) => void;
+  setDialogButtonIfCaseConditions: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; conditions: Condition[]; op?: "and" | "or" }) => void;
+  setDialogButtonIfCaseJoin: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; joinIndex: number; op: "and" | "or" }) => void;
+  toggleDialogButtonIfElse: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; lang: string }) => void;
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
@@ -597,6 +634,60 @@ function gcMenuLTexts(pack: Pack, menu: Menu): void {
 function gcCommandLTexts(pack: Pack, command: Command): void {
   gcStepLTexts(pack, command.steps);
 }
+/** GC every LText held by a dialog (title, body texts, input labels, option labels, button labels and button step trees). */
+function gcDialogLTexts(pack: Pack, dialog: Dialog): void {
+  const keys = new Set<string>();
+  keys.add(dialog.title.key);
+  for (const body of dialog.body) {
+    if (body.type === "text") keys.add(body.text.key);
+  }
+  for (const input of dialog.inputs) {
+    keys.add(input.label.key);
+    if (input.type === "single_option") {
+      for (const opt of input.options) keys.add(opt.label.key);
+    }
+  }
+  for (const btn of dialog.buttons) {
+    keys.add(btn.label.key);
+    for (const action of walkActions(btn.steps)) {
+      if (action.type === "send_message") keys.add(action.text.key);
+    }
+  }
+  for (const key of keys) delete pack.i18nKeys[key as I18nKey];
+}
+/** Replace a single LText key inside a dialog (title/body/input/button label) — used by setDialogId. */
+function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey): void {
+  if (dialog.title.key === oldKey) {
+    dialog.title.key = newKey;
+    return;
+  }
+  for (const body of dialog.body) {
+    if (body.type === "text" && body.text.key === oldKey) {
+      body.text.key = newKey;
+      return;
+    }
+  }
+  for (const input of dialog.inputs) {
+    if (input.label.key === oldKey) {
+      input.label.key = newKey;
+      return;
+    }
+    if (input.type === "single_option") {
+      for (const opt of input.options) {
+        if (opt.label.key === oldKey) {
+          opt.label.key = newKey;
+          return;
+        }
+      }
+    }
+  }
+  for (const btn of dialog.buttons) {
+    if (btn.label.key === oldKey) {
+      btn.label.key = newKey;
+      return;
+    }
+  }
+}
 
 function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
@@ -783,6 +874,416 @@ export const useAccountStore = create<AccountState>()(
           );
           return id;
         },
+        createDialog: ({ packId: pId, id, position }) => {
+          const dId = id as DialogId;
+          const titleKey = dialogTitleKey(id);
+          const btnLabelKey = dialogButtonLabelKey(id, "btn_confirm");
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              pack.i18nKeys[titleKey] = { [pack.defaultLang]: "" };
+              pack.i18nKeys[btnLabelKey] = { [pack.defaultLang]: "Confirm" };
+              pack.dialogs.push({
+                id: dId,
+                packId: pId,
+                title: { key: titleKey },
+                canCloseWithEscape: true,
+                body: [],
+                inputs: [],
+                buttons: [{ id: "btn_confirm", label: { key: btnLabelKey }, steps: [] }],
+              });
+              if (position) {
+                (pack.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+          return dId;
+        },
+        setDialogTitle: ({ packId: pId, dialogId: dId, lang, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const dialog = pack.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              if (!pack.i18nKeys[dialog.title.key]) pack.i18nKeys[dialog.title.key] = {};
+              pack.i18nKeys[dialog.title.key]![lang] = value;
+              touch(draft, pId);
+            }),
+          ),
+        setDialogField: ({ packId: pId, dialogId: dId, field, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              if (field === "canCloseWithEscape") dialog.canCloseWithEscape = value;
+              touch(draft, pId);
+            }),
+          ),
+        setDialogId: ({ packId: pId, oldId, newId }) => {
+          const state = get();
+          const pack = state.account.packs.find((p) => p.id === pId);
+          if (!pack) throw new Error("pack not found");
+          if (pack.dialogs.some((d) => d.id === newId))
+            throw new Error(`dialog id "${newId}" already exists`);
+          const next = produce(state.account, (draft) => {
+            const p = draft.packs.find((p) => p.id === pId)!;
+            const d = p.dialogs.find((d) => d.id === oldId)!;
+            d.id = newId;
+            const oldPrefix = `dialogs.${oldId}.`;
+            const newPrefix = `dialogs.${newId}.`;
+            for (const key of Object.keys(p.i18nKeys)) {
+              if (key.startsWith(oldPrefix)) {
+                const newKey = (newPrefix + key.slice(oldPrefix.length)) as I18nKey;
+                p.i18nKeys[newKey] = p.i18nKeys[key as I18nKey]!;
+                delete p.i18nKeys[key as I18nKey];
+                updateDialogLTextKey(d, key as I18nKey, newKey);
+              }
+            }
+            const layout = p.canvasLayout as Record<string, { x: number; y: number }>;
+            if (layout[oldId as string]) {
+              layout[newId as string] = layout[oldId as string]!;
+              delete layout[oldId as string];
+            }
+            p.updatedAt = new Date().toISOString();
+          });
+          set({ account: next });
+        },
+        addDialogBody: ({ packId: pId, dialogId: dId, body }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              if (body.type === "text") {
+                const key = dialogBodyTextKey(dId, dialog.body.length);
+                pack!.i18nKeys[key] = { [pack!.defaultLang]: "" };
+                dialog.body.push({ type: "text", text: { key } });
+              } else {
+                dialog.body.push(body);
+              }
+              touch(draft, pId);
+            }),
+          ),
+        removeDialogBody: ({ packId: pId, dialogId: dId, index }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              const body = dialog.body[index];
+              if (body?.type === "text") delete pack!.i18nKeys[body.text.key];
+              dialog.body.splice(index, 1);
+              touch(draft, pId);
+            }),
+          ),
+        setDialogBodyText: ({ packId: pId, dialogId: dId, index, lang, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const body = dialog?.body[index];
+              if (!body || body.type !== "text") return;
+              if (!pack!.i18nKeys[body.text.key]) pack!.i18nKeys[body.text.key] = {};
+              pack!.i18nKeys[body.text.key]![lang] = value;
+              touch(draft, pId);
+            }),
+          ),
+        setDialogBodyMaterial: ({ packId: pId, dialogId: dId, index, material, count }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const body = dialog?.body[index];
+              if (!body || body.type !== "item") return;
+              body.material = material;
+              body.count = count;
+              touch(draft, pId);
+            }),
+          ),
+        addDialogInput: ({ packId: pId, dialogId: dId, inputType }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              const inputId = `input_${dialog.inputs.length}`;
+              const labelKey = dialogInputLabelKey(dId, inputId);
+              pack!.i18nKeys[labelKey] = { [pack!.defaultLang]: "" };
+              let newInput: DialogInput;
+              if (inputType === "text") {
+                newInput = {
+                  type: "text",
+                  id: inputId,
+                  label: { key: labelKey },
+                  default: "",
+                  maxLength: 32,
+                };
+              } else if (inputType === "bool") {
+                newInput = {
+                  type: "bool",
+                  id: inputId,
+                  label: { key: labelKey },
+                  default: false,
+                };
+              } else if (inputType === "number_range") {
+                newInput = {
+                  type: "number_range",
+                  id: inputId,
+                  label: { key: labelKey },
+                  min: 0,
+                  max: 100,
+                  default: 0,
+                };
+              } else {
+                newInput = {
+                  type: "single_option",
+                  id: inputId,
+                  label: { key: labelKey },
+                  options: [],
+                  default: "",
+                };
+              }
+              dialog.inputs.push(newInput);
+              touch(draft, pId);
+            }),
+          ),
+        removeDialogInput: ({ packId: pId, dialogId: dId, index }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              const input = dialog.inputs[index];
+              if (input) {
+                delete pack!.i18nKeys[input.label.key];
+                if (input.type === "single_option") {
+                  for (const opt of input.options) delete pack!.i18nKeys[opt.label.key];
+                }
+                dialog.inputs.splice(index, 1);
+              }
+              touch(draft, pId);
+            }),
+          ),
+        setDialogInput: ({ packId: pId, dialogId: dId, index, patch }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog?.inputs[index]) return;
+              Object.assign(dialog.inputs[index]!, patch);
+              touch(draft, pId);
+            }),
+          ),
+        addDialogButton: ({ packId: pId, dialogId: dId }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              const btnId = `btn_${dialog.buttons.length}`;
+              const labelKey = dialogButtonLabelKey(dId, btnId);
+              pack!.i18nKeys[labelKey] = { [pack!.defaultLang]: "" };
+              dialog.buttons.push({ id: btnId, label: { key: labelKey }, steps: [] });
+              touch(draft, pId);
+            }),
+          ),
+        removeDialogButton: ({ packId: pId, dialogId: dId, buttonIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              if (!dialog) return;
+              const btn = dialog.buttons[buttonIndex];
+              if (btn) {
+                delete pack!.i18nKeys[btn.label.key];
+                for (const action of walkActions(btn.steps)) {
+                  if (action.type === "send_message") delete pack!.i18nKeys[action.text.key];
+                }
+                dialog.buttons.splice(buttonIndex, 1);
+              }
+              touch(draft, pId);
+            }),
+          ),
+        setDialogButtonLabel: ({ packId: pId, dialogId: dId, buttonIndex, lang, value }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!btn) return;
+              if (!pack!.i18nKeys[btn.label.key]) pack!.i18nKeys[btn.label.key] = {};
+              pack!.i18nKeys[btn.label.key]![lang] = value;
+              touch(draft, pId);
+            }),
+          ),
+        addDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, frames, index, step, lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!pack || !btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              if (!parent) return;
+              const at = index < 0 || index > parent.length ? parent.length : index;
+              parent.splice(at, 0, step);
+              allocStepLTexts(pack, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
+              touch(draft, pId);
+            }),
+          ),
+        moveDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, frames, fromIndex, toIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              if (!parent) return;
+              if (fromIndex < 0 || fromIndex >= parent.length) return;
+              if (toIndex < 0 || toIndex >= parent.length) return;
+              const [moved] = parent.splice(fromIndex, 1);
+              if (moved) parent.splice(toIndex, 0, moved);
+              touch(draft, pId);
+            }),
+          ),
+        setDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!pack || !btn) return;
+              const parent = resolveParentMut(btn.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
+              parent[path.index] = step;
+              allocStepLTexts(pack, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
+              touch(draft, pId);
+            }),
+          ),
+        removeDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, path }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!pack || !btn) return;
+              const parent = resolveParentMut(btn.steps, path.frames);
+              if (!parent || path.index < 0 || path.index >= parent.length) return;
+              gcStepLTexts(pack, [parent[path.index]!]);
+              parent.splice(path.index, 1);
+              touch(draft, pId);
+            }),
+          ),
+        addDialogButtonIfCase: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              ifStep.cases.push({ conditions: [], steps: [] });
+              touch(draft, pId);
+            }),
+          ),
+        removeDialogButtonIfCase: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex, caseIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!pack || !btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+              if (ifStep.cases.length > 1) {
+                gcStepLTexts(pack, ifStep.cases[caseIndex]!.steps);
+                ifStep.cases.splice(caseIndex, 1);
+              }
+              touch(draft, pId);
+            }),
+          ),
+        setDialogButtonIfCaseConditions: ({
+          packId: pId,
+          dialogId: dId,
+          buttonIndex,
+          frames,
+          ifStepIndex,
+          caseIndex,
+          conditions,
+          op,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              c.conditions = conditions;
+              if (op !== undefined)
+                c.joins = new Array(Math.max(0, conditions.length - 1)).fill(op) as ("and" | "or")[];
+              touch(draft, pId);
+            }),
+          ),
+        setDialogButtonIfCaseJoin: ({
+          packId: pId,
+          dialogId: dId,
+          buttonIndex,
+          frames,
+          ifStepIndex,
+          caseIndex,
+          joinIndex,
+          op,
+        }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              const c = ifStep.cases[caseIndex];
+              if (!c) return;
+              if (!c.joins) c.joins = [];
+              c.joins[joinIndex] = op;
+              touch(draft, pId);
+            }),
+          ),
+        toggleDialogButtonIfElse: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex, lang: _lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const dialog = pack?.dialogs.find((d) => d.id === dId);
+              const btn = dialog?.buttons[buttonIndex];
+              if (!pack || !btn) return;
+              const parent = resolveParentMut(btn.steps, frames);
+              const ifStep = parent?.[ifStepIndex];
+              if (!ifStep || ifStep.kind !== "if") return;
+              if (ifStep.else) {
+                gcStepLTexts(pack, ifStep.else);
+                ifStep.else = undefined;
+              } else {
+                ifStep.else = [];
+              }
+              touch(draft, pId);
+            }),
+          ),
         reorderPacks: (newOrder) => {
           set(
             produce((draft: AccountState) => {
@@ -2282,8 +2783,12 @@ export const useAccountStore = create<AccountState>()(
             for (const c of pack.commands) {
               if (ids.has(c.id)) gcCommandLTexts(pack, c);
             }
+            for (const d of pack.dialogs) {
+              if (ids.has(d.id)) gcDialogLTexts(pack, d);
+            }
             pack.menus = pack.menus.filter((m) => !ids.has(m.id));
             pack.commands = pack.commands.filter((c) => !ids.has(c.id));
+            pack.dialogs = pack.dialogs.filter((d) => !ids.has(d.id));
             for (const id of ids) {
               delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[id];
             }

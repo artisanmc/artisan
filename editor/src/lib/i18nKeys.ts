@@ -74,6 +74,24 @@ export function rekeyCommandLTexts(pack: Pack, cmd: Command): void {
   }
 }
 
+export const dialogTitleKey = (dialogId: string): I18nKey =>
+  `dialogs.${dialogId}.title` as I18nKey;
+
+export const dialogBodyTextKey = (dialogId: string, index: number): I18nKey =>
+  `dialogs.${dialogId}.body.${index}.text` as I18nKey;
+
+export const dialogInputLabelKey = (dialogId: string, inputId: string): I18nKey =>
+  `dialogs.${dialogId}.inputs.${inputId}.label` as I18nKey;
+
+export const dialogOptionLabelKey = (dialogId: string, inputId: string, optionValue: string): I18nKey =>
+  `dialogs.${dialogId}.inputs.${inputId}.options.${optionValue}.label` as I18nKey;
+
+export const dialogButtonLabelKey = (dialogId: string, buttonId: string): I18nKey =>
+  `dialogs.${dialogId}.buttons.${buttonId}.label` as I18nKey;
+
+export const dialogButtonKeyPrefix = (dialogId: string, buttonId: string): string =>
+  `dialogs.${dialogId}.buttons.${buttonId}`;
+
 function moveLTextKey(pack: Pack, lt: { key: I18nKey }, newKey: I18nKey): void {
   if (lt.key === newKey) return;
   const value = pack.i18nKeys[lt.key];
