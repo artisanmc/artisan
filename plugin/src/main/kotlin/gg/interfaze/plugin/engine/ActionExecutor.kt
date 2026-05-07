@@ -45,6 +45,14 @@ class ActionExecutor(
         return result
     }
 
+    fun resolveText(text: String, ctx: ExecutionContext): String {
+        val resolved = if (text.startsWith("{i18n:")) {
+            val key = text.removePrefix("{i18n:").removeSuffix("}")
+            ctx.langMap[key] ?: text
+        } else text
+        return resolveArgs(resolved, ctx)
+    }
+
     private fun executeOne(action: Action, ctx: ExecutionContext) {
         val player = ctx.player
         when (action) {
@@ -67,8 +75,8 @@ class ActionExecutor(
                 val item = ItemStack(material, action.count)
                 if (action.name != null || action.lore.isNotEmpty()) {
                     val meta = item.itemMeta
-                    if (action.name != null) meta.displayName(mm.deserialize(resolveArgs(action.name, ctx)))
-                    if (action.lore.isNotEmpty()) meta.lore(action.lore.map { mm.deserialize(resolveArgs(it, ctx)) })
+                    if (action.name != null) meta.displayName(mm.deserialize(resolveText(action.name, ctx)))
+                    if (action.lore.isNotEmpty()) meta.lore(action.lore.map { mm.deserialize(resolveText(it, ctx)) })
                     item.itemMeta = meta
                 }
                 player.inventory.addItem(item)
@@ -89,8 +97,8 @@ class ActionExecutor(
             is Action.TakeMoney -> deps.vault?.withdraw(player, action.amount)
             is Action.GiveXp    -> player.giveExp(action.amount)
             is Action.GiveLevel -> player.giveExpLevels(action.amount)
-            is Action.SendMessage  -> player.sendMessage(mm.deserialize(resolveArgs(action.text, ctx)))
-            is Action.Broadcast    -> Bukkit.getServer().broadcast(mm.deserialize(resolveArgs(action.text, ctx)))
+            is Action.SendMessage  -> player.sendMessage(mm.deserialize(resolveText(action.text, ctx)))
+            is Action.Broadcast    -> Bukkit.getServer().broadcast(mm.deserialize(resolveText(action.text, ctx)))
             is Action.PlaySound    -> runCatching {
                 player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
             }
@@ -100,6 +108,12 @@ class ActionExecutor(
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext, is Action.PaginationPrev -> Unit
+            is Action.OpenDialog  -> {
+                // TODO: Dialog opening logic when DialogRenderer is implemented
+            }
+            is Action.CloseDialog -> {
+                // TODO: Dialog closing logic when DialogRenderer is implemented
+            }
         }
     }
 }
