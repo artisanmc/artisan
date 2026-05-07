@@ -118,4 +118,23 @@ class ActionParserTest {
             ActionParser.parse(emptyMap())
         }
     }
+
+    @Test fun `parse open_dialog with context and clear_context`() {
+        val a = ActionParser.parse(mapOf(
+            "type" to "open_dialog",
+            "dialog_id" to "d_confirm",
+            "context" to mapOf("tab" to "shop"),
+            "clear_context" to true,
+        ))
+        assertEquals(Action.OpenDialog("d_confirm", mapOf("tab" to "shop"), clearContext = true), a)
+    }
+
+    @Test fun `parse open_dialog defaults`() {
+        val a = ActionParser.parse(mapOf("type" to "open_dialog", "dialog_id" to "d_simple"))
+        assertEquals(Action.OpenDialog("d_simple"), a)
+    }
+
+    @Test fun `parse close_dialog`() {
+        assertEquals(Action.CloseDialog, ActionParser.parse(mapOf("type" to "close_dialog")))
+    }
 }

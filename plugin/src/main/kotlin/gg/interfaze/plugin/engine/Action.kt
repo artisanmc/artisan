@@ -33,4 +33,10 @@ sealed class Action {
     ) : Action()
     data class PaginationNext(val elementId: String? = null) : Action()
     data class PaginationPrev(val elementId: String? = null) : Action()
+    data class OpenDialog(
+        val dialogId: String,
+        val context: Map<String, String> = emptyMap(),
+        val clearContext: Boolean = false,
+    ) : Action()
+    data object CloseDialog : Action()
 }
