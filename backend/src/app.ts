@@ -5,6 +5,7 @@ import { bundlesRouter } from "./routes/bundles";
 import { editorSessionRouter } from "./routes/editorSession";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
+import { texturesRouter } from "./routes/textures";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn } from "./ws/hub";
 import { validateEditorToken } from "./lib/auth";
 
@@ -20,6 +21,7 @@ app.route("/api/server-keys", serverKeysRouter);
 app.route("/api/bundles", bundlesRouter);
 app.route("/api/link", linkRouter);
 app.route("/api/editor-session", editorSessionRouter);
+app.route("/api/textures", texturesRouter);
 
 app.get(
   "/ws/plugin",
