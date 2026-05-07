@@ -1319,7 +1319,7 @@ function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogI
       setDialogId({ packId, oldId: dialogId, newId: draft as DialogId });
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
+      setError(e instanceof Error ? e.message : t("dialog.renameRejected"));
       setDraft(dialogId);
     }
   };
@@ -1353,6 +1353,7 @@ function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogI
 }
 
 function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
+  const { t } = useTranslation();
   const setDialogTitle = useAccountStore((s) => s.setDialogTitle);
   const setDialogField = useAccountStore((s) => s.setDialogField);
   const addDialogBody = useAccountStore((s) => s.addDialogBody);
@@ -1379,10 +1380,10 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
       </div>
 
       <div className="flex-1 overflow-auto px-3 py-3">
-        <Lane label="identity">
+        <Lane label={t("dialog.idLabel")}>
           <DialogIdField packId={packId} dialogId={dialog.id} />
           <PropertyField
-            label={`title (${activeLang})`}
+            label={t("dialog.titleLabel", { lang: activeLang })}
             value={getText(dialog.title)}
             onChange={(v) =>
               setDialogTitle({ packId, dialogId: dialog.id, lang: activeLang, value: v })
@@ -1403,12 +1404,12 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 }
                 className="h-3.5 w-3.5 accent-violet-500"
               />
-              can close with Escape
+              {t("dialog.canCloseWithEscape")}
             </label>
           </div>
         </Lane>
 
-        <Lane label="body">
+        <Lane label={t("dialog.bodyLabel")}>
           <div className="flex flex-col gap-2">
             {dialog.body.map((body, i) => (
               <div
@@ -1421,7 +1422,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     <FieldLabel>text ({activeLang})</FieldLabel>
                     <Input
                       value={getText(body.text)}
-                      placeholder="Dialog body text…"
+                      placeholder={t("dialog.bodyTextPlaceholder")}
                       onChange={(e) =>
                         setDialogBodyText({
                           packId,
@@ -1492,7 +1493,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 }
                 className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
               >
-                + text
+                {t("dialog.addBodyText")}
               </button>
               <button
                 type="button"
@@ -1505,13 +1506,13 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 }
                 className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
               >
-                + item
+                {t("dialog.addBodyItem")}
               </button>
             </div>
           </div>
         </Lane>
 
-        <Lane label="inputs">
+        <Lane label={t("dialog.inputsLabel")}>
           <div className="flex flex-col gap-2">
             {dialog.inputs.map((input, i) => (
               <div
@@ -1525,7 +1526,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   </span>
                   <Input
                     value={input.id}
-                    placeholder="input_id"
+                    placeholder={t("dialog.inputIdPlaceholder")}
                     onChange={(e) =>
                       setDialogInput({
                         packId,
@@ -1538,7 +1539,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   />
                   <Input
                     value={getText(input.label)}
-                    placeholder="Label"
+                    placeholder={t("dialog.inputLabelPlaceholder")}
                     onChange={(e) =>
                       setI18nValue({
                         packId,
@@ -1561,7 +1562,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 </div>
                 {input.type === "number_range" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-zinc-500">min</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMin")}</span>
                     <Input
                       type="number"
                       value={input.min}
@@ -1575,7 +1576,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-zinc-500">max</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMax")}</span>
                     <Input
                       type="number"
                       value={input.max}
@@ -1589,7 +1590,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-zinc-500">default</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputDefault")}</span>
                     <Input
                       type="number"
                       value={input.default}
@@ -1607,7 +1608,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 ) : null}
                 {input.type === "text" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-zinc-500">max_length</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMaxLength")}</span>
                     <Input
                       type="number"
                       min={1}
@@ -1641,7 +1642,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                         }
                         className="h-3.5 w-3.5 accent-violet-500"
                       />
-                      default checked
+                      {t("dialog.inputDefaultChecked")}
                     </label>
                   </div>
                 ) : null}
@@ -1664,7 +1665,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
           </div>
         </Lane>
 
-        <Lane label="buttons">
+        <Lane label={t("dialog.buttonsLabel")}>
           <div className="flex flex-col gap-3">
             {dialog.buttons.map((btn, btnIndex) => (
               <div key={btn.id} className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
@@ -1672,7 +1673,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   <span className="font-mono text-[10px] text-zinc-500">{btn.id}</span>
                   <Input
                     value={getText(btn.label)}
-                    placeholder="Button label"
+                    placeholder={t("dialog.buttonLabelPlaceholder")}
                     onChange={(e) =>
                       setDialogButtonLabel({
                         packId,
@@ -1716,7 +1717,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
               onClick={() => addDialogButton({ packId, dialogId: dialog.id })}
               className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
             >
-              + button
+              {t("dialog.addButton")}
             </button>
           </div>
         </Lane>
