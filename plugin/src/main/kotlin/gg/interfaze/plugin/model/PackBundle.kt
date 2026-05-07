@@ -2,8 +2,6 @@ package gg.interfaze.plugin.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
-import gg.interfaze.plugin.engine.ClickType
-import gg.interfaze.plugin.engine.ClickHandler
 import gg.interfaze.plugin.engine.CompiledAppearance
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -87,6 +85,7 @@ data class CommandYaml(
     val cooldown:     CooldownYaml? = null,
 )
 
+/** Assembled result for one pack — all menus plus their lang maps. */
 data class PackBundle(
     val packId: String,
     val defaultLang: String,
@@ -95,6 +94,7 @@ data class PackBundle(
     val commands: List<CommandYaml>,
 )
 
+/** One menu with its compiled appearances, per-language translation maps, and slot mapping. */
 data class BundleMenu(
     val yaml: MenuYaml,
     val langMaps: Map<String, Map<String, String>>,
