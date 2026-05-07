@@ -174,6 +174,6 @@ describe("getMcVersion", () => {
     const result = await handlePluginMessage("conn-mcver", JSON.stringify(hello));
     expect(result.reply).not.toBeNull();
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    expect(getMcVersion(ack.server_id)).toBe("1.21.99");
+    expect(await getMcVersion(ack.server_id)).toBe("1.21.99");
   });
 });

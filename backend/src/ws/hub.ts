@@ -98,6 +98,7 @@ export async function handlePluginMessage(
     activeSessions.set(sessionId, keyId);
     connToServerId.set(connId, keyId);
     serverIdToMcVersion.set(keyId, hello.minecraft_version);
+    db.update(serverKeys).set({ lastMcVersion: hello.minecraft_version }).where(eq(serverKeys.id, keyId)).catch(() => {});
 
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
@@ -272,6 +273,11 @@ export function broadcastDraftUpdate(
   }
 }
 
-export function getMcVersion(serverKeyId: string): string | undefined {
-  return serverIdToMcVersion.get(serverKeyId);
+export async function getMcVersion(serverKeyId: string): Promise<string | undefined> {
+  const cached = serverIdToMcVersion.get(serverKeyId);
+  if (cached) return cached;
+  const rows = await db.select({ lastMcVersion: serverKeys.lastMcVersion }).from(serverKeys).where(eq(serverKeys.id, serverKeyId));
+  const persisted = rows[0]?.lastMcVersion ?? undefined;
+  if (persisted) serverIdToMcVersion.set(serverKeyId, persisted);
+  return persisted;
 }
