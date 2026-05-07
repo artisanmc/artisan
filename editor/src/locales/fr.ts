@@ -400,6 +400,8 @@ const fr: typeof en = {
   },
   canvas: {
     newDialogHere: "Nouveau dialogue ici",
+    newMenuHere: "Nouveau menu ici",
+    newCommandHere: "Nouvelle commande ici",
   },
   dialog: {
     idLabel: "id",
