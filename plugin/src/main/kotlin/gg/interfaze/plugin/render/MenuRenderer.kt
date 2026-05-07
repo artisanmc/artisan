@@ -1,34 +1,59 @@
 package gg.interfaze.plugin.render
 
+import gg.interfaze.plugin.engine.*
 import gg.interfaze.plugin.model.AppearanceYaml
 import gg.interfaze.plugin.model.BundleMenu
-import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.Style
+import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
+import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
+
+class InterfazeMenuHolder : InventoryHolder {
+    override fun getInventory(): Inventory = error("not used")
+}
 
 object MenuRenderer {
 
-    fun open(player: Player, menu: BundleMenu, lang: String) {
-        val titleText = menu.resolveTitle(lang)
-        val inv = Bukkit.createInventory(null, menu.yaml.size, titleText)
-        populate(inv, menu, lang)
-        player.openInventory(inv)
-    }
+    private val mm = MiniMessage.miniMessage()
+    private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
 
-    private fun populate(inv: Inventory, menu: BundleMenu, lang: String) {
+    private fun parse(text: String) = mm.deserialize(text).applyFallbackStyle(noItalic)
+
+    fun open(
+        player: Player,
+        menu: BundleMenu,
+        lang: String,
+        ctx: ExecutionContext = ExecutionContext(player),
+        evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
+    ): MenuSession {
+        val title = mm.deserialize(menu.resolveTitle(lang))
+        val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
+        val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val langMap = menu.langMaps[lang] ?: emptyMap()
+
         for (layer in menu.yaml.layers) {
             for (element in layer.elements) {
-                val appearance = element.appearances.firstOrNull() ?: continue
-                val item = buildItem(appearance, langMap)
-                for (slot in parsePositions(element.positions, menu.yaml.size)) {
+                val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
+                val chosen = compiledList.firstOrNull { ca ->
+                    evaluator.evaluateAll(ca.conditions, ctx)
+                } ?: continue
+
+                val item = buildItem(chosen.yaml, langMap)
+                val slots = parsePositions(element.positions, menu.yaml.size)
+                for (slot in slots) {
                     inv.setItem(slot, item)
+                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
                 }
             }
         }
+
+        player.openInventory(inv)
+        return MenuSession(menu.id, ctx.copy(lang = lang), activeClicks)
     }
 
     private fun buildItem(app: AppearanceYaml, langMap: Map<String, String>): ItemStack {
@@ -37,12 +62,11 @@ object MenuRenderer {
             ?: Material.STONE
         val item = ItemStack(material, app.count.coerceAtLeast(1))
         val meta = item.itemMeta ?: return item
-        if (app.title != null) {
-            val resolved = resolveI18n(app.title, langMap)
-            meta.displayName(Component.text(resolved))
-        }
+        if (app.title != null) meta.displayName(parse(resolveI18n(app.title, langMap)))
         if (app.lore.isNotEmpty()) {
-            meta.lore(app.lore.map { Component.text(resolveI18n(it, langMap)) })
+            meta.lore(app.lore.flatMap { raw ->
+                resolveI18n(raw, langMap).split("\n").map { parse(it) }
+            })
         }
         item.itemMeta = meta
         return item
@@ -54,10 +78,6 @@ object MenuRenderer {
         return langMap[key] ?: raw
     }
 
-    /**
-     * Parses a positions string like "13", "0,8", or "0-8" into slot indices.
-     * Slots outside the inventory size are silently dropped.
-     */
     private fun parsePositions(positions: String, size: Int): List<Int> =
         positions.split(",").flatMap { part ->
             val t = part.trim()
