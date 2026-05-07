@@ -394,6 +394,10 @@ export default {
     newDialogHere: "New dialog here",
     newMenuHere: "New menu here",
     newCommandHere: "New command here",
+    newDialogDialogTitle: "New dialog",
+    newMenuDialogTitle: "New menu",
+    cancel: "Cancel",
+    create: "Create",
   },
   dialog: {
     idLabel: "id",

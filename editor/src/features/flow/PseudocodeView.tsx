@@ -846,10 +846,12 @@ function AddStepLine({
   indent,
   firstMenuId,
   onPick,
+  allowIf = true,
 }: {
   indent: number;
   firstMenuId: MenuId | undefined;
   onPick: (step: Step) => void;
+  allowIf?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -876,15 +878,17 @@ function AddStepLine({
               <span className="font-mono text-[11px] text-zinc-200">{type}</span>
             </DropdownMenuItem>
           ))}
-          <DropdownMenuItem
-            onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
-            className="cursor-pointer focus:bg-zinc-800"
-          >
-            <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
-              if
-            </span>
-            <span className="font-mono text-[11px] text-zinc-200">{t("flow.addStepIfBranch")}</span>
-          </DropdownMenuItem>
+          {allowIf && (
+            <DropdownMenuItem
+              onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
+              className="cursor-pointer focus:bg-zinc-800"
+            >
+              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
+                if
+              </span>
+              <span className="font-mono text-[11px] text-zinc-200">{t("flow.addStepIfBranch")}</span>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -1154,7 +1158,7 @@ function DialogButtonStepTree({
               />
             </SortableStep>
           ))}
-          <AddStepLine indent={indent} firstMenuId={firstMenuId} onPick={handleAdd} />
+          <AddStepLine indent={indent} firstMenuId={firstMenuId} onPick={handleAdd} allowIf={false} />
         </div>
       </SortableContext>
     </DndContext>

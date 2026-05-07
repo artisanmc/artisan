@@ -402,6 +402,10 @@ const fr: typeof en = {
     newDialogHere: "Nouveau dialogue ici",
     newMenuHere: "Nouveau menu ici",
     newCommandHere: "Nouvelle commande ici",
+    newDialogDialogTitle: "Nouveau dialogue",
+    newMenuDialogTitle: "Nouveau menu",
+    cancel: "Annuler",
+    create: "Créer",
   },
   dialog: {
     idLabel: "id",
