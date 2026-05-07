@@ -1,5 +1,5 @@
-import { commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { I18nKey, Pack } from "@/domain/types";
+import { commandId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
+import type { Dialog, I18nKey, Pack } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 import { transform } from "./transform";
@@ -16,6 +16,7 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
     i18nKeys: {},
     menus: [],
     commands: [],
+    dialogs: [],
     assets: [],
     templates: [],
     canvasLayout: {},
@@ -236,5 +237,73 @@ describe("transform", () => {
     const meta = parse(files["plugins/Interfaze/packs/p_test/meta.yaml"]!);
     expect(meta.pack_id).toBe("p_test");
     expect(typeof meta.exported_at).toBe("string");
+  });
+});
+
+describe("transform — dialogs", () => {
+  it("emits dialog yaml file", () => {
+    const dialog: Dialog = {
+      id: dialogId("d_test"),
+      packId: packId("p_test"),
+      title: { key: "dialogs.d_test.title" as I18nKey },
+      canCloseWithEscape: true,
+      body: [],
+      inputs: [],
+      buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
+    };
+    const files = transform(makePack({ dialogs: [dialog] }));
+    expect(files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]).toBeDefined();
+  });
+
+  it("dialog yaml contains schema, id, title, can_close_with_escape", () => {
+    const dialog: Dialog = {
+      id: dialogId("d_test"),
+      packId: packId("p_test"),
+      title: { key: "dialogs.d_test.title" as I18nKey },
+      canCloseWithEscape: false,
+      body: [],
+      inputs: [],
+      buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
+    };
+    const files = transform(makePack({ dialogs: [dialog] }));
+    const yaml = files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]!;
+    expect(yaml).toContain("schema: dialog/v1");
+    expect(yaml).toContain("id: d_test");
+    expect(yaml).toContain("can_close_with_escape: false");
+    expect(yaml).toContain("{i18n:dialogs.d_test.title}");
+  });
+
+  it("manifest includes dialogs list", () => {
+    const dialog: Dialog = {
+      id: dialogId("d_test"),
+      packId: packId("p_test"),
+      title: { key: "dialogs.d_test.title" as I18nKey },
+      canCloseWithEscape: true,
+      body: [],
+      inputs: [],
+      buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
+    };
+    const files = transform(makePack({ dialogs: [dialog] }));
+    const manifest = files["plugins/Interfaze/packs/p_test/manifest.yaml"]!;
+    expect(manifest).toContain("d_test");
+  });
+
+  it("button actions are serialized flat", () => {
+    const dialog: Dialog = {
+      id: dialogId("d_test"),
+      packId: packId("p_test"),
+      title: { key: "dialogs.d_test.title" as I18nKey },
+      canCloseWithEscape: true,
+      body: [],
+      inputs: [],
+      buttons: [{
+        id: "btn_close",
+        label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey },
+        steps: [{ kind: "action", action: { type: "close_dialog" } }],
+      }],
+    };
+    const files = transform(makePack({ dialogs: [dialog] }));
+    const yaml = files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]!;
+    expect(yaml).toContain("close_dialog");
   });
 });

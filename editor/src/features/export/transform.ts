@@ -4,6 +4,10 @@ import type {
   Appearance,
   Command,
   Condition,
+  Dialog,
+  DialogBody,
+  DialogButton,
+  DialogInput,
   Element,
   Layer,
   Menu,
@@ -176,6 +180,60 @@ function serializeCommand(cmd: Command, pack: Pack): Record<string, unknown> {
   return out;
 }
 
+// ─── dialog serialization ────────────────────────────────────────────────────
+
+function extractFlatActions(steps: Step[]): unknown[] {
+  const result: unknown[] = [];
+  for (const step of steps) {
+    if (step.kind === "action") result.push(serializeAction(step.action));
+    // if-branches not supported in dialog button v1 export
+  }
+  return result;
+}
+
+function serializeDialogBody(body: DialogBody): Record<string, unknown> {
+  if (body.type === "text") return { type: "text", text: i18nRef(body.text.key) };
+  return { type: "item", material: body.material, count: body.count };
+}
+
+function serializeDialogInput(input: DialogInput): Record<string, unknown> {
+  const out: Record<string, unknown> = { id: input.id, type: input.type, label: i18nRef(input.label.key) };
+  if (input.type === "text") {
+    out.default = input.default;
+    out.max_length = input.maxLength;
+  } else if (input.type === "bool") {
+    out.default = String(input.default);
+  } else if (input.type === "number_range") {
+    out.min = input.min;
+    out.max = input.max;
+    out.default = String(input.default);
+  } else if (input.type === "single_option") {
+    out.options = input.options.map((opt) => ({ value: opt.value, label: i18nRef(opt.label.key) }));
+    out.default = input.default;
+  }
+  return out;
+}
+
+function serializeDialogButton(btn: DialogButton): Record<string, unknown> {
+  const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
+  const actions = extractFlatActions(btn.steps);
+  if (actions.length > 0) out.actions = actions;
+  return out;
+}
+
+function serializeDialog(dialog: Dialog): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    schema: "dialog/v1",
+    id: dialog.id,
+    title: i18nRef(dialog.title.key),
+  };
+  if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
+  if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
+  if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
+  out.buttons = dialog.buttons.map(serializeDialogButton);
+  return out;
+}
+
 // ─── translations serialization ──────────────────────────────────────────────
 
 function collectReferencedKeys(pack: Pack): Set<string> {
@@ -202,6 +260,24 @@ function collectReferencedKeys(pack: Pack): Set<string> {
   for (const cmd of pack.commands) {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "send_message") keys.add(action.text.key);
+    }
+  }
+  for (const dialog of pack.dialogs) {
+    if (dialog.title) keys.add(dialog.title.key);
+    for (const body of dialog.body) {
+      if (body.type === "text") keys.add(body.text.key);
+    }
+    for (const input of dialog.inputs) {
+      keys.add(input.label.key);
+      if (input.type === "single_option") {
+        for (const opt of input.options) keys.add(opt.label.key);
+      }
+    }
+    for (const btn of dialog.buttons) {
+      keys.add(btn.label.key);
+      for (const action of walkActions(btn.steps)) {
+        if (action.type === "send_message") keys.add(action.text.key);
+      }
     }
   }
   return keys;
@@ -245,6 +321,10 @@ export function transform(pack: Pack): Record<string, string> {
     );
   }
 
+  for (const dialog of pack.dialogs) {
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog), yamlOpts);
+  }
+
   const langs = listLanguages(pack);
   const referencedKeys = collectReferencedKeys(pack);
   for (const lang of langs) {
@@ -260,6 +340,7 @@ export function transform(pack: Pack): Record<string, string> {
       files: {
         menus: pack.menus.map((m) => m.id),
         commands: pack.commands.map((c) => c.id),
+        dialogs: pack.dialogs.map((d) => d.id),
       },
     },
     yamlOpts,
