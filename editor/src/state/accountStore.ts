@@ -759,7 +759,12 @@ export const useAccountStore = create<AccountState>()(
       account: { id: "" as Account["id"], packs: [], packOrder: [] },
       setAccount: (account) => {
         clearTemporal();
-        set({ account });
+        set({
+          account: {
+            ...account,
+            packs: account.packs.map((p) => ({ ...p, dialogs: p.dialogs ?? [] })),
+          },
+        });
       },
       createPack: ({ id: rawId }) => {
           const id = rawId as PackId;

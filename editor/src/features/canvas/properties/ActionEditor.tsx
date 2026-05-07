@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import type { Action, ElementId, MenuId, PackId } from "@/domain/types";
+import type { Action, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { itemTextureUrl } from "@/features/canvas/itemTextures";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -117,6 +117,10 @@ export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
     case "set_arg_cycle_next":
     case "set_arg_cycle_prev":
       return <SetArgCycleEditor action={action} onChange={onChange} />;
+    case "open_dialog":
+      return <OpenDialogEditor packId={packId} action={action} onChange={onChange} />;
+    case "close_dialog":
+      return <div className="text-[11px] text-zinc-500">Ferme le dialogue actuel.</div>;
   }
 }
 
@@ -211,6 +215,50 @@ function OpenMenuEditor({
           onChange={(e) => onChange({ ...action, clearContext: e.target.checked || undefined })}
         />
         {t("actionEditor.clearContext")}
+      </label>
+    </div>
+  );
+}
+
+function OpenDialogEditor({
+  packId,
+  action,
+  onChange,
+}: {
+  packId: PackId;
+  action: Extract<Action, { type: "open_dialog" }>;
+  onChange: (a: Action) => void;
+}) {
+  const dialogs = useAccountStore((s) => s.account.packs.find((p) => p.id === packId)?.dialogs ?? []);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <FieldLabel>Dialogue cible</FieldLabel>
+        <select
+          value={action.dialogId}
+          onChange={(e) => onChange({ ...action, dialogId: e.target.value as DialogId })}
+          className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200"
+        >
+          {dialogs.some((d) => d.id === action.dialogId) ? null : (
+            <option value={action.dialogId}>
+              {action.dialogId || "— choisir —"}
+            </option>
+          )}
+          {dialogs.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.id}
+            </option>
+          ))}
+        </select>
+      </div>
+      <label className="flex items-center gap-2 text-[11px] text-zinc-300">
+        <input
+          type="checkbox"
+          checked={Boolean(action.clearContext)}
+          onChange={(e) => onChange({ ...action, clearContext: e.target.checked || undefined })}
+        />
+        Réinitialiser le contexte
       </label>
     </div>
   );
