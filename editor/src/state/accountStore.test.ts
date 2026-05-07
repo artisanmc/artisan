@@ -814,7 +814,7 @@ describe("accountStore", () => {
       position: 13,
       material: "EMERALD",
     });
-    useAccountStore.getState().createPack({ name: "Fresh" });
+    useAccountStore.getState().createPack({ id: "fresh_pack" });
     // pastStates should be empty after createPack clears the stack
     expect(useAccountStore.temporal.getState().pastStates.length).toBe(0);
   });
