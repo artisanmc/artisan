@@ -118,12 +118,14 @@ object DialogRenderer {
             DialogType.multiAction(buttons).build() as DialogType
         }
 
-        @Suppress("UNCHECKED_CAST")
-        val paperDialog = Dialog.create { factory ->
+        val paperDialog = runCatching {
             @Suppress("UNCHECKED_CAST")
-            val builder = (factory as RegistryBuilderFactory<Dialog, DialogRegistryEntry.Builder>).empty()
-            builder.base(base).type(type)
-        }
+            Dialog.create { factory ->
+                @Suppress("UNCHECKED_CAST")
+                val builder = (factory as RegistryBuilderFactory<Dialog, DialogRegistryEntry.Builder>).empty()
+                builder.base(base).type(type)
+            }
+        }.getOrNull() ?: return
         player.showDialog(paperDialog)
     }
 
@@ -132,8 +134,12 @@ object DialogRenderer {
             "text"          -> view.getText(id) ?: inputYaml.default
             "bool"          -> view.getBoolean(id)?.toString() ?: inputYaml.default
             "number_range"  -> {
-                val f = view.getFloat(id)?.toDouble() ?: (inputYaml.default.toDoubleOrNull() ?: inputYaml.min)
-                if (f == f.toLong().toDouble()) f.toLong().toString() else f.toString()
+                val f = view.getFloat(id)
+                if (f != null) {
+                    if (f == f.toLong().toFloat()) f.toLong().toString() else f.toString()
+                } else {
+                    inputYaml.default.ifEmpty { inputYaml.min.toString() }
+                }
             }
             "single_option" -> view.getText(id) ?: inputYaml.default
             else            -> ""
