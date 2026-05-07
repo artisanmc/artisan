@@ -53,7 +53,6 @@ import {
 } from "@/lib/positions";
 import { inferFieldTypeFromValue } from "@/features/data/helpers";
 import { parse as parseYaml } from "yaml";
-import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { temporal } from "zundo";
 import { create } from "zustand";
@@ -64,7 +63,7 @@ type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 interface AccountState {
   account: Account;
   setAccount: (account: Account) => void;
-  createPack: (input: { name: string; description?: string }) => void;
+  createPack: (input: { id: string }) => PackId;
   /**
    * Import a pack object as a *new* pack: assigns a fresh PackId, marks
    * source=imported, retags every contained menu/command with the new
@@ -80,7 +79,7 @@ interface AccountState {
    */
   createMenu: (input: {
     packId: PackId;
-    title?: string;
+    id: string;
     rows?: MenuRows;
     position?: { x: number; y: number };
   }) => MenuId;
@@ -605,6 +604,23 @@ function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
 }
 
+function nextElementIdForMaterial(pack: Pack, material: string | undefined): ElementId {
+  const base = (material ?? "button").toLowerCase();
+  const prefix = `${base}_`;
+  let max = 0;
+  for (const menu of pack.menus) {
+    for (const layer of menu.layers) {
+      for (const el of layer.elements) {
+        if (el.id.startsWith(prefix)) {
+          const n = parseInt(el.id.slice(prefix.length), 10);
+          if (Number.isFinite(n) && n > max) max = n;
+        }
+      }
+    }
+  }
+  return `${base}_${max + 1}` as ElementId;
+}
+
 function nextAvailableName(existing: DataSource[], base: string): string {
   if (!existing.some((d) => d.name === base)) return base;
   for (let n = 2; n < 1000; n++) {
@@ -644,19 +660,18 @@ const clearTemporal = () => useAccountStore.temporal.getState().clear();
 export const useAccountStore = create<AccountState>()(
   temporal(
     (set, get) => ({
-      account: mockAccount(),
+      account: { id: "" as Account["id"], packs: [], packOrder: [] },
       setAccount: (account) => {
         clearTemporal();
         set({ account });
       },
-      createPack: ({ name, description }) => {
+      createPack: ({ id: rawId }) => {
+          const id = rawId as PackId;
           set(
             produce((draft: AccountState) => {
-              const id = newPackId();
               draft.account.packs.push({
                 id,
-                name,
-                description,
+                name: rawId,
                 source: "user_created",
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -665,6 +680,7 @@ export const useAccountStore = create<AccountState>()(
                 templates: [],
                 assets: [],
                 dataSources: [],
+                dialogs: [],
                 importedConnectors: [],
                 i18nKeys: {},
                 defaultLang: "en",
@@ -674,6 +690,7 @@ export const useAccountStore = create<AccountState>()(
             }),
           );
           clearTemporal();
+          return id;
         },
         importPack: ({ pack: incoming }) => {
           // Light shape check — the input came from a user-supplied file so
@@ -725,13 +742,13 @@ export const useAccountStore = create<AccountState>()(
             }),
           );
         },
-        createMenu: ({ packId: pId, title, rows, position }) => {
-          const id = newMenuId();
+        createMenu: ({ packId: pId, id: rawId, rows, position }) => {
+          const id = rawId as MenuId;
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
               if (!pack) return;
-              const titleLText = createLTextAt(pack, menuTitleKey(id), title ?? "Untitled menu", pack.defaultLang);
+              const titleLText = createLTextAt(pack, menuTitleKey(id), rawId, pack.defaultLang);
               pack.menus.push({
                 id,
                 packId: pId,
@@ -1141,7 +1158,7 @@ export const useAccountStore = create<AccountState>()(
                 menu.layers.push(firstLayer);
               }
               firstLayer.elements.push({
-                id: newElementId(),
+                id: nextElementIdForMaterial(pack, material),
                 positions: String(position),
                 appearances: [{ material }],
               });
@@ -1950,7 +1967,42 @@ export const useAccountStore = create<AccountState>()(
                 firstLayer = { id: newLayerId(), name: "default", elements: [] };
                 menu.layers.push(firstLayer);
               }
-              firstLayer.elements.push({ ...element, positions: formatPositions(newPositions) });
+              // Clone LText keys so the added element never shares keys with its source.
+              // Without this, rekeyMenuLTexts at deploy time would delete the shared key,
+              // breaking the original element's translations.
+              const elementToAdd: Element = {
+                ...element,
+                positions: formatPositions(newPositions),
+                appearances: element.appearances.map((a) => {
+                  const cloned = { ...a };
+                  if (a.title) {
+                    const src = pack.i18nKeys[a.title.key];
+                    cloned.title = createLText(pack, "", pack.defaultLang);
+                    if (src) pack.i18nKeys[cloned.title.key] = { ...src };
+                  }
+                  if (a.lore) {
+                    const src = pack.i18nKeys[a.lore.key];
+                    cloned.lore = createLText(pack, "", pack.defaultLang);
+                    if (src) pack.i18nKeys[cloned.lore.key] = { ...src };
+                  }
+                  if (a.click) {
+                    const click = { ...a.click };
+                    for (const handler of Object.values(click)) {
+                      if (!handler) continue;
+                      for (const action of walkActions(handler.steps)) {
+                        if (action.type === "send_message") {
+                          const src = pack.i18nKeys[action.text.key];
+                          action.text = createLText(pack, "", pack.defaultLang);
+                          if (src) pack.i18nKeys[action.text.key] = { ...src };
+                        }
+                      }
+                    }
+                    cloned.click = click;
+                  }
+                  return cloned;
+                }),
+              };
+              firstLayer.elements.push(elementToAdd);
               pack.updatedAt = new Date().toISOString();
             }),
           ),
