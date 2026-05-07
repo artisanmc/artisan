@@ -9,15 +9,6 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 
-// Extension: closeDialog for Player (Paper 1.21.7+)
-fun Player.closeDialog() {
-    try {
-        this::class.java.getMethod("closeDialog").invoke(this)
-    } catch (e: Exception) {
-        // Method doesn't exist in this Paper version
-    }
-}
-
 class ActionExecutor(
     private val plugin: JavaPlugin,
     private val menuProvider: MenuProvider,
@@ -86,7 +77,7 @@ class ActionExecutor(
                     ctx.args + action.context.mapValues { it.value as Any }
                 menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(args = newArgs))
             }
-            is Action.CloseDialog -> runCatching<Unit> { player.closeDialog() }
+            is Action.CloseDialog -> runCatching { player.javaClass.getMethod("closeDialog").invoke(player) }
             is Action.GiveItem  -> {
                 val material = Material.matchMaterial(action.material) ?: return
                 val item = ItemStack(material, action.count)
