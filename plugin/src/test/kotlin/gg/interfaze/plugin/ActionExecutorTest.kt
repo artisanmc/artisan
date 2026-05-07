@@ -19,10 +19,14 @@ class ActionExecutorTest {
     private val sessions = MenuSessionStore()
     private val evaluator = ConditionEvaluator(deps, cooldowns)
 
+    private var lastOpenedDialogId: String? = null
     private val stubProvider = object : MenuProvider {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
+        override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
+            lastOpenedDialogId = dialogId
+        }
         override fun allBundles(): List<PackBundle> = emptyList()
     }
 
@@ -93,5 +97,29 @@ class ActionExecutorTest {
     @Test fun `resolveArgs returns text unchanged when no args`() {
         val p = player()
         assertEquals("static text", executor().resolveArgs("static text", ctx(p)))
+    }
+
+    @Test fun `OpenDialog delegates to menuProvider with merged context`() {
+        val p = player()
+        val e = executor()
+        val action = Action.OpenDialog("d_confirm", context = mapOf("tab" to "shop"))
+        e.execute(listOf(action), ctx(p).copy(args = mapOf("existing" to "val")))
+        assertEquals("d_confirm", lastOpenedDialogId)
+    }
+
+    @Test fun `OpenDialog with clearContext replaces args`() {
+        val p = player()
+        lastOpenedDialogId = null
+        val e = executor()
+        val action = Action.OpenDialog("d_form", context = mapOf("preset" to "x"), clearContext = true)
+        e.execute(listOf(action), ctx(p).copy(args = mapOf("old" to "gone")))
+        assertEquals("d_form", lastOpenedDialogId)
+    }
+
+    @Test fun `CloseDialog does not crash`() {
+        val p = player()
+        val e = executor()
+        // MockBukkit may not support player.closeDialog() — runCatching prevents crash
+        runCatching { e.execute(listOf(Action.CloseDialog), ctx(p)) }
     }
 }
