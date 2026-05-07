@@ -1,9 +1,7 @@
 import {
   newAssetId,
   newCommandId,
-  newElementId,
   newLayerId,
-  newMenuId,
   newPackId,
 } from "@/domain/ids";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
