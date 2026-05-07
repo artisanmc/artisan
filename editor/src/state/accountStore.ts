@@ -126,7 +126,7 @@ interface AccountState {
   removeDialogButtonIfCase: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number }) => void;
   setDialogButtonIfCaseConditions: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; conditions: Condition[]; op?: "and" | "or" }) => void;
   setDialogButtonIfCaseJoin: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; joinIndex: number; op: "and" | "or" }) => void;
-  toggleDialogButtonIfElse: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; lang: string }) => void;
+  toggleDialogButtonIfElse: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; lang: string; enabled: boolean }) => void;
   removePack: (packId: PackId) => void;
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
@@ -1274,7 +1274,7 @@ export const useAccountStore = create<AccountState>()(
               touch(draft, pId);
             }),
           ),
-        toggleDialogButtonIfElse: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex, lang: _lang }) =>
+        toggleDialogButtonIfElse: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex, lang: _lang, enabled }) =>
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -1284,11 +1284,13 @@ export const useAccountStore = create<AccountState>()(
               const parent = resolveParentMut(btn.steps, frames);
               const ifStep = parent?.[ifStepIndex];
               if (!ifStep || ifStep.kind !== "if") return;
-              if (ifStep.else) {
-                gcStepLTexts(pack, ifStep.else);
-                ifStep.else = undefined;
+              if (enabled) {
+                if (!ifStep.else) ifStep.else = [];
               } else {
-                ifStep.else = [];
+                if (ifStep.else) {
+                  gcStepLTexts(pack, ifStep.else);
+                  ifStep.else = undefined;
+                }
               }
               touch(draft, pId);
             }),
