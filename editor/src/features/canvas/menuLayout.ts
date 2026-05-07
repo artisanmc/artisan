@@ -43,6 +43,7 @@ export const TEX_BOTTOM_H = MC_BOTTOM_H * TEX_SCALE;
 export const COLS = 9;
 
 export const COMMAND_BOX = { width: 140, height: 48 };
+export const DIALOG_BOX = { width: 140, height: 60 };
 
 export const menuBoxSize = (rows: number) => ({
   width: TEX_W,
