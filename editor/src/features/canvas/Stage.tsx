@@ -1,4 +1,7 @@
 import type { MenuId, PackId } from "@/domain/types";
+import { NewMenuDialog } from "./NewMenuDialog";
+import { NewDialogDialog } from "./NewDialogDialog";
+import { DialogGroup } from "./DialogGroup";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -110,6 +113,9 @@ export function Stage({ packId }: StageProps) {
     },
     [pack, layout, viewport, packId],
   );
+
+  const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [pendingDialogPos, setPendingDialogPos] = useState<{ x: number; y: number } | null>(null);
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
     open: false,
@@ -356,6 +362,14 @@ export function Stage({ packId }: StageProps) {
               position={layout[command.id] ?? { x: 0, y: 0 }}
             />
           ))}
+          {pack.dialogs.map((dialog) => (
+            <DialogGroup
+              key={dialog.id}
+              packId={packId}
+              dialog={dialog}
+              position={(layout as Record<string, { x: number; y: number }>)[dialog.id] ?? { x: 0, y: 0 }}
+            />
+          ))}
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
@@ -405,15 +419,30 @@ export function Stage({ packId }: StageProps) {
           closeCtx();
         }}
         onCreateMenuAt={(world) => {
-          const id = useAccountStore.getState().createMenu({ packId, position: world });
-          useSelectionStore.getState().set([id]);
           closeCtx();
+          setPendingMenuPos(world);
         }}
         onCreateCommandAt={(world) => {
           const id = useAccountStore.getState().createCommand({ packId, position: world });
           useSelectionStore.getState().set([id]);
           closeCtx();
         }}
+        onCreateDialogAt={(world) => {
+          closeCtx();
+          setPendingDialogPos(world);
+        }}
+      />
+      <NewMenuDialog
+        packId={packId}
+        open={pendingMenuPos !== null}
+        position={pendingMenuPos ?? undefined}
+        onOpenChange={(o) => { if (!o) setPendingMenuPos(null); }}
+      />
+      <NewDialogDialog
+        packId={packId}
+        open={pendingDialogPos !== null}
+        position={pendingDialogPos ?? undefined}
+        onOpenChange={(o) => { if (!o) setPendingDialogPos(null); }}
       />
     </div>
   );

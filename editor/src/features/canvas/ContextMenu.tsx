@@ -36,6 +36,7 @@ interface ContextMenuProps {
   onMoveTo: (toPackId: PackId) => void;
   onCreateMenuAt: (world: { x: number; y: number }) => void;
   onCreateCommandAt: (world: { x: number; y: number }) => void;
+  onCreateDialogAt: (world: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({
@@ -49,6 +50,7 @@ export function ContextMenu({
   onMoveTo,
   onCreateMenuAt,
   onCreateCommandAt,
+  onCreateDialogAt,
 }: ContextMenuProps) {
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
   const packs = useAccountStore((s) => s.account.packs);
@@ -82,6 +84,13 @@ export function ContextMenu({
               }}
             >
               New command here
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                if (state.target.kind === "empty") onCreateDialogAt(state.target.world);
+              }}
+            >
+              New dialog here
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onPaste}>
