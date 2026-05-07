@@ -5,7 +5,7 @@ import type Konva from "konva";
 import { useMemo } from "react";
 import { Line } from "react-konva";
 import { deriveEdges } from "./deriveEdges";
-import { COMMAND_BOX, menuBoxSize } from "./menuLayout";
+import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
 
 interface EdgesProps {
   pack: Pack;
@@ -15,13 +15,18 @@ interface EdgesProps {
 function boxFor(pack: Pack, id: string) {
   const menu = pack.menus.find((m) => m.id === id);
   if (menu) return menuBoxSize(menu.rows);
+  if ((pack.dialogs ?? []).some((d) => d.id === id)) return DIALOG_BOX;
   return COMMAND_BOX;
 }
 
 function deriveHighlightSet(pack: Pack, ids: ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
-    if (pack.menus.some((m) => m.id === id) || pack.commands.some((c) => c.id === id)) {
+    if (
+      pack.menus.some((m) => m.id === id) ||
+      pack.commands.some((c) => c.id === id) ||
+      (pack.dialogs ?? []).some((d) => d.id === id)
+    ) {
       out.add(id);
       continue;
     }

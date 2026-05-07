@@ -3,7 +3,8 @@ import type { Pack } from "@/domain/types";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
-  | { kind: "command"; commandId: string };
+  | { kind: "command"; commandId: string }
+  | { kind: "dialog_button"; dialogId: string; buttonId: string };
 
 export interface Edge {
   id: string;
@@ -21,7 +22,9 @@ export function deriveEdges(pack: Pack): Edge[] {
     const triggerKey =
       trigger.kind === "element"
         ? `el:${trigger.elementId}:${trigger.clickType}`
-        : `cmd:${trigger.commandId}`;
+        : trigger.kind === "dialog_button"
+          ? `dlg:${trigger.dialogId}:${trigger.buttonId}`
+          : `cmd:${trigger.commandId}`;
 
     let edge = edgeMap.get(id);
     if (!edge) {
@@ -52,6 +55,13 @@ export function deriveEdges(pack: Pack): Edge[] {
                   material,
                   clickType,
                 });
+              } else if (action.type === "open_dialog") {
+                addTrigger(menu.id, action.dialogId, {
+                  kind: "element",
+                  elementId: el.id,
+                  material,
+                  clickType,
+                });
               }
             }
           }
@@ -64,6 +74,28 @@ export function deriveEdges(pack: Pack): Edge[] {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "open_menu") {
         addTrigger(cmd.id, action.menuId, { kind: "command", commandId: cmd.id });
+      } else if (action.type === "open_dialog") {
+        addTrigger(cmd.id, action.dialogId, { kind: "command", commandId: cmd.id });
+      }
+    }
+  }
+
+  for (const dialog of pack.dialogs ?? []) {
+    for (const btn of dialog.buttons) {
+      for (const action of walkActions(btn.steps)) {
+        if (action.type === "open_menu") {
+          addTrigger(dialog.id, action.menuId, {
+            kind: "dialog_button",
+            dialogId: dialog.id,
+            buttonId: btn.id,
+          });
+        } else if (action.type === "open_dialog") {
+          addTrigger(dialog.id, action.dialogId, {
+            kind: "dialog_button",
+            dialogId: dialog.id,
+            buttonId: btn.id,
+          });
+        }
       }
     }
   }
