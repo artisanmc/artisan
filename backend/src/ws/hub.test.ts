@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { app } from "../app";
-import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate } from "./hub";
+import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion } from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
@@ -152,5 +152,28 @@ describe("broadcastDraftUpdate", () => {
     const msg = JSON.parse(receivedByB[0]) as { type: string; menu_id: string };
     expect(msg.type).toBe("draft_update");
     expect(msg.menu_id).toBe("shop_main");
+  });
+});
+
+describe("getMcVersion", () => {
+  test("hello stores minecraft_version, getMcVersion returns it", async () => {
+    const createRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "mc-version-test" }),
+    });
+    const { key } = (await createRes.json()) as { key: string };
+
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.99",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("conn-mcver", JSON.stringify(hello));
+    expect(result.reply).not.toBeNull();
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(getMcVersion(ack.server_id)).toBe("1.21.99");
   });
 });
