@@ -112,13 +112,14 @@ object DialogRenderer {
             .inputs(inputList)
             .build()
 
-        val type: DialogType = if (buttons.size == 1) {
-            DialogType.notice(buttons[0]) as DialogType
-        } else {
-            DialogType.multiAction(buttons).build() as DialogType
-        }
+        if (buttons.isEmpty()) return
 
         val paperDialog = runCatching {
+            val type: DialogType = if (buttons.size == 1) {
+                DialogType.notice(buttons[0]) as DialogType
+            } else {
+                DialogType.multiAction(buttons).build() as DialogType
+            }
             @Suppress("UNCHECKED_CAST")
             Dialog.create { factory ->
                 @Suppress("UNCHECKED_CAST")
