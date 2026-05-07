@@ -306,4 +306,26 @@ describe("transform — dialogs", () => {
     const yaml = files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("close_dialog");
   });
+
+  it("open_dialog action uses snake_case dialog_id", () => {
+    const packWithDialog = (dialog: Dialog) => makePack({ dialogs: [dialog] });
+    const pid = packId;
+    const dialog: Dialog = {
+      id: dialogId("d_test"),
+      packId: pid("p_test"),
+      title: { key: "dialogs.d_test.title" as I18nKey },
+      canCloseWithEscape: true,
+      body: [],
+      inputs: [],
+      buttons: [{
+        id: "btn_open",
+        label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey },
+        steps: [{ kind: "action", action: { type: "open_dialog", dialogId: dialogId("d_other") } }],
+      }],
+    };
+    const files = transform(packWithDialog(dialog));
+    const yaml = files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]!;
+    expect(yaml).toContain("dialog_id: d_other");
+    expect(yaml).not.toContain("dialogId");
+  });
 });

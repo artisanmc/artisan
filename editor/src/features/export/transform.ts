@@ -60,6 +60,14 @@ function serializeAction(action: Action): unknown {
       return { type: "set_arg_cycle_next", arg: action.arg, list: action.list };
     case "set_arg_cycle_prev":
       return { type: "set_arg_cycle_prev", arg: action.arg, list: action.list };
+    case "open_dialog": {
+      const out: Record<string, unknown> = { type: "open_dialog", dialog_id: action.dialogId };
+      if (action.clearContext) out.clear_context = true;
+      if (action.context && Object.keys(action.context).length > 0) out.context = action.context;
+      return out;
+    }
+    case "close_dialog":
+      return { type: "close_dialog" };
     default:
       return action;
   }
