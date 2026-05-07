@@ -4,6 +4,7 @@ export const serverKeys = pgTable("server_keys", {
   id: text("id").primaryKey(),
   hash: text("hash").notNull(),
   label: text("label"),
+  lastMcVersion: text("last_mc_version"),
   createdAt: timestamp("created_at").notNull(),
 });
 

@@ -155,7 +155,7 @@ router.get("/:token/items", async (c) => {
   const session = await validateEditorToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
-  const version = getMcVersion(session.serverKeyId);
+  const version = await getMcVersion(session.serverKeyId);
   if (!version) return c.json({ error: "server_offline" }, 503);
 
   const dataPath = join(import.meta.dir, "../../data/items", `${version}.json`);
