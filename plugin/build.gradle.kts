@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("jvm") version "2.0.21"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("io.github.goooler.shadow") version "8.1.8"
 }
 
 group = "gg.interfaze"
@@ -23,10 +23,19 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://jitpack.io")
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
+    maven("https://maven.enginehub.org/repo/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
+    compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
+        exclude("com.google.guava", "guava")
+        exclude("com.google.code.gson", "gson")
+        exclude("it.unimi.dsi", "fastutil")
+    }
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -44,3 +53,14 @@ tasks.shadowJar {
     relocate("okhttp3", "gg.interfaze.shaded.okhttp3")
     relocate("okio", "gg.interfaze.shaded.okio")
 }
+
+val deployPlugin by tasks.registering(Copy::class) {
+    dependsOn(tasks.shadowJar)
+    val dest = rootDir.resolve("../docker/server/plugins")
+    onlyIf { dest.exists() }
+    from(tasks.shadowJar.get().archiveFile)
+    into(dest)
+    rename { "InterfazePlugin.jar" }
+}
+
+tasks.shadowJar { finalizedBy(deployPlugin) }
