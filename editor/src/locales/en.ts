@@ -392,6 +392,8 @@ export default {
   },
   canvas: {
     newDialogHere: "New dialog here",
+    newMenuHere: "New menu here",
+    newCommandHere: "New command here",
   },
   dialog: {
     idLabel: "id",
