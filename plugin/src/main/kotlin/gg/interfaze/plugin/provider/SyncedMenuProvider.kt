@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import gg.interfaze.plugin.engine.ExecutionContext
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
+import gg.interfaze.plugin.model.PackBundle
 import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
@@ -46,7 +48,7 @@ class SyncedMenuProvider(
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
-    @Volatile private var bundleDownloadInFlight = false
+    private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
 
     override fun load() {
@@ -83,14 +85,14 @@ class SyncedMenuProvider(
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
+    override fun listMenuIds(): List<String> = (menus.keys + draftMenus.keys).distinct().sorted()
 
-    override fun openMenu(player: Player, menuId: String, lang: String) {
-        val menu = findMenu(menuId) ?: run {
-            player.sendMessage("Menu '$menuId' not found.")
-            return
-        }
+    override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+        val menu = findMenu(menuId) ?: run { player.sendMessage("Menu '$menuId' not found."); return }
         MenuRenderer.open(player, menu, lang)
     }
+
+    override fun allBundles(): List<PackBundle> = emptyList()
 
     private fun reloadFromDisk() {
         val fresh = ConcurrentHashMap<String, BundleMenu>()
@@ -141,10 +143,9 @@ class SyncedMenuProvider(
             }
 
             "bundle_available" -> {
-                if (bundleDownloadInFlight) return
-                bundleDownloadInFlight = true
-                val packId = node["pack_id"]?.asText() ?: run { bundleDownloadInFlight = false; return }
-                val url    = node["url"]?.asText()     ?: run { bundleDownloadInFlight = false; return }
+                val packId = node["pack_id"]?.asText() ?: return
+                val url    = node["url"]?.asText()     ?: return
+                if (downloadsInFlight.putIfAbsent(packId, true) != null) return
                 try {
                     httpClient.dispatcher.executorService.execute {
                         try {
@@ -153,11 +154,11 @@ class SyncedMenuProvider(
                             reloadFromDisk()
                             draftMenus.clear()
                         } finally {
-                            bundleDownloadInFlight = false
+                            downloadsInFlight.remove(packId)
                         }
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
-                    bundleDownloadInFlight = false
+                    downloadsInFlight.remove(packId)
                     logger?.warning("Bundle download rejected — plugin is stopping")
                 }
             }
