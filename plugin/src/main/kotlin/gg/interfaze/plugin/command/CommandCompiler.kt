@@ -8,7 +8,7 @@ object CommandCompiler {
 
     fun compile(yaml: CommandYaml, logger: Logger? = null): CompiledCommand? = runCatching {
         val requirements = yaml.requirements.map { ConditionParser.parse(it) }
-        val actions      = yaml.actions.map { ActionParser.parse(it) }
+        val actions      = yaml.resolvedActions().map { ActionParser.parse(it) }
         val fallback     = yaml.fallback.map { ActionParser.parse(it) }
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }
         val argDefs      = ArgDefParser.parseAll(yaml.arguments)
