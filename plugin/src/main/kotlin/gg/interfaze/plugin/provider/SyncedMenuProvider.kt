@@ -46,6 +46,7 @@ class SyncedMenuProvider(
     private val logger: Logger?,
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
+    private val onReload: (() -> Unit)? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -162,6 +163,7 @@ class SyncedMenuProvider(
                             downloader.download(url = url, serverKey = serverKey, packId = packId)
                             reloadFromDisk()
                             draftMenus.clear()
+                            onReload?.invoke()
                         } finally {
                             downloadsInFlight.remove(packId)
                         }

@@ -4,6 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import gg.interfaze.plugin.engine.CompiledAppearance
 
+@Suppress("UNCHECKED_CAST")
+internal fun extractFromSteps(steps: List<Map<String, Any>>): List<Map<String, Any>> =
+    steps.mapNotNull { step ->
+        if (step["kind"] == "action") step["action"] as? Map<String, Any> else null
+    }
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",
@@ -60,7 +66,11 @@ data class ClickHandlerYaml(
     val actions:      List<Map<String, Any>> = emptyList(),
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-)
+    val steps:        List<Map<String, Any>> = emptyList(),
+) {
+    fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
+    fun resolvedFallback(): List<Map<String, Any>> = fallback.ifEmpty { emptyList() }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class CooldownYaml(
@@ -83,7 +93,10 @@ data class CommandYaml(
     val actions:      List<Map<String, Any>> = emptyList(),
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
-)
+    val steps:        List<Map<String, Any>> = emptyList(),
+) {
+    fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
+}
 
 /** Assembled result for one pack — all menus plus their lang maps. */
 data class PackBundle(
