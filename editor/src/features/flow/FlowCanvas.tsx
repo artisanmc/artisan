@@ -4,6 +4,9 @@ import type {
   Command,
   CommandArg,
   CommandId,
+  Dialog,
+  DialogId,
+  DialogInput,
   Element,
   ElementId,
   Menu,
@@ -42,7 +45,11 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CommandStepPseudocode, ElementClickHandlersPseudocode } from "./PseudocodeView";
+import {
+  CommandStepPseudocode,
+  DialogButtonStepPseudocode,
+  ElementClickHandlersPseudocode,
+} from "./PseudocodeView";
 
 interface FlowCanvasProps {
   packId: PackId;
@@ -88,6 +95,9 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   const id = [...ids][0]!;
   const command = pack.commands.find((c) => c.id === id);
   if (command) return <CommandEditor packId={packId} command={command} />;
+
+  const dialog = pack.dialogs.find((d) => d.id === id);
+  if (dialog) return <DialogEditor packId={packId} dialog={dialog} />;
 
   for (const menu of pack.menus) {
     for (const layer of menu.layers) {
@@ -1285,6 +1295,432 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
       >
         {t("command.addArg")}
       </button>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Dialog editor
+// ────────────────────────────────────────────────────────────────────────────
+
+function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogId }) {
+  const { t } = useTranslation();
+  const setDialogId = useAccountStore((s) => s.setDialogId);
+  const [draft, setDraft] = useState(dialogId as string);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setDraft(dialogId);
+    setError(null);
+  }, [dialogId]);
+
+  const commit = () => {
+    if (draft === dialogId) return;
+    try {
+      setDialogId({ packId, oldId: dialogId, newId: draft as DialogId });
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
+      setDraft(dialogId);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <FieldLabel>{t("flow.elementId")}</FieldLabel>
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(dialogId);
+            setError(null);
+            e.currentTarget.blur();
+          }
+        }}
+        className={
+          error
+            ? "h-8 border-red-500/60 px-2 py-0 font-mono text-xs"
+            : "h-8 px-2 py-0 font-mono text-xs"
+        }
+      />
+      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+    </div>
+  );
+}
+
+function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
+  const setDialogTitle = useAccountStore((s) => s.setDialogTitle);
+  const setDialogField = useAccountStore((s) => s.setDialogField);
+  const addDialogBody = useAccountStore((s) => s.addDialogBody);
+  const removeDialogBody = useAccountStore((s) => s.removeDialogBody);
+  const setDialogBodyText = useAccountStore((s) => s.setDialogBodyText);
+  const setDialogBodyMaterial = useAccountStore((s) => s.setDialogBodyMaterial);
+  const addDialogInput = useAccountStore((s) => s.addDialogInput);
+  const removeDialogInput = useAccountStore((s) => s.removeDialogInput);
+  const setDialogInput = useAccountStore((s) => s.setDialogInput);
+  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const addDialogButton = useAccountStore((s) => s.addDialogButton);
+  const removeDialogButton = useAccountStore((s) => s.removeDialogButton);
+  const setDialogButtonLabel = useAccountStore((s) => s.setDialogButtonLabel);
+  const activeLang = useUiStore((s) => s.activeLang);
+  const getText = useGetText(packId);
+
+  return (
+    <div className="flex h-full flex-col bg-zinc-950">
+      <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
+        <div className="font-mono text-xs text-violet-300">{dialog.id}</div>
+        <div className="text-[10px] text-zinc-500">
+          dialog · {dialog.buttons.length} button{dialog.buttons.length !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto px-3 py-3">
+        <Lane label="identity">
+          <DialogIdField packId={packId} dialogId={dialog.id} />
+          <PropertyField
+            label={`title (${activeLang})`}
+            value={getText(dialog.title)}
+            onChange={(v) =>
+              setDialogTitle({ packId, dialogId: dialog.id, lang: activeLang, value: v })
+            }
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+              <input
+                type="checkbox"
+                checked={dialog.canCloseWithEscape}
+                onChange={(e) =>
+                  setDialogField({
+                    packId,
+                    dialogId: dialog.id,
+                    field: "canCloseWithEscape",
+                    value: e.target.checked,
+                  })
+                }
+                className="h-3.5 w-3.5 accent-violet-500"
+              />
+              can close with Escape
+            </label>
+          </div>
+        </Lane>
+
+        <Lane label="body">
+          <div className="flex flex-col gap-2">
+            {dialog.body.map((body, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: body index stable per render
+                key={i}
+                className="flex items-start gap-1.5 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+              >
+                {body.type === "text" ? (
+                  <div className="flex-1">
+                    <FieldLabel>text ({activeLang})</FieldLabel>
+                    <Input
+                      value={getText(body.text)}
+                      placeholder="Dialog body text…"
+                      onChange={(e) =>
+                        setDialogBodyText({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          lang: activeLang,
+                          value: e.target.value,
+                        })
+                      }
+                      className="h-8 px-2 py-0 text-xs"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-1 items-center gap-2">
+                    <Input
+                      value={body.material}
+                      placeholder="DIAMOND"
+                      onChange={(e) =>
+                        setDialogBodyMaterial({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          material: e.target.value.toUpperCase(),
+                          count: body.count,
+                        })
+                      }
+                      className="h-8 flex-1 px-2 py-0 font-mono text-xs"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={64}
+                      value={body.count}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (!Number.isNaN(n) && n >= 1 && n <= 64) {
+                          setDialogBodyMaterial({
+                            packId,
+                            dialogId: dialog.id,
+                            index: i,
+                            material: body.material,
+                            count: n,
+                          });
+                        }
+                      }}
+                      className="h-8 w-16 px-2 py-0 text-xs"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeDialogBody({ packId, dialogId: dialog.id, index: i })}
+                  className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  addDialogBody({
+                    packId,
+                    dialogId: dialog.id,
+                    body: { type: "text", text: { key: "" as Dialog["title"]["key"] } },
+                  })
+                }
+                className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+              >
+                + text
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  addDialogBody({
+                    packId,
+                    dialogId: dialog.id,
+                    body: { type: "item", material: "DIAMOND", count: 1 },
+                  })
+                }
+                className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+              >
+                + item
+              </button>
+            </div>
+          </div>
+        </Lane>
+
+        <Lane label="inputs">
+          <div className="flex flex-col gap-2">
+            {dialog.inputs.map((input, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: input index stable per render
+                key={i}
+                className="flex flex-col gap-1.5 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">
+                    {input.type}
+                  </span>
+                  <Input
+                    value={input.id}
+                    placeholder="input_id"
+                    onChange={(e) =>
+                      setDialogInput({
+                        packId,
+                        dialogId: dialog.id,
+                        index: i,
+                        patch: { id: e.target.value } as Partial<DialogInput>,
+                      })
+                    }
+                    className="h-7 w-28 px-2 py-0 font-mono text-xs"
+                  />
+                  <Input
+                    value={getText(input.label)}
+                    placeholder="Label"
+                    onChange={(e) =>
+                      setI18nValue({
+                        packId,
+                        lt: input.label,
+                        lang: activeLang,
+                        value: e.target.value,
+                      })
+                    }
+                    className="h-7 flex-1 px-2 py-0 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeDialogInput({ packId, dialogId: dialog.id, index: i })
+                    }
+                    className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  >
+                    ×
+                  </button>
+                </div>
+                {input.type === "number_range" ? (
+                  <div className="flex items-center gap-2 pl-0.5">
+                    <span className="font-mono text-[10px] text-zinc-500">min</span>
+                    <Input
+                      type="number"
+                      value={input.min}
+                      onChange={(e) =>
+                        setDialogInput({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          patch: { min: Number(e.target.value) } as Partial<DialogInput>,
+                        })
+                      }
+                      className="h-7 w-20 px-2 py-0 text-xs"
+                    />
+                    <span className="font-mono text-[10px] text-zinc-500">max</span>
+                    <Input
+                      type="number"
+                      value={input.max}
+                      onChange={(e) =>
+                        setDialogInput({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          patch: { max: Number(e.target.value) } as Partial<DialogInput>,
+                        })
+                      }
+                      className="h-7 w-20 px-2 py-0 text-xs"
+                    />
+                    <span className="font-mono text-[10px] text-zinc-500">default</span>
+                    <Input
+                      type="number"
+                      value={input.default}
+                      onChange={(e) =>
+                        setDialogInput({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          patch: { default: Number(e.target.value) } as Partial<DialogInput>,
+                        })
+                      }
+                      className="h-7 w-20 px-2 py-0 text-xs"
+                    />
+                  </div>
+                ) : null}
+                {input.type === "text" ? (
+                  <div className="flex items-center gap-2 pl-0.5">
+                    <span className="font-mono text-[10px] text-zinc-500">max_length</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={256}
+                      value={input.maxLength}
+                      onChange={(e) =>
+                        setDialogInput({
+                          packId,
+                          dialogId: dialog.id,
+                          index: i,
+                          patch: { maxLength: Number(e.target.value) } as Partial<DialogInput>,
+                        })
+                      }
+                      className="h-7 w-20 px-2 py-0 text-xs"
+                    />
+                  </div>
+                ) : null}
+                {input.type === "bool" ? (
+                  <div className="flex items-center gap-2 pl-0.5">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
+                      <input
+                        type="checkbox"
+                        checked={input.default}
+                        onChange={(e) =>
+                          setDialogInput({
+                            packId,
+                            dialogId: dialog.id,
+                            index: i,
+                            patch: { default: e.target.checked } as Partial<DialogInput>,
+                          })
+                        }
+                        className="h-3.5 w-3.5 accent-violet-500"
+                      />
+                      default checked
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-1.5">
+              {(["text", "bool", "number_range", "single_option"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() =>
+                    addDialogInput({ packId, dialogId: dialog.id, inputType: type })
+                  }
+                  className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                >
+                  + {type}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Lane>
+
+        <Lane label="buttons">
+          <div className="flex flex-col gap-3">
+            {dialog.buttons.map((btn, btnIndex) => (
+              <div key={btn.id} className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
+                <div className="mb-2 flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] text-zinc-500">{btn.id}</span>
+                  <Input
+                    value={getText(btn.label)}
+                    placeholder="Button label"
+                    onChange={(e) =>
+                      setDialogButtonLabel({
+                        packId,
+                        dialogId: dialog.id,
+                        buttonIndex: btnIndex,
+                        lang: activeLang,
+                        value: e.target.value,
+                      })
+                    }
+                    className="h-7 flex-1 px-2 py-0 text-xs"
+                  />
+                  {dialog.buttons.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeDialogButton({
+                          packId,
+                          dialogId: dialog.id,
+                          buttonIndex: btnIndex,
+                        })
+                      }
+                      className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+                <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+                  <DialogButtonStepPseudocode
+                    packId={packId}
+                    dialogId={dialog.id}
+                    buttonIndex={btnIndex}
+                    steps={btn.steps}
+                    frames={[]}
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDialogButton({ packId, dialogId: dialog.id })}
+              className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            >
+              + button
+            </button>
+          </div>
+        </Lane>
+      </div>
     </div>
   );
 }

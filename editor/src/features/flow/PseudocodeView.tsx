@@ -11,6 +11,7 @@ import type {
   ClickType,
   CommandId,
   Condition,
+  DialogId,
   ElementId,
   IfCase,
   LText,
@@ -1051,4 +1052,239 @@ function summarizeConditions(
       return i === 0 ? conditionSummary(c) : ` ${op} ${conditionSummary(c)}`;
     })
     .join("");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Dialog button step pseudocode — mirrors CommandStepPseudocode but scoped
+// to a dialog button's `steps` (`pack.dialogs[d].buttons[b].steps`).
+// ────────────────────────────────────────────────────────────────────────────
+
+interface DialogButtonStepPseudocodeProps {
+  packId: PackId;
+  dialogId: DialogId;
+  buttonIndex: number;
+  steps: Step[];
+  frames: StepFrame[];
+}
+
+export function DialogButtonStepPseudocode({
+  packId,
+  dialogId,
+  buttonIndex,
+  steps,
+  frames,
+}: DialogButtonStepPseudocodeProps) {
+  return (
+    <div className="font-mono text-[12px]">
+      <DialogButtonStepTree
+        packId={packId}
+        dialogId={dialogId}
+        buttonIndex={buttonIndex}
+        steps={steps}
+        frames={frames}
+        indent={0}
+      />
+    </div>
+  );
+}
+
+function DialogButtonStepTree({
+  packId,
+  dialogId,
+  buttonIndex,
+  steps,
+  frames,
+  indent,
+}: {
+  packId: PackId;
+  dialogId: DialogId;
+  buttonIndex: number;
+  steps: Step[];
+  frames: StepFrame[];
+  indent: number;
+}) {
+  const addDialogButtonStep = useAccountStore((s) => s.addDialogButtonStep);
+  const moveDialogButtonStep = useAccountStore((s) => s.moveDialogButtonStep);
+  const firstMenuId = useAccountStore(
+    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
+  );
+  const activeLang = useUiStore((s) => s.activeLang);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const ids = useStepIds(steps);
+
+  const handleAdd = (newStep: Step) => {
+    addDialogButtonStep({
+      packId,
+      dialogId,
+      buttonIndex,
+      frames,
+      index: steps.length,
+      step: newStep,
+      lang: activeLang,
+    });
+  };
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const fromIndex = ids.indexOf(active.id as string);
+    const toIndex = ids.indexOf(over.id as string);
+    if (fromIndex < 0 || toIndex < 0) return;
+    moveDialogButtonStep({ packId, dialogId, buttonIndex, frames, fromIndex, toIndex });
+  };
+
+  return (
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col">
+          {steps.map((step, i) => (
+            <SortableStep
+              // biome-ignore lint/suspicious/noArrayIndexKey: stable per list per render
+              key={i}
+              id={ids[i]!}
+            >
+              <DialogButtonStepLine
+                step={step}
+                stepIndex={i}
+                packId={packId}
+                dialogId={dialogId}
+                buttonIndex={buttonIndex}
+                frames={frames}
+                indent={indent}
+              />
+            </SortableStep>
+          ))}
+          <AddStepLine indent={indent} firstMenuId={firstMenuId} onPick={handleAdd} />
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function DialogButtonStepLine({
+  step,
+  stepIndex,
+  packId,
+  dialogId,
+  buttonIndex,
+  frames,
+  indent,
+}: {
+  step: Step;
+  stepIndex: number;
+  packId: PackId;
+  dialogId: DialogId;
+  buttonIndex: number;
+  frames: StepFrame[];
+  indent: number;
+}) {
+  const setDialogButtonStep = useAccountStore((s) => s.setDialogButtonStep);
+  const removeDialogButtonStep = useAccountStore((s) => s.removeDialogButtonStep);
+  const addDialogButtonIfCase = useAccountStore((s) => s.addDialogButtonIfCase);
+  const removeDialogButtonIfCase = useAccountStore((s) => s.removeDialogButtonIfCase);
+  const setDialogButtonIfCaseConditions = useAccountStore(
+    (s) => s.setDialogButtonIfCaseConditions,
+  );
+  const setDialogButtonIfCaseJoin = useAccountStore((s) => s.setDialogButtonIfCaseJoin);
+  const toggleDialogButtonIfElse = useAccountStore((s) => s.toggleDialogButtonIfElse);
+  const activeLang = useUiStore((s) => s.activeLang);
+
+  const onRemove = () =>
+    removeDialogButtonStep({
+      packId,
+      dialogId,
+      buttonIndex,
+      path: { frames, index: stepIndex },
+    });
+
+  if (step.kind === "action") {
+    return (
+      <ActionLine
+        action={step.action}
+        indent={indent}
+        packId={packId}
+        onChange={(next) =>
+          setDialogButtonStep({
+            packId,
+            dialogId,
+            buttonIndex,
+            path: { frames, index: stepIndex },
+            step: { kind: "action", action: next },
+            lang: activeLang,
+          })
+        }
+        onRemove={onRemove}
+      />
+    );
+  }
+
+  return (
+    <IfBlock
+      step={step}
+      indent={indent}
+      onRemoveStep={onRemove}
+      renderCaseChildren={(caseSteps, descend, childIndent) => (
+        <DialogButtonStepTree
+          packId={packId}
+          dialogId={dialogId}
+          buttonIndex={buttonIndex}
+          steps={caseSteps}
+          frames={[...frames, { stepIndex, descend }]}
+          indent={childIndent}
+        />
+      )}
+      onAddCase={() =>
+        addDialogButtonIfCase({
+          packId,
+          dialogId,
+          buttonIndex,
+          frames,
+          ifStepIndex: stepIndex,
+        })
+      }
+      onRemoveCase={(caseIndex) =>
+        removeDialogButtonIfCase({
+          packId,
+          dialogId,
+          buttonIndex,
+          frames,
+          ifStepIndex: stepIndex,
+          caseIndex,
+        })
+      }
+      onSetCaseConditions={(caseIndex, conditions) =>
+        setDialogButtonIfCaseConditions({
+          packId,
+          dialogId,
+          buttonIndex,
+          frames,
+          ifStepIndex: stepIndex,
+          caseIndex,
+          conditions,
+        })
+      }
+      onSetCaseJoin={(caseIndex, joinIndex, op) =>
+        setDialogButtonIfCaseJoin({
+          packId,
+          dialogId,
+          buttonIndex,
+          frames,
+          ifStepIndex: stepIndex,
+          caseIndex,
+          joinIndex,
+          op,
+        })
+      }
+      onToggleElse={() =>
+        toggleDialogButtonIfElse({
+          packId,
+          dialogId,
+          buttonIndex,
+          frames,
+          ifStepIndex: stepIndex,
+          lang: activeLang,
+        })
+      }
+    />
+  );
 }
