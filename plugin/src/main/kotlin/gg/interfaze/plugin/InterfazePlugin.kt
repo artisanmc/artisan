@@ -32,13 +32,14 @@ open class InterfazePlugin : JavaPlugin() {
 
         commandRegistrar = CommandRegistrar(this)
         menuProvider = SyncedMenuProvider(
-            packsDir  = packsDir,
-            serverKey = cfg.serverKey,
-            wsUrl     = cfg.wsUrl,
-            logger    = logger,
-            evaluator = evaluator,
-            sessions  = sessions,
-            onReload  = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            packsDir         = packsDir,
+            serverKey        = cfg.serverKey,
+            wsUrl            = cfg.wsUrl,
+            logger           = logger,
+            evaluator        = evaluator,
+            sessions         = sessions,
+            onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            executorProvider = { executor },
         )
         menuProvider.load()
 
@@ -67,13 +68,14 @@ open class InterfazePlugin : JavaPlugin() {
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(
-            packsDir  = packsDir,
-            serverKey = cfg.serverKey,
-            wsUrl     = cfg.wsUrl,
-            logger    = logger,
-            evaluator = evaluator,
-            sessions  = sessions,
-            onReload  = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            packsDir         = packsDir,
+            serverKey        = cfg.serverKey,
+            wsUrl            = cfg.wsUrl,
+            logger           = logger,
+            evaluator        = evaluator,
+            sessions         = sessions,
+            onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            executorProvider = { executor },
         )
         menuProvider.load()
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
