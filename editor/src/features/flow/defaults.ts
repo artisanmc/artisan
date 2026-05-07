@@ -1,4 +1,4 @@
-import type { Action, I18nKey, MenuId } from "@/domain/types";
+import type { Action, DialogId, I18nKey, MenuId } from "@/domain/types";
 
 /**
  * Sensible-empty Action seed for "+ Add action" pickers. Open-menu picks
@@ -33,6 +33,10 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "set_arg_cycle_next", arg: "", list: "[]" };
     case "set_arg_cycle_prev":
       return { type: "set_arg_cycle_prev", arg: "", list: "[]" };
+    case "open_dialog":
+      return { type: "open_dialog", dialogId: "" as DialogId };
+    case "close_dialog":
+      return { type: "close_dialog" };
   }
 }
 
@@ -47,4 +51,6 @@ export const ACTION_TYPES: Action["type"][] = [
   "set_arg",
   "set_arg_cycle_next",
   "set_arg_cycle_prev",
+  "open_dialog",
+  "close_dialog",
 ];

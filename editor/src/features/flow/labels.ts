@@ -23,6 +23,10 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "next";
     case "set_arg_cycle_prev":
       return "prev";
+    case "open_dialog":
+      return "dialog";
+    case "close_dialog":
+      return "close_dlg";
   }
 }
 

@@ -30,6 +30,7 @@ const personalPack = (): Pack => {
     assets: [],
     templates: [],
     dataSources: [],
+    dialogs: [],
     importedConnectors: [],
     canvasLayout: {
       [shopMainId]: { x: 60, y: 80 },
@@ -125,6 +126,7 @@ const shopSystemPack = (): Pack => {
     assets: [],
     templates: [],
     dataSources: [],
+    dialogs: [],
     importedConnectors: [],
     canvasLayout: {},
     menus: [
@@ -184,6 +186,7 @@ const dailyQuestsPack = (): Pack => {
     assets: [],
     templates: [],
     dataSources: [],
+    dialogs: [],
     importedConnectors: [],
     canvasLayout: {},
     menus: [

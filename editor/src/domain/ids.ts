@@ -2,6 +2,7 @@ import type {
   AccountId,
   AssetId,
   CommandId,
+  DialogId,
   ElementId,
   LayerId,
   MenuId,
@@ -27,3 +28,5 @@ export const newElementId = () => elementId(`el_${next()}_${Date.now().toString(
 export const newLayerId = () => layerId(`l_${next()}_${Date.now().toString(36)}`);
 export const newCommandId = () => commandId(`c_${next()}_${Date.now().toString(36)}`);
 export const newAssetId = () => assetId(`a_${next()}_${Date.now().toString(36)}`);
+export const dialogId = (s: string): DialogId => s as DialogId;
+export const newDialogId = () => dialogId(`d_${next()}_${Date.now().toString(36)}`);

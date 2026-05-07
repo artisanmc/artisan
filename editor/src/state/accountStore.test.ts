@@ -20,16 +20,27 @@ describe("accountStore", () => {
     useAccountStore.setState({ account: mockAccount() });
   });
 
+  it("createDialog returns a DialogId and adds dialog to pack", () => {
+    const dId = useAccountStore.getState().createDialog({
+      packId: PERSONAL,
+      id: "d_test",
+    });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.dialogs).toHaveLength(1);
+    expect(pack.dialogs[0]!.id).toBe("d_test");
+    expect(typeof dId).toBe("string");
+  });
+
   it("starts with the seed account", () => {
     expect(useAccountStore.getState().account.packs).toHaveLength(3);
   });
 
   it("createPack appends to packs and packOrder", () => {
-    useAccountStore.getState().createPack({ name: "New Pack" });
+    useAccountStore.getState().createPack({ id: "new_pack" });
     const a = useAccountStore.getState().account;
     expect(a.packs).toHaveLength(4);
     expect(a.packOrder).toHaveLength(4);
-    expect(a.packs[3]!.name).toBe("New Pack");
+    expect(a.packs[3]!.name).toBe("new_pack");
   });
 
   it("reorderPacks rewrites packOrder", () => {
@@ -121,6 +132,20 @@ describe("accountStore", () => {
     const menu = pack.menus.find((m) => m.id === "m_about")!;
     const el = menu.layers[0]!.elements.find((e) => e.positions === "5");
     expect(el?.appearances[0]?.material).toBe("PAPER");
+  });
+
+  it("setSlotMaterial uses material-based IDs (paper_1, paper_2, …)", () => {
+    const pId = packId("p_personal");
+    const mId = menuId("m_about");
+    useAccountStore.getState().setSlotMaterial({ packId: pId, menuId: mId, position: 5, material: "PAPER" });
+    useAccountStore.getState().setSlotMaterial({ packId: pId, menuId: mId, position: 6, material: "PAPER" });
+    useAccountStore.getState().setSlotMaterial({ packId: pId, menuId: mId, position: 7, material: "DIRT" });
+    const menu = useAccountStore.getState().account.packs.find((p) => p.id === pId)!
+      .menus.find((m) => m.id === mId)!;
+    const ids = menu.layers[0]!.elements.map((e) => e.id);
+    expect(ids).toContain("paper_1");
+    expect(ids).toContain("paper_2");
+    expect(ids).toContain("dirt_1");
   });
 
   it("temporal.undo reverts a slot material change", () => {
@@ -278,6 +303,37 @@ describe("accountStore", () => {
     // The DIRT element lost its only position and was pruned.
     const dirt = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "DIRT");
     expect(dirt).toBeUndefined();
+  });
+
+  it("addElement clones i18n keys so original and duplicate are independent", () => {
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
+    const original = menu.layers[0]!.elements.find((el) => el.id === PROFILE_BTN)!;
+    const originalTitleKey = original.appearances[0]!.title?.key;
+    if (!originalTitleKey) throw new Error("fixture missing title");
+
+    // Simulate a clipboard paste: element with new ID but same LText key as the original.
+    useAccountStore.getState().addElement({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      element: {
+        id: elementId("el_pasted_clone"),
+        positions: "20",
+        appearances: [{ ...original.appearances[0]! }],
+      },
+    });
+
+    const state = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const stateMenu = state.menus.find((m) => m.id === SHOP_MAIN)!;
+    const pasted = stateMenu.layers[0]!.elements.find((el) => el.id === "el_pasted_clone")!;
+    const pastedTitleKey = pasted.appearances[0]!.title?.key;
+
+    // Pasted element must have a different key.
+    expect(pastedTitleKey).toBeDefined();
+    expect(pastedTitleKey).not.toBe(originalTitleKey);
+    // Both keys must exist in i18nKeys with the same value.
+    expect(state.i18nKeys[originalTitleKey as I18nKey]).toBeDefined();
+    expect(state.i18nKeys[pastedTitleKey as I18nKey]).toEqual(state.i18nKeys[originalTitleKey as I18nKey]);
   });
 
   it("moveSelectionByDelta shifts every selected element by (dCol, dRow)", () => {
@@ -812,18 +868,18 @@ describe("accountStore", () => {
     it("createMenu gives the title a semantic key", () => {
       const mId = useAccountStore.getState().createMenu({
         packId: PERSONAL,
-        title: "My Menu",
+        id: "my_menu",
       });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === mId)!;
       expect(menu.title?.key).toBe(`menus.${mId}.title`);
-      expect(pack.i18nKeys[`menus.${mId}.title` as I18nKey]).toEqual({ en: "My Menu" });
+      expect(pack.i18nKeys[`menus.${mId}.title` as I18nKey]).toEqual({ en: "my_menu" });
     });
 
     it("setMenuTitle lazy-allocates a semantic key on first write", () => {
       // Reset to a pack without a title on shop_main (mock fixture gives it one,
       // but we exercise the lazy-alloc path by using a freshly created menu).
-      const mId = useAccountStore.getState().createMenu({ packId: PERSONAL });
+      const mId = useAccountStore.getState().createMenu({ packId: PERSONAL, id: "lazy_test_menu" });
       // Fresh menu already has a title from createMenu; clear it to test lazy-alloc.
       useAccountStore.setState({
         account: {
