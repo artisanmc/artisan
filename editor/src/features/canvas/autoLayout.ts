@@ -6,7 +6,7 @@ export function autoLayout(pack: Pack): Record<string, { x: number; y: number }>
   const cellW = 220;
   const cellH = 160;
   const cols = 4;
-  const ids = [...pack.menus.map((m) => m.id), ...pack.commands.map((c) => c.id)];
+  const ids = [...pack.menus.map((m) => m.id), ...pack.commands.map((c) => c.id), ...pack.dialogs.map((d) => d.id)];
   let i = 0;
   for (const id of ids) {
     if (layout[id]) continue;
