@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import gg.interfaze.plugin.engine.BundleCompiler
+import gg.interfaze.plugin.engine.ConditionEvaluator
 import gg.interfaze.plugin.engine.ExecutionContext
+import gg.interfaze.plugin.engine.MenuSessionStore
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.model.PackBundle
@@ -41,8 +44,11 @@ class SyncedMenuProvider(
     private val serverKey: String,
     private val wsUrl: String,
     private val logger: Logger?,
+    private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
+    private val sessions: MenuSessionStore? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
+    @Volatile private var bundles = listOf<PackBundle>()
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     private val jsonMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
@@ -86,19 +92,22 @@ class SyncedMenuProvider(
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
     override fun listMenuIds(): List<String> = (menus.keys + draftMenus.keys).distinct().sorted()
+    override fun allBundles(): List<PackBundle> = bundles
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
-        val menu = findMenu(menuId) ?: run { player.sendMessage("Menu '$menuId' not found."); return }
-        MenuRenderer.open(player, menu, lang)
+        val menu = findMenu(menuId) ?: run {
+            player.sendMessage("Menu '$menuId' not found.")
+            return
+        }
+        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator)
+        sessions?.set(player, session)
     }
 
-    override fun allBundles(): List<PackBundle> = emptyList()
-
     private fun reloadFromDisk() {
+        val loaded = PackReader(packsDir, logger).readAll()
+        bundles = loaded
         val fresh = ConcurrentHashMap<String, BundleMenu>()
-        PackReader(packsDir).readAll().forEach { bundle ->
-            bundle.menus.forEach { menu -> fresh[menu.id] = menu }
-        }
+        loaded.forEach { bundle -> bundle.menus.forEach { menu -> fresh[menu.id] = menu } }
         menus = fresh
     }
 
@@ -167,7 +176,7 @@ class SyncedMenuProvider(
                 val menuId   = node["menu_id"]?.asText()   ?: return
                 val menuYaml = node["menu_yaml"]?.asText() ?: return
                 val parsed   = runCatching { yamlMapper.readValue(menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
-                draftMenus[menuId] = BundleMenu(parsed, emptyMap())
+                draftMenus[menuId] = BundleCompiler.compile(parsed, emptyMap(), logger)
                 logger?.info("Draft updated for $menuId")
             }
 
