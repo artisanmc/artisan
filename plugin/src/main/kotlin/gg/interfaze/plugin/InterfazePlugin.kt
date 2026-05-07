@@ -30,6 +30,7 @@ open class InterfazePlugin : JavaPlugin() {
         sessions = MenuSessionStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
+        commandRegistrar = CommandRegistrar(this)
         menuProvider = SyncedMenuProvider(
             packsDir  = packsDir,
             serverKey = cfg.serverKey,
@@ -37,11 +38,11 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
             evaluator = evaluator,
             sessions  = sessions,
+            onReload  = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
         )
         menuProvider.load()
 
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
-        commandRegistrar = CommandRegistrar(this)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         ifzCommand = IfzCommand(this)
@@ -72,6 +73,7 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
             evaluator = evaluator,
             sessions  = sessions,
+            onReload  = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
         )
         menuProvider.load()
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)

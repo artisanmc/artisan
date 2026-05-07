@@ -35,8 +35,8 @@ object BundleCompiler {
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
                 val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
-                val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
-                val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
+                val actions      = handlerYaml.resolvedActions().map { ActionParser.parse(it) }
+                val fallback     = handlerYaml.resolvedFallback().map { ActionParser.parse(it) }
                 val cooldown     = handlerYaml.cooldown?.let { cy ->
                     Cooldown(cy.id, cy.duration, cy.scope, cy.message)
                 }
