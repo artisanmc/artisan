@@ -11,6 +11,7 @@ import {
 import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 export type ContextMenuTarget =
   | { kind: "entity"; selectedIds: string[] }
@@ -52,6 +53,7 @@ export function ContextMenu({
   onCreateCommandAt,
   onCreateDialogAt,
 }: ContextMenuProps) {
+  const { t } = useTranslation();
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
   const packs = useAccountStore((s) => s.account.packs);
   const otherPacks = useMemo(() => packs.filter((p) => p.id !== packId), [packs, packId]);
@@ -90,7 +92,7 @@ export function ContextMenu({
                 if (state.target.kind === "empty") onCreateDialogAt(state.target.world);
               }}
             >
-              New dialog here
+              {t("canvas.newDialogHere")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onPaste}>
