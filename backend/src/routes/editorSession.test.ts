@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
 import { generateEditorToken, validateEditorToken } from "../lib/auth";
+import { handlePluginMessage } from "../ws/hub";
+import type { HelloMessage, HelloAckMessage } from "../protocol";
 
 describe("editor_sessions schema", () => {
   test("insert and read a session", async () => {
@@ -300,5 +302,85 @@ describe("POST /api/editor-session/:token/draft", () => {
       body: JSON.stringify({ pack_id: "p", menu_id: "m", menu_yaml: "" }),
     });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /api/editor-session/:token/items", () => {
+  test("returns 503 when server is offline (no mc_version registered)", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/items`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("server_offline");
+  });
+
+  test("returns 404 for unknown mc_version", async () => {
+    const createRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "items-ver-test" }),
+    });
+    const { key: serverKey } = (await createRes.json()) as { key: string };
+
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: serverKey,
+      plugin_version: "1.0.0",
+      minecraft_version: "99.99.99",
+      current_bundle_hash: "",
+    };
+    const helloRes = await handlePluginMessage("conn-items-test", JSON.stringify(hello));
+    const ack = JSON.parse(helloRes.reply!) as HelloAckMessage;
+
+    const token = "items_tok2_" + crypto.randomUUID().slice(0, 8);
+    await db.insert(editorSessions).values({
+      token,
+      serverKeyId: ack.server_id,
+      createdBy: "test",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    });
+
+    const res = await app.request(`/api/editor-session/${token}/items`);
+    expect(res.status).toBe(404);
+  });
+
+  test("returns 200 with items for known mc_version", async () => {
+    const createRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "items-ok-test" }),
+    });
+    const { key: serverKey } = (await createRes.json()) as { key: string };
+
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: serverKey,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const helloRes = await handlePluginMessage("conn-items-ok", JSON.stringify(hello));
+    const ack = JSON.parse(helloRes.reply!) as HelloAckMessage;
+
+    const token = "items_tok3_" + crypto.randomUUID().slice(0, 8);
+    await db.insert(editorSessions).values({
+      token,
+      serverKeyId: ack.server_id,
+      createdBy: "test",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    });
+
+    const res = await app.request(`/api/editor-session/${token}/items`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { version: string; items: { id: string; label: string; category: string; texture: string }[] };
+    expect(body.version).toBe("1.21.4");
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(body.items.length).toBeGreaterThan(100);
+    expect(body.items[0]).toHaveProperty("id");
+    expect(body.items[0]).toHaveProperty("label");
+    expect(body.items[0]).toHaveProperty("category");
+    expect(body.items[0]).toHaveProperty("texture");
   });
 });
