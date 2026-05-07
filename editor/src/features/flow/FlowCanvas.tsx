@@ -1648,7 +1648,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
               </div>
             ))}
             <div className="flex flex-wrap gap-1.5">
-              {(["text", "bool", "number_range", "single_option"] as const).map((type) => (
+              {(["text", "bool", "number_range"] as const).map((type) => (
                 <button
                   key={type}
                   type="button"

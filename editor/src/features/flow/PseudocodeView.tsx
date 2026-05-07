@@ -1275,7 +1275,7 @@ function DialogButtonStepLine({
           op,
         })
       }
-      onToggleElse={() =>
+      onToggleElse={(enabled) =>
         toggleDialogButtonIfElse({
           packId,
           dialogId,
@@ -1283,6 +1283,7 @@ function DialogButtonStepLine({
           frames,
           ifStepIndex: stepIndex,
           lang: activeLang,
+          enabled,
         })
       }
     />
