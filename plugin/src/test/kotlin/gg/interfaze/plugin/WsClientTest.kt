@@ -32,6 +32,8 @@ class WsClientTest {
         val client = WsClient(
             url = server.url("/ws/plugin").toString(),
             serverKey = "sk_test",
+            mcVersion = "1.21.4",
+            currentBundleHash = "",
             onMessage = { msg -> received.add(msg); latch.countDown() },
         )
         client.connect()

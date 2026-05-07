@@ -9,6 +9,7 @@ import java.util.logging.Logger
 class WsClient(
     private val url: String,
     private val serverKey: String,
+    private val mcVersion: String,
     private val currentBundleHash: String = "",
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
@@ -47,7 +48,7 @@ class WsClient(
                 "type" to "hello",
                 "server_key" to serverKey,
                 "plugin_version" to "1.0.0",
-                "minecraft_version" to "1.21.4",
+                "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
             )
             ws.send(mapper.writeValueAsString(hello))
