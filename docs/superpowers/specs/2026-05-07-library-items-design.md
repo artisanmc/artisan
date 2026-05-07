@@ -163,7 +163,7 @@ onDrop={e => {
   const itemId = e.dataTransfer.getData("library/itemId")
   if (!itemId) return
   const slot = hitTestSlot(stageRef.current, e.clientX, e.clientY)
-  if (slot != null) dispatch({ type: "SET_SLOT_MATERIAL", slot, material: itemId })
+  if (slot != null) setSlotMaterial(slot, itemId)  // action Zustand
 }}
 ```
 
@@ -172,7 +172,7 @@ onDrop={e => {
 2. Cherche le slot Konva à cette position via `stage.getIntersection(point)`
 3. Retourne l'index de slot ou `null`
 
-`SET_SLOT_MATERIAL` met à jour `appearance.material` du slot ciblé dans le store Zustand.
+`setSlotMaterial` met à jour `appearance.material` du slot ciblé dans le store Zustand (nouvelle action à ajouter).
 
 ### Gestion des erreurs côté éditeur
 
@@ -219,6 +219,8 @@ GET /api/textures/:source/:version/:path
   → source=minecraft  → mcasset.cloud
   → source=plugin     → textures envoyées par le plugin via WS ← phase 2
 ```
+
+Note : le segment `:source` s'ajoute en tête de l'URL (phase 1 : `/api/textures/:version/*`). La migration redirigera l'ancien pattern vers `source=minecraft` pour ne pas casser les sessions existantes.
 
 En phase 2, le plugin envoie un message WS `custom_items` contenant sa liste d'items custom + URLs de textures (ou les textures en base64). Le backend les fusionne avec le registre vanilla. L'éditeur ne change pas d'architecture.
 
