@@ -46,6 +46,14 @@ object ActionParser {
             )
             "pagination_next" -> Action.PaginationNext(raw["element_id"] as? String)
             "pagination_prev" -> Action.PaginationPrev(raw["element_id"] as? String)
+            "open_dialog"    -> Action.OpenDialog(
+                dialogId     = str(raw, "dialog_id"),
+                context      = (raw["context"] as? Map<*, *>)
+                                   ?.mapKeys { it.key.toString() }
+                                   ?.mapValues { it.value.toString() } ?: emptyMap(),
+                clearContext = raw["clear_context"] as? Boolean ?: false,
+            )
+            "close_dialog"   -> Action.CloseDialog
             else             -> throw IllegalArgumentException("Unknown action type: $type")
         }
     }
