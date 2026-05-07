@@ -67,9 +67,15 @@ class SyncedMenuProvider(
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
             val currentHash = BundleHasher.hashAll(packsDir)
+            val mcVersion = try {
+                org.bukkit.Bukkit.getServer().minecraftVersion
+            } catch (e: Exception) {
+                "1.21.4"
+            }
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
+                mcVersion         = mcVersion,
                 currentBundleHash = currentHash,
                 onMessage         = ::handleMessage,
                 logger            = logger,
