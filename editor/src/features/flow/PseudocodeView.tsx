@@ -1032,6 +1032,10 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
       return `${action.arg} ↻ next ${action.list}`;
     case "set_arg_cycle_prev":
       return `${action.arg} ↻ prev ${action.list}`;
+    case "open_dialog":
+      return action.dialogId + (action.clearContext ? " (clear)" : "");
+    case "close_dialog":
+      return "";
   }
 }
 

@@ -20,6 +20,7 @@ export type LayerId = string & { __brand: "LayerId" };
 export type I18nKey = string & { __brand: "I18nKey" };
 export type DataSourceId = string & { __brand: "DataSourceId" };
 export type SourceRef = string & { __brand: "SourceRef" };
+export type DialogId = string & { __brand: "DialogId" };
 
 /**
  * Reference to a localizable string. The actual translations live in
@@ -61,7 +62,8 @@ export interface Pack {
   importedConnectors: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
   defaultLang: string;
-  canvasLayout: Record<MenuId | CommandId, { x: number; y: number }>;
+  dialogs: Dialog[];
+  canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
 }
 
 export interface Menu {
@@ -207,7 +209,14 @@ export type Action =
    * the action is a no-op (warn-logged).
    */
   | { type: "set_arg_cycle_next"; arg: string; list: string }
-  | { type: "set_arg_cycle_prev"; arg: string; list: string };
+  | { type: "set_arg_cycle_prev"; arg: string; list: string }
+  | {
+      type: "open_dialog";
+      dialogId: DialogId;
+      context?: Record<string, string>;
+      clearContext?: boolean;
+    }
+  | { type: "close_dialog" };
 
 export type Condition =
   | { type: "has_permission"; perm: string }
@@ -313,4 +322,48 @@ export interface ConnectorSpec {
   type: FieldType;
   /** 3-5 sample items validated against `type`. */
   sample: unknown;
+}
+
+export interface Dialog {
+  id: DialogId;
+  packId: PackId;
+  title: LText;
+  canCloseWithEscape: boolean;
+  body: DialogBody[];
+  inputs: DialogInput[];
+  buttons: DialogButton[];
+}
+
+export type DialogBody =
+  | { type: "text"; text: LText }
+  | { type: "item"; material: string; count: number };
+
+export type DialogInput =
+  | { type: "text"; id: string; label: LText; default: string; maxLength: number }
+  | { type: "bool"; id: string; label: LText; default: boolean }
+  | {
+      type: "number_range";
+      id: string;
+      label: LText;
+      min: number;
+      max: number;
+      default: number;
+    }
+  | {
+      type: "single_option";
+      id: string;
+      label: LText;
+      options: DialogOption[];
+      default: string;
+    };
+
+export interface DialogOption {
+  value: string;
+  label: LText;
+}
+
+export interface DialogButton {
+  id: string;
+  label: LText;
+  steps: Step[];
 }
