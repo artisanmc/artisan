@@ -21,6 +21,8 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
     if (menu) return getText(pack, menu.title, activeLang) || id;
     const cmd = pack.commands.find((c) => c.id === id);
     if (cmd) return `/${cmd.name}`;
+    const dialog = (pack.dialogs ?? []).find((d) => d.id === id);
+    if (dialog) return `[dialog] ${id}`;
     return id;
   };
 
@@ -57,6 +59,14 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
               <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">
                 {trigger.clickType}
               </span>
+            </div>
+          ) : trigger.kind === "dialog_button" ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="shrink-0 rounded bg-violet-900/60 px-1.5 py-0.5 font-mono text-[9px] text-violet-300">
+                dialog
+              </span>
+              <span className="font-mono text-xs text-zinc-300">{trigger.buttonId}</span>
             </div>
           ) : (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
