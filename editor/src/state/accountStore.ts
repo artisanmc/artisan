@@ -813,6 +813,7 @@ export const useAccountStore = create<AccountState>()(
                 commands: incoming.commands.map((c) => ({ ...c, packId: id })),
                 templates: (incoming.templates ?? []).map((t) => ({ ...t, packId: id })),
                 assets: (incoming.assets ?? []).map((a) => ({ ...a, packId: id })),
+                dialogs: (incoming.dialogs ?? []).map((d) => ({ ...d, packId: id })),
                 i18nKeys: incoming.i18nKeys ?? {},
                 defaultLang: incoming.defaultLang ?? "en",
                 canvasLayout: incoming.canvasLayout ?? {},

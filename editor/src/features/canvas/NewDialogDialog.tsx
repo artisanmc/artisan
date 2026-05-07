@@ -10,6 +10,7 @@ import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface NewDialogDialogProps {
   packId: PackId;
@@ -20,6 +21,7 @@ interface NewDialogDialogProps {
 
 export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDialogDialogProps) {
   const [id, setId] = useState("");
+  const { t } = useTranslation();
 
   const submit = () => {
     if (!id.trim()) return;
@@ -33,7 +35,7 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouveau dialogue</DialogTitle>
+          <DialogTitle>{t("canvas.newDialogDialogTitle")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Input
@@ -44,8 +46,8 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
-            <Button onClick={submit}>Créer</Button>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
+            <Button onClick={submit}>{t("canvas.create")}</Button>
           </div>
         </div>
       </DialogContent>
