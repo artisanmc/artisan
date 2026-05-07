@@ -1,0 +1,62 @@
+package gg.interfaze.plugin.engine
+
+import gg.interfaze.plugin.model.AppearanceYaml
+import gg.interfaze.plugin.model.BundleMenu
+import gg.interfaze.plugin.model.MenuYaml
+import java.util.logging.Logger
+
+object BundleCompiler {
+
+    fun compile(yaml: MenuYaml, langMaps: Map<String, Map<String, String>>, logger: Logger? = null): BundleMenu {
+        val compiledAppearances = mutableMapOf<String, List<CompiledAppearance>>()
+        val slotToElement = mutableMapOf<Int, String>()
+
+        for (layer in yaml.layers) {
+            for (element in layer.elements) {
+                val slots = parsePositions(element.positions, yaml.size)
+                slots.forEach { slot -> slotToElement[slot] = element.id }
+
+                val compiled = element.appearances.mapNotNull { app ->
+                    compileAppearance(app, yaml.id, element.id, logger)
+                }
+                if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
+            }
+        }
+
+        return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement)
+    }
+
+    private fun compileAppearance(app: AppearanceYaml, menuId: String, elementId: String, logger: Logger?): CompiledAppearance? =
+        runCatching {
+            val conditions = if (app.conditions != null)
+                listOf(ConditionParser.parse(app.conditions))
+            else emptyList()
+
+            val clicks = app.click.mapNotNull { (key, handlerYaml) ->
+                val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
+                val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
+                val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
+                val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
+                val cooldown     = handlerYaml.cooldown?.let { cy ->
+                    Cooldown(cy.id, cy.duration, cy.scope, cy.message)
+                }
+                clickType to ClickHandler(requirements, actions, fallback, cooldown)
+            }.toMap()
+
+            CompiledAppearance(conditions, clicks, app)
+        }.getOrElse { e ->
+            logger?.warning("Failed to compile appearance in menu=$menuId element=$elementId: ${e.message}")
+            null
+        }
+
+    private fun parsePositions(positions: String, size: Int): List<Int> =
+        positions.split(",").flatMap { part ->
+            val t = part.trim()
+            if (t.contains("-")) {
+                val (a, b) = t.split("-").map { it.trim().toInt() }
+                (a..b).toList()
+            } else {
+                listOf(t.toIntOrNull() ?: return@flatMap emptyList())
+            }
+        }.filter { it in 0 until size }
+}

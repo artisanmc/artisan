@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.model.*
 import java.io.File
+import java.util.logging.Logger
 
-class PackReader(private val packsRoot: File) {
+class PackReader(private val packsRoot: File, private val logger: Logger? = null) {
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
@@ -22,14 +24,13 @@ class PackReader(private val packsRoot: File) {
 
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
             val langFile = File(packDir, "lang/$lang.yaml")
-            if (langFile.exists()) {
-                mapper.readValue(langFile, object : TypeReference<Map<String, String>>() {})
-            } else emptyMap()
+            if (langFile.exists()) mapper.readValue(langFile, object : TypeReference<Map<String, String>>() {})
+            else emptyMap()
         }
 
         val menus = manifest.files.menus.mapNotNull { menuId ->
             val f = File(packDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            BundleMenu(mapper.readValue(f, MenuYaml::class.java), langMaps)
+            BundleCompiler.compile(mapper.readValue(f, MenuYaml::class.java), langMaps, logger)
         }
 
         val commands = manifest.files.commands.mapNotNull { cmdId ->
