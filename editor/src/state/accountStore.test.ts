@@ -1,4 +1,4 @@
-import { elementId, menuId, packId } from "@/domain/ids";
+import { dialogId, elementId, menuId, packId } from "@/domain/ids";
 import type { I18nKey, Menu } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -29,6 +29,40 @@ describe("accountStore", () => {
     expect(pack.dialogs).toHaveLength(1);
     expect(pack.dialogs[0]!.id).toBe("d_test");
     expect(typeof dId).toBe("string");
+  });
+
+  it("createDialog with position sets canvasLayout", () => {
+    useAccountStore.getState().createDialog({
+      packId: PERSONAL,
+      id: "d_shop",
+      position: { x: 100, y: 200 },
+    });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect((pack.canvasLayout as Record<string, unknown>)["d_shop"]).toEqual({ x: 100, y: 200 });
+  });
+
+  it("setDialogTitle stores translation in i18nKeys", () => {
+    useAccountStore.getState().createDialog({ packId: PERSONAL, id: "d_greet" });
+    useAccountStore.getState().setDialogTitle({ packId: PERSONAL, dialogId: dialogId("d_greet"), lang: "en", value: "Hello!" });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const dialog = pack.dialogs.find((d) => d.id === "d_greet")!;
+    expect(pack.i18nKeys[dialog.title.key]!["en"]).toBe("Hello!");
+  });
+
+  it("deleteFromPack removes dialog and its canvas position", () => {
+    useAccountStore.getState().createDialog({ packId: PERSONAL, id: "d_bye", position: { x: 10, y: 10 } });
+    useAccountStore.getState().deleteFromPack({ packId: PERSONAL, nodeIds: ["d_bye"] });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.dialogs.some((d) => d.id === "d_bye")).toBe(false);
+    expect((pack.canvasLayout as Record<string, unknown>)["d_bye"]).toBeUndefined();
+  });
+
+  it("addDialogButton appends a button with LText", () => {
+    useAccountStore.getState().createDialog({ packId: PERSONAL, id: "d_multi" });
+    useAccountStore.getState().addDialogButton({ packId: PERSONAL, dialogId: dialogId("d_multi") });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const d = pack.dialogs.find((d) => d.id === "d_multi")!;
+    expect(d.buttons).toHaveLength(2); // default btn_confirm + new one
   });
 
   it("starts with the seed account", () => {
