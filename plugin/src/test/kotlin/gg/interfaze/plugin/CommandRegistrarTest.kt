@@ -28,7 +28,7 @@ class CommandRegistrarTest {
 
     private fun bundle(vararg commands: CommandYaml) = PackBundle(
         packId = "test", defaultLang = "en", languages = emptyList(),
-        menus = emptyList(), commands = commands.toList(),
+        menus = emptyList(), commands = commands.toList(), dialogs = emptyList(),
     )
 
     private fun cmdYaml(name: String) = CommandYaml(

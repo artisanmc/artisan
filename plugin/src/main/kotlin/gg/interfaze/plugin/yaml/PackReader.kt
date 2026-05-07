@@ -38,6 +38,6 @@ class PackReader(private val packsRoot: File, private val logger: Logger? = null
             mapper.readValue(f, CommandYaml::class.java)
         }
 
-        return PackBundle(manifest.packId, manifest.defaultLang, manifest.languages, menus, commands)
+        return PackBundle(manifest.packId, manifest.defaultLang, manifest.languages, menus, commands, dialogs = emptyList())
     }
 }
