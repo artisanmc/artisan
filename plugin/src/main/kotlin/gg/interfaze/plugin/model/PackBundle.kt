@@ -2,6 +2,9 @@ package gg.interfaze.plugin.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import gg.interfaze.plugin.engine.ClickType
+import gg.interfaze.plugin.engine.ClickHandler
+import gg.interfaze.plugin.engine.CompiledAppearance
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
@@ -49,11 +52,24 @@ data class AppearanceYaml(
     val title: String? = null,
     val lore: List<String> = emptyList(),
     val click: Map<String, ClickHandlerYaml> = emptyMap(),
+    @JsonProperty("if")
+    val conditions: Map<String, Any>? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ClickHandlerYaml(
-    val steps: List<Map<String, Any>> = emptyList(),
+    val requirements: List<Map<String, Any>> = emptyList(),
+    val actions:      List<Map<String, Any>> = emptyList(),
+    val fallback:     List<Map<String, Any>> = emptyList(),
+    val cooldown:     CooldownYaml? = null,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class CooldownYaml(
+    val id:       String  = "",
+    val duration: Long    = 0,
+    val scope:    String  = "player",
+    val message:  String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -65,10 +81,12 @@ data class CommandYaml(
     val permission: String? = null,
     val description: String? = null,
     val arguments: List<Map<String, Any>> = emptyList(),
-    val steps: List<Map<String, Any>> = emptyList(),
+    val requirements: List<Map<String, Any>> = emptyList(),
+    val actions:      List<Map<String, Any>> = emptyList(),
+    val fallback:     List<Map<String, Any>> = emptyList(),
+    val cooldown:     CooldownYaml? = null,
 )
 
-/** Assembled result for one pack — all menus plus their lang maps. */
 data class PackBundle(
     val packId: String,
     val defaultLang: String,
@@ -77,17 +95,14 @@ data class PackBundle(
     val commands: List<CommandYaml>,
 )
 
-/** One menu with its per-language translation maps bundled in. */
 data class BundleMenu(
     val yaml: MenuYaml,
     val langMaps: Map<String, Map<String, String>>,
+    val compiledAppearances: Map<String, List<CompiledAppearance>> = emptyMap(),
+    val slotToElement: Map<Int, String> = emptyMap(),
 ) {
     val id: String get() = yaml.id
 
-    /**
-     * Resolves `{i18n:key}` in `yaml.title` using the given lang.
-     * Falls back to the raw tag if lang has no entry.
-     */
     fun resolveTitle(lang: String): String {
         val raw = yaml.title
         if (!raw.startsWith("{i18n:")) return raw
