@@ -358,6 +358,8 @@ const fr: typeof en = {
     noMatch: "Aucun item ne correspond.",
     armedHint: "Armé : tapez un slot pour placer {{material}}",
     armedDisarm: "Désarmer",
+    loading: "Chargement…",
+    unavailable: "Bibliothèque indisponible — serveur hors ligne",
   },
   editorPane: {
     tabEdit: "Édition",
