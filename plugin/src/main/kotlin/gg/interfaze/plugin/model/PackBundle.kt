@@ -23,6 +23,7 @@ data class ManifestYaml(
 data class ManifestFiles(
     val menus: List<String> = emptyList(),
     val commands: List<String> = emptyList(),
+    val dialogs: List<String> = emptyList(),
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -81,6 +82,59 @@ data class CooldownYaml(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+data class DialogBodyYaml(
+    val type: String = "text",
+    val text: String? = null,
+    val material: String? = null,
+    val count: Int = 1,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DialogOptionYaml(
+    val value: String = "",
+    val label: String = "",
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DialogInputYaml(
+    val id: String = "",
+    val type: String = "",
+    val label: String = "",
+    val default: String = "",
+    val min: Double = 0.0,
+    val max: Double = 100.0,
+    @JsonProperty("max_length") val maxLength: Int = 32,
+    val options: List<DialogOptionYaml> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DialogButtonYaml(
+    val id: String = "",
+    val label: String = "",
+    val requirements: List<Map<String, Any>> = emptyList(),
+    val actions: List<Map<String, Any>> = emptyList(),
+    val fallback: List<Map<String, Any>> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DialogYaml(
+    val schema: String = "",
+    val id: String = "",
+    val title: String = "",
+    @JsonProperty("can_close_with_escape") val canCloseWithEscape: Boolean = true,
+    val body: List<DialogBodyYaml> = emptyList(),
+    val inputs: List<DialogInputYaml> = emptyList(),
+    val buttons: List<DialogButtonYaml> = emptyList(),
+)
+
+data class BundleDialog(
+    val yaml: DialogYaml,
+    val langMaps: Map<String, Map<String, String>>,
+) {
+    val id: String get() = yaml.id
+}
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class CommandYaml(
     val schema: String = "",
     val id: String = "",
@@ -105,6 +159,7 @@ data class PackBundle(
     val languages: List<String>,
     val menus: List<BundleMenu>,
     val commands: List<CommandYaml>,
+    val dialogs: List<BundleDialog>,
 )
 
 /** One menu with its compiled appearances, per-language translation maps, and slot mapping. */
