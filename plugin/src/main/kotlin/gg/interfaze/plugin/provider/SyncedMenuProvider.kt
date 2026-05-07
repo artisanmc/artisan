@@ -4,13 +4,16 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import gg.interfaze.plugin.engine.ActionExecutor
 import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.engine.ConditionEvaluator
 import gg.interfaze.plugin.engine.ExecutionContext
 import gg.interfaze.plugin.engine.MenuSessionStore
+import gg.interfaze.plugin.model.BundleDialog
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.model.PackBundle
+import gg.interfaze.plugin.render.DialogRenderer
 import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
@@ -47,10 +50,12 @@ class SyncedMenuProvider(
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
     private val onReload: (() -> Unit)? = null,
+    private val executorProvider: (() -> ActionExecutor)? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
+    @Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()
     private val jsonMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
@@ -102,14 +107,34 @@ class SyncedMenuProvider(
         }
         val session = MenuRenderer.open(player, menu, lang, ctx, evaluator)
         sessions?.set(player, session)
+        logger?.info("[IFZ-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
+    }
+
+    override fun findDialog(dialogId: String): BundleDialog? = dialogs[dialogId]
+
+    override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
+        val dialog = findDialog(dialogId) ?: run {
+            player.sendMessage("Dialog '$dialogId' not found.")
+            return
+        }
+        val executor = executorProvider?.invoke() ?: run {
+            logger?.warning("openDialog called but executorProvider is null")
+            return
+        }
+        DialogRenderer.open(player, dialog, lang, ctx, executor)
     }
 
     private fun reloadFromDisk() {
         val loaded = PackReader(packsDir, logger).readAll()
         bundles = loaded
-        val fresh = ConcurrentHashMap<String, BundleMenu>()
-        loaded.forEach { bundle -> bundle.menus.forEach { menu -> fresh[menu.id] = menu } }
-        menus = fresh
+        val freshMenus = ConcurrentHashMap<String, BundleMenu>()
+        val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
+        loaded.forEach { bundle ->
+            bundle.menus.forEach { menu -> freshMenus[menu.id] = menu }
+            bundle.dialogs.forEach { dialog -> freshDialogs[dialog.id] = dialog }
+        }
+        menus = freshMenus
+        dialogs = freshDialogs
     }
 
     private fun handleMessage(raw: String) {
@@ -163,6 +188,7 @@ class SyncedMenuProvider(
                             downloader.download(url = url, serverKey = serverKey, packId = packId)
                             reloadFromDisk()
                             draftMenus.clear()
+                            logger?.info("[IFZ-DEBUG] bundle_available: triggering onReload for pack=$packId")
                             onReload?.invoke()
                         } finally {
                             downloadsInFlight.remove(packId)
