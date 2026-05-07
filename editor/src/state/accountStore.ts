@@ -127,6 +127,7 @@ interface AccountState {
   setDialogButtonIfCaseConditions: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; conditions: Condition[]; op?: "and" | "or" }) => void;
   setDialogButtonIfCaseJoin: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; caseIndex: number; joinIndex: number; op: "and" | "or" }) => void;
   toggleDialogButtonIfElse: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number; frames: StepFrame[]; ifStepIndex: number; lang: string }) => void;
+  removePack: (packId: PackId) => void;
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
@@ -686,6 +687,12 @@ function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey):
       btn.label.key = newKey;
       return;
     }
+    for (const action of walkActions(btn.steps)) {
+      if (action.type === "send_message" && action.text.key === oldKey) {
+        action.text.key = newKey;
+        return;
+      }
+    }
   }
 }
 
@@ -924,6 +931,8 @@ export const useAccountStore = create<AccountState>()(
             }),
           ),
         setDialogId: ({ packId: pId, oldId, newId }) => {
+          if (oldId === newId) return;
+          if (!newId) throw new Error("dialog id cannot be empty");
           const state = get();
           const pack = state.account.packs.find((p) => p.id === pId);
           if (!pack) throw new Error("pack not found");
@@ -1284,6 +1293,15 @@ export const useAccountStore = create<AccountState>()(
               touch(draft, pId);
             }),
           ),
+        removePack: (packId) => {
+          set(
+            produce((draft: AccountState) => {
+              draft.account.packs = draft.account.packs.filter((p) => p.id !== packId);
+              draft.account.packOrder = draft.account.packOrder.filter((id) => id !== packId);
+            }),
+          );
+          clearTemporal();
+        },
         reorderPacks: (newOrder) => {
           set(
             produce((draft: AccountState) => {
