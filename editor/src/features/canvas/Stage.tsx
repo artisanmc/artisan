@@ -367,7 +367,7 @@ export function Stage({ packId }: StageProps) {
               key={dialog.id}
               packId={packId}
               dialog={dialog}
-              position={(layout as Record<string, { x: number; y: number }>)[dialog.id] ?? { x: 0, y: 0 }}
+              position={layout[dialog.id] ?? { x: 0, y: 0 }}
             />
           ))}
         </Layer>
