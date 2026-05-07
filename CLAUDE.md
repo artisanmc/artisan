@@ -52,7 +52,19 @@ npm run build           # Build production
 ```bash
 cp .env.example .env    # puis renseigner INTERFAZE_SERVER_KEY
 docker compose up       # backend:3001 + editor:5173 + minecraft:25565
-docker compose build minecraft  # rebuild le JAR + image Paper
+```
+
+**Déployer un nouveau JAR plugin (workflow normal) :**
+```bash
+cd plugin
+./gradlew shadowJar     # compile + copie vers docker/server/plugins/InterfazePlugin.jar
+docker compose restart minecraft  # redémarre le container (prend ~30s)
+```
+
+**Rebuilder l'image de base (rare — uniquement si Java/Paper changent) :**
+```bash
+docker compose build minecraft
+docker compose up -d minecraft
 ```
 
 ---
@@ -63,7 +75,7 @@ docker compose build minecraft  # rebuild le JAR + image Paper
 editor/          React 19 + Vite + Konva
 backend/         Bun + Hono + PostgreSQL (Drizzle)
 plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
-docker/          Dockerfile multi-stage (Gradle JDK21 → Paper JRE21)
+docker/          Dockerfile single-stage (Paper JRE21) — JAR copié par deployPlugin
 docker-compose.yml
 docs/
   decisions/             ← ADRs (stack, state model)
@@ -124,6 +136,7 @@ plugins/Interfaze/packs/
   <pack_id>/
     manifest.yaml
     menus/<menu_id>.yaml
+    dialogs/<dialog_id>.yaml
     lang/<lang>.yaml
     .interfaze-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
 ```
