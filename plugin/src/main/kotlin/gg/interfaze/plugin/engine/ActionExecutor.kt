@@ -70,6 +70,14 @@ class ActionExecutor(
                 menuProvider.openMenu(player, action.menuId, ctx.lang, ctx.copy(args = newArgs))
             }
             is Action.CloseMenu -> player.closeInventory()
+            is Action.OpenDialog -> {
+                val newArgs = if (action.clearContext)
+                    action.context.mapValues { it.value as Any }
+                else
+                    ctx.args + action.context.mapValues { it.value as Any }
+                menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(args = newArgs))
+            }
+            is Action.CloseDialog -> Unit // Paper API has no method to force-close dialogs; they close on player response or Escape
             is Action.GiveItem  -> {
                 val material = Material.matchMaterial(action.material) ?: return
                 val item = ItemStack(material, action.count)
@@ -108,12 +116,6 @@ class ActionExecutor(
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext, is Action.PaginationPrev -> Unit
-            is Action.OpenDialog  -> {
-                // TODO: Dialog opening logic when DialogRenderer is implemented
-            }
-            is Action.CloseDialog -> {
-                // TODO: Dialog closing logic when DialogRenderer is implemented
-            }
         }
     }
 }
