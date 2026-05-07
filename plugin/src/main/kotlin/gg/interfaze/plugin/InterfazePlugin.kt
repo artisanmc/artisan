@@ -1,5 +1,6 @@
 package gg.interfaze.plugin
 
+import gg.interfaze.plugin.command.CommandRegistrar
 import gg.interfaze.plugin.command.IfzCommand
 import gg.interfaze.plugin.config.PluginConfig
 import gg.interfaze.plugin.engine.*
@@ -16,6 +17,7 @@ open class InterfazePlugin : JavaPlugin() {
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
+    private lateinit var commandRegistrar: CommandRegistrar
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -39,6 +41,8 @@ open class InterfazePlugin : JavaPlugin() {
         menuProvider.load()
 
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
+        commandRegistrar = CommandRegistrar(this)
+        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         ifzCommand = IfzCommand(this)
         getCommand("ifz")?.setExecutor(ifzCommand)
@@ -49,6 +53,7 @@ open class InterfazePlugin : JavaPlugin() {
 
     override fun onDisable() {
         ifzCommand.shutdown()
+        commandRegistrar.unregisterAll()
         menuProvider.unload()
         logger.info("Interfaze disabled")
     }
@@ -70,5 +75,6 @@ open class InterfazePlugin : JavaPlugin() {
         )
         menuProvider.load()
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
+        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
     }
 }
