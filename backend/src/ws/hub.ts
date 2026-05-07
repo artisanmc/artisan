@@ -34,6 +34,8 @@ export const editorSenders = new Map<string, (msg: string) => void>();
 const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
 const connToServerId = new Map<string, string>();
+// serverKeyId → minecraft version (set on hello, used by /api/items)
+const serverIdToMcVersion = new Map<string, string>();
 
 export function registerConn(connId: string, send: (msg: string) => void): void {
   connSenders.set(connId, send);
@@ -95,6 +97,7 @@ export async function handlePluginMessage(
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
     connToServerId.set(connId, keyId);
+    serverIdToMcVersion.set(keyId, hello.minecraft_version);
 
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
@@ -267,4 +270,8 @@ export function broadcastDraftUpdate(
       menu_yaml: menuYaml,
     }));
   }
+}
+
+export function getMcVersion(serverKeyId: string): string | undefined {
+  return serverIdToMcVersion.get(serverKeyId);
 }
