@@ -58,7 +58,7 @@ function ItemTile({ item, version }: ItemTileProps) {
 }
 
 export function Library() {
-  const token = useSessionStore((s) => s.token);
+  const token = useSessionStore((s) => s.accessToken);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [version, setVersion] = useState("");

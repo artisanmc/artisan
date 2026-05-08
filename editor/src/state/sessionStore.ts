@@ -1,15 +1,22 @@
 import { create } from "zustand";
 
 interface SessionState {
-  token: string | null;
+  accessToken: string | null;
   serverKeyId: string | null;
-  setSession: (token: string, serverKeyId: string) => void;
+  trustCode: string | null;
+  trusted: boolean;
+  setSession: (accessToken: string, serverKeyId: string, trustCode: string, trusted: boolean) => void;
+  setTrusted: (trusted: boolean) => void;
   clearSession: () => void;
 }
 
 export const useSessionStore = create<SessionState>()((set) => ({
-  token: null,
+  accessToken: null,
   serverKeyId: null,
-  setSession: (token, serverKeyId) => set({ token, serverKeyId }),
-  clearSession: () => set({ token: null, serverKeyId: null }),
+  trustCode: null,
+  trusted: false,
+  setSession: (accessToken, serverKeyId, trustCode, trusted) =>
+    set({ accessToken, serverKeyId, trustCode, trusted }),
+  setTrusted: (trusted) => set({ trusted }),
+  clearSession: () => set({ accessToken: null, serverKeyId: null, trustCode: null, trusted: false }),
 }));

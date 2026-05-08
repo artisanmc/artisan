@@ -23,7 +23,8 @@ import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
 import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
-import { deployPack, getDeployedPack } from "@/lib/packApi";
+import { deployPack, getDeployedPack, DeployError } from "@/lib/packApi";
+import { TrustBanner } from "@/features/trust/TrustBanner";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -62,15 +63,15 @@ export const Route = createFileRoute("/pack/$packId")({
 function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   const pId = packId as PackId;
-  const token = useSessionStore((s) => s.token);
-
-  // Redirect to landing page if no active session
-  if (!token) return <Navigate to="/" replace />;
+  const token = useSessionStore((s) => s.accessToken);
+  const trusted = useSessionStore((s) => s.trusted);
+  const trustCode = useSessionStore((s) => s.trustCode);
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === pId));
+  const packs = useAccountStore((s) => s.account.packs);
+  const pack = packs.find((p) => p.id === pId);
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
 
@@ -78,8 +79,6 @@ function PackCanvasPage() {
   const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
-  // Material being dragged from the Library — used to render the
-  // <DragOverlay> ghost following the pointer.
   const [activeDragMaterial, setActiveDragMaterial] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -87,6 +86,11 @@ function PackCanvasPage() {
     const current = useUiStore.getState().lastActivePackId;
     if (current !== pId) useUiStore.getState().setLastActivePackId(pId);
   }, [pId]);
+
+  if (!token) return <Navigate to="/" replace />;
+  // accountStore is not persisted — empty after a page refresh, bounce to /session to reload.
+  if (packs.length === 0) return <Navigate to="/session" replace />;
+  if (!pack) return <Navigate to={`/pack/${packs[0]!.id}`} replace />;
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
@@ -137,6 +141,7 @@ function PackCanvasPage() {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
+      {!trusted && trustCode && <TrustBanner trustCode={trustCode} />}
       <div className="flex h-[100dvh] overflow-hidden">
         {/* Desktop pack sidebar — hidden on mobile (drawer-triggered). */}
         <PackMiniSidebar activePackId={pId} />
@@ -518,7 +523,7 @@ function UndoRedoButtons() {
 }
 
 function DeployButtons({ pack }: { pack: Pack }) {
-  const token = useSessionStore((s) => s.token);
+  const token = useSessionStore((s) => s.accessToken);
   const replacePack = useAccountStore((s) => s.replacePack);
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
@@ -534,7 +539,11 @@ function DeployButtons({ pack }: { pack: Pack }) {
       await deployPack(token, pack, files);
       toast.success("Déployé ✓");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec du déploiement");
+      if (e instanceof DeployError && e.code === "session_not_trusted") {
+        // Banner is shown automatically — no toast needed
+      } else {
+        toast.error(e instanceof Error ? e.message : "Échec du déploiement");
+      }
     } finally {
       setDeploying(false);
     }
