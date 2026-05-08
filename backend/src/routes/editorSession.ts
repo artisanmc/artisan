@@ -1,9 +1,10 @@
 import { Hono } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
 import { and, eq } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
 import { editorSessions, packBundles } from "../db/schema";
-import { validateEditorToken } from "../lib/auth";
+import { generateEditorToken, generateTrustCode, validateEditorToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion } from "../ws/hub";
@@ -13,6 +14,39 @@ const router = new Hono();
 function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
   return c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown";
 }
+
+// Placeholder for Task 5
+router.post("/refresh", async (_c) => {
+  return _c.json({ error: "not_implemented" }, 501);
+});
+
+router.post("/:urlToken/exchange", async (c) => {
+  const urlToken = c.req.param("urlToken");
+  const rows = await db.select().from(editorSessions).where(eq(editorSessions.token, urlToken));
+  if (rows.length === 0) return c.json({ error: "Unauthorized" }, 401);
+  const row = rows[0];
+  if (row.revokedAt || row.expiresAt < new Date()) return c.json({ error: "Unauthorized" }, 401);
+  if (row.exchangedAt) return c.json({ error: "already_used" }, 401);
+
+  const accessToken = generateEditorToken();
+  const refreshToken = generateEditorToken();
+  const accessExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  const trustCode = row.trustCode ?? generateTrustCode();
+
+  await db.update(editorSessions)
+    .set({ exchangedAt: new Date(), accessToken, accessExpiresAt, refreshToken, trustCode })
+    .where(eq(editorSessions.token, urlToken));
+
+  setCookie(c, "ifz_refresh", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+    maxAge: 7 * 24 * 60 * 60,
+    path: "/api/editor-session/refresh",
+  });
+
+  return c.json({ access_token: accessToken, expires_in: 300, trust_code: trustCode });
+});
 
 router.get("/:token", async (c) => {
   if (!checkRateLimit(`editor-validate:${clientIp(c)}`, 20)) return c.json({ error: "Too many requests" }, 429);
