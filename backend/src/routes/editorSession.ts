@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
 import { editorSessions, packBundles } from "../db/schema";
@@ -16,26 +16,31 @@ function clientIp(c: { req: { header: (name: string) => string | undefined } }):
 }
 
 // Placeholder for Task 5
-router.post("/refresh", async (_c) => {
-  return _c.json({ error: "not_implemented" }, 501);
+router.post("/refresh", async (c) => {
+  return c.json({ error: "not_implemented" }, 501);
 });
 
 router.post("/:urlToken/exchange", async (c) => {
   const urlToken = c.req.param("urlToken");
+  // Validate the session exists and is valid first (for correct error messages)
   const rows = await db.select().from(editorSessions).where(eq(editorSessions.token, urlToken));
   if (rows.length === 0) return c.json({ error: "Unauthorized" }, 401);
   const row = rows[0];
   if (row.revokedAt || row.expiresAt < new Date()) return c.json({ error: "Unauthorized" }, 401);
-  if (row.exchangedAt) return c.json({ error: "already_used" }, 401);
 
   const accessToken = generateEditorToken();
   const refreshToken = generateEditorToken();
-  const accessExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  const now = new Date();
+  const accessExpiresAt = new Date(now.getTime() + 5 * 60 * 1000);
   const trustCode = row.trustCode ?? generateTrustCode();
 
-  await db.update(editorSessions)
-    .set({ exchangedAt: new Date(), accessToken, accessExpiresAt, refreshToken, trustCode })
-    .where(eq(editorSessions.token, urlToken));
+  // Atomic claim: only succeeds if exchangedAt is still NULL
+  const updated = await db.update(editorSessions)
+    .set({ exchangedAt: now, accessToken, accessExpiresAt, refreshToken, trustCode })
+    .where(and(eq(editorSessions.token, urlToken), isNull(editorSessions.exchangedAt)))
+    .returning({ token: editorSessions.token });
+
+  if (updated.length === 0) return c.json({ error: "already_used" }, 401);
 
   setCookie(c, "ifz_refresh", refreshToken, {
     httpOnly: true,

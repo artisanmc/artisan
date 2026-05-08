@@ -156,6 +156,34 @@ describe("POST /api/editor-session/:urlToken/exchange", () => {
     const res = await app.request("/api/editor-session/unknowntoken000000000000000000/exchange", { method: "POST" });
     expect(res.status).toBe(401);
   });
+
+  test("401 for revoked url token", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "revx" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_rev_" + generateEditorToken();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      trustCode: generateTrustCode(),
+      revokedAt: new Date(),
+    });
+    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+
+  test("401 for expired url token", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "expx" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_exp_" + generateEditorToken();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+      createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() - 1),
+      trustCode: generateTrustCode(),
+    });
+    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    expect(res.status).toBe(401);
+  });
 });
 
 async function createSession(serverId?: string): Promise<{ token: string; keyId: string }> {
