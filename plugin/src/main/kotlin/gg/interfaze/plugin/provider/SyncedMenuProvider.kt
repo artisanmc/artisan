@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import gg.interfaze.plugin.customitems.CustomItemsManager
 import gg.interfaze.plugin.engine.ActionExecutor
 import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.engine.ConditionEvaluator
@@ -67,6 +68,7 @@ class SyncedMenuProvider(
     @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
     @Volatile private var lastTrustCode: String? = null
     @Volatile private var apiUrl: String? = null
+    @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
 
     override fun load() {
         reloadFromDisk()
@@ -77,12 +79,14 @@ class SyncedMenuProvider(
             } catch (e: Exception) {
                 "1.21.4"
             }
+            val customHash = customItemsManager.computeHash()
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
                 mcVersion         = mcVersion,
                 currentBundleHash = currentHash,
                 localPackIds      = bundles.map { it.packId },
+                customItemsHash   = customHash,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
@@ -140,6 +144,17 @@ class SyncedMenuProvider(
             return
         }
         DialogRenderer.open(player, dialog, lang, ctx, executor)
+    }
+
+    fun notifyCustomItemsReload() {
+        val newHash = customItemsManager.computeHash()
+        if (newHash.isNotEmpty()) {
+            wsClient?.send(mapOf("type" to "custom_items_changed", "hash" to newHash))
+        }
+    }
+
+    fun setCustomItemsManager(manager: CustomItemsManager) {
+        customItemsManager = manager
     }
 
     private fun reloadFromDisk() {
@@ -242,11 +257,32 @@ class SyncedMenuProvider(
 
             "editor_session_ready" -> {
                 val url = node["url"]?.asText() ?: return
-                val expiresAt = node["expires_at"]?.asText() ?: return
+                val expiresAt = run {
+                    val raw = node["expires_at"]?.asText() ?: return
+                    try {
+                        val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm")
+                            .withZone(java.time.ZoneId.systemDefault())
+                        fmt.format(java.time.Instant.parse(raw))
+                    } catch (_: Exception) { raw }
+                }
                 lastTrustCode = node["trust_code"]?.asText()
                 val cb = editorSessionCallback
                 editorSessionCallback = null
                 cb?.invoke(url, expiresAt)
+            }
+
+            "custom_items_request" -> {
+                httpClient.dispatcher.executorService.execute {
+                    val result = customItemsManager.buildBundle()
+                    if (result != null) {
+                        val (hash, data) = result
+                        wsClient?.send(mapOf(
+                            "type" to "custom_items_bundle",
+                            "hash" to hash,
+                            "data" to data,
+                        ))
+                    }
+                }
             }
 
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
