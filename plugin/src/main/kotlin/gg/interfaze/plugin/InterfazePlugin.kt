@@ -48,7 +48,10 @@ open class InterfazePlugin : JavaPlugin() {
         menuProvider.load()
         val pluginsDir = server.pluginsFolder
         val customItemsManager = gg.interfaze.plugin.customitems.CustomItemsManager(
-            listOf(gg.interfaze.plugin.customitems.NexoSource(pluginsDir))
+            listOf(
+                gg.interfaze.plugin.customitems.NexoSource(pluginsDir),
+                gg.interfaze.plugin.customitems.OraxenSource(pluginsDir),
+            )
         )
         (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
 
@@ -90,7 +93,10 @@ open class InterfazePlugin : JavaPlugin() {
         menuProvider.load()
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = gg.interfaze.plugin.customitems.CustomItemsManager(
-            listOf(gg.interfaze.plugin.customitems.NexoSource(pluginsDirReinit))
+            listOf(
+                gg.interfaze.plugin.customitems.NexoSource(pluginsDirReinit),
+                gg.interfaze.plugin.customitems.OraxenSource(pluginsDirReinit),
+            )
         )
         (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManagerReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
