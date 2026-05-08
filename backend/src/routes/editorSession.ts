@@ -4,10 +4,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
 import { editorSessions, packBundles } from "../db/schema";
-import { generateEditorToken, generateTrustCode, validateEditorToken } from "../lib/auth";
+import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
-import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion } from "../ws/hub";
+import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion, trackEditorIp } from "../ws/hub";
 
 const router = new Hono();
 
@@ -84,31 +84,24 @@ router.post("/:urlToken/exchange", async (c) => {
 router.get("/:token", async (c) => {
   if (!checkRateLimit(`editor-validate:${clientIp(c)}`, 20)) return c.json({ error: "Too many requests" }, 429);
   const token = c.req.param("token");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  return c.json({ server_key_id: session.serverKeyId });
-});
-
-router.post("/:token/refresh", async (c) => {
-  const token = c.req.param("token");
-  const session = await validateEditorToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-  await db.update(editorSessions).set({ expiresAt }).where(eq(editorSessions.token, token));
-  return c.json({ expires_at: expiresAt.toISOString() });
+  trackEditorIp(token, clientIp(c));
+  return c.json({ server_key_id: session.serverKeyId, trusted: session.trusted, trust_code: session.trustCode });
 });
 
 router.delete("/:token", async (c) => {
   const token = c.req.param("token");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  await db.update(editorSessions).set({ revokedAt: new Date() }).where(eq(editorSessions.token, token));
+  await db.update(editorSessions).set({ revokedAt: new Date() })
+    .where(eq(editorSessions.token, session.sessionId));
   return c.json({ ok: true });
 });
 
 router.get("/:token/packs", async (c) => {
   const token = c.req.param("token");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const rows = await db
@@ -126,7 +119,7 @@ router.get("/:token/packs", async (c) => {
 router.put("/:token/packs/:packId", async (c) => {
   const token = c.req.param("token");
   const packId = c.req.param("packId");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
@@ -153,7 +146,7 @@ router.put("/:token/packs/:packId", async (c) => {
 router.post("/:token/packs/:packId/deploy", async (c) => {
   const token = c.req.param("token");
   const packId = c.req.param("packId");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
@@ -182,7 +175,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
 router.get("/:token/packs/:packId/deployed", async (c) => {
   const token = c.req.param("token");
   const packId = c.req.param("packId");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const rows = await db
@@ -199,7 +192,7 @@ router.get("/:token/packs/:packId/deployed", async (c) => {
 router.delete("/:token/packs/:packId", async (c) => {
   const token = c.req.param("token");
   const packId = c.req.param("packId");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   await db.delete(packBundles).where(
@@ -210,7 +203,7 @@ router.delete("/:token/packs/:packId", async (c) => {
 
 router.post("/:token/draft", async (c) => {
   const token = c.req.param("token");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json<{ pack_id: string; menu_id: string; menu_yaml: string }>();
   broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, token);
@@ -219,7 +212,7 @@ router.post("/:token/draft", async (c) => {
 
 router.get("/:token/items", async (c) => {
   const token = c.req.param("token");
-  const session = await validateEditorToken(token);
+  const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const version = await getMcVersion(session.serverKeyId);

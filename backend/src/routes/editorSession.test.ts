@@ -264,31 +264,28 @@ describe("POST /api/editor-session/refresh", () => {
 });
 
 describe("GET /api/editor-session/:token", () => {
-  test("200 with server_key_id for valid token", async () => {
+  test("200 with server_key_id, trusted, trust_code for valid token", async () => {
     const { token, keyId } = await createSession();
     const res = await app.request(`/api/editor-session/${token}`);
     expect(res.status).toBe(200);
-    const body = await res.json() as { server_key_id: string };
+    const body = await res.json() as { server_key_id: string; trusted: boolean; trust_code: string };
     expect(body.server_key_id).toBe(keyId);
+    expect(body.trusted).toBe(false);
+    expect(typeof body.trust_code).toBe("string");
+    expect(body.trust_code.length).toBe(6);
+  });
+
+  test("200 with trusted=true for trusted session", async () => {
+    const { token, keyId } = await createTrustedSession();
+    const res = await app.request(`/api/editor-session/${token}`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { server_key_id: string; trusted: boolean; trust_code: string };
+    expect(body.server_key_id).toBe(keyId);
+    expect(body.trusted).toBe(true);
   });
 
   test("401 for unknown token", async () => {
     const res = await app.request("/api/editor-session/notavalidtoken0000000000000000");
-    expect(res.status).toBe(401);
-  });
-});
-
-describe("POST /api/editor-session/:token/refresh", () => {
-  test("200 and returns new expires_at", async () => {
-    const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/refresh`, { method: "POST" });
-    expect(res.status).toBe(200);
-    const body = await res.json() as { expires_at: string };
-    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
-  });
-
-  test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/refresh", { method: "POST" });
     expect(res.status).toBe(401);
   });
 });
@@ -635,14 +632,7 @@ describe("GET /api/editor-session/:token/items", () => {
     const helloRes = await handlePluginMessage("conn-items-test", JSON.stringify(hello));
     const ack = JSON.parse(helloRes.reply!) as HelloAckMessage;
 
-    const token = "items_tok2_" + crypto.randomUUID().slice(0, 8);
-    await db.insert(editorSessions).values({
-      token,
-      serverKeyId: ack.server_id,
-      createdBy: "test",
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-    });
+    const { token } = await createSession(ack.server_id);
 
     const res = await app.request(`/api/editor-session/${token}/items`);
     expect(res.status).toBe(404);
@@ -666,14 +656,7 @@ describe("GET /api/editor-session/:token/items", () => {
     const helloRes = await handlePluginMessage("conn-items-ok", JSON.stringify(hello));
     const ack = JSON.parse(helloRes.reply!) as HelloAckMessage;
 
-    const token = "items_tok3_" + crypto.randomUUID().slice(0, 8);
-    await db.insert(editorSessions).values({
-      token,
-      serverKeyId: ack.server_id,
-      createdBy: "test",
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-    });
+    const { token } = await createSession(ack.server_id);
 
     const res = await app.request(`/api/editor-session/${token}/items`);
     expect(res.status).toBe(200);
