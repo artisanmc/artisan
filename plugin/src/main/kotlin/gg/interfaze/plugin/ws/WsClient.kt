@@ -12,6 +12,7 @@ class WsClient(
     private val mcVersion: String,
     private val currentBundleHash: String = "",
     private val localPackIds: List<String> = emptyList(),
+    private val customItemsHash: String = "",
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
 ) {
@@ -52,6 +53,7 @@ class WsClient(
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
                 "local_pack_ids" to localPackIds,
+                "custom_items_hash" to customItemsHash.ifEmpty { null },
             )
             ws.send(mapper.writeValueAsString(hello))
         }
