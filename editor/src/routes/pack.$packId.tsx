@@ -12,7 +12,7 @@ import { PackMiniSidebar } from "@/features/account/PackMiniSidebar";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
-import { itemTextureUrl } from "@/features/canvas/itemTextures";
+import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
@@ -649,7 +649,7 @@ function TopBarIconButton({
 }
 
 function LibraryDragGhost({ material }: { material: string }) {
-  const url = itemTextureUrl(material);
+  const url = getTextureUrl(material);
   return (
     <div className="pointer-events-none flex h-12 w-12 items-center justify-center rounded border-2 border-emerald-500/70 bg-zinc-900/95 shadow-2xl">
       {url ? (
