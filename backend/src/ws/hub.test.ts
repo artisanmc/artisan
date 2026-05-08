@@ -101,7 +101,10 @@ describe("editor_session_request", () => {
     const msg = JSON.parse(result.reply!) as { type: string; url: string; expires_at: string };
     expect(msg.type).toBe("editor_session_ready");
     expect(msg.url).toContain("/session?token=");
-    expect(new Date(msg.expires_at).getTime()).toBeGreaterThan(Date.now());
+    const body = msg as { type: string; url: string; expires_at: string; trust_code: string };
+    expect(typeof body.trust_code).toBe("string");
+    expect(body.trust_code.length).toBe(6);
+    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000); // > 6 days
   });
 
   test("returns null when connection not authenticated", async () => {
