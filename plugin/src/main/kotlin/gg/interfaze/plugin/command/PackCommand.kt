@@ -23,11 +23,11 @@ class PackCommand(
 
     override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
         if (sender !is Player) {
-            sender.sendMessage("This command can only be used in-game.")
+            sender.sendMessage(lang.get("cmd.in_game_only", sender))
             return true
         }
         if (compiled.permission != null && !sender.hasPermission(compiled.permission)) {
-            sender.sendMessage("You don't have permission to use this command.")
+            sender.sendMessage(lang.get("cmd.no_permission", sender))
             return true
         }
         val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true
