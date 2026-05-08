@@ -41,7 +41,15 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         }
         if (items.isEmpty()) return null
 
-        val hash = computeHash()
+        val digest = MessageDigest.getInstance("SHA-256")
+        for (item in items.sortedBy { it["id"]!! }) {
+            val texturePath = item["texture"]!!
+            val bytes = textures[texturePath] ?: continue
+            digest.update(item["id"]!!.toByteArray(Charsets.UTF_8))
+            digest.update(bytes)
+        }
+        val hash = digest.digest().joinToString("") { "%02x".format(it) }
+
         val data = buildData(items, textures)
         return Pair(hash, data)
     }
