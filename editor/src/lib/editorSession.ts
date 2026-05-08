@@ -13,7 +13,7 @@ export interface ExchangeResult {
 }
 
 export async function exchangeEditorSession(urlToken: string): Promise<ExchangeResult> {
-  const res = await fetch(`${API_URL}/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+  const res = await fetch(`${API_URL}/api/editor-session/${urlToken}/exchange`, { method: "POST", credentials: "include" });
   if (!res.ok) {
     const body = await res.json() as { error?: string };
     throw new Error(body.error === "already_used" ? "already_used" : "Session invalide ou expirée");
