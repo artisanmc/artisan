@@ -329,7 +329,7 @@ const fr: typeof en = {
     nameLabel: "nom",
     namePlaceholder: "shop",
     aliasesLabel: "alias",
-    aliasesPlaceholder: "séparés par des virgules",
+    aliasesPlaceholder: "alias…",
     permissionLabel: "permission",
     permissionPlaceholder: "interfaze.shop",
     descriptionLabel: "description",
