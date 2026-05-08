@@ -212,6 +212,57 @@ async function createTrustedSession(): Promise<{ token: string; keyId: string }>
   return { token, keyId };
 }
 
+describe("POST /api/editor-session/refresh", () => {
+  test("200 returns new access_token and rotates cookie", async () => {
+    const { urlToken } = await createRawSession();
+    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const cookie = exchangeRes.headers.get("set-cookie") ?? "";
+    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+    expect(refreshToken).not.toBe("");
+
+    const res = await app.request("/api/editor-session/refresh", {
+      method: "POST",
+      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { access_token: string; expires_in: number };
+    expect(typeof body.access_token).toBe("string");
+    expect(body.expires_in).toBe(300);
+    expect(res.headers.get("set-cookie")).toContain("ifz_refresh=");
+  });
+
+  test("401 for unknown refresh token", async () => {
+    const res = await app.request("/api/editor-session/refresh", {
+      method: "POST",
+      headers: { "Cookie": "ifz_refresh=unknowntoken000000000000000" },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  test("401 when no cookie", async () => {
+    const res = await app.request("/api/editor-session/refresh", { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+
+  test("old refresh token rejected after rotation", async () => {
+    const { urlToken } = await createRawSession();
+    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const cookie = exchangeRes.headers.get("set-cookie") ?? "";
+    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+
+    await app.request("/api/editor-session/refresh", {
+      method: "POST",
+      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+    });
+
+    const res2 = await app.request("/api/editor-session/refresh", {
+      method: "POST",
+      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+    });
+    expect(res2.status).toBe(401);
+  });
+});
+
 describe("GET /api/editor-session/:token", () => {
   test("200 with server_key_id for valid token", async () => {
     const { token, keyId } = await createSession();
