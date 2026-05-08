@@ -42,6 +42,13 @@ class CommandRegistrar(private val plugin: JavaPlugin) {
                     logger.warning("[IFZ-DEBUG] CommandCompiler returned null for '$name'")
                     continue
                 }
+                // Warn about alias conflicts — best-effort, never skip the command itself.
+                compiled.aliases.forEach { alias ->
+                    val existingAlias = commandMap.getCommand(alias.lowercase())
+                    if (existingAlias != null && existingAlias !is PackCommand) {
+                        logger.warning("Alias '/$alias' for command '/$name' conflicts with an existing command — alias may not work.")
+                    }
+                }
                 val packCommand = PackCommand(compiled, executor)
                 commandMap.register(namespace, packCommand)
                 registered += name

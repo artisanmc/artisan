@@ -105,4 +105,27 @@ class CommandRegistrarTest {
         assertNotNull(cmd, "fresh 'h' command registered after unregisterAll should be found")
         registrar.unregisterAll()
     }
+
+    @Test fun `alias conflict with existing command logs warning but still registers main command`() {
+        val conflictingCmd = object : org.bukkit.command.Command("list") {
+            override fun execute(
+                sender: org.bukkit.command.CommandSender,
+                commandLabel: String,
+                args: Array<String>,
+            ) = true
+        }
+        MockBukkit.getMock()!!.getCommandMap().register("minecraft", conflictingCmd)
+
+        val registrar = CommandRegistrar(plugin.value)
+        // "shop" is main; "list" alias clashes with the pre-registered command.
+        registrar.reload(
+            listOf(bundle(cmdYamlWithAliases("shop", "store", "list"))),
+            executor(),
+            evaluator,
+        )
+        val shopCmd = MockBukkit.getMock()!!.getCommandMap().getCommand("shop")
+            ?: MockBukkit.getMock()!!.getCommandMap().getCommand("interfaze:shop")
+        assertNotNull(shopCmd, "main command /shop must be registered even when an alias conflicts")
+        registrar.unregisterAll()
+    }
 }
