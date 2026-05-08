@@ -57,14 +57,7 @@ docker compose up       # backend:3001 + editor:5173 + minecraft:25565
 **Déployer un nouveau JAR plugin (workflow normal) :**
 ```bash
 cd plugin
-./gradlew shadowJar     # compile + copie vers docker/server/plugins/InterfazePlugin.jar
-docker compose restart minecraft  # redémarre le container (prend ~30s)
-```
-
-**Rebuilder l'image de base (rare — uniquement si Java/Paper changent) :**
-```bash
-docker compose build minecraft
-docker compose up -d minecraft
+./gradlew deploy        # compile + redémarre le container (le JAR est monté directement depuis build/libs/)
 ```
 
 ---
@@ -75,7 +68,7 @@ docker compose up -d minecraft
 editor/          React 19 + Vite + Konva
 backend/         Bun + Hono + PostgreSQL (Drizzle)
 plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
-docker/          Dockerfile single-stage (Paper JRE21) — JAR copié par deployPlugin
+docker/          Config serveur Minecraft (itzg/minecraft-server, Paper géré par l'image)
 docker-compose.yml
 docs/
   decisions/             ← ADRs (stack, state model)
@@ -111,6 +104,12 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url` |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
+| `editor_session_request` | plugin → backend | `sender` |
+| `editor_session_ready` | backend → plugin | `url`, `expires_at`, `trust_code` |
+| `editor_session_revoke` | plugin → backend | `{}` |
+| `editor_trust_request` | plugin → backend | `trust_code` |
+| `session_trusted` | backend → éditeur WS | `{}` |
+| `session_expired` | backend → éditeur WS | `{}` |
 | `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
 
 ---
@@ -160,8 +159,7 @@ plugins/Interfaze/packs/
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts` | 7 |
-| Backend intégration WS+HTTP | `integration.test.ts` | 4 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, etc. | ~85 |
 | Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, etc. | 22 |
 | Plugin intégration | `FullSyncIntegrationTest` | 3 |
 | Editor unit | Vitest, 366 tests couvrant expr DSL, canvas, export, i18n | 366 |
