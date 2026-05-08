@@ -24,6 +24,7 @@ import { ConditionListEditor } from "@/features/canvas/properties/ConditionListE
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
 import { PackProperties } from "@/features/canvas/properties/PackProperties";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
+import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
@@ -1061,6 +1062,7 @@ function PositionsField({
 
 function CommandEditor({ packId, command }: { packId: PackId; command: Command }) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
+  const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -1096,6 +1098,17 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
               multiline
               onChange={(v) =>
                 setCommandField({ packId, commandId: command.id, field: "description", value: v })
+              }
+            />
+            <AliasesField
+              label={t("command.aliasesLabel")}
+              aliases={command.aliases ?? []}
+              onChange={(aliases) =>
+                setCommandAliases({
+                  packId,
+                  commandId: command.id,
+                  aliases,
+                })
               }
             />
           </div>
