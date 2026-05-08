@@ -100,7 +100,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 
 | Message | Sens | Contenu clé |
 |---|---|---|
-| `hello` | plugin → backend | `server_key`, `current_bundle_hash` |
+| `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
 | `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url` |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
@@ -111,6 +111,9 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | `session_trusted` | backend → éditeur WS | `{}` |
 | `session_expired` | backend → éditeur WS | `{}` |
 | `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
+| `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
+| `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
+| `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
 
 ---
 
@@ -144,6 +147,19 @@ plugins/Interfaze/packs/
 
 ---
 
+## Custom Items — endpoints et cache
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/editor-session/:token/custom-items` | Retourne `{ serverKeyId, items[] }` depuis le cache disque. `items: []` si pas encore synchronisé. |
+| `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
+
+Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
+
+**Invariant custom items hash** — `CustomItemsManager.buildBundle()` calcule le hash en inline à partir des items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) pour garantir la cohérence hash ↔ data.
+
+---
+
 ## Variables d'environnement (backend)
 
 | Variable | Défaut | Usage |
@@ -159,10 +175,10 @@ plugins/Interfaze/packs/
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, etc. | ~85 |
-| Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, etc. | 22 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, etc. | ~97 |
+| Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, etc. | 28 |
 | Plugin intégration | `FullSyncIntegrationTest` | 3 |
-| Editor unit | Vitest, 366 tests couvrant expr DSL, canvas, export, i18n | 366 |
+| Editor unit | Vitest, 391 tests couvrant expr DSL, canvas, export, i18n, custom items Library | 391 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
