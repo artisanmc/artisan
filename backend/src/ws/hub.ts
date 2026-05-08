@@ -29,13 +29,13 @@ export const connSenders = new Map<string, (msg: string) => void>();
 const activeSessions = new Map<string, string>();
 // link_code → connId (for B1: push link_confirmed to the plugin that generated the code)
 const codeToConn = new Map<string, string>();
-// Editor WS connections: token → sendFn
+// Editor WS connections: sessionId → sendFn
 export const editorSenders = new Map<string, (msg: string) => void>();
-// token → serverKeyId (for grouping editors by server)
+// sessionId → serverKeyId (for grouping editors by server)
 const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
 const connToServerId = new Map<string, string>();
-// token → editor IP address (set when editor WS connects)
+// sessionId → editor IP address (set when editor WS connects)
 const editorTokenToIp = new Map<string, string>();
 // serverKeyId → minecraft version (set on hello, used by /api/items)
 const serverIdToMcVersion = new Map<string, string>();
@@ -56,15 +56,15 @@ export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
 
-export function registerEditorConn(token: string, serverKeyId: string, send: (msg: string) => void): void {
-  editorSenders.set(token, send);
-  editorTokenToServer.set(token, serverKeyId);
+export function registerEditorConn(sessionId: string, serverKeyId: string, send: (msg: string) => void): void {
+  editorSenders.set(sessionId, send);
+  editorTokenToServer.set(sessionId, serverKeyId);
 }
 
-export function cleanupEditorConn(token: string): void {
-  editorSenders.delete(token);
-  editorTokenToServer.delete(token);
-  editorTokenToIp.delete(token);
+export function cleanupEditorConn(sessionId: string): void {
+  editorSenders.delete(sessionId);
+  editorTokenToServer.delete(sessionId);
+  editorTokenToIp.delete(sessionId);
 }
 
 // Called by link.ts POST /:code/claim (B1 flow: browser claims plugin's code).
@@ -214,9 +214,9 @@ export async function handlePluginMessage(
       .update(editorSessions)
       .set({ revokedAt: new Date() })
       .where(and(eq(editorSessions.serverKeyId, serverId), isNull(editorSessions.revokedAt)));
-    for (const [token, sId] of editorTokenToServer) {
+    for (const [sessionId, sId] of editorTokenToServer) {
       if (sId !== serverId) continue;
-      const send = editorSenders.get(token);
+      const send = editorSenders.get(sessionId);
       if (send) send(JSON.stringify({ type: "session_expired" } satisfies SessionExpiredMessage));
     }
     return { reply: null };
@@ -232,17 +232,16 @@ export async function handlePluginMessage(
     const session = await findSessionByTrustCode(raw.trust_code as string);
     if (!session || session.serverKeyId !== serverId) return { reply: null };
 
-    const ip = session.accessToken ? editorTokenToIp.get(session.accessToken) : undefined;
+    // Use urlToken (stable session PK) instead of session.accessToken (rotates every 4 min)
+    const ip = editorTokenToIp.get(session.urlToken);
     if (!ip) return { reply: null };
 
     await db.update(editorSessions)
       .set({ trustedAt: new Date(), trustedIp: ip })
       .where(eq(editorSessions.token, session.urlToken));
 
-    if (session.accessToken) {
-      const send = editorSenders.get(session.accessToken);
-      if (send) send(JSON.stringify({ type: "session_trusted" } satisfies SessionTrustedMessage));
-    }
+    const send = editorSenders.get(session.urlToken);
+    if (send) send(JSON.stringify({ type: "session_trusted" } satisfies SessionTrustedMessage));
 
     return { reply: null };
   }
@@ -278,19 +277,19 @@ export function broadcastDraftUpdate(
   packId: string,
   menuId: string,
   menuYaml: string,
-  senderToken: string,
+  senderSessionId: string,
 ): void {
   const payload = JSON.stringify({
     type: "draft_update",
     pack_id: packId,
     menu_id: menuId,
     menu_yaml: menuYaml,
-    updated_by: senderToken,
+    updated_by: senderSessionId,
   } satisfies EditorDraftUpdateMessage);
 
-  for (const [token, send] of editorSenders) {
-    if (token === senderToken) continue;
-    if (editorTokenToServer.get(token) !== serverKeyId) continue;
+  for (const [sessionId, send] of editorSenders) {
+    if (sessionId === senderSessionId) continue;
+    if (editorTokenToServer.get(sessionId) !== serverKeyId) continue;
     send(payload);
   }
 
@@ -306,8 +305,8 @@ export function broadcastDraftUpdate(
   }
 }
 
-export function trackEditorIp(token: string, ip: string): void {
-  editorTokenToIp.set(token, ip);
+export function trackEditorIp(sessionId: string, ip: string): void {
+  editorTokenToIp.set(sessionId, ip);
 }
 
 export async function getMcVersion(serverKeyId: string): Promise<string | undefined> {

@@ -56,20 +56,21 @@ app.get(
     if (!session) return c.json({ error: "Unauthorized" }, 401);
     c.set("editorToken", token);
     c.set("editorServerId", session.serverKeyId);
+    c.set("editorSessionId", session.sessionId);
     c.set("editorIp", c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown");
     return next();
   },
   upgradeWebSocket((c) => {
-    const token = c.get("editorToken") as string;
     const serverId = c.get("editorServerId") as string;
+    const sessionId = c.get("editorSessionId") as string;
     const ip = c.get("editorIp") as string;
     return {
       onOpen(_, ws) {
-        registerEditorConn(token, serverId, (msg) => ws.send(msg));
-        trackEditorIp(token, ip);
+        registerEditorConn(sessionId, serverId, (msg) => ws.send(msg));
+        trackEditorIp(sessionId, ip);
       },
       onMessage() {},
-      onClose() { cleanupEditorConn(token); },
+      onClose() { cleanupEditorConn(sessionId); },
       onError: (err) => console.error("Editor WS error:", err),
     };
   }),
