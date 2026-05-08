@@ -3,6 +3,7 @@ package gg.interfaze.plugin
 import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.plugin.command.CommandRegistrar
 import gg.interfaze.plugin.engine.*
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.model.*
 import gg.interfaze.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
@@ -18,6 +19,7 @@ class CommandRegistrarTest {
     private val cooldowns = CooldownStore()
     private val sessions = MenuSessionStore()
     private val evaluator = ConditionEvaluator(deps, cooldowns)
+    private val lang = LangManager(emptyMap(), "en", false)
     private val stubProvider = object : MenuProvider {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
@@ -43,7 +45,7 @@ class CommandRegistrarTest {
     )
 
     @Test fun `reload registers commands`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(cmdYaml("testcmd"))), executor(), evaluator)
         val cmd = MockBukkit.getMock()!!.getCommandMap().getCommand("testcmd")
             ?: MockBukkit.getMock()!!.getCommandMap().getCommand("interfaze:testcmd")
@@ -52,21 +54,21 @@ class CommandRegistrarTest {
     }
 
     @Test fun `reload after second call replaces commands`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(cmdYaml("firstcmd"))), executor(), evaluator)
         registrar.reload(listOf(bundle(cmdYaml("secondcmd"))), executor(), evaluator)
         registrar.unregisterAll()
     }
 
     @Test fun `unregisterAll removes commands`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(cmdYaml("mycmd"))), executor(), evaluator)
         registrar.unregisterAll()
         // No exception = pass
     }
 
     @Test fun `duplicate command names across packs uses first registered`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         val b1 = bundle(cmdYaml("shared"))
         val b2 = bundle(cmdYaml("shared"))
         registrar.reload(listOf(b1, b2), executor(), evaluator)
@@ -79,14 +81,14 @@ class CommandRegistrarTest {
             name = "brokencommand",
             actions = listOf(mapOf("type" to "definitely_not_an_action")),
         )
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(badYaml)), executor(), evaluator)
         // No exception — bad command simply skipped
         registrar.unregisterAll()
     }
 
     @Test fun `aliases are registered and retrievable by alias name`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
         val byAlias = MockBukkit.getMock()!!.getCommandMap().getCommand("h")
             ?: MockBukkit.getMock()!!.getCommandMap().getCommand("interfaze:h")
@@ -95,7 +97,7 @@ class CommandRegistrarTest {
     }
 
     @Test fun `aliases are removed from command map after unregisterAll`() {
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
         registrar.unregisterAll()
         // If aliases were stale, registering a fresh "h" command would find a conflict.
@@ -116,7 +118,7 @@ class CommandRegistrarTest {
         }
         MockBukkit.getMock()!!.getCommandMap().register("minecraft", conflictingCmd)
 
-        val registrar = CommandRegistrar(plugin.value)
+        val registrar = CommandRegistrar(plugin.value, lang)
         // "shop" is main; "list" alias clashes with the pre-registered command.
         registrar.reload(
             listOf(bundle(cmdYamlWithAliases("shop", "store", "list"))),

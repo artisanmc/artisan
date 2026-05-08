@@ -3,6 +3,7 @@ package gg.interfaze.plugin.command
 import gg.interfaze.plugin.InterfazePlugin
 import gg.interfaze.plugin.config.ConfigWriter
 import gg.interfaze.plugin.config.PluginConfig
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.ws.SetupClient
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
@@ -16,7 +17,7 @@ import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor, TabCompleter {
+class IfzCommand(private val plugin: InterfazePlugin, private val lang: LangManager) : CommandExecutor, TabCompleter {
 
     @Volatile private var setupClient: SetupClient? = null
 

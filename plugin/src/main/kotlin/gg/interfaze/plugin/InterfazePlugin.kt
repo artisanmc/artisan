@@ -43,7 +43,6 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
-            langManager      = langManager,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )
@@ -81,7 +80,6 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
-            langManager      = langManager,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )

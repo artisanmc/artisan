@@ -2,13 +2,14 @@ package gg.interfaze.plugin.command
 
 import gg.interfaze.plugin.engine.ActionExecutor
 import gg.interfaze.plugin.engine.ConditionEvaluator
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.model.PackBundle
 import org.bukkit.Bukkit
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.logging.Logger
 
-class CommandRegistrar(private val plugin: JavaPlugin) {
+class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangManager) {
     private val logger: Logger get() = plugin.logger
     private val registered = mutableListOf<String>()
 
@@ -49,7 +50,7 @@ class CommandRegistrar(private val plugin: JavaPlugin) {
                         logger.warning("Alias '/$alias' for command '/$name' conflicts with an existing command — alias may not work.")
                     }
                 }
-                val packCommand = PackCommand(compiled, executor)
+                val packCommand = PackCommand(compiled, executor, lang)
                 commandMap.register(namespace, packCommand)
                 registered += name
                 seen += name
