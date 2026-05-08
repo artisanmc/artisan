@@ -62,6 +62,7 @@ class SyncedMenuProvider(
     @Volatile private var wsClient: WsClient? = null
     private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
+    @Volatile private var lastTrustCode: String? = null
 
     override fun load() {
         reloadFromDisk()
@@ -100,6 +101,10 @@ class SyncedMenuProvider(
 
     override fun revokeEditorSessions() {
         wsClient?.send(mapOf("type" to "editor_session_revoke"))
+    }
+
+    override fun sendTrustRequest(code: String) {
+        wsClient?.send(mapOf("type" to "editor_trust_request", "trust_code" to code))
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
@@ -217,6 +222,7 @@ class SyncedMenuProvider(
             "editor_session_ready" -> {
                 val url = node["url"]?.asText() ?: return
                 val expiresAt = node["expires_at"]?.asText() ?: return
+                lastTrustCode = node["trust_code"]?.asText()
                 val cb = editorSessionCallback
                 editorSessionCallback = null
                 cb?.invoke(url, expiresAt)

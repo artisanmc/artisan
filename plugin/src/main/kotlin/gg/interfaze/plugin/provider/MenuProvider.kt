@@ -19,4 +19,5 @@ interface MenuProvider {
     fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
     fun requestEditorSession(sender: String, onReady: (url: String, expiresAt: String) -> Unit) {}
     fun revokeEditorSessions() {}
+    fun sendTrustRequest(code: String) {}
 }
