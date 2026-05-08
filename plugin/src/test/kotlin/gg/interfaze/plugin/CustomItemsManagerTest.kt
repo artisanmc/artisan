@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream
 import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -89,6 +90,12 @@ class CustomItemsManagerTest {
     fun `stripColorCodes removes section-sign sequences`() {
         val mgr = CustomItemsManager(emptyList())
         assertEquals("Iron Coin", mgr.stripColorCodes("§6Iron §rCoin"))
+    }
+
+    @Test
+    fun `NexoSource isAvailable returns false when Nexo plugin not installed`() {
+        val source = gg.interfaze.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
+        assertFalse(source.isAvailable())
     }
 
     @Test
