@@ -373,9 +373,54 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
   });
 });
 
+describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", () => {
+  const fakePayload = {
+    pack: { id: "p_trust", name: "Trust Test", menus: [] },
+    files: { "manifest.yaml": "pack_id: p_trust\n" },
+  };
+
+  test("403 session_not_trusted when not trusted", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/p_trust/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fakePayload),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("session_not_trusted");
+  });
+
+  test("403 session_not_trusted when trusted_ip differs", async () => {
+    const { token } = await createSession();
+    const rows = await db.select().from(editorSessions).where(eq(editorSessions.accessToken, token));
+    await db.update(editorSessions)
+      .set({ trustedAt: new Date(), trustedIp: "5.5.5.5" })
+      .where(eq(editorSessions.token, rows[0].token));
+
+    const res = await app.request(`/api/editor-session/${token}/packs/p_trust/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fakePayload),
+    });
+    expect(res.status).toBe(403);
+    expect((await res.json() as { error: string }).error).toBe("session_not_trusted");
+  });
+
+  test("201 when session is trusted with matching IP", async () => {
+    const { token } = await createTrustedSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/p_trust_ok/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: { id: "p_trust_ok", name: "ok" }, files: { "manifest.yaml": "" } }),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+
 describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
   test("201 deploys pack, sets deployed_editor_json, pushes bundle", async () => {
-    const { token } = await createSession();
+    const { token } = await createTrustedSession();
     const fakePack = { id: "p_deploy", name: "Deploy Me", menus: [] };
     const fakeFiles = { "manifest.yaml": "pack_id: p_deploy\n" };
 
@@ -415,7 +460,7 @@ describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
   });
 
   test("returns deployed pack after deploy", async () => {
-    const { token } = await createSession();
+    const { token } = await createTrustedSession();
     const fakePack = { id: "p_getdeployed", name: "Get Deployed", menus: [] };
     // Deploy it
     await app.request(`/api/editor-session/${token}/packs/p_getdeployed/deploy`, {
