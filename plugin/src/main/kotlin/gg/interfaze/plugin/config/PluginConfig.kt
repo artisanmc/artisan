@@ -7,6 +7,8 @@ data class PluginConfig(
     val wsUrl: String,
     val packsDir: String,
     val editorConsoleOnly: Boolean,
+    val language: String,
+    val perPlayerLanguage: Boolean,
 ) {
     companion object {
         fun from(cfg: FileConfiguration) = PluginConfig(
@@ -14,6 +16,8 @@ data class PluginConfig(
             wsUrl             = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
             packsDir          = cfg.getString("packs_dir", "plugins/Interfaze/packs") ?: "",
             editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
+            language          = cfg.getString("language", "en") ?: "en",
+            perPlayerLanguage = cfg.getBoolean("per_player_language", false),
         )
     }
 }
