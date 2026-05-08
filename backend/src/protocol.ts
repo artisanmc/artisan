@@ -4,6 +4,7 @@ export interface HelloMessage {
   plugin_version: string;
   minecraft_version: string;
   current_bundle_hash: string;
+  local_pack_ids?: string[];
 }
 
 export interface HelloAckMessage {

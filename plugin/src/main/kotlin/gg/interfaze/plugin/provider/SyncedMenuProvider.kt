@@ -78,6 +78,7 @@ class SyncedMenuProvider(
                 serverKey         = serverKey,
                 mcVersion         = mcVersion,
                 currentBundleHash = currentHash,
+                localPackIds      = bundles.map { it.packId },
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )

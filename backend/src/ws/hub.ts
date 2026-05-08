@@ -115,6 +115,41 @@ export async function handlePluginMessage(
     const packHashesMap: Record<string, string> = {};
     for (const p of packs) packHashesMap[p.packId] = p.hash;
 
+    // Create minimal editor stubs for packs the plugin has on disk but the backend doesn't know about
+    const knownPackIds = new Set(packs.map((p) => p.packId));
+    const localPackIds = hello.local_pack_ids ?? [];
+    const missingPackIds = localPackIds.filter((id) => !knownPackIds.has(id));
+    if (missingPackIds.length > 0) {
+      const now = new Date().toISOString();
+      await db.insert(packBundles).values(
+        missingPackIds.map((packId) => ({
+          id: crypto.randomUUID(),
+          serverId: keyId,
+          packId,
+          hash: "",
+          filesJson: "{}",
+          editorJson: JSON.stringify({
+            id: packId,
+            name: packId,
+            source: "user_created",
+            createdAt: now,
+            updatedAt: now,
+            menus: [],
+            commands: [],
+            templates: [],
+            assets: [],
+            dataSources: [],
+            dialogs: [],
+            importedConnectors: [],
+            i18nKeys: {},
+            defaultLang: "en",
+            canvasLayout: {},
+          }),
+          createdAt: new Date(),
+        })),
+      ).onConflictDoNothing();
+    }
+
     const ack: HelloAckMessage = {
       type: "hello_ack",
       session_id: sessionId,
