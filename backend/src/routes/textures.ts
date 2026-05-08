@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { existsSync } from "fs";
-import { join } from "path";
+import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
 import { customItemsCacheDir } from "../lib/customItems";
 
@@ -13,7 +13,10 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   const rest = fullPath.includes(prefix) ? fullPath.split(prefix)[1] : "";
   if (!rest) return c.newResponse(null, 404);
 
-  const filePath = join(customItemsCacheDir(serverKeyId), "textures", rest + ".png");
+  const baseDir = resolve(customItemsCacheDir(serverKeyId), "textures");
+  const filePath = resolve(join(baseDir, rest + ".png"));
+  // Reject any path that escapes the base directory
+  if (!filePath.startsWith(baseDir + sep)) return c.newResponse(null, 404);
   if (!existsSync(filePath)) return c.newResponse(null, 404);
 
   return new Response(Bun.file(filePath), {

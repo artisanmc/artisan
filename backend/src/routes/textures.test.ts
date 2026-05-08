@@ -60,4 +60,9 @@ describe("GET /api/textures/custom/:serverKeyId/*", () => {
     const res = await app.request(`/api/textures/custom/${TEST_SERVER_ID}/nexo/doesnt_exist`);
     expect(res.status).toBe(404);
   });
+
+  test("returns 404 for path traversal attempt", async () => {
+    const res = await app.request(`/api/textures/custom/${TEST_SERVER_ID}/../../evil`);
+    expect(res.status).toBe(404);
+  });
 });
