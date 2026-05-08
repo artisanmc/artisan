@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import useImage from "use-image";
 import { MiniMessageKonvaText } from "./MiniMessageKonvaText";
 import { hitTestSlot } from "./hitTest";
-import { itemTextureUrl } from "./itemTextures";
+import { useTextureUrl } from "./textureStore";
 import {
   COLS,
   TEX_FIRST_SLOT_X,
@@ -51,7 +51,7 @@ interface SlotItemProps {
  * matching the vanilla MC tooltip look.
  */
 function SlotItem({ material, innerX, innerY, count }: SlotItemProps) {
-  const url = itemTextureUrl(material);
+  const url = useTextureUrl(material);
   const [image] = useImage(url ?? "");
   const showCount = (count ?? 0) > 1;
   const countText = String(count ?? 0);
