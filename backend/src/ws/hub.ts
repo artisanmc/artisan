@@ -321,7 +321,11 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const bundle = msg as CustomItemsBundleMessage;
     const cacheDir = customItemsCacheDir(serverId);
-    await processBundle(cacheDir, bundle.hash, bundle.data);
+    try {
+      await processBundle(cacheDir, bundle.hash, bundle.data);
+    } catch (err) {
+      console.error(`[custom-items] Failed to process bundle for server ${serverId}:`, err);
+    }
     return { reply: null };
   }
 
