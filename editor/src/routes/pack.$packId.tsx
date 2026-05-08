@@ -37,7 +37,8 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { Navigate, createFileRoute, useParams } from "@tanstack/react-router";
+import { Navigate, createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { refreshEditorSession } from "@/lib/editorSession";
 import { useSessionStore } from "@/state/sessionStore";
 import {
   BookOpen,
@@ -63,6 +64,9 @@ function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   const pId = packId as PackId;
   const token = useSessionStore((s) => s.accessToken);
+  const setAccessToken = useSessionStore((s) => s.setAccessToken);
+  const clearSession = useSessionStore((s) => s.clearSession);
+  const navigate = useNavigate();
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
@@ -84,7 +88,20 @@ function PackCanvasPage() {
     if (current !== pId) useUiStore.getState().setLastActivePackId(pId);
   }, [pId]);
 
-  if (!token) return <Navigate to="/" replace />;
+  // Keep the access token alive while the pack page is open.
+  useEffect(() => {
+    if (!token) return;
+    const id = setInterval(async () => {
+      const newToken = await refreshEditorSession();
+      if (!newToken) { clearSession(); navigate({ to: "/session", replace: true }); return; }
+      setAccessToken(newToken);
+    }, 4 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [token, setAccessToken, clearSession, navigate]);
+
+  // After a page reload the Zustand store is empty — bounce to /session so
+  // the cookie-based refresh can re-establish the session silently.
+  if (!token) return <Navigate to="/session" replace />;
   // accountStore is not persisted — empty after a page refresh, bounce to /session to reload.
   if (packs.length === 0) return <Navigate to="/session" replace />;
   if (!pack) return <Navigate to={`/pack/${packs[0]!.id}`} replace />;

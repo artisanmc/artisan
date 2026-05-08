@@ -256,6 +256,8 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
         return;
       }
       if (cmdOrCtrl && e.key === "c") {
+        // Let the browser handle it when the user has plain text selected.
+        if (document.getSelection()?.toString()) return;
         e.preventDefault();
         const ids = [...useSelectionStore.getState().ids];
         void copySelection(packId, ids, onError);
