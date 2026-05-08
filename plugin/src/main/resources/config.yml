@@ -6,6 +6,14 @@ ws_url: "wss://editor.interfaze.gg/ws/plugin"
 # Path relative to the server root where exported pack bundles are stored.
 packs_dir: "plugins/Interfaze/packs"
 
+# Language for plugin system messages (en, fr). Defaults to en.
+# Place custom lang files in plugins/Interfaze/lang/<code>.yml to override.
+language: "en"
+
+# When true, plugin messages are sent in each player's client language when
+# a matching lang file is available. Falls back to 'language' if not.
+per_player_language: false
+
 # Editor access settings.
 editor:
   # Set to true to restrict /ifz editor to console only (no in-game players).

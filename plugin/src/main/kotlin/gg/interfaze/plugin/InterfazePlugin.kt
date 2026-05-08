@@ -4,6 +4,7 @@ import gg.interfaze.plugin.command.CommandRegistrar
 import gg.interfaze.plugin.command.IfzCommand
 import gg.interfaze.plugin.config.PluginConfig
 import gg.interfaze.plugin.engine.*
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.provider.MenuProvider
 import gg.interfaze.plugin.provider.SyncedMenuProvider
 import gg.interfaze.plugin.render.MenuListener
@@ -18,6 +19,8 @@ open class InterfazePlugin : JavaPlugin() {
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
+    lateinit var langManager: LangManager
+        private set
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -25,12 +28,14 @@ open class InterfazePlugin : JavaPlugin() {
         val serverRoot = dataFolder.parentFile.parentFile
         val packsDir = File(serverRoot, cfg.packsDir).also { it.mkdirs() }
 
+        langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
+
         val softDeps = SoftDepRegistry(this)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
-        commandRegistrar = CommandRegistrar(this)
+        commandRegistrar = CommandRegistrar(this, langManager)
         menuProvider = SyncedMenuProvider(
             packsDir         = packsDir,
             serverKey        = cfg.serverKey,
@@ -38,6 +43,7 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
+            langManager      = langManager,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )
@@ -46,7 +52,7 @@ open class InterfazePlugin : JavaPlugin() {
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
-        ifzCommand = IfzCommand(this)
+        ifzCommand = IfzCommand(this, langManager)
         getCommand("ifz")?.setExecutor(ifzCommand)
         getCommand("ifz")?.tabCompleter = ifzCommand
         server.pluginManager.registerEvents(MenuListener(sessions, executor), this)
@@ -61,6 +67,7 @@ open class InterfazePlugin : JavaPlugin() {
     }
 
     fun reinit(cfg: PluginConfig) {
+        langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
         val packsDir = File(dataFolder.parentFile.parentFile, cfg.packsDir).also { it.mkdirs() }
 
@@ -74,6 +81,7 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
+            langManager      = langManager,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )
