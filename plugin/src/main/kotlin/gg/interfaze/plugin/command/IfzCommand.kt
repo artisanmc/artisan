@@ -4,20 +4,41 @@ import gg.interfaze.plugin.InterfazePlugin
 import gg.interfaze.plugin.config.ConfigWriter
 import gg.interfaze.plugin.config.PluginConfig
 import gg.interfaze.plugin.ws.SetupClient
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
+import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
+class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor, TabCompleter {
 
     @Volatile private var setupClient: SetupClient? = null
 
     fun shutdown() {
         setupClient?.disconnect()
         setupClient = null
+    }
+
+    override fun onTabComplete(
+        sender: CommandSender, command: Command, label: String, args: Array<out String>
+    ): List<String> {
+        return when {
+            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor")
+                .filter { it.startsWith(args[0].lowercase()) }
+            args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
+                plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
+            args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
+                listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
+                listOf("revoke").filter { it.startsWith(args[1].lowercase()) }
+            else -> emptyList()
+        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
@@ -51,7 +72,19 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                     else     -> sender.sendMessage("Usage: /ifz editor [revoke]")
                 }
             }
-            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>")
+            "trusteditor" -> {
+                val code = args.getOrNull(1) ?: run {
+                    sender.sendMessage("[Interfaze] Usage: /ifz trusteditor <code>")
+                    return true
+                }
+                if (!sender.hasPermission("interfaze.editor")) {
+                    sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+                    return true
+                }
+                plugin.menuProvider.sendTrustRequest(code.uppercase())
+                sender.sendMessage("[Interfaze] Demande de trust envoyée.")
+            }
+            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]|trusteditor <code>>")
         }
         return true
     }
@@ -72,9 +105,14 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         }
         val senderName = if (sender is Player) sender.name else "CONSOLE"
         plugin.menuProvider.requestEditorSession(senderName) { url, expiresAt ->
+            plugin.logger.info("Éditeur → $url  (expire $expiresAt)")
             Bukkit.getScheduler().runTask(plugin, Runnable {
-                sender.sendMessage("[Interfaze] Éditeur → $url")
-                sender.sendMessage("[Interfaze] (expire le $expiresAt)")
+                val link = Component.text("[Ouvrir l'éditeur]")
+                    .color(NamedTextColor.GREEN)
+                    .decorate(TextDecoration.UNDERLINED)
+                    .clickEvent(ClickEvent.openUrl(url))
+                sender.sendMessage(Component.text("[Interfaze] ").append(link))
+                sender.sendMessage(Component.text("[Interfaze] (expire le $expiresAt)").color(NamedTextColor.GRAY))
             })
         }
     }
@@ -96,21 +134,24 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
             sender.sendMessage("[Interfaze] ws_url is not configured in config.yml.")
             return
         }
-        sender.sendMessage("[Interfaze] Connexion au backend en cours...")
+        sender.sendMessage("[Interfaze] Connexion au backend en cours…")
         val configFile = plugin.dataFolder.resolve("config.yml")
         setupClient = SetupClient(
             url = cfg.wsUrl,
             code = code,
             onCode = { receivedCode, url ->
-                val msg = "[Interfaze] Lier ce serveur : $url"
-                plugin.logger.info(msg)
+                plugin.logger.info("Lier ce serveur : $url")
                 Bukkit.getScheduler().runTask(plugin, Runnable {
-                    sender.sendMessage(msg)
+                    val link = Component.text("[Lier ce serveur]")
+                        .color(NamedTextColor.AQUA)
+                        .decorate(TextDecoration.UNDERLINED)
+                        .clickEvent(ClickEvent.openUrl(url))
+                    sender.sendMessage(Component.text("[Interfaze] ").append(link))
                 })
             },
             onLinked = { serverKey ->
                 ConfigWriter.writeServerKey(configFile, serverKey)
-                plugin.logger.info("[Interfaze] Serveur lié ✓ (server_key écrit dans config.yml)")
+                plugin.logger.info("Serveur lié ✓ (server_key écrit dans config.yml)")
                 Bukkit.getScheduler().runTask(plugin, Runnable {
                     sender.sendMessage("[Interfaze] Serveur lié ✓ Rechargement en cours...")
                     plugin.reloadConfig()
