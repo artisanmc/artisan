@@ -322,7 +322,7 @@ export default {
     nameLabel: "name",
     namePlaceholder: "shop",
     aliasesLabel: "aliases",
-    aliasesPlaceholder: "comma-separated",
+    aliasesPlaceholder: "alias…",
     permissionLabel: "permission",
     permissionPlaceholder: "interfaze.shop",
     descriptionLabel: "description",
