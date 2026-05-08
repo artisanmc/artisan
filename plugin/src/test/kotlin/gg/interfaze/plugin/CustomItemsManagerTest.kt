@@ -99,6 +99,12 @@ class CustomItemsManagerTest {
     }
 
     @Test
+    fun `OraxenSource isAvailable returns false when Oraxen plugin not installed`() {
+        val source = gg.interfaze.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
+        assertFalse(source.isAvailable())
+    }
+
+    @Test
     fun `items with null texture are skipped`() {
         val sourceWithMissing = object : CustomItemSource {
             override val namespace = "nexo"

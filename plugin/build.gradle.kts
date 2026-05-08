@@ -26,6 +26,7 @@ repositories {
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     maven("https://maven.enginehub.org/repo/")
     maven("https://repo.nexomc.com/releases/")
+    maven("https://repo.oraxen.com/releases/")
 }
 
 dependencies {
@@ -33,6 +34,7 @@ dependencies {
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
+    compileOnly("io.th0rgal:oraxen:1.189.0")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
         exclude("com.google.guava", "guava")
         exclude("com.google.code.gson", "gson")
