@@ -268,8 +268,7 @@ export async function handlePluginMessage(
     if (!session || session.serverKeyId !== serverId) return { reply: null };
 
     // Use urlToken (stable session PK) instead of session.accessToken (rotates every 4 min)
-    const ip = editorTokenToIp.get(session.urlToken);
-    if (!ip) return { reply: null };
+    const ip = editorTokenToIp.get(session.urlToken) ?? "unknown";
 
     await db.update(editorSessions)
       .set({ trustedAt: new Date(), trustedIp: ip })
