@@ -14,7 +14,7 @@ export const app = new Hono();
 export { websocket };
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
-app.use("/api/*", cors({ origin: EDITOR_URL }));
+app.use("/api/*", cors({ origin: EDITOR_URL, credentials: true }));
 
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 app.route("/api/server-keys", serverKeysRouter);

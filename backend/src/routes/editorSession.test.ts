@@ -715,3 +715,27 @@ describe("GET /api/editor-session/:token/items", () => {
     expect(body.items[0]).toHaveProperty("texture");
   });
 });
+
+describe("CORS credentials", () => {
+  test("GET /api/editor-session/:token returns Access-Control-Allow-Credentials: true with browser Origin", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "cors_cred" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "cors_cred_" + crypto.randomUUID().slice(0,8);
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), trustCode: "CORSTT",
+    });
+    const accessToken = "corsat_" + crypto.randomUUID().slice(0,8);
+    await db.update(editorSessions).set({
+      exchangedAt: new Date(), accessToken,
+      accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000), refreshToken: "dummy",
+    }).where(eq(editorSessions.token, urlToken));
+
+    const res = await app.request(`/api/editor-session/${accessToken}`, {
+      headers: { "Origin": "http://localhost:5173" },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
+  });
+});
