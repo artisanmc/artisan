@@ -9,6 +9,7 @@ import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.engine.ConditionEvaluator
 import gg.interfaze.plugin.engine.ExecutionContext
 import gg.interfaze.plugin.engine.MenuSessionStore
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.model.BundleDialog
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.MenuYaml
@@ -52,6 +53,7 @@ class SyncedMenuProvider(
     private val sessions: MenuSessionStore? = null,
     private val onReload: (() -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
+    private val langManager: LangManager? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -116,7 +118,8 @@ class SyncedMenuProvider(
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
         val menu = findMenu(menuId) ?: run {
-            player.sendMessage("Menu '$menuId' not found.")
+            player.sendMessage(langManager?.get("cmd.menu_not_found", player, "id" to menuId)
+                ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
         val session = MenuRenderer.open(player, menu, lang, ctx, evaluator)
@@ -128,7 +131,8 @@ class SyncedMenuProvider(
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
         val dialog = findDialog(dialogId) ?: run {
-            player.sendMessage("Dialog '$dialogId' not found.")
+            player.sendMessage(langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
+                ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
         }
         val executor = executorProvider?.invoke() ?: run {
