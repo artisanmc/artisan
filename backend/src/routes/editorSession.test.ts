@@ -114,16 +114,73 @@ describe("validateEditorToken", () => {
 
 import { app } from "../app";
 
+async function createRawSession(): Promise<{ urlToken: string; keyId: string }> {
+  const keyId = crypto.randomUUID();
+  await db.insert(serverKeys).values({ id: keyId, hash: "raw" + keyId.slice(0,8), createdAt: new Date() });
+  const urlToken = "url_" + generateEditorToken();
+  const trustCode = generateTrustCode();
+  await db.insert(editorSessions).values({
+    token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+    createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    trustCode,
+  });
+  return { urlToken, keyId };
+}
+
+describe("POST /api/editor-session/:urlToken/exchange", () => {
+  test("200 returns access_token + trust_code, sets cookie", async () => {
+    const { urlToken } = await createRawSession();
+    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { access_token: string; expires_in: number; trust_code: string };
+    expect(typeof body.access_token).toBe("string");
+    expect(body.access_token.length).toBeGreaterThan(0);
+    expect(body.expires_in).toBe(300);
+    expect(typeof body.trust_code).toBe("string");
+    expect(body.trust_code.length).toBe(6);
+    const cookie = res.headers.get("set-cookie");
+    expect(cookie).toContain("ifz_refresh=");
+    expect(cookie).toContain("HttpOnly");
+  });
+
+  test("401 already_used on second call", async () => {
+    const { urlToken } = await createRawSession();
+    await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const res2 = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    expect(res2.status).toBe(401);
+    const body = await res2.json() as { error: string };
+    expect(body.error).toBe("already_used");
+  });
+
+  test("401 for unknown url token", async () => {
+    const res = await app.request("/api/editor-session/unknowntoken000000000000000000/exchange", { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+});
+
 async function createSession(serverId?: string): Promise<{ token: string; keyId: string }> {
   const keyId = serverId ?? crypto.randomUUID();
   if (!serverId) {
     await db.insert(serverKeys).values({ id: keyId, hash: "sh" + keyId.slice(0,8), createdAt: new Date() });
   }
-  const token = generateEditorToken();
+  const urlToken = "url_" + generateEditorToken();
+  const trustCode = generateTrustCode();
   await db.insert(editorSessions).values({
-    token, serverKeyId: keyId, createdBy: "CONSOLE",
-    createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+    createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    trustCode,
   });
+  const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+  const { access_token } = await res.json() as { access_token: string };
+  return { token: access_token, keyId };
+}
+
+async function createTrustedSession(): Promise<{ token: string; keyId: string }> {
+  const { token, keyId } = await createSession();
+  const rows = await db.select().from(editorSessions).where(eq(editorSessions.accessToken, token));
+  await db.update(editorSessions)
+    .set({ trustedAt: new Date(), trustedIp: "unknown" })
+    .where(eq(editorSessions.token, rows[0].token));
   return { token, keyId };
 }
 
