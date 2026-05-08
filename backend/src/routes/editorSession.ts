@@ -86,7 +86,7 @@ router.get("/:token", async (c) => {
   const token = c.req.param("token");
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  trackEditorIp(token, clientIp(c));
+  trackEditorIp(session.sessionId, clientIp(c));
   return c.json({ server_key_id: session.serverKeyId, trusted: session.trusted, trust_code: session.trustCode });
 });
 
@@ -209,7 +209,7 @@ router.post("/:token/draft", async (c) => {
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
   const body = await c.req.json<{ pack_id: string; menu_id: string; menu_yaml: string }>();
-  broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, token);
+  broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, session.sessionId);
   return c.json({ ok: true });
 });
 

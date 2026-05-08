@@ -127,6 +127,7 @@ describe("editor_session_revoke", () => {
     const token = generateEditorToken();
     await db.insert(editorSessions).values({ token, serverKeyId: keyId, createdBy: "CONSOLE", createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
     const editorReceived: string[] = [];
+    // Maps are now keyed by sessionId (urlToken = stable session PK)
     registerEditorConn(token, keyId, (msg) => editorReceived.push(msg));
 
     await handlePluginMessage(connId, JSON.stringify({ type: "editor_session_revoke" }));
@@ -158,8 +159,9 @@ describe("editor_trust_request", () => {
     });
 
     const editorReceived: string[] = [];
-    registerEditorConn(accessToken, keyId, (msg) => editorReceived.push(msg));
-    trackEditorIp(accessToken, "10.0.0.1");
+    // Maps are keyed by urlToken (stable session PK), not accessToken (rotates)
+    registerEditorConn(urlToken, keyId, (msg) => editorReceived.push(msg));
+    trackEditorIp(urlToken, "10.0.0.1");
 
     await handlePluginMessage(connId, JSON.stringify({ type: "editor_trust_request", trust_code: trustCode }));
 
