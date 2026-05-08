@@ -25,12 +25,14 @@ repositories {
     maven("https://jitpack.io")
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.nexomc.com/releases/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
         exclude("com.google.guava", "guava")
         exclude("com.google.code.gson", "gson")
@@ -52,15 +54,22 @@ tasks.shadowJar {
     relocate("com.fasterxml.jackson", "gg.interfaze.shaded.jackson")
     relocate("okhttp3", "gg.interfaze.shaded.okhttp3")
     relocate("okio", "gg.interfaze.shaded.okio")
+    // Required: merge service-loader files instead of overwriting them.
+    // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
+    // causing "No BuiltInsLoader implementation was found" at runtime.
+    mergeServiceFiles()
 }
 
-val deployPlugin by tasks.registering(Copy::class) {
+val composeDir: File = rootDir.resolve("..").canonicalFile
+
+val deploy by tasks.registering(Exec::class) {
     dependsOn(tasks.shadowJar)
-    val dest = rootDir.resolve("../docker/server/plugins")
-    doFirst { dest.mkdirs() }
-    from(tasks.shadowJar.get().archiveFile)
-    into(dest)
-    rename { "InterfazePlugin.jar" }
+    workingDir = composeDir
+    doFirst {
+        val jar = tasks.shadowJar.get().archiveFile.get().asFile
+        val dest = composeDir.resolve("docker/server/plugins/InterfazePlugin.jar")
+        dest.parentFile.mkdirs()
+        jar.copyTo(dest, overwrite = true)
+    }
+    commandLine("docker", "compose", "restart", "minecraft")
 }
-
-tasks.shadowJar { finalizedBy(deployPlugin) }
