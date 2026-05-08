@@ -51,6 +51,7 @@ open class InterfazePlugin : JavaPlugin() {
             listOf(
                 gg.interfaze.plugin.customitems.NexoSource(pluginsDir),
                 gg.interfaze.plugin.customitems.OraxenSource(pluginsDir),
+                gg.interfaze.plugin.customitems.ItemsAdderSource(pluginsDir),
             )
         )
         (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
@@ -96,6 +97,7 @@ open class InterfazePlugin : JavaPlugin() {
             listOf(
                 gg.interfaze.plugin.customitems.NexoSource(pluginsDirReinit),
                 gg.interfaze.plugin.customitems.OraxenSource(pluginsDirReinit),
+                gg.interfaze.plugin.customitems.ItemsAdderSource(pluginsDirReinit),
             )
         )
         (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManagerReinit)
