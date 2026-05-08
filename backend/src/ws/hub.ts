@@ -158,6 +158,7 @@ export async function handlePluginMessage(
       needs_sync: needsSync,
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
+      bundle_url: BUNDLE_BASE_URL,
       pack_hashes: packHashesMap,
     };
 
