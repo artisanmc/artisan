@@ -1,6 +1,127 @@
 import { parse as parseYaml } from "yaml";
 
-// ─── YAML schemas emitted by the plugin export ────────────────────────────────
+// ─── i18n helper ─────────────────────────────────────────────────────────────
+
+/** Convert "{i18n:some.key}" → { key: "some.key" }. Fallback: { key: raw }. */
+function ltext(raw: unknown): { key: string } {
+  if (typeof raw !== "string") return { key: "" };
+  const m = raw.match(/^\{i18n:(.+)\}$/);
+  return { key: m ? m[1] : raw };
+}
+
+// ─── action/step inverse ──────────────────────────────────────────────────────
+
+function importAction(a: Record<string, unknown>): unknown {
+  switch (a.type) {
+    case "open_menu": {
+      const out: Record<string, unknown> = { type: "open_menu", menuId: a.menu_id };
+      if (a.clear_context) out.clearContext = true;
+      if (a.context) out.context = a.context;
+      return out;
+    }
+    case "open_dialog": {
+      const out: Record<string, unknown> = { type: "open_dialog", dialogId: a.dialog_id };
+      if (a.clear_context) out.clearContext = true;
+      if (a.context) out.context = a.context;
+      return out;
+    }
+    case "send_message":
+      return { type: "send_message", text: ltext(a.text) };
+    case "run_command":
+      return { type: "run_command", command: a.command, as: a.as };
+    case "close_menu":
+      return { type: "close_menu" };
+    case "close_dialog":
+      return { type: "close_dialog" };
+    case "give_item":
+      return { type: "give_item", material: a.material, count: a.count };
+    case "take_money":
+      return { type: "take_money", amount: a.amount };
+    case "paginate": {
+      const out: Record<string, unknown> = { type: "paginate", direction: a.direction };
+      if (a.target_element_id) out.targetElementId = a.target_element_id;
+      return out;
+    }
+    case "set_arg":
+      return { type: "set_arg", arg: a.arg, value: a.value };
+    case "set_arg_cycle_next":
+      return { type: "set_arg_cycle_next", arg: a.arg, list: a.list };
+    case "set_arg_cycle_prev":
+      return { type: "set_arg_cycle_prev", arg: a.arg, list: a.list };
+    default:
+      return a;
+  }
+}
+
+function importStep(s: Record<string, unknown>): unknown {
+  if (s.kind === "action") {
+    return { kind: "action", action: importAction(s.action as Record<string, unknown>) };
+  }
+  if (s.kind === "if") {
+    const cases = ((s.cases as Record<string, unknown>[]) ?? []).map((c) => ({
+      conditions: c.conditions ?? [],
+      ...(c.joins ? { joins: c.joins } : {}),
+      steps: ((c.steps as Record<string, unknown>[]) ?? []).map(importStep),
+    }));
+    const out: Record<string, unknown> = { kind: "if", cases };
+    if (s.else) {
+      out.else = ((s.else as Record<string, unknown>[]) ?? []).map(importStep);
+    }
+    return out;
+  }
+  return s;
+}
+
+function importSteps(steps: unknown): unknown[] {
+  if (!Array.isArray(steps)) return [];
+  return steps.map((s) => importStep(s as Record<string, unknown>));
+}
+
+// ─── flat actions → steps (dialog buttons use `actions:` not `steps:`) ────────
+
+function actionsToSteps(actions: unknown): unknown[] {
+  if (!Array.isArray(actions)) return [];
+  return actions.map((a) => ({ kind: "action", action: importAction(a as Record<string, unknown>) }));
+}
+
+// ─── dialog sub-types ─────────────────────────────────────────────────────────
+
+function importDialogBody(b: Record<string, unknown>): unknown {
+  if (b.type === "text") return { type: "text", text: ltext(b.text) };
+  if (b.type === "item") return { type: "item", material: b.material, count: b.count };
+  return b;
+}
+
+function importDialogInput(i: Record<string, unknown>): unknown {
+  const base = { id: i.id, type: i.type, label: ltext(i.label) };
+  switch (i.type) {
+    case "text":
+      return { ...base, default: i.default ?? "", maxLength: i.max_length ?? 32 };
+    case "bool":
+      return { ...base, default: String(i.default) === "true" };
+    case "number_range":
+      return { ...base, min: i.min ?? 0, max: i.max ?? 100, default: Number(i.default ?? 0) };
+    case "single_option": {
+      const options = ((i.options as Record<string, unknown>[]) ?? []).map((o) => ({
+        value: o.value,
+        label: ltext(o.label),
+      }));
+      return { ...base, options, default: i.default ?? "" };
+    }
+    default:
+      return base;
+  }
+}
+
+function importDialogButton(b: Record<string, unknown>): unknown {
+  return {
+    id: b.id,
+    label: ltext(b.label),
+    steps: actionsToSteps(b.actions),
+  };
+}
+
+// ─── YAML schema types ────────────────────────────────────────────────────────
 
 interface ManifestYaml {
   pack_id?: string;
@@ -15,20 +136,27 @@ interface CommandYaml {
   permission?: string;
   description?: string;
   arguments?: Array<{ name: string; type?: string; required?: boolean; default?: string }>;
+  steps?: unknown[];
 }
 
 interface MenuYaml {
   id?: string;
   title?: string;
+  size?: number;
   rows?: number;
+  layers?: unknown[];
 }
 
 interface DialogYaml {
   id?: string;
   title?: string;
+  can_close_with_escape?: boolean;
+  body?: Record<string, unknown>[];
+  inputs?: Record<string, unknown>[];
+  buttons?: Record<string, unknown>[];
 }
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function getFile(files: Record<string, string>, packId: string, rel: string): string | null {
   return files[`plugins/Interfaze/packs/${packId}/${rel}`] ?? null;
@@ -41,11 +169,6 @@ function tryParse<T>(text: string | null): T | null {
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
-/**
- * Build a minimal Pack editorJson from a set of compiled YAML files.
- * Steps are not restored (they'd require a full round-trip inverse that
- * doesn't exist). Commands and dialogs are stubs with empty step lists.
- */
 export function importPackFromFiles(packId: string, files: Record<string, string>): Record<string, unknown> {
   const manifest = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
@@ -67,9 +190,9 @@ export function importPackFromFiles(packId: string, files: Record<string, string
         name: a.name,
         type: a.type ?? "string",
         required: a.required ?? false,
-        default: a.default,
+        ...(a.default !== undefined ? { default: a.default } : {}),
       })),
-      steps: [],
+      steps: importSteps(y.steps),
     };
   });
 
@@ -78,22 +201,23 @@ export function importPackFromFiles(packId: string, files: Record<string, string
     return {
       id: y.id ?? dlgId,
       packId,
-      title: { key: `dialogs.${dlgId}.title` },
-      canCloseWithEscape: true,
-      body: [],
-      inputs: [],
-      buttons: [],
+      title: ltext(y.title ?? `{i18n:dialogs.${dlgId}.title}`),
+      canCloseWithEscape: y.can_close_with_escape ?? true,
+      body: (y.body ?? []).map(importDialogBody),
+      inputs: (y.inputs ?? []).map(importDialogInput),
+      buttons: (y.buttons ?? []).map(importDialogButton),
     };
   });
 
   const menus = menuIds.map((menuId) => {
     const y = tryParse<MenuYaml>(getFile(files, packId, `menus/${menuId}.yaml`)) ?? {};
+    const rows = y.rows ?? (y.size ? Math.max(1, Math.min(6, Math.ceil(y.size / 9))) : 3);
     return {
       id: y.id ?? menuId,
       packId,
-      title: { key: `menus.${menuId}.title` },
-      rows: (y.rows ?? 3) as 1 | 2 | 3 | 4 | 5 | 6,
-      layers: [{ id: `layer_default`, name: "Default", elements: [] }],
+      title: ltext(y.title ?? `{i18n:menus.${menuId}.title}`),
+      rows: rows as 1 | 2 | 3 | 4 | 5 | 6,
+      layers: Array.isArray(y.layers) ? y.layers : [{ id: "layer_default", name: "Default", elements: [] }],
     };
   });
 
@@ -120,11 +244,27 @@ export function importPackFromFiles(packId: string, files: Record<string, string
 export function isEmptyStub(editorJson: string | null | undefined): boolean {
   if (!editorJson) return true;
   try {
-    const p = JSON.parse(editorJson) as { menus?: unknown[]; commands?: unknown[]; dialogs?: unknown[] };
-    return (
-      (p.menus?.length ?? 0) === 0 &&
-      (p.commands?.length ?? 0) === 0 &&
-      (p.dialogs?.length ?? 0) === 0
-    );
+    const p = JSON.parse(editorJson) as {
+      source?: string;
+      menus?: unknown[];
+      commands?: Array<{ steps?: unknown[] }>;
+      dialogs?: Array<{ body?: unknown[]; inputs?: unknown[]; buttons?: unknown[] }>;
+    };
+
+    // Completely empty
+    if ((p.menus?.length ?? 0) === 0 && (p.commands?.length ?? 0) === 0 && (p.dialogs?.length ?? 0) === 0)
+      return true;
+
+    // Imported stub where every command has empty steps and every dialog has empty body/inputs/buttons.
+    // This catches packs imported before full YAML parsing was implemented.
+    if (p.source === "imported") {
+      const allCmdsEmpty = (p.commands ?? []).every((c) => (c.steps?.length ?? 0) === 0);
+      const allDlgsEmpty = (p.dialogs ?? []).every(
+        (d) => (d.body?.length ?? 0) === 0 && (d.inputs?.length ?? 0) === 0 && (d.buttons?.length ?? 0) === 0,
+      );
+      if (allCmdsEmpty && allDlgsEmpty) return true;
+    }
+
+    return false;
   } catch { return true; }
 }
