@@ -54,7 +54,9 @@ open class InterfazePlugin : JavaPlugin() {
                 gg.interfaze.plugin.customitems.ItemsAdderSource(pluginsDir),
             )
         )
-        (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
+        val syncedProvider = menuProvider as? SyncedMenuProvider
+        syncedProvider?.setCustomItemsManager(customItemsManager)
+        if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
@@ -71,6 +73,67 @@ open class InterfazePlugin : JavaPlugin() {
         commandRegistrar.unregisterAll()
         menuProvider.unload()
         logger.info("Interfaze disabled")
+    }
+
+    private fun registerCustomItemsReloadListeners(provider: SyncedMenuProvider) {
+        val mgr = server.pluginManager
+
+        if (mgr.getPlugin("Nexo") != null) {
+            mgr.registerEvents(object : org.bukkit.event.Listener {
+                @org.bukkit.event.EventHandler
+                fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
+                    provider.notifyCustomItemsReload()
+                }
+            }, this)
+        }
+
+        if (mgr.getPlugin("Oraxen") != null) {
+            mgr.registerEvents(object : org.bukkit.event.Listener {
+                @org.bukkit.event.EventHandler
+                fun on(event: io.th0rgal.oraxen.api.events.OraxenItemsLoadedEvent) {
+                    provider.notifyCustomItemsReload()
+                }
+            }, this)
+        }
+
+        if (mgr.getPlugin("ItemsAdder") != null) {
+            // ItemsAdder has no compileOnly dep; register the listener via reflection.
+            try {
+                val eventClass = Class.forName("dev.lone.itemsadder.api.Events.CustomItemsLoadedEvent")
+                val listener = object : org.bukkit.event.Listener {}
+                val handlerList = eventClass.getMethod("getHandlerList").invoke(null)
+                    as org.bukkit.event.HandlerList
+                val executorClass = Class.forName("org.bukkit.plugin.EventExecutor")
+                val proxy = java.lang.reflect.Proxy.newProxyInstance(
+                    executorClass.classLoader,
+                    arrayOf(executorClass),
+                ) { _, _, args ->
+                    // args[1] is the event instance; just notify on any invocation
+                    if (args != null && args.size == 2 && eventClass.isInstance(args[1])) {
+                        provider.notifyCustomItemsReload()
+                    }
+                    null
+                }
+                val registeredListenerClass = Class.forName("org.bukkit.plugin.RegisteredListener")
+                val ctor = registeredListenerClass.getConstructor(
+                    org.bukkit.event.Listener::class.java,
+                    executorClass,
+                    org.bukkit.event.EventPriority::class.java,
+                    org.bukkit.plugin.Plugin::class.java,
+                    Boolean::class.javaPrimitiveType,
+                )
+                val registered = ctor.newInstance(
+                    listener,
+                    proxy,
+                    org.bukkit.event.EventPriority.NORMAL,
+                    this,
+                    false,
+                )
+                handlerList.javaClass.getMethod("register", registeredListenerClass).invoke(handlerList, registered)
+            } catch (_: Exception) {
+                logger.warning("ItemsAdder found but could not register hot-reload listener")
+            }
+        }
     }
 
     fun reinit(cfg: PluginConfig) {
@@ -100,7 +163,9 @@ open class InterfazePlugin : JavaPlugin() {
                 gg.interfaze.plugin.customitems.ItemsAdderSource(pluginsDirReinit),
             )
         )
-        (menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManagerReinit)
+        val syncedProviderReinit = menuProvider as? SyncedMenuProvider
+        syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
+        if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
     }
