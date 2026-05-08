@@ -281,6 +281,8 @@ class SyncedMenuProvider(
                             "hash" to hash,
                             "data" to data,
                         ))
+                    } else {
+                        logger?.warning("custom_items_request: no custom items available — bundle not sent")
                     }
                 }
             }
