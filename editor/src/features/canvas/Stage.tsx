@@ -1,5 +1,6 @@
 import type { MenuId, PackId } from "@/domain/types";
 import { NewMenuDialog } from "./NewMenuDialog";
+import { NewCommandDialog } from "./NewCommandDialog";
 import { NewDialogDialog } from "./NewDialogDialog";
 import { DialogGroup } from "./DialogGroup";
 import { useAccountStore } from "@/state/accountStore";
@@ -20,7 +21,7 @@ import { Selection } from "./Selection";
 import { TextEditor } from "./TextEditor";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { itemTextureUrl } from "./itemTextures";
+import { useTextureUrl } from "./textureStore";
 import { setStageDropTarget } from "./stageDropTarget";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
@@ -115,6 +116,7 @@ export function Stage({ packId }: StageProps) {
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [pendingCommandPos, setPendingCommandPos] = useState<{ x: number; y: number } | null>(null);
   const [pendingDialogPos, setPendingDialogPos] = useState<{ x: number; y: number } | null>(null);
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
@@ -423,8 +425,7 @@ export function Stage({ packId }: StageProps) {
           setPendingMenuPos(world);
         }}
         onCreateCommandAt={(world) => {
-          const id = useAccountStore.getState().createCommand({ packId, position: world });
-          useSelectionStore.getState().set([id]);
+          setPendingCommandPos(world);
           closeCtx();
         }}
         onCreateDialogAt={(world) => {
@@ -437,6 +438,12 @@ export function Stage({ packId }: StageProps) {
         open={pendingMenuPos !== null}
         position={pendingMenuPos ?? undefined}
         onOpenChange={(o) => { if (!o) setPendingMenuPos(null); }}
+      />
+      <NewCommandDialog
+        packId={packId}
+        open={pendingCommandPos !== null}
+        position={pendingCommandPos ?? undefined}
+        onOpenChange={(o) => { if (!o) setPendingCommandPos(null); }}
       />
       <NewDialogDialog
         packId={packId}
@@ -457,7 +464,7 @@ function ArmedBanner() {
   const armed = useUiStore((s) => s.armedMaterial);
   const setArmed = useUiStore((s) => s.setArmedMaterial);
   if (!armed) return null;
-  const url = itemTextureUrl(armed);
+  const url = useTextureUrl(armed);
   return (
     <div className="-translate-x-1/2 absolute top-2 left-1/2 z-20 flex items-center gap-2 rounded-full border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-emerald-200 shadow-lg backdrop-blur">
       {url ? (

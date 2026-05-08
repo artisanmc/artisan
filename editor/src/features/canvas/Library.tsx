@@ -6,6 +6,7 @@ import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { type CSSProperties, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useTextureStore } from "./textureStore";
 
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
@@ -59,9 +60,10 @@ function ItemTile({ item, version }: ItemTileProps) {
 
 export function Library() {
   const token = useSessionStore((s) => s.accessToken);
+  const setTextureData = useTextureStore((s) => s.setData);
+  const version = useTextureStore((s) => s.version);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [version, setVersion] = useState("");
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [error, setError] = useState(false);
   const { t } = useTranslation();
@@ -69,9 +71,9 @@ export function Library() {
   useEffect(() => {
     if (!token) return;
     fetchItems(token)
-      .then((data) => { setVersion(data.version); setItems(data.items); })
+      .then((data) => { setTextureData(data.version, data.items); setItems(data.items); })
       .catch(() => setError(true));
-  }, [token]);
+  }, [token, setTextureData]);
 
   const categories = ["all", ...Array.from(new Set(items.map((i) => i.category))).sort()];
 
