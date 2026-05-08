@@ -1,5 +1,6 @@
 package gg.interfaze.plugin.command
 
+import gg.interfaze.plugin.lang.LangManager
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.command.CommandSender
@@ -7,7 +8,7 @@ import org.bukkit.entity.Player
 
 object ArgParser {
 
-    fun parse(defs: List<ArgDef>, args: Array<String>, sender: CommandSender): Map<String, Any>? {
+    fun parse(defs: List<ArgDef>, args: Array<String>, sender: CommandSender, lang: LangManager): Map<String, Any>? {
         val result = mutableMapOf<String, Any>()
         for ((index, def) in defs.withIndex()) {
             val rawValue: String? = when {
@@ -19,7 +20,7 @@ object ArgParser {
 
             if (rawValue == null) {
                 if (def.required) {
-                    sender.sendMessage("Missing required argument: <${def.name}>")
+                    sender.sendMessage(lang.get("arg.missing", sender, "arg" to def.name))
                     return null
                 }
                 val default = when (def) {
@@ -34,24 +35,26 @@ object ArgParser {
             val parsed: Any = when (def) {
                 is ArgDef.StringArg      -> rawValue
                 is ArgDef.IntArg         -> rawValue.toIntOrNull() ?: run {
-                    sender.sendMessage("Argument <${def.name}> must be a whole number, got: $rawValue")
+                    sender.sendMessage(lang.get("arg.not_integer", sender, "arg" to def.name, "value" to rawValue))
                     return null
                 }
                 is ArgDef.PlayerArg      -> Bukkit.getPlayerExact(rawValue) ?: run {
-                    sender.sendMessage("Player '$rawValue' is not online.")
+                    sender.sendMessage(lang.get("arg.player_offline", sender, "value" to rawValue))
                     return null
                 }
                 is ArgDef.WorldArg       -> Bukkit.getWorld(rawValue) ?: run {
-                    sender.sendMessage("World '$rawValue' is not loaded.")
+                    sender.sendMessage(lang.get("arg.world_not_loaded", sender, "value" to rawValue))
                     return null
                 }
                 is ArgDef.ItemMaterialArg -> Material.matchMaterial(rawValue) ?: run {
-                    sender.sendMessage("Unknown material: $rawValue")
+                    sender.sendMessage(lang.get("arg.unknown_material", sender, "value" to rawValue))
                     return null
                 }
                 is ArgDef.EnumArg        -> {
                     val match = def.values.firstOrNull { it.equals(rawValue, ignoreCase = true) } ?: run {
-                        sender.sendMessage("Invalid value for <${def.name}>: $rawValue. Expected one of: ${def.values.joinToString(", ")}")
+                        sender.sendMessage(lang.get("arg.invalid_enum", sender,
+                            "arg" to def.name, "value" to rawValue,
+                            "values" to def.values.joinToString(", ")))
                         return null
                     }
                     match

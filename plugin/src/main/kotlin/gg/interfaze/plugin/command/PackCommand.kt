@@ -2,6 +2,7 @@ package gg.interfaze.plugin.command
 
 import gg.interfaze.plugin.engine.ActionExecutor
 import gg.interfaze.plugin.engine.ExecutionContext
+import gg.interfaze.plugin.lang.LangManager
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -9,6 +10,7 @@ import org.bukkit.entity.Player
 class PackCommand(
     private val compiled: CompiledCommand,
     private val executor: ActionExecutor,
+    private val lang: LangManager,
 ) : Command(
     compiled.name,
     compiled.description,
@@ -28,7 +30,7 @@ class PackCommand(
             sender.sendMessage("You don't have permission to use this command.")
             return true
         }
-        val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender) ?: return true
+        val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true
         val ctx = ExecutionContext(player = sender, args = parsedArgs)
         executor.handle(compiled.handler, ctx)
         return true
