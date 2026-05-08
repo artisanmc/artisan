@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const serverKeys = pgTable("server_keys", {
   id: text("id").primaryKey(),
@@ -43,4 +44,6 @@ export const editorSessions = pgTable("editor_sessions", {
   trustCode:       text("trust_code"),
   trustedAt:       timestamp("trusted_at"),
   trustedIp:       text("trusted_ip"),
-});
+}, (t) => [
+  uniqueIndex("trust_code_uniq").on(t.trustCode).where(sql`trust_code IS NOT NULL`),
+]);
