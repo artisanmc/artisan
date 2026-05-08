@@ -7,7 +7,7 @@ router.get("/:version/*", async (c) => {
   const fullPath = c.req.path;
   const prefix = `/${version}/`;
   const rest = fullPath.includes(prefix) ? fullPath.split(prefix)[1] : "";
-  const url = `https://mcasset.cloud/${version}/assets/minecraft/textures/${rest}.png`;
+  const url = `https://assets.mcasset.cloud/${version}/assets/minecraft/textures/${rest}.png`;
 
   let upstream: Response;
   try {
