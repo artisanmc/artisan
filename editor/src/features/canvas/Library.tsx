@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { cx } from "@/lib/cx";
-import { type LibraryItem, fetchItems } from "@/lib/packApi";
+import { type LibraryItem, type CustomItemsData, fetchItems, fetchCustomItems } from "@/lib/packApi";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
@@ -15,11 +15,11 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 interface ItemTileProps {
   item: LibraryItem;
-  version: string;
+  textureBase: string;
 }
 
-function ItemTile({ item, version }: ItemTileProps) {
-  const url = `${API_URL}/api/textures/${version}/${item.texture}`;
+function ItemTile({ item, textureBase }: ItemTileProps) {
+  const url = `${textureBase}/${item.texture}`;
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -39,10 +39,10 @@ function ItemTile({ item, version }: ItemTileProps) {
       {...attributes}
       className={cx(
         "group relative flex h-12 w-12 shrink-0 select-none touch-none items-center justify-center",
-        "rounded border bg-zinc-900 active:cursor-grabbing",
+        "rounded border bg-[#8b8b8b] active:cursor-grabbing",
         armed
-          ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
-          : "border-zinc-800 cursor-grab hover:border-zinc-600",
+          ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500"
+          : "border-zinc-600 cursor-grab hover:border-zinc-400",
       )}
     >
       <img
@@ -65,19 +65,25 @@ export function Library() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const [customData, setCustomData] = useState<CustomItemsData>({ serverKeyId: "", items: [] });
   const [error, setError] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
     if (!token) return;
-    fetchItems(token)
-      .then((data) => { setTextureData(data.version, data.items); setItems(data.items); })
+    Promise.all([fetchItems(token), fetchCustomItems(token)])
+      .then(([vanilla, custom]) => {
+        setTextureData(vanilla.version, vanilla.items);
+        setItems(vanilla.items);
+        setCustomData(custom);
+      })
       .catch(() => setError(true));
   }, [token, setTextureData]);
 
-  const categories = ["all", ...Array.from(new Set(items.map((i) => i.category))).sort()];
+  const allItems = [...items, ...customData.items];
+  const categories = ["all", ...Array.from(new Set(allItems.map((i) => i.category))).sort()];
 
-  const filtered = items.filter(
+  const filtered = allItems.filter(
     (i) =>
       (category === "all" || i.category === category) &&
       (i.id.includes(search.toLowerCase()) || i.label.toLowerCase().includes(search.toLowerCase())),
@@ -116,13 +122,17 @@ export function Library() {
         ))}
       </div>
       <div className="flex flex-wrap gap-1.5 overflow-y-auto pb-2">
-        {items.length === 0 && !error && (
+        {allItems.length === 0 && !error && (
           <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.loading")}</div>
         )}
-        {filtered.map((item) => (
-          <ItemTile key={item.id} item={item} version={version} />
-        ))}
-        {items.length > 0 && filtered.length === 0 && (
+        {filtered.map((item) => {
+          const isCustom = customData.items.some((c) => c.id === item.id);
+          const textureBase = isCustom
+            ? `${API_URL}/api/textures/custom/${customData.serverKeyId}`
+            : `${API_URL}/api/textures/${version}`;
+          return <ItemTile key={item.id} item={item} textureBase={textureBase} />;
+        })}
+        {allItems.length > 0 && filtered.length === 0 && (
           <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
         )}
       </div>

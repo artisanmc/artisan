@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Library } from "./Library";
 import * as packApi from "@/lib/packApi";
-import type { LibraryData } from "@/lib/packApi";
+import type { LibraryData, CustomItemsData } from "@/lib/packApi";
 
 vi.mock("@/state/uiStore", () => ({
   useUiStore: (sel: (s: { armedMaterial: null; setArmedMaterial: () => void }) => unknown) =>
@@ -27,6 +27,7 @@ const MOCK_DATA: LibraryData = {
 describe("Library", () => {
   beforeEach(() => {
     vi.spyOn(packApi, "fetchItems").mockResolvedValue(MOCK_DATA);
+    vi.spyOn(packApi, "fetchCustomItems").mockResolvedValue({ serverKeyId: "", items: [] });
   });
 
   it("renders all items when no filter", async () => {
@@ -50,5 +51,39 @@ describe("Library", () => {
     fireEvent.click(screen.getByRole("button", { name: /food/i }));
     expect(screen.queryByTitle("Diamond Sword")).toBeNull();
     expect(screen.getByTitle("Bread")).toBeTruthy();
+  });
+});
+
+const MOCK_CUSTOM: CustomItemsData = {
+  serverKeyId: "srv_test_123",
+  items: [
+    { id: "nexo:iron_coin", label: "Iron Coin", category: "nexo", texture: "nexo/iron_coin" },
+  ],
+};
+
+describe("Library with custom items", () => {
+  beforeEach(() => {
+    vi.spyOn(packApi, "fetchItems").mockResolvedValue(MOCK_DATA);
+    vi.spyOn(packApi, "fetchCustomItems").mockResolvedValue(MOCK_CUSTOM);
+  });
+
+  it("shows custom items alongside vanilla items", async () => {
+    render(<Library />);
+    expect(await screen.findByTitle("Diamond Sword")).toBeTruthy();
+    expect(await screen.findByTitle("Iron Coin")).toBeTruthy();
+  });
+
+  it("shows nexo category chip", async () => {
+    render(<Library />);
+    await screen.findByTitle("Iron Coin");
+    expect(screen.getByRole("button", { name: /nexo/i })).toBeTruthy();
+  });
+
+  it("filters custom items by category", async () => {
+    render(<Library />);
+    await screen.findByTitle("Iron Coin");
+    fireEvent.click(screen.getByRole("button", { name: /nexo/i }));
+    expect(screen.queryByTitle("Diamond Sword")).toBeNull();
+    expect(screen.getByTitle("Iron Coin")).toBeTruthy();
   });
 });
