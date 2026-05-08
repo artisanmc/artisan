@@ -58,11 +58,19 @@ export interface EditorSessionRevokeMessage {
   type: "editor_session_revoke";
 }
 
+export interface EditorTrustRequestMessage {
+  type: "editor_trust_request";
+  trust_code: string;
+}
+
+export interface SessionTrustedMessage { type: "session_trusted" }
+
 // Backend → plugin
 export interface EditorSessionReadyMessage {
   type: "editor_session_ready";
   url: string;
   expires_at: string;
+  trust_code: string;
 }
 
 // Backend → editor (on /ws/editor)
@@ -81,7 +89,8 @@ export type PluginToServerMessage =
   | SetupRequestMessage
   | SetupClaimMessage
   | EditorSessionRequestMessage
-  | EditorSessionRevokeMessage;
+  | EditorSessionRevokeMessage
+  | EditorTrustRequestMessage;
 
 export type ServerToPluginMessage =
   | HelloAckMessage
