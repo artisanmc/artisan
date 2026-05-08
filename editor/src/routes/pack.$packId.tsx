@@ -24,7 +24,6 @@ import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
 import { deployPack, getDeployedPack, DeployError } from "@/lib/packApi";
-import { TrustBanner } from "@/features/trust/TrustBanner";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -64,8 +63,6 @@ function PackCanvasPage() {
   const { packId } = useParams({ from: "/pack/$packId" });
   const pId = packId as PackId;
   const token = useSessionStore((s) => s.accessToken);
-  const trusted = useSessionStore((s) => s.trusted);
-  const trustCode = useSessionStore((s) => s.trustCode);
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
@@ -141,7 +138,6 @@ function PackCanvasPage() {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      {!trusted && trustCode && <TrustBanner trustCode={trustCode} />}
       <div className="flex h-[100dvh] overflow-hidden">
         {/* Desktop pack sidebar — hidden on mobile (drawer-triggered). */}
         <PackMiniSidebar activePackId={pId} />

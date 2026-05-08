@@ -6,6 +6,7 @@ import { loadPacks, savePack } from "@/lib/packApi";
 import { transform } from "@/features/export/transform";
 import { useAccountStore } from "@/state/accountStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { TrustGatePage } from "@/features/trust/TrustGatePage";
 import type { PackId, AccountId } from "@/domain/types";
 
 export const Route = createFileRoute("/session")({
@@ -14,15 +15,17 @@ export const Route = createFileRoute("/session")({
 
 function SessionPage() {
   const tokenRef = useRef<string | null>(null);
-  const [state, setState] = useState<"loading" | "invalid" | "expired" | "already_used" | "empty">("loading");
+  const [state, setState] = useState<"loading" | "invalid" | "expired" | "already_used" | "empty" | "trust_gate">("loading");
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const wsRef = useRef<EditorWs | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const pendingPackIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const setSession = useSessionStore((s) => s.setSession);
   const clearSession = useSessionStore((s) => s.clearSession);
   const setTrusted = useSessionStore((s) => s.setTrusted);
+  const trustCode = useSessionStore((s) => s.trustCode);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -88,6 +91,12 @@ function SessionPage() {
           () => {
             if (!mountedRef.current) return;
             setTrusted(true);
+            const packId = pendingPackIdRef.current;
+            if (packId) {
+              navigate({ to: "/pack/$packId", params: { packId } });
+            } else {
+              setState("empty");
+            }
           },
         );
 
@@ -100,7 +109,10 @@ function SessionPage() {
         }, 4 * 60 * 1000);
 
         const firstPack = packs[0];
-        if (firstPack) {
+        if (!info.trusted) {
+          pendingPackIdRef.current = firstPack?.id ?? null;
+          setState("trust_gate");
+        } else if (firstPack) {
           await navigate({ to: "/pack/$packId", params: { packId: firstPack.id } });
         } else {
           setState("empty");
@@ -155,6 +167,10 @@ function SessionPage() {
 
   if (state === "empty") {
     return <EmptyState tokenRef={tokenRef} navigate={navigate} />;
+  }
+
+  if (state === "trust_gate") {
+    return <TrustGatePage trustCode={trustCode ?? ""} />;
   }
 
   return (
