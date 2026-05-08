@@ -221,16 +221,40 @@ router.get("/:token/items", async (c) => {
   const version = await getMcVersion(session.serverKeyId);
   if (!version) return c.json({ error: "server_offline" }, 503);
 
-  const dataPath = join(import.meta.dir, "../../data/items", `${version}.json`);
-  let items: unknown[];
-  try {
-    const file = Bun.file(dataPath);
-    items = await file.json() as unknown[];
-  } catch {
-    return c.json({ error: "unknown_version" }, 404);
+  const itemsDir = join(import.meta.dir, "../../data/items");
+
+  // Try exact version, then major.minor, then any available file sharing the same major.minor prefix.
+  const [major, minor] = version.split(".");
+  const candidates = [version, `${major}.${minor}`];
+  let resolvedVersion: string | null = null;
+  let items: unknown[] | null = null;
+
+  for (const candidate of candidates) {
+    try {
+      const f = Bun.file(join(itemsDir, `${candidate}.json`));
+      items = await f.json() as unknown[];
+      resolvedVersion = candidate;
+      break;
+    } catch { /* try next */ }
   }
 
-  return c.json({ version, items });
+  if (!items || !resolvedVersion) {
+    // Scan directory for any file matching major.minor.*
+    try {
+      const entries = await import("fs/promises").then((m) => m.readdir(itemsDir));
+      const prefix = `${major}.${minor}.`;
+      const match = entries.filter((e) => e.startsWith(prefix) && e.endsWith(".json")).sort().at(-1);
+      if (match) {
+        const f = Bun.file(join(itemsDir, match));
+        items = await f.json() as unknown[];
+        resolvedVersion = match.replace(/\.json$/, "");
+      }
+    } catch { /* no match */ }
+  }
+
+  if (!items || !resolvedVersion) return c.json({ error: "unknown_version" }, 404);
+
+  return c.json({ version: resolvedVersion, items });
 });
 
 export { router as editorSessionRouter };
