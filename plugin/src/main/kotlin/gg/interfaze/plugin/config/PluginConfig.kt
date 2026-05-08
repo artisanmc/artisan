@@ -5,7 +5,6 @@ import org.bukkit.configuration.file.FileConfiguration
 data class PluginConfig(
     val serverKey: String,
     val wsUrl: String,
-    val packsDir: String,
     val editorConsoleOnly: Boolean,
     val language: String,
     val perPlayerLanguage: Boolean,
@@ -14,7 +13,6 @@ data class PluginConfig(
         fun from(cfg: FileConfiguration) = PluginConfig(
             serverKey         = cfg.getString("server_key", "") ?: "",
             wsUrl             = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
-            packsDir          = cfg.getString("packs_dir", "plugins/Interfaze/packs") ?: "",
             editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
             language          = cfg.getString("language", "en") ?: "en",
             perPlayerLanguage = cfg.getBoolean("per_player_language", false),

@@ -3,9 +3,6 @@
 server_key: ""
 ws_url: "wss://editor.interfaze.gg/ws/plugin"
 
-# Path relative to the server root where exported pack bundles are stored.
-packs_dir: "plugins/Interfaze/packs"
-
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Interfaze/lang/<code>.yml to override.
 language: "en"

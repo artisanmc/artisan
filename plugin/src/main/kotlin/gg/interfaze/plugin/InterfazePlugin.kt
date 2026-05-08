@@ -25,8 +25,7 @@ open class InterfazePlugin : JavaPlugin() {
     override fun onEnable() {
         saveDefaultConfig()
         val cfg = PluginConfig.from(config)
-        val serverRoot = dataFolder.parentFile.parentFile
-        val packsDir = File(serverRoot, cfg.packsDir).also { it.mkdirs() }
+        val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
@@ -68,7 +67,7 @@ open class InterfazePlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
-        val packsDir = File(dataFolder.parentFile.parentFile, cfg.packsDir).also { it.mkdirs() }
+        val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
 
         val softDeps = SoftDepRegistry(this)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
