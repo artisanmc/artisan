@@ -17,6 +17,7 @@ import gg.interfaze.plugin.render.DialogRenderer
 import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
+import gg.interfaze.plugin.sync.BundleUploader
 import gg.interfaze.plugin.sync.SyncMetadata
 import gg.interfaze.plugin.ws.WsClient
 import gg.interfaze.plugin.yaml.PackReader
@@ -63,6 +64,7 @@ class SyncedMenuProvider(
     private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
     @Volatile private var lastTrustCode: String? = null
+    @Volatile private var apiUrl: String? = null
 
     override fun load() {
         reloadFromDisk()
@@ -156,6 +158,8 @@ class SyncedMenuProvider(
                 val sessionId = node["session_id"]?.asText()
                 logger?.info("Connected to Interfaze backend (session=$sessionId)")
 
+                apiUrl = node["api_url"]?.asText()
+
                 val packHashesNode = node["pack_hashes"] ?: run {
                     logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
                     return
@@ -176,10 +180,22 @@ class SyncedMenuProvider(
                     when (detectSyncAction(diskHash, meta.syncedHash, backendHash)) {
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
                         SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — sync will be applied via bundle_available")
-                        SyncAction.LOCAL_ONLY -> logger?.warning(
-                            "Pack $packId: local files were manually edited (disk differs from last sync). " +
-                            "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
-                        )
+                        SyncAction.LOCAL_ONLY -> {
+                            if (backendHash.isEmpty()) {
+                                // Backend has an empty stub — upload local files so the editor can see them
+                                val url = apiUrl
+                                if (url != null) {
+                                    httpClient.dispatcher.executorService.execute {
+                                        BundleUploader(httpClient, url, serverKey, logger).upload(packDir, packId)
+                                    }
+                                }
+                            } else {
+                                logger?.warning(
+                                    "Pack $packId: local files were manually edited (disk differs from last sync). " +
+                                    "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
+                                )
+                            }
+                        }
                         SyncAction.CONFLICT   -> logger?.warning(
                             "Pack $packId: CONFLICT — both local and backend changed since last sync. " +
                             "Backend version will be applied if bundle_available is received. " +
