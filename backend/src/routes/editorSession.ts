@@ -8,6 +8,7 @@ import { generateEditorToken, generateTrustCode, validateAccessToken } from "../
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion, trackEditorIp } from "../ws/hub";
+import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 
 const router = new Hono();
 
@@ -255,6 +256,16 @@ router.get("/:token/items", async (c) => {
   if (!items || !resolvedVersion) return c.json({ error: "unknown_version" }, 404);
 
   return c.json({ version: resolvedVersion, items });
+});
+
+router.get("/:token/custom-items", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const cacheDir = customItemsCacheDir(session.serverKeyId);
+  const items = await readCustomItems(cacheDir);
+  return c.json({ serverKeyId: session.serverKeyId, items });
 });
 
 export { router as editorSessionRouter };
