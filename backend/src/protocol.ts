@@ -5,6 +5,7 @@ export interface HelloMessage {
   minecraft_version: string;
   current_bundle_hash: string;
   local_pack_ids?: string[];
+  custom_items_hash?: string;   // null/absent means no custom item plugin detected
 }
 
 export interface HelloAckMessage {
@@ -65,6 +66,24 @@ export interface EditorTrustRequestMessage {
   trust_code: string;
 }
 
+// Plugin → backend: sent on hot-reload when custom items change
+export interface CustomItemsChangedMessage {
+  type: "custom_items_changed";
+  hash: string;
+}
+
+// Backend → plugin: request the full bundle
+export interface CustomItemsRequestMessage {
+  type: "custom_items_request";
+}
+
+// Plugin → backend: compressed bundle payload
+export interface CustomItemsBundleMessage {
+  type: "custom_items_bundle";
+  hash: string;
+  data: string;  // base64(gzip(zip archive))
+}
+
 export interface SessionTrustedMessage { type: "session_trusted" }
 
 // Backend → plugin
@@ -92,7 +111,9 @@ export type PluginToServerMessage =
   | SetupClaimMessage
   | EditorSessionRequestMessage
   | EditorSessionRevokeMessage
-  | EditorTrustRequestMessage;
+  | EditorTrustRequestMessage
+  | CustomItemsChangedMessage
+  | CustomItemsBundleMessage;
 
 export type ServerToPluginMessage =
   | HelloAckMessage
@@ -101,4 +122,5 @@ export type ServerToPluginMessage =
   | PingMessage
   | SetupCodeMessage
   | LinkConfirmedMessage
-  | EditorSessionReadyMessage;
+  | EditorSessionReadyMessage
+  | CustomItemsRequestMessage;
