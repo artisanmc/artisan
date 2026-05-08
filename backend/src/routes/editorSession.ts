@@ -149,6 +149,9 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
+  if (!session.trusted) return c.json({ error: "session_not_trusted" }, 403);
+  if (session.trustedIp !== clientIp(c)) return c.json({ error: "session_not_trusted" }, 403);
+
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
 
