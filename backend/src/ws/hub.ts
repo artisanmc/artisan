@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema";
-import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey } from "../lib/auth";
+import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import type {
   BundleAvailableMessage,
@@ -191,13 +191,17 @@ export async function handlePluginMessage(
     const raw = msg as Record<string, unknown>;
     const sender = typeof raw.sender === "string" ? raw.sender : "CONSOLE";
     const token = generateEditorToken();
+    const trustCode = generateTrustCode();
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
-    await db.insert(editorSessions).values({ token, serverKeyId: serverId, createdBy: sender, createdAt: now, expiresAt });
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);  // 7 days
+    await db.insert(editorSessions).values({
+      token, serverKeyId: serverId, createdBy: sender, createdAt: now, expiresAt, trustCode,
+    });
     const reply: EditorSessionReadyMessage = {
       type: "editor_session_ready",
       url: `${EDITOR_URL}/session?token=${token}`,
       expires_at: expiresAt.toISOString(),
+      trust_code: trustCode,
     };
     return { reply: JSON.stringify(reply) };
   }
