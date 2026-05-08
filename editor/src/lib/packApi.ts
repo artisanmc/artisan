@@ -75,3 +75,18 @@ export async function fetchItems(token: string): Promise<LibraryData> {
   if (!res.ok) throw new Error(`fetchItems failed: ${res.status}`);
   return res.json() as Promise<LibraryData>;
 }
+
+export interface CustomItemsData {
+  serverKeyId: string;
+  items: LibraryItem[];
+}
+
+export async function fetchCustomItems(token: string): Promise<CustomItemsData> {
+  try {
+    const res = await fetch(`${API_URL}/api/editor-session/${token}/custom-items`);
+    if (!res.ok) return { serverKeyId: "", items: [] };
+    return res.json() as Promise<CustomItemsData>;
+  } catch {
+    return { serverKeyId: "", items: [] };
+  }
+}
