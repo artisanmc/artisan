@@ -723,7 +723,7 @@ describe("CORS credentials", () => {
     const urlToken = "cors_cred_" + crypto.randomUUID().slice(0,8);
     await db.insert(editorSessions).values({
       token: urlToken, serverKeyId: keyId, createdBy: "test",
-      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), trustCode: "CORSTT",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), trustCode: generateTrustCode(),
     });
     const accessToken = "corsat_" + crypto.randomUUID().slice(0,8);
     await db.update(editorSessions).set({
