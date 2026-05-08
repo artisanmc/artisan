@@ -15,9 +15,37 @@ function clientIp(c: { req: { header: (name: string) => string | undefined } }):
   return c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown";
 }
 
-// Placeholder for Task 5
 router.post("/refresh", async (c) => {
-  return c.json({ error: "not_implemented" }, 501);
+  const token = getCookie(c, "ifz_refresh");
+  if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+  const rows = await db.select().from(editorSessions).where(eq(editorSessions.refreshToken, token));
+  if (rows.length === 0) return c.json({ error: "Unauthorized" }, 401);
+  const row = rows[0];
+  if (row.revokedAt || row.expiresAt < new Date()) return c.json({ error: "Unauthorized" }, 401);
+
+  const newAccessToken = generateEditorToken();
+  const newRefreshToken = generateEditorToken();
+  const now = new Date();
+  const accessExpiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+
+  // Atomic rotation: only succeeds if refreshToken still matches (prevents replay)
+  const updated = await db.update(editorSessions)
+    .set({ accessToken: newAccessToken, accessExpiresAt, refreshToken: newRefreshToken })
+    .where(and(eq(editorSessions.token, row.token), eq(editorSessions.refreshToken, token)))
+    .returning({ token: editorSessions.token });
+
+  if (updated.length === 0) return c.json({ error: "Unauthorized" }, 401);
+
+  setCookie(c, "ifz_refresh", newRefreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+    maxAge: 7 * 24 * 60 * 60,
+    path: "/api/editor-session/refresh",
+  });
+
+  return c.json({ access_token: newAccessToken, expires_in: 300 });
 });
 
 router.post("/:urlToken/exchange", async (c) => {
