@@ -1,10 +1,15 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
+import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
+import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import type {
   BundleAvailableMessage,
+  CustomItemsBundleMessage,
+  CustomItemsChangedMessage,
+  CustomItemsRequestMessage,
   EditorDraftUpdateMessage,
   EditorSessionReadyMessage,
   HelloAckMessage,
@@ -34,7 +39,7 @@ export const editorSenders = new Map<string, (msg: string) => void>();
 // sessionId → serverKeyId (for grouping editors by server)
 const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
-const connToServerId = new Map<string, string>();
+export const connToServerId = new Map<string, string>();
 // sessionId → editor IP address (set when editor WS connects)
 const editorTokenToIp = new Map<string, string>();
 // serverKeyId → minecraft version (set on hello, used by /api/items)
@@ -84,6 +89,18 @@ async function validateServerKey(rawKey: string): Promise<string | null> {
   return rows.length > 0 ? rows[0].id : null;
 }
 
+async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
+  if (!incomingHash) return;
+  const cacheDir = customItemsCacheDir(serverKeyId);
+  const cachedHash = await readCustomItemsHash(cacheDir);
+  if (incomingHash === cachedHash) return;
+  const request = JSON.stringify({ type: "custom_items_request" } satisfies CustomItemsRequestMessage);
+  for (const [cId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    connSenders.get(cId)?.(request);
+  }
+}
+
 export async function handlePluginMessage(
   connId: string,
   raw: string,
@@ -103,6 +120,12 @@ export async function handlePluginMessage(
     connToServerId.set(connId, keyId);
     serverIdToMcVersion.set(keyId, hello.minecraft_version);
     db.update(serverKeys).set({ lastMcVersion: hello.minecraft_version }).where(eq(serverKeys.id, keyId)).catch(() => {});
+    handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
+    if (!assetsDone(hello.minecraft_version)) {
+      ensureAssets(hello.minecraft_version).catch((err) =>
+        console.error("[mc-assets] Background download failed:", err),
+      );
+    }
 
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
@@ -282,6 +305,25 @@ export async function handlePluginMessage(
   }
 
   if (msg.type === "pong") return { reply: null };
+
+  // ── custom_items_changed: plugin hot-reload triggered a hash change ───────
+  if (msg.type === "custom_items_changed") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const changed = msg as CustomItemsChangedMessage;
+    await handleCustomItemsHash(serverId, changed.hash);
+    return { reply: null };
+  }
+
+  // ── custom_items_bundle: plugin sends compressed bundle ───────────────────
+  if (msg.type === "custom_items_bundle") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const bundle = msg as CustomItemsBundleMessage;
+    const cacheDir = customItemsCacheDir(serverId);
+    await processBundle(cacheDir, bundle.hash, bundle.data);
+    return { reply: null };
+  }
 
   return { reply: null };
 }

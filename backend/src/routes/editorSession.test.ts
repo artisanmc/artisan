@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
-import { handlePluginMessage } from "../ws/hub";
+import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 
 describe("editor_sessions schema", () => {
@@ -737,5 +737,46 @@ describe("CORS credentials", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
+  });
+});
+
+describe("custom_items_changed", () => {
+  test("sends custom_items_request when hash differs from cache", async () => {
+    // Arrange: register an authenticated plugin connection
+    const connId = "conn_ci_test_" + crypto.randomUUID().slice(0, 8);
+    const sent: string[] = [];
+    connSenders.set(connId, (msg) => sent.push(msg));
+
+    // Authenticate via hello
+    const keyId = crypto.randomUUID();
+    const hash = crypto.randomUUID().replace(/-/g, "");
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const rawKey = "rawkey_ci_" + keyId.slice(0, 8);
+    const keyHash = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey)))
+    ).map(b => b.toString(16).padStart(2, "0")).join("");
+    await db.update(serverKeys).set({ hash: keyHash }).where(eq(serverKeys.id, keyId));
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello",
+      server_key: rawKey,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+      custom_items_hash: "nexo_hash_abc",
+    }));
+
+    sent.length = 0; // clear hello_ack
+
+    // Act: send custom_items_changed with a different hash
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "custom_items_changed",
+      hash: "nexo_hash_xyz",
+    }));
+
+    // Assert: backend requested the bundle
+    expect(sent.some((s) => JSON.parse(s).type === "custom_items_request")).toBe(true);
+
+    connSenders.delete(connId);
   });
 });
