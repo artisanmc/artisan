@@ -123,12 +123,13 @@ class IfzCommand(
     }
 
     private fun editorRevoke(sender: CommandSender) {
+        val senderLang = lang.playerLang(sender)
         if (!sender.hasPermission("interfaze.editor")) {
-            sender.sendMessage(lang.get("ifz.editor_no_permission", sender))
+            sender.sendMessage(lang.get("ifz.editor_no_permission", senderLang))
             return
         }
         plugin.menuProvider.revokeEditorSessions()
-        sender.sendMessage(lang.get("ifz.editor_revoked", sender))
+        sender.sendMessage(lang.get("ifz.editor_revoked", senderLang))
     }
 
     private fun setup(sender: CommandSender, code: String?) {
