@@ -740,6 +740,27 @@ describe("CORS credentials", () => {
   });
 });
 
+describe("GET /:token/custom-items", () => {
+  test("returns empty items array when no cache exists", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "ci_ep_" + keyId.slice(0, 8), createdAt: new Date() });
+    const token = generateEditorToken();
+    await db.insert(editorSessions).values({
+      token, serverKeyId: keyId, createdBy: "CONSOLE",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    // Exchange for access token
+    const exchangeRes = await app.request(`/api/editor-session/${token}/exchange`, { method: "POST" });
+    const { access_token } = await exchangeRes.json() as { access_token: string };
+
+    const res = await app.request(`/api/editor-session/${access_token}/custom-items`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { serverKeyId: string; items: unknown[] };
+    expect(body.serverKeyId).toBe(keyId);
+    expect(body.items).toEqual([]);
+  });
+});
+
 describe("custom_items_changed", () => {
   test("sends custom_items_request when hash differs from cache", async () => {
     // Arrange: register an authenticated plugin connection
@@ -778,5 +799,70 @@ describe("custom_items_changed", () => {
     expect(sent.some((s) => JSON.parse(s).type === "custom_items_request")).toBe(true);
 
     connSenders.delete(connId);
+  });
+});
+
+describe("custom_items_changed edge cases", () => {
+  test("does NOT send custom_items_request if incoming hash matches cached", async () => {
+    // Arrange: register an authenticated plugin connection with pre-cached hash
+    const connId = "conn_ci_cache_" + crypto.randomUUID().slice(0, 8);
+    const sent: string[] = [];
+    connSenders.set(connId, (msg) => sent.push(msg));
+
+    // Authenticate
+    const keyId = crypto.randomUUID();
+    const hash = crypto.randomUUID().replace(/-/g, "");
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const rawKey = "rawkey_ci_cache_" + keyId.slice(0, 8);
+    const keyHash = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey)))
+    ).map(b => b.toString(16).padStart(2, "0")).join("");
+    await db.update(serverKeys).set({ hash: keyHash }).where(eq(serverKeys.id, keyId));
+
+    // Pre-cache the hash
+    const { customItemsCacheDir } = await import("../lib/customItems");
+    const { mkdir, writeFile } = await import("fs/promises");
+    const { join } = await import("path");
+    const cacheDir = customItemsCacheDir(keyId);
+    await mkdir(cacheDir, { recursive: true });
+    await writeFile(join(cacheDir, "hash.txt"), "cached_hash_123");
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello",
+      server_key: rawKey,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+      custom_items_hash: "cached_hash_123",
+    }));
+
+    sent.length = 0;
+
+    // Act: send custom_items_changed with MATCHING hash
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "custom_items_changed",
+      hash: "cached_hash_123",
+    }));
+
+    // Assert: NO request sent because hash matches cache
+    expect(sent.some((s) => JSON.parse(s).type === "custom_items_request")).toBe(false);
+    expect(sent.length).toBe(0);
+
+    connSenders.delete(connId);
+  });
+
+  test("ignores custom_items_bundle if connId not authenticated", async () => {
+    const orphanConnId = "conn_ci_orphan_" + crypto.randomUUID().slice(0, 8);
+    connSenders.set(orphanConnId, () => {});
+    // Do NOT authenticate
+
+    const result = await handlePluginMessage(orphanConnId, JSON.stringify({
+      type: "custom_items_bundle",
+      hash: "some_hash",
+      data: "base64data",
+    }));
+
+    expect(result.reply).toBeNull();
+    connSenders.delete(orphanConnId);
   });
 });
