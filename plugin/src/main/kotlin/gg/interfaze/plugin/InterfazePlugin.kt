@@ -97,39 +97,17 @@ open class InterfazePlugin : JavaPlugin() {
         }
 
         if (mgr.getPlugin("ItemsAdder") != null) {
-            // ItemsAdder has no compileOnly dep; register the listener via reflection.
             try {
+                @Suppress("UNCHECKED_CAST")
                 val eventClass = Class.forName("dev.lone.itemsadder.api.Events.CustomItemsLoadedEvent")
-                val listener = object : org.bukkit.event.Listener {}
-                val handlerList = eventClass.getMethod("getHandlerList").invoke(null)
-                    as org.bukkit.event.HandlerList
-                val executorClass = Class.forName("org.bukkit.plugin.EventExecutor")
-                val proxy = java.lang.reflect.Proxy.newProxyInstance(
-                    executorClass.classLoader,
-                    arrayOf(executorClass),
-                ) { _, _, args ->
-                    // args[1] is the event instance; just notify on any invocation
-                    if (args != null && args.size == 2 && eventClass.isInstance(args[1])) {
-                        provider.notifyCustomItemsReload()
-                    }
-                    null
-                }
-                val registeredListenerClass = Class.forName("org.bukkit.plugin.RegisteredListener")
-                val ctor = registeredListenerClass.getConstructor(
-                    org.bukkit.event.Listener::class.java,
-                    executorClass,
-                    org.bukkit.event.EventPriority::class.java,
-                    org.bukkit.plugin.Plugin::class.java,
-                    Boolean::class.javaPrimitiveType,
-                )
-                val registered = ctor.newInstance(
-                    listener,
-                    proxy,
+                    as Class<out org.bukkit.event.Event>
+                mgr.registerEvent(
+                    eventClass,
+                    object : org.bukkit.event.Listener {},
                     org.bukkit.event.EventPriority.NORMAL,
+                    { _, event -> if (eventClass.isInstance(event)) provider.notifyCustomItemsReload() },
                     this,
-                    false,
                 )
-                handlerList.javaClass.getMethod("register", registeredListenerClass).invoke(handlerList, registered)
             } catch (_: Exception) {
                 logger.warning("ItemsAdder found but could not register hot-reload listener")
             }
