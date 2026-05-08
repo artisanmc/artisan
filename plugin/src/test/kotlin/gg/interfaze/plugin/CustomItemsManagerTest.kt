@@ -105,6 +105,12 @@ class CustomItemsManagerTest {
     }
 
     @Test
+    fun `ItemsAdderSource isAvailable returns false when ItemsAdder plugin not installed`() {
+        val source = gg.interfaze.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
+        assertFalse(source.isAvailable())
+    }
+
+    @Test
     fun `items with null texture are skipped`() {
         val sourceWithMissing = object : CustomItemSource {
             override val namespace = "nexo"
