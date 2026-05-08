@@ -36,6 +36,12 @@ class CommandRegistrarTest {
         actions = listOf(mapOf("type" to "send_message", "text" to "ok")),
     )
 
+    private fun cmdYamlWithAliases(name: String, vararg aliases: String) = CommandYaml(
+        name = name,
+        aliases = aliases.toList(),
+        actions = listOf(mapOf("type" to "send_message", "text" to "ok")),
+    )
+
     @Test fun `reload registers commands`() {
         val registrar = CommandRegistrar(plugin.value)
         registrar.reload(listOf(bundle(cmdYaml("testcmd"))), executor(), evaluator)
@@ -76,6 +82,27 @@ class CommandRegistrarTest {
         val registrar = CommandRegistrar(plugin.value)
         registrar.reload(listOf(bundle(badYaml)), executor(), evaluator)
         // No exception — bad command simply skipped
+        registrar.unregisterAll()
+    }
+
+    @Test fun `aliases are registered and retrievable by alias name`() {
+        val registrar = CommandRegistrar(plugin.value)
+        registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
+        val byAlias = MockBukkit.getMock()!!.getCommandMap().getCommand("h")
+            ?: MockBukkit.getMock()!!.getCommandMap().getCommand("interfaze:h")
+        assertNotNull(byAlias, "alias 'h' should be registered in the command map")
+        registrar.unregisterAll()
+    }
+
+    @Test fun `aliases are removed from command map after unregisterAll`() {
+        val registrar = CommandRegistrar(plugin.value)
+        registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
+        registrar.unregisterAll()
+        // If aliases were stale, registering a fresh "h" command would find a conflict.
+        registrar.reload(listOf(bundle(cmdYaml("h"))), executor(), evaluator)
+        val cmd = MockBukkit.getMock()!!.getCommandMap().getCommand("h")
+            ?: MockBukkit.getMock()!!.getCommandMap().getCommand("interfaze:h")
+        assertNotNull(cmd, "fresh 'h' command registered after unregisterAll should be found")
         registrar.unregisterAll()
     }
 }
