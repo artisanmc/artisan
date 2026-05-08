@@ -21,7 +21,7 @@ function RootLayout() {
 }
 
 function usePackAutoSave() {
-  const token = useSessionStore((s) => s.token);
+  const token = useSessionStore((s) => s.accessToken);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track which packs need saving: packId → Pack snapshot
   const pendingRef = useRef<Map<string, Pack>>(new Map());
@@ -43,7 +43,7 @@ function usePackAutoSave() {
       timerRef.current = setTimeout(async () => {
         const toSave = new Map(pendingRef.current);
         pendingRef.current.clear();
-        const currentToken = useSessionStore.getState().token;
+        const currentToken = useSessionStore.getState().accessToken;
         if (!currentToken) return;
         for (const [, pack] of toSave) {
           try {

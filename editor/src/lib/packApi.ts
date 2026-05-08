@@ -40,6 +40,12 @@ export async function deletePack(token: string, packId: string): Promise<void> {
   });
 }
 
+export class DeployError extends Error {
+  constructor(public readonly code: "session_not_trusted" | "unknown") {
+    super(code === "session_not_trusted" ? "session_not_trusted" : "Échec du déploiement");
+  }
+}
+
 export async function deployPack(
   token: string,
   pack: Pack,
@@ -50,7 +56,11 @@ export async function deployPack(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
   });
-  if (!res.ok) throw new Error("Échec du déploiement");
+  if (res.status === 403) {
+    const body = await res.json() as { error?: string };
+    throw new DeployError(body.error === "session_not_trusted" ? "session_not_trusted" : "unknown");
+  }
+  if (!res.ok) throw new DeployError("unknown");
 }
 
 export async function getDeployedPack(token: string, packId: string): Promise<Pack | null> {

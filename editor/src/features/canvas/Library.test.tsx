@@ -9,7 +9,7 @@ vi.mock("@/state/uiStore", () => ({
     sel({ armedMaterial: null, setArmedMaterial: () => {} }),
 }));
 vi.mock("@/state/sessionStore", () => ({
-  useSessionStore: (sel: (s: { token: string }) => unknown) => sel({ token: "test-token" }),
+  useSessionStore: (sel: (s: { accessToken: string }) => unknown) => sel({ accessToken: "test-token" }),
 }));
 vi.mock("@dnd-kit/core", () => ({
   useDraggable: () => ({ attributes: {}, listeners: {}, setNodeRef: () => {}, isDragging: false }),
