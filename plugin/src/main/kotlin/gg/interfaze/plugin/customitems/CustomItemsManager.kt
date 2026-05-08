@@ -54,7 +54,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         return Pair(hash, data)
     }
 
-    fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
+    internal fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
 
     private fun collectWithTextures(): List<Pair<String, ByteArray>> =
         sources.filter { it.isAvailable() }
