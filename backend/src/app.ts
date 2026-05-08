@@ -6,8 +6,8 @@ import { editorSessionRouter } from "./routes/editorSession";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
 import { texturesRouter } from "./routes/textures";
-import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn } from "./ws/hub";
-import { validateEditorToken } from "./lib/auth";
+import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
+import { validateAccessToken } from "./lib/auth";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
@@ -52,18 +52,21 @@ app.get(
   "/ws/editor",
   async (c, next) => {
     const token = new URL(c.req.url).searchParams.get("token") ?? "";
-    const session = token ? await validateEditorToken(token) : null;
+    const session = token ? await validateAccessToken(token) : null;
     if (!session) return c.json({ error: "Unauthorized" }, 401);
     c.set("editorToken", token);
     c.set("editorServerId", session.serverKeyId);
+    c.set("editorIp", c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown");
     return next();
   },
   upgradeWebSocket((c) => {
     const token = c.get("editorToken") as string;
     const serverId = c.get("editorServerId") as string;
+    const ip = c.get("editorIp") as string;
     return {
       onOpen(_, ws) {
         registerEditorConn(token, serverId, (msg) => ws.send(msg));
+        trackEditorIp(token, ip);
       },
       onMessage() {},
       onClose() { cleanupEditorConn(token); },

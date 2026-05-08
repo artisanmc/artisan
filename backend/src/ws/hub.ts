@@ -273,6 +273,8 @@ export function broadcastDraftUpdate(
   }
 }
 
+export function trackEditorIp(_token: string, _ip: string): void {}
+
 export async function getMcVersion(serverKeyId: string): Promise<string | undefined> {
   const cached = serverIdToMcVersion.get(serverKeyId);
   if (cached) return cached;
