@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { app } from "../app";
-import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion } from "./hub";
+import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion, trackEditorIp } from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
-import { generateEditorToken, generateServerKey } from "../lib/auth";
+import { generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
+import { eq } from "drizzle-orm";
 
 describe("handlePluginMessage", () => {
   test("hello with unknown key returns null", async () => {
@@ -129,6 +130,54 @@ describe("editor_session_revoke", () => {
 
     expect(editorReceived.length).toBe(1);
     expect(JSON.parse(editorReceived[0])).toMatchObject({ type: "session_expired" });
+  });
+});
+
+describe("editor_trust_request", () => {
+  test("sets trusted_at + trusted_ip, pushes session_trusted to editor WS", async () => {
+    const connId = "conn-trust-test";
+    registerConn(connId, () => {});
+
+    const { id: keyId, key, hash } = await generateServerKey();
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const urlToken = "url_trust_" + crypto.randomUUID().slice(0, 8);
+    const accessToken = generateEditorToken();
+    const trustCode = generateTrustCode();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      trustCode,
+    });
+
+    const editorReceived: string[] = [];
+    registerEditorConn(accessToken, keyId, (msg) => editorReceived.push(msg));
+    trackEditorIp(accessToken, "10.0.0.1");
+
+    await handlePluginMessage(connId, JSON.stringify({ type: "editor_trust_request", trust_code: trustCode }));
+
+    expect(editorReceived.length).toBe(1);
+    expect(JSON.parse(editorReceived[0])).toMatchObject({ type: "session_trusted" });
+
+    const rows = await db.select().from(editorSessions).where(eq(editorSessions.token, urlToken));
+    expect(rows[0].trustedAt).not.toBeNull();
+    expect(rows[0].trustedIp).toBe("10.0.0.1");
+  });
+
+  test("ignores trust request with unknown code", async () => {
+    const connId = "conn-trust-unknown";
+    registerConn(connId, () => {});
+    const { id: keyId, key, hash } = await generateServerKey();
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+    const result = await handlePluginMessage(connId, JSON.stringify({ type: "editor_trust_request", trust_code: "XXXXXX" }));
+    expect(result.reply).toBeNull();
   });
 });
 

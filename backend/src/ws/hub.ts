@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema";
-import { generateCode, generateEditorToken, generateServerKey } from "../lib/auth";
+import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import type {
   BundleAvailableMessage,
@@ -11,6 +11,7 @@ import type {
   HelloMessage,
   LinkConfirmedMessage,
   SessionExpiredMessage,
+  SessionTrustedMessage,
   SetupClaimMessage,
   SetupCodeMessage,
 } from "../protocol";
@@ -34,6 +35,8 @@ export const editorSenders = new Map<string, (msg: string) => void>();
 const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
 const connToServerId = new Map<string, string>();
+// token → editor IP address (set when editor WS connects)
+const editorTokenToIp = new Map<string, string>();
 // serverKeyId → minecraft version (set on hello, used by /api/items)
 const serverIdToMcVersion = new Map<string, string>();
 
@@ -61,6 +64,7 @@ export function registerEditorConn(token: string, serverKeyId: string, send: (ms
 export function cleanupEditorConn(token: string): void {
   editorSenders.delete(token);
   editorTokenToServer.delete(token);
+  editorTokenToIp.delete(token);
 }
 
 // Called by link.ts POST /:code/claim (B1 flow: browser claims plugin's code).
@@ -214,6 +218,31 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
+  // ── editor_trust_request: plugin confirms editor IP trust ────────────────
+  if (msg.type === "editor_trust_request") {
+    const raw = msg as Record<string, unknown>;
+    if (typeof raw.trust_code !== "string") return { reply: null };
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+
+    const session = await findSessionByTrustCode(raw.trust_code as string);
+    if (!session || session.serverKeyId !== serverId) return { reply: null };
+
+    const ip = session.accessToken ? editorTokenToIp.get(session.accessToken) : undefined;
+    if (!ip) return { reply: null };
+
+    await db.update(editorSessions)
+      .set({ trustedAt: new Date(), trustedIp: ip })
+      .where(eq(editorSessions.token, session.urlToken));
+
+    if (session.accessToken) {
+      const send = editorSenders.get(session.accessToken);
+      if (send) send(JSON.stringify({ type: "session_trusted" } satisfies SessionTrustedMessage));
+    }
+
+    return { reply: null };
+  }
+
   if (msg.type === "pong") return { reply: null };
 
   return { reply: null };
@@ -273,7 +302,9 @@ export function broadcastDraftUpdate(
   }
 }
 
-export function trackEditorIp(_token: string, _ip: string): void {}
+export function trackEditorIp(token: string, ip: string): void {
+  editorTokenToIp.set(token, ip);
+}
 
 export async function getMcVersion(serverKeyId: string): Promise<string | undefined> {
   const cached = serverIdToMcVersion.get(serverKeyId);
