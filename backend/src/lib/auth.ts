@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
@@ -50,6 +50,7 @@ export async function validateAccessToken(
   const rows = await db.select().from(editorSessions).where(eq(editorSessions.accessToken, token));
   if (rows.length === 0) return null;
   const row = rows[0];
+  if (row.expiresAt < new Date()) return null;
   if (row.revokedAt) return null;
   if (!row.accessExpiresAt || row.accessExpiresAt < new Date()) return null;
   return {
@@ -67,8 +68,7 @@ export async function findSessionByTrustCode(
   const rows = await db
     .select()
     .from(editorSessions)
-    .where(eq(editorSessions.trustCode, trustCode))
-    .orderBy(desc(editorSessions.createdAt));
+    .where(eq(editorSessions.trustCode, trustCode));
   if (rows.length === 0) return null;
   const row = rows[0];
   if (row.revokedAt || row.expiresAt < new Date()) return null;

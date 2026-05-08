@@ -341,18 +341,19 @@ describe("validateAccessToken", () => {
     await db.insert(serverKeys).values({ id: keyId, hash: "vat" + keyId.slice(0,8), createdAt: new Date() });
     const urlToken = "url_" + crypto.randomUUID().slice(0, 8);
     const accessToken = generateEditorToken();
+    const trustCode = generateTrustCode();
     await db.insert(editorSessions).values({
       token: urlToken, serverKeyId: keyId, createdBy: "test",
       createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      trustCode: "ABC123",
+      trustCode,
     });
     const result = await validateAccessToken(accessToken);
     expect(result).not.toBeNull();
     expect(result!.serverKeyId).toBe(keyId);
     expect(result!.sessionId).toBe(urlToken);
     expect(result!.trusted).toBe(false);
-    expect(result!.trustCode).toBe("ABC123");
+    expect(result!.trustCode).toBe(trustCode);
     expect(result!.trustedIp).toBeNull();
   });
 
@@ -383,11 +384,39 @@ describe("validateAccessToken", () => {
       token: urlToken, serverKeyId: keyId, createdBy: "test",
       createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      trustCode: "XYZ789", trustedAt: new Date(), trustedIp: "1.2.3.4",
+      trustCode: generateTrustCode(), trustedAt: new Date(), trustedIp: "1.2.3.4",
     });
     const result = await validateAccessToken(accessToken);
     expect(result!.trusted).toBe(true);
     expect(result!.trustedIp).toBe("1.2.3.4");
+  });
+
+  test("returns null for revoked session", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "rvat" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_rvat_" + crypto.randomUUID().slice(0, 8);
+    const accessToken = generateEditorToken();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      revokedAt: new Date(),
+    });
+    expect(await validateAccessToken(accessToken)).toBeNull();
+  });
+
+  test("returns null when session itself is expired", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "sexp" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_sexp_" + crypto.randomUUID().slice(0, 8);
+    const accessToken = generateEditorToken();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() - 1),
+      exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+    expect(await validateAccessToken(accessToken)).toBeNull();
   });
 });
 
@@ -397,13 +426,14 @@ describe("findSessionByTrustCode", () => {
     await db.insert(serverKeys).values({ id: keyId, hash: "fc" + keyId.slice(0,8), createdAt: new Date() });
     const urlToken = "url_fc_" + crypto.randomUUID().slice(0, 8);
     const accessToken = generateEditorToken();
+    const trustCode = generateTrustCode();
     await db.insert(editorSessions).values({
       token: urlToken, serverKeyId: keyId, createdBy: "test",
       createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      trustCode: "FIND42",
+      trustCode,
     });
-    const result = await findSessionByTrustCode("FIND42");
+    const result = await findSessionByTrustCode(trustCode);
     expect(result).not.toBeNull();
     expect(result!.urlToken).toBe(urlToken);
     expect(result!.accessToken).toBe(accessToken);
@@ -412,6 +442,33 @@ describe("findSessionByTrustCode", () => {
 
   test("returns null for unknown code", async () => {
     expect(await findSessionByTrustCode("XXXXXX")).toBeNull();
+  });
+
+  test("returns null for revoked session", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "fcr" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_fcr_" + crypto.randomUUID().slice(0, 8);
+    const code = "REV" + generateTrustCode().slice(0, 3);
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      trustCode: code, revokedAt: new Date(),
+    });
+    expect(await findSessionByTrustCode(code)).toBeNull();
+  });
+
+  test("returns null for expired session", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "fce" + keyId.slice(0,8), createdAt: new Date() });
+    const urlToken = "url_fce_" + crypto.randomUUID().slice(0, 8);
+    const code = "EXP" + generateTrustCode().slice(0, 3);
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() - 1),
+      trustCode: code,
+    });
+    expect(await findSessionByTrustCode(code)).toBeNull();
   });
 });
 
