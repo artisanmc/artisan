@@ -3,6 +3,7 @@ package gg.interfaze.plugin
 import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.plugin.command.*
 import gg.interfaze.plugin.engine.*
+import gg.interfaze.plugin.lang.LangManager
 import gg.interfaze.plugin.model.BundleMenu
 import gg.interfaze.plugin.model.PackBundle
 import gg.interfaze.plugin.provider.MenuProvider
@@ -19,6 +20,7 @@ class PackCommandTest {
     private val cooldowns = CooldownStore()
     private val sessions = MenuSessionStore()
     private val evaluator = ConditionEvaluator(deps, cooldowns)
+    private val lang = LangManager(emptyMap(), "en", false)
     private val stubProvider = object : MenuProvider {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
@@ -29,7 +31,7 @@ class PackCommandTest {
 
     private fun cmd(name: String, argDefs: List<ArgDef> = emptyList(), handler: ClickHandler = ClickHandler(emptyList(), emptyList(), emptyList()), permission: String? = null): PackCommand {
         val compiled = CompiledCommand(name, emptyList(), permission, "", argDefs, handler)
-        return PackCommand(compiled, executor())
+        return PackCommand(compiled, executor(), lang)
     }
 
     @Test fun `execute sends usage when non-player sender`() {
