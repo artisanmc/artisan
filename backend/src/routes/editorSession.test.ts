@@ -7,6 +7,24 @@ import { handlePluginMessage } from "../ws/hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 
 describe("editor_sessions schema", () => {
+  test("new security columns default to null", async () => {
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "sc" + keyId.slice(0,8), createdAt: new Date() });
+    const token = "schema_test_" + crypto.randomUUID().slice(0, 8);
+    await db.insert(editorSessions).values({
+      token, serverKeyId: keyId, createdBy: "test",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    });
+    const rows = await db.select().from(editorSessions).where(eq(editorSessions.token, token));
+    expect(rows[0].exchangedAt).toBeNull();
+    expect(rows[0].refreshToken).toBeNull();
+    expect(rows[0].accessToken).toBeNull();
+    expect(rows[0].accessExpiresAt).toBeNull();
+    expect(rows[0].trustCode).toBeNull();
+    expect(rows[0].trustedAt).toBeNull();
+    expect(rows[0].trustedIp).toBeNull();
+  });
+
   test("insert and read a session", async () => {
     const keyId = crypto.randomUUID();
     await db.insert(serverKeys).values({ id: keyId, hash: "testhash" + keyId.slice(0,8), createdAt: new Date() });
