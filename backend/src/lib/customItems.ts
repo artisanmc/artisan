@@ -1,4 +1,4 @@
-import { join, dirname } from "path";
+import { join, dirname, resolve, relative } from "path";
 import { existsSync } from "fs";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import { gunzipSync, unzipSync } from "fflate";
@@ -41,6 +41,8 @@ export async function processBundle(cacheDir: string, hash: string, data: string
   for (const [path, bytes] of Object.entries(files)) {
     if (path !== "items.json" && !path.startsWith("textures/")) continue;
     const fullPath = join(cacheDir, path);
+    // Reject any path that escapes the cache directory via traversal (e.g., textures/../../../evil.txt)
+    if (relative(resolve(cacheDir), resolve(fullPath)).startsWith("..")) continue;
     writes.push(
       mkdir(dirname(fullPath), { recursive: true }).then(() => writeFile(fullPath, bytes)),
     );

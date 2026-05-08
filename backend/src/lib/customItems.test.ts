@@ -60,4 +60,16 @@ describe("processBundle", () => {
     await processBundle(TMP, "safe", data);
     expect(existsSync(join(TMP, "../../evil.txt"))).toBe(false);
   });
+
+  test("rejects traversal paths that escape the cache dir via textures/../", async () => {
+    const zip = zipSync({
+      "items.json": new TextEncoder().encode("[]"),
+      "textures/../../../evil.txt": new TextEncoder().encode("pwned"),
+    });
+    const data = Buffer.from(gzipSync(zip)).toString("base64");
+    await processBundle(TMP, "safe2", data);
+    // The evil.txt file must NOT exist anywhere outside TMP
+    expect(existsSync(join(import.meta.dir, "../../../evil.txt"))).toBe(false);
+    expect(existsSync(join(import.meta.dir, "../../evil.txt"))).toBe(false);
+  });
 });
