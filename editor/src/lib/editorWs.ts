@@ -10,6 +10,7 @@ export class EditorWs {
     token: string,
     private onDraftUpdate: DraftUpdateHandler,
     private onExpired: SessionExpiredHandler,
+    private onTrusted: () => void,
   ) {
     this.ws = new WebSocket(`${WS_URL}/ws/editor?token=${encodeURIComponent(token)}`);
     this.ws.onmessage = (evt) => {
@@ -19,6 +20,8 @@ export class EditorWs {
         this.onDraftUpdate(msg.pack_id, msg.menu_id, msg.menu_yaml, msg.updated_by ?? "");
       } else if (msg.type === "session_expired") {
         this.onExpired();
+      } else if (msg.type === "session_trusted") {
+        this.onTrusted();
       }
     };
     this.ws.onerror = () => this.onExpired();
