@@ -4,9 +4,10 @@ import { type LibraryItem, type CustomItemsData, fetchItems, fetchCustomItems } 
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTextureStore } from "./textureStore";
+import { renderToCanvas } from "@/lib/mcModelRenderer";
 
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
@@ -16,21 +17,49 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 interface ItemTileProps {
   item: LibraryItem;
   textureBase: string;
+  version: string;
+  isCustom: boolean;
+  serverKeyId?: string;
 }
 
-function ItemTile({ item, textureBase }: ItemTileProps) {
-  const url = `${textureBase}/${item.texture}`;
+function ItemTile({ item, textureBase, version, isCustom, serverKeyId }: ItemTileProps) {
+  const flatUrl = `${textureBase}/${item.texture}`;
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${LIBRARY_DRAG_PREFIX}${item.id}`,
     data: { material: item.id },
   });
+  const tileRef = useRef<HTMLButtonElement>(null);
+  const [renderedSrc, setRenderedSrc] = useState<string | null>(null);
   const style: CSSProperties = { opacity: isDragging ? 0.4 : 1 };
+
+  useEffect(() => {
+    if (!item.model || !tileRef.current) return;
+    let cancelled = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        observer.disconnect();
+        renderToCanvas(item.model!, version, isCustom, serverKeyId).then((src) => {
+          if (!cancelled && src) setRenderedSrc(src);
+        });
+      },
+      { threshold: 0 },
+    );
+    observer.observe(tileRef.current);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [item.model, version, isCustom, serverKeyId]);
 
   return (
     <button
-      ref={setNodeRef}
+      ref={(el) => {
+        setNodeRef(el);
+        (tileRef as React.MutableRefObject<HTMLButtonElement | null>).current = el;
+      }}
       type="button"
       style={style}
       onClick={() => setArmedMaterial(armed ? null : item.id)}
@@ -46,13 +75,15 @@ function ItemTile({ item, textureBase }: ItemTileProps) {
       )}
     >
       <img
-        src={url}
+        src={renderedSrc ?? flatUrl}
         alt={item.label}
         loading="lazy"
         draggable={false}
         className="h-full w-full object-contain p-1"
-        style={{ imageRendering: item.texture.startsWith("icons/") ? "auto" : "pixelated" }}
-        onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+        style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.visibility = "hidden";
+        }}
       />
     </button>
   );
@@ -132,7 +163,16 @@ export function Library() {
           const textureBase = isCustom
             ? `${API_URL}/api/textures/custom/${customData.serverKeyId}`
             : `${API_URL}/api/textures/${version}`;
-          return <ItemTile key={item.id} item={item} textureBase={textureBase} />;
+          return (
+            <ItemTile
+              key={item.id}
+              item={item}
+              textureBase={textureBase}
+              version={version}
+              isCustom={isCustom}
+              serverKeyId={isCustom ? customData.serverKeyId : undefined}
+            />
+          );
         })}
         {allItems.length > 0 && filtered.length === 0 && (
           <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
