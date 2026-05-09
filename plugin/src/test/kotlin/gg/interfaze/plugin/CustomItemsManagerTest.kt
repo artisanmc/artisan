@@ -140,12 +140,12 @@ class CustomItemsManagerTest {
 
     @Test
     fun `buildBundle includes models entry for item with modelJson`() {
-        val modelBytes = """{"parent":"item/generated","textures":{"layer0":"nexo:item/coin"}}""".toByteArray()
+        val modelJson = """{"parent":"item/generated","textures":{"layer0":"nexo:item/coin"}}"""
         val source = object : CustomItemSource {
             override val namespace = "nexo"
             override fun isAvailable() = true
             override fun collectItems() = listOf(
-                CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelBytes)
+                CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson)
             )
             override fun loadTexture(path: String) = "fake-png".toByteArray()
         }
@@ -176,16 +176,30 @@ class CustomItemsManagerTest {
 
     @Test
     fun `computeHash changes when modelJson changes`() {
-        val bytes1 = """{"parent":"item/generated"}""".toByteArray()
-        val bytes2 = """{"parent":"block/cube_all"}""".toByteArray()
-        fun mgr(modelBytes: ByteArray) = CustomItemsManager(listOf(object : CustomItemSource {
+        val json1 = """{"parent":"item/generated"}"""
+        val json2 = """{"parent":"block/cube_all"}"""
+        fun mgr(modelJson: String) = CustomItemsManager(listOf(object : CustomItemSource {
             override val namespace = "nexo"
             override fun isAvailable() = true
-            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelBytes))
+            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson))
             override fun loadTexture(path: String) = "fake-png".toByteArray()
         }))
-        val h1 = mgr(bytes1).computeHash()
-        val h2 = mgr(bytes2).computeHash()
+        val h1 = mgr(json1).computeHash()
+        val h2 = mgr(json2).computeHash()
         assertTrue(h1.isNotEmpty() && h2.isNotEmpty() && h1 != h2)
+    }
+
+    @Test
+    fun `computeHash changes when modelJson goes from null to non-null`() {
+        val modelBytes = """{"parent":"item/generated"}""".trimIndent()
+        fun mgr(modelJson: String?) = CustomItemsManager(listOf(object : CustomItemSource {
+            override val namespace = "nexo"
+            override fun isAvailable() = true
+            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson))
+            override fun loadTexture(path: String) = "fake-png".toByteArray()
+        }))
+        val hNull = mgr(null).computeHash()
+        val hNonNull = mgr(modelBytes).computeHash()
+        assertTrue(hNull.isNotEmpty() && hNonNull.isNotEmpty() && hNull != hNonNull)
     }
 }
