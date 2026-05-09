@@ -1,5 +1,6 @@
 import {
   newAssetId,
+  commandId,
   newCommandId,
   newLayerId,
   newPackId,
@@ -97,6 +98,7 @@ interface AccountState {
    */
   createCommand: (input: {
     packId: PackId;
+    id?: string;
     name?: string;
     position?: { x: number; y: number };
   }) => CommandId;
@@ -147,6 +149,7 @@ interface AccountState {
     field: "name" | "permission" | "description";
     value: string;
   }) => void;
+  setCommandAliases: (input: { packId: PackId; commandId: CommandId; aliases: string[] }) => void;
   /** Append a new argument at the end of a command's argument list. */
   addCommandArg: (input: { packId: PackId; commandId: CommandId; arg?: CommandArg }) => void;
   /** Replace the argument at `index` (whole-arg replace; immer drafts handle the merge). */
@@ -866,8 +869,8 @@ export const useAccountStore = create<AccountState>()(
           );
           return id;
         },
-        createCommand: ({ packId: pId, name, position }) => {
-          const id = newCommandId();
+        createCommand: ({ packId: pId, id: explicitId, name, position }) => {
+          const id = explicitId ? commandId(explicitId) : newCommandId();
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
@@ -1452,6 +1455,17 @@ export const useAccountStore = create<AccountState>()(
               if (field === "name") cmd.name = value;
               else if (field === "permission") cmd.permission = value || undefined;
               else if (field === "description") cmd.description = value || undefined;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setCommandAliases: ({ packId: pId, commandId: cId, aliases }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const cmd = pack.commands.find((c) => c.id === cId);
+              if (!cmd) return;
+              cmd.aliases = aliases.length > 0 ? aliases : undefined;
               pack.updatedAt = new Date().toISOString();
             }),
           ),

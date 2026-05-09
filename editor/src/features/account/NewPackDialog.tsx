@@ -17,14 +17,14 @@ interface NewPackDialogProps {
 
 export function NewPackDialog({ trigger }: NewPackDialogProps = {}) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [id, setId] = useState("");
   const createPack = useAccountStore((s) => s.createPack);
   const { t } = useTranslation();
 
   const submit = () => {
-    if (!name.trim()) return;
-    createPack({ name: name.trim() });
-    setName("");
+    if (!id.trim()) return;
+    createPack({ id: id.trim() });
+    setId("");
     setOpen(false);
   };
 
@@ -39,12 +39,10 @@ export function NewPackDialog({ trigger }: NewPackDialogProps = {}) {
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Input
-            placeholder={t("newPackDialog.placeholder")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-            }}
+            placeholder="my_pack"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
             autoFocus
           />
           <div className="flex justify-end gap-2">
