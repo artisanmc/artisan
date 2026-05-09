@@ -23,12 +23,16 @@ class OraxenSource(private val pluginsDir: File) : CustomItemSource {
 
     override fun loadTexture(texturePath: String): ByteArray? {
         val id = texturePath.removePrefix("oraxen/")
-        // Oraxen generates its resource pack at plugins/Oraxen/pack/
+        val name = id.substringAfterLast("/")
         val packDir = File(pluginsDir, "Oraxen/pack")
+        if (!packDir.exists()) return null
         val candidates = listOf(
             File(packDir, "assets/oraxen/textures/item/$id.png"),
             File(packDir, "assets/oraxen/textures/$id.png"),
         )
-        return candidates.firstOrNull { it.exists() }?.readBytes()
+        candidates.firstOrNull { it.exists() }?.let { return it.readBytes() }
+        return packDir.walkTopDown()
+            .firstOrNull { it.isFile && it.name == "$name.png" && it.path.contains("textures") }
+            ?.readBytes()
     }
 }

@@ -79,7 +79,12 @@ class SyncedMenuProvider(
             } catch (e: Exception) {
                 "1.21.4"
             }
+            val availableSources = customItemsManager.availableSources()
+            val rawCount = customItemsManager.rawItemCount()
+            logger?.info("[IFZ] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}, $rawCount item(s) found")
             val customHash = customItemsManager.computeHash()
+            if (customHash.isNotEmpty()) logger?.info("[IFZ] Custom items hash: ${customHash.take(8)}… ($rawCount items with textures)")
+            else logger?.info("[IFZ] Custom items hash: EMPTY — items without textures found or no custom plugin active")
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
@@ -276,13 +281,14 @@ class SyncedMenuProvider(
                     val result = customItemsManager.buildBundle()
                     if (result != null) {
                         val (hash, data) = result
+                        logger?.info("[IFZ] Sending custom items bundle — hash=${hash.take(8)}…")
                         wsClient?.send(mapOf(
                             "type" to "custom_items_bundle",
                             "hash" to hash,
                             "data" to data,
                         ))
                     } else {
-                        logger?.warning("custom_items_request: no custom items available — bundle not sent")
+                        logger?.warning("[IFZ] custom_items_request received but no custom items available — bundle not sent")
                     }
                 }
             }
