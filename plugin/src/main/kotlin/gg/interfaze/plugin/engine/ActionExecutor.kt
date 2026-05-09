@@ -46,18 +46,20 @@ class ActionExecutor(
     }
 
     fun resolveText(text: String, ctx: ExecutionContext): String {
-        val resolved = if (text.startsWith("{i18n:")) {
+        var resolved = if (text.startsWith("{i18n:")) {
             val key = text.removePrefix("{i18n:").removeSuffix("}")
             ctx.langMap[key] ?: text
         } else text
-        return resolveArgs(resolved, ctx)
+        resolved = resolveArgs(resolved, ctx)
+        deps.papi?.let { resolved = it.resolve(ctx.player, resolved) }
+        return resolved
     }
 
     private fun executeOne(action: Action, ctx: ExecutionContext) {
         val player = ctx.player
         when (action) {
             is Action.RunCommand -> {
-                val cmd = resolveArgs(action.command, ctx).trimStart('/')
+                val cmd = resolveText(action.command, ctx).trimStart('/')
                 if (action.asConsole) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
                 else player.performCommand(cmd)
             }

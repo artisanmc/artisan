@@ -38,7 +38,7 @@ function ItemTile({ item, textureBase }: ItemTileProps) {
       {...listeners}
       {...attributes}
       className={cx(
-        "group relative flex h-12 w-12 shrink-0 select-none touch-none items-center justify-center",
+        "group relative flex h-16 w-16 shrink-0 select-none touch-none items-center justify-center",
         "rounded border bg-[#8b8b8b] active:cursor-grabbing",
         armed
           ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500"
@@ -50,8 +50,8 @@ function ItemTile({ item, textureBase }: ItemTileProps) {
         alt={item.label}
         loading="lazy"
         draggable={false}
-        className="pixelated h-3/4 w-3/4 object-contain"
-        style={{ imageRendering: "pixelated" }}
+        className="h-full w-full object-contain p-1"
+        style={{ imageRendering: item.texture.startsWith("icons/") ? "auto" : "pixelated" }}
         onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
       />
     </button>
@@ -61,6 +61,7 @@ function ItemTile({ item, textureBase }: ItemTileProps) {
 export function Library() {
   const token = useSessionStore((s) => s.accessToken);
   const setTextureData = useTextureStore((s) => s.setData);
+  const setCustomTextureData = useTextureStore((s) => s.setCustomData);
   const version = useTextureStore((s) => s.version);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -76,9 +77,10 @@ export function Library() {
         setTextureData(vanilla.version, vanilla.items);
         setItems(vanilla.items);
         setCustomData(custom);
+        if (custom.serverKeyId) setCustomTextureData(custom.items, custom.serverKeyId);
       })
       .catch(() => setError(true));
-  }, [token, setTextureData]);
+  }, [token, setTextureData, setCustomTextureData]);
 
   const allItems = [...items, ...customData.items];
   const categories = ["all", ...Array.from(new Set(allItems.map((i) => i.category))).sort()];

@@ -1,7 +1,10 @@
 import type { Pack } from "@/domain/types";
+import { DeletePackDialog } from "@/features/account/DeletePackDialog";
+import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { LayoutGrid, Plus, Terminal } from "lucide-react";
+import { LayoutGrid, Plus, Terminal, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PropertyField } from "./PropertyField";
 
@@ -23,15 +26,12 @@ const sourceColor = (source: Pack["source"]) =>
 
 export function PackProperties({ pack }: PackPropertiesProps) {
   const setPackField = useAccountStore((s) => s.setPackField);
-  const createMenu = useAccountStore((s) => s.createMenu);
   const createCommand = useAccountStore((s) => s.createCommand);
   const setSelection = useSelectionStore((s) => s.set);
   const { t } = useTranslation();
+  const [menuDialogOpen, setMenuDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const onCreateMenu = () => {
-    const id = createMenu({ packId: pack.id });
-    setSelection([id]);
-  };
   const onCreateCommand = () => {
     const id = createCommand({ packId: pack.id });
     setSelection([id]);
@@ -68,9 +68,10 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         label={t("packProperties.menusLabel")}
         count={pack.menus.length}
         emptyHint={t("packProperties.menusEmpty")}
-        onCreate={onCreateMenu}
+        onCreate={() => setMenuDialogOpen(true)}
         createLabel={t("packProperties.newMenu")}
       />
+      <NewMenuDialog packId={pack.id} open={menuDialogOpen} onOpenChange={setMenuDialogOpen} />
       <ContentsSection
         icon={<Terminal className="h-3.5 w-3.5" />}
         label={t("packProperties.commandsLabel")}
@@ -94,6 +95,24 @@ export function PackProperties({ pack }: PackPropertiesProps) {
           ),
         })}
       </div>
+
+      <div className="mt-2 border-t border-zinc-800 pt-4">
+        <button
+          type="button"
+          onClick={() => setDeleteDialogOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-red-400 hover:border-red-700/60 hover:bg-red-900/20"
+        >
+          <Trash2 className="h-3 w-3" />
+          {t("packProperties.deletePack")}
+        </button>
+      </div>
+
+      <DeletePackDialog
+        packId={pack.id}
+        packName={pack.name}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
     </div>
   );
 }

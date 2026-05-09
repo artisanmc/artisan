@@ -31,10 +31,18 @@ object MenuRenderer {
         ctx: ExecutionContext = ExecutionContext(player),
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     ): MenuSession {
-        val title = mm.deserialize(menu.resolveTitle(lang))
+        val langMap = menu.langMaps[lang] ?: emptyMap()
+        val papi = evaluator.deps.papi
+        val rawTitle = menu.resolveTitle(lang)
+        val resolvedTitle = run {
+            var t = rawTitle
+            ctx.args.forEach { (k, v) -> t = t.replace("{$k}", v.toString()) }
+            if (papi != null) t = papi.resolve(player, t)
+            t
+        }
+        val title = mm.deserialize(resolvedTitle)
         val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
-        val langMap = menu.langMaps[lang] ?: emptyMap()
 
         for (layer in menu.yaml.layers) {
             for (element in layer.elements) {
@@ -43,7 +51,7 @@ object MenuRenderer {
                     evaluator.evaluateAll(ca.conditions, ctx)
                 } ?: continue
 
-                val item = buildItem(chosen.yaml, langMap)
+                val item = buildItem(chosen.yaml, langMap, ctx, papi)
                 val slots = parsePositions(element.positions, menu.yaml.size)
                 for (slot in slots) {
                     inv.setItem(slot, item)
@@ -53,29 +61,35 @@ object MenuRenderer {
         }
 
         player.openInventory(inv)
-        return MenuSession(menu.id, ctx.copy(lang = lang), activeClicks)
+        return MenuSession(menu.id, ctx.copy(lang = lang, langMap = langMap), activeClicks)
     }
 
-    private fun buildItem(app: AppearanceYaml, langMap: Map<String, String>): ItemStack {
+    private fun buildItem(
+        app: AppearanceYaml,
+        langMap: Map<String, String>,
+        ctx: ExecutionContext,
+        papi: PapiProvider?,
+    ): ItemStack {
         val material = app.material
             ?.let { runCatching { Material.valueOf(it.uppercase()) }.getOrNull() }
             ?: Material.STONE
         val item = ItemStack(material, app.count.coerceAtLeast(1))
         val meta = item.itemMeta ?: return item
-        if (app.title != null) meta.displayName(parse(resolveI18n(app.title, langMap)))
+        if (app.title != null) meta.displayName(parse(resolveText(app.title, langMap, ctx, papi)))
         if (app.lore.isNotEmpty()) {
             meta.lore(app.lore.flatMap { raw ->
-                resolveI18n(raw, langMap).split("\n").map { parse(it) }
+                resolveText(raw, langMap, ctx, papi).split("\n").map { parse(it) }
             })
         }
         item.itemMeta = meta
         return item
     }
 
-    private fun resolveI18n(raw: String, langMap: Map<String, String>): String {
-        if (!raw.startsWith("{i18n:")) return raw
-        val key = raw.removePrefix("{i18n:").removeSuffix("}")
-        return langMap[key] ?: raw
+    private fun resolveText(raw: String, langMap: Map<String, String>, ctx: ExecutionContext, papi: PapiProvider?): String {
+        var text = if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw else raw
+        ctx.args.forEach { (k, v) -> text = text.replace("{$k}", v.toString()) }
+        if (papi != null) text = papi.resolve(ctx.player, text)
+        return text
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =

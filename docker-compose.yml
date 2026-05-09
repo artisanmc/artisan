@@ -46,21 +46,20 @@ services:
       sh -c "npm install && npm run dev -- --host"
 
   minecraft:
-    build:
-      context: .
-      dockerfile: docker/minecraft.Dockerfile
+    image: itzg/minecraft-server
     volumes:
-      - mc-world:/server/world
-      - mc-packs:/server/plugins/Interfaze/packs
+      - ./docker/server:/data
     ports:
       - "25565:25565"
     environment:
-      INTERFAZE_SERVER_KEY: ${INTERFAZE_SERVER_KEY:-}
-      INTERFAZE_WS_URL: ${INTERFAZE_WS_URL:-ws://backend:3001/ws/plugin}
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: "1.21.11"
+      MEMORY: 1G
+      RCON_PASSWORD: local
+      BROADCAST_RCON_TO_OPS: "false"
     depends_on:
       - backend
 
 volumes:
-  mc-world:
-  mc-packs:
   pg-data:

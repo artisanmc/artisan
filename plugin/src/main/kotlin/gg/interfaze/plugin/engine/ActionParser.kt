@@ -9,7 +9,8 @@ object ActionParser {
         return when (type) {
             "run_command"    -> Action.RunCommand(
                 command   = str(raw, "command"),
-                asConsole = raw["as_console"] as? Boolean ?: false,
+                asConsole = raw["as"]?.toString() == "console"
+                         || raw["as_console"] as? Boolean == true,
             )
             "open_menu"      -> Action.OpenMenu(
                 menuId       = str(raw, "menu_id"),

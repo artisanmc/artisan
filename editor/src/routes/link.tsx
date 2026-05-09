@@ -108,9 +108,12 @@ function GenerateFlow() {
     }
   }
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-    if (pollRef.current) clearInterval(pollRef.current);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   return (
