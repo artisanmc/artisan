@@ -15,17 +15,12 @@ class MenuListener(
 
     @EventHandler
     fun onClick(event: InventoryClickEvent) {
-        val holderClass = event.inventory.holder?.javaClass?.simpleName ?: "null"
-        if (event.inventory.holder !is InterfazeMenuHolder) {
-            if (event.whoClicked.name != null) org.bukkit.Bukkit.getLogger().info("[IFZ-DEBUG] onClick ignored: holder=$holderClass")
-            return
-        }
+        if (event.inventory.holder !is InterfazeMenuHolder) return
         event.isCancelled = true
         val player = event.whoClicked as? Player ?: return
         val session = sessions.get(player)
         val clickType = event.click.toIfzClickType()
         val handler = session?.activeClicks?.get(event.rawSlot)?.get(clickType)
-        org.bukkit.Bukkit.getLogger().info("[IFZ-DEBUG] onClick: player=${player.name} slot=${event.rawSlot} click=${event.click} type=$clickType session=${session?.menuId ?: "null"} handler=${handler != null} actions=${handler?.actions?.size ?: 0}")
         handler ?: return
         executor.handle(handler, session!!.ctx)
     }
