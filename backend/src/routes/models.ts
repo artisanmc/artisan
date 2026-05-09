@@ -8,8 +8,9 @@ const router = new Hono();
 
 router.get("/custom/:serverKeyId/*", async (c) => {
   const serverKeyId = c.req.param("serverKeyId");
+  const fullPath = c.req.path;
   const prefix = `/custom/${serverKeyId}/`;
-  const rest = c.req.path.includes(prefix) ? c.req.path.split(prefix)[1] : "";
+  const rest = fullPath.includes(prefix) ? fullPath.split(prefix)[1] : "";
   if (!rest) return c.newResponse(null, 404);
 
   const baseDir = resolve(customItemsCacheDir(serverKeyId), "models");
@@ -24,8 +25,9 @@ router.get("/custom/:serverKeyId/*", async (c) => {
 
 router.get("/:version/*", async (c) => {
   const version = c.req.param("version");
+  const fullPath = c.req.path;
   const prefix = `/${version}/`;
-  const rest = c.req.path.includes(prefix) ? c.req.path.split(prefix)[1] : "";
+  const rest = fullPath.includes(prefix) ? fullPath.split(prefix)[1] : "";
   if (!rest) return c.newResponse(null, 404);
 
   if (!assetsDone(version)) {
