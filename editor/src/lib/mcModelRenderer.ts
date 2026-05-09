@@ -49,7 +49,7 @@ function getCamera(): THREE.OrthographicCamera {
   if (!_camera) {
     // Model space: 0-16 units per block, centered at (8,8,8) → group offset to origin.
     // Camera sees ±10 units to give margin around the 8-unit radius of a full block.
-    _camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
+    _camera = new THREE.OrthographicCamera(-8, 8, 8, -8, 0.1, 200);
     _camera.position.set(0, 0, 100);
     _camera.lookAt(0, 0, 0);
   }

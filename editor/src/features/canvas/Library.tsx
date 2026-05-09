@@ -96,6 +96,7 @@ export function Library() {
   const token = useSessionStore((s) => s.accessToken);
   const setTextureData = useTextureStore((s) => s.setData);
   const setCustomTextureData = useTextureStore((s) => s.setCustomData);
+  const setRenderedGlobal = useTextureStore((s) => s.setRendered);
   const version = useTextureStore((s) => s.version);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -117,9 +118,19 @@ export function Library() {
         await preloadModels(vanilla.version);
         if (custom.serverKeyId) await preloadModels(vanilla.version, true, custom.serverKeyId);
         setBundleReady(true);
+        // Pre-render all items with models in background so canvas slots get 3D renders
+        // without waiting for the user to scroll through the Library.
+        for (const item of [...vanilla.items, ...custom.items]) {
+          if (!item.model) continue;
+          const isCustomItem = custom.items.some((c) => c.id === item.id);
+          const keyId = isCustomItem ? custom.serverKeyId : undefined;
+          renderToCanvas(item.model, vanilla.version, isCustomItem, keyId, item.tints).then((src) => {
+            if (src) setRenderedGlobal(item.id, src);
+          });
+        }
       })
       .catch(() => setError(true));
-  }, [token, setTextureData, setCustomTextureData]);
+  }, [token, setTextureData, setCustomTextureData, setRenderedGlobal]);
 
   const allItems = [...items, ...customData.items];
   const categories = ["all", ...Array.from(new Set(allItems.map((i) => i.category))).sort()];
