@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, rmSync, existsSync } from "fs";
+import { mkdirSync, rmSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { zipSync, gzipSync } from "fflate";
 import {
@@ -71,5 +71,22 @@ describe("processBundle", () => {
     // The evil.txt file must NOT exist anywhere outside TMP
     expect(existsSync(join(import.meta.dir, "../../../evil.txt"))).toBe(false);
     expect(existsSync(join(import.meta.dir, "../../evil.txt"))).toBe(false);
+  });
+
+  test("extracts models/ entries alongside textures", async () => {
+    const modelJson = JSON.stringify({ parent: "item/generated" });
+    const items = [{ id: "nexo:coin", label: "Coin", category: "nexo", texture: "nexo/coin" }];
+    const files: Record<string, Uint8Array> = {
+      "items.json": new TextEncoder().encode(JSON.stringify(items)),
+      "textures/nexo/coin.png": new TextEncoder().encode("fake-png"),
+      "models/nexo/coin.json": new TextEncoder().encode(modelJson),
+    };
+    const data = Buffer.from(gzipSync(zipSync(files))).toString("base64");
+
+    await processBundle(TMP, "hash-models", data);
+
+    expect(existsSync(join(TMP, "models/nexo/coin.json"))).toBe(true);
+    const written = readFileSync(join(TMP, "models/nexo/coin.json"), "utf-8");
+    expect(written).toBe(modelJson);
   });
 });
