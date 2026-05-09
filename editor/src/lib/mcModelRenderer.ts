@@ -56,28 +56,56 @@ function getCamera(): THREE.OrthographicCamera {
   return _camera;
 }
 
-// ── Render cache ───────────────────────────────────────────────────────────────
+// ── Caches ─────────────────────────────────────────────────────────────────────
 
 const renderCache = new Map<string, Promise<string | null>>();
+
+// Pre-resolved models loaded in one shot from /api/model-bundle — eliminates
+// per-item HTTP round-trips for model JSON + parent chain resolution.
+const resolvedModelCache = new Map<string, ResolvedModel>();
 
 function cacheKey(modelPath: string, version: string, isCustom: boolean, serverKeyId?: string): string {
   return isCustom ? `custom:${serverKeyId}:${modelPath}` : `${version}:${modelPath}`;
 }
 
+// ── Bundle preload ─────────────────────────────────────────────────────────────
+
+export async function preloadModels(
+  version: string,
+  isCustom = false,
+  serverKeyId?: string,
+): Promise<void> {
+  const url = isCustom && serverKeyId
+    ? `${API_URL}/api/model-bundle/custom/${serverKeyId}?version=${version}`
+    : `${API_URL}/api/model-bundle/${version}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const bundle = await res.json() as Record<string, ResolvedModel>;
+    for (const [path, model] of Object.entries(bundle)) {
+      resolvedModelCache.set(cacheKey(path, version, isCustom, serverKeyId), model);
+    }
+  } catch { /* silently degrade — individual fetches will handle it */ }
+}
+
 // ── Model fetching + resolution ────────────────────────────────────────────────
 
-async function fetchModel(
+// Model JSON cache — block/orientable, block/cube_all etc. are shared by hundreds
+// of items; without this every render re-fetches the full parent chain.
+const modelJsonCache = new Map<string, Promise<Record<string, unknown> | null>>();
+
+function fetchModel(
   modelPath: string, version: string, isCustom: boolean, serverKeyId?: string,
 ): Promise<Record<string, unknown> | null> {
   const url = isCustom
     ? `${API_URL}/api/models/custom/${serverKeyId}/${modelPath}`
     : `${API_URL}/api/models/${version}/${modelPath}`;
-  try {
-    const res = await fetch(url);
-    return res.ok ? (res.json() as Promise<Record<string, unknown>>) : null;
-  } catch {
-    return null;
-  }
+  if (modelJsonCache.has(url)) return modelJsonCache.get(url)!;
+  const promise = fetch(url)
+    .then(res => res.ok ? res.json() as Promise<Record<string, unknown>> : null)
+    .catch(() => null);
+  modelJsonCache.set(url, promise);
+  return promise;
 }
 
 export async function resolveModel(
@@ -88,6 +116,9 @@ export async function resolveModel(
   depth = 0,
 ): Promise<ResolvedModel | null> {
   if (depth > 8) return null;
+  // Fast path: bundle was pre-loaded by preloadModels()
+  const key = cacheKey(modelPath, version, isCustom, serverKeyId);
+  if (resolvedModelCache.has(key)) return resolvedModelCache.get(key)!;
   const m = await fetchModel(modelPath, version, isCustom, serverKeyId);
   if (!m) return null;
 
@@ -124,9 +155,75 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
   return v.replace(/^minecraft:/, "");
 }
 
+// ── Flat 2D layer compositing (item/generated multi-layer items) ───────────────
+
+function loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function renderFlat(
+  model: ResolvedModel,
+  version: string,
+  isCustom: boolean,
+  serverKeyId?: string,
+  tints?: Record<number, string>,
+): Promise<string | null> {
+  const layers: Array<{ url: string; tint?: string }> = [];
+  for (let i = 0; ; i++) {
+    const texPath = resolveVar(model.textures, `layer${i}`);
+    if (!texPath) break;
+    const url = isCustom && serverKeyId
+      ? `${API_URL}/api/textures/custom/${serverKeyId}/${texPath}`
+      : `${API_URL}/api/textures/${version}/${texPath}`;
+    layers.push({ url, tint: tints?.[i] });
+  }
+  if (layers.length === 0) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+
+  for (const { url, tint } of layers) {
+    const img = await loadImage(url);
+    if (!img) continue;
+    if (tint) {
+      // Tint layer: draw on temp canvas, multiply with tint color, restore alpha
+      const tmp = document.createElement("canvas");
+      tmp.width = 128; tmp.height = 128;
+      const tc = tmp.getContext("2d")!;
+      tc.imageSmoothingEnabled = false;
+      tc.drawImage(img, 0, 0, 128, 128);
+      tc.globalCompositeOperation = "multiply";
+      tc.fillStyle = tint;
+      tc.fillRect(0, 0, 128, 128);
+      tc.globalCompositeOperation = "destination-in";
+      tc.drawImage(img, 0, 0, 128, 128);
+      ctx.drawImage(tmp, 0, 0);
+    } else {
+      ctx.drawImage(img, 0, 0, 128, 128);
+    }
+  }
+  return canvas.toDataURL("image/png");
+}
+
 // ── Texture loading ─────────────────────────────────────────────────────────────
 
 const texCache = new Map<string, THREE.Texture | null>();
+
+/** Clear all in-memory caches. Intended for use in tests only. */
+export function clearCaches(): void {
+  renderCache.clear();
+  resolvedModelCache.clear();
+  modelJsonCache.clear();
+  texCache.clear();
+}
 
 function loadTex(url: string): Promise<THREE.Texture | null> {
   if (texCache.has(url)) return Promise.resolve(texCache.get(url)!);
@@ -336,13 +433,19 @@ export function renderToCanvas(
   version: string,
   isCustom = false,
   serverKeyId?: string,
+  tints?: Record<number, string>,
 ): Promise<string | null> {
   const key = cacheKey(modelPath, version, isCustom, serverKeyId);
   if (renderCache.has(key)) return renderCache.get(key)!;
 
   const promise = (async (): Promise<string | null> => {
     const model = await resolveModel(modelPath, version, isCustom, serverKeyId);
-    if (!model || model.elements.length === 0) return null;
+    if (!model) return null;
+    if (model.elements.length === 0) {
+      // Flat multi-layer item (item/generated): composite layers with tints
+      if (model.guiLight === "front") return renderFlat(model, version, isCustom, serverKeyId, tints);
+      return null;
+    }
 
     const textures = await loadModelTextures(model, version, isCustom, serverKeyId);
     if (textures.size === 0) return null;

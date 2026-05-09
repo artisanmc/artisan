@@ -8,6 +8,7 @@ export interface LibraryItem {
   category: string;
   texture: string;
   model?: string;
+  tints?: Record<number, string>;
 }
 
 export interface LibraryData {

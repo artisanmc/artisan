@@ -128,7 +128,29 @@ function extractModelRef(modelDef: unknown): string | null {
   }
 }
 
-async function resolveItem(id: string): Promise<{ texture: string; model?: string }> {
+/** Extract tint colors (as #rrggbb hex) from an item model definition's tints array. */
+function extractTints(modelDef: unknown): Record<number, string> {
+  if (!modelDef || typeof modelDef !== "object") return {};
+  const m = modelDef as Record<string, unknown>;
+  // For select models, fall back to the fallback model's tints
+  let target: Record<string, unknown> = m;
+  if (m.type === "minecraft:select" && m.fallback) target = m.fallback as Record<string, unknown>;
+  const tints = target.tints as Array<{ type: string; default?: number; value?: number }> | undefined;
+  if (!Array.isArray(tints)) return {};
+  const result: Record<number, string> = {};
+  tints.forEach((tint, i) => {
+    let colorInt: number | undefined;
+    if (tint.type === "minecraft:dye" || tint.type === "minecraft:potion") colorInt = tint.default;
+    else if (tint.type === "minecraft:constant") colorInt = tint.value;
+    if (colorInt !== undefined) {
+      const rgb = (colorInt >>> 0) & 0xFFFFFF;
+      result[i] = "#" + rgb.toString(16).padStart(6, "0");
+    }
+  });
+  return result;
+}
+
+async function resolveItem(id: string): Promise<{ texture: string; model?: string; tints?: Record<number, string> }> {
   const itemDefPath = join(itemsDir, id + ".json");
   let itemDef: { model?: unknown };
   try { itemDef = JSON.parse(await readFile(itemDefPath, "utf8")); }
@@ -144,13 +166,23 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
   const { textures, ancestors } = result;
   const flatTexture = pickFlat(textures) ?? `item/${id}`;
 
-  // Block models with elements are rendered browser-side via Three.js
+  // Block models with elements → 3D Three.js rendering
   const isBlockModel = [...ancestors].some(a => a.startsWith("block/"));
   if (isBlockModel) {
     const elements = await resolveElements(modelPath);
     if (elements && elements.length > 0) {
       return { texture: flatTexture, model: modelPath };
     }
+  }
+
+  // Multi-layer flat items (item/generated with layer0+layer1) → 2D canvas compositing
+  if (resolveVar(textures, "layer1") !== null) {
+    const tints = extractTints(itemDef.model);
+    return {
+      texture: flatTexture,
+      model: modelPath,
+      ...(Object.keys(tints).length > 0 ? { tints } : {}),
+    };
   }
 
   return { texture: flatTexture };
@@ -189,12 +221,12 @@ const toProcess = ids.filter(id => !SKIP.has(id));
 console.log(`Resolving ${toProcess.length} items…`);
 
 const BATCH = 50;
-const items: Array<{ id: string; label: string; category: string; texture: string; model?: string }> = [];
+const items: Array<{ id: string; label: string; category: string; texture: string; model?: string; tints?: Record<number, string> }> = [];
 for (let i = 0; i < toProcess.length; i += BATCH) {
   const batch = toProcess.slice(i, i + BATCH);
   const results = await Promise.all(batch.map(async id => {
-    const { texture, model } = await resolveItem(id);
-    return { id, label: toLabel(id), category: categorize(id), texture, ...(model ? { model } : {}) };
+    const { texture, model, tints } = await resolveItem(id);
+    return { id, label: toLabel(id), category: categorize(id), texture, ...(model ? { model } : {}), ...(tints ? { tints } : {}) };
   }));
   items.push(...results);
   process.stdout.write(`\r${Math.min(i + BATCH, toProcess.length)}/${toProcess.length}`);
