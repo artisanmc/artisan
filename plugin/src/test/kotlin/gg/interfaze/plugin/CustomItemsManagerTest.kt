@@ -137,4 +137,55 @@ class CustomItemsManagerTest {
         assertTrue("textures/nexo/coin.png" in entries)
         assertTrue("textures/nexo/missing.png" in entries)
     }
+
+    @Test
+    fun `buildBundle includes models entry for item with modelJson`() {
+        val modelBytes = """{"parent":"item/generated","textures":{"layer0":"nexo:item/coin"}}""".toByteArray()
+        val source = object : CustomItemSource {
+            override val namespace = "nexo"
+            override fun isAvailable() = true
+            override fun collectItems() = listOf(
+                CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelBytes)
+            )
+            override fun loadTexture(path: String) = "fake-png".toByteArray()
+        }
+        val mgr = CustomItemsManager(listOf(source))
+        val (_, data) = assertNotNull(mgr.buildBundle())
+        val decoded = Base64.getDecoder().decode(data)
+        val entries = mutableSetOf<String>()
+        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
+            var e = zip.nextEntry
+            while (e != null) { entries += e.name; e = zip.nextEntry }
+        }
+        assertTrue("models/nexo/coin.json" in entries)
+        assertTrue("textures/nexo/coin.png" in entries)
+    }
+
+    @Test
+    fun `buildBundle omits models entry when modelJson is null`() {
+        val mgr = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin"))))
+        val (_, data) = assertNotNull(mgr.buildBundle())
+        val decoded = Base64.getDecoder().decode(data)
+        val entries = mutableSetOf<String>()
+        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
+            var e = zip.nextEntry
+            while (e != null) { entries += e.name; e = zip.nextEntry }
+        }
+        assertFalse(entries.any { it.startsWith("models/") })
+    }
+
+    @Test
+    fun `computeHash changes when modelJson changes`() {
+        val bytes1 = """{"parent":"item/generated"}""".toByteArray()
+        val bytes2 = """{"parent":"block/cube_all"}""".toByteArray()
+        fun mgr(modelBytes: ByteArray) = CustomItemsManager(listOf(object : CustomItemSource {
+            override val namespace = "nexo"
+            override fun isAvailable() = true
+            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelBytes))
+            override fun loadTexture(path: String) = "fake-png".toByteArray()
+        }))
+        val h1 = mgr(bytes1).computeHash()
+        val h2 = mgr(bytes2).computeHash()
+        assertTrue(h1.isNotEmpty() && h2.isNotEmpty() && h1 != h2)
+    }
 }
