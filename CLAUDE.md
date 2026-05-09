@@ -175,8 +175,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, etc. | ~97 |
-| Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, etc. | 28 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, etc. | ~103 |
+| Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, etc. | 32 |
 | Plugin intégration | `FullSyncIntegrationTest` | 3 |
 | Editor unit | Vitest, 391 tests couvrant expr DSL, canvas, export, i18n, custom items Library | 391 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
