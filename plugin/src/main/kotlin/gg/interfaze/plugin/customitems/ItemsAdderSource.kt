@@ -23,6 +23,7 @@ class ItemsAdderSource(private val pluginsDir: File) : CustomItemSource {
                     id = "itemsadder:$id",
                     label = name,
                     texturePath = "itemsadder/$ns/$name",
+                    modelJson = loadModelJson(ns, name),
                 )
             }
         } catch (_: Exception) { emptyList() }
@@ -39,5 +40,14 @@ class ItemsAdderSource(private val pluginsDir: File) : CustomItemSource {
             File(packDir, "assets/$ns/textures/$name.png"),
         )
         return candidates.firstOrNull { it.exists() }?.readBytes()
+    }
+
+    private fun loadModelJson(ns: String, name: String): String? {
+        val packDir = File(pluginsDir, "ItemsAdder/data/resource_pack")
+        val candidates = listOf(
+            File(packDir, "assets/$ns/models/item/$name.json"),
+            File(packDir, "assets/$ns/models/$name.json"),
+        )
+        return candidates.firstOrNull { it.exists() }?.readText()
     }
 }
