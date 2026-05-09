@@ -82,14 +82,16 @@ function rotateNormalByElem(n: Vec3, rot: ModelElement["rotation"]): Vec3 {
   return r;
 }
 
-// Apply gui display transform: center at (8,8,8), scale, rotateYXZ, translate
+// Apply gui display transform: center at (8,8,8), scale, rotateYXZ, translate.
+// Minecraft's GUI Y-rotation follows the left-hand (clockwise-from-above) convention,
+// so we negate the Y angle to convert to our right-hand rotAxis.
 function applyGuiXform(v: Vec3, rot: Vec3, scale: Vec3, trans: Vec3): Vec3 {
   let [x, y, z]: Vec3 = [
     (v[0] - 8) * scale[0],
     (v[1] - 8) * scale[1],
     (v[2] - 8) * scale[2],
   ];
-  [x, y, z] = rotAxis([x, y, z], "y", rot[1]);
+  [x, y, z] = rotAxis([x, y, z], "y", -rot[1]);
   [x, y, z] = rotAxis([x, y, z], "x", rot[0]);
   [x, y, z] = rotAxis([x, y, z], "z", rot[2]);
   return [x + trans[0], y + trans[1], z + trans[2]];
@@ -218,7 +220,7 @@ const DEFAULT_DISPLAY: Required<GuiDisplay> = {
 };
 
 /**
- * Render a 32×32 RGBA icon from model elements.
+ * Render a 128×128 RGBA icon from model elements.
  *
  * @param elements   Model element array (from the resolved model JSON)
  * @param textureMap Resolved texture key → PNG
@@ -232,7 +234,7 @@ export function renderFromElements(
   display?: GuiDisplay,
   guiLight: "front" | "side" = "side",
 ): Buffer {
-  const W = 32, H = 32;
+  const W = 128, H = 128;
 
   const rot   = display?.rotation    ?? DEFAULT_DISPLAY.rotation;
   const scale = display?.scale       ?? DEFAULT_DISPLAY.scale;
@@ -257,7 +259,7 @@ export function renderFromElements(
   out.data = Buffer.alloc(W * H * 4, 0);
   if (!isFinite(minSX)) return PNG.sync.write(out);
 
-  const MARGIN = 1;
+  const MARGIN = 4;
   const spanX = (maxSX - minSX) || 1;
   const spanY = (maxSY - minSY) || 1;
   const ppu = Math.min((W - 2 * MARGIN) / spanX, (H - 2 * MARGIN) / spanY);
@@ -276,9 +278,10 @@ export function renderFromElements(
       const rawNormal = FACE_NORMALS[faceName];
       if (!rawNormal) continue;
 
-      // Transform normal through element rotation → gui rotation, then back-face cull
+      // Transform normal through element rotation → gui rotation, then back-face cull.
+      // Negate Y for Minecraft's clockwise GUI convention (matches applyGuiXform).
       let tn = rotateNormalByElem(rawNormal, elem.rotation);
-      tn = rotAxis(tn, "y", rot[1]);
+      tn = rotAxis(tn, "y", -rot[1]);
       tn = rotAxis(tn, "x", rot[0]);
       tn = rotAxis(tn, "z", rot[2]);
       if (tn[2] <= 0) continue; // facing away from camera at +Z
@@ -336,7 +339,8 @@ export function renderIsometricIcon(topPath: string, sidePath: string = topPath)
   const topPng  = readTexture(topPath);
   const sidePng = topPath === sidePath ? topPng : readTexture(sidePath);
 
-  const W = 32, H = 32;
+  const W = 128, H = 128;
+  const S = W / 32; // scale factor: 4 pixels per old unit
   const out = new PNG({ width: W, height: H });
   out.data = Buffer.alloc(W * H * 4, 0);
 
@@ -344,16 +348,18 @@ export function renderIsometricIcon(topPath: string, sidePath: string = topPath)
     for (let px = 0; px < W; px++) {
       const oi = (py * W + px) * 4;
 
-      const u_t = (px - 2 * py + 16) / 2;
-      const v_t = (px + 2 * py - 16) / 2;
+      // Map back to 32-pixel coordinate space for UV math
+      const rx = px / S, ry = py / S;
+      const u_t = (rx - 2 * ry + 16) / 2;
+      const v_t = (rx + 2 * ry - 16) / 2;
       if (u_t >= 0 && u_t < 16 && v_t >= 0 && v_t < 16) {
         const [r, g, b, a] = sample(topPng.data, topPng.width, topPng.height, u_t, v_t);
         out.data[oi]     = r!; out.data[oi + 1] = g!;
         out.data[oi + 2] = b!; out.data[oi + 3] = a!;
         continue;
       }
-      if (px < 16) {
-        const u_l = px, v_l = py - px / 2 - 8;
+      if (rx < 16) {
+        const u_l = rx, v_l = ry - rx / 2 - 8;
         if (u_l >= 0 && u_l < 16 && v_l >= 0 && v_l < 16) {
           const [r, g, b, a] = sample(sidePng.data, sidePng.width, sidePng.height, u_l, v_l);
           out.data[oi]     = clamp(Math.round(r! * 0.65));
@@ -363,8 +369,8 @@ export function renderIsometricIcon(topPath: string, sidePath: string = topPath)
           continue;
         }
       }
-      if (px >= 16) {
-        const u_r = px - 16, v_r = py + (px - 16) / 2 - 16;
+      if (rx >= 16) {
+        const u_r = rx - 16, v_r = ry + (rx - 16) / 2 - 16;
         if (u_r >= 0 && u_r < 16 && v_r >= 0 && v_r < 16) {
           const [r, g, b, a] = sample(sidePng.data, sidePng.width, sidePng.height, u_r, v_r);
           out.data[oi]     = clamp(Math.round(r! * 0.80));
