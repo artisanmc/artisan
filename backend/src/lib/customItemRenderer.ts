@@ -103,7 +103,7 @@ function buildTextureMap(
     const nsPart = resolved.includes(":") ? resolved.split(":")[0]! : "";
     const customPath = nsPart
       ? join(cacheTexturesDir, nsPart, lastComponent + ".png")
-      : join(cacheTexturesDir, lastComponent + ".png");
+      : join(cacheTexturesDir, noNs + ".png");
     const png = loadPng(customPath) ?? loadPng(join(vanillaTexturesDir, noNs + ".png"));
     if (png) map.set(key, png);
   }
