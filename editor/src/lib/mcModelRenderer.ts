@@ -292,7 +292,7 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
     modelGroup.add(elemGroup);
   }
 
-  // Apply display.gui transform (Minecraft order: scale → YXZ rotation → translation)
+  // Apply display.gui transform (Minecraft order: scale → XYZ rotation → translation)
   const displayGroup = new THREE.Group();
   scene.remove(modelGroup);
   displayGroup.add(modelGroup);
