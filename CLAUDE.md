@@ -23,7 +23,7 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 
 ```bash
 cd plugin
-./gradlew test          # 25 tests (unit + intégration MockWebServer)
+./gradlew test          # ~190 tests (unit + intégration MockWebServer)
 ./gradlew shadowJar     # → build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
@@ -34,7 +34,7 @@ cd backend
 bun install
 bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis)
 bun run dev             # Dev avec --watch sur port 3001
-bun test                # 11 tests (unit + intégration WS réel)
+bun test                # ~110 tests (unit + intégration WS réel)
 ```
 
 ### Editor (React 19 + Vite 6)
@@ -43,7 +43,7 @@ bun test                # 11 tests (unit + intégration WS réel)
 cd editor
 npm install
 npm run dev             # Vite dev server sur port 5173
-npx vitest run          # 366 tests
+npx vitest run          # 400 tests
 npm run build           # Build production
 ```
 
@@ -152,7 +152,10 @@ plugins/Interfaze/packs/
 | Endpoint | Description |
 |---|---|
 | `GET /api/editor-session/:token/custom-items` | Retourne `{ serverKeyId, items[] }` depuis le cache disque. `items: []` si pas encore synchronisé. |
-| `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
+| `GET /api/textures/:version/:path*` | Sert les PNG vanilla depuis `data/mc-assets/{version}/textures/{path}.png`. |
+| `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG custom depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
+| `GET /api/models/:version/:path*` | Sert les JSON de modèles vanilla depuis `data/mc-assets/{version}/models/{path}.json`. |
+| `GET /api/models/custom/:serverKeyId/:path*` | Sert les JSON de modèles custom depuis `data/custom-items/{serverKeyId}/models/{path}.json`. |
 
 Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
 
@@ -175,10 +178,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, etc. | ~103 |
-| Plugin unit | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, etc. | 32 |
-| Plugin intégration | `FullSyncIntegrationTest` | 3 |
-| Editor unit | Vitest, 391 tests couvrant expr DSL, canvas, export, i18n, custom items Library | 391 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, etc. | ~110 |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, etc. (26 fichiers) | ~190 |
+| Editor unit | Vitest, 400 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer | 400 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
