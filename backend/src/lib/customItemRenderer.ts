@@ -4,7 +4,7 @@ import { mkdir, writeFile, readFile } from "fs/promises";
 import { unlinkSync } from "fs";
 import { PNG } from "pngjs";
 import { assetsRoot } from "./mcAssets";
-import { renderIsometricIcon, renderFromElements, type ModelElement } from "./iconRenderer";
+import { renderIsometricIcon, renderFromElements, type ModelElement, type GuiDisplay } from "./iconRenderer";
 import type { CustomItemEntry } from "./customItems";
 
 const CUBE_PARENTS = new Set([
@@ -166,7 +166,10 @@ export async function renderCustomIconsWithPaths(
       const textureMap = buildTextureMap(textures, cacheTexturesDir, vanillaTexturesDir);
       if (textureMap.size > 0) {
         try {
-          const buf = renderFromElements(elements, textureMap);
+          const rawGui = (modelJson as Record<string, unknown>).display as Record<string, unknown> | undefined;
+          const guiDisplay = rawGui?.gui as GuiDisplay | undefined;
+          const guiLight = (modelJson as Record<string, unknown>).gui_light === "front" ? "front" as const : "side" as const;
+          const buf = renderFromElements(elements, textureMap, guiDisplay, guiLight);
           await writeFile(iconPath, buf);
           rendered = true;
         } catch { /* fall through */ }
