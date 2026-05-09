@@ -42,7 +42,12 @@ class NexoSource(private val pluginsDir: File) : CustomItemSource {
                         net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(it)
                     } ?: id
                 } catch (_: Exception) { id }
-                CustomItemEntry(id = "nexo:$id", label = displayName, texturePath = "nexo/$id")
+                CustomItemEntry(
+                    id = "nexo:$id",
+                    label = displayName,
+                    texturePath = "nexo/$id",
+                    modelJson = loadModelJson(id),
+                )
             }
         } catch (e: Exception) {
             log.warning("[IFZ] NexoSource.collectItems() failed: ${e.javaClass.name}: ${e.message}")
@@ -109,4 +114,17 @@ class NexoSource(private val pluginsDir: File) : CustomItemSource {
                     ?.let { zip.getInputStream(it).readBytes() }
             }
         }.getOrNull()
+
+    private fun loadModelJson(itemId: String): String? {
+        for (zip in cachedZips) {
+            runCatching {
+                ZipFile(zip).use { z ->
+                    z.entries().asSequence()
+                        .firstOrNull { !it.isDirectory && it.name.endsWith("models/item/$itemId.json") }
+                        ?.let { String(z.getInputStream(it).readBytes()) }
+                }
+            }.getOrNull()?.let { return it }
+        }
+        return null
+    }
 }
