@@ -45,7 +45,9 @@ open class InterfazePlugin : JavaPlugin() {
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )
-        menuProvider.load()
+        // Inject before load() so the initial hello includes the correct custom_items_hash.
+        // Nexo/Oraxen fire their "items loaded" events before Interfaze enables (softdepend order),
+        // so registering hot-reload listeners alone is not sufficient for the first startup.
         val pluginsDir = server.pluginsFolder
         val customItemsManager = gg.interfaze.plugin.customitems.CustomItemsManager(
             listOf(
@@ -56,6 +58,7 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProvider = menuProvider as? SyncedMenuProvider
         syncedProvider?.setCustomItemsManager(customItemsManager)
+        menuProvider.load()
         if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
@@ -79,10 +82,21 @@ open class InterfazePlugin : JavaPlugin() {
         val mgr = server.pluginManager
 
         if (mgr.getPlugin("Nexo") != null) {
+            // Hot-reload listener: fires on /nexo reload during runtime
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
                     provider.notifyCustomItemsReload()
+                }
+            }, this)
+            // Startup: Nexo generates its resource pack AFTER NexoItemsLoadedEvent fires.
+            // Wait ~10 s after server "Done" so the fresh pack.zip is fully written.
+            mgr.registerEvents(object : org.bukkit.event.Listener {
+                @org.bukkit.event.EventHandler
+                fun on(event: org.bukkit.event.server.ServerLoadEvent) {
+                    server.scheduler.runTaskLaterAsynchronously(this@InterfazePlugin, Runnable {
+                        provider.notifyCustomItemsReload()
+                    }, 200L) // 200 ticks = 10 s
                 }
             }, this)
         }
@@ -132,7 +146,6 @@ open class InterfazePlugin : JavaPlugin() {
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
         )
-        menuProvider.load()
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = gg.interfaze.plugin.customitems.CustomItemsManager(
             listOf(
@@ -143,6 +156,7 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProviderReinit = menuProvider as? SyncedMenuProvider
         syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
+        menuProvider.load()
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)

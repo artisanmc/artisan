@@ -12,6 +12,19 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 
     private val jsonMapper = ObjectMapper()
 
+    companion object {
+        // 1×1 gray PNG — used when no texture file can be found for a custom item.
+        // Sourced from a known-good minimal PNG (base64-encoded).
+        val PLACEHOLDER_PNG: ByteArray = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVQI12NgAAAAAgAB4iG8MwAAAABJRU5ErkJggg=="
+        )
+    }
+
+    fun availableSources(): List<String> = sources.filter { it.isAvailable() }.map { it.namespace }
+
+    fun rawItemCount(): Int =
+        sources.filter { it.isAvailable() }.sumOf { runCatching { it.collectItems().size }.getOrDefault(0) }
+
     fun computeHash(): String {
         val pairs = collectWithTextures()
         if (pairs.isEmpty()) return ""
@@ -29,7 +42,8 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 
         for (source in sources.filter { it.isAvailable() }) {
             for (entry in source.collectItems()) {
-                val bytes = source.loadTexture(entry.texturePath) ?: continue
+                // Use placeholder when no texture is available so the item still appears in the Library.
+                val bytes = source.loadTexture(entry.texturePath) ?: PLACEHOLDER_PNG
                 items += mapOf(
                     "id"       to entry.id,
                     "label"    to stripColorCodes(entry.label),
@@ -59,9 +73,8 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
     private fun collectWithTextures(): List<Pair<String, ByteArray>> =
         sources.filter { it.isAvailable() }
             .flatMap { source ->
-                source.collectItems().mapNotNull { entry ->
-                    val bytes = source.loadTexture(entry.texturePath) ?: return@mapNotNull null
-                    Pair(entry.id, bytes)
+                source.collectItems().map { entry ->
+                    Pair(entry.id, source.loadTexture(entry.texturePath) ?: PLACEHOLDER_PNG)
                 }
             }
 
