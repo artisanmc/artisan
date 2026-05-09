@@ -90,12 +90,18 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
 function pickFlat(textures: Record<string, string>): string | null {
   const layer0 = resolveVar(textures, "layer0");
   if (layer0 && !layer0.includes("_overlay") && !layer0.endsWith("_head")) return layer0;
-  for (const key of ["layer1", "particle", "all", "top", "texture", "side", "bottom", "layer0"]) {
+  for (const key of ["layer1", "all", "top", "texture", "side", "bottom", "layer0"]) {
     const v = resolveVar(textures, key);
     if (v) return v;
   }
+  // Use particle only when it's an item-space texture, not a block material (e.g. shield → dark_oak_planks)
+  const particle = resolveVar(textures, "particle");
+  if (particle && !particle.startsWith("block/")) return particle;
   for (const v of Object.values(textures)) {
-    if (v && typeof v === "string" && !v.startsWith("#")) return v.replace(/^minecraft:/, "");
+    if (v && typeof v === "string" && !v.startsWith("#")) {
+      const resolved = v.replace(/^minecraft:/, "");
+      if (!resolved.startsWith("block/")) return resolved;
+    }
   }
   return null;
 }
@@ -164,7 +170,9 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
   if (!result) return { texture: `item/${id}` };
 
   const { textures, ancestors } = result;
-  const flatTexture = pickFlat(textures) ?? `item/${id}`;
+  const guiSpritePath = join(ASSETS, "textures/gui/sprites/container/slot", `${id}.png`);
+  const flatTexture = pickFlat(textures)
+    ?? (existsSync(guiSpritePath) ? `gui/sprites/container/slot/${id}` : `item/${id}`);
 
   // Block models with elements → 3D Three.js rendering
   const isBlockModel = [...ancestors].some(a => a.startsWith("block/"));

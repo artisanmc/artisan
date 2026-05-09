@@ -82,7 +82,7 @@
     "id": "acacia_shelf",
     "label": "Acacia Shelf",
     "category": "misc",
-    "texture": "block/stripped_acacia_log",
+    "texture": "block/acacia_shelf",
     "model": "block/acacia_shelf_inventory"
   },
   {
@@ -188,7 +188,7 @@
     "id": "andesite_wall",
     "label": "Andesite Wall",
     "category": "misc",
-    "texture": "block/andesite",
+    "texture": "item/andesite_wall",
     "model": "block/andesite_wall_inventory"
   },
   {
@@ -201,7 +201,7 @@
     "id": "anvil",
     "label": "Anvil",
     "category": "misc",
-    "texture": "block/anvil",
+    "texture": "block/anvil_top",
     "model": "block/anvil"
   },
   {
@@ -262,7 +262,7 @@
     "id": "azalea",
     "label": "Azalea",
     "category": "misc",
-    "texture": "block/azalea_plant",
+    "texture": "block/azalea_top",
     "model": "block/azalea"
   },
   {
@@ -327,7 +327,7 @@
     "id": "bamboo_fence_gate",
     "label": "Bamboo Fence Gate",
     "category": "misc",
-    "texture": "block/bamboo_fence_gate_particle",
+    "texture": "block/bamboo_fence_gate",
     "model": "block/bamboo_fence_gate"
   },
   {
@@ -381,7 +381,7 @@
     "id": "bamboo_shelf",
     "label": "Bamboo Shelf",
     "category": "misc",
-    "texture": "block/stripped_bamboo_block",
+    "texture": "block/bamboo_shelf",
     "model": "block/bamboo_shelf_inventory"
   },
   {
@@ -415,7 +415,7 @@
     "id": "barrel",
     "label": "Barrel",
     "category": "misc",
-    "texture": "block/barrel_side",
+    "texture": "block/barrel_top",
     "model": "block/barrel"
   },
   {
@@ -441,7 +441,7 @@
     "id": "beacon",
     "label": "Beacon",
     "category": "misc",
-    "texture": "block/glass",
+    "texture": "item/beacon",
     "model": "block/beacon"
   },
   {
@@ -455,7 +455,7 @@
     "id": "bee_nest",
     "label": "Bee Nest",
     "category": "misc",
-    "texture": "block/bee_nest_side",
+    "texture": "block/bee_nest_top",
     "model": "block/bee_nest_empty"
   },
   {
@@ -474,7 +474,7 @@
     "id": "beehive",
     "label": "Beehive",
     "category": "misc",
-    "texture": "block/beehive_side",
+    "texture": "block/beehive_end",
     "model": "block/beehive_empty"
   },
   {
@@ -591,7 +591,7 @@
     "id": "birch_shelf",
     "label": "Birch Shelf",
     "category": "misc",
-    "texture": "block/stripped_birch_log",
+    "texture": "block/birch_shelf",
     "model": "block/birch_shelf_inventory"
   },
   {
@@ -632,13 +632,13 @@
     "id": "black_banner",
     "label": "Black Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/black_banner"
   },
   {
     "id": "black_bed",
     "label": "Black Bed",
     "category": "misc",
-    "texture": "block/black_wool"
+    "texture": "item/black_bed"
   },
   {
     "id": "black_bundle",
@@ -656,7 +656,7 @@
     "id": "black_carpet",
     "label": "Black Carpet",
     "category": "misc",
-    "texture": "block/black_wool",
+    "texture": "item/black_carpet",
     "model": "block/black_carpet"
   },
   {
@@ -683,7 +683,7 @@
     "id": "black_glazed_terracotta",
     "label": "Black Glazed Terracotta",
     "category": "misc",
-    "texture": "block/black_glazed_terracotta",
+    "texture": "item/black_glazed_terracotta",
     "model": "block/black_glazed_terracotta"
   },
   {
@@ -696,7 +696,7 @@
     "id": "black_shulker_box",
     "label": "Black Shulker Box",
     "category": "misc",
-    "texture": "block/black_shulker_box"
+    "texture": "item/black_shulker_box"
   },
   {
     "id": "black_stained_glass",
@@ -736,21 +736,21 @@
     "id": "blackstone_slab",
     "label": "Blackstone Slab",
     "category": "misc",
-    "texture": "block/blackstone",
+    "texture": "block/blackstone_top",
     "model": "block/blackstone_slab"
   },
   {
     "id": "blackstone_stairs",
     "label": "Blackstone Stairs",
     "category": "misc",
-    "texture": "block/blackstone",
+    "texture": "block/blackstone_top",
     "model": "block/blackstone_stairs"
   },
   {
     "id": "blackstone_wall",
     "label": "Blackstone Wall",
     "category": "misc",
-    "texture": "block/blackstone",
+    "texture": "item/blackstone_wall",
     "model": "block/blackstone_wall_inventory"
   },
   {
@@ -763,7 +763,7 @@
     "id": "blast_furnace",
     "label": "Blast Furnace",
     "category": "misc",
-    "texture": "block/blast_furnace_front",
+    "texture": "block/blast_furnace_top",
     "model": "block/blast_furnace"
   },
   {
@@ -788,13 +788,13 @@
     "id": "blue_banner",
     "label": "Blue Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/blue_banner"
   },
   {
     "id": "blue_bed",
     "label": "Blue Bed",
     "category": "misc",
-    "texture": "block/blue_wool"
+    "texture": "item/blue_bed"
   },
   {
     "id": "blue_bundle",
@@ -812,7 +812,7 @@
     "id": "blue_carpet",
     "label": "Blue Carpet",
     "category": "misc",
-    "texture": "block/blue_wool",
+    "texture": "item/blue_carpet",
     "model": "block/blue_carpet"
   },
   {
@@ -845,7 +845,7 @@
     "id": "blue_glazed_terracotta",
     "label": "Blue Glazed Terracotta",
     "category": "misc",
-    "texture": "block/blue_glazed_terracotta",
+    "texture": "item/blue_glazed_terracotta",
     "model": "block/blue_glazed_terracotta"
   },
   {
@@ -871,7 +871,7 @@
     "id": "blue_shulker_box",
     "label": "Blue Shulker Box",
     "category": "misc",
-    "texture": "block/blue_shulker_box"
+    "texture": "item/blue_shulker_box"
   },
   {
     "id": "blue_stained_glass",
@@ -1035,7 +1035,7 @@
     "id": "brick_wall",
     "label": "Brick Wall",
     "category": "misc",
-    "texture": "block/bricks",
+    "texture": "item/brick_wall",
     "model": "block/brick_wall_inventory"
   },
   {
@@ -1049,13 +1049,13 @@
     "id": "brown_banner",
     "label": "Brown Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/brown_banner"
   },
   {
     "id": "brown_bed",
     "label": "Brown Bed",
     "category": "misc",
-    "texture": "block/brown_wool"
+    "texture": "item/brown_bed"
   },
   {
     "id": "brown_bundle",
@@ -1073,7 +1073,7 @@
     "id": "brown_carpet",
     "label": "Brown Carpet",
     "category": "misc",
-    "texture": "block/brown_wool",
+    "texture": "item/brown_carpet",
     "model": "block/brown_carpet"
   },
   {
@@ -1106,7 +1106,7 @@
     "id": "brown_glazed_terracotta",
     "label": "Brown Glazed Terracotta",
     "category": "misc",
-    "texture": "block/brown_glazed_terracotta",
+    "texture": "item/brown_glazed_terracotta",
     "model": "block/brown_glazed_terracotta"
   },
   {
@@ -1132,7 +1132,7 @@
     "id": "brown_shulker_box",
     "label": "Brown Shulker Box",
     "category": "misc",
-    "texture": "block/brown_shulker_box"
+    "texture": "item/brown_shulker_box"
   },
   {
     "id": "brown_stained_glass",
@@ -1221,7 +1221,7 @@
     "id": "cactus",
     "label": "Cactus",
     "category": "misc",
-    "texture": "block/cactus_side",
+    "texture": "block/cactus_top",
     "model": "block/cactus"
   },
   {
@@ -1247,7 +1247,7 @@
     "id": "calibrated_sculk_sensor",
     "label": "Calibrated Sculk Sensor",
     "category": "misc",
-    "texture": "block/sculk_sensor_bottom",
+    "texture": "block/calibrated_sculk_sensor_top",
     "model": "block/calibrated_sculk_sensor_inactive"
   },
   {
@@ -1290,14 +1290,14 @@
     "id": "cartography_table",
     "label": "Cartography Table",
     "category": "misc",
-    "texture": "block/cartography_table_side3",
+    "texture": "item/cartography_table",
     "model": "block/cartography_table"
   },
   {
     "id": "carved_pumpkin",
     "label": "Carved Pumpkin",
     "category": "misc",
-    "texture": "block/carved_pumpkin",
+    "texture": "block/pumpkin_top",
     "model": "block/carved_pumpkin"
   },
   {
@@ -1322,7 +1322,7 @@
     "id": "chain_command_block",
     "label": "Chain Command Block",
     "category": "misc",
-    "texture": "block/chain_command_block_back",
+    "texture": "block/chain_command_block_side",
     "model": "block/chain_command_block"
   },
   {
@@ -1438,7 +1438,7 @@
     "id": "cherry_shelf",
     "label": "Cherry Shelf",
     "category": "misc",
-    "texture": "block/stripped_cherry_log",
+    "texture": "block/cherry_shelf",
     "model": "block/cherry_shelf_inventory"
   },
   {
@@ -1479,7 +1479,7 @@
     "id": "chest",
     "label": "Chest",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/chest"
   },
   {
     "id": "chest_minecart",
@@ -1503,7 +1503,7 @@
     "id": "chipped_anvil",
     "label": "Chipped Anvil",
     "category": "misc",
-    "texture": "block/anvil",
+    "texture": "block/chipped_anvil_top",
     "model": "block/chipped_anvil"
   },
   {
@@ -1693,7 +1693,7 @@
     "id": "cobbled_deepslate_wall",
     "label": "Cobbled Deepslate Wall",
     "category": "misc",
-    "texture": "block/cobbled_deepslate",
+    "texture": "item/cobbled_deepslate_wall",
     "model": "block/cobbled_deepslate_wall_inventory"
   },
   {
@@ -1721,7 +1721,7 @@
     "id": "cobblestone_wall",
     "label": "Cobblestone Wall",
     "category": "misc",
-    "texture": "block/cobblestone",
+    "texture": "item/cobblestone_wall",
     "model": "block/cobblestone_wall_inventory"
   },
   {
@@ -1758,7 +1758,7 @@
     "id": "command_block",
     "label": "Command Block",
     "category": "misc",
-    "texture": "block/command_block_back",
+    "texture": "block/command_block_side",
     "model": "block/command_block"
   },
   {
@@ -1783,14 +1783,14 @@
     "id": "composter",
     "label": "Composter",
     "category": "misc",
-    "texture": "block/composter_side",
+    "texture": "block/composter_top",
     "model": "block/composter"
   },
   {
     "id": "conduit",
     "label": "Conduit",
     "category": "misc",
-    "texture": "block/conduit"
+    "texture": "item/conduit"
   },
   {
     "id": "cooked_beef",
@@ -1882,7 +1882,7 @@
     "id": "copper_chest",
     "label": "Copper Chest",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/copper_chest"
   },
   {
     "id": "copper_chestplate",
@@ -1906,7 +1906,7 @@
     "id": "copper_golem_statue",
     "label": "Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/copper_golem_statue"
   },
   {
     "id": "copper_grate",
@@ -2058,14 +2058,14 @@
     "id": "crafter",
     "label": "Crafter",
     "category": "misc",
-    "texture": "block/crafter_north",
+    "texture": "block/crafter_top",
     "model": "block/crafter"
   },
   {
     "id": "crafting_table",
     "label": "Crafting Table",
     "category": "misc",
-    "texture": "block/crafting_table_front",
+    "texture": "item/crafting_table",
     "model": "block/crafting_table"
   },
   {
@@ -2091,7 +2091,7 @@
     "id": "creeper_head",
     "label": "Creeper Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/creeper_head"
   },
   {
     "id": "creeper_spawn_egg",
@@ -2149,7 +2149,7 @@
     "id": "crimson_nylium",
     "label": "Crimson Nylium",
     "category": "misc",
-    "texture": "block/crimson_nylium_side",
+    "texture": "block/crimson_nylium",
     "model": "block/crimson_nylium"
   },
   {
@@ -2176,7 +2176,7 @@
     "id": "crimson_shelf",
     "label": "Crimson Shelf",
     "category": "misc",
-    "texture": "block/stripped_crimson_stem",
+    "texture": "block/crimson_shelf",
     "model": "block/crimson_shelf_inventory"
   },
   {
@@ -2258,7 +2258,7 @@
     "id": "cut_red_sandstone_slab",
     "label": "Cut Red Sandstone Slab",
     "category": "misc",
-    "texture": "block/cut_red_sandstone",
+    "texture": "block/red_sandstone_top",
     "model": "block/cut_red_sandstone_slab"
   },
   {
@@ -2272,20 +2272,20 @@
     "id": "cut_sandstone_slab",
     "label": "Cut Sandstone Slab",
     "category": "misc",
-    "texture": "block/cut_sandstone",
+    "texture": "block/sandstone_top",
     "model": "block/cut_sandstone_slab"
   },
   {
     "id": "cyan_banner",
     "label": "Cyan Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/cyan_banner"
   },
   {
     "id": "cyan_bed",
     "label": "Cyan Bed",
     "category": "misc",
-    "texture": "block/cyan_wool"
+    "texture": "item/cyan_bed"
   },
   {
     "id": "cyan_bundle",
@@ -2303,7 +2303,7 @@
     "id": "cyan_carpet",
     "label": "Cyan Carpet",
     "category": "misc",
-    "texture": "block/cyan_wool",
+    "texture": "item/cyan_carpet",
     "model": "block/cyan_carpet"
   },
   {
@@ -2330,7 +2330,7 @@
     "id": "cyan_glazed_terracotta",
     "label": "Cyan Glazed Terracotta",
     "category": "misc",
-    "texture": "block/cyan_glazed_terracotta",
+    "texture": "item/cyan_glazed_terracotta",
     "model": "block/cyan_glazed_terracotta"
   },
   {
@@ -2343,7 +2343,7 @@
     "id": "cyan_shulker_box",
     "label": "Cyan Shulker Box",
     "category": "misc",
-    "texture": "block/cyan_shulker_box"
+    "texture": "item/cyan_shulker_box"
   },
   {
     "id": "cyan_stained_glass",
@@ -2376,7 +2376,7 @@
     "id": "damaged_anvil",
     "label": "Damaged Anvil",
     "category": "misc",
-    "texture": "block/anvil",
+    "texture": "block/damaged_anvil_top",
     "model": "block/damaged_anvil"
   },
   {
@@ -2474,7 +2474,7 @@
     "id": "dark_oak_shelf",
     "label": "Dark Oak Shelf",
     "category": "misc",
-    "texture": "block/stripped_dark_oak_log",
+    "texture": "block/dark_oak_shelf",
     "model": "block/dark_oak_shelf_inventory"
   },
   {
@@ -2650,7 +2650,7 @@
     "id": "decorated_pot",
     "label": "Decorated Pot",
     "category": "misc",
-    "texture": "block/terracotta"
+    "texture": "item/decorated_pot"
   },
   {
     "id": "deepslate",
@@ -2677,7 +2677,7 @@
     "id": "deepslate_brick_wall",
     "label": "Deepslate Brick Wall",
     "category": "misc",
-    "texture": "block/deepslate_bricks",
+    "texture": "item/deepslate_brick_wall",
     "model": "block/deepslate_brick_wall_inventory"
   },
   {
@@ -2761,7 +2761,7 @@
     "id": "deepslate_tile_wall",
     "label": "Deepslate Tile Wall",
     "category": "misc",
-    "texture": "block/deepslate_tiles",
+    "texture": "item/deepslate_tile_wall",
     "model": "block/deepslate_tile_wall_inventory"
   },
   {
@@ -2894,7 +2894,7 @@
     "id": "diorite_wall",
     "label": "Diorite Wall",
     "category": "misc",
-    "texture": "block/diorite",
+    "texture": "item/diorite_wall",
     "model": "block/diorite_wall_inventory"
   },
   {
@@ -2908,7 +2908,7 @@
     "id": "dirt_path",
     "label": "Dirt Path",
     "category": "misc",
-    "texture": "block/dirt",
+    "texture": "block/dirt_path_top",
     "model": "block/dirt_path"
   },
   {
@@ -2921,7 +2921,7 @@
     "id": "dispenser",
     "label": "Dispenser",
     "category": "misc",
-    "texture": "block/dispenser_front",
+    "texture": "block/furnace_top",
     "model": "block/dispenser"
   },
   {
@@ -2953,13 +2953,13 @@
     "id": "dragon_head",
     "label": "Dragon Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/dragon_head"
   },
   {
     "id": "dried_ghast",
     "label": "Dried Ghast",
     "category": "misc",
-    "texture": "block/dried_ghast_hydration_0_north",
+    "texture": "block/dried_ghast_hydration_0_top",
     "model": "block/dried_ghast_hydration_0"
   },
   {
@@ -2972,7 +2972,7 @@
     "id": "dried_kelp_block",
     "label": "Dried Kelp Block",
     "category": "misc",
-    "texture": "block/dried_kelp_side",
+    "texture": "item/dried_kelp_block",
     "model": "block/dried_kelp_block"
   },
   {
@@ -2986,7 +2986,7 @@
     "id": "dropper",
     "label": "Dropper",
     "category": "misc",
-    "texture": "block/dropper_front",
+    "texture": "block/furnace_top",
     "model": "block/dropper"
   },
   {
@@ -3061,7 +3061,7 @@
     "id": "enchanting_table",
     "label": "Enchanting Table",
     "category": "misc",
-    "texture": "block/enchanting_table_bottom",
+    "texture": "block/enchanting_table_top",
     "model": "block/enchanting_table"
   },
   {
@@ -3074,14 +3074,14 @@
     "id": "end_portal_frame",
     "label": "End Portal Frame",
     "category": "misc",
-    "texture": "block/end_portal_frame_side",
+    "texture": "block/end_portal_frame_top",
     "model": "block/end_portal_frame"
   },
   {
     "id": "end_rod",
     "label": "End Rod",
     "category": "misc",
-    "texture": "block/end_rod",
+    "texture": "item/end_rod",
     "model": "block/end_rod"
   },
   {
@@ -3109,7 +3109,7 @@
     "id": "end_stone_brick_wall",
     "label": "End Stone Brick Wall",
     "category": "misc",
-    "texture": "block/end_stone_bricks",
+    "texture": "item/end_stone_brick_wall",
     "model": "block/end_stone_brick_wall_inventory"
   },
   {
@@ -3123,7 +3123,7 @@
     "id": "ender_chest",
     "label": "Ender Chest",
     "category": "misc",
-    "texture": "block/obsidian"
+    "texture": "item/ender_chest"
   },
   {
     "id": "ender_dragon_spawn_egg",
@@ -3210,7 +3210,7 @@
     "id": "exposed_copper_chest",
     "label": "Exposed Copper Chest",
     "category": "misc",
-    "texture": "block/exposed_copper"
+    "texture": "item/exposed_copper_chest"
   },
   {
     "id": "exposed_copper_door",
@@ -3222,7 +3222,7 @@
     "id": "exposed_copper_golem_statue",
     "label": "Exposed Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/exposed_copper_golem_statue"
   },
   {
     "id": "exposed_copper_grate",
@@ -3282,7 +3282,7 @@
     "id": "farmland",
     "label": "Farmland",
     "category": "misc",
-    "texture": "block/dirt",
+    "texture": "block/farmland",
     "model": "block/farmland"
   },
   {
@@ -3376,7 +3376,7 @@
     "id": "fletching_table",
     "label": "Fletching Table",
     "category": "misc",
-    "texture": "block/fletching_table_front",
+    "texture": "item/fletching_table",
     "model": "block/fletching_table"
   },
   {
@@ -3425,7 +3425,7 @@
     "id": "flowering_azalea",
     "label": "Flowering Azalea",
     "category": "misc",
-    "texture": "block/azalea_plant",
+    "texture": "block/flowering_azalea_top",
     "model": "block/flowering_azalea"
   },
   {
@@ -3463,7 +3463,7 @@
     "id": "furnace",
     "label": "Furnace",
     "category": "misc",
-    "texture": "block/furnace_front",
+    "texture": "block/furnace_top",
     "model": "block/furnace"
   },
   {
@@ -3712,14 +3712,14 @@
     "id": "granite_wall",
     "label": "Granite Wall",
     "category": "misc",
-    "texture": "block/granite",
+    "texture": "item/granite_wall",
     "model": "block/granite_wall_inventory"
   },
   {
     "id": "grass_block",
     "label": "Grass Block",
     "category": "misc",
-    "texture": "block/dirt",
+    "texture": "block/grass_block_top",
     "model": "block/grass_block"
   },
   {
@@ -3733,13 +3733,13 @@
     "id": "gray_banner",
     "label": "Gray Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/gray_banner"
   },
   {
     "id": "gray_bed",
     "label": "Gray Bed",
     "category": "misc",
-    "texture": "block/gray_wool"
+    "texture": "item/gray_bed"
   },
   {
     "id": "gray_bundle",
@@ -3757,7 +3757,7 @@
     "id": "gray_carpet",
     "label": "Gray Carpet",
     "category": "misc",
-    "texture": "block/gray_wool",
+    "texture": "item/gray_carpet",
     "model": "block/gray_carpet"
   },
   {
@@ -3784,7 +3784,7 @@
     "id": "gray_glazed_terracotta",
     "label": "Gray Glazed Terracotta",
     "category": "misc",
-    "texture": "block/gray_glazed_terracotta",
+    "texture": "item/gray_glazed_terracotta",
     "model": "block/gray_glazed_terracotta"
   },
   {
@@ -3797,7 +3797,7 @@
     "id": "gray_shulker_box",
     "label": "Gray Shulker Box",
     "category": "misc",
-    "texture": "block/gray_shulker_box"
+    "texture": "item/gray_shulker_box"
   },
   {
     "id": "gray_stained_glass",
@@ -3830,13 +3830,13 @@
     "id": "green_banner",
     "label": "Green Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/green_banner"
   },
   {
     "id": "green_bed",
     "label": "Green Bed",
     "category": "misc",
-    "texture": "block/green_wool"
+    "texture": "item/green_bed"
   },
   {
     "id": "green_bundle",
@@ -3854,7 +3854,7 @@
     "id": "green_carpet",
     "label": "Green Carpet",
     "category": "misc",
-    "texture": "block/green_wool",
+    "texture": "item/green_carpet",
     "model": "block/green_carpet"
   },
   {
@@ -3881,7 +3881,7 @@
     "id": "green_glazed_terracotta",
     "label": "Green Glazed Terracotta",
     "category": "misc",
-    "texture": "block/green_glazed_terracotta",
+    "texture": "item/green_glazed_terracotta",
     "model": "block/green_glazed_terracotta"
   },
   {
@@ -3894,7 +3894,7 @@
     "id": "green_shulker_box",
     "label": "Green Shulker Box",
     "category": "misc",
-    "texture": "block/green_shulker_box"
+    "texture": "item/green_shulker_box"
   },
   {
     "id": "green_stained_glass",
@@ -4015,7 +4015,7 @@
     "id": "honey_block",
     "label": "Honey Block",
     "category": "misc",
-    "texture": "block/honey_block_top",
+    "texture": "block/honey_block_side",
     "model": "block/honey_block"
   },
   {
@@ -4293,21 +4293,21 @@
     "id": "jack_o_lantern",
     "label": "Jack O Lantern",
     "category": "misc",
-    "texture": "block/jack_o_lantern",
+    "texture": "block/pumpkin_top",
     "model": "block/jack_o_lantern"
   },
   {
     "id": "jigsaw",
     "label": "Jigsaw",
     "category": "misc",
-    "texture": "block/jigsaw_top",
+    "texture": "item/jigsaw",
     "model": "block/jigsaw"
   },
   {
     "id": "jukebox",
     "label": "Jukebox",
     "category": "misc",
-    "texture": "block/jukebox_side",
+    "texture": "block/jukebox_top",
     "model": "block/jukebox"
   },
   {
@@ -4393,7 +4393,7 @@
     "id": "jungle_shelf",
     "label": "Jungle Shelf",
     "category": "misc",
-    "texture": "block/stripped_jungle_log",
+    "texture": "block/jungle_shelf",
     "model": "block/jungle_shelf_inventory"
   },
   {
@@ -4564,7 +4564,7 @@
     "id": "lectern",
     "label": "Lectern",
     "category": "misc",
-    "texture": "block/lectern_sides",
+    "texture": "block/lectern_top",
     "model": "block/lectern"
   },
   {
@@ -4583,13 +4583,13 @@
     "id": "light_blue_banner",
     "label": "Light Blue Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/light_blue_banner"
   },
   {
     "id": "light_blue_bed",
     "label": "Light Blue Bed",
     "category": "misc",
-    "texture": "block/light_blue_wool"
+    "texture": "item/light_blue_bed"
   },
   {
     "id": "light_blue_bundle",
@@ -4607,7 +4607,7 @@
     "id": "light_blue_carpet",
     "label": "Light Blue Carpet",
     "category": "misc",
-    "texture": "block/light_blue_wool",
+    "texture": "item/light_blue_carpet",
     "model": "block/light_blue_carpet"
   },
   {
@@ -4634,7 +4634,7 @@
     "id": "light_blue_glazed_terracotta",
     "label": "Light Blue Glazed Terracotta",
     "category": "misc",
-    "texture": "block/light_blue_glazed_terracotta",
+    "texture": "item/light_blue_glazed_terracotta",
     "model": "block/light_blue_glazed_terracotta"
   },
   {
@@ -4647,7 +4647,7 @@
     "id": "light_blue_shulker_box",
     "label": "Light Blue Shulker Box",
     "category": "misc",
-    "texture": "block/light_blue_shulker_box"
+    "texture": "item/light_blue_shulker_box"
   },
   {
     "id": "light_blue_stained_glass",
@@ -4680,13 +4680,13 @@
     "id": "light_gray_banner",
     "label": "Light Gray Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/light_gray_banner"
   },
   {
     "id": "light_gray_bed",
     "label": "Light Gray Bed",
     "category": "misc",
-    "texture": "block/light_gray_wool"
+    "texture": "item/light_gray_bed"
   },
   {
     "id": "light_gray_bundle",
@@ -4704,7 +4704,7 @@
     "id": "light_gray_carpet",
     "label": "Light Gray Carpet",
     "category": "misc",
-    "texture": "block/light_gray_wool",
+    "texture": "item/light_gray_carpet",
     "model": "block/light_gray_carpet"
   },
   {
@@ -4731,7 +4731,7 @@
     "id": "light_gray_glazed_terracotta",
     "label": "Light Gray Glazed Terracotta",
     "category": "misc",
-    "texture": "block/light_gray_glazed_terracotta",
+    "texture": "item/light_gray_glazed_terracotta",
     "model": "block/light_gray_glazed_terracotta"
   },
   {
@@ -4744,7 +4744,7 @@
     "id": "light_gray_shulker_box",
     "label": "Light Gray Shulker Box",
     "category": "misc",
-    "texture": "block/light_gray_shulker_box"
+    "texture": "item/light_gray_shulker_box"
   },
   {
     "id": "light_gray_stained_glass",
@@ -4809,13 +4809,13 @@
     "id": "lime_banner",
     "label": "Lime Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/lime_banner"
   },
   {
     "id": "lime_bed",
     "label": "Lime Bed",
     "category": "misc",
-    "texture": "block/lime_wool"
+    "texture": "item/lime_bed"
   },
   {
     "id": "lime_bundle",
@@ -4833,7 +4833,7 @@
     "id": "lime_carpet",
     "label": "Lime Carpet",
     "category": "misc",
-    "texture": "block/lime_wool",
+    "texture": "item/lime_carpet",
     "model": "block/lime_carpet"
   },
   {
@@ -4860,7 +4860,7 @@
     "id": "lime_glazed_terracotta",
     "label": "Lime Glazed Terracotta",
     "category": "misc",
-    "texture": "block/lime_glazed_terracotta",
+    "texture": "item/lime_glazed_terracotta",
     "model": "block/lime_glazed_terracotta"
   },
   {
@@ -4873,7 +4873,7 @@
     "id": "lime_shulker_box",
     "label": "Lime Shulker Box",
     "category": "misc",
-    "texture": "block/lime_shulker_box"
+    "texture": "item/lime_shulker_box"
   },
   {
     "id": "lime_stained_glass",
@@ -4929,7 +4929,7 @@
     "id": "loom",
     "label": "Loom",
     "category": "misc",
-    "texture": "block/loom_front",
+    "texture": "block/loom_top",
     "model": "block/loom"
   },
   {
@@ -4942,13 +4942,13 @@
     "id": "magenta_banner",
     "label": "Magenta Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/magenta_banner"
   },
   {
     "id": "magenta_bed",
     "label": "Magenta Bed",
     "category": "misc",
-    "texture": "block/magenta_wool"
+    "texture": "item/magenta_bed"
   },
   {
     "id": "magenta_bundle",
@@ -4966,7 +4966,7 @@
     "id": "magenta_carpet",
     "label": "Magenta Carpet",
     "category": "misc",
-    "texture": "block/magenta_wool",
+    "texture": "item/magenta_carpet",
     "model": "block/magenta_carpet"
   },
   {
@@ -4993,7 +4993,7 @@
     "id": "magenta_glazed_terracotta",
     "label": "Magenta Glazed Terracotta",
     "category": "misc",
-    "texture": "block/magenta_glazed_terracotta",
+    "texture": "item/magenta_glazed_terracotta",
     "model": "block/magenta_glazed_terracotta"
   },
   {
@@ -5006,7 +5006,7 @@
     "id": "magenta_shulker_box",
     "label": "Magenta Shulker Box",
     "category": "misc",
-    "texture": "block/magenta_shulker_box"
+    "texture": "item/magenta_shulker_box"
   },
   {
     "id": "magenta_stained_glass",
@@ -5137,14 +5137,14 @@
     "id": "mangrove_roots",
     "label": "Mangrove Roots",
     "category": "misc",
-    "texture": "block/mangrove_roots_side",
+    "texture": "block/mangrove_roots_top",
     "model": "block/mangrove_roots"
   },
   {
     "id": "mangrove_shelf",
     "label": "Mangrove Shelf",
     "category": "misc",
-    "texture": "block/stripped_mangrove_log",
+    "texture": "block/mangrove_shelf",
     "model": "block/mangrove_shelf_inventory"
   },
   {
@@ -5253,7 +5253,7 @@
     "id": "moss_carpet",
     "label": "Moss Carpet",
     "category": "misc",
-    "texture": "block/moss_block",
+    "texture": "item/moss_carpet",
     "model": "block/moss_carpet"
   },
   {
@@ -5281,7 +5281,7 @@
     "id": "mossy_cobblestone_wall",
     "label": "Mossy Cobblestone Wall",
     "category": "misc",
-    "texture": "block/mossy_cobblestone",
+    "texture": "item/mossy_cobblestone_wall",
     "model": "block/mossy_cobblestone_wall_inventory"
   },
   {
@@ -5302,7 +5302,7 @@
     "id": "mossy_stone_brick_wall",
     "label": "Mossy Stone Brick Wall",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
+    "texture": "item/mossy_stone_brick_wall",
     "model": "block/mossy_stone_brick_wall_inventory"
   },
   {
@@ -5343,7 +5343,7 @@
     "id": "mud_brick_wall",
     "label": "Mud Brick Wall",
     "category": "misc",
-    "texture": "block/mud_bricks",
+    "texture": "item/mud_brick_wall",
     "model": "block/mud_brick_wall_inventory"
   },
   {
@@ -5515,7 +5515,7 @@
     "id": "mycelium",
     "label": "Mycelium",
     "category": "misc",
-    "texture": "block/mycelium_side",
+    "texture": "block/mycelium_top",
     "model": "block/mycelium"
   },
   {
@@ -5567,7 +5567,7 @@
     "id": "nether_brick_wall",
     "label": "Nether Brick Wall",
     "category": "misc",
-    "texture": "block/nether_bricks",
+    "texture": "item/nether_brick_wall",
     "model": "block/nether_brick_wall_inventory"
   },
   {
@@ -5810,7 +5810,7 @@
     "id": "oak_shelf",
     "label": "Oak Shelf",
     "category": "misc",
-    "texture": "block/stripped_oak_log",
+    "texture": "block/oak_shelf",
     "model": "block/oak_shelf_inventory"
   },
   {
@@ -5851,7 +5851,7 @@
     "id": "observer",
     "label": "Observer",
     "category": "misc",
-    "texture": "block/observer_front",
+    "texture": "block/observer_top",
     "model": "block/observer"
   },
   {
@@ -5897,13 +5897,13 @@
     "id": "orange_banner",
     "label": "Orange Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/orange_banner"
   },
   {
     "id": "orange_bed",
     "label": "Orange Bed",
     "category": "misc",
-    "texture": "block/orange_wool"
+    "texture": "item/orange_bed"
   },
   {
     "id": "orange_bundle",
@@ -5921,7 +5921,7 @@
     "id": "orange_carpet",
     "label": "Orange Carpet",
     "category": "misc",
-    "texture": "block/orange_wool",
+    "texture": "item/orange_carpet",
     "model": "block/orange_carpet"
   },
   {
@@ -5948,7 +5948,7 @@
     "id": "orange_glazed_terracotta",
     "label": "Orange Glazed Terracotta",
     "category": "misc",
-    "texture": "block/orange_glazed_terracotta",
+    "texture": "item/orange_glazed_terracotta",
     "model": "block/orange_glazed_terracotta"
   },
   {
@@ -5961,7 +5961,7 @@
     "id": "orange_shulker_box",
     "label": "Orange Shulker Box",
     "category": "misc",
-    "texture": "block/orange_shulker_box"
+    "texture": "item/orange_shulker_box"
   },
   {
     "id": "orange_stained_glass",
@@ -6039,7 +6039,7 @@
     "id": "oxidized_copper_chest",
     "label": "Oxidized Copper Chest",
     "category": "misc",
-    "texture": "block/oxidized_copper"
+    "texture": "item/oxidized_copper_chest"
   },
   {
     "id": "oxidized_copper_door",
@@ -6051,7 +6051,7 @@
     "id": "oxidized_copper_golem_statue",
     "label": "Oxidized Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/oxidized_copper_golem_statue"
   },
   {
     "id": "oxidized_copper_grate",
@@ -6138,7 +6138,7 @@
     "id": "pale_moss_carpet",
     "label": "Pale Moss Carpet",
     "category": "misc",
-    "texture": "block/pale_moss_carpet",
+    "texture": "item/pale_moss_carpet",
     "model": "block/pale_moss_carpet"
   },
   {
@@ -6224,7 +6224,7 @@
     "id": "pale_oak_shelf",
     "label": "Pale Oak Shelf",
     "category": "misc",
-    "texture": "block/stripped_pale_oak_log",
+    "texture": "block/pale_oak_shelf",
     "model": "block/pale_oak_shelf_inventory"
   },
   {
@@ -6339,7 +6339,7 @@
     "id": "piglin_head",
     "label": "Piglin Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/piglin_head"
   },
   {
     "id": "piglin_spawn_egg",
@@ -6357,13 +6357,13 @@
     "id": "pink_banner",
     "label": "Pink Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/pink_banner"
   },
   {
     "id": "pink_bed",
     "label": "Pink Bed",
     "category": "misc",
-    "texture": "block/pink_wool"
+    "texture": "item/pink_bed"
   },
   {
     "id": "pink_bundle",
@@ -6381,7 +6381,7 @@
     "id": "pink_carpet",
     "label": "Pink Carpet",
     "category": "misc",
-    "texture": "block/pink_wool",
+    "texture": "item/pink_carpet",
     "model": "block/pink_carpet"
   },
   {
@@ -6408,7 +6408,7 @@
     "id": "pink_glazed_terracotta",
     "label": "Pink Glazed Terracotta",
     "category": "misc",
-    "texture": "block/pink_glazed_terracotta",
+    "texture": "item/pink_glazed_terracotta",
     "model": "block/pink_glazed_terracotta"
   },
   {
@@ -6427,7 +6427,7 @@
     "id": "pink_shulker_box",
     "label": "Pink Shulker Box",
     "category": "misc",
-    "texture": "block/pink_shulker_box"
+    "texture": "item/pink_shulker_box"
   },
   {
     "id": "pink_stained_glass",
@@ -6466,7 +6466,7 @@
     "id": "piston",
     "label": "Piston",
     "category": "misc",
-    "texture": "block/piston_side",
+    "texture": "block/piston_top",
     "model": "block/piston_inventory"
   },
   {
@@ -6485,7 +6485,7 @@
     "id": "player_head",
     "label": "Player Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/player_head"
   },
   {
     "id": "plenty_pottery_sherd",
@@ -6497,7 +6497,7 @@
     "id": "podzol",
     "label": "Podzol",
     "category": "misc",
-    "texture": "block/podzol_side",
+    "texture": "block/podzol_top",
     "model": "block/podzol"
   },
   {
@@ -6571,7 +6571,7 @@
     "id": "polished_blackstone_brick_wall",
     "label": "Polished Blackstone Brick Wall",
     "category": "misc",
-    "texture": "block/polished_blackstone_bricks",
+    "texture": "item/polished_blackstone_brick_wall",
     "model": "block/polished_blackstone_brick_wall_inventory"
   },
   {
@@ -6613,7 +6613,7 @@
     "id": "polished_blackstone_wall",
     "label": "Polished Blackstone Wall",
     "category": "misc",
-    "texture": "block/polished_blackstone",
+    "texture": "item/polished_blackstone_wall",
     "model": "block/polished_blackstone_wall_inventory"
   },
   {
@@ -6641,7 +6641,7 @@
     "id": "polished_deepslate_wall",
     "label": "Polished Deepslate Wall",
     "category": "misc",
-    "texture": "block/polished_deepslate",
+    "texture": "item/polished_deepslate_wall",
     "model": "block/polished_deepslate_wall_inventory"
   },
   {
@@ -6711,7 +6711,7 @@
     "id": "polished_tuff_wall",
     "label": "Polished Tuff Wall",
     "category": "misc",
-    "texture": "block/polished_tuff",
+    "texture": "item/polished_tuff_wall",
     "model": "block/polished_tuff_wall_inventory"
   },
   {
@@ -6818,7 +6818,7 @@
     "id": "prismarine_wall",
     "label": "Prismarine Wall",
     "category": "misc",
-    "texture": "block/prismarine",
+    "texture": "item/prismarine_wall",
     "model": "block/prismarine_wall_inventory"
   },
   {
@@ -6868,13 +6868,13 @@
     "id": "purple_banner",
     "label": "Purple Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/purple_banner"
   },
   {
     "id": "purple_bed",
     "label": "Purple Bed",
     "category": "misc",
-    "texture": "block/purple_wool"
+    "texture": "item/purple_bed"
   },
   {
     "id": "purple_bundle",
@@ -6892,7 +6892,7 @@
     "id": "purple_carpet",
     "label": "Purple Carpet",
     "category": "misc",
-    "texture": "block/purple_wool",
+    "texture": "item/purple_carpet",
     "model": "block/purple_carpet"
   },
   {
@@ -6919,7 +6919,7 @@
     "id": "purple_glazed_terracotta",
     "label": "Purple Glazed Terracotta",
     "category": "misc",
-    "texture": "block/purple_glazed_terracotta",
+    "texture": "item/purple_glazed_terracotta",
     "model": "block/purple_glazed_terracotta"
   },
   {
@@ -6932,7 +6932,7 @@
     "id": "purple_shulker_box",
     "label": "Purple Shulker Box",
     "category": "misc",
-    "texture": "block/purple_shulker_box"
+    "texture": "item/purple_shulker_box"
   },
   {
     "id": "purple_stained_glass",
@@ -7020,14 +7020,14 @@
     "id": "quartz_slab",
     "label": "Quartz Slab",
     "category": "misc",
-    "texture": "block/quartz_block_side",
+    "texture": "block/quartz_block_top",
     "model": "block/quartz_slab"
   },
   {
     "id": "quartz_stairs",
     "label": "Quartz Stairs",
     "category": "misc",
-    "texture": "block/quartz_block_side",
+    "texture": "block/quartz_block_top",
     "model": "block/quartz_stairs"
   },
   {
@@ -7127,13 +7127,13 @@
     "id": "red_banner",
     "label": "Red Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/red_banner"
   },
   {
     "id": "red_bed",
     "label": "Red Bed",
     "category": "misc",
-    "texture": "block/red_wool"
+    "texture": "item/red_bed"
   },
   {
     "id": "red_bundle",
@@ -7151,7 +7151,7 @@
     "id": "red_carpet",
     "label": "Red Carpet",
     "category": "misc",
-    "texture": "block/red_wool",
+    "texture": "item/red_carpet",
     "model": "block/red_carpet"
   },
   {
@@ -7178,7 +7178,7 @@
     "id": "red_glazed_terracotta",
     "label": "Red Glazed Terracotta",
     "category": "misc",
-    "texture": "block/red_glazed_terracotta",
+    "texture": "item/red_glazed_terracotta",
     "model": "block/red_glazed_terracotta"
   },
   {
@@ -7218,7 +7218,7 @@
     "id": "red_nether_brick_wall",
     "label": "Red Nether Brick Wall",
     "category": "misc",
-    "texture": "block/red_nether_bricks",
+    "texture": "item/red_nether_brick_wall",
     "model": "block/red_nether_brick_wall_inventory"
   },
   {
@@ -7239,35 +7239,35 @@
     "id": "red_sandstone",
     "label": "Red Sandstone",
     "category": "misc",
-    "texture": "block/red_sandstone",
+    "texture": "block/red_sandstone_top",
     "model": "block/red_sandstone"
   },
   {
     "id": "red_sandstone_slab",
     "label": "Red Sandstone Slab",
     "category": "misc",
-    "texture": "block/red_sandstone",
+    "texture": "block/red_sandstone_top",
     "model": "block/red_sandstone_slab"
   },
   {
     "id": "red_sandstone_stairs",
     "label": "Red Sandstone Stairs",
     "category": "misc",
-    "texture": "block/red_sandstone",
+    "texture": "block/red_sandstone_top",
     "model": "block/red_sandstone_stairs"
   },
   {
     "id": "red_sandstone_wall",
     "label": "Red Sandstone Wall",
     "category": "misc",
-    "texture": "block/red_sandstone",
+    "texture": "item/red_sandstone_wall",
     "model": "block/red_sandstone_wall_inventory"
   },
   {
     "id": "red_shulker_box",
     "label": "Red Shulker Box",
     "category": "misc",
-    "texture": "block/red_shulker_box"
+    "texture": "item/red_shulker_box"
   },
   {
     "id": "red_stained_glass",
@@ -7339,7 +7339,7 @@
     "id": "reinforced_deepslate",
     "label": "Reinforced Deepslate",
     "category": "misc",
-    "texture": "block/reinforced_deepslate_side",
+    "texture": "block/reinforced_deepslate_top",
     "model": "block/reinforced_deepslate"
   },
   {
@@ -7352,7 +7352,7 @@
     "id": "repeating_command_block",
     "label": "Repeating Command Block",
     "category": "misc",
-    "texture": "block/repeating_command_block_back",
+    "texture": "block/repeating_command_block_side",
     "model": "block/repeating_command_block"
   },
   {
@@ -7386,7 +7386,7 @@
     "id": "resin_brick_wall",
     "label": "Resin Brick Wall",
     "category": "misc",
-    "texture": "block/resin_bricks",
+    "texture": "item/resin_brick_wall",
     "model": "block/resin_brick_wall_inventory"
   },
   {
@@ -7406,7 +7406,7 @@
     "id": "respawn_anchor",
     "label": "Respawn Anchor",
     "category": "misc",
-    "texture": "block/respawn_anchor_side0",
+    "texture": "block/respawn_anchor_top_off",
     "model": "block/respawn_anchor_0"
   },
   {
@@ -7469,28 +7469,28 @@
     "id": "sandstone",
     "label": "Sandstone",
     "category": "misc",
-    "texture": "block/sandstone",
+    "texture": "block/sandstone_top",
     "model": "block/sandstone"
   },
   {
     "id": "sandstone_slab",
     "label": "Sandstone Slab",
     "category": "misc",
-    "texture": "block/sandstone",
+    "texture": "block/sandstone_top",
     "model": "block/sandstone_slab"
   },
   {
     "id": "sandstone_stairs",
     "label": "Sandstone Stairs",
     "category": "misc",
-    "texture": "block/sandstone",
+    "texture": "block/sandstone_top",
     "model": "block/sandstone_stairs"
   },
   {
     "id": "sandstone_wall",
     "label": "Sandstone Wall",
     "category": "misc",
-    "texture": "block/sandstone",
+    "texture": "item/sandstone_wall",
     "model": "block/sandstone_wall_inventory"
   },
   {
@@ -7517,21 +7517,21 @@
     "id": "sculk_catalyst",
     "label": "Sculk Catalyst",
     "category": "misc",
-    "texture": "block/sculk_catalyst_side",
+    "texture": "block/sculk_catalyst_top",
     "model": "block/sculk_catalyst"
   },
   {
     "id": "sculk_sensor",
     "label": "Sculk Sensor",
     "category": "misc",
-    "texture": "block/sculk_sensor_bottom",
+    "texture": "block/sculk_sensor_top",
     "model": "block/sculk_sensor_inactive"
   },
   {
     "id": "sculk_shrieker",
     "label": "Sculk Shrieker",
     "category": "misc",
-    "texture": "block/sculk_shrieker_bottom",
+    "texture": "block/sculk_shrieker_top",
     "model": "block/sculk_shrieker"
   },
   {
@@ -7599,7 +7599,7 @@
     "id": "shield",
     "label": "Shield",
     "category": "combat",
-    "texture": "block/dark_oak_planks"
+    "texture": "gui/sprites/container/slot/shield"
   },
   {
     "id": "short_dry_grass",
@@ -7624,7 +7624,7 @@
     "id": "shulker_box",
     "label": "Shulker Box",
     "category": "misc",
-    "texture": "block/shulker_box"
+    "texture": "item/shulker_box"
   },
   {
     "id": "shulker_shell",
@@ -7660,7 +7660,7 @@
     "id": "skeleton_skull",
     "label": "Skeleton Skull",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/skeleton_skull"
   },
   {
     "id": "skeleton_spawn_egg",
@@ -7716,14 +7716,14 @@
     "id": "smithing_table",
     "label": "Smithing Table",
     "category": "misc",
-    "texture": "block/smithing_table_front",
+    "texture": "item/smithing_table",
     "model": "block/smithing_table"
   },
   {
     "id": "smoker",
     "label": "Smoker",
     "category": "misc",
-    "texture": "block/smoker_front",
+    "texture": "block/smoker_top",
     "model": "block/smoker"
   },
   {
@@ -7807,7 +7807,7 @@
     "id": "smooth_stone_slab",
     "label": "Smooth Stone Slab",
     "category": "misc",
-    "texture": "block/smooth_stone_slab_side",
+    "texture": "block/smooth_stone",
     "model": "block/smooth_stone_slab"
   },
   {
@@ -7944,7 +7944,7 @@
     "id": "spore_blossom",
     "label": "Spore Blossom",
     "category": "misc",
-    "texture": "block/spore_blossom",
+    "texture": "item/spore_blossom",
     "model": "block/spore_blossom"
   },
   {
@@ -8030,7 +8030,7 @@
     "id": "spruce_shelf",
     "label": "Spruce Shelf",
     "category": "misc",
-    "texture": "block/stripped_spruce_log",
+    "texture": "block/spruce_shelf",
     "model": "block/spruce_shelf_inventory"
   },
   {
@@ -8089,7 +8089,7 @@
     "id": "sticky_piston",
     "label": "Sticky Piston",
     "category": "misc",
-    "texture": "block/piston_side",
+    "texture": "block/piston_top_sticky",
     "model": "block/sticky_piston_inventory"
   },
   {
@@ -8123,7 +8123,7 @@
     "id": "stone_brick_wall",
     "label": "Stone Brick Wall",
     "category": "misc",
-    "texture": "block/stone_bricks",
+    "texture": "item/stone_brick_wall",
     "model": "block/stone_brick_wall_inventory"
   },
   {
@@ -8195,7 +8195,7 @@
     "id": "stonecutter",
     "label": "Stonecutter",
     "category": "misc",
-    "texture": "block/stonecutter_bottom",
+    "texture": "block/stonecutter_top",
     "model": "block/stonecutter"
   },
   {
@@ -8513,7 +8513,7 @@
     "id": "tnt",
     "label": "Tnt",
     "category": "misc",
-    "texture": "block/tnt_side",
+    "texture": "block/tnt_top",
     "model": "block/tnt"
   },
   {
@@ -8556,7 +8556,7 @@
     "id": "trapped_chest",
     "label": "Trapped Chest",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/trapped_chest"
   },
   {
     "id": "trial_key",
@@ -8568,7 +8568,7 @@
     "id": "trial_spawner",
     "label": "Trial Spawner",
     "category": "misc",
-    "texture": "block/trial_spawner_side_inactive",
+    "texture": "block/trial_spawner_top_inactive",
     "model": "block/trial_spawner"
   },
   {
@@ -8645,7 +8645,7 @@
     "id": "tuff_brick_wall",
     "label": "Tuff Brick Wall",
     "category": "misc",
-    "texture": "block/tuff_bricks",
+    "texture": "item/tuff_brick_wall",
     "model": "block/tuff_brick_wall_inventory"
   },
   {
@@ -8673,7 +8673,7 @@
     "id": "tuff_wall",
     "label": "Tuff Wall",
     "category": "misc",
-    "texture": "block/tuff",
+    "texture": "item/tuff_wall",
     "model": "block/tuff_wall_inventory"
   },
   {
@@ -8710,7 +8710,7 @@
     "id": "vault",
     "label": "Vault",
     "category": "misc",
-    "texture": "block/vault_side_off",
+    "texture": "block/vault_top",
     "model": "block/vault"
   },
   {
@@ -8824,7 +8824,7 @@
     "id": "warped_nylium",
     "label": "Warped Nylium",
     "category": "misc",
-    "texture": "block/warped_nylium_side",
+    "texture": "block/warped_nylium",
     "model": "block/warped_nylium"
   },
   {
@@ -8851,7 +8851,7 @@
     "id": "warped_shelf",
     "label": "Warped Shelf",
     "category": "misc",
-    "texture": "block/stripped_warped_stem",
+    "texture": "block/warped_shelf",
     "model": "block/warped_shelf_inventory"
   },
   {
@@ -8938,7 +8938,7 @@
     "id": "waxed_copper_chest",
     "label": "Waxed Copper Chest",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/waxed_copper_chest"
   },
   {
     "id": "waxed_copper_door",
@@ -8950,7 +8950,7 @@
     "id": "waxed_copper_golem_statue",
     "label": "Waxed Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/waxed_copper_golem_statue"
   },
   {
     "id": "waxed_copper_grate",
@@ -9030,7 +9030,7 @@
     "id": "waxed_exposed_copper_chest",
     "label": "Waxed Exposed Copper Chest",
     "category": "misc",
-    "texture": "block/exposed_copper"
+    "texture": "item/waxed_exposed_copper_chest"
   },
   {
     "id": "waxed_exposed_copper_door",
@@ -9042,7 +9042,7 @@
     "id": "waxed_exposed_copper_golem_statue",
     "label": "Waxed Exposed Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/waxed_exposed_copper_golem_statue"
   },
   {
     "id": "waxed_exposed_copper_grate",
@@ -9136,7 +9136,7 @@
     "id": "waxed_oxidized_copper_chest",
     "label": "Waxed Oxidized Copper Chest",
     "category": "misc",
-    "texture": "block/oxidized_copper"
+    "texture": "item/waxed_oxidized_copper_chest"
   },
   {
     "id": "waxed_oxidized_copper_door",
@@ -9148,7 +9148,7 @@
     "id": "waxed_oxidized_copper_golem_statue",
     "label": "Waxed Oxidized Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/waxed_oxidized_copper_golem_statue"
   },
   {
     "id": "waxed_oxidized_copper_grate",
@@ -9235,7 +9235,7 @@
     "id": "waxed_weathered_copper_chest",
     "label": "Waxed Weathered Copper Chest",
     "category": "misc",
-    "texture": "block/weathered_copper"
+    "texture": "item/waxed_weathered_copper_chest"
   },
   {
     "id": "waxed_weathered_copper_door",
@@ -9247,7 +9247,7 @@
     "id": "waxed_weathered_copper_golem_statue",
     "label": "Waxed Weathered Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/waxed_weathered_copper_golem_statue"
   },
   {
     "id": "waxed_weathered_copper_grate",
@@ -9340,7 +9340,7 @@
     "id": "weathered_copper_chest",
     "label": "Weathered Copper Chest",
     "category": "misc",
-    "texture": "block/weathered_copper"
+    "texture": "item/weathered_copper_chest"
   },
   {
     "id": "weathered_copper_door",
@@ -9352,7 +9352,7 @@
     "id": "weathered_copper_golem_statue",
     "label": "Weathered Copper Golem Statue",
     "category": "misc",
-    "texture": "block/copper_block"
+    "texture": "item/weathered_copper_golem_statue"
   },
   {
     "id": "weathered_copper_grate",
@@ -9431,13 +9431,13 @@
     "id": "white_banner",
     "label": "White Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/white_banner"
   },
   {
     "id": "white_bed",
     "label": "White Bed",
     "category": "misc",
-    "texture": "block/white_wool"
+    "texture": "item/white_bed"
   },
   {
     "id": "white_bundle",
@@ -9455,7 +9455,7 @@
     "id": "white_carpet",
     "label": "White Carpet",
     "category": "misc",
-    "texture": "block/white_wool",
+    "texture": "item/white_carpet",
     "model": "block/white_carpet"
   },
   {
@@ -9482,7 +9482,7 @@
     "id": "white_glazed_terracotta",
     "label": "White Glazed Terracotta",
     "category": "misc",
-    "texture": "block/white_glazed_terracotta",
+    "texture": "item/white_glazed_terracotta",
     "model": "block/white_glazed_terracotta"
   },
   {
@@ -9495,7 +9495,7 @@
     "id": "white_shulker_box",
     "label": "White Shulker Box",
     "category": "misc",
-    "texture": "block/white_shulker_box"
+    "texture": "item/white_shulker_box"
   },
   {
     "id": "white_stained_glass",
@@ -9564,7 +9564,7 @@
     "id": "wither_skeleton_skull",
     "label": "Wither Skeleton Skull",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/wither_skeleton_skull"
   },
   {
     "id": "wither_skeleton_spawn_egg",
@@ -9642,13 +9642,13 @@
     "id": "yellow_banner",
     "label": "Yellow Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "item/yellow_banner"
   },
   {
     "id": "yellow_bed",
     "label": "Yellow Bed",
     "category": "misc",
-    "texture": "block/yellow_wool"
+    "texture": "item/yellow_bed"
   },
   {
     "id": "yellow_bundle",
@@ -9666,7 +9666,7 @@
     "id": "yellow_carpet",
     "label": "Yellow Carpet",
     "category": "misc",
-    "texture": "block/yellow_wool",
+    "texture": "item/yellow_carpet",
     "model": "block/yellow_carpet"
   },
   {
@@ -9693,7 +9693,7 @@
     "id": "yellow_glazed_terracotta",
     "label": "Yellow Glazed Terracotta",
     "category": "misc",
-    "texture": "block/yellow_glazed_terracotta",
+    "texture": "item/yellow_glazed_terracotta",
     "model": "block/yellow_glazed_terracotta"
   },
   {
@@ -9706,7 +9706,7 @@
     "id": "yellow_shulker_box",
     "label": "Yellow Shulker Box",
     "category": "misc",
-    "texture": "block/yellow_shulker_box"
+    "texture": "item/yellow_shulker_box"
   },
   {
     "id": "yellow_stained_glass",
@@ -9745,7 +9745,7 @@
     "id": "zombie_head",
     "label": "Zombie Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "item/zombie_head"
   },
   {
     "id": "zombie_horse_spawn_egg",
