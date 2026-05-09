@@ -169,7 +169,7 @@ async function loadModelTextures(
 // ── Scene building ─────────────────────────────────────────────────────────────
 
 // Face vertex positions in 0-16 space (viewed from outside, CCW winding):
-function faceVerts(
+export function faceVerts(
   face: "down" | "up" | "north" | "south" | "west" | "east",
   fx: number, fy: number, fz: number,
   tx: number, ty: number, tz: number,
@@ -185,7 +185,7 @@ function faceVerts(
 }
 
 // Default UV for a face when not specified (from Minecraft wiki):
-function defaultUV(
+export function defaultUV(
   face: "down" | "up" | "north" | "south" | "west" | "east",
   from: [number,number,number], to: [number,number,number],
 ): [number,number,number,number] {
@@ -202,7 +202,7 @@ function defaultUV(
 
 // Minecraft face UV (top-left origin, y↓, 0-16) → Three.js UV (bottom-left, y↑, 0-1),
 // with clockwise texture rotation applied.
-function faceUVs(u1: number, v1: number, u2: number, v2: number, rotation: number): Float32Array {
+export function faceUVs(u1: number, v1: number, u2: number, v2: number, rotation: number): Float32Array {
   const corners: [number, number][] = [
     [u1/16, 1-v1/16], // TL
     [u2/16, 1-v1/16], // TR
@@ -246,7 +246,7 @@ function buildFaceMesh(
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
 
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.01, side: THREE.FrontSide });
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
   return new THREE.Mesh(geo, mat);
 }
 
@@ -310,7 +310,7 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
   }
   if (display.rotation) {
     const [rx, ry, rz] = display.rotation;
-    displayGroup.rotation.order = "YXZ";
+    displayGroup.rotation.order = "XYZ";
     displayGroup.rotation.set(
       THREE.MathUtils.degToRad(rx),
       THREE.MathUtils.degToRad(ry),
@@ -351,8 +351,12 @@ export function renderToCanvas(
     const renderer = getRenderer();
     const camera = getCamera();
 
-    renderer.render(scene, camera);
-    return renderer.domElement.toDataURL("image/png");
+    try {
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL("image/png");
+    } catch {
+      return null;
+    }
   })();
 
   renderCache.set(key, promise);
