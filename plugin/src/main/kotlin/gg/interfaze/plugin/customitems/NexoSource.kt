@@ -8,6 +8,15 @@ import java.util.zip.ZipFile
 
 private val log = Logger.getLogger("Interfaze")
 
+// Matches the first "namespace:{uuid}" model ref inside an items JSON (1.21.4+ format).
+private val UUID_REGEX = Regex(""""model"\s*:\s*"[^:]+:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"""")
+
+// Matches the first non-particle texture key that maps to a "namespace:{uuid}" value.
+private val NON_PARTICLE_UUID_TEXTURE_REGEX = Regex(""""(?!particle)[^"]*"\s*:\s*"[^:]+:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"""")
+
+// Matches any JSON string value of the form "namespace:{uuid}" — used to normalize model texture refs.
+private val ANY_NS_UUID_REGEX = Regex(""""[^"]+:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""")
+
 class NexoSource(private val pluginsDir: File) : CustomItemSource {
     override val namespace = "nexo"
 
@@ -86,42 +95,76 @@ class NexoSource(private val pluginsDir: File) : CustomItemSource {
         }.getOrNull()
 
     /**
-     * Resolves a texture via the item's model JSON.
-     * Finds `models/item/{id}.json` in zip, extracts the `layer0` texture reference,
-     * then loads the PNG from the same zip.
+     * Resolves a texture PNG by following the item's model chain.
+     *
+     * Nexo 1.21.4+ format: items/{id}.json → model UUID → geometry JSON → texture UUID → PNG.
+     * Falls back to the pre-1.21.4 format: models/item/{id}.json with layer0 ref.
      */
     private fun loadViaModel(zipFile: File, itemId: String): ByteArray? =
         runCatching {
             ZipFile(zipFile).use { zip ->
-                val modelEntry = zip.entries().asSequence()
-                    .firstOrNull { !it.isDirectory && it.name.endsWith("models/item/$itemId.json") }
-                    ?: return null
+                val entries = zip.entries().toList()
 
+                // New 1.21.4+ format
+                val newFormatResult = entries
+                    .firstOrNull { !it.isDirectory && it.name.matches(Regex(".*assets/[^/]+/items(?:/[^/]+)?/${Regex.escape(itemId)}\\.json")) }
+                    ?.let { String(zip.getInputStream(it).readBytes()) }
+                    ?.let { itemJson -> UUID_REGEX.find(itemJson)?.groupValues?.get(1) }
+                    ?.let { uuid -> entries.firstOrNull { !it.isDirectory && it.name.endsWith("$uuid.json") } }
+                    ?.let { modelEntry ->
+                        val modelJson = String(zip.getInputStream(modelEntry).readBytes())
+                        NON_PARTICLE_UUID_TEXTURE_REGEX
+                            .find(modelJson.substringAfter(""""textures"""", ""))?.groupValues?.get(1)
+                    }
+                    ?.let { texUuid ->
+                        entries.firstOrNull { !it.isDirectory && it.name.endsWith("$texUuid.png") }
+                            ?.let { zip.getInputStream(it).readBytes() }
+                    }
+                if (newFormatResult != null) return@use newFormatResult
+
+                // Old format fallback: models/item/{id}.json with layer0 ref
+                val modelEntry = entries.firstOrNull { !it.isDirectory && it.name.endsWith("models/item/$itemId.json") }
+                    ?: return null
                 val modelJson = String(zip.getInputStream(modelEntry).readBytes())
                 val textureRef = Regex(""""layer\d"\s*:\s*"([^"]+)"""").find(modelJson)
                     ?.groupValues?.get(1) ?: return null
-
-                // "nexo:item/forest_helmet" → "assets/nexo/textures/item/forest_helmet.png"
                 val entryPath = if (":" in textureRef) {
                     val (ns, path) = textureRef.split(":", limit = 2)
                     "assets/$ns/textures/$path.png"
                 } else {
                     "assets/minecraft/textures/$textureRef.png"
                 }
-
-                zip.entries().asSequence()
-                    .firstOrNull { !it.isDirectory && it.name.endsWith(entryPath) }
+                entries.firstOrNull { !it.isDirectory && it.name.endsWith(entryPath) }
                     ?.let { zip.getInputStream(it).readBytes() }
             }
         }.getOrNull()
 
+    /**
+     * Returns the geometry model JSON for an item, normalizing UUID texture refs so they
+     * resolve against the bundle texture path (textures/nexo/{itemId}.png).
+     * Follows the same chain as loadViaModel; replaces all "ns:{uuid}" texture values
+     * with "nexo:{itemId}" so the backend renderer can find the cached texture.
+     */
     private fun loadModelJson(itemId: String): String? {
         for (zip in cachedZips) {
             runCatching {
                 ZipFile(zip).use { z ->
-                    z.entries().asSequence()
-                        .firstOrNull { !it.isDirectory && it.name.endsWith("models/item/$itemId.json") }
+                    val entries = z.entries().toList()
+
+                    // New 1.21.4+ format
+                    val newResult = entries
+                        .firstOrNull { !it.isDirectory && it.name.matches(Regex(".*assets/[^/]+/items(?:/[^/]+)?/${Regex.escape(itemId)}\\.json")) }
                         ?.let { String(z.getInputStream(it).readBytes()) }
+                        ?.let { itemJson -> UUID_REGEX.find(itemJson)?.groupValues?.get(1) }
+                        ?.let { uuid -> entries.firstOrNull { !it.isDirectory && it.name.endsWith("$uuid.json") } }
+                        ?.let { modelEntry ->
+                            val modelJson = String(z.getInputStream(modelEntry).readBytes())
+                            // Normalize all "ns:{uuid}" texture values to "nexo:{itemId}"
+                            ANY_NS_UUID_REGEX.replace(modelJson) { "\"nexo:$itemId\"" }
+                        }
+                    newResult
+                        ?: entries.firstOrNull { !it.isDirectory && it.name.endsWith("models/item/$itemId.json") }
+                            ?.let { String(z.getInputStream(it).readBytes()) }
                 }
             }.getOrNull()?.let { return it }
         }

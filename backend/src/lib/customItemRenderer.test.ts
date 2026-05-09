@@ -74,6 +74,34 @@ describe("renderCustomIconsWithPaths", () => {
     expect(existsSync(join(TMP_CACHE, "textures/icons/nexo__widget.png"))).toBe(false);
   });
 
+  test("custom model with direct elements and no parent — icon written", async () => {
+    writeFileSync(join(TMP_CACHE, "textures/nexo/sword.png"), PLACEHOLDER_PNG);
+    writeFileSync(
+      join(TMP_CACHE, "models/nexo/sword.json"),
+      JSON.stringify({
+        elements: [{
+          from: [7, 0, 7], to: [9, 16, 9],
+          faces: {
+            up:    { texture: "#2", uv: [0, 0, 16, 16] },
+            west:  { texture: "#2", uv: [0, 0, 16, 16] },
+            south: { texture: "#2", uv: [0, 0, 16, 16] },
+          },
+        }],
+        textures: { "2": "nexo:sword" },
+      })
+    );
+    writeFileSync(
+      join(TMP_CACHE, "items.json"),
+      JSON.stringify([{ id: "nexo:sword", label: "Sword", category: "nexo", texture: "nexo/sword" }])
+    );
+
+    await renderCustomIconsWithPaths(TMP_CACHE, TMP_VANILLA);
+
+    expect(existsSync(join(TMP_CACHE, "textures/icons/nexo__sword.png"))).toBe(true);
+    const items = JSON.parse(readFileSync(join(TMP_CACHE, "items.json"), "utf-8"));
+    expect(items[0].texture).toBe("icons/nexo__sword");
+  });
+
   test("cube block model — icon written to textures/icons/, items.json texture updated", async () => {
     writeFileSync(
       join(TMP_VANILLA, "models/block/cube_all.json"),
