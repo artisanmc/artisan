@@ -1,42 +1,29 @@
 #!/usr/bin/env bun
 /**
  * Usage: bun backend/scripts/gen-items.ts [version]
- * Requires MC assets to be downloaded first (ensureAssets via backend start).
+ * Requires MC assets to be downloaded first.
  *
- * For each item:
- *   - Resolves texture path from the official item/model JSON chain
- *   - If the model has `elements` (stairs, slabs, fences, …) generates a 32×32
- *     isometric icon by rasterizing the element boxes via renderFromElements
- *   - If the resolved model is a simple cube variant, uses renderIsometricIcon
- *   - Otherwise uses the flat texture as-is
+ * For each item outputs { id, label, category, texture, model? }:
+ *   - texture: flat sprite path (item/sword) — used for flat items and as fallback
+ *   - model: model path if the item has 3D block elements — browser renders with Three.js
  */
 
 import { join } from "path";
 import { existsSync } from "fs";
-import { readFile, readdir, mkdir, writeFile } from "fs/promises";
-import { PNG } from "pngjs";
-import { readFileSync } from "fs";
+import { readFile, readdir, writeFile } from "fs/promises";
 import { assetsRoot } from "../src/lib/mcAssets";
-import { renderIsometricIcon, renderFromElements, type ModelElement, type GuiDisplay } from "../src/lib/iconRenderer";
 
 const VERSION = process.argv[2] ?? "1.21.4";
 const ASSETS = assetsRoot(VERSION);
 const OUT_PATH = join(import.meta.dir, "..", "data", "items", `${VERSION}.json`);
-const ICONS_DIR = join(ASSETS, "textures", "icons");
 
 if (!existsSync(join(ASSETS, ".done"))) {
-  console.error(`Assets for ${VERSION} not downloaded yet. Start the backend with a plugin connected first.`);
+  console.error(`Assets for ${VERSION} not downloaded yet.`);
   process.exit(1);
 }
 
 const itemsDir = join(ASSETS, "items");
 const modelsDir = join(ASSETS, "models");
-const texturesDir = join(ASSETS, "textures");
-
-await mkdir(ICONS_DIR, { recursive: true });
-
-const itemFiles = (await readdir(itemsDir)).filter((f) => f.endsWith(".json"));
-const ids = itemFiles.map((f) => f.replace(/\.json$/, "")).sort();
 
 const modelCache = new Map<string, Record<string, unknown> | null>();
 
@@ -82,68 +69,14 @@ async function resolveTextures(
   return hasOwn ? { textures, ancestors } : null;
 }
 
-/** Walk the parent chain to find the first model that defines `elements`. */
-async function resolveElements(
-  modelPath: string,
-  depth = 0,
-): Promise<ModelElement[] | null> {
+async function resolveElements(modelPath: string, depth = 0): Promise<unknown[] | null> {
   if (depth > 8) return null;
   const m = await readModel(modelPath);
   if (!m) return null;
-
-  if (Array.isArray(m.elements) && m.elements.length > 0) {
-    return m.elements as ModelElement[];
-  }
-
-  if (typeof m.parent === "string") {
+  if (Array.isArray(m.elements) && m.elements.length > 0) return m.elements;
+  if (typeof m.parent === "string")
     return resolveElements(m.parent.replace(/^minecraft:/, ""), depth + 1);
-  }
   return null;
-}
-
-/** Walk the parent chain to find display.gui and gui_light (child overrides parent). */
-async function resolveDisplayForModel(
-  modelPath: string,
-  depth = 0,
-): Promise<{ gui?: GuiDisplay; guiLight: "front" | "side" }> {
-  if (depth > 8) return { guiLight: "side" };
-  const m = await readModel(modelPath);
-  if (!m) return { guiLight: "side" };
-
-  let result: { gui?: GuiDisplay; guiLight: "front" | "side" } = { guiLight: "side" };
-  if (typeof m.parent === "string") {
-    result = await resolveDisplayForModel(m.parent.replace(/^minecraft:/, ""), depth + 1);
-  }
-  // Child values override parent's
-  const display = m.display as Record<string, unknown> | undefined;
-  if (display?.gui) result.gui = display.gui as GuiDisplay;
-  if (m.gui_light === "front") result.guiLight = "front";
-  else if (m.gui_light === "side") result.guiLight = "side";
-  return result;
-}
-
-/** Cube model parents that should be rendered isometrically via the fast path. */
-const CUBE_PARENTS = new Set([
-  "block/cube_all",
-  "block/cube",
-  "block/cube_column",
-  "block/cube_column_horizontal",
-  "block/cube_bottom_top",
-  "block/cube_directional",
-  "block/cube_mirrored_all",
-  "block/cube_all_directional",
-  "block/leaves",
-  "block/template_glass",
-  "block/template_glazed_terracotta",
-  "item/template_shulker_box",
-  "item/template_chest",
-]);
-
-function isCubeAncestor(ancestors: Set<string>): boolean {
-  for (const a of ancestors) {
-    if (CUBE_PARENTS.has(a)) return true;
-  }
-  return false;
 }
 
 function resolveVar(textures: Record<string, string>, key: string, depth = 0): string | null {
@@ -154,22 +87,10 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
   return v.replace(/^minecraft:/, "");
 }
 
-function getCubeTextures(textures: Record<string, string>): { top: string; side: string } | null {
-  const r = (key: string) => resolveVar(textures, key);
-  const top = r("up") ?? r("top") ?? r("end") ?? r("all") ?? r("particle");
-  const side = r("side") ?? r("north") ?? r("east") ?? r("west") ?? r("all") ?? r("particle") ?? top;
-  if (!top || !side) return null;
-  return { top, side };
-}
-
 function pickFlat(textures: Record<string, string>): string | null {
-  // layer0 is often a transparent overlay (e.g. potion_overlay, tipped_arrow_head);
-  // prefer it only if it doesn't look like an overlay.
   const layer0 = resolveVar(textures, "layer0");
   if (layer0 && !layer0.includes("_overlay") && !layer0.endsWith("_head")) return layer0;
-
-  const PRIO = ["layer1", "particle", "all", "top", "texture", "side", "bottom", "layer0"];
-  for (const key of PRIO) {
+  for (const key of ["layer1", "particle", "all", "top", "texture", "side", "bottom", "layer0"]) {
     const v = resolveVar(textures, key);
     if (v) return v;
   }
@@ -178,60 +99,6 @@ function pickFlat(textures: Record<string, string>): string | null {
   }
   return null;
 }
-
-// ── Skull / head icon renderer ────────────────────────────────────────────────
-
-/** Entity skin texture paths and head-front UV region (in texture pixels). */
-const SKULL_TEXTURES: Record<string, { path: string; u: number; v: number; size: number }> = {
-  skeleton:        { path: "entity/skeleton/skeleton.png",       u: 8, v: 8, size: 8 },
-  wither_skeleton: { path: "entity/skeleton/wither_skeleton.png", u: 8, v: 8, size: 8 },
-  zombie:          { path: "entity/zombie/zombie.png",            u: 8, v: 8, size: 8 },
-  creeper:         { path: "entity/creeper/creeper.png",          u: 8, v: 8, size: 8 },
-  player:          { path: "entity/player/wide/steve.png",        u: 8, v: 8, size: 8 },
-  // Dragon uses a non-standard texture layout; use the head face at a best-effort UV
-  dragon:          { path: "entity/enderdragon/dragon.png",       u: 0, v: 0, size: 32 },
-};
-
-/** Render the skull/head front-face tile as a 128×128 icon. */
-async function renderSkullIcon(kind: string): Promise<string | null> {
-  const entry = SKULL_TEXTURES[kind];
-  if (!entry) return null;
-  const texPath = join(texturesDir, entry.path);
-  const src = loadPng(texPath);
-  if (!src) return null;
-
-  const { width: TW, height: TH } = src;
-  const { u, v, size } = entry;
-  const W = 128, H = 128;
-  const out = new PNG({ width: W, height: H });
-  out.data = Buffer.alloc(W * H * 4, 0);
-
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      const sx = u + Math.floor((px / W) * size);
-      const sy = v + Math.floor((py / H) * size);
-      const tx = Math.min(sx, TW - 1);
-      const ty = Math.min(sy, TH - 1);
-      const si = (ty * TW + tx) * 4;
-      const oi = (py * W + px) * 4;
-      out.data[oi]     = src.data[si]!;
-      out.data[oi + 1] = src.data[si + 1]!;
-      out.data[oi + 2] = src.data[si + 2]!;
-      out.data[oi + 3] = src.data[si + 3]!;
-    }
-  }
-  return PNG.sync.write(out).toString("base64");
-}
-
-/** Skull item id → skull kind for the minecraft:head model type. */
-const SKULL_IDS: Record<string, string> = {
-  skeleton_skull:        "skeleton",
-  wither_skeleton_skull: "wither_skeleton",
-  zombie_head:           "zombie",
-  creeper_head:          "creeper",
-  player_head:           "player",
-  dragon_head:           "dragon",
-};
 
 function extractModelRef(modelDef: unknown): string | null {
   if (!modelDef || typeof modelDef !== "object") return null;
@@ -243,10 +110,9 @@ function extractModelRef(modelDef: unknown): string | null {
       return typeof m.base === "string" ? m.base : null;
     case "minecraft:select": {
       const cases = m.cases as Array<{ when: unknown; model: unknown }> | undefined;
-      // For display_context selects, prefer the gui case (inventory icon)
       if (cases && typeof m.property === "string" && m.property.includes("display_context")) {
-        const guiCase = cases.find(c =>
-          c.when === "gui" || (Array.isArray(c.when) && (c.when as string[]).includes("gui"))
+        const guiCase = cases.find(
+          c => c.when === "gui" || (Array.isArray(c.when) && (c.when as string[]).includes("gui")),
         );
         if (guiCase) return extractModelRef(guiCase.model);
       }
@@ -262,104 +128,33 @@ function extractModelRef(modelDef: unknown): string | null {
   }
 }
 
-/** Load a PNG from disk, cached. */
-const pngCache = new Map<string, PNG | null>();
-function loadPng(filePath: string): PNG | null {
-  if (pngCache.has(filePath)) return pngCache.get(filePath)!;
-  if (!existsSync(filePath)) { pngCache.set(filePath, null); return null; }
-  try {
-    const png = PNG.sync.read(readFileSync(filePath));
-    pngCache.set(filePath, png);
-    return png;
-  } catch { pngCache.set(filePath, null); return null; }
-}
-
-/**
- * Build the texture map needed by renderFromElements.
- * Resolves all `#key` references in the textures map to PNG objects.
- */
-function buildTextureMap(textures: Record<string, string>): Map<string, PNG> {
-  const map = new Map<string, PNG>();
-  for (const [key] of Object.entries(textures)) {
-    const resolved = resolveVar(textures, key);
-    if (!resolved) continue;
-    const png = loadPng(join(texturesDir, resolved + ".png"));
-    if (png) map.set(key, png);
-  }
-  return map;
-}
-
-async function resolveItem(id: string): Promise<string> {
-  // Skull/head items: rendered from entity skin rather than model elements
-  const skullKind = SKULL_IDS[id];
-  if (skullKind) {
-    const base64 = await renderSkullIcon(skullKind);
-    if (base64) {
-      const iconPath = join(ICONS_DIR, id + ".png");
-      await writeFile(iconPath, Buffer.from(base64, "base64"));
-      return `icons/${id}`;
-    }
-  }
-
+async function resolveItem(id: string): Promise<{ texture: string; model?: string }> {
   const itemDefPath = join(itemsDir, id + ".json");
   let itemDef: { model?: unknown };
   try { itemDef = JSON.parse(await readFile(itemDefPath, "utf8")); }
-  catch { return `item/${id}`; }
+  catch { return { texture: `item/${id}` }; }
 
   const modelRef = extractModelRef(itemDef.model);
-  if (!modelRef) return `item/${id}`;
+  if (!modelRef) return { texture: `item/${id}` };
 
   const modelPath = modelRef.replace(/^minecraft:/, "");
   const result = await resolveTextures(modelPath);
-  if (!result) return `item/${id}`;
+  if (!result) return { texture: `item/${id}` };
 
   const { textures, ancestors } = result;
+  const flatTexture = pickFlat(textures) ?? `item/${id}`;
 
-  // ── Generic elements renderer (slabs, stairs, fences, …) ────────────────
-  // Only run if it's a block-type model (has a block/ ancestor), not a flat item.
+  // Block models with elements are rendered browser-side via Three.js
   const isBlockModel = [...ancestors].some(a => a.startsWith("block/"));
   if (isBlockModel) {
     const elements = await resolveElements(modelPath);
     if (elements && elements.length > 0) {
-      const textureMap = buildTextureMap(textures);
-      if (textureMap.size > 0) {
-        const iconPath = join(ICONS_DIR, id + ".png");
-        try {
-          const { gui: displayGui, guiLight } = await resolveDisplayForModel(modelPath);
-          const iconBuf = renderFromElements(elements, textureMap, displayGui, guiLight);
-          await writeFile(iconPath, iconBuf);
-          return `icons/${id}`;
-        } catch {
-          // fall through
-        }
-      }
+      return { texture: flatTexture, model: modelPath };
     }
   }
 
-  // ── Fast cube path ─────────────────────────────────────────────────────
-  if (isCubeAncestor(ancestors)) {
-    const faces = getCubeTextures(textures);
-    if (faces) {
-      const topFile = join(texturesDir, faces.top + ".png");
-      const sideFile = join(texturesDir, faces.side + ".png");
-      if (existsSync(topFile) && existsSync(sideFile)) {
-        const iconPath = join(ICONS_DIR, id + ".png");
-        try {
-          const iconBuf = renderIsometricIcon(topFile, sideFile);
-          await writeFile(iconPath, iconBuf);
-          return `icons/${id}`;
-        } catch {
-          // fall through
-        }
-      }
-    }
-  }
-
-  // ── Flat item texture ────────────────────────────────────────────────────
-  return pickFlat(textures) ?? `item/${id}`;
+  return { texture: flatTexture };
 }
-
-// ── Categorisation ─────────────────────────────────────────────────────────
 
 const ARMOR_SUFFIXES = ["_helmet", "_chestplate", "_leggings", "_boots", "elytra", "turtle_helmet", "wolf_armor"];
 const COMBAT_PARTS = ["_sword", "bow", "crossbow", "trident", "shield", "arrow", "_axe"];
@@ -387,29 +182,25 @@ function toLabel(id: string): string {
   return id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
-
+const itemFiles = (await readdir(itemsDir)).filter(f => f.endsWith(".json"));
+const ids = itemFiles.map(f => f.replace(/\.json$/, "")).sort();
 const SKIP = new Set(["air"]);
 const toProcess = ids.filter(id => !SKIP.has(id));
-console.log(`Resolving + rendering ${toProcess.length} items…`);
+console.log(`Resolving ${toProcess.length} items…`);
 
 const BATCH = 50;
-const items: Array<{ id: string; label: string; category: string; texture: string }> = [];
+const items: Array<{ id: string; label: string; category: string; texture: string; model?: string }> = [];
 for (let i = 0; i < toProcess.length; i += BATCH) {
   const batch = toProcess.slice(i, i + BATCH);
-  const results = await Promise.all(batch.map(async id => ({
-    id,
-    label: toLabel(id),
-    category: categorize(id),
-    texture: await resolveItem(id),
-  })));
+  const results = await Promise.all(batch.map(async id => {
+    const { texture, model } = await resolveItem(id);
+    return { id, label: toLabel(id), category: categorize(id), texture, ...(model ? { model } : {}) };
+  }));
   items.push(...results);
   process.stdout.write(`\r${Math.min(i + BATCH, toProcess.length)}/${toProcess.length}`);
 }
-console.log();
 
-const iconCount = items.filter(i => i.texture.startsWith("icons/")).length;
-console.log(`  ${iconCount} icons generated, ${items.length - iconCount} flat textures`);
-
-await Bun.write(OUT_PATH, JSON.stringify(items, null, 2) + "\n");
-console.log(`Wrote ${items.length} items → ${OUT_PATH}`);
+await writeFile(OUT_PATH, JSON.stringify(items, null, 2));
+console.log(`\nWrote ${items.length} items to ${OUT_PATH}`);
+const withModel = items.filter(i => i.model).length;
+console.log(`  ${withModel} items have 3D model paths, ${items.length - withModel} use flat textures`);
