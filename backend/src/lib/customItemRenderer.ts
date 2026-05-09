@@ -154,8 +154,9 @@ export async function renderCustomIconsWithPaths(
       if (elements === null && pr.elements) elements = pr.elements;
     }
 
+    // Render if model has a block ancestor OR has elements directly (custom standalone model)
     const isBlockModel = [...ancestors].some(a => a.startsWith("block/"));
-    if (!isBlockModel) continue;
+    if (!isBlockModel && elements === null) continue;
 
     const iconName = item.texture.replace(/\//g, "__");
     const iconPath = join(iconsDir, iconName + ".png");
