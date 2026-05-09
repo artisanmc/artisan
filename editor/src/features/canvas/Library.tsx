@@ -7,7 +7,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTextureStore } from "./textureStore";
-import { renderToCanvas } from "@/lib/mcModelRenderer";
+import { renderToCanvas, preloadModels } from "@/lib/mcModelRenderer";
 
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
@@ -20,9 +20,11 @@ interface ItemTileProps {
   version: string;
   isCustom: boolean;
   serverKeyId?: string;
+  bundleReady: boolean;
+  tints?: Record<number, string>;
 }
 
-function ItemTile({ item, textureBase, version, isCustom, serverKeyId }: ItemTileProps) {
+function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleReady, tints }: ItemTileProps) {
   const flatUrl = `${textureBase}/${item.texture}`;
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
@@ -31,18 +33,21 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId }: ItemTil
     data: { material: item.id },
   });
   const tileRef = useRef<HTMLButtonElement>(null);
-  const [renderedSrc, setRenderedSrc] = useState<string | null>(null);
+  const setRendered = useTextureStore((s) => s.setRendered);
+  // Read from the global render store so canvas slots stay in sync
+  const renderedSrc = useTextureStore((s) => item.model ? s.renderedByMaterial[item.id.toLowerCase()] ?? null : null);
   const style: CSSProperties = { opacity: isDragging ? 0.4 : 1 };
 
   useEffect(() => {
-    if (!item.model || !tileRef.current) return;
+    if (!item.model || !bundleReady || !tileRef.current) return;
     let cancelled = false;
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         observer.disconnect();
-        renderToCanvas(item.model!, version, isCustom, serverKeyId).then((src) => {
-          if (!cancelled && src) setRenderedSrc(src);
+        renderToCanvas(item.model!, version, isCustom, serverKeyId, tints).then((src) => {
+          if (cancelled || !src) return;
+          setRendered(item.id, src);
         });
       },
       { threshold: 0 },
@@ -52,7 +57,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId }: ItemTil
       cancelled = true;
       observer.disconnect();
     };
-  }, [item.model, version, isCustom, serverKeyId]);
+  }, [item.model, bundleReady, version, isCustom, serverKeyId, setRendered]);
 
   return (
     <button
@@ -81,9 +86,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId }: ItemTil
         draggable={false}
         className="h-full w-full object-contain p-1"
         style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.visibility = "hidden";
-        }}
+        onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
       />
     </button>
   );
@@ -98,17 +101,22 @@ export function Library() {
   const [category, setCategory] = useState("all");
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [customData, setCustomData] = useState<CustomItemsData>({ serverKeyId: "", items: [] });
+  const [bundleReady, setBundleReady] = useState(false);
   const [error, setError] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
     if (!token) return;
     Promise.all([fetchItems(token), fetchCustomItems(token)])
-      .then(([vanilla, custom]) => {
+      .then(async ([vanilla, custom]) => {
         setTextureData(vanilla.version, vanilla.items);
         setItems(vanilla.items);
         setCustomData(custom);
         if (custom.serverKeyId) setCustomTextureData(custom.items, custom.serverKeyId);
+        // Download all pre-resolved models in one shot before allowing 3D renders
+        await preloadModels(vanilla.version);
+        if (custom.serverKeyId) await preloadModels(vanilla.version, true, custom.serverKeyId);
+        setBundleReady(true);
       })
       .catch(() => setError(true));
   }, [token, setTextureData, setCustomTextureData]);
@@ -171,6 +179,8 @@ export function Library() {
               version={version}
               isCustom={isCustom}
               serverKeyId={isCustom ? customData.serverKeyId : undefined}
+              bundleReady={bundleReady}
+              tints={item.tints}
             />
           );
         })}
