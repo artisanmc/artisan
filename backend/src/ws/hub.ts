@@ -5,6 +5,7 @@ import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
+import { renderCustomIcons } from "../lib/customItemRenderer";
 import type {
   BundleAvailableMessage,
   CustomItemsBundleMessage,
@@ -323,6 +324,10 @@ export async function handlePluginMessage(
     const cacheDir = customItemsCacheDir(serverId);
     try {
       await processBundle(cacheDir, bundle.hash, bundle.data);
+      const mcVersion = await getMcVersion(serverId) ?? "1.21.4";
+      await renderCustomIcons(cacheDir, mcVersion).catch((err) =>
+        console.error(`[custom-items] Icon render failed for server ${serverId}:`, err)
+      );
     } catch (err) {
       console.error(`[custom-items] Failed to process bundle for server ${serverId}:`, err);
     }

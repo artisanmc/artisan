@@ -39,7 +39,7 @@ export async function processBundle(cacheDir: string, hash: string, data: string
 
   const writes: Promise<void>[] = [];
   for (const [path, bytes] of Object.entries(files)) {
-    if (path !== "items.json" && !path.startsWith("textures/")) continue;
+    if (path !== "items.json" && !path.startsWith("textures/") && !path.startsWith("models/")) continue;
     const fullPath = join(cacheDir, path);
     // Reject any path that escapes the cache directory via traversal (e.g., textures/../../../evil.txt)
     if (relative(resolve(cacheDir), resolve(fullPath)).startsWith("..")) continue;
