@@ -7,6 +7,7 @@ export interface LibraryItem {
   label: string;
   category: string;
   texture: string;
+  model?: string;
 }
 
 export interface LibraryData {
