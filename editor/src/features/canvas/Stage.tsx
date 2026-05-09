@@ -463,8 +463,8 @@ export function Stage({ packId }: StageProps) {
 function ArmedBanner() {
   const armed = useUiStore((s) => s.armedMaterial);
   const setArmed = useUiStore((s) => s.setArmedMaterial);
+  const url = useTextureUrl(armed ?? "");
   if (!armed) return null;
-  const url = useTextureUrl(armed);
   return (
     <div className="-translate-x-1/2 absolute top-2 left-1/2 z-20 flex items-center gap-2 rounded-full border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-emerald-200 shadow-lg backdrop-blur">
       {url ? (
