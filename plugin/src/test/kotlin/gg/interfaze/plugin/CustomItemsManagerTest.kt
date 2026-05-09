@@ -111,7 +111,7 @@ class CustomItemsManagerTest {
     }
 
     @Test
-    fun `items with null texture are skipped`() {
+    fun `items without texture use placeholder and are still included`() {
         val sourceWithMissing = object : CustomItemSource {
             override val namespace = "nexo"
             override fun isAvailable() = true
@@ -133,7 +133,8 @@ class CustomItemsManagerTest {
                 entry = zip.nextEntry
             }
         }
+        // Both items included: one with real texture, one with placeholder
         assertTrue("textures/nexo/coin.png" in entries)
-        assertTrue("textures/nexo/missing.png" !in entries)
+        assertTrue("textures/nexo/missing.png" in entries)
     }
 }
