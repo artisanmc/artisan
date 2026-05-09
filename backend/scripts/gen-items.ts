@@ -179,6 +179,60 @@ function pickFlat(textures: Record<string, string>): string | null {
   return null;
 }
 
+// ── Skull / head icon renderer ────────────────────────────────────────────────
+
+/** Entity skin texture paths and head-front UV region (in texture pixels). */
+const SKULL_TEXTURES: Record<string, { path: string; u: number; v: number; size: number }> = {
+  skeleton:        { path: "entity/skeleton/skeleton.png",       u: 8, v: 8, size: 8 },
+  wither_skeleton: { path: "entity/skeleton/wither_skeleton.png", u: 8, v: 8, size: 8 },
+  zombie:          { path: "entity/zombie/zombie.png",            u: 8, v: 8, size: 8 },
+  creeper:         { path: "entity/creeper/creeper.png",          u: 8, v: 8, size: 8 },
+  player:          { path: "entity/player/wide/steve.png",        u: 8, v: 8, size: 8 },
+  // Dragon uses a non-standard texture layout; use the head face at a best-effort UV
+  dragon:          { path: "entity/enderdragon/dragon.png",       u: 0, v: 0, size: 32 },
+};
+
+/** Render the skull/head front-face tile as a 128×128 icon. */
+async function renderSkullIcon(kind: string): Promise<string | null> {
+  const entry = SKULL_TEXTURES[kind];
+  if (!entry) return null;
+  const texPath = join(texturesDir, entry.path);
+  const src = loadPng(texPath);
+  if (!src) return null;
+
+  const { width: TW, height: TH } = src;
+  const { u, v, size } = entry;
+  const W = 128, H = 128;
+  const out = new PNG({ width: W, height: H });
+  out.data = Buffer.alloc(W * H * 4, 0);
+
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const sx = u + Math.floor((px / W) * size);
+      const sy = v + Math.floor((py / H) * size);
+      const tx = Math.min(sx, TW - 1);
+      const ty = Math.min(sy, TH - 1);
+      const si = (ty * TW + tx) * 4;
+      const oi = (py * W + px) * 4;
+      out.data[oi]     = src.data[si]!;
+      out.data[oi + 1] = src.data[si + 1]!;
+      out.data[oi + 2] = src.data[si + 2]!;
+      out.data[oi + 3] = src.data[si + 3]!;
+    }
+  }
+  return PNG.sync.write(out).toString("base64");
+}
+
+/** Skull item id → skull kind for the minecraft:head model type. */
+const SKULL_IDS: Record<string, string> = {
+  skeleton_skull:        "skeleton",
+  wither_skeleton_skull: "wither_skeleton",
+  zombie_head:           "zombie",
+  creeper_head:          "creeper",
+  player_head:           "player",
+  dragon_head:           "dragon",
+};
+
 function extractModelRef(modelDef: unknown): string | null {
   if (!modelDef || typeof modelDef !== "object") return null;
   const m = modelDef as Record<string, unknown>;
@@ -236,6 +290,17 @@ function buildTextureMap(textures: Record<string, string>): Map<string, PNG> {
 }
 
 async function resolveItem(id: string): Promise<string> {
+  // Skull/head items: rendered from entity skin rather than model elements
+  const skullKind = SKULL_IDS[id];
+  if (skullKind) {
+    const base64 = await renderSkullIcon(skullKind);
+    if (base64) {
+      const iconPath = join(ICONS_DIR, id + ".png");
+      await writeFile(iconPath, Buffer.from(base64, "base64"));
+      return `icons/${id}`;
+    }
+  }
+
   const itemDefPath = join(itemsDir, id + ".json");
   let itemDef: { model?: unknown };
   try { itemDef = JSON.parse(await readFile(itemDefPath, "utf8")); }
