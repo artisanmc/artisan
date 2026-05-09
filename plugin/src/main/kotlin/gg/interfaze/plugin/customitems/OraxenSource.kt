@@ -16,7 +16,12 @@ class OraxenSource(private val pluginsDir: File) : CustomItemSource {
             @Suppress("UNCHECKED_CAST")
             val entries = oraxenItems.getMethod("getEntries").invoke(null) as Set<Map.Entry<String, *>>
             entries.mapNotNull { (id, _) ->
-                CustomItemEntry(id = "oraxen:$id", label = id, texturePath = "oraxen/$id")
+                CustomItemEntry(
+                    id = "oraxen:$id",
+                    label = id,
+                    texturePath = "oraxen/$id",
+                    modelJson = loadModelJson(id),
+                )
             }
         } catch (_: Exception) { emptyList() }
     }
@@ -34,5 +39,14 @@ class OraxenSource(private val pluginsDir: File) : CustomItemSource {
         return packDir.walkTopDown()
             .firstOrNull { it.isFile && it.name == "$name.png" && it.path.contains("textures") }
             ?.readBytes()
+    }
+
+    private fun loadModelJson(id: String): String? {
+        val packDir = File(pluginsDir, "Oraxen/pack")
+        val candidates = listOf(
+            File(packDir, "assets/oraxen/models/item/$id.json"),
+            File(packDir, "assets/oraxen/models/$id.json"),
+        )
+        return candidates.firstOrNull { it.exists() }?.readText()
     }
 }
