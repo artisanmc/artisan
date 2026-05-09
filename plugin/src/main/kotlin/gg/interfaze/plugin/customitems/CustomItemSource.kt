@@ -11,6 +11,7 @@ data class CustomItemEntry(
     val id: String,           // e.g. "nexo:iron_coin"
     val label: String,
     val texturePath: String,  // e.g. "nexo/iron_coin" (no .png, relative to archive textures/)
+    val modelJson: ByteArray? = null,  // raw model JSON bytes, null = flat item
 ) {
     fun category(): String = id.substringBefore(":")
 }

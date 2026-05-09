@@ -26,12 +26,13 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         sources.filter { it.isAvailable() }.sumOf { runCatching { it.collectItems().size }.getOrDefault(0) }
 
     fun computeHash(): String {
-        val pairs = collectWithTextures()
-        if (pairs.isEmpty()) return ""
+        val triples = collectWithModels()
+        if (triples.isEmpty()) return ""
         val digest = MessageDigest.getInstance("SHA-256")
-        for ((id, bytes) in pairs.sortedBy { it.first }) {
+        for ((id, textureBytes, modelJson) in triples.sortedBy { it.first }) {
             digest.update(id.toByteArray(Charsets.UTF_8))
-            digest.update(bytes)
+            digest.update(textureBytes)
+            if (modelJson != null) digest.update(modelJson)
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
@@ -39,6 +40,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
     fun buildBundle(): Pair<String, String>? {
         val items = mutableListOf<Map<String, String>>()
         val textures = mutableMapOf<String, ByteArray>()
+        val models = mutableMapOf<String, ByteArray>()
 
         for (source in sources.filter { it.isAvailable() }) {
             for (entry in source.collectItems()) {
@@ -51,6 +53,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
                     "texture"  to entry.texturePath,
                 )
                 textures[entry.texturePath] = bytes
+                entry.modelJson?.let { models[entry.texturePath] = it }
             }
         }
         if (items.isEmpty()) return null
@@ -58,27 +61,32 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         val digest = MessageDigest.getInstance("SHA-256")
         for (item in items.sortedBy { it["id"]!! }) {
             val texturePath = item["texture"]!!
-            val bytes = textures[texturePath] ?: continue
+            val texBytes = textures[texturePath] ?: continue
             digest.update(item["id"]!!.toByteArray(Charsets.UTF_8))
-            digest.update(bytes)
+            digest.update(texBytes)
+            models[texturePath]?.let { digest.update(it) }
         }
         val hash = digest.digest().joinToString("") { "%02x".format(it) }
 
-        val data = buildData(items, textures)
+        val data = buildData(items, textures, models)
         return Pair(hash, data)
     }
 
     internal fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
 
-    private fun collectWithTextures(): List<Pair<String, ByteArray>> =
+    private fun collectWithModels(): List<Triple<String, ByteArray, ByteArray?>> =
         sources.filter { it.isAvailable() }
             .flatMap { source ->
                 source.collectItems().map { entry ->
-                    Pair(entry.id, source.loadTexture(entry.texturePath) ?: PLACEHOLDER_PNG)
+                    Triple(entry.id, source.loadTexture(entry.texturePath) ?: PLACEHOLDER_PNG, entry.modelJson)
                 }
             }
 
-    private fun buildData(items: List<Map<String, String>>, textures: Map<String, ByteArray>): String {
+    private fun buildData(
+        items: List<Map<String, String>>,
+        textures: Map<String, ByteArray>,
+        models: Map<String, ByteArray>,
+    ): String {
         val zipBytes = ByteArrayOutputStream()
         ZipOutputStream(zipBytes).use { zip ->
             zip.putNextEntry(ZipEntry("items.json"))
@@ -86,6 +94,11 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
             zip.closeEntry()
             for ((path, bytes) in textures) {
                 zip.putNextEntry(ZipEntry("textures/$path.png"))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+            for ((path, bytes) in models) {
+                zip.putNextEntry(ZipEntry("models/$path.json"))
                 zip.write(bytes)
                 zip.closeEntry()
             }
