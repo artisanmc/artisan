@@ -20,7 +20,7 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   if (!existsSync(filePath)) return c.newResponse(null, 404);
 
   return new Response(Bun.file(filePath), {
-    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
+    headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
   });
 });
 
@@ -47,7 +47,7 @@ router.get("/:version/*", async (c) => {
   return new Response(file, {
     headers: {
       "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": "no-cache",
     },
   });
 });
