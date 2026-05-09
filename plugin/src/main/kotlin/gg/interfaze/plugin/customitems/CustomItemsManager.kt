@@ -32,7 +32,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         for ((id, textureBytes, modelJson) in triples.sortedBy { it.first }) {
             digest.update(id.toByteArray(Charsets.UTF_8))
             digest.update(textureBytes)
-            if (modelJson != null) digest.update(modelJson)
+            if (modelJson != null) digest.update(modelJson.toByteArray(Charsets.UTF_8))
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
@@ -40,7 +40,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
     fun buildBundle(): Pair<String, String>? {
         val items = mutableListOf<Map<String, String>>()
         val textures = mutableMapOf<String, ByteArray>()
-        val models = mutableMapOf<String, ByteArray>()
+        val models = mutableMapOf<String, String>()
 
         for (source in sources.filter { it.isAvailable() }) {
             for (entry in source.collectItems()) {
@@ -64,7 +64,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
             val texBytes = textures[texturePath] ?: continue
             digest.update(item["id"]!!.toByteArray(Charsets.UTF_8))
             digest.update(texBytes)
-            models[texturePath]?.let { digest.update(it) }
+            models[texturePath]?.let { digest.update(it.toByteArray(Charsets.UTF_8)) }
         }
         val hash = digest.digest().joinToString("") { "%02x".format(it) }
 
@@ -74,7 +74,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 
     internal fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
 
-    private fun collectWithModels(): List<Triple<String, ByteArray, ByteArray?>> =
+    private fun collectWithModels(): List<Triple<String, ByteArray, String?>> =
         sources.filter { it.isAvailable() }
             .flatMap { source ->
                 source.collectItems().map { entry ->
@@ -85,7 +85,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
     private fun buildData(
         items: List<Map<String, String>>,
         textures: Map<String, ByteArray>,
-        models: Map<String, ByteArray>,
+        models: Map<String, String>,
     ): String {
         val zipBytes = ByteArrayOutputStream()
         ZipOutputStream(zipBytes).use { zip ->
@@ -97,9 +97,9 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
                 zip.write(bytes)
                 zip.closeEntry()
             }
-            for ((path, bytes) in models) {
+            for ((path, json) in models) {
                 zip.putNextEntry(ZipEntry("models/$path.json"))
-                zip.write(bytes)
+                zip.write(json.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
             }
         }
