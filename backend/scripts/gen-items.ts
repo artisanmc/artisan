@@ -122,7 +122,7 @@ function extractSpecialEntityType(modelDef: unknown): string | null {
 }
 
 /** Special entity types we can render browser-side with hardcoded geometry. */
-const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest", "shulker_box", "bed"]);
+const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest", "shulker_box"]);
 
 function extractModelRef(modelDef: unknown): string | null {
   if (!modelDef || typeof modelDef !== "object") return null;
@@ -182,11 +182,12 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
 
   // Entity items (shield, chest variants, shulker boxes): rendered browser-side with hardcoded geometry
   const specialType = extractSpecialEntityType(itemDef.model);
+  // Beds: no 3D geometry available — display as flat sprite using the entity skin texture
+  if (specialType === "bed") {
+    const color = id.replace(/_bed$/, "");
+    return { texture: `entity/bed/${color}` };
+  }
   if (specialType && RENDERABLE_SPECIAL_TYPES.has(specialType)) {
-    if (specialType === "bed") {
-      const color = id.replace(/_bed$/, "");
-      return { texture: `entity/bed/${color}`, model: `__entity__/${id}` };
-    }
     return { texture: `item/${id}`, model: `__entity__/${id}` };
   }
 

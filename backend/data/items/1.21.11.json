@@ -638,8 +638,7 @@
     "id": "black_bed",
     "label": "Black Bed",
     "category": "misc",
-    "texture": "entity/bed/black",
-    "model": "__entity__/black_bed"
+    "texture": "entity/bed/black"
   },
   {
     "id": "black_bundle",
@@ -796,8 +795,7 @@
     "id": "blue_bed",
     "label": "Blue Bed",
     "category": "misc",
-    "texture": "entity/bed/blue",
-    "model": "__entity__/blue_bed"
+    "texture": "entity/bed/blue"
   },
   {
     "id": "blue_bundle",
@@ -1059,8 +1057,7 @@
     "id": "brown_bed",
     "label": "Brown Bed",
     "category": "misc",
-    "texture": "entity/bed/brown",
-    "model": "__entity__/brown_bed"
+    "texture": "entity/bed/brown"
   },
   {
     "id": "brown_bundle",
@@ -2293,8 +2290,7 @@
     "id": "cyan_bed",
     "label": "Cyan Bed",
     "category": "misc",
-    "texture": "entity/bed/cyan",
-    "model": "__entity__/cyan_bed"
+    "texture": "entity/bed/cyan"
   },
   {
     "id": "cyan_bundle",
@@ -3751,8 +3747,7 @@
     "id": "gray_bed",
     "label": "Gray Bed",
     "category": "misc",
-    "texture": "entity/bed/gray",
-    "model": "__entity__/gray_bed"
+    "texture": "entity/bed/gray"
   },
   {
     "id": "gray_bundle",
@@ -3850,8 +3845,7 @@
     "id": "green_bed",
     "label": "Green Bed",
     "category": "misc",
-    "texture": "entity/bed/green",
-    "model": "__entity__/green_bed"
+    "texture": "entity/bed/green"
   },
   {
     "id": "green_bundle",
@@ -4605,8 +4599,7 @@
     "id": "light_blue_bed",
     "label": "Light Blue Bed",
     "category": "misc",
-    "texture": "entity/bed/light_blue",
-    "model": "__entity__/light_blue_bed"
+    "texture": "entity/bed/light_blue"
   },
   {
     "id": "light_blue_bundle",
@@ -4704,8 +4697,7 @@
     "id": "light_gray_bed",
     "label": "Light Gray Bed",
     "category": "misc",
-    "texture": "entity/bed/light_gray",
-    "model": "__entity__/light_gray_bed"
+    "texture": "entity/bed/light_gray"
   },
   {
     "id": "light_gray_bundle",
@@ -4835,8 +4827,7 @@
     "id": "lime_bed",
     "label": "Lime Bed",
     "category": "misc",
-    "texture": "entity/bed/lime",
-    "model": "__entity__/lime_bed"
+    "texture": "entity/bed/lime"
   },
   {
     "id": "lime_bundle",
@@ -4970,8 +4961,7 @@
     "id": "magenta_bed",
     "label": "Magenta Bed",
     "category": "misc",
-    "texture": "entity/bed/magenta",
-    "model": "__entity__/magenta_bed"
+    "texture": "entity/bed/magenta"
   },
   {
     "id": "magenta_bundle",
@@ -5927,8 +5917,7 @@
     "id": "orange_bed",
     "label": "Orange Bed",
     "category": "misc",
-    "texture": "entity/bed/orange",
-    "model": "__entity__/orange_bed"
+    "texture": "entity/bed/orange"
   },
   {
     "id": "orange_bundle",
@@ -6390,8 +6379,7 @@
     "id": "pink_bed",
     "label": "Pink Bed",
     "category": "misc",
-    "texture": "entity/bed/pink",
-    "model": "__entity__/pink_bed"
+    "texture": "entity/bed/pink"
   },
   {
     "id": "pink_bundle",
@@ -6903,8 +6891,7 @@
     "id": "purple_bed",
     "label": "Purple Bed",
     "category": "misc",
-    "texture": "entity/bed/purple",
-    "model": "__entity__/purple_bed"
+    "texture": "entity/bed/purple"
   },
   {
     "id": "purple_bundle",
@@ -7164,8 +7151,7 @@
     "id": "red_bed",
     "label": "Red Bed",
     "category": "misc",
-    "texture": "entity/bed/red",
-    "model": "__entity__/red_bed"
+    "texture": "entity/bed/red"
   },
   {
     "id": "red_bundle",
@@ -9478,8 +9464,7 @@
     "id": "white_bed",
     "label": "White Bed",
     "category": "misc",
-    "texture": "entity/bed/white",
-    "model": "__entity__/white_bed"
+    "texture": "entity/bed/white"
   },
   {
     "id": "white_bundle",
@@ -9691,8 +9676,7 @@
     "id": "yellow_bed",
     "label": "Yellow Bed",
     "category": "misc",
-    "texture": "entity/bed/yellow",
-    "model": "__entity__/yellow_bed"
+    "texture": "entity/bed/yellow"
   },
   {
     "id": "yellow_bundle",
