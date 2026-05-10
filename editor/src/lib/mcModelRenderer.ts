@@ -38,8 +38,8 @@ let _camera: THREE.OrthographicCamera | null = null;
 
 function getRenderer(): THREE.WebGLRenderer {
   if (!_renderer) {
-    _renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-    _renderer.setSize(128, 128);
+    _renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    _renderer.setSize(256, 256);
     _renderer.setClearColor(0x000000, 0);
   }
   return _renderer;
@@ -229,17 +229,58 @@ interface EntityRenderDef {
   display: { rotation: [number, number, number]; translation: [number, number, number]; scale: [number, number, number] };
 }
 
+// Flat entity crop: load entity texture, crop a rectangular region, scale to icon.
+// Used for shulkers whose entity textures (1.21.11+) only have content in the top face rows.
+interface EntityFlatDef {
+  texturePath: string;
+  sx: number; sy: number; sw: number; sh: number; // source crop in texture pixels
+}
+
+const SHULKER_FLAT_DEF = (color: string): EntityFlatDef => ({
+  texturePath: color === "shulker" ? "entity/shulker/shulker" : `entity/shulker/shulker_${color}`,
+  sx: 16, sy: 0, sw: 16, sh: 16, // lid up-face: texOffset(0,0), d=16 → (u+d, v, u+d+w, v+d) = (16,0,32,16)
+});
+
+const ENTITY_FLAT_MAP: Record<string, EntityFlatDef> = {
+  shulker_box:            SHULKER_FLAT_DEF("shulker"),
+  black_shulker_box:      SHULKER_FLAT_DEF("black"),
+  blue_shulker_box:       SHULKER_FLAT_DEF("blue"),
+  brown_shulker_box:      SHULKER_FLAT_DEF("brown"),
+  cyan_shulker_box:       SHULKER_FLAT_DEF("cyan"),
+  gray_shulker_box:       SHULKER_FLAT_DEF("gray"),
+  green_shulker_box:      SHULKER_FLAT_DEF("green"),
+  light_blue_shulker_box: SHULKER_FLAT_DEF("light_blue"),
+  light_gray_shulker_box: SHULKER_FLAT_DEF("light_gray"),
+  lime_shulker_box:       SHULKER_FLAT_DEF("lime"),
+  magenta_shulker_box:    SHULKER_FLAT_DEF("magenta"),
+  orange_shulker_box:     SHULKER_FLAT_DEF("orange"),
+  pink_shulker_box:       SHULKER_FLAT_DEF("pink"),
+  purple_shulker_box:     SHULKER_FLAT_DEF("purple"),
+  red_shulker_box:        SHULKER_FLAT_DEF("red"),
+  white_shulker_box:      SHULKER_FLAT_DEF("white"),
+  yellow_shulker_box:     SHULKER_FLAT_DEF("yellow"),
+};
+
+async function renderEntityFlat(itemId: string, version: string): Promise<string | null> {
+  const def = ENTITY_FLAT_MAP[itemId];
+  if (!def) return null;
+  const url = `${API_URL}/api/textures/${version}/${def.texturePath}`;
+  const img = await loadImage(url);
+  if (!img) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, def.sx, def.sy, def.sw, def.sh, 0, 0, 128, 128);
+  return canvas.toDataURL("image/png");
+}
+
 const SHIELD_DISPLAY = { rotation: [15, -25, -5] as [number,number,number], translation: [2, 3, 0] as [number,number,number], scale: [0.65, 0.65, 0.65] as [number,number,number] };
 const BLOCK_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [0.625, 0.625, 0.625] as [number,number,number] };
 const CHEST_BOXES: EntityBox[] = [
   { origin: [-7, -7.5, -7], size: [14, 10, 14], texOffset: [0, 19] }, // body
   { origin: [-7, 2.5, -7],  size: [14, 5, 14],  texOffset: [0, 0] },  // lid
 ];
-const SHULKER_BOXES: EntityBox[] = [
-  { origin: [-8, -12, -8], size: [16, 12, 16], texOffset: [0, 28] }, // base
-  { origin: [-8, 0, -8],   size: [16, 12, 16], texOffset: [0, 0] },  // lid
-];
-
 const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   shield: {
     textureW: 64, textureH: 64, texturePath: "entity/shield_base",
@@ -260,23 +301,6 @@ const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
   waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
   waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  shulker_box:            { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker",            boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  black_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_black",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  blue_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_blue",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  brown_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_brown",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  cyan_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_cyan",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  gray_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_gray",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  green_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_green",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  light_blue_shulker_box: { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_light_blue", boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  light_gray_shulker_box: { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_light_gray", boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  lime_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_lime",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  magenta_shulker_box:    { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_magenta",    boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  orange_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_orange",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  pink_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_pink",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  purple_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_purple",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  red_shulker_box:        { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_red",        boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  white_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_white",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
-  yellow_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_yellow",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
 };
 
 // Entity cube UV face pixel rects → normalized Three.js UVs (two-triangle quad).
@@ -457,6 +481,11 @@ export function defaultUV(
   }
 }
 
+// Minecraft directional face brightness (matches Java Edition GUI rendering).
+const FACE_SHADE: Record<string, number> = {
+  up: 1.0, down: 0.5, north: 0.8, south: 0.8, east: 0.6, west: 0.6,
+};
+
 // Minecraft face UV (top-left origin, y↓, 0-16) → Three.js UV (bottom-left, y↑, 0-1),
 // with clockwise texture rotation applied.
 export function faceUVs(u1: number, v1: number, u2: number, v2: number, rotation: number): Float32Array {
@@ -503,7 +532,14 @@ function buildFaceMesh(
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
 
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
+  const shade = FACE_SHADE[face] ?? 1.0;
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    color: new THREE.Color(shade, shade, shade),
+    transparent: true,
+    alphaTest: 0.01,
+    side: THREE.DoubleSide,
+  });
   return new THREE.Mesh(geo, mat);
 }
 
@@ -602,6 +638,10 @@ export function renderToCanvas(
     // Entity items rendered with hardcoded geometry + entity textures
     if (modelPath.startsWith("__entity__/")) {
       return renderEntityItem(modelPath.slice("__entity__/".length), version);
+    }
+    // Entity items rendered as a 2D crop of the entity texture (e.g. shulker top face)
+    if (modelPath.startsWith("__entity_flat__/")) {
+      return renderEntityFlat(modelPath.slice("__entity_flat__/".length), version);
     }
 
     const model = await resolveModel(modelPath, version, isCustom, serverKeyId);
