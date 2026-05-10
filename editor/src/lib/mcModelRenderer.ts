@@ -227,6 +227,8 @@ interface EntityRenderDef {
   texturePath: string;
   boxes: EntityBox[];
   display: { rotation: [number, number, number]; translation: [number, number, number]; scale: [number, number, number] };
+  /** When false, skip the scale(1,-1,-1) y-flip (chests render correctly in entity space). Default: true. */
+  yFlip?: boolean;
 }
 
 // Flat entity crop: load entity texture, crop a rectangular region, scale to icon.
@@ -290,17 +292,17 @@ const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
     ],
     display: SHIELD_DISPLAY,
   },
-  chest:                    { textureW: 64, textureH: 64, texturePath: "entity/chest/normal",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  ender_chest:              { textureW: 64, textureH: 64, texturePath: "entity/chest/ender",            boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  trapped_chest:            { textureW: 64, textureH: 64, texturePath: "entity/chest/trapped",          boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  copper_chest:             { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  exposed_copper_chest:     { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  weathered_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  oxidized_copper_chest:    { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  waxed_copper_chest:           { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
-  waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  chest:                    { textureW: 64, textureH: 64, texturePath: "entity/chest/normal",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  ender_chest:              { textureW: 64, textureH: 64, texturePath: "entity/chest/ender",            boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  trapped_chest:            { textureW: 64, textureH: 64, texturePath: "entity/chest/trapped",          boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  copper_chest:             { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  exposed_copper_chest:     { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  weathered_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  oxidized_copper_chest:    { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  waxed_copper_chest:           { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
+  waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY, yFlip: false },
 };
 
 // Entity cube UV face pixel rects → normalized Three.js UVs (two-triangle quad).
@@ -365,10 +367,10 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
 
   const scene = new THREE.Scene();
 
-  // Inner group: entity geometry. Minecraft's entity renderer applies scale(1,-1,-1)
-  // before the display transform to convert entity y-down / front-facing-south conventions.
+  // Inner group: scale(1,-1,-1) converts entity y-down / front-facing-south conventions.
+  // Chests (yFlip:false) render correctly in entity space and must NOT be flipped.
   const innerGroup = new THREE.Group();
-  innerGroup.scale.set(1, -1, -1);
+  if (def.yFlip !== false) innerGroup.scale.set(1, -1, -1);
   for (const box of def.boxes) {
     for (const mesh of buildEntityBoxMeshes(box, texture, def.textureW, def.textureH)) {
       innerGroup.add(mesh);
