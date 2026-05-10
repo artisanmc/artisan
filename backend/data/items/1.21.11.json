@@ -638,7 +638,8 @@
     "id": "black_bed",
     "label": "Black Bed",
     "category": "misc",
-    "texture": "item/black_bed"
+    "texture": "entity/bed/black",
+    "model": "__entity__/black_bed"
   },
   {
     "id": "black_bundle",
@@ -696,7 +697,8 @@
     "id": "black_shulker_box",
     "label": "Black Shulker Box",
     "category": "misc",
-    "texture": "item/black_shulker_box"
+    "texture": "item/black_shulker_box",
+    "model": "__entity__/black_shulker_box"
   },
   {
     "id": "black_stained_glass",
@@ -794,7 +796,8 @@
     "id": "blue_bed",
     "label": "Blue Bed",
     "category": "misc",
-    "texture": "item/blue_bed"
+    "texture": "entity/bed/blue",
+    "model": "__entity__/blue_bed"
   },
   {
     "id": "blue_bundle",
@@ -871,7 +874,8 @@
     "id": "blue_shulker_box",
     "label": "Blue Shulker Box",
     "category": "misc",
-    "texture": "item/blue_shulker_box"
+    "texture": "item/blue_shulker_box",
+    "model": "__entity__/blue_shulker_box"
   },
   {
     "id": "blue_stained_glass",
@@ -1055,7 +1059,8 @@
     "id": "brown_bed",
     "label": "Brown Bed",
     "category": "misc",
-    "texture": "item/brown_bed"
+    "texture": "entity/bed/brown",
+    "model": "__entity__/brown_bed"
   },
   {
     "id": "brown_bundle",
@@ -1132,7 +1137,8 @@
     "id": "brown_shulker_box",
     "label": "Brown Shulker Box",
     "category": "misc",
-    "texture": "item/brown_shulker_box"
+    "texture": "item/brown_shulker_box",
+    "model": "__entity__/brown_shulker_box"
   },
   {
     "id": "brown_stained_glass",
@@ -1479,7 +1485,8 @@
     "id": "chest",
     "label": "Chest",
     "category": "misc",
-    "texture": "item/chest"
+    "texture": "item/chest",
+    "model": "__entity__/chest"
   },
   {
     "id": "chest_minecart",
@@ -1882,7 +1889,8 @@
     "id": "copper_chest",
     "label": "Copper Chest",
     "category": "misc",
-    "texture": "item/copper_chest"
+    "texture": "item/copper_chest",
+    "model": "__entity__/copper_chest"
   },
   {
     "id": "copper_chestplate",
@@ -2285,7 +2293,8 @@
     "id": "cyan_bed",
     "label": "Cyan Bed",
     "category": "misc",
-    "texture": "item/cyan_bed"
+    "texture": "entity/bed/cyan",
+    "model": "__entity__/cyan_bed"
   },
   {
     "id": "cyan_bundle",
@@ -2343,7 +2352,8 @@
     "id": "cyan_shulker_box",
     "label": "Cyan Shulker Box",
     "category": "misc",
-    "texture": "item/cyan_shulker_box"
+    "texture": "item/cyan_shulker_box",
+    "model": "__entity__/cyan_shulker_box"
   },
   {
     "id": "cyan_stained_glass",
@@ -3123,7 +3133,8 @@
     "id": "ender_chest",
     "label": "Ender Chest",
     "category": "misc",
-    "texture": "item/ender_chest"
+    "texture": "item/ender_chest",
+    "model": "__entity__/ender_chest"
   },
   {
     "id": "ender_dragon_spawn_egg",
@@ -3210,7 +3221,8 @@
     "id": "exposed_copper_chest",
     "label": "Exposed Copper Chest",
     "category": "misc",
-    "texture": "item/exposed_copper_chest"
+    "texture": "item/exposed_copper_chest",
+    "model": "__entity__/exposed_copper_chest"
   },
   {
     "id": "exposed_copper_door",
@@ -3739,7 +3751,8 @@
     "id": "gray_bed",
     "label": "Gray Bed",
     "category": "misc",
-    "texture": "item/gray_bed"
+    "texture": "entity/bed/gray",
+    "model": "__entity__/gray_bed"
   },
   {
     "id": "gray_bundle",
@@ -3797,7 +3810,8 @@
     "id": "gray_shulker_box",
     "label": "Gray Shulker Box",
     "category": "misc",
-    "texture": "item/gray_shulker_box"
+    "texture": "item/gray_shulker_box",
+    "model": "__entity__/gray_shulker_box"
   },
   {
     "id": "gray_stained_glass",
@@ -3836,7 +3850,8 @@
     "id": "green_bed",
     "label": "Green Bed",
     "category": "misc",
-    "texture": "item/green_bed"
+    "texture": "entity/bed/green",
+    "model": "__entity__/green_bed"
   },
   {
     "id": "green_bundle",
@@ -3894,7 +3909,8 @@
     "id": "green_shulker_box",
     "label": "Green Shulker Box",
     "category": "misc",
-    "texture": "item/green_shulker_box"
+    "texture": "item/green_shulker_box",
+    "model": "__entity__/green_shulker_box"
   },
   {
     "id": "green_stained_glass",
@@ -4589,7 +4605,8 @@
     "id": "light_blue_bed",
     "label": "Light Blue Bed",
     "category": "misc",
-    "texture": "item/light_blue_bed"
+    "texture": "entity/bed/light_blue",
+    "model": "__entity__/light_blue_bed"
   },
   {
     "id": "light_blue_bundle",
@@ -4647,7 +4664,8 @@
     "id": "light_blue_shulker_box",
     "label": "Light Blue Shulker Box",
     "category": "misc",
-    "texture": "item/light_blue_shulker_box"
+    "texture": "item/light_blue_shulker_box",
+    "model": "__entity__/light_blue_shulker_box"
   },
   {
     "id": "light_blue_stained_glass",
@@ -4686,7 +4704,8 @@
     "id": "light_gray_bed",
     "label": "Light Gray Bed",
     "category": "misc",
-    "texture": "item/light_gray_bed"
+    "texture": "entity/bed/light_gray",
+    "model": "__entity__/light_gray_bed"
   },
   {
     "id": "light_gray_bundle",
@@ -4744,7 +4763,8 @@
     "id": "light_gray_shulker_box",
     "label": "Light Gray Shulker Box",
     "category": "misc",
-    "texture": "item/light_gray_shulker_box"
+    "texture": "item/light_gray_shulker_box",
+    "model": "__entity__/light_gray_shulker_box"
   },
   {
     "id": "light_gray_stained_glass",
@@ -4815,7 +4835,8 @@
     "id": "lime_bed",
     "label": "Lime Bed",
     "category": "misc",
-    "texture": "item/lime_bed"
+    "texture": "entity/bed/lime",
+    "model": "__entity__/lime_bed"
   },
   {
     "id": "lime_bundle",
@@ -4873,7 +4894,8 @@
     "id": "lime_shulker_box",
     "label": "Lime Shulker Box",
     "category": "misc",
-    "texture": "item/lime_shulker_box"
+    "texture": "item/lime_shulker_box",
+    "model": "__entity__/lime_shulker_box"
   },
   {
     "id": "lime_stained_glass",
@@ -4948,7 +4970,8 @@
     "id": "magenta_bed",
     "label": "Magenta Bed",
     "category": "misc",
-    "texture": "item/magenta_bed"
+    "texture": "entity/bed/magenta",
+    "model": "__entity__/magenta_bed"
   },
   {
     "id": "magenta_bundle",
@@ -5006,7 +5029,8 @@
     "id": "magenta_shulker_box",
     "label": "Magenta Shulker Box",
     "category": "misc",
-    "texture": "item/magenta_shulker_box"
+    "texture": "item/magenta_shulker_box",
+    "model": "__entity__/magenta_shulker_box"
   },
   {
     "id": "magenta_stained_glass",
@@ -5903,7 +5927,8 @@
     "id": "orange_bed",
     "label": "Orange Bed",
     "category": "misc",
-    "texture": "item/orange_bed"
+    "texture": "entity/bed/orange",
+    "model": "__entity__/orange_bed"
   },
   {
     "id": "orange_bundle",
@@ -5961,7 +5986,8 @@
     "id": "orange_shulker_box",
     "label": "Orange Shulker Box",
     "category": "misc",
-    "texture": "item/orange_shulker_box"
+    "texture": "item/orange_shulker_box",
+    "model": "__entity__/orange_shulker_box"
   },
   {
     "id": "orange_stained_glass",
@@ -6039,7 +6065,8 @@
     "id": "oxidized_copper_chest",
     "label": "Oxidized Copper Chest",
     "category": "misc",
-    "texture": "item/oxidized_copper_chest"
+    "texture": "item/oxidized_copper_chest",
+    "model": "__entity__/oxidized_copper_chest"
   },
   {
     "id": "oxidized_copper_door",
@@ -6363,7 +6390,8 @@
     "id": "pink_bed",
     "label": "Pink Bed",
     "category": "misc",
-    "texture": "item/pink_bed"
+    "texture": "entity/bed/pink",
+    "model": "__entity__/pink_bed"
   },
   {
     "id": "pink_bundle",
@@ -6427,7 +6455,8 @@
     "id": "pink_shulker_box",
     "label": "Pink Shulker Box",
     "category": "misc",
-    "texture": "item/pink_shulker_box"
+    "texture": "item/pink_shulker_box",
+    "model": "__entity__/pink_shulker_box"
   },
   {
     "id": "pink_stained_glass",
@@ -6874,7 +6903,8 @@
     "id": "purple_bed",
     "label": "Purple Bed",
     "category": "misc",
-    "texture": "item/purple_bed"
+    "texture": "entity/bed/purple",
+    "model": "__entity__/purple_bed"
   },
   {
     "id": "purple_bundle",
@@ -6932,7 +6962,8 @@
     "id": "purple_shulker_box",
     "label": "Purple Shulker Box",
     "category": "misc",
-    "texture": "item/purple_shulker_box"
+    "texture": "item/purple_shulker_box",
+    "model": "__entity__/purple_shulker_box"
   },
   {
     "id": "purple_stained_glass",
@@ -7133,7 +7164,8 @@
     "id": "red_bed",
     "label": "Red Bed",
     "category": "misc",
-    "texture": "item/red_bed"
+    "texture": "entity/bed/red",
+    "model": "__entity__/red_bed"
   },
   {
     "id": "red_bundle",
@@ -7267,7 +7299,8 @@
     "id": "red_shulker_box",
     "label": "Red Shulker Box",
     "category": "misc",
-    "texture": "item/red_shulker_box"
+    "texture": "item/red_shulker_box",
+    "model": "__entity__/red_shulker_box"
   },
   {
     "id": "red_stained_glass",
@@ -7599,7 +7632,8 @@
     "id": "shield",
     "label": "Shield",
     "category": "combat",
-    "texture": "gui/sprites/container/slot/shield"
+    "texture": "item/shield",
+    "model": "__entity__/shield"
   },
   {
     "id": "short_dry_grass",
@@ -7624,7 +7658,8 @@
     "id": "shulker_box",
     "label": "Shulker Box",
     "category": "misc",
-    "texture": "item/shulker_box"
+    "texture": "item/shulker_box",
+    "model": "__entity__/shulker_box"
   },
   {
     "id": "shulker_shell",
@@ -8556,7 +8591,8 @@
     "id": "trapped_chest",
     "label": "Trapped Chest",
     "category": "misc",
-    "texture": "item/trapped_chest"
+    "texture": "item/trapped_chest",
+    "model": "__entity__/trapped_chest"
   },
   {
     "id": "trial_key",
@@ -8938,7 +8974,8 @@
     "id": "waxed_copper_chest",
     "label": "Waxed Copper Chest",
     "category": "misc",
-    "texture": "item/waxed_copper_chest"
+    "texture": "item/waxed_copper_chest",
+    "model": "__entity__/waxed_copper_chest"
   },
   {
     "id": "waxed_copper_door",
@@ -9030,7 +9067,8 @@
     "id": "waxed_exposed_copper_chest",
     "label": "Waxed Exposed Copper Chest",
     "category": "misc",
-    "texture": "item/waxed_exposed_copper_chest"
+    "texture": "item/waxed_exposed_copper_chest",
+    "model": "__entity__/waxed_exposed_copper_chest"
   },
   {
     "id": "waxed_exposed_copper_door",
@@ -9136,7 +9174,8 @@
     "id": "waxed_oxidized_copper_chest",
     "label": "Waxed Oxidized Copper Chest",
     "category": "misc",
-    "texture": "item/waxed_oxidized_copper_chest"
+    "texture": "item/waxed_oxidized_copper_chest",
+    "model": "__entity__/waxed_oxidized_copper_chest"
   },
   {
     "id": "waxed_oxidized_copper_door",
@@ -9235,7 +9274,8 @@
     "id": "waxed_weathered_copper_chest",
     "label": "Waxed Weathered Copper Chest",
     "category": "misc",
-    "texture": "item/waxed_weathered_copper_chest"
+    "texture": "item/waxed_weathered_copper_chest",
+    "model": "__entity__/waxed_weathered_copper_chest"
   },
   {
     "id": "waxed_weathered_copper_door",
@@ -9340,7 +9380,8 @@
     "id": "weathered_copper_chest",
     "label": "Weathered Copper Chest",
     "category": "misc",
-    "texture": "item/weathered_copper_chest"
+    "texture": "item/weathered_copper_chest",
+    "model": "__entity__/weathered_copper_chest"
   },
   {
     "id": "weathered_copper_door",
@@ -9437,7 +9478,8 @@
     "id": "white_bed",
     "label": "White Bed",
     "category": "misc",
-    "texture": "item/white_bed"
+    "texture": "entity/bed/white",
+    "model": "__entity__/white_bed"
   },
   {
     "id": "white_bundle",
@@ -9495,7 +9537,8 @@
     "id": "white_shulker_box",
     "label": "White Shulker Box",
     "category": "misc",
-    "texture": "item/white_shulker_box"
+    "texture": "item/white_shulker_box",
+    "model": "__entity__/white_shulker_box"
   },
   {
     "id": "white_stained_glass",
@@ -9648,7 +9691,8 @@
     "id": "yellow_bed",
     "label": "Yellow Bed",
     "category": "misc",
-    "texture": "item/yellow_bed"
+    "texture": "entity/bed/yellow",
+    "model": "__entity__/yellow_bed"
   },
   {
     "id": "yellow_bundle",
@@ -9706,7 +9750,8 @@
     "id": "yellow_shulker_box",
     "label": "Yellow Shulker Box",
     "category": "misc",
-    "texture": "item/yellow_shulker_box"
+    "texture": "item/yellow_shulker_box",
+    "model": "__entity__/yellow_shulker_box"
   },
   {
     "id": "yellow_stained_glass",

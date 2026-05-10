@@ -106,6 +106,24 @@ function pickFlat(textures: Record<string, string>): string | null {
   return null;
 }
 
+/** Detects minecraft:special type (e.g. "shield", "chest", "shulker_box") from item model def. */
+function extractSpecialEntityType(modelDef: unknown): string | null {
+  if (!modelDef || typeof modelDef !== "object") return null;
+  const m = modelDef as Record<string, unknown>;
+  if (m.type === "minecraft:special") {
+    const model = m.model as Record<string, unknown> | undefined;
+    if (model && typeof model.type === "string") return model.type.replace(/^minecraft:/, "");
+  }
+  if (m.type === "minecraft:condition")
+    return extractSpecialEntityType(m.on_false) ?? extractSpecialEntityType(m.on_true);
+  if (m.type === "minecraft:select")
+    return extractSpecialEntityType(m.fallback) ?? null;
+  return null;
+}
+
+/** Special entity types we can render browser-side with hardcoded geometry. */
+const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest", "shulker_box", "bed"]);
+
 function extractModelRef(modelDef: unknown): string | null {
   if (!modelDef || typeof modelDef !== "object") return null;
   const m = modelDef as Record<string, unknown>;
@@ -161,6 +179,16 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
   let itemDef: { model?: unknown };
   try { itemDef = JSON.parse(await readFile(itemDefPath, "utf8")); }
   catch { return { texture: `item/${id}` }; }
+
+  // Entity items (shield, chest variants, shulker boxes): rendered browser-side with hardcoded geometry
+  const specialType = extractSpecialEntityType(itemDef.model);
+  if (specialType && RENDERABLE_SPECIAL_TYPES.has(specialType)) {
+    if (specialType === "bed") {
+      const color = id.replace(/_bed$/, "");
+      return { texture: `entity/bed/${color}`, model: `__entity__/${id}` };
+    }
+    return { texture: `item/${id}`, model: `__entity__/${id}` };
+  }
 
   const modelRef = extractModelRef(itemDef.model);
   if (!modelRef) return { texture: `item/${id}` };
