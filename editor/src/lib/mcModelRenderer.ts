@@ -284,6 +284,7 @@ const CHEST_DISPLAY = { rotation: [30, -45, 0] as [number,number,number], transl
 const CHEST_BOXES: EntityBox[] = [
   { origin: [-7, -7.5, -7], size: [14, 10, 14], texOffset: [0, 19] }, // body
   { origin: [-7, 2.5, -7],  size: [14, 5, 14],  texOffset: [0, 0] },  // lid
+  { origin: [-1, 0.5, 7],   size: [2, 4, 1],    texOffset: [0, 0] },  // lock hasp
 ];
 const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   shield: {
