@@ -213,6 +213,199 @@ async function renderFlat(
   return canvas.toDataURL("image/png");
 }
 
+// ── Entity model rendering ────────────────────────────────────────────────────
+
+interface EntityBox {
+  origin: [number, number, number];
+  size: [number, number, number];
+  texOffset: [number, number];
+}
+
+interface EntityRenderDef {
+  textureW: number;
+  textureH: number;
+  texturePath: string;
+  boxes: EntityBox[];
+  display: { rotation: [number, number, number]; translation: [number, number, number]; scale: [number, number, number] };
+}
+
+const SHIELD_DISPLAY = { rotation: [15, -25, -5] as [number,number,number], translation: [2, 3, 0] as [number,number,number], scale: [0.65, 0.65, 0.65] as [number,number,number] };
+const BLOCK_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [0.625, 0.625, 0.625] as [number,number,number] };
+const BED_DISPLAY = { rotation: [30, 160, 0] as [number,number,number], translation: [2, 3, 0] as [number,number,number], scale: [0.5325, 0.5325, 0.5325] as [number,number,number] };
+
+const BED_BOXES: EntityBox[] = [
+  // Headboard
+  { origin: [-8, -8, -8], size: [16, 8, 3], texOffset: [0, 0] },
+  // Footboard
+  { origin: [-8, -8, 5], size: [16, 8, 3], texOffset: [0, 28] },
+  // Head half of mattress
+  { origin: [-8, 0, -8], size: [16, 1, 7], texOffset: [6, 11] },
+  // Foot half of mattress
+  { origin: [-8, 0, -1], size: [16, 1, 7], texOffset: [6, 20] },
+  // Corner posts
+  { origin: [-5, -11, -8], size: [3, 3, 3], texOffset: [50, 12] },
+  { origin: [2, -11, -8], size: [3, 3, 3], texOffset: [50, 12] },
+  { origin: [-5, -11, 5], size: [3, 3, 3], texOffset: [50, 12] },
+  { origin: [2, -11, 5], size: [3, 3, 3], texOffset: [50, 12] },
+];
+const CHEST_BOXES: EntityBox[] = [
+  { origin: [-7, -7.5, -7], size: [14, 10, 14], texOffset: [0, 19] }, // body
+  { origin: [-7, 2.5, -7],  size: [14, 5, 14],  texOffset: [0, 0] },  // lid
+];
+const SHULKER_BOXES: EntityBox[] = [
+  { origin: [-8, -12, -8], size: [16, 12, 16], texOffset: [0, 28] }, // base
+  { origin: [-8, 0, -8],   size: [16, 12, 16], texOffset: [0, 0] },  // lid
+];
+
+const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
+  shield: {
+    textureW: 64, textureH: 64, texturePath: "entity/shield_base",
+    boxes: [
+      { origin: [-6, -11, -2], size: [12, 22, 1], texOffset: [0, 0] },
+      { origin: [-1, -3, -1],  size: [2, 6, 6],   texOffset: [26, 0] },
+    ],
+    display: SHIELD_DISPLAY,
+  },
+  chest:                    { textureW: 64, textureH: 64, texturePath: "entity/chest/normal",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  ender_chest:              { textureW: 64, textureH: 64, texturePath: "entity/chest/ender",            boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  trapped_chest:            { textureW: 64, textureH: 64, texturePath: "entity/chest/trapped",          boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  copper_chest:             { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  exposed_copper_chest:     { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  weathered_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  oxidized_copper_chest:    { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  waxed_copper_chest:           { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: BLOCK_DISPLAY },
+  // Beds (16 colors, entity textures at entity/bed/{color}.png)
+  white_bed:      { textureW: 64, textureH: 64, texturePath: "entity/bed/white",      boxes: BED_BOXES, display: BED_DISPLAY },
+  orange_bed:     { textureW: 64, textureH: 64, texturePath: "entity/bed/orange",     boxes: BED_BOXES, display: BED_DISPLAY },
+  magenta_bed:    { textureW: 64, textureH: 64, texturePath: "entity/bed/magenta",    boxes: BED_BOXES, display: BED_DISPLAY },
+  light_blue_bed: { textureW: 64, textureH: 64, texturePath: "entity/bed/light_blue", boxes: BED_BOXES, display: BED_DISPLAY },
+  yellow_bed:     { textureW: 64, textureH: 64, texturePath: "entity/bed/yellow",     boxes: BED_BOXES, display: BED_DISPLAY },
+  lime_bed:       { textureW: 64, textureH: 64, texturePath: "entity/bed/lime",       boxes: BED_BOXES, display: BED_DISPLAY },
+  pink_bed:       { textureW: 64, textureH: 64, texturePath: "entity/bed/pink",       boxes: BED_BOXES, display: BED_DISPLAY },
+  gray_bed:       { textureW: 64, textureH: 64, texturePath: "entity/bed/gray",       boxes: BED_BOXES, display: BED_DISPLAY },
+  light_gray_bed: { textureW: 64, textureH: 64, texturePath: "entity/bed/light_gray", boxes: BED_BOXES, display: BED_DISPLAY },
+  cyan_bed:       { textureW: 64, textureH: 64, texturePath: "entity/bed/cyan",       boxes: BED_BOXES, display: BED_DISPLAY },
+  purple_bed:     { textureW: 64, textureH: 64, texturePath: "entity/bed/purple",     boxes: BED_BOXES, display: BED_DISPLAY },
+  blue_bed:       { textureW: 64, textureH: 64, texturePath: "entity/bed/blue",       boxes: BED_BOXES, display: BED_DISPLAY },
+  brown_bed:      { textureW: 64, textureH: 64, texturePath: "entity/bed/brown",      boxes: BED_BOXES, display: BED_DISPLAY },
+  green_bed:      { textureW: 64, textureH: 64, texturePath: "entity/bed/green",      boxes: BED_BOXES, display: BED_DISPLAY },
+  red_bed:        { textureW: 64, textureH: 64, texturePath: "entity/bed/red",        boxes: BED_BOXES, display: BED_DISPLAY },
+  black_bed:      { textureW: 64, textureH: 64, texturePath: "entity/bed/black",      boxes: BED_BOXES, display: BED_DISPLAY },
+  shulker_box:            { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker",            boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  black_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_black",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  blue_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_blue",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  brown_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_brown",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  cyan_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_cyan",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  gray_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_gray",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  green_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_green",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  light_blue_shulker_box: { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_light_blue", boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  light_gray_shulker_box: { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_light_gray", boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  lime_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_lime",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  magenta_shulker_box:    { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_magenta",    boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  orange_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_orange",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  pink_shulker_box:       { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_pink",       boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  purple_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_purple",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  red_shulker_box:        { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_red",        boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  white_shulker_box:      { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_white",      boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+  yellow_shulker_box:     { textureW: 64, textureH: 64, texturePath: "entity/shulker/shulker_yellow",     boxes: SHULKER_BOXES, display: BLOCK_DISPLAY },
+};
+
+// Entity cube UV face pixel rects → normalized Three.js UVs (two-triangle quad).
+// Pixel space: y↓ (0 = top). Three.js UV: y↑ (0 = bottom).
+// The entity geometry group uses scale(1,-1,-1), which flips vertices along Y. To compensate,
+// v1 and v2 are swapped so the texture appears right-side-up after the Y flip.
+function entityFaceUVs(
+  px1: number, py1: number, px2: number, py2: number,
+  texW: number, texH: number,
+): Float32Array {
+  const u1 = px1 / texW, u2 = px2 / texW;
+  const v1 = 1 - py2 / texH, v2 = 1 - py1 / texH; // swapped: corrects for scale(1,-1,-1)
+  // Quad order matches faceVerts: TL, TR, BR, BL → tri1(TL,TR,BR) + tri2(TL,BR,BL)
+  return new Float32Array([u1, v1, u2, v1, u2, v2, u1, v1, u2, v2, u1, v2]);
+}
+
+function buildEntityBoxMeshes(
+  box: EntityBox,
+  texture: THREE.Texture,
+  textureW: number,
+  textureH: number,
+): THREE.Mesh[] {
+  const [ox, oy, oz] = box.origin;
+  const [w, h, d] = box.size;
+  const [u, v] = box.texOffset;
+  const tx = ox + w, ty = oy + h, tz = oz + d;
+
+  // Entity cube UV layout: each face in pixel coords
+  const faceDefs: Array<["down"|"up"|"north"|"south"|"west"|"east", number, number, number, number]> = [
+    ["up",    u+d,       v,     u+d+w,     v+d],
+    ["down",  u+d+w,     v,     u+2*d+w,   v+d],
+    ["west",  u,         v+d,   u+d,       v+d+h],
+    ["south", u+d,       v+d,   u+d+w,     v+d+h],
+    ["east",  u+d+w,     v+d,   u+2*d+w,   v+d+h],
+    ["north", u+2*d+w,   v+d,   u+2*d+2*w, v+d+h],
+  ];
+
+  return faceDefs.map(([face, px1, py1, px2, py2]) => {
+    const verts = faceVerts(face, ox, oy, oz, tx, ty, tz);
+    const positions = new Float32Array([
+      ...verts.slice(0,3), ...verts.slice(3,6), ...verts.slice(6,9),
+      ...verts.slice(0,3), ...verts.slice(6,9), ...verts.slice(9,12),
+    ]);
+    const uvs = entityFaceUVs(px1, py1, px2, py2, textureW, textureH);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
+    return new THREE.Mesh(geo, mat);
+  });
+}
+
+async function renderEntityItem(itemId: string, version: string): Promise<string | null> {
+  const def = ENTITY_RENDER_MAP[itemId];
+  if (!def) return null;
+
+  const texUrl = `${API_URL}/api/textures/${version}/${def.texturePath}`;
+  const texture = await loadTex(texUrl);
+  if (!texture) return null;
+
+  const scene = new THREE.Scene();
+
+  // Inner group: entity geometry. Minecraft's entity renderer applies scale(1,-1,-1)
+  // before the display transform to convert entity y-down / front-facing-south conventions.
+  const innerGroup = new THREE.Group();
+  innerGroup.scale.set(1, -1, -1);
+  for (const box of def.boxes) {
+    for (const mesh of buildEntityBoxMeshes(box, texture, def.textureW, def.textureH)) {
+      innerGroup.add(mesh);
+    }
+  }
+
+  // Outer group: display.gui transform
+  const outerGroup = new THREE.Group();
+  outerGroup.add(innerGroup);
+  scene.add(outerGroup);
+
+  const { rotation, translation, scale } = def.display;
+  outerGroup.scale.set(...scale);
+  outerGroup.rotation.order = "XYZ";
+  outerGroup.rotation.set(
+    THREE.MathUtils.degToRad(rotation[0]),
+    THREE.MathUtils.degToRad(rotation[1]),
+    THREE.MathUtils.degToRad(rotation[2]),
+  );
+  outerGroup.position.set(...translation);
+
+  const renderer = getRenderer();
+  const camera = getCamera();
+  try {
+    renderer.render(scene, camera);
+    return renderer.domElement.toDataURL("image/png");
+  } catch { return null; }
+}
+
 // ── Texture loading ─────────────────────────────────────────────────────────────
 
 const texCache = new Map<string, THREE.Texture | null>();
@@ -439,6 +632,11 @@ export function renderToCanvas(
   if (renderCache.has(key)) return renderCache.get(key)!;
 
   const promise = (async (): Promise<string | null> => {
+    // Entity items rendered with hardcoded geometry + entity textures
+    if (modelPath.startsWith("__entity__/")) {
+      return renderEntityItem(modelPath.slice("__entity__/".length), version);
+    }
+
     const model = await resolveModel(modelPath, version, isCustom, serverKeyId);
     if (!model) return null;
     if (model.elements.length === 0) {
