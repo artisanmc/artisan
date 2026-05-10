@@ -337,20 +337,18 @@ function buildEntityBoxMeshes(
   const tx = ox + w, ty = oy + h, tz = oz + d;
 
   // Entity cube UV layout: each face in pixel coords.
-  // "down" (entity-bottom) is omitted: after scale(1,-1,-1) it ends up at the top of
-  // the rendered icon. Newer textures (e.g. copper_chest) fill this region with opaque
-  // pixels, producing a visible black/coloured square on top of the icon.
+  // "down" is always omitted: for yFlip entities it ends up on top (copper_chest opaque square
+  // bug); for non-yFlip chests it's the invisible floor.
+  // "north" is omitted for non-yFlip (chests): it's the back face, always hidden in GUI view,
+  // and it sits coplanar with the body's south face causing z-fighting (lock north face at z=7
+  // vs body south face at z=7). For yFlip entities the y-flip turns north into a visible face.
   const faceDefs: Array<["up"|"north"|"south"|"west"|"east", number, number, number, number]> = [
     ["up",    u+d,       v,     u+d+w,     v+d],
     ["west",  u,         v+d,   u+d,       v+d+h],
     ["south", u+d,       v+d,   u+d+w,     v+d+h],
     ["east",  u+d+w,     v+d,   u+2*d+w,   v+d+h],
-    ["north", u+2*d+w,   v+d,   u+2*d+2*w, v+d+h],
+    ...(yFlip ? [["north", u+2*d+w, v+d, u+2*d+2*w, v+d+h] as ["north", number, number, number, number]] : []),
   ];
-
-  // yFlip entities (scale 1,-1,-1) flip winding order → need DoubleSide.
-  // Non-flipped entities (chests) use FrontSide to prevent back-faces z-fighting.
-  const side = yFlip ? THREE.DoubleSide : THREE.FrontSide;
 
   return faceDefs.map(([face, px1, py1, px2, py2]) => {
     const verts = faceVerts(face, ox, oy, oz, tx, ty, tz);
@@ -364,7 +362,7 @@ function buildEntityBoxMeshes(
     geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
     const shade = FACE_SHADE[face] ?? 1.0;
     const mat = new THREE.MeshBasicMaterial({
-      map: texture, transparent: true, alphaTest: 0.01, side,
+      map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide,
       color: new THREE.Color(shade, shade, shade),
     });
     return new THREE.Mesh(geo, mat);
