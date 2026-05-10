@@ -579,7 +579,7 @@
     "id": "black_banner",
     "label": "Black Banner",
     "category": "misc",
-    "texture": "item/black_banner"
+    "texture": "block/black_wool"
   },
   {
     "id": "black_bed",
@@ -723,7 +723,7 @@
     "id": "blue_banner",
     "label": "Blue Banner",
     "category": "misc",
-    "texture": "item/blue_banner"
+    "texture": "block/blue_wool"
   },
   {
     "id": "blue_bed",
@@ -969,7 +969,7 @@
     "id": "brown_banner",
     "label": "Brown Banner",
     "category": "misc",
-    "texture": "item/brown_banner"
+    "texture": "block/brown_wool"
   },
   {
     "id": "brown_bed",
@@ -2109,7 +2109,7 @@
     "id": "cyan_banner",
     "label": "Cyan Banner",
     "category": "misc",
-    "texture": "item/cyan_banner"
+    "texture": "block/cyan_wool"
   },
   {
     "id": "cyan_bed",
@@ -3459,7 +3459,7 @@
     "id": "gray_banner",
     "label": "Gray Banner",
     "category": "misc",
-    "texture": "item/gray_banner"
+    "texture": "block/gray_wool"
   },
   {
     "id": "gray_bed",
@@ -3549,7 +3549,7 @@
     "id": "green_banner",
     "label": "Green Banner",
     "category": "misc",
-    "texture": "item/green_banner"
+    "texture": "block/green_wool"
   },
   {
     "id": "green_bed",
@@ -4239,7 +4239,7 @@
     "id": "light_blue_banner",
     "label": "Light Blue Banner",
     "category": "misc",
-    "texture": "item/light_blue_banner"
+    "texture": "block/light_blue_wool"
   },
   {
     "id": "light_blue_bed",
@@ -4329,7 +4329,7 @@
     "id": "light_gray_banner",
     "label": "Light Gray Banner",
     "category": "misc",
-    "texture": "item/light_gray_banner"
+    "texture": "block/light_gray_wool"
   },
   {
     "id": "light_gray_bed",
@@ -4449,7 +4449,7 @@
     "id": "lime_banner",
     "label": "Lime Banner",
     "category": "misc",
-    "texture": "item/lime_banner"
+    "texture": "block/lime_wool"
   },
   {
     "id": "lime_bed",
@@ -4569,7 +4569,7 @@
     "id": "magenta_banner",
     "label": "Magenta Banner",
     "category": "misc",
-    "texture": "item/magenta_banner"
+    "texture": "block/magenta_wool"
   },
   {
     "id": "magenta_bed",
@@ -5457,7 +5457,7 @@
     "id": "orange_banner",
     "label": "Orange Banner",
     "category": "misc",
-    "texture": "item/orange_banner"
+    "texture": "block/orange_wool"
   },
   {
     "id": "orange_bed",
@@ -5883,7 +5883,7 @@
     "id": "pink_banner",
     "label": "Pink Banner",
     "category": "misc",
-    "texture": "item/pink_banner"
+    "texture": "block/pink_wool"
   },
   {
     "id": "pink_bed",
@@ -6345,7 +6345,7 @@
     "id": "purple_banner",
     "label": "Purple Banner",
     "category": "misc",
-    "texture": "item/purple_banner"
+    "texture": "block/purple_wool"
   },
   {
     "id": "purple_bed",
@@ -6585,7 +6585,7 @@
     "id": "red_banner",
     "label": "Red Banner",
     "category": "misc",
-    "texture": "item/red_banner"
+    "texture": "block/red_wool"
   },
   {
     "id": "red_bed",
@@ -8691,7 +8691,7 @@
     "id": "white_banner",
     "label": "White Banner",
     "category": "misc",
-    "texture": "item/white_banner"
+    "texture": "block/white_wool"
   },
   {
     "id": "white_bed",
@@ -8895,7 +8895,7 @@
     "id": "yellow_banner",
     "label": "Yellow Banner",
     "category": "misc",
-    "texture": "item/yellow_banner"
+    "texture": "block/yellow_wool"
   },
   {
     "id": "yellow_bed",

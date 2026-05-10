@@ -328,10 +328,12 @@ function buildEntityBoxMeshes(
   const [u, v] = box.texOffset;
   const tx = ox + w, ty = oy + h, tz = oz + d;
 
-  // Entity cube UV layout: each face in pixel coords
-  const faceDefs: Array<["down"|"up"|"north"|"south"|"west"|"east", number, number, number, number]> = [
+  // Entity cube UV layout: each face in pixel coords.
+  // "down" (entity-bottom) is omitted: after scale(1,-1,-1) it ends up at the top of
+  // the rendered icon. Newer textures (e.g. copper_chest) fill this region with opaque
+  // pixels, producing a visible black/coloured square on top of the icon.
+  const faceDefs: Array<["up"|"north"|"south"|"west"|"east", number, number, number, number]> = [
     ["up",    u+d,       v,     u+d+w,     v+d],
-    ["down",  u+d+w,     v,     u+2*d+w,   v+d],
     ["west",  u,         v+d,   u+d,       v+d+h],
     ["south", u+d,       v+d,   u+d+w,     v+d+h],
     ["east",  u+d+w,     v+d,   u+2*d+w,   v+d+h],
