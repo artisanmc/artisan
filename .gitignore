@@ -25,3 +25,6 @@ Thumbs.db
 
 # Minecraft server runtime (bind mount)
 docker/server/
+
+# Generated MC assets (large binary artifacts — regenerated via gen-items.ts + gen-icons.ts)
+backend/data/mc-assets/
