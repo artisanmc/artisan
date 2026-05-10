@@ -1,9 +1,10 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { resolveModel, faceVerts, defaultUV, faceUVs } from "./mcModelRenderer";
+import { resolveModel, faceVerts, defaultUV, faceUVs, clearCaches } from "./mcModelRenderer";
 
 // resolveModel only uses fetch — no WebGL needed. We mock fetch globally.
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
+  clearCaches();
 });
 
 describe("resolveModel", () => {

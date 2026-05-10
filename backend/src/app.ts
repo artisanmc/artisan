@@ -7,6 +7,7 @@ import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
 import { texturesRouter } from "./routes/textures";
 import { modelsRouter } from "./routes/models";
+import { modelBundleRouter } from "./routes/modelBundle";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 
@@ -24,6 +25,7 @@ app.route("/api/link", linkRouter);
 app.route("/api/editor-session", editorSessionRouter);
 app.route("/api/textures", texturesRouter);
 app.route("/api/models", modelsRouter);
+app.route("/api/model-bundle", modelBundleRouter);
 
 app.get(
   "/ws/plugin",
