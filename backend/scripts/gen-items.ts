@@ -121,8 +121,10 @@ function extractSpecialEntityType(modelDef: unknown): string | null {
   return null;
 }
 
-/** Special entity types we can render browser-side with hardcoded geometry. */
-const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest", "shulker_box"]);
+/** Special entity types rendered with Three.js hardcoded geometry. */
+const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest"]);
+/** Special entity types rendered as a 2D crop of the entity texture. */
+const ENTITY_FLAT_SPECIAL_TYPES = new Set(["shulker_box"]);
 
 function extractModelRef(modelDef: unknown): string | null {
   if (!modelDef || typeof modelDef !== "object") return null;
@@ -180,12 +182,15 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
   try { itemDef = JSON.parse(await readFile(itemDefPath, "utf8")); }
   catch { return { texture: `item/${id}` }; }
 
-  // Entity items (shield, chest variants, shulker boxes): rendered browser-side with hardcoded geometry
+  // Entity items: shield/chests use Three.js geometry, shulkers use 2D entity texture crop
   const specialType = extractSpecialEntityType(itemDef.model);
-  // Beds: no 3D geometry available — display as flat sprite using the entity skin texture
+  // Beds: show as wool block texture (same color, avoids unreadable entity UV map)
   if (specialType === "bed") {
     const color = id.replace(/_bed$/, "");
-    return { texture: `entity/bed/${color}` };
+    return { texture: `block/${color}_wool` };
+  }
+  if (specialType && ENTITY_FLAT_SPECIAL_TYPES.has(specialType)) {
+    return { texture: `item/${id}`, model: `__entity_flat__/${id}` };
   }
   if (specialType && RENDERABLE_SPECIAL_TYPES.has(specialType)) {
     return { texture: `item/${id}`, model: `__entity__/${id}` };

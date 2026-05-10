@@ -51,7 +51,7 @@ const browser = await chromium.launch({
 });
 
 const page = await browser.newPage();
-await page.setViewportSize({ width: 128, height: 128 });
+await page.setViewportSize({ width: 256, height: 256 });
 await page.setContent("<!DOCTYPE html><html><body></body></html>");
 await page.addScriptTag({ content: rendererJs });
 
