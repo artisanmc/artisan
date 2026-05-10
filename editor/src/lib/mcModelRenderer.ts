@@ -348,6 +348,10 @@ function buildEntityBoxMeshes(
     ["north", u+2*d+w,   v+d,   u+2*d+2*w, v+d+h],
   ];
 
+  // yFlip entities (scale 1,-1,-1) flip winding order → need DoubleSide.
+  // Non-flipped entities (chests) use FrontSide to prevent back-faces z-fighting.
+  const side = yFlip ? THREE.DoubleSide : THREE.FrontSide;
+
   return faceDefs.map(([face, px1, py1, px2, py2]) => {
     const verts = faceVerts(face, ox, oy, oz, tx, ty, tz);
     const positions = new Float32Array([
@@ -358,7 +362,11 @@ function buildEntityBoxMeshes(
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
+    const shade = FACE_SHADE[face] ?? 1.0;
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture, transparent: true, alphaTest: 0.01, side,
+      color: new THREE.Color(shade, shade, shade),
+    });
     return new THREE.Mesh(geo, mat);
   });
 }
