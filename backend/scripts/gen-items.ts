@@ -189,6 +189,11 @@ async function resolveItem(id: string): Promise<{ texture: string; model?: strin
     const color = id.replace(/_bed$/, "");
     return { texture: `block/${color}_wool` };
   }
+  // Banners: no item/ PNG exists in assets; show the base color via wool texture
+  if (specialType === "banner") {
+    const color = id.replace(/_banner$/, "");
+    return { texture: `block/${color}_wool` };
+  }
   if (specialType && ENTITY_FLAT_SPECIAL_TYPES.has(specialType)) {
     return { texture: `item/${id}`, model: `__entity_flat__/${id}` };
   }
