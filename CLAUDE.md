@@ -34,7 +34,17 @@ cd backend
 bun install
 bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis)
 bun run dev             # Dev avec --watch sur port 3001
-bun test                # ~110 tests (unit + intégration WS réel)
+bun test                # ~104 tests (unit + intégration WS réel)
+```
+
+```bash
+# Générer les données items (à faire avant gen-icons.ts)
+bun backend/scripts/gen-items.ts [version]    # télécharge assets MC + génère items.json avec champs model
+
+# Pre-render les icônes 3D server-side (Playwright + Three.js, nécessite gen-items.ts d'abord)
+bun backend/scripts/gen-icons.ts [version]    # rend 750 PNGs → data/mc-assets/{version}/textures/icons/
+                                               # puis met à jour items.json (remplace model par texture icons/{id})
+# Note : utilise Node.js en sous-processus pour Playwright (workaround Bun+Windows pipe IPC)
 ```
 
 ### Editor (React 19 + Vite 6)
@@ -178,7 +188,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, etc. | ~110 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, etc. | ~104 pass (2 pre-existing failures: `link_codes schema`, `findSessionByTrustCode`) |
 | Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, etc. (26 fichiers) | ~190 |
 | Editor unit | Vitest, 400 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer | 400 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |

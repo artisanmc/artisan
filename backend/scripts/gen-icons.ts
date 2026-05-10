@@ -7,9 +7,11 @@
  *   - Renders to a 128x128 PNG via Playwright + Three.js headless
  *   - Saves PNG to data/mc-assets/{version}/textures/icons/{id}.png
  *   - Replaces { texture, model } with { texture: "icons/{id}" } in items.json
+ *
+ * Note: Playwright rendering is delegated to renderer-worker.mjs (Node.js) because
+ * Playwright's --remote-debugging-pipe transport doesn't work under Bun on Windows.
  */
 
-import { chromium } from "playwright";
 import { join } from "path";
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
@@ -119,3 +121,95 @@ if (!buildResult.success) {
 
 const rendererJs = await buildResult.outputs[0].text();
 console.log(`  Bundle: ${(rendererJs.length / 1024).toFixed(0)} KB`);
+
+// ── Playwright render loop (via Node.js subprocess) ──────────────────────────────
+// Playwright's --remote-debugging-pipe transport doesn't work under Bun on Windows.
+// We delegate the Playwright work to a Node.js worker script that communicates via
+// stdin (config JSON) and stdout (JSON-line progress events).
+
+const iconsDir = join(TEXTURES_DIR, "icons");
+await mkdir(iconsDir, { recursive: true });
+
+console.log(`Rendering ${toRender.length} items…`);
+
+const workerConfig = JSON.stringify({
+  baseUrl,
+  VERSION,
+  rendererJs,
+  iconsDir,
+  toRender,
+});
+
+const workerPath = join(import.meta.dir, "renderer-worker.mjs");
+const workerProc = Bun.spawn(["node", workerPath], {
+  stdin: new TextEncoder().encode(workerConfig),
+  stdout: "pipe",
+  stderr: "inherit",
+  cwd: join(import.meta.dir, ".."),
+});
+
+let rendered = 0;
+let failed = 0;
+const renderedIds = new Set<string>();
+
+// Read JSON-line progress events from worker stdout
+const reader = workerProc.stdout.getReader();
+const dec = new TextDecoder();
+let buf = "";
+while (true) {
+  const { value, done } = await reader.read();
+  if (done) break;
+  buf += dec.decode(value, { stream: true });
+  const lines = buf.split("\n");
+  buf = lines.pop()!; // keep incomplete last line
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      const ev = JSON.parse(line) as {
+        type: string; i?: number; total?: number;
+        rendered?: number; failed?: number;
+        renderedIds?: string[]; message?: string;
+      };
+      if (ev.type === "progress") {
+        rendered = ev.rendered!;
+        failed = ev.failed!;
+        process.stdout.write(`\r  ${ev.i}/${ev.total}  (${rendered} ok, ${failed} failed)`);
+      } else if (ev.type === "done") {
+        rendered = ev.rendered!;
+        failed = ev.failed!;
+        for (const id of ev.renderedIds!) renderedIds.add(id);
+      } else if (ev.type === "error") {
+        console.error("\nRenderer worker error:", ev.message);
+      }
+    } catch {
+      // ignore malformed lines
+    }
+  }
+}
+
+const exitCode = await workerProc.exited;
+server.stop();
+console.log(`\nDone. Rendered: ${rendered}, Failed: ${failed}`);
+if (exitCode !== 0) {
+  console.error(`Worker exited with code ${exitCode}`);
+  process.exit(exitCode);
+}
+
+// ── Update items.json ────────────────────────────────────────────────────────────
+// Rendered items: drop `model` and `tints`, set texture to "icons/{id}".
+// Unrendered items: keep as-is (client-side fallback still works).
+
+const updated: Item[] = items.map(item => {
+  if (!renderedIds.has(item.id)) return item;
+  const { model: _m, tints: _t, ...rest } = item;
+  return { ...rest, texture: `icons/${item.id}` };
+});
+
+await writeFile(ITEMS_PATH, JSON.stringify(updated, null, 2));
+
+const stillWithModel = updated.filter(i => i.model).length;
+console.log(`Updated ${ITEMS_PATH}`);
+console.log(`  ${renderedIds.size} items now reference pre-rendered PNGs`);
+if (stillWithModel > 0) {
+  console.log(`  ${stillWithModel} items still have model paths (client-side fallback)`);
+}
