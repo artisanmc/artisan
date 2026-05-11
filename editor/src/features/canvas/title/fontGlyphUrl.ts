@@ -1,0 +1,24 @@
+import type { Asset } from "@/domain/asset";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
+/**
+ * Build a URL to fetch the PNG for a single character within a font asset.
+ *
+ * Returns null when:
+ *  - asset is not type=font, OR
+ *  - the char isn't in this font's glyphMap.
+ *
+ * The texture path stored in glyphMap[i].texture is used as the trailing
+ * segment of the URL. Backend serves it via /api/textures/asset-font/:id/:path*.
+ * Cache-busting via the asset's contentHash query param so updates invalidate.
+ */
+export function fontGlyphUrl(asset: Asset, char: string): string | null {
+  if (asset.type !== "font") return null;
+  const entry = asset.fontMeta?.glyphMap.find((g) => g.char === char);
+  if (!entry) return null;
+  // Light sanitization to be defensive against malformed glyphMap entries;
+  // backend also enforces the path-traversal guard.
+  const safePath = entry.texture.replace(/[^a-zA-Z0-9_./-]/g, "");
+  return `${API_URL}/api/textures/asset-font/${asset.id}/${safePath}?h=${asset.contentHash}`;
+}
