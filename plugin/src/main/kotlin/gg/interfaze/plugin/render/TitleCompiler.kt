@@ -46,7 +46,6 @@ object TitleCompiler {
      * Internal so unit tests can assert on the raw produced string directly
      * (cleaner than introspecting Adventure Components).
      */
-    @Suppress("UNUSED_PARAMETER")
     internal fun compileLayer(
         layer: MenuTitleLayer,
         langMap: Map<String, String>,
@@ -66,8 +65,11 @@ object TitleCompiler {
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
             val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
-            // fontAssetId is forward-compat — Sub-project 4 wraps in <font:interfaze:my_font>.
-            wrapOffset(layer.x, colored)
+            val fonted = layer.fontAssetId?.let { id ->
+                val ns = lookupAsset(id)?.takeIf { it.type == "font" }?.namespace
+                if (ns != null) "<font:$ns>$colored</font>" else colored
+            } ?: colored
+            wrapOffset(layer.x, fonted)
         }
         is MenuTitleLayer.ExternalGlyph -> {
             // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
