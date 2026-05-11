@@ -18,7 +18,6 @@ import { EdgeTooltip } from "./EdgeTooltip";
 import { ItemTooltip } from "./ItemTooltip";
 import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
-import { TextEditor } from "./TextEditor";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useTextureUrl } from "./textureStore";
@@ -377,7 +376,6 @@ export function Stage({ packId }: StageProps) {
           <Selection stageRef={stageRef} />
         </Layer>
       </KonvaStage>
-      <TextEditor packId={packId} layout={layout} viewport={viewport} />
       <ItemTooltip packId={packId} />
       <EdgeTooltip pack={pack} />
       <ContextMenu
