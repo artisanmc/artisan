@@ -9,6 +9,7 @@ import { texturesRouter } from "./routes/textures";
 import { modelsRouter } from "./routes/models";
 import { modelBundleRouter } from "./routes/modelBundle";
 import { assetsRouter } from "./routes/assets";
+import { resourcePackPublicRouter, resourcePackAdminRouter } from "./routes/resourcePack";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 
@@ -28,6 +29,8 @@ app.route("/api/textures", texturesRouter);
 app.route("/api/models", modelsRouter);
 app.route("/api/model-bundle", modelBundleRouter);
 app.route("/api/editor-session", assetsRouter);
+app.route("/api/resource-pack", resourcePackPublicRouter);
+app.route("/api/editor-session", resourcePackAdminRouter);
 
 app.get(
   "/ws/plugin",
