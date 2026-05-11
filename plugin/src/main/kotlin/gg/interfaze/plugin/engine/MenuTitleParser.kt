@@ -1,0 +1,86 @@
+package gg.interfaze.plugin.engine
+
+import gg.interfaze.plugin.model.LText
+import gg.interfaze.plugin.model.MenuTitleLayer
+
+/**
+ * Parses the `title` field of a menu YAML into a typed list of [MenuTitleLayer].
+ *
+ * Accepts four shapes for tolerance:
+ *  - `null` / empty string → empty list (no title)
+ *  - a bare string (legacy) → one [MenuTitleLayer.Text] wrapping the string at (8, 5).
+ *    If the string is of the form `{i18n:foo.bar}`, the `foo.bar` key is unwrapped.
+ *  - a single map → one-element list
+ *  - a list of maps → list of layers
+ *
+ * Unknown `kind` values are silently dropped so that future kinds added by the editor
+ * don't break older plugin builds.
+ */
+object MenuTitleParser {
+
+    /** Default position used for legacy bare-string titles (matches the editor default). */
+    private const val DEFAULT_TEXT_X = 8
+    private const val DEFAULT_TEXT_Y = 5
+
+    @Suppress("UNCHECKED_CAST")
+    fun parse(node: Any?): List<MenuTitleLayer> = when (node) {
+        null -> emptyList()
+        is String -> if (node.isEmpty()) emptyList() else listOf(
+            MenuTitleLayer.Text(
+                value = literalToLText(node),
+                x = DEFAULT_TEXT_X,
+                y = DEFAULT_TEXT_Y,
+            )
+        )
+        is Map<*, *> -> listOfNotNull(parseLayer(node as Map<String, Any?>))
+        is List<*> -> node.mapNotNull { (it as? Map<String, Any?>)?.let(::parseLayer) }
+        else -> emptyList()
+    }
+
+    private fun parseLayer(m: Map<String, Any?>): MenuTitleLayer? {
+        return when (m["kind"]) {
+            "background" -> MenuTitleLayer.Background(
+                assetId = m["asset_id"] as? String ?: return null,
+            )
+            "glyph" -> MenuTitleLayer.Glyph(
+                assetId = m["asset_id"] as? String ?: return null,
+                x = (m["x"] as? Number)?.toInt() ?: 0,
+                y = (m["y"] as? Number)?.toInt() ?: 0,
+            )
+            "text" -> MenuTitleLayer.Text(
+                value = parseLText(m["value"]),
+                x = (m["x"] as? Number)?.toInt() ?: 0,
+                y = (m["y"] as? Number)?.toInt() ?: 0,
+                fontAssetId = m["font_asset_id"] as? String,
+                color = m["color"] as? String,
+            )
+            "external_glyph" -> MenuTitleLayer.ExternalGlyph(
+                provider = m["provider"] as? String ?: return null,
+                glyphName = m["glyph_name"] as? String ?: return null,
+                x = (m["x"] as? Number)?.toInt() ?: 0,
+                y = (m["y"] as? Number)?.toInt() ?: 0,
+            )
+            else -> null // unknown kind → skip
+        }
+    }
+
+    private fun parseLText(v: Any?): LText = when (v) {
+        is Map<*, *> -> LText(key = v["key"] as? String ?: "")
+        else -> LText(key = "")
+    }
+
+    /**
+     * Legacy `title: "<string>"` compatibility.
+     *
+     * If `raw` looks like `{i18n:foo.bar}`, unwrap to the bare key `foo.bar`.
+     * Otherwise wrap the literal string as the [LText.key]; the title compiler
+     * (Task 18) treats keys with no entry in the lang map as literal text — the
+     * exact same fallback chain as the legacy `BundleMenu.resolveTitle(lang)`.
+     */
+    private fun literalToLText(raw: String): LText {
+        if (raw.startsWith("{i18n:") && raw.endsWith("}")) {
+            return LText(key = raw.removePrefix("{i18n:").removeSuffix("}"))
+        }
+        return LText(key = raw)
+    }
+}

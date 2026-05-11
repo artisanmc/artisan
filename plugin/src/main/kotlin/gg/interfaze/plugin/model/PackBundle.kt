@@ -3,6 +3,7 @@ package gg.interfaze.plugin.model
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import gg.interfaze.plugin.engine.CompiledAppearance
+import gg.interfaze.plugin.engine.MenuTitleParser
 
 @Suppress("UNCHECKED_CAST")
 internal fun extractFromSteps(steps: List<Map<String, Any>>): List<Map<String, Any>> =
@@ -30,7 +31,15 @@ data class ManifestFiles(
 data class MenuYaml(
     val schema: String = "",
     val id: String = "",
-    val title: String = "",
+    /**
+     * Title is a discriminated structure since the title composer (Task 16):
+     *  - `null` / `""` → no title
+     *  - `String` (legacy) → single text layer at the default position
+     *  - `Map` → one layer
+     *  - `List<Map>` → multiple layers
+     * Parsed into a `List<MenuTitleLayer>` on [BundleMenu.title] by [gg.interfaze.plugin.engine.MenuTitleParser].
+     */
+    val title: Any? = null,
     val size: Int = 27,
     val permission: String? = null,
     val layers: List<LayerYaml> = emptyList(),
@@ -168,11 +177,21 @@ data class BundleMenu(
     val langMaps: Map<String, Map<String, String>>,
     val compiledAppearances: Map<String, List<CompiledAppearance>> = emptyMap(),
     val slotToElement: Map<Int, String> = emptyMap(),
+    /**
+     * Parsed title layers. The canonical representation since Task 16 of the title-composer plan.
+     * Computed by [MenuTitleParser.parse] at compile time. Task 18's `TitleCompiler` consumes this list.
+     */
+    val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title),
 ) {
     val id: String get() = yaml.id
 
+    /**
+     * Legacy title resolver kept for backward-compat until Task 18 replaces it with `TitleCompiler.compileTitle`.
+     *
+     * Only handles the legacy string shape — for array-shaped titles, returns an empty string.
+     */
     fun resolveTitle(lang: String): String {
-        val raw = yaml.title
+        val raw = yaml.title as? String ?: return ""
         if (!raw.startsWith("{i18n:")) return raw
         val key = raw.removePrefix("{i18n:").removeSuffix("}")
         return langMaps[lang]?.get(key) ?: raw
