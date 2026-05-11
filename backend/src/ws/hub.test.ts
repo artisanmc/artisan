@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { app } from "../app";
-import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion, trackEditorIp } from "./hub";
+import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion, trackEditorIp, pushResourcePackUpdated, connToServerId, connSenders } from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
 import { generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
+import { rebuildResourcePack } from "../lib/resourcePack";
 import { eq } from "drizzle-orm";
 
 describe("handlePluginMessage", () => {
@@ -229,5 +230,84 @@ describe("getMcVersion", () => {
     expect(result.reply).not.toBeNull();
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
     expect(await getMcVersion(ack.server_id)).toBe("1.21.99");
+  });
+});
+
+describe("resource_pack in hello_ack", () => {
+  test("hello_ack includes resource_pack: null when no pack has been built", async () => {
+    const { id: keyId, key, hash } = await generateServerKey();
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+
+    const connId = "conn-rp-null";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    expect(result.reply).not.toBeNull();
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.type).toBe("hello_ack");
+    expect(ack.resource_pack).toBeNull();
+  });
+
+  test("hello_ack includes { url, hash } after a pack was built", async () => {
+    const { id: keyId, key, hash } = await generateServerKey();
+    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+
+    const packInfo = await rebuildResourcePack(keyId);
+
+    const connId = "conn-rp-built";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    expect(result.reply).not.toBeNull();
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.type).toBe("hello_ack");
+    expect(ack.resource_pack).not.toBeNull();
+    expect(ack.resource_pack!.hash).toBe(packInfo.hash);
+    expect(ack.resource_pack!.url).toContain(packInfo.hash);
+  });
+});
+
+describe("pushResourcePackUpdated", () => {
+  test("broadcasts only to matching serverKey connections", () => {
+    const serverKeyA = "test-sk-rpu-a-" + crypto.randomUUID().slice(0, 8);
+    const serverKeyB = "test-sk-rpu-b-" + crypto.randomUUID().slice(0, 8);
+    const connA = "conn-rpu-a-" + crypto.randomUUID().slice(0, 8);
+    const connB = "conn-rpu-b-" + crypto.randomUUID().slice(0, 8);
+
+    const receivedA: string[] = [];
+    const receivedB: string[] = [];
+
+    connSenders.set(connA, (msg) => receivedA.push(msg));
+    connSenders.set(connB, (msg) => receivedB.push(msg));
+    connToServerId.set(connA, serverKeyA);
+    connToServerId.set(connB, serverKeyB);
+
+    pushResourcePackUpdated(serverKeyA, "http://example.com/pack.zip", "abc123");
+
+    expect(receivedA.length).toBe(1);
+    const msg = JSON.parse(receivedA[0]) as { type: string; url: string; hash: string };
+    expect(msg.type).toBe("resource_pack_updated");
+    expect(msg.url).toBe("http://example.com/pack.zip");
+    expect(msg.hash).toBe("abc123");
+
+    expect(receivedB.length).toBe(0);
+
+    // cleanup
+    connSenders.delete(connA);
+    connSenders.delete(connB);
+    connToServerId.delete(connA);
+    connToServerId.delete(connB);
   });
 });
