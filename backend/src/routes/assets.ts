@@ -51,9 +51,13 @@ assetsRouter.post("/:token/assets", async (c) => {
 
   const contentHash = createHash("sha1").update(bytes).digest("hex");
 
-  // Dedup: same (serverKeyId, contentHash) → return existing row.
-  const existing = await db.select().from(assets)
-    .where(and(eq(assets.serverKeyId, session.serverKeyId), eq(assets.contentHash, contentHash)));
+  // Dedup: same (serverKeyId, type, contentHash) → return existing row.
+  // Scoped by type so the same bytes can be uploaded as both a texture and a glyph.
+  const existing = await db.select().from(assets).where(and(
+    eq(assets.serverKeyId, session.serverKeyId),
+    eq(assets.type, type),
+    eq(assets.contentHash, contentHash),
+  ));
   if (existing.length > 0) {
     return c.json({ asset: serialize(existing[0]) }, 200);
   }

@@ -135,6 +135,25 @@ describe("POST /api/editor-session/:token/assets", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  test("dedup is scoped by type — same bytes can be uploaded as glyph and texture", async () => {
+    const { token } = await seedSession();
+    const r1 = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "texture", name: "shared_a" }),
+    });
+    expect(r1.status).toBe(201);
+    const a = (await r1.json()).asset;
+    expect(a.type).toBe("texture");
+
+    const r2 = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "shared_b" }),
+    });
+    expect(r2.status).toBe(201);  // new row, not dedup
+    const b = (await r2.json()).asset;
+    expect(b.type).toBe("glyph");
+    expect(b.id).not.toBe(a.id);
+    expect(b.codepoint).not.toBeNull();
+  });
 });
 
 describe("GET /api/editor-session/:token/assets", () => {

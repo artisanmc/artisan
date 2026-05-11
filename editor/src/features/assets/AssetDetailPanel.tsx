@@ -71,11 +71,10 @@ export function AssetDetailPanel() {
       </label>
       <div className="text-xs text-zinc-400">
         Type: <span className="font-mono">{asset.type}</span><br />
-        Dimensions: <span className="font-mono">{asset.width}×{asset.height}</span><br />
+        Dimensions: <span className="font-mono">{asset.width}×{asset.height}</span>
         {asset.codepoint !== null && (
-          <>Codepoint: <span className="font-mono">U+{asset.codepoint.toString(16).toUpperCase().padStart(4, "0")}</span><br /></>
+          <><br />Codepoint: <span className="font-mono">U+{asset.codepoint.toString(16).toUpperCase().padStart(4, "0")}</span></>
         )}
-        Used in 0 packs
       </div>
       {asset.type === "glyph" && (
         <label className="text-xs">Ascent
