@@ -139,6 +139,42 @@ assetsRouter.get("/:token/assets/:id", async (c) => {
   return c.json({ asset: serialize(rows[0]) });
 });
 
+assetsRouter.patch("/:token/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const id = c.req.param("id");
+  const rows = await db.select().from(assets)
+    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
+  const current = rows[0];
+
+  const body = await c.req.json().catch(() => ({}));
+  const patch: { name?: string; ascent?: number; updatedAt: Date } = { updatedAt: new Date() };
+
+  if (typeof body.name === "string") {
+    if (!NAME_RE.test(body.name)) return c.json({ error: "Invalid name" }, 400);
+    if (body.name !== current.name) {
+      const clash = await db.select().from(assets).where(and(
+        eq(assets.serverKeyId, session.serverKeyId),
+        eq(assets.type, current.type),
+        eq(assets.name, body.name),
+      ));
+      if (clash.length > 0) return c.json({ error: "Asset name already exists" }, 409);
+      patch.name = body.name;
+    }
+  }
+  if (typeof body.ascent === "number") {
+    if (current.type !== "glyph") return c.json({ error: "ascent only valid for glyph" }, 400);
+    patch.ascent = body.ascent;
+  }
+
+  await db.update(assets).set(patch).where(eq(assets.id, id));
+  const updated = (await db.select().from(assets).where(eq(assets.id, id)))[0];
+  return c.json({ asset: serialize(updated) });
+});
+
 function serialize(row: typeof assets.$inferSelect) {
   return {
     id: row.id,
