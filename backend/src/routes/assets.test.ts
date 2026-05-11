@@ -343,3 +343,51 @@ describe("DELETE /api/editor-session/:token/assets/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+import { eq as eqDrizzle } from "drizzle-orm";
+
+describe("resource pack regeneration on asset mutations", () => {
+  test("POST asset triggers a resource pack rebuild", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const res = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "rp_one", ascent: "7" }),
+    });
+    expect(res.status).toBe(201);
+
+    const rows = await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId));
+    expect(rows[0].resourcePackHash).toMatch(/^[0-9a-f]{40}$/);
+    expect(rows[0].resourcePackUpdatedAt).toBeInstanceOf(Date);
+  });
+
+  test("PATCH asset rebuilds the pack and changes the hash", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_orig", ascent: "7" }),
+    });
+    const created = (await post.json()).asset;
+    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+
+    const patch = await app.request(`/api/editor-session/${token}/assets/${created.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "g_renamed" }),
+    });
+    expect(patch.status).toBe(200);
+    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    expect(after).not.toBe(before);
+  });
+
+  test("DELETE asset rebuilds the pack", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_del", ascent: "7" }),
+    });
+    const created = (await post.json()).asset;
+    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+
+    const del = await app.request(`/api/editor-session/${token}/assets/${created.id}`, { method: "DELETE" });
+    expect(del.status).toBe(204);
+    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    expect(after).not.toBe(before);
+  });
+});

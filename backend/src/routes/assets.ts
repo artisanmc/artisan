@@ -7,6 +7,8 @@ import { validateAccessToken } from "../lib/auth";
 import { writeAssetFile, deleteAssetFile } from "../lib/assetStorage";
 import { readPngDimensions } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
+import { rebuildResourcePack } from "../lib/resourcePack";
+import { pushResourcePackUpdated } from "../ws/hub";
 
 export const assetsRouter = new Hono();
 
@@ -59,6 +61,8 @@ assetsRouter.post("/:token/assets", async (c) => {
     eq(assets.contentHash, contentHash),
   ));
   if (existing.length > 0) {
+    const _packInfo = await rebuildResourcePack(session.serverKeyId);
+    pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
     return c.json({ asset: serialize(existing[0]) }, 200);
   }
 
@@ -108,6 +112,8 @@ assetsRouter.post("/:token/assets", async (c) => {
   }
 
   const created = (await db.select().from(assets).where(eq(assets.id, id)))[0];
+  const _packInfo = await rebuildResourcePack(session.serverKeyId);
+  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
   return c.json({ asset: serialize(created) }, 201);
 });
 
@@ -186,6 +192,8 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
     return c.json({ error: "Failed to persist asset" }, 500);
   }
   const updated = (await db.select().from(assets).where(eq(assets.id, id)))[0];
+  const _packInfo = await rebuildResourcePack(session.serverKeyId);
+  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
   return c.json({ asset: serialize(updated) });
 });
 
@@ -201,6 +209,8 @@ assetsRouter.delete("/:token/assets/:id", async (c) => {
 
   await db.delete(assets).where(eq(assets.id, id));
   await deleteAssetFile(session.serverKeyId, id);
+  const _packInfo = await rebuildResourcePack(session.serverKeyId);
+  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
   return c.body(null, 204);
 });
 
