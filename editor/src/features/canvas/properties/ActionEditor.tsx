@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import type { Action, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { itemTextureUrl } from "@/features/canvas/itemTextures";
+import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
@@ -363,7 +363,7 @@ function GiveItemEditor({
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
-  const url = itemTextureUrl(action.material);
+  const url = useTextureUrl(action.material);
   return (
     <div className="flex flex-col gap-2">
       <div>
