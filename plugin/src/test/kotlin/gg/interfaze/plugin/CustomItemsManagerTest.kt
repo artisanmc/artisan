@@ -1,28 +1,31 @@
 package gg.interfaze.plugin
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import gg.interfaze.plugin.customitems.CustomItemEntry
 import gg.interfaze.plugin.customitems.CustomItemSource
 import gg.interfaze.plugin.customitems.CustomItemsManager
-import java.util.zip.GZIPInputStream
-import java.util.zip.ZipInputStream
 import java.io.ByteArrayInputStream
 import java.util.Base64
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CustomItemsManagerTest {
 
-    private fun fakeSource(namespace: String, items: List<Pair<String, String>>): CustomItemSource =
+    private val jsonMapper = ObjectMapper()
+
+    private fun fakeSource(ns: String, items: List<Pair<String, String>>): CustomItemSource =
         object : CustomItemSource {
-            override val namespace = namespace
+            override val namespace = ns
             override fun isAvailable() = true
             override fun collectItems() = items.map { (id, label) ->
-                CustomItemEntry(id = "$namespace:$id", label = label, texturePath = "$namespace/$id")
+                CustomItemEntry(id = "$ns:$id", label = label, category = ns)
             }
-            override fun loadTexture(path: String) = "fake-png-$path".toByteArray()
         }
 
     private fun unavailableSource(): CustomItemSource =
@@ -30,176 +33,111 @@ class CustomItemsManagerTest {
             override val namespace = "missing"
             override fun isAvailable() = false
             override fun collectItems() = error("should not be called")
-            override fun loadTexture(path: String) = null
         }
 
-    @Test
-    fun `computeHash returns empty string when no sources available`() {
+    private fun decodeBundle(data: String): Pair<Set<String>, List<Map<String, String>>?> {
+        val decoded = Base64.getDecoder().decode(data)
+        val entries = mutableSetOf<String>()
+        var itemsJson: ByteArray? = null
+        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
+            var e = zip.nextEntry
+            while (e != null) {
+                entries += e.name
+                if (e.name == "items.json") itemsJson = zip.readBytes()
+                e = zip.nextEntry
+            }
+        }
+        val items: List<Map<String, String>>? = itemsJson?.let {
+            @Suppress("UNCHECKED_CAST")
+            jsonMapper.readValue(it, List::class.java) as List<Map<String, String>>
+        }
+        return entries to items
+    }
+
+    @Test fun `computeHash returns empty string when no sources available`() {
         val mgr = CustomItemsManager(listOf(unavailableSource()))
         assertEquals("", mgr.computeHash())
     }
 
-    @Test
-    fun `computeHash returns empty string when sources are empty`() {
+    @Test fun `computeHash returns empty string when sources are empty`() {
         val mgr = CustomItemsManager(listOf(fakeSource("nexo", emptyList())))
         assertEquals("", mgr.computeHash())
     }
 
-    @Test
-    fun `computeHash is stable for same items`() {
+    @Test fun `computeHash is stable for same items`() {
         val mgr = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin", "gem" to "Gem"))))
         assertEquals(mgr.computeHash(), mgr.computeHash())
     }
 
-    @Test
-    fun `computeHash changes when item set changes`() {
-        val mgr1 = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin"))))
-        val mgr2 = CustomItemsManager(listOf(fakeSource("nexo", listOf("gem" to "Gem"))))
-        val h1 = mgr1.computeHash()
-        val h2 = mgr2.computeHash()
-        assertTrue(h1.isNotEmpty() && h2.isNotEmpty() && h1 != h2)
+    @Test fun `computeHash changes when item set changes`() {
+        val a = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin"))))
+        val b = CustomItemsManager(listOf(fakeSource("nexo", listOf("gem" to "Gem"))))
+        assertTrue(a.computeHash() != b.computeHash())
     }
 
-    @Test
-    fun `buildBundle returns null when no items available`() {
-        val mgr = CustomItemsManager(listOf(unavailableSource()))
-        assertEquals(null, mgr.buildBundle())
+    @Test fun `computeHash changes when only label changes`() {
+        val a = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin"))))
+        val b = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Iron Coin"))))
+        assertTrue(a.computeHash() != b.computeHash())
     }
 
-    @Test
-    fun `buildBundle returns valid base64 gzip zip with items json and textures`() {
+    @Test fun `computeHash does not collide between concatenated ids`() {
+        val a = CustomItemsManager(listOf(fakeSource("nexo", listOf("ab" to "cd"))))
+        val b = CustomItemsManager(listOf(fakeSource("nexo", listOf("abc" to "d"))))
+        assertTrue(a.computeHash() != b.computeHash())
+    }
+
+    @Test fun `buildBundle returns null when no items available`() {
+        assertNull(CustomItemsManager(listOf(unavailableSource())).buildBundle())
+    }
+
+    @Test fun `buildBundle zip contains only items_json — no textures or models`() {
         val mgr = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Iron Coin"))))
-        val result = assertNotNull(mgr.buildBundle())
-        val (_, data) = result
+        val (_, data) = assertNotNull(mgr.buildBundle())
+        val (entries, items) = decodeBundle(data)
 
-        // Decode base64 → gunzip → zip entries
-        val decoded = Base64.getDecoder().decode(data)
-        val entries = mutableSetOf<String>()
-        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                entries += entry.name
-                entry = zip.nextEntry
-            }
-        }
-        assertTrue("items.json" in entries)
-        assertTrue("textures/nexo/coin.png" in entries)
+        assertEquals(setOf("items.json"), entries)
+        assertNotNull(items)
+        assertEquals(1, items!!.size)
+        assertEquals("nexo:coin", items[0]["id"])
+        assertEquals("Iron Coin", items[0]["label"])
+        assertEquals("nexo", items[0]["category"])
     }
 
-    @Test
-    fun `stripColorCodes removes section-sign sequences`() {
+    @Test fun `buildBundle strips color codes from labels`() {
+        val mgr = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "§6Iron §rCoin"))))
+        val (_, data) = assertNotNull(mgr.buildBundle())
+        val (_, items) = decodeBundle(data)
+        assertEquals("Iron Coin", items!![0]["label"])
+    }
+
+    @Test fun `buildBundle merges items from multiple sources sorted by id`() {
+        val mgr = CustomItemsManager(listOf(
+            fakeSource("oraxen", listOf("a" to "A")),
+            fakeSource("nexo", listOf("z" to "Z", "a" to "A")),
+        ))
+        val (_, data) = assertNotNull(mgr.buildBundle())
+        val (_, items) = decodeBundle(data)
+        assertEquals(listOf("nexo:a", "nexo:z", "oraxen:a"), items!!.map { it["id"] })
+    }
+
+    @Test fun `stripColorCodes removes section-sign sequences`() {
         val mgr = CustomItemsManager(emptyList())
         assertEquals("Iron Coin", mgr.stripColorCodes("§6Iron §rCoin"))
     }
 
-    @Test
-    fun `NexoSource isAvailable returns false when Nexo plugin not installed`() {
+    @Test fun `NexoSource isAvailable returns false when Nexo plugin not installed`() {
         val source = gg.interfaze.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
     }
 
-    @Test
-    fun `OraxenSource isAvailable returns false when Oraxen plugin not installed`() {
+    @Test fun `OraxenSource isAvailable returns false when Oraxen plugin not installed`() {
         val source = gg.interfaze.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
     }
 
-    @Test
-    fun `ItemsAdderSource isAvailable returns false when ItemsAdder plugin not installed`() {
+    @Test fun `ItemsAdderSource isAvailable returns false when ItemsAdder plugin not installed`() {
         val source = gg.interfaze.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
-    }
-
-    @Test
-    fun `items without texture use placeholder and are still included`() {
-        val sourceWithMissing = object : CustomItemSource {
-            override val namespace = "nexo"
-            override fun isAvailable() = true
-            override fun collectItems() = listOf(
-                CustomItemEntry("nexo:coin", "Coin", "nexo/coin"),
-                CustomItemEntry("nexo:missing", "Missing", "nexo/missing"),
-            )
-            override fun loadTexture(path: String) = if (path == "nexo/coin") "png".toByteArray() else null
-        }
-        val mgr = CustomItemsManager(listOf(sourceWithMissing))
-        val (_, data) = assertNotNull(mgr.buildBundle())
-
-        val decoded = Base64.getDecoder().decode(data)
-        val entries = mutableSetOf<String>()
-        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                entries += entry.name
-                entry = zip.nextEntry
-            }
-        }
-        // Both items included: one with real texture, one with placeholder
-        assertTrue("textures/nexo/coin.png" in entries)
-        assertTrue("textures/nexo/missing.png" in entries)
-    }
-
-    @Test
-    fun `buildBundle includes models entry for item with modelJson`() {
-        val modelJson = """{"parent":"item/generated","textures":{"layer0":"nexo:item/coin"}}"""
-        val source = object : CustomItemSource {
-            override val namespace = "nexo"
-            override fun isAvailable() = true
-            override fun collectItems() = listOf(
-                CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson)
-            )
-            override fun loadTexture(path: String) = "fake-png".toByteArray()
-        }
-        val mgr = CustomItemsManager(listOf(source))
-        val (_, data) = assertNotNull(mgr.buildBundle())
-        val decoded = Base64.getDecoder().decode(data)
-        val entries = mutableSetOf<String>()
-        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
-            var e = zip.nextEntry
-            while (e != null) { entries += e.name; e = zip.nextEntry }
-        }
-        assertTrue("models/nexo/coin.json" in entries)
-        assertTrue("textures/nexo/coin.png" in entries)
-    }
-
-    @Test
-    fun `buildBundle omits models entry when modelJson is null`() {
-        val mgr = CustomItemsManager(listOf(fakeSource("nexo", listOf("coin" to "Coin"))))
-        val (_, data) = assertNotNull(mgr.buildBundle())
-        val decoded = Base64.getDecoder().decode(data)
-        val entries = mutableSetOf<String>()
-        ZipInputStream(GZIPInputStream(ByteArrayInputStream(decoded))).use { zip ->
-            var e = zip.nextEntry
-            while (e != null) { entries += e.name; e = zip.nextEntry }
-        }
-        assertFalse(entries.any { it.startsWith("models/") })
-    }
-
-    @Test
-    fun `computeHash changes when modelJson changes`() {
-        val json1 = """{"parent":"item/generated"}"""
-        val json2 = """{"parent":"block/cube_all"}"""
-        fun mgr(modelJson: String) = CustomItemsManager(listOf(object : CustomItemSource {
-            override val namespace = "nexo"
-            override fun isAvailable() = true
-            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson))
-            override fun loadTexture(path: String) = "fake-png".toByteArray()
-        }))
-        val h1 = mgr(json1).computeHash()
-        val h2 = mgr(json2).computeHash()
-        assertTrue(h1.isNotEmpty() && h2.isNotEmpty() && h1 != h2)
-    }
-
-    @Test
-    fun `computeHash changes when modelJson goes from null to non-null`() {
-        val modelBytes = """{"parent":"item/generated"}""".trimIndent()
-        fun mgr(modelJson: String?) = CustomItemsManager(listOf(object : CustomItemSource {
-            override val namespace = "nexo"
-            override fun isAvailable() = true
-            override fun collectItems() = listOf(CustomItemEntry("nexo:coin", "Coin", "nexo/coin", modelJson))
-            override fun loadTexture(path: String) = "fake-png".toByteArray()
-        }))
-        val hNull = mgr(null).computeHash()
-        val hNonNull = mgr(modelBytes).computeHash()
-        assertTrue(hNull.isNotEmpty() && hNonNull.isNotEmpty() && hNull != hNonNull)
     }
 }
