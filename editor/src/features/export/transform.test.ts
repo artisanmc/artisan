@@ -1,8 +1,8 @@
 import { commandId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { Dialog, I18nKey, Pack } from "@/domain/types";
+import type { AssetId, Dialog, I18nKey, Pack } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
-import { transform } from "./transform";
+import { parseTitleNode, transform } from "./transform";
 
 const makePack = (overrides: Partial<Pack> = {}): Pack =>
   ({
@@ -41,7 +41,7 @@ describe("transform", () => {
     expect(manifest.files.commands).toContain("heal");
   });
 
-  it("emits a menu yaml with i18n ref for title", () => {
+  it("emits a menu yaml with title array containing the text layer", () => {
     const pack = makePack({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
       menus: [
@@ -59,7 +59,14 @@ describe("transform", () => {
     expect(menu.schema).toBe("menu/v1");
     expect(menu.id).toBe("shop");
     expect(menu.size).toBe(27);
-    expect(menu.title).toBe("{i18n:menus.shop.title}");
+    expect(Array.isArray(menu.title)).toBe(true);
+    expect(menu.title).toHaveLength(1);
+    expect(menu.title[0]).toEqual({
+      kind: "text",
+      value: { key: "menus.shop.title" },
+      x: 8,
+      y: 5,
+    });
   });
 
   it("emits element appearance with title, lore, and click steps", () => {
@@ -327,5 +334,215 @@ describe("transform — dialogs", () => {
     const yaml = files["plugins/Interfaze/packs/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("dialog_id: d_other");
     expect(yaml).not.toContain("dialogId");
+  });
+});
+
+describe("transform — title layers", () => {
+  const menuWithTitle = (title: Pack["menus"][number]["title"]): Pack =>
+    makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title,
+          layers: [],
+        },
+      ],
+    });
+
+  it("serializes a background layer to { kind, asset_id }", () => {
+    const files = transform(
+      menuWithTitle([{ kind: "background", assetId: "asset_a1b2c3" as AssetId }]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([
+      { kind: "background", asset_id: "asset_a1b2c3" },
+    ]);
+  });
+
+  it("serializes a glyph layer to { kind, asset_id, x, y }", () => {
+    const files = transform(
+      menuWithTitle([
+        { kind: "glyph", assetId: "asset_d4e5f6" as AssetId, x: 32, y: 4 },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([
+      { kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 },
+    ]);
+  });
+
+  it("serializes a text layer with only required fields when color/font are absent", () => {
+    const files = transform(
+      menuWithTitle([
+        { kind: "text", value: { key: "k_text" as I18nKey }, x: 8, y: 5 },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([
+      { kind: "text", value: { key: "k_text" }, x: 8, y: 5 },
+    ]);
+    expect(menu.title[0]).not.toHaveProperty("color");
+    expect(menu.title[0]).not.toHaveProperty("font_asset_id");
+  });
+
+  it("emits color and font_asset_id on a text layer when set", () => {
+    const files = transform(
+      menuWithTitle([
+        {
+          kind: "text",
+          value: { key: "k_text" as I18nKey },
+          x: 8,
+          y: 5,
+          color: "#FFAA00",
+          fontAssetId: "asset_font_xyz" as AssetId,
+        },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title[0]).toEqual({
+      kind: "text",
+      value: { key: "k_text" },
+      x: 8,
+      y: 5,
+      color: "#FFAA00",
+      font_asset_id: "asset_font_xyz",
+    });
+  });
+
+  it("serializes an external_glyph layer to { kind, provider, glyph_name, x, y }", () => {
+    const files = transform(
+      menuWithTitle([
+        { kind: "external_glyph", provider: "oraxen", glyphName: "g_coin", x: 12, y: 6 },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([
+      { kind: "external_glyph", provider: "oraxen", glyph_name: "g_coin", x: 12, y: 6 },
+    ]);
+  });
+
+  it("preserves layer order across multi-layer titles", () => {
+    const files = transform(
+      menuWithTitle([
+        { kind: "background", assetId: "asset_bg" as AssetId },
+        { kind: "glyph", assetId: "asset_g1" as AssetId, x: 10, y: 2 },
+        { kind: "text", value: { key: "k_title" as I18nKey }, x: 8, y: 5, color: "#FFAA00" },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([
+      { kind: "background", asset_id: "asset_bg" },
+      { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
+      { kind: "text", value: { key: "k_title" }, x: 8, y: 5, color: "#FFAA00" },
+    ]);
+  });
+
+  it("emits title: [] for menus with no title layers", () => {
+    const files = transform(menuWithTitle([]));
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toEqual([]);
+  });
+
+  it("round-trips through YAML stringify+parse preserving structure", () => {
+    const files = transform(
+      menuWithTitle([
+        { kind: "background", assetId: "asset_a1b2c3" as AssetId },
+        { kind: "glyph", assetId: "asset_d4e5f6" as AssetId, x: 32, y: 4 },
+        { kind: "text", value: { key: "k_xyz" as I18nKey }, x: 8, y: 5, color: "#FFAA00" },
+      ]),
+    );
+    const yaml = files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!;
+    // Spot-check the YAML body explicitly for the layered shape.
+    expect(yaml).toContain("title:");
+    expect(yaml).toContain("kind: background");
+    expect(yaml).toContain("asset_id: asset_a1b2c3");
+    expect(yaml).toContain("kind: glyph");
+    expect(yaml).toContain("kind: text");
+    expect(yaml).toContain("key: k_xyz");
+    expect(yaml).toContain("color");
+    expect(yaml).toContain("#FFAA00");
+
+    const parsed = parse(yaml);
+    expect(parsed.title).toEqual([
+      { kind: "background", asset_id: "asset_a1b2c3" },
+      { kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 },
+      { kind: "text", value: { key: "k_xyz" }, x: 8, y: 5, color: "#FFAA00" },
+    ]);
+  });
+});
+
+describe("parseTitleNode — legacy reader", () => {
+  it("normalises null to []", () => {
+    expect(parseTitleNode(null)).toEqual([]);
+  });
+
+  it("normalises undefined to []", () => {
+    expect(parseTitleNode(undefined)).toEqual([]);
+  });
+
+  it("treats a bare string as one text layer at (8,5)", () => {
+    const result = parseTitleNode("Hello");
+    expect(result).toEqual([
+      { kind: "text", value: { key: "Hello" }, x: 8, y: 5 },
+    ]);
+  });
+
+  it("parses a single-layer map by wrapping it in an array", () => {
+    const result = parseTitleNode({
+      kind: "glyph",
+      asset_id: "asset_g1",
+      x: 10,
+      y: 2,
+    });
+    expect(result).toEqual([
+      { kind: "glyph", assetId: "asset_g1", x: 10, y: 2 },
+    ]);
+  });
+
+  it("parses an array of layered maps preserving order", () => {
+    const result = parseTitleNode([
+      { kind: "background", asset_id: "asset_bg" },
+      { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
+      {
+        kind: "text",
+        value: { key: "k_title" },
+        x: 8,
+        y: 5,
+        color: "#FFAA00",
+        font_asset_id: "asset_font",
+      },
+      { kind: "external_glyph", provider: "nexo", glyph_name: "g_x", x: 1, y: 1 },
+    ]);
+    expect(result).toEqual([
+      { kind: "background", assetId: "asset_bg" },
+      { kind: "glyph", assetId: "asset_g1", x: 10, y: 2 },
+      {
+        kind: "text",
+        value: { key: "k_title" },
+        x: 8,
+        y: 5,
+        color: "#FFAA00",
+        fontAssetId: "asset_font",
+      },
+      { kind: "external_glyph", provider: "nexo", glyphName: "g_x", x: 1, y: 1 },
+    ]);
+  });
+
+  it("drops layers with unknown kind", () => {
+    const result = parseTitleNode([
+      { kind: "background", asset_id: "asset_bg" },
+      { kind: "mystery", foo: "bar" },
+    ]);
+    expect(result).toEqual([{ kind: "background", assetId: "asset_bg" }]);
+  });
+
+  it("drops layers missing required fields", () => {
+    const result = parseTitleNode([
+      { kind: "background" }, // no asset_id
+      { kind: "text" }, // no value.key
+    ]);
+    expect(result).toEqual([]);
   });
 });
