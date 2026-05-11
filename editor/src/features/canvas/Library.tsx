@@ -1,13 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { cx } from "@/lib/cx";
-import { type LibraryItem, type CustomItemsData, fetchItems, fetchCustomItems } from "@/lib/packApi";
-import { useSessionStore } from "@/state/sessionStore";
+import type { LibraryItem, CustomItemsData } from "@/lib/packApi";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTextureStore } from "./textureStore";
-import { renderToCanvas, preloadModels } from "@/lib/mcModelRenderer";
 
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
@@ -93,44 +91,14 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
 }
 
 export function Library() {
-  const token = useSessionStore((s) => s.accessToken);
-  const setTextureData = useTextureStore((s) => s.setData);
-  const setCustomTextureData = useTextureStore((s) => s.setCustomData);
-  const setRenderedGlobal = useTextureStore((s) => s.setRendered);
   const version = useTextureStore((s) => s.version);
+  const items = useTextureStore((s) => s.libraryItems);
+  const customData = useTextureStore((s) => s.libraryCustomData);
+  const bundleReady = useTextureStore((s) => s.libraryBundleReady);
+  const error = useTextureStore((s) => s.libraryError);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [items, setItems] = useState<LibraryItem[]>([]);
-  const [customData, setCustomData] = useState<CustomItemsData>({ serverKeyId: "", items: [] });
-  const [bundleReady, setBundleReady] = useState(false);
-  const [error, setError] = useState(false);
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!token) return;
-    Promise.all([fetchItems(token), fetchCustomItems(token)])
-      .then(async ([vanilla, custom]) => {
-        setTextureData(vanilla.version, vanilla.items);
-        setItems(vanilla.items);
-        setCustomData(custom);
-        if (custom.serverKeyId) setCustomTextureData(custom.items, custom.serverKeyId);
-        // Download all pre-resolved models in one shot before allowing 3D renders
-        await preloadModels(vanilla.version);
-        if (custom.serverKeyId) await preloadModels(vanilla.version, true, custom.serverKeyId);
-        setBundleReady(true);
-        // Pre-render all items with models in background so canvas slots get 3D renders
-        // without waiting for the user to scroll through the Library.
-        for (const item of [...vanilla.items, ...custom.items]) {
-          if (!item.model) continue;
-          const isCustomItem = custom.items.some((c) => c.id === item.id);
-          const keyId = isCustomItem ? custom.serverKeyId : undefined;
-          renderToCanvas(item.model, vanilla.version, isCustomItem, keyId, item.tints).then((src) => {
-            if (src) setRenderedGlobal(item.id, src);
-          });
-        }
-      })
-      .catch(() => setError(true));
-  }, [token, setTextureData, setCustomTextureData, setRenderedGlobal]);
 
   const allItems = [...items, ...customData.items];
   const categories = ["all", ...Array.from(new Set(allItems.map((i) => i.category))).sort()];

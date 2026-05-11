@@ -4,6 +4,7 @@ import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
 import { Library } from "./Library";
+import { useTextureInit } from "./useTextureInit";
 
 interface EditorPaneProps {
   packId: PackId;
@@ -23,6 +24,7 @@ const tabClass =
  * row visually quiet so the editor body owns the eye.
  */
 export function EditorPane({ packId }: EditorPaneProps) {
+  useTextureInit();
   const tab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
   const { t } = useTranslation();
