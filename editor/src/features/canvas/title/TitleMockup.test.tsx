@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssetId, I18nKey, Menu, MenuId, MenuTitleLayer, Pack, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H, TEX_SCALE } from "../menuLayout";
 import { snapDragPosition, TitleMockup } from "./TitleMockup";
 import { useTitleSelectionStore } from "./titleSelectionStore";
 
@@ -151,13 +152,30 @@ describe("snapDragPosition", () => {
 });
 
 describe("TitleMockup render", () => {
-  it("renders the stage with vanilla chest title-bar dimensions (352 × 34)", () => {
+  it("renders title-bar-only stage when no background layer", () => {
     const menu = seedPack([]);
     render(<TitleMockup packId={PACK_ID} menu={menu} />);
     const stage = screen.getByTestId("stage");
     // 176 × 17 (vanilla MC title bar) × TEX_SCALE (2) = 352 × 34.
     expect(stage.getAttribute("data-width")).toBe("352");
-    expect(stage.getAttribute("data-height")).toBe("34");
+    expect(stage.getAttribute("data-height")).toBe(String(MC_TITLE_H * TEX_SCALE));
+  });
+
+  it("renders full-chest stage when a background layer is present", () => {
+    const rows = 3;
+    const layers: MenuTitleLayer[] = [{ kind: "background", assetId: ASSET_BG }];
+    const pack = makePack(layers);
+    // Override the seeded menu's rows count.
+    pack.menus[0]!.rows = rows;
+    useAccountStore.setState((state) => ({
+      account: { ...state.account, packs: [pack], packOrder: [PACK_ID] },
+    }));
+    const menu = pack.menus[0]!;
+    render(<TitleMockup packId={PACK_ID} menu={menu} />);
+    const stage = screen.getByTestId("stage");
+    const expectedH = (MC_TITLE_H + rows * MC_SLOT_STRIDE + MC_BOTTOM_H) * TEX_SCALE;
+    expect(stage.getAttribute("data-width")).toBe("352");
+    expect(stage.getAttribute("data-height")).toBe(String(expectedH));
   });
 
   it("renders one node per layer", () => {
@@ -189,13 +207,16 @@ describe("TitleMockup render", () => {
     expect(groups[1]?.getAttribute("data-y")).toBe("6"); // 3 * 2
   });
 
-  it("renders background layer at (0, 0) regardless of its x/y", () => {
+  it("background group sits at y = MC_TITLE_H * TEX_SCALE in full-chest mode", () => {
     const layers: MenuTitleLayer[] = [{ kind: "background", assetId: ASSET_BG }];
     const menu = seedPack(layers);
     render(<TitleMockup packId={PACK_ID} menu={menu} />);
     const groups = screen.getAllByTestId("group");
+    // Background is pinned at x=0 and offset down by MC_TITLE_H * TEX_SCALE
+    // so it sits below the title bar (mirroring the plugin's runtime negative
+    // ascent push).
     expect(groups[0]?.getAttribute("data-x")).toBe("0");
-    expect(groups[0]?.getAttribute("data-y")).toBe("0");
+    expect(groups[0]?.getAttribute("data-y")).toBe(String(MC_TITLE_H * TEX_SCALE));
   });
 
   it("renders text layer with resolved string from i18n", () => {
