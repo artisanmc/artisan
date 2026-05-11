@@ -111,3 +111,84 @@ describe("LayerSidePanel — text branch", () => {
     ).toBe(A("f1"));
   });
 });
+
+describe("LayerSidePanel — image branch", () => {
+  beforeEach(() => {
+    useAssetStore.setState({
+      assets: [{
+        id: A("g1"), serverKeyId: "sk", type: "glyph", name: "coin",
+        width: 32, height: 8, ascent: 7, codepoint: 57344, fontMeta: null,
+        contentHash: "h", createdAt: "", updatedAt: "",
+      }],
+    } as any);
+  });
+
+  it("glyph layer: shows asset name + unchecked stretch toggle", () => {
+    seedPack([{ kind: "glyph", assetId: A("g1"), x: 10, y: 4 }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    expect(screen.getByText("coin")).toBeTruthy();
+    const toggle = screen.getByLabelText(/stretch to chest/i) as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+  });
+
+  it("background layer: stretch toggle checked, x/y inputs disabled", () => {
+    seedPack([{ kind: "background", assetId: A("g1") }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    const toggle = screen.getByLabelText(/stretch to chest/i) as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+    const x = screen.getByLabelText(/^x$/i) as HTMLInputElement;
+    expect(x.disabled).toBe(true);
+  });
+
+  it("toggling stretch glyph→bg swaps the runtime kind", () => {
+    seedPack([{ kind: "glyph", assetId: A("g1"), x: 10, y: 4 }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    fireEvent.click(screen.getByLabelText(/stretch to chest/i));
+    const updated = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect(updated.kind).toBe("background");
+  });
+
+  it("toggling stretch bg→glyph restores x=0, y=0", () => {
+    seedPack([{ kind: "background", assetId: A("g1") }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    fireEvent.click(screen.getByLabelText(/stretch to chest/i));
+    const updated = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect(updated.kind).toBe("glyph");
+    if (updated.kind === "glyph") {
+      expect(updated.x).toBe(0);
+      expect(updated.y).toBe(0);
+    }
+  });
+
+  it("renders narrow-image warning when asset.width < 176", () => {
+    seedPack([{ kind: "glyph", assetId: A("g1"), x: 0, y: 0 }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    expect(screen.getByText(/176 px/i)).toBeTruthy();
+  });
+
+  it("image Delete button removes the layer and clears selection", () => {
+    seedPack([{ kind: "glyph", assetId: A("g1"), x: 0, y: 0 }]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+    expect(useAccountStore.getState().account.packs[0]!.menus[0]!.title).toHaveLength(0);
+    expect(useTitleSelectionStore.getState().selectedIndex).toBeNull();
+  });
+});
+
+describe("LayerSidePanel — external branch", () => {
+  it("renders a read-only message for external_glyph layers", () => {
+    seedPack([
+      { kind: "external_glyph", provider: "oraxen", glyphName: "coin", x: 0, y: 0 },
+    ]);
+    useTitleSelectionStore.getState().setSelectedIndex(0);
+    render(<LayerSidePanel packId={PACK_ID} menuId={MENU_ID} />);
+    expect(screen.getByText(/external glyph/i)).toBeTruthy();
+    expect(screen.getByText(/sp5/i)).toBeTruthy();
+  });
+});
