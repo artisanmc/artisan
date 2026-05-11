@@ -7,6 +7,7 @@ import { useSessionStore } from "@/state/sessionStore";
 import { useEffect, useState } from "react";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
+import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 
@@ -23,6 +24,7 @@ export function AssetsTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AssetType | "all">("all");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [importFontOpen, setImportFontOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -40,6 +42,7 @@ export function AssetsTab() {
       <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
         <div className="flex gap-2">
           <Button onClick={() => setUploadOpen(true)}>Upload</Button>
+          <Button variant="outline" onClick={() => setImportFontOpen(true)}>Import font</Button>
           <Input
             placeholder="Search..."
             value={search}
@@ -72,6 +75,7 @@ export function AssetsTab() {
         </div>
       )}
       <AssetUploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      <AssetImportFontDialog open={importFontOpen} onClose={() => setImportFontOpen(false)} />
     </div>
   );
 }
