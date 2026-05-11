@@ -158,7 +158,7 @@ plugins/Interfaze/packs/
 
 ### Format menu YAML — champ `title`
 
-Depuis la sub-project "title composer", `title` est un tableau de couches typées (`MenuTitleLayer[]`). Format legacy (chaîne brute ou `{i18n:key}`) toléré au parsing plugin pour rétro-compat.
+Depuis la sub-project "title composer" (SP3), `title` est un tableau de couches typées (`MenuTitleLayer[]`). Format legacy (chaîne brute ou `{i18n:key}`) toléré au parsing plugin pour rétro-compat.
 
 ```yaml
 title:
@@ -182,7 +182,13 @@ title:
     y: 5
 ```
 
-Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource pack pour mapper `asset_id → codepoint + ascent + height`. Le `TitleCompiler` traduit chaque couche en MiniMessage (`<font:interfaze:default>`, `<offset:Xpx>`, `<color>`) et concatène en un seul `Component` titre.
+Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource pack pour mapper `asset_id → codepoint + ascent + height + namespace?`. Le `TitleCompiler` traduit chaque couche en MiniMessage (`<font:interfaze:default>`, `<offset:Xpx>`, `<color>`, `<font:interfaze:{font_name}>` pour text avec `font_asset_id`) et concatène en un seul `Component` titre.
+
+### Custom fonts (SP4)
+
+Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleMockup` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+
+Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu, et `TitleMockup` étend le canvas en mode full-chest (titre + corps slots + inventaire) quand un layer `background` est présent.
 
 ---
 
@@ -200,7 +206,8 @@ Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource p
 | `GET /api/editor-session/:token/assets/:id` | Détail d'un asset. 404 si autre server_key. |
 | `PATCH /api/editor-session/:token/assets/:id` | Renommer ou changer ascent (glyph). Body JSON `{ name?, ascent? }`. |
 | `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
-| `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset depuis `data/assets/{server_key_id}/{asset_id}.png`. |
+| `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{server_key_id}/{asset_id}.png`. |
+| `GET /api/textures/asset-font/:asset_id/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{sk}/fonts/{asset_id}/{path}`. Lookup par asset_id (le server_key est lu en DB). 404 si pas un asset font ou path traversal. |
 | `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
 | `POST /api/editor-session/:token/resource-pack/rebuild` | Force la régénération du resource pack pour le server_key de la session. Returns `{ url, hash }` et broadcast `resource_pack_updated`. |
 
@@ -225,9 +232,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 185 pass (1 pre-existing failure: `link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 234 |
-| Editor unit | Vitest, 494 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetDetailPanel, AssetsTab, title composer (mockup/list/editor/composer), etc. | 494 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 224 pass (1 pre-existing failure: `link_codes schema`) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 241 |
+| Editor unit | Vitest, 519 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer (mockup/list/editor/composer), McFontText, fontGlyphUrl, etc. | 519 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
