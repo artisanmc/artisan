@@ -13,7 +13,20 @@ import {
   writeResourcePack,
 } from "./resourcePackStorage";
 
-const BUNDLE_BASE_URL = process.env.BUNDLE_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
+/**
+ * URL base used to build the resource-pack download URL handed to players via
+ * `player.setResourcePack`. Must be reachable from the player's MC client —
+ * NOT from inside the Docker network. Distinct from `BUNDLE_BASE_URL` (which
+ * the plugin uses to download menu bundles from within the Docker network).
+ *
+ * Defaults to API_BASE_URL (typically `http://localhost:3001` in dev) and then
+ * to `http://localhost:3001` as a last resort.
+ */
+// `||` (not `??`) because docker-compose `${RESOURCE_PACK_BASE_URL:-}`
+// passes an empty string when the var is unset in the host shell — we want
+// to fall through to API_BASE_URL in that case, not use "".
+const RESOURCE_PACK_BASE_URL =
+  process.env.RESOURCE_PACK_BASE_URL || process.env.API_BASE_URL || "http://localhost:3001";
 const KEEP_PACK_COUNT = 3;
 
 export interface PackInfo {
@@ -71,5 +84,5 @@ export async function currentPackInfo(serverKeyId: string): Promise<PackInfo | n
 }
 
 function buildPackUrl(serverKeyId: string, hash: string): string {
-  return `${BUNDLE_BASE_URL}/api/resource-pack/${serverKeyId}/${hash}.zip`;
+  return `${RESOURCE_PACK_BASE_URL}/api/resource-pack/${serverKeyId}/${hash}.zip`;
 }

@@ -29,6 +29,10 @@ services:
       API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
       # URL the Minecraft plugin uses to download bundles (internal Docker network)
       BUNDLE_BASE_URL: ${BUNDLE_BASE_URL:-http://backend:3001}
+      # URL handed to player MC clients via setResourcePack — must be reachable
+      # from the player's machine (NOT from inside the Docker network). Default:
+      # API_BASE_URL fallback chain. Override for remote/public servers.
+      RESOURCE_PACK_BASE_URL: ${RESOURCE_PACK_BASE_URL:-}
     command: >
       sh -c "bun install && bun run db:push && bun run start"
     depends_on:
