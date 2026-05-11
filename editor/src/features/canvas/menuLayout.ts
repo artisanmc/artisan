@@ -23,14 +23,14 @@ import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
 export const TEX_URL = vanillaChestTextureUrl;
 export const TEX_SCALE = 2;
 
-const MC_W = 176;
-const MC_TITLE_H = 17;
-const MC_SLOT_STRIDE = 18;
-const MC_SLOT_INNER = 16;
-const MC_SLOT_INNER_OFFSET = 1;
-const MC_FIRST_SLOT_X = 7;
-const MC_BOTTOM_Y = 125;
-const MC_BOTTOM_H = 97;
+export const MC_W = 176;
+export const MC_TITLE_H = 17;
+export const MC_SLOT_STRIDE = 18;
+export const MC_SLOT_INNER = 16;
+export const MC_SLOT_INNER_OFFSET = 1;
+export const MC_FIRST_SLOT_X = 7;
+export const MC_BOTTOM_Y = 125;
+export const MC_BOTTOM_H = 97;
 
 export const TEX_W = MC_W * TEX_SCALE;
 export const TEX_TITLE_H = MC_TITLE_H * TEX_SCALE;
