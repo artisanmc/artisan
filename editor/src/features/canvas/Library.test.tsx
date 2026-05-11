@@ -87,6 +87,7 @@ describe("Library", () => {
     const tile = screen.getByTitle("forest_sword");
     expect(tile.querySelector("[data-placeholder]")).not.toBeNull();
     expect(tile.querySelector("img")).toBeNull();
+    expect(tile.querySelector("[data-placeholder]")?.textContent).toBe("n");
   });
 });
 
