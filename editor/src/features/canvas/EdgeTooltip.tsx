@@ -1,3 +1,4 @@
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Pack } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -18,7 +19,10 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
 
   const nodeName = (id: string): string => {
     const menu = pack.menus.find((m) => m.id === id);
-    if (menu) return getText(pack, menu.title, activeLang) || id;
+    if (menu) {
+      const lt = getFirstTitleText(menu);
+      return (lt ? getText(pack, lt, activeLang) : "") || id;
+    }
     const cmd = pack.commands.find((c) => c.id === id);
     if (cmd) return `/${cmd.name}`;
     const dialog = (pack.dialogs ?? []).find((d) => d.id === id);

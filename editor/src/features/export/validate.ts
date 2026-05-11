@@ -1,3 +1,4 @@
+import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type { I18nKey, Pack } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
@@ -15,7 +16,7 @@ export function validate(pack: Pack): ValidationResult {
   // Collect all LText keys referenced in the pack
   const referencedKeys = new Set<string>();
   for (const menu of pack.menus) {
-    if (menu.title) referencedKeys.add(menu.title.key);
+    for (const lt of getTitleTextLayers(menu)) referencedKeys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         for (const app of el.appearances) {

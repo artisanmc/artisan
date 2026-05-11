@@ -1,3 +1,4 @@
+import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type { Appearance, Element, I18nKey, Menu, Pack } from "@/domain/types";
 import { stateLabel } from "@/lib/i18nKeys";
@@ -47,7 +48,11 @@ export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
 
   const recordMenu = (menu: Menu) => {
     const menuPath = `menus.${menu.id}`;
-    if (menu.title) out.set(menu.title.key, `${menuPath}.title`);
+    const titleLayers = getTitleTextLayers(menu);
+    titleLayers.forEach((lt, i) => {
+      const suffix = titleLayers.length > 1 ? `.title[${i}]` : `.title`;
+      out.set(lt.key, `${menuPath}${suffix}`);
+    });
     for (const layer of menu.layers) {
       for (const el of layer.elements) recordElement(menuPath, el);
     }

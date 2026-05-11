@@ -1,3 +1,4 @@
+import { getFirstTitleText, getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type {
   Action,
@@ -144,10 +145,14 @@ function serializeLayer(layer: Layer, pack: Pack): Record<string, unknown> {
 // ─── menu serialization ──────────────────────────────────────────────────────
 
 function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
+  // Task 11 transitional shape: emit the first text layer's i18n ref so
+  // the existing menu/v1 schema still loads. Full MenuTitleLayer[]
+  // serialization (background/glyph/text) lands in Task 13.
+  const firstText = getFirstTitleText(menu);
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: i18nRef(menu.title.key),
+    title: firstText ? i18nRef(firstText.key) : "",
     size: menu.rows * 9,
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
@@ -247,7 +252,7 @@ function serializeDialog(dialog: Dialog): Record<string, unknown> {
 function collectReferencedKeys(pack: Pack): Set<string> {
   const keys = new Set<string>();
   for (const menu of pack.menus) {
-    if (menu.title) keys.add(menu.title.key);
+    for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         for (const app of el.appearances) {
