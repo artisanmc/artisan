@@ -1,4 +1,4 @@
-import type { PackId } from "@/domain/types";
+import type { MenuId, PackId } from "@/domain/types";
 import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -54,6 +54,13 @@ interface UiState {
   setArmedMaterial: (m: string | null) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
+  /**
+   * When set, the editor is in title-composer focus mode for the given
+   * menu. Null means the composer is closed and the regular canvas is shown.
+   */
+  titleComposerOpen: { packId: PackId; menuId: MenuId } | null;
+  openTitleComposer: (packId: PackId, menuId: MenuId) => void;
+  closeTitleComposer: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -80,6 +87,9 @@ export const useUiStore = create<UiState>()(
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       activeDragMaterial: null,
       setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
+      titleComposerOpen: null,
+      openTitleComposer: (packId, menuId) => set({ titleComposerOpen: { packId, menuId } }),
+      closeTitleComposer: () => set({ titleComposerOpen: null }),
     }),
     {
       name: "interfaze:ui",
