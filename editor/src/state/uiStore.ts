@@ -52,6 +52,8 @@ interface UiState {
    */
   armedMaterial: string | null;
   setArmedMaterial: (m: string | null) => void;
+  activeDragMaterial: string | null;
+  setActiveDragMaterial: (m: string | null) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -76,6 +78,8 @@ export const useUiStore = create<UiState>()(
       setEditorTab: (t) => set({ editorTab: t }),
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
+      activeDragMaterial: null,
+      setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
     }),
     {
       name: "interfaze:ui",
