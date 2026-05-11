@@ -52,6 +52,7 @@ import {
   rekeyMenuLTexts,
 } from "@/lib/i18nKeys";
 import { migratePackToI18n } from "@/lib/i18nMigration";
+import { migrateTitle } from "@/domain/migrateTitle";
 import {
   addPosition,
   formatPositions,
@@ -750,12 +751,12 @@ export const useAccountStore = create<AccountState>()(
       account: { id: "" as Account["id"], packs: [], packOrder: [] },
       setAccount: (account) => {
         clearTemporal();
-        set({
-          account: {
-            ...account,
-            packs: account.packs.map((p) => ({ ...p, dialogs: p.dialogs ?? [] })),
-          },
-        });
+        const migratedPacks = account.packs.map((p) => ({
+          ...p,
+          dialogs: p.dialogs ?? [],
+          menus: p.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
+        }));
+        set({ account: { ...account, packs: migratedPacks } });
       },
       createPack: ({ id: rawId }) => {
           const id = rawId as PackId;
@@ -817,6 +818,10 @@ export const useAccountStore = create<AccountState>()(
               // Imported pack may use the legacy plain-string shape — migrate
               // in place so it lines up with the current LText-based domain.
               migratePackToI18n(next, next.defaultLang);
+              // Migrate menu titles from LText to MenuTitleLayer[].
+              for (const menu of next.menus) {
+                menu.title = migrateTitle(menu.title);
+              }
               draft.account.packs.push(next);
               draft.account.packOrder.push(id);
             }),
@@ -830,7 +835,10 @@ export const useAccountStore = create<AccountState>()(
             produce((draft: AccountState) => {
               const idx = draft.account.packs.findIndex((p) => p.id === pack.id);
               if (idx !== -1) {
-                draft.account.packs[idx] = pack;
+                draft.account.packs[idx] = {
+                  ...pack,
+                  menus: pack.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
+                };
               }
             }),
           );
@@ -841,11 +849,10 @@ export const useAccountStore = create<AccountState>()(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
               if (!pack) return;
-              const titleLText = createLTextAt(pack, menuTitleKey(id), rawId, pack.defaultLang);
               pack.menus.push({
                 id,
                 packId: pId,
-                title: titleLText,
+                title: [],
                 rows: rows ?? 3,
                 layers: [{ id: newLayerId(), name: "default", elements: [] }],
               });
