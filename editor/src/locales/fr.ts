@@ -157,14 +157,6 @@ const fr: typeof en = {
     refSectionConnectors: "Connecteurs",
     refNoSources: "Aucune source — crée-en une dans la page Sources de données.",
   },
-  backgroundUpload: {
-    label: "fond",
-    upload: "Téléverser une image…",
-    reading: "Lecture…",
-    fileTooLarge: "Fichier trop gros (>{{kb}} Ko).",
-    uploadFailed: "téléversement échoué",
-    remove: "Retirer le fond",
-  },
   actionEditor: {
     targetMenu: "menu cible",
     menuMissing: "{{id}} (introuvable)",

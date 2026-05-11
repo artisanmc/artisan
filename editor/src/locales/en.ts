@@ -151,14 +151,6 @@ export default {
     refSectionConnectors: "Connectors",
     refNoSources: "No sources defined yet — create one in the Data sources page.",
   },
-  backgroundUpload: {
-    label: "background",
-    upload: "Upload image…",
-    reading: "Reading…",
-    fileTooLarge: "File too large (>{{kb}} KB).",
-    uploadFailed: "upload failed",
-    remove: "Remove background",
-  },
   actionEditor: {
     targetMenu: "target menu",
     menuMissing: "{{id}} (missing)",

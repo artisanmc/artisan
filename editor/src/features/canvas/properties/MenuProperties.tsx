@@ -16,7 +16,6 @@ import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BackgroundUpload } from "./BackgroundUpload";
 import { PropertyField } from "./PropertyField";
 
 interface MenuPropertiesProps {
@@ -119,7 +118,6 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         </div>
         {rowsError && <div className="mt-1 text-[10px] text-red-400">{rowsError}</div>}
       </div>
-      <BackgroundUpload packId={packId} menu={menu} />
       <ContextInputsEditor packId={packId} menu={menu} />
     </div>
   );

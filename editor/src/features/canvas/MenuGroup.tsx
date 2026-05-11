@@ -155,11 +155,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
-  const customBgUrl = useAccountStore((s) => {
-    if (!menu.background) return undefined;
-    const pack = s.account.packs.find((p) => p.id === packId);
-    return pack?.assets.find((a) => a.id === menu.background!.assetId)?.url;
-  });
   const hoveredEdge = useEdgeHoverStore((s) => s.edge);
   // Walk layers directly (not elementsByPosition) so out-of-range positions
   // still get highlighted — the element may have been moved outside the grid.
@@ -179,8 +174,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   }, [hoveredEdge, menu.layers]);
 
   const [vanillaTex] = useImage(TEX_URL);
-  const [customTex] = useImage(customBgUrl ?? "");
-  const usingCustom = Boolean(customBgUrl);
 
   const box = menuBoxSize(menu.rows);
 
@@ -658,21 +651,11 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       name={`menu:${menu.id}`}
       id={menu.id}
     >
-      {/* Background. Custom upload covers the full menu box; vanilla mode
-          renders two slices so the chest height adapts to `rows`.
+      {/* Background. Two vanilla slices so the chest height adapts to `rows`.
           Images are listening=true so the menu Group has a hit shape and
           drag works from anywhere on the texture (Konva picks the deepest
           draggable, so filled slots still take precedence). */}
-      {usingCustom && customTex ? (
-        <KonvaImage
-          image={customTex}
-          x={0}
-          y={0}
-          width={box.width}
-          height={box.height}
-          perfectDrawEnabled={false}
-        />
-      ) : vanillaTex ? (
+      {vanillaTex ? (
         <>
           <KonvaImage
             image={vanillaTex}
