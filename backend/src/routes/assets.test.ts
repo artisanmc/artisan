@@ -99,13 +99,15 @@ describe("POST /api/editor-session/:token/assets", () => {
       method: "POST",
       body: uploadForm({ type: "texture", name: "dup" }),
     });
+    // Flip one byte of the PNG payload so the second upload has a distinct
+    // contentHash — that bypasses the dedup path and forces the name check.
+    const distinctBytes = PNG_1x1.slice();
+    distinctBytes[distinctBytes.length - 5] ^= 0x01;
     const res = await app.request(`/api/editor-session/${token}/assets`, {
       method: "POST",
-      body: uploadForm({ type: "texture", name: "dup", png: PNG_1x1.slice() }),
+      body: uploadForm({ type: "texture", name: "dup", png: distinctBytes }),
     });
-    // The PNG bytes are identical here, so this hits the dedup path (status 200).
-    // To actually trigger the name conflict, we'd need different bytes. We accept dedup behavior:
-    expect([200, 409]).toContain(res.status);
+    expect(res.status).toBe(409);
   });
 
   test("rejects invalid name pattern", async () => {
