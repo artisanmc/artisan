@@ -33,7 +33,8 @@ import {
   type DragEndEvent,
   DragOverlay,
   type DragStartEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -80,8 +81,11 @@ function PackCanvasPage() {
   const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
-  const [activeDragMaterial, setActiveDragMaterial] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
 
   useEffect(() => {
     const current = useUiStore.getState().lastActivePackId;
@@ -266,10 +270,9 @@ function PackCanvasPage() {
         </Sheet>
       </div>
 
-      {/* Floating ghost while dragging a Library item. */}
-      <DragOverlay dropAnimation={null}>
-        {activeDragMaterial ? <LibraryDragGhost material={activeDragMaterial} /> : null}
-      </DragOverlay>
+      {/* Floating ghost while dragging a Library item. Isolated component so
+          only the ghost re-renders on drag start, not the entire route tree. */}
+      <LibraryDragOverlay />
     </DndContext>
   );
 }
@@ -645,6 +648,15 @@ function TopBarIconButton({
         )
       ) : null}
     </button>
+  );
+}
+
+function LibraryDragOverlay() {
+  const material = useUiStore((s) => s.activeDragMaterial);
+  return (
+    <DragOverlay dropAnimation={null}>
+      {material ? <LibraryDragGhost material={material} /> : null}
+    </DragOverlay>
   );
 }
 
