@@ -2,7 +2,10 @@ package gg.interfaze.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
+import gg.interfaze.plugin.config.ResourcePackConfig
 import gg.interfaze.plugin.provider.SyncedMenuProvider
+import gg.interfaze.plugin.resourcepack.ResourcePackInfo
+import gg.interfaze.plugin.resourcepack.ResourcePackManager
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.*
@@ -85,5 +88,47 @@ class SyncedMenuProviderTest {
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
         provider.unload()  // must not throw
+    }
+
+    @Test
+    fun `provider forwards resource_pack_updated to manager`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        provider.load()
+        val hash = "0".repeat(40)
+        val raw = """{"type":"resource_pack_updated","url":"http://x/$hash.zip","hash":"$hash"}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        assertEquals(hash, mgr.currentPackInfo?.hash)
+    }
+
+    @Test
+    fun `provider applies resource_pack from hello_ack`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        provider.load()
+        val hash = "f".repeat(40)
+        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"resource_pack":{"url":"http://x/$hash.zip","hash":"$hash"}}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        assertEquals(hash, mgr.currentPackInfo?.hash)
+    }
+
+    @Test
+    fun `provider clears resource pack when hello_ack resource_pack is null`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
+        mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        provider.load()
+        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"resource_pack":null}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        assertNull(mgr.currentPackInfo)
     }
 }
