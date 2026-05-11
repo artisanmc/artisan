@@ -22,8 +22,8 @@ function row(over: Partial<{ id: string; type: string; name: string; codepoint: 
     name: over.name ?? "coin",
     width: 8,
     height: over.height ?? 9,
-    ascent: over.ascent ?? 8,
-    codepoint: over.codepoint ?? 0xE000,
+    ascent: over.ascent !== undefined ? over.ascent : 8,
+    codepoint: over.codepoint !== undefined ? over.codepoint : 0xE000,
     fontMeta: null,
     contentHash: "h",
     createdAt: new Date(),
@@ -83,5 +83,35 @@ describe("buildResourcePackZip", () => {
     const a = buildResourcePackZip([], new Map()).hash;
     const b = buildResourcePackZip([g], pngs).hash;
     expect(a).not.toBe(b);
+  });
+
+  test("includes assets/interfaze/asset-index.json", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map());
+    const entries = unzipSync(zipBytes);
+    expect(entries["assets/interfaze/asset-index.json"]).toBeDefined();
+  });
+
+  test("asset-index.json parses to expected { version, assets } shape", () => {
+    const g = row({ id: "asset_g1", codepoint: 0xE000, name: "coin", ascent: 8, height: 9 });
+    const t = row({ id: "asset_t1", type: "texture", name: "bg", codepoint: null, ascent: null, height: 32 });
+    const pngs = new Map([[g.id, PNG_1x1]]);
+    const { zipBytes } = buildResourcePackZip([g, t], pngs);
+    const entries = unzipSync(zipBytes);
+    const index = JSON.parse(strFromU8(entries["assets/interfaze/asset-index.json"]));
+    expect(index.version).toBe(1);
+    expect(index.assets["asset_g1"]).toEqual({
+      name: "coin",
+      type: "glyph",
+      codepoint: 0xE000,
+      ascent: 8,
+      height: 9,
+    });
+    expect(index.assets["asset_t1"]).toEqual({
+      name: "bg",
+      type: "texture",
+      ascent: null,
+      height: 32,
+    });
+    expect(index.assets["asset_t1"]).not.toHaveProperty("codepoint");
   });
 });
