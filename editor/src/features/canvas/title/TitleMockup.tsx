@@ -9,7 +9,7 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from "react-konva";
 import useImage from "use-image";
-import { TEX_SCALE } from "../menuLayout";
+import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H, TEX_SCALE } from "../menuLayout";
 import { useTitleSelectionStore } from "./titleSelectionStore";
 
 /**
@@ -67,6 +67,13 @@ interface LayerNodeProps {
   selected: boolean;
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
+  /**
+   * Y-offset (in stage pixels) applied to `background` layers. When the
+   * mockup is in full-chest mode the background should sit just below the
+   * title bar, mirroring how the plugin's TitleCompiler pushes the glyph
+   * down via negative ascent at runtime. Defaults to 0 (title-bar-only mode).
+   */
+  bgYOffset?: number;
 }
 
 /**
@@ -81,11 +88,19 @@ interface LayerNodeProps {
  *  - text             → Text with the resolved i18n string + optional color
  *  - external_glyph   → dashed placeholder Rect (rendered later by plugin)
  */
-function LayerNode({ layer, asset, text, selected, onSelect, onDragEnd }: LayerNodeProps) {
+function LayerNode({
+  layer,
+  asset,
+  text,
+  selected,
+  onSelect,
+  onDragEnd,
+  bgYOffset = 0,
+}: LayerNodeProps) {
   const [image] = useImage(asset ? assetPreviewUrl(asset) : "");
 
   const groupX = layer.kind === "background" ? 0 : layer.x * TEX_SCALE;
-  const groupY = layer.kind === "background" ? 0 : layer.y * TEX_SCALE;
+  const groupY = layer.kind === "background" ? bgYOffset : layer.y * TEX_SCALE;
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -229,10 +244,23 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
 
+  // When the user adds a background layer, expand the stage to show the
+  // entire chest GUI (title bar + N slot rows + bottom inv chrome) so the
+  // user sees what their background actually covers in-game. Otherwise we
+  // stay compact and only render the title-bar strip.
+  const hasBackground = menu.title.some((l) => l.kind === "background");
+  const fullChestH = (MC_TITLE_H + menu.rows * MC_SLOT_STRIDE + MC_BOTTOM_H) * TEX_SCALE;
+  const stageH = hasBackground ? fullChestH : TITLE_BAR_H * TEX_SCALE;
+  // Background glyphs in the plugin are pushed below the title baseline via
+  // negative ascent; we mirror that by offsetting the bg Group by MC_TITLE_H.
+  const bgYOffset = hasBackground ? MC_TITLE_H * TEX_SCALE : 0;
+
   return (
-    <Stage width={TITLE_BAR_W * TEX_SCALE} height={TITLE_BAR_H * TEX_SCALE}>
+    <Stage width={TITLE_BAR_W * TEX_SCALE} height={stageH}>
       <Layer>
-        {/* Title-bar backdrop — vanilla MC title row dark grey. */}
+        {/* Title-bar backdrop — vanilla MC title row dark grey. Only covers
+            the title region; the rest of the stage stays transparent so the
+            background glyph (when present) is what the user sees below. */}
         <Rect
           width={TITLE_BAR_W * TEX_SCALE}
           height={TITLE_BAR_H * TEX_SCALE}
@@ -254,6 +282,7 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
               asset={asset}
               text={text}
               selected={selected === idx}
+              bgYOffset={bgYOffset}
               onSelect={() => setSelected(idx)}
               onDragEnd={(x, y) => {
                 // `background` layers have no x/y in the union; the drag
