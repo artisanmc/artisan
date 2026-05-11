@@ -90,11 +90,10 @@ class SyncedMenuProvider(
             }
             val availableSources = customItemsManager.availableSources()
             logger?.info("[IFZ] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
-            // Custom items hash is computed asynchronously after server startup
-            // (see registerCustomItemsReloadListeners → ServerLoadEvent handler).
-            // Indexing a large Nexo pack (1700+ items, hundreds of MB of zip data)
-            // would otherwise block onEnable for tens of seconds. The backend learns
-            // the real hash via a custom_items_changed message once indexing finishes.
+            // Custom items hash is computed off-thread (see registerCustomItemsReloadListeners).
+            // hello sends an empty hash; the backend learns the real hash via a follow-up
+            // custom_items_changed message once the async task runs. Keeping hashing off
+            // the main thread leaves onEnable responsive even for sources we don't control.
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,

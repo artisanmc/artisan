@@ -88,18 +88,17 @@ open class InterfazePlugin : JavaPlugin() {
     private fun registerCustomItemsReloadListeners(provider: SyncedMenuProvider) {
         val mgr = server.pluginManager
 
-        // Universal startup sync: 10 s after server "Done", regardless of which
-        // custom-items plugin is installed. Custom-item plugins write their pack
-        // files shortly after their own load events (Nexo's PackGenerator is async),
-        // so we wait a beat before reading. This is the ONLY path that computes
-        // the initial custom items hash — SyncedMenuProvider.load() no longer does
-        // it synchronously, so the server starts fast even with 1700+ items.
+        // Initial custom items hash sync, post-server-load.
+        // Runs regardless of which custom-items plugin is installed.
+        // Short delay (40 ticks ≈ 2 s) lets Nexo/Oraxen/ItemsAdder finish populating
+        // their item registries and the WS hello to settle before we push the hash.
+        // notifyCustomItemsReload itself runs on a Bukkit async worker.
         mgr.registerEvents(object : org.bukkit.event.Listener {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.ServerLoadEvent) {
                 server.scheduler.runTaskLaterAsynchronously(this@InterfazePlugin, Runnable {
                     provider.notifyCustomItemsReload()
-                }, 200L) // 200 ticks = 10 s
+                }, 40L)
             }
         }, this)
 
@@ -108,7 +107,9 @@ open class InterfazePlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
-                    provider.notifyCustomItemsReload()
+                    server.scheduler.runTaskAsynchronously(this@InterfazePlugin, Runnable {
+                        provider.notifyCustomItemsReload()
+                    })
                 }
             }, this)
         }
@@ -117,7 +118,9 @@ open class InterfazePlugin : JavaPlugin() {
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: io.th0rgal.oraxen.api.events.OraxenItemsLoadedEvent) {
-                    provider.notifyCustomItemsReload()
+                    server.scheduler.runTaskAsynchronously(this@InterfazePlugin, Runnable {
+                        provider.notifyCustomItemsReload()
+                    })
                 }
             }, this)
         }
@@ -131,7 +134,13 @@ open class InterfazePlugin : JavaPlugin() {
                     eventClass,
                     object : org.bukkit.event.Listener {},
                     org.bukkit.event.EventPriority.NORMAL,
-                    { _, event -> if (eventClass.isInstance(event)) provider.notifyCustomItemsReload() },
+                    { _, event ->
+                        if (eventClass.isInstance(event)) {
+                            server.scheduler.runTaskAsynchronously(this@InterfazePlugin, Runnable {
+                                provider.notifyCustomItemsReload()
+                            })
+                        }
+                    },
                     this,
                 )
             } catch (_: Exception) {
@@ -179,5 +188,15 @@ open class InterfazePlugin : JavaPlugin() {
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+
+        // reinit happens after ServerLoadEvent has already fired, so we kick off
+        // the initial custom items hash sync here ourselves. Short delay lets the
+        // fresh WsClient finish handshaking before notify pushes the hash.
+        val reinitProvider = menuProvider as? SyncedMenuProvider
+        if (reinitProvider != null) {
+            server.scheduler.runTaskLaterAsynchronously(this, Runnable {
+                reinitProvider.notifyCustomItemsReload()
+            }, 40L)
+        }
     }
 }
