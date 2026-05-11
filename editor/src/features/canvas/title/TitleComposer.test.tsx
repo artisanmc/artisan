@@ -135,13 +135,14 @@ describe("TitleComposer", () => {
     }
   });
 
-  it("clicking + Background opens the AssetPicker with typeFilter=texture", () => {
+  it("clicking + Background opens the AssetPicker with typeFilter=glyph", () => {
     const menu = seedPack([]);
     render(<TitleComposer packId={PACK_ID} menu={menu} />);
     expect(screen.queryByTestId("asset-picker")).toBeNull();
     fireEvent.click(screen.getByText("+ Background"));
     const picker = screen.getByTestId("asset-picker");
-    expect(picker.getAttribute("data-type-filter")).toBe("texture");
+    // Per plan: backgrounds are "a big glyph" until SP4 lands.
+    expect(picker.getAttribute("data-type-filter")).toBe("glyph");
   });
 
   it("clicking + Glyph opens the AssetPicker with typeFilter=glyph", () => {

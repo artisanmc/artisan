@@ -75,7 +75,8 @@ interface LayerNodeProps {
  * `background` layers there's no x/y on the layer; we pin it at the origin.
  *
  * The shape inside the Group varies by `kind`:
- *  - background       → full-bar Image (or grey placeholder if asset missing)
+ *  - background       → glyph Image at intrinsic asset size, anchored at (0,0)
+ *                       (per plan: backgrounds are "a big glyph" until SP4)
  *  - glyph            → Image at intrinsic asset size (scaled to 2×)
  *  - text             → Text with the resolved i18n string + optional color
  *  - external_glyph   → dashed placeholder Rect (rendered later by plugin)
@@ -106,17 +107,15 @@ function LayerNode({ layer, asset, text, selected, onSelect, onDragEnd }: LayerN
   // Per-kind body. Background is non-draggable (no x/y).
   let body: React.ReactNode = null;
   if (layer.kind === "background") {
+    // Background is "a big glyph" — rendered at the asset's intrinsic
+    // dimensions, anchored at (0,0). Matches the plugin's TitleCompiler
+    // which emits `<font:interfaze:default>{ch}</font>` with no offset.
+    const w = (asset?.width ?? TITLE_BAR_W) * TEX_SCALE;
+    const h = (asset?.height ?? TITLE_BAR_H) * TEX_SCALE;
     body = image ? (
-      <KonvaImage
-        image={image}
-        x={0}
-        y={0}
-        width={TITLE_BAR_W * TEX_SCALE}
-        height={TITLE_BAR_H * TEX_SCALE}
-        listening={false}
-      />
+      <KonvaImage image={image} x={0} y={0} width={w} height={h} listening={false} />
     ) : (
-      <Rect width={TITLE_BAR_W * TEX_SCALE} height={TITLE_BAR_H * TEX_SCALE} fill="#5a5a5a" listening={false} />
+      <Rect width={w} height={h} fill="rgba(120,120,120,0.4)" listening={false} />
     );
   } else if (layer.kind === "glyph") {
     const w = (asset?.width ?? 8) * TEX_SCALE;
@@ -182,7 +181,7 @@ function LayerNode({ layer, asset, text, selected, onSelect, onDragEnd }: LayerN
           y={-1}
           width={
             layer.kind === "background"
-              ? TITLE_BAR_W * TEX_SCALE + 2
+              ? (asset?.width ?? TITLE_BAR_W) * TEX_SCALE + 2
               : layer.kind === "glyph"
                 ? (asset?.width ?? 8) * TEX_SCALE + 2
                 : layer.kind === "external_glyph"
@@ -191,7 +190,7 @@ function LayerNode({ layer, asset, text, selected, onSelect, onDragEnd }: LayerN
           }
           height={
             layer.kind === "background"
-              ? TITLE_BAR_H * TEX_SCALE + 2
+              ? (asset?.height ?? TITLE_BAR_H) * TEX_SCALE + 2
               : layer.kind === "glyph"
                 ? (asset?.height ?? 8) * TEX_SCALE + 2
                 : layer.kind === "external_glyph"

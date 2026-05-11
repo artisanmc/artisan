@@ -73,7 +73,7 @@ export function TitleComposer({ packId, menu }: TitleComposerProps) {
       {picker && (
         <AssetPicker
           open
-          typeFilter={picker.kind === "background" ? "texture" : "glyph"}
+          typeFilter="glyph"
           onClose={() => setPicker(null)}
           onPick={onPickAsset}
         />
