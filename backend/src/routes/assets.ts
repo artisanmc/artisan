@@ -1,10 +1,13 @@
 import { Hono } from "hono";
 import { and, eq, ilike } from "drizzle-orm";
 import { createHash } from "crypto";
+import { strToU8 } from "fflate";
 import { db } from "../db/index";
 import { assets } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
 import { writeAssetFile, deleteAssetFile } from "../lib/assetStorage";
+import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
+import { parseMcFontsZip, type ParsedMcFont } from "../lib/mcFontsParser";
 import { readPngDimensions } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
 import { rebuildResourcePack } from "../lib/resourcePack";
@@ -13,7 +16,8 @@ import { pushResourcePackUpdated } from "../ws/hub";
 export const assetsRouter = new Hono();
 
 const NAME_RE = /^[a-z0-9_-]+$/;
-const MAX_RAW_BYTES = 2 * 1024 * 1024;   // 2 MB
+const MAX_RAW_BYTES = 2 * 1024 * 1024;       // 2 MB (texture/glyph PNG)
+const MAX_FONT_BYTES = 5 * 1024 * 1024;      // 5 MB (font zip)
 
 assetsRouter.post("/:token/assets", async (c) => {
   const token = c.req.param("token");
@@ -26,8 +30,8 @@ assetsRouter.post("/:token/assets", async (c) => {
   const ascentRaw = form.ascent !== undefined ? String(form.ascent) : null;
   const file = form.file;
 
-  if (!["texture", "glyph"].includes(type)) {
-    return c.json({ error: "Invalid type (must be texture or glyph)" }, 400);
+  if (!["texture", "glyph", "font"].includes(type)) {
+    return c.json({ error: "Invalid type (must be texture, glyph, or font)" }, 400);
   }
   if (!NAME_RE.test(name)) {
     return c.json({ error: "Invalid name (must match [a-z0-9_-]+)" }, 400);
@@ -35,20 +39,37 @@ assetsRouter.post("/:token/assets", async (c) => {
   if (!(file instanceof File)) {
     return c.json({ error: "Missing file" }, 400);
   }
-  if (file.size > MAX_RAW_BYTES) {
-    return c.json({ error: "File too large (max 2 MB)" }, 400);
+  const maxBytes = type === "font" ? MAX_FONT_BYTES : MAX_RAW_BYTES;
+  if (file.size > maxBytes) {
+    const mb = type === "font" ? 5 : 2;
+    return c.json({ error: `File too large (max ${mb} MB)` }, 400);
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
 
-  let width: number;
-  let height: number;
-  try {
-    const dims = readPngDimensions(bytes);
-    width = dims.width;
-    height = dims.height;
-  } catch {
-    return c.json({ error: "Invalid PNG" }, 400);
+  // For texture/glyph, read PNG dims. For fonts, dimensions stay 0/0 (per-glyph dims
+  // live inside fontMeta.glyphMap[]).
+  let width = 0;
+  let height = 0;
+  let parsedFont: ParsedMcFont | null = null;
+
+  if (type === "font") {
+    try {
+      parsedFont = parseMcFontsZip(bytes);
+    } catch (err) {
+      return c.json({ error: `Invalid font zip: ${(err as Error).message}` }, 400);
+    }
+    if (parsedFont.glyphMap.length === 0) {
+      return c.json({ error: "Empty font (no usable glyphs)" }, 400);
+    }
+  } else {
+    try {
+      const dims = readPngDimensions(bytes);
+      width = dims.width;
+      height = dims.height;
+    } catch {
+      return c.json({ error: "Invalid PNG" }, 400);
+    }
   }
 
   const contentHash = createHash("sha1").update(bytes).digest("hex");
@@ -63,7 +84,9 @@ assetsRouter.post("/:token/assets", async (c) => {
   if (existing.length > 0) {
     const _packInfo = await rebuildResourcePack(session.serverKeyId);
     pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
-    return c.json({ asset: serialize(existing[0]) }, 200);
+    const body: Record<string, unknown> = { asset: serialize(existing[0]) };
+    if (parsedFont) body.warnings = parsedFont.warnings;
+    return c.json(body, 200);
   }
 
   // Name uniqueness within type — detect early for a clean error message
@@ -85,8 +108,30 @@ assetsRouter.post("/:token/assets", async (c) => {
   const id = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const now = new Date();
 
+  let fontMeta: { namespace: string; glyphMap: ParsedMcFont["glyphMap"] } | null = null;
+  if (type === "font" && parsedFont) {
+    fontMeta = {
+      namespace: `interfaze:${name}`,
+      glyphMap: parsedFont.glyphMap,
+    };
+  }
+
   try {
-    await writeAssetFile(session.serverKeyId, id, bytes);
+    if (type === "font" && parsedFont) {
+      // Re-serialize font.json with canonical pack-namespaced file paths so the
+      // resource pack zip emits valid references: interfaze:font/<name>/<basename>.
+      const providers = parsedFont.glyphMap.map((g) => ({
+        type: "bitmap",
+        file: `interfaze:font/${name}/${g.texture}`,
+        ascent: g.ascent,
+        height: g.height,
+        chars: [g.char],
+      }));
+      const fontJsonContent = strToU8(JSON.stringify({ providers }, null, 2));
+      await writeFontAssets(session.serverKeyId, id, fontJsonContent, parsedFont.glyphPngs);
+    } else {
+      await writeAssetFile(session.serverKeyId, id, bytes);
+    }
     await db.insert(assets).values({
       id,
       serverKeyId: session.serverKeyId,
@@ -96,7 +141,7 @@ assetsRouter.post("/:token/assets", async (c) => {
       height,
       ascent,
       codepoint,
-      fontMeta: null,
+      fontMeta,
       contentHash,
       createdAt: now,
       updatedAt: now,
@@ -114,7 +159,9 @@ assetsRouter.post("/:token/assets", async (c) => {
   const created = (await db.select().from(assets).where(eq(assets.id, id)))[0];
   const _packInfo = await rebuildResourcePack(session.serverKeyId);
   pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
-  return c.json({ asset: serialize(created) }, 201);
+  const body: Record<string, unknown> = { asset: serialize(created) };
+  if (parsedFont) body.warnings = parsedFont.warnings;
+  return c.json(body, 201);
 });
 
 assetsRouter.get("/:token/assets", async (c) => {
@@ -207,8 +254,13 @@ assetsRouter.delete("/:token/assets/:id", async (c) => {
     .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
 
+  const target = rows[0];
   await db.delete(assets).where(eq(assets.id, id));
-  await deleteAssetFile(session.serverKeyId, id);
+  if (target.type === "font") {
+    await deleteFontAssets(session.serverKeyId, id);
+  } else {
+    await deleteAssetFile(session.serverKeyId, id);
+  }
   const _packInfo = await rebuildResourcePack(session.serverKeyId);
   pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
   return c.body(null, 204);
