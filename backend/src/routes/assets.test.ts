@@ -203,3 +203,74 @@ describe("GET /api/editor-session/:token/assets/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("PATCH /api/editor-session/:token/assets/:id", () => {
+  test("renames an asset", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "old_name" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "new_name" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.name).toBe("new_name");
+  });
+
+  test("updates glyph ascent", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_ascent", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ascent: 9 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.ascent).toBe(9);
+  });
+
+  test("rejects rename to invalid pattern", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "ok" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "BAD NAME" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects rename to a colliding name", async () => {
+    const { token } = await seedSession();
+    await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "a_one" }),
+    });
+    // Need a different content for a second row — flip a byte in the PNG.
+    const png2 = PNG_1x1.slice();
+    png2[png2.length - 5] ^= 0x01;
+    const post2 = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "a_two", png: png2 }),
+    });
+    const second = (await post2.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${second.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "a_one" }),
+    });
+    expect(res.status).toBe(409);
+  });
+});
