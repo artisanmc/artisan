@@ -9,8 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
 import { summarizeFieldType } from "@/features/data/helpers";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { useTextEdit } from "@/lib/useText";
+import { TitleComposer } from "@/features/canvas/title/TitleComposer";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
@@ -34,10 +33,8 @@ const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = 
 
 export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
   const setMenuField = useAccountStore((s) => s.setMenuField);
-  const setMenuTitle = useAccountStore((s) => s.setMenuTitle);
   const setEditorTab = useUiStore((s) => s.setEditorTab);
   const [rowsError, setRowsError] = useState<string | null>(null);
-  const titleEdit = useTextEdit(packId, menu.title);
   const { t } = useTranslation();
 
   const elementCount = menu.layers.reduce((sum, layer) => sum + layer.elements.length, 0);
@@ -70,28 +67,7 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <MenuIdField packId={packId} menuId={menu.id} />
-      <div>
-        <PropertyField
-          label={t(
-            titleEdit.isFallback
-              ? "menuProperties.titleLabelFallback"
-              : "menuProperties.titleLabel",
-            { lang: titleEdit.lang },
-          )}
-          value={titleEdit.value}
-          onChange={(v) =>
-            setMenuTitle({ packId, menuId: menu.id, lang: titleEdit.lang, value: v })
-          }
-        />
-        {titleEdit.value.includes("<") && (
-          <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-            <span className="mr-2 text-[9px] uppercase text-zinc-600">
-              {t("menuProperties.preview")}
-            </span>
-            <MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />
-          </div>
-        )}
-      </div>
+      <TitleComposer packId={packId} menu={menu} />
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}

@@ -25,7 +25,7 @@ const stubMenu = (inputs: ContextInput[] = []): Menu =>
   ({
     id: "m1" as Menu["id"],
     packId: "p1" as Menu["packId"],
-    title: { key: "k" } as Menu["title"],
+    title: [] as Menu["title"],
     rows: 6,
     layers: [],
     contextInputs: inputs,

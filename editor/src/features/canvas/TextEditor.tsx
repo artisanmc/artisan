@@ -1,3 +1,4 @@
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { MenuId, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
@@ -33,7 +34,11 @@ export function TextEditor({ packId, layout, viewport }: TextEditorProps) {
   const [draft, setDraft] = useState("");
   // Re-derive the displayed title each time the editor opens on a new menu —
   // pulled through `getText` so we author/edit the active-language entry.
-  const initialTitle = menu && pack ? getText(pack, menu.title, activeLang) : "";
+  // menu.title is MenuTitleLayer[]; this inline editor still writes a single
+  // string and `setMenuTitle` routes that into the first text layer (see
+  // `accountStore.setMenuTitle`). For full layer editing use TitleComposer.
+  const titleLText = menu ? getFirstTitleText(menu) : undefined;
+  const initialTitle = menu && pack && titleLText ? getText(pack, titleLText, activeLang) : "";
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: open the editor when menu becomes available
   useEffect(() => {

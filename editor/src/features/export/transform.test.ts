@@ -27,7 +27,7 @@ describe("transform", () => {
   it("emits manifest.yaml with menu and command ids", () => {
     const pack = makePack({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: { key: "k" as I18nKey }, layers: [] },
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 }], layers: [] },
       ],
       commands: [
         { id: commandId("heal"), packId: packId("p_test"), name: "heal", arguments: [], steps: [] },
@@ -49,7 +49,7 @@ describe("transform", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
         },
       ],
@@ -75,7 +75,7 @@ describe("transform", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
             {
               id: layerId("l1"),
@@ -128,7 +128,7 @@ describe("transform", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
             {
               id: layerId("l1"),
@@ -202,7 +202,7 @@ describe("transform", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
         },
       ],

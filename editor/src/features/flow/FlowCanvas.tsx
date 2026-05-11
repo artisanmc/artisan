@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Appearance } from "@/domain/types";
 import type {
   Command,
@@ -150,7 +151,7 @@ function ElementEditor({
   const headerTextureUrl = useTextureUrl(headerMaterial);
   const getText = useGetText(packId);
   const headerTitle = getText(focusedState?.title);
-  const menuTitle = getText(menu.title);
+  const menuTitle = getText(getFirstTitleText(menu));
   const { t } = useTranslation();
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
