@@ -188,7 +188,15 @@ Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource p
 
 Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleMockup` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
-Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu, et `TitleMockup` étend le canvas en mode full-chest (titre + corps slots + inventaire) quand un layer `background` est présent.
+Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu. Le pack canvas (`MenuGroup` → `TitleRender` mode compact) et le focus mode du composer (`ComposerCanvas` → `TitleRender` mode edit) partagent le même rendu Konva — les menus s'affichent en forme finale (toutes layers + items dessus) à tous les endroits.
+
+### Title Composer UX v2
+
+- Édition d'un titre = mode focus dédié (`FocusComposer`), ouvert par double-clic sur la title bar d'un menu dans le pack canvas OU via le bouton "Edit title…" dans `MenuProperties`. La route `pack.$packId.tsx` route vers `FocusComposer` quand `useUiStore.titleComposerOpen` matche le pack courant.
+- Côté UI, **2 types de layers seulement** : Image (collapse background + glyph avec un flag `stretchToChest`) et Text. L'éditeur convertit en runtime `MenuTitleLayer` (background/glyph/text/external_glyph) au save via `editor/src/features/canvas/title/composer/uiLayerMapping.ts`.
+- Texte = MiniMessage tags inline (`<gold>`, `<bold>`, etc.) ; preview live dans le panel side (`LayerSidePanel`) et sur le canvas central (`ComposerCanvas`). Le champ `color` per-layer a disparu en v2 (coloring 100% par tags).
+- Composants principaux : `composer/TitleRender.tsx` (Konva subtree partagé entre pack canvas et focus mode), `composer/ComposerCanvas.tsx`, `composer/LayerSidePanel.tsx`, `composer/AddLayerBar.tsx`, `composer/FocusComposer.tsx`, `composer/TitleThumbnail.tsx` (preview HTML dans MenuProperties).
+- Files supprimés vs SP3/SP4 : `TitleComposer`, `TitleMockup`, `TitleLayerList`, `TitleLayerItem`, `TitleTextEditor` (et le legacy single-line `TextEditor.tsx` + `editingStore.ts`).
 
 ---
 
@@ -235,7 +243,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 |---|---|---|
 | Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 224 pass (1 pre-existing failure: `link_codes schema`) |
 | Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 241 |
-| Editor unit | Vitest, 519 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer (mockup/list/editor/composer), McFontText, fontGlyphUrl, etc. | 519 |
+| Editor unit | Vitest, 531 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v2 (TitleRender / ComposerCanvas / LayerSidePanel / AddLayerBar / FocusComposer / TitleThumbnail / uiLayerMapping / snap), McFontText, fontGlyphUrl, etc. | 531 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
