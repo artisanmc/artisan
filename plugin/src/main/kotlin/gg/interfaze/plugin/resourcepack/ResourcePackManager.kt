@@ -19,6 +19,10 @@ class ResourcePackManager(
     var currentPackInfo: ResourcePackInfo? = null
         private set
 
+    fun applyFromBackend(url: String, hash: String) {
+        onUpdate(ResourcePackInfo.from(url, hash, config.prompt))
+    }
+
     fun onUpdate(info: ResourcePackInfo?) {
         currentPackInfo = info
         if (info == null) return
