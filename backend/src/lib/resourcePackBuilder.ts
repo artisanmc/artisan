@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { strToU8, zipSync } from "fflate";
+import { buildAssetIndex } from "./assetIndexBuilder";
 import { buildDefaultFontJson, type AssetRow } from "./fontJsonBuilder";
 
 export type { AssetRow };
@@ -40,6 +41,9 @@ export function buildResourcePackZip(
 
   const fontJson = buildDefaultFontJson(assets);
   files["assets/interfaze/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
+
+  files["assets/interfaze/asset-index.json"] =
+    strToU8(JSON.stringify(buildAssetIndex(assets), null, 2));
 
   const glyphs = assets
     .filter((a) => a.type === "glyph" && a.codepoint !== null)
