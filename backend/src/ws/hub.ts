@@ -5,6 +5,7 @@ import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
+import { currentPackInfo } from "../lib/resourcePack";
 import type {
   BundleAvailableMessage,
   CustomItemsBundleMessage,
@@ -15,6 +16,7 @@ import type {
   HelloAckMessage,
   HelloMessage,
   LinkConfirmedMessage,
+  ResourcePackUpdatedMessage,
   SessionExpiredMessage,
   SessionTrustedMessage,
   SetupClaimMessage,
@@ -173,6 +175,8 @@ export async function handlePluginMessage(
       ).onConflictDoNothing();
     }
 
+    const rp = await currentPackInfo(keyId);
+
     const ack: HelloAckMessage = {
       type: "hello_ack",
       session_id: sessionId,
@@ -183,6 +187,7 @@ export async function handlePluginMessage(
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
       pack_hashes: packHashesMap,
+      resource_pack: rp,
     };
 
     const push: string[] = [];
@@ -399,6 +404,15 @@ export async function getMcVersion(serverKeyId: string): Promise<string | undefi
   return persisted;
 }
 
-export function pushResourcePackUpdated(_serverKeyId: string, _url: string, _hash: string): void {
-  // Implemented in Task 8
+export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: string): void {
+  const payload = JSON.stringify({
+    type: "resource_pack_updated",
+    url,
+    hash,
+  } satisfies ResourcePackUpdatedMessage);
+  for (const [connId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
 }
