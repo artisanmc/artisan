@@ -1,8 +1,9 @@
-import { getFirstTitleText, getTitleTextLayers } from "@/domain/menuTitle";
+import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type {
   Action,
   Appearance,
+  AssetId,
   Command,
   Condition,
   Dialog,
@@ -10,8 +11,10 @@ import type {
   DialogButton,
   DialogInput,
   Element,
+  I18nKey,
   Layer,
   Menu,
+  MenuTitleLayer,
   Pack,
   Step,
 } from "@/domain/types";
@@ -142,17 +145,143 @@ function serializeLayer(layer: Layer, pack: Pack): Record<string, unknown> {
   };
 }
 
+// ─── title layer serialization ───────────────────────────────────────────────
+
+function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
+  if (layer.kind === "background") {
+    return { kind: "background", asset_id: layer.assetId };
+  }
+  if (layer.kind === "glyph") {
+    return { kind: "glyph", asset_id: layer.assetId, x: layer.x, y: layer.y };
+  }
+  if (layer.kind === "text") {
+    const out: Record<string, unknown> = {
+      kind: "text",
+      value: { key: layer.value.key },
+      x: layer.x,
+      y: layer.y,
+    };
+    if (layer.color !== undefined) out.color = layer.color;
+    if (layer.fontAssetId !== undefined) out.font_asset_id = layer.fontAssetId;
+    return out;
+  }
+  if (layer.kind === "external_glyph") {
+    return {
+      kind: "external_glyph",
+      provider: layer.provider,
+      glyph_name: layer.glyphName,
+      x: layer.x,
+      y: layer.y,
+    };
+  }
+  // Exhaustive guard — TS narrows `layer` to `never` here; runtime fallback
+  // returns the layer untouched if a future kind isn't yet handled.
+  return layer;
+}
+
+// ─── legacy title reader ─────────────────────────────────────────────────────
+
+const LEGACY_TEXT_X = 8;
+const LEGACY_TEXT_Y = 5;
+
+/**
+ * Accepts the YAML node found at `menu.title` and normalises it to a
+ * `MenuTitleLayer[]`. Supports:
+ *
+ * - `null`/`undefined`              → `[]`
+ * - `string`                        → one text layer at (8,5) using the
+ *                                     string as a literal i18n key (the
+ *                                     legacy format before Task 11)
+ * - single `{ kind, ... }` map      → wrapped in a one-element array
+ * - `[{ kind, ... }, ...]`          → mapped element-by-element
+ *
+ * Unknown kinds are filtered out (caller-side import code can warn).
+ * Exported so a future YAML→domain import path can call it; the serializer
+ * itself doesn't invoke it.
+ */
+export function parseTitleNode(node: unknown): MenuTitleLayer[] {
+  if (node === null || node === undefined) return [];
+  if (typeof node === "string") {
+    return [
+      {
+        kind: "text",
+        value: { key: node as I18nKey },
+        x: LEGACY_TEXT_X,
+        y: LEGACY_TEXT_Y,
+      },
+    ];
+  }
+  if (Array.isArray(node)) {
+    const out: MenuTitleLayer[] = [];
+    for (const entry of node) {
+      const layer = parseTitleLayer(entry);
+      if (layer) out.push(layer);
+    }
+    return out;
+  }
+  if (typeof node === "object") {
+    const layer = parseTitleLayer(node);
+    return layer ? [layer] : [];
+  }
+  return [];
+}
+
+function parseTitleLayer(node: unknown): MenuTitleLayer | null {
+  if (!node || typeof node !== "object") return null;
+  const m = node as Record<string, unknown>;
+  switch (m.kind) {
+    case "background":
+      if (typeof m.asset_id !== "string") return null;
+      return { kind: "background", assetId: m.asset_id as AssetId };
+    case "glyph":
+      if (typeof m.asset_id !== "string") return null;
+      return {
+        kind: "glyph",
+        assetId: m.asset_id as AssetId,
+        x: typeof m.x === "number" ? m.x : 0,
+        y: typeof m.y === "number" ? m.y : 0,
+      };
+    case "text": {
+      const value = m.value;
+      let key: I18nKey | undefined;
+      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+        key = (value as { key: string }).key as I18nKey;
+      }
+      if (!key) return null;
+      const out: MenuTitleLayer = {
+        kind: "text",
+        value: { key },
+        x: typeof m.x === "number" ? m.x : LEGACY_TEXT_X,
+        y: typeof m.y === "number" ? m.y : LEGACY_TEXT_Y,
+      };
+      if (typeof m.color === "string") out.color = m.color;
+      if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      return out;
+    }
+    case "external_glyph": {
+      const provider = m.provider;
+      if (provider !== "oraxen" && provider !== "nexo" && provider !== "itemsadder") return null;
+      if (typeof m.glyph_name !== "string") return null;
+      return {
+        kind: "external_glyph",
+        provider,
+        glyphName: m.glyph_name,
+        x: typeof m.x === "number" ? m.x : 0,
+        y: typeof m.y === "number" ? m.y : 0,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
 // ─── menu serialization ──────────────────────────────────────────────────────
 
 function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
-  // Task 11 transitional shape: emit the first text layer's i18n ref so
-  // the existing menu/v1 schema still loads. Full MenuTitleLayer[]
-  // serialization (background/glyph/text) lands in Task 13.
-  const firstText = getFirstTitleText(menu);
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: firstText ? i18nRef(firstText.key) : "",
+    title: menu.title.map(serializeTitleLayer),
     size: menu.rows * 9,
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
