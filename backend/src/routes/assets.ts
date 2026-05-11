@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ilike } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "../db/index";
 import { assets } from "../db/schema";
@@ -105,6 +105,38 @@ assetsRouter.post("/:token/assets", async (c) => {
 
   const created = (await db.select().from(assets).where(eq(assets.id, id)))[0];
   return c.json({ asset: serialize(created) }, 201);
+});
+
+assetsRouter.get("/:token/assets", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const typeParam = c.req.query("type");
+  const searchParam = c.req.query("search");
+
+  const conditions = [eq(assets.serverKeyId, session.serverKeyId)];
+  if (typeParam && ["texture", "glyph", "font"].includes(typeParam)) {
+    conditions.push(eq(assets.type, typeParam));
+  }
+  if (searchParam) {
+    conditions.push(ilike(assets.name, `%${searchParam}%`));
+  }
+
+  const rows = await db.select().from(assets).where(and(...conditions));
+  return c.json({ assets: rows.map(serialize) });
+});
+
+assetsRouter.get("/:token/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const id = c.req.param("id");
+  const rows = await db.select().from(assets)
+    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ asset: serialize(rows[0]) });
 });
 
 function serialize(row: typeof assets.$inferSelect) {
