@@ -1,7 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, rmSync, existsSync, readFileSync } from "fs";
+import { mkdir, writeFile, rm } from "fs/promises";
 import { join } from "path";
-import { zipSync, gzipSync } from "fflate";
+import { tmpdir } from "os";
+import { zipSync, gzipSync, strToU8 } from "fflate";
 import {
   processBundle,
   readCustomItems,
@@ -88,5 +90,42 @@ describe("processBundle", () => {
     expect(existsSync(join(TMP, "models/nexo/coin.json"))).toBe(true);
     const written = readFileSync(join(TMP, "models/nexo/coin.json"), "utf-8");
     expect(written).toBe(modelJson);
+  });
+});
+
+function makeBundleZip(items: unknown[]): string {
+  const itemsJson = strToU8(JSON.stringify(items));
+  const zipBytes = zipSync({ "items.json": itemsJson });
+  const gz = gzipSync(zipBytes);
+  return Buffer.from(gz).toString("base64");
+}
+
+describe("processBundle — names-only schema", () => {
+  let cacheDir: string;
+  beforeEach(async () => {
+    cacheDir = join(tmpdir(), `ifz-test-${Date.now()}-${Math.random()}`);
+    await mkdir(cacheDir, { recursive: true });
+  });
+  afterEach(async () => { await rm(cacheDir, { recursive: true, force: true }); });
+
+  it("writes items.json and hash.txt", async () => {
+    const data = makeBundleZip([{ id: "nexo:coin", label: "Coin", category: "nexo" }]);
+    await processBundle(cacheDir, "abc123", data);
+    expect(existsSync(join(cacheDir, "items.json"))).toBe(true);
+    expect(existsSync(join(cacheDir, "hash.txt"))).toBe(true);
+  });
+
+  it("removes stale textures/ and models/ when new bundle has none", async () => {
+    // Seed stale data from a previous (old-schema) bundle.
+    await mkdir(join(cacheDir, "textures", "nexo"), { recursive: true });
+    await mkdir(join(cacheDir, "models", "nexo"), { recursive: true });
+    await writeFile(join(cacheDir, "textures", "nexo", "coin.png"), Buffer.from([0]));
+    await writeFile(join(cacheDir, "models", "nexo", "coin.json"), "{}");
+
+    const data = makeBundleZip([{ id: "nexo:coin", label: "Coin", category: "nexo" }]);
+    await processBundle(cacheDir, "abc123", data);
+
+    expect(existsSync(join(cacheDir, "textures"))).toBe(false);
+    expect(existsSync(join(cacheDir, "models"))).toBe(false);
   });
 });
