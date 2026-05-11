@@ -136,3 +136,70 @@ describe("POST /api/editor-session/:token/assets", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("GET /api/editor-session/:token/assets", () => {
+  test("lists assets scoped to server_key", async () => {
+    const { token } = await seedSession();
+    await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "list_one" }),
+    });
+    const res = await app.request(`/api/editor-session/${token}/assets`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.assets)).toBe(true);
+    expect(body.assets.find((a: any) => a.name === "list_one")).toBeTruthy();
+  });
+
+  test("filters by type", async () => {
+    const { token } = await seedSession();
+    await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "texture", name: "tex_a" }),
+    });
+    const res = await app.request(`/api/editor-session/${token}/assets?type=texture`);
+    const body = await res.json();
+    expect(body.assets.every((a: any) => a.type === "texture")).toBe(true);
+  });
+
+  test("filters by search", async () => {
+    const { token } = await seedSession();
+    await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "needle_one" }),
+    });
+    const res = await app.request(`/api/editor-session/${token}/assets?search=needle`);
+    const body = await res.json();
+    expect(body.assets.length).toBeGreaterThan(0);
+    expect(body.assets.every((a: any) => a.name.includes("needle"))).toBe(true);
+  });
+});
+
+describe("GET /api/editor-session/:token/assets/:id", () => {
+  test("returns asset by id", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "detail_one" }),
+    });
+    const created = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${created.id}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.id).toBe(created.id);
+  });
+
+  test("404 for unknown id", async () => {
+    const { token } = await seedSession();
+    const res = await app.request(`/api/editor-session/${token}/assets/asset_does_not_exist`);
+    expect(res.status).toBe(404);
+  });
+
+  test("404 for asset belonging to another server_key", async () => {
+    const sessA = await seedSession();
+    const sessB = await seedSession();
+    const post = await app.request(`/api/editor-session/${sessA.token}/assets`, {
+      method: "POST", body: uploadForm({ name: "x_a" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${sessB.token}/assets/${a.id}`);
+    expect(res.status).toBe(404);
+  });
+});
