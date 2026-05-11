@@ -1,11 +1,34 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Asset } from "@/domain/asset";
 import type { AssetId, I18nKey, Menu, MenuId, MenuTitleLayer, Pack, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H, TEX_SCALE } from "../menuLayout";
 import { snapDragPosition, TitleMockup } from "./TitleMockup";
 import { useTitleSelectionStore } from "./titleSelectionStore";
+
+// Mock McFontText so the bitmap-font render path is observable without
+// having to seed glyph PNGs / mock useImage for every char. Each render
+// exposes its props as data-* attributes for assertion.
+vi.mock("./McFontText", () => ({
+  McFontText: (props: {
+    text: string;
+    font: { id: string };
+    x: number;
+    y: number;
+    scale: number;
+  }) => (
+    <div
+      data-testid="mc-font-text"
+      data-text={props.text}
+      data-font-id={props.font.id}
+      data-x={props.x}
+      data-y={props.y}
+      data-scale={props.scale}
+    />
+  ),
+}));
 
 // Mock react-konva to render plain divs so jsdom-based tests can inspect
 // the structure without needing a canvas. Each shape exposes its meaningful
@@ -77,7 +100,28 @@ const PACK_ID = "p1" as PackId;
 const MENU_ID = "m1" as MenuId;
 const ASSET_BG = "asset_bg" as AssetId;
 const ASSET_GLYPH = "asset_glyph" as AssetId;
+const ASSET_FONT = "asset_font" as AssetId;
 const I18N_KEY = "lt_title" as I18nKey;
+
+const FONT_ASSET: Asset = {
+  id: ASSET_FONT,
+  serverKeyId: "sk",
+  type: "font",
+  name: "default",
+  width: 0,
+  height: 0,
+  ascent: null,
+  codepoint: null,
+  fontMeta: {
+    namespace: "interfaze",
+    glyphMap: [
+      { char: "H", texture: "interfaze:font/H.png", ascent: 7, height: 8, width: 6 },
+    ],
+  },
+  contentHash: "fh",
+  createdAt: "",
+  updatedAt: "",
+};
 
 function makePack(layers: MenuTitleLayer[]): Pack {
   return {
@@ -252,5 +296,49 @@ describe("TitleMockup render", () => {
     render(<TitleMockup packId={PACK_ID} menu={menu} />);
     const groups = screen.getAllByTestId("group");
     expect(groups[0]?.getAttribute("data-draggable")).toBe("true");
+  });
+
+  it("text layer with fontAssetId resolving to a font asset renders via McFontText", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 4, y: 5, fontAssetId: ASSET_FONT },
+    ];
+    const menu = seedPack(layers);
+    useAssetStore.getState().setAssets([FONT_ASSET]);
+    render(<TitleMockup packId={PACK_ID} menu={menu} />);
+    const fontText = screen.getByTestId("mc-font-text");
+    expect(fontText.getAttribute("data-text")).toBe("Hello");
+    expect(fontText.getAttribute("data-font-id")).toBe(ASSET_FONT);
+    // Baseline-relative y: 7 (MC font ascent) * TEX_SCALE.
+    expect(fontText.getAttribute("data-y")).toBe(String(7 * TEX_SCALE));
+    expect(fontText.getAttribute("data-x")).toBe("0");
+    expect(fontText.getAttribute("data-scale")).toBe(String(TEX_SCALE));
+    // The plain Konva text fallback should NOT render for the layer.
+    const konvaTexts = screen.queryAllByTestId("konva-text");
+    expect(konvaTexts.some((t) => t.getAttribute("data-text") === "Hello")).toBe(false);
+  });
+
+  it("text layer with fontAssetId BUT no matching asset in store falls back to Konva Text", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0, fontAssetId: ASSET_FONT },
+    ];
+    const menu = seedPack(layers);
+    // Deliberately do not seed FONT_ASSET into the store.
+    render(<TitleMockup packId={PACK_ID} menu={menu} />);
+    expect(screen.queryByTestId("mc-font-text")).toBeNull();
+    const konvaTexts = screen.getAllByTestId("konva-text");
+    expect(konvaTexts.some((t) => t.getAttribute("data-text") === "Hello")).toBe(true);
+  });
+
+  it("text layer without fontAssetId renders plain Konva Text (no McFontText)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    const menu = seedPack(layers);
+    // Even with a font in the store, an unbound text layer must NOT use it.
+    useAssetStore.getState().setAssets([FONT_ASSET]);
+    render(<TitleMockup packId={PACK_ID} menu={menu} />);
+    expect(screen.queryByTestId("mc-font-text")).toBeNull();
+    const konvaTexts = screen.getAllByTestId("konva-text");
+    expect(konvaTexts.some((t) => t.getAttribute("data-text") === "Hello")).toBe(true);
   });
 });
