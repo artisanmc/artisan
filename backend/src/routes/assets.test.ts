@@ -274,3 +274,25 @@ describe("PATCH /api/editor-session/:token/assets/:id", () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe("DELETE /api/editor-session/:token/assets/:id", () => {
+  test("deletes an asset", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ name: "to_delete" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, { method: "DELETE" });
+    expect(res.status).toBe(204);
+
+    const check = await app.request(`/api/editor-session/${token}/assets/${a.id}`);
+    expect(check.status).toBe(404);
+  });
+
+  test("404 for unknown id", async () => {
+    const { token } = await seedSession();
+    const res = await app.request(`/api/editor-session/${token}/assets/asset_xxx`, { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+});

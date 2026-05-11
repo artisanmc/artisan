@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { db } from "../db/index";
 import { assets } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
-import { writeAssetFile } from "../lib/assetStorage";
+import { writeAssetFile, deleteAssetFile } from "../lib/assetStorage";
 import { readPngDimensions } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
 
@@ -183,6 +183,21 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   }
   const updated = (await db.select().from(assets).where(eq(assets.id, id)))[0];
   return c.json({ asset: serialize(updated) });
+});
+
+assetsRouter.delete("/:token/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const id = c.req.param("id");
+  const rows = await db.select().from(assets)
+    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
+
+  await db.delete(assets).where(eq(assets.id, id));
+  await deleteAssetFile(session.serverKeyId, id);
+  return c.body(null, 204);
 });
 
 function serialize(row: typeof assets.$inferSelect) {
