@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
 import { customItemsCacheDir } from "../lib/customItems";
+import { assetPath } from "../lib/assetStorage";
 
 const router = new Hono();
 
@@ -19,6 +20,19 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   if (!filePath.startsWith(baseDir + sep)) return c.newResponse(null, 404);
   if (!existsSync(filePath)) return c.newResponse(null, 404);
 
+  return new Response(Bun.file(filePath), {
+    headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
+  });
+});
+
+router.get("/asset/:serverKeyId/:assetId", async (c) => {
+  const serverKeyId = c.req.param("serverKeyId");
+  const assetId = c.req.param("assetId");
+  if (!/^[a-zA-Z0-9_-]+$/.test(serverKeyId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
+    return c.newResponse(null, 400);
+  }
+  const filePath = assetPath(serverKeyId, assetId);
+  if (!existsSync(filePath)) return c.newResponse(null, 404);
   return new Response(Bun.file(filePath), {
     headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
   });
