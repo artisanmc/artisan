@@ -7,7 +7,7 @@ export interface LibraryItem {
   id: string;
   label: string;
   category: string;
-  texture: string;
+  texture?: string;
   model?: string;
   tints?: Record<number, string>;
 }
