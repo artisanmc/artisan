@@ -3,7 +3,19 @@ export type AssetId = string;
 
 export interface FontMeta {
   namespace: string;
-  glyphMap: Array<{ char: string; texture: string; ascent: number; height: number }>;
+  glyphMap: Array<{
+    char: string;
+    texture: string;
+    ascent: number;
+    height: number;
+    /**
+     * Pixel width of the glyph PNG. Written by the backend's mcFontsParser
+     * (read from the PNG header) and consumed by the canvas renderer to
+     * advance the cursor between glyphs. Required: present on every glyph
+     * the backend emits since SP4 Task 3.
+     */
+    width: number;
+  }>;
 }
 
 export interface Asset {

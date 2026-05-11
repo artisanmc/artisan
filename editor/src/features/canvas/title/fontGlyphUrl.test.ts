@@ -17,8 +17,8 @@ function makeFontAsset(overrides: Partial<Asset> = {}): Asset {
     fontMeta: {
       namespace: "fancy",
       glyphMap: [
-        { char: "a", texture: "glyphs/a.png", ascent: 7, height: 8 },
-        { char: "b", texture: "glyphs/b.png", ascent: 7, height: 8 },
+        { char: "a", texture: "glyphs/a.png", ascent: 7, height: 8, width: 6 },
+        { char: "b", texture: "glyphs/b.png", ascent: 7, height: 8, width: 6 },
       ],
     },
     contentHash: "abc123",
@@ -69,7 +69,7 @@ describe("fontGlyphUrl", () => {
       fontMeta: {
         namespace: "fancy",
         glyphMap: [
-          { char: "x", texture: "glyphs/sub-dir/x_1.png", ascent: 7, height: 8 },
+          { char: "x", texture: "glyphs/sub-dir/x_1.png", ascent: 7, height: 8, width: 6 },
         ],
       },
     });
@@ -83,8 +83,8 @@ describe("fontGlyphUrl", () => {
       fontMeta: {
         namespace: "fancy",
         glyphMap: [
-          { char: "e", texture: "../escape.png", ascent: 7, height: 8 },
-          { char: "d", texture: "$foo.png", ascent: 7, height: 8 },
+          { char: "e", texture: "../escape.png", ascent: 7, height: 8, width: 6 },
+          { char: "d", texture: "$foo.png", ascent: 7, height: 8, width: 6 },
         ],
       },
     });
