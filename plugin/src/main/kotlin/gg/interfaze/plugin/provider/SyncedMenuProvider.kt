@@ -6,7 +6,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import gg.interfaze.plugin.customitems.CustomItemsManager
 import gg.interfaze.plugin.engine.ActionExecutor
-import gg.interfaze.plugin.resourcepack.ResourcePackInfo
 import gg.interfaze.plugin.resourcepack.ResourcePackManager
 import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.engine.ConditionEvaluator
@@ -72,6 +71,13 @@ class SyncedMenuProvider(
     @Volatile private var lastTrustCode: String? = null
     @Volatile private var apiUrl: String? = null
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
+    @Volatile private var resourcePackManagerRef: ResourcePackManager? = null
+
+    fun setResourcePackManager(mgr: ResourcePackManager) {
+        resourcePackManagerRef = mgr
+    }
+
+    private fun rpm(): ResourcePackManager? = resourcePackManager ?: resourcePackManagerRef
 
     override fun load() {
         reloadFromDisk()
@@ -190,16 +196,13 @@ class SyncedMenuProvider(
 
                 val rpNode = node["resource_pack"]
                 if (rpNode == null || rpNode.isNull) {
-                    resourcePackManager?.onUpdate(null)
+                    rpm()?.onUpdate(null)
                 } else {
-                    val rpUrl = rpNode["url"]?.asText()
-                    val rpHash = rpNode["hash"]?.asText()
-                    val promptMini = "<gold>Pack Interfaze</gold>"
-                    if (rpUrl != null && rpHash != null) {
+                    val url = rpNode["url"]?.asText()
+                    val hash = rpNode["hash"]?.asText()
+                    if (url != null && hash != null) {
                         try {
-                            resourcePackManager?.onUpdate(
-                                ResourcePackInfo.from(rpUrl, rpHash, promptMini)
-                            )
+                            rpm()?.applyFromBackend(url, hash)
                         } catch (t: Throwable) {
                             logger?.warning("Invalid resource_pack info from hello_ack: ${t.message}")
                         }
@@ -316,13 +319,10 @@ class SyncedMenuProvider(
             }
 
             "resource_pack_updated" -> {
-                val rpUrl = node["url"]?.asText() ?: return
-                val rpHash = node["hash"]?.asText() ?: return
-                val promptMini = "<gold>Pack Interfaze</gold>"
+                val url = node["url"]?.asText() ?: return
+                val hash = node["hash"]?.asText() ?: return
                 try {
-                    resourcePackManager?.onUpdate(
-                        ResourcePackInfo.from(rpUrl, rpHash, promptMini)
-                    )
+                    rpm()?.applyFromBackend(url, hash)
                 } catch (t: Throwable) {
                     logger?.warning("Invalid resource_pack_updated payload: ${t.message}")
                 }
