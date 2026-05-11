@@ -36,7 +36,7 @@ describe("validate", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
         },
       ],
@@ -54,7 +54,7 @@ describe("validate", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
         },
       ],
@@ -84,7 +84,7 @@ describe("validate", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
         },
       ],
@@ -101,7 +101,7 @@ describe("validate", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
             {
               id: layerId("l1"),
@@ -175,7 +175,7 @@ describe("validate", () => {
           id: menuId("shop"),
           packId: packId("p_test"),
           rows: 3,
-          title: { key: "menus.shop.title" as I18nKey },
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
             {
               id: layerId("l1"),

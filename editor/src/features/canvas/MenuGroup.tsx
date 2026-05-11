@@ -1,3 +1,4 @@
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
@@ -707,7 +708,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           {pagination.totalPages}</gold>` or interpolate any sample-context
           field directly into the title. */}
       <MiniMessageKonvaText
-        source={pack ? renderPreview(getText(pack, menu.title, activeLang), enhancedCtx, pack, activeLang) : ""}
+        source={(() => {
+          if (!pack) return "";
+          const lt = getFirstTitleText(menu);
+          if (!lt) return "";
+          return renderPreview(getText(pack, lt, activeLang), enhancedCtx, pack, activeLang);
+        })()}
         x={TEX_FIRST_SLOT_X + 1}
         y={5 * TEX_SCALE}
         fontSize={7 * TEX_SCALE}

@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Action, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
@@ -173,7 +174,7 @@ function OpenMenuEditor({
           )}
           {menus.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.id} · {getText(m.title)}
+              {m.id} · {getText(getFirstTitleText(m))}
             </option>
           ))}
         </select>
@@ -469,7 +470,7 @@ function PaginateEditor({
           if (el.iterates) {
             out.push({
               id: el.id,
-              menuTitle: getText(m.title) || m.id,
+              menuTitle: getText(getFirstTitleText(m)) || m.id,
               alias: el.iterates.alias,
               source: el.iterates.source,
             });
