@@ -70,7 +70,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
       {...listeners}
       {...attributes}
       className={cx(
-        "group relative flex h-16 w-16 shrink-0 select-none touch-none items-center justify-center",
+        "group relative flex h-8 w-8 shrink-0 select-none touch-none items-center justify-center",
         "rounded border bg-[#8b8b8b] active:cursor-grabbing",
         armed
           ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500"
