@@ -151,12 +151,13 @@ describe("snapDragPosition", () => {
 });
 
 describe("TitleMockup render", () => {
-  it("renders the stage with vanilla chest title-bar dimensions (352 × 32)", () => {
+  it("renders the stage with vanilla chest title-bar dimensions (352 × 34)", () => {
     const menu = seedPack([]);
     render(<TitleMockup packId={PACK_ID} menu={menu} />);
     const stage = screen.getByTestId("stage");
+    // 176 × 17 (vanilla MC title bar) × TEX_SCALE (2) = 352 × 34.
     expect(stage.getAttribute("data-width")).toBe("352");
-    expect(stage.getAttribute("data-height")).toBe("32");
+    expect(stage.getAttribute("data-height")).toBe("34");
   });
 
   it("renders one node per layer", () => {
