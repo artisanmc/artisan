@@ -156,6 +156,34 @@ plugins/Interfaze/packs/
 
 `.interfaze-sync.yaml` est exclu du hash (préfixe `.interfaze` filtré dans `BundleHasher`).
 
+### Format menu YAML — champ `title`
+
+Depuis la sub-project "title composer", `title` est un tableau de couches typées (`MenuTitleLayer[]`). Format legacy (chaîne brute ou `{i18n:key}`) toléré au parsing plugin pour rétro-compat.
+
+```yaml
+title:
+  - kind: background
+    asset_id: asset_a1b2c3
+  - kind: glyph
+    asset_id: asset_d4e5f6
+    x: 32
+    y: 4
+  - kind: text
+    value:
+      key: i18nKey_xyz
+    x: 8
+    y: 5
+    color: "#FFAA00"     # optionnel
+    font_asset_id: ...   # optionnel (Sub-project 4)
+  - kind: external_glyph
+    provider: oraxen     # nexo | oraxen | itemsadder
+    glyph_name: my_glyph
+    x: 50
+    y: 5
+```
+
+Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource pack pour mapper `asset_id → codepoint + ascent + height`. Le `TitleCompiler` traduit chaque couche en MiniMessage (`<font:interfaze:default>`, `<offset:Xpx>`, `<color>`) et concatène en un seul `Component` titre.
+
 ---
 
 ## Custom Items — endpoints et cache
@@ -197,9 +225,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 175 pass (1 pre-existing failure: `link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, etc. (29 fichiers) | 206 |
-| Editor unit | Vitest, 422 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetDetailPanel, AssetsTab, etc. | 422 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 185 pass (1 pre-existing failure: `link_codes schema`) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 234 |
+| Editor unit | Vitest, 494 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetDetailPanel, AssetsTab, title composer (mockup/list/editor/composer), etc. | 494 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
