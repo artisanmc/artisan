@@ -10,7 +10,17 @@ import { useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from "react-konva";
 import useImage from "use-image";
 import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H, TEX_SCALE } from "../menuLayout";
+import { McFontText } from "./McFontText";
 import { useTitleSelectionStore } from "./titleSelectionStore";
+
+/**
+ * Vanilla MC font ascent in pixels. The plugin renders title text via the
+ * bitmap font pipeline where `y` is the baseline; our Konva `<Text>` uses
+ * `y = 0` as the top of the layer's coord. To match in-game placement we
+ * offset McFontText's `y` by `7 * TEX_SCALE` (ascent → baseline distance)
+ * so authors see the same visual position whether or not a font is bound.
+ */
+const MC_FONT_ASCENT_PX = 7;
 
 /**
  * Vanilla chest GUI title bar dimensions, in MC pixels.
@@ -63,6 +73,12 @@ export function snapDragPosition(
 interface LayerNodeProps {
   layer: MenuTitleLayer;
   asset?: Asset;
+  /**
+   * Font asset resolved by the parent from `layer.fontAssetId` (text layers
+   * only). When present, the text body renders via {@link McFontText} using
+   * the bitmap glyphs; otherwise we fall back to a plain Konva `<Text>`.
+   */
+  fontAsset?: Asset;
   text: string;
   selected: boolean;
   onSelect: () => void;
@@ -91,6 +107,7 @@ interface LayerNodeProps {
 function LayerNode({
   layer,
   asset,
+  fontAsset,
   text,
   selected,
   onSelect,
@@ -141,16 +158,32 @@ function LayerNode({
       <Rect width={w} height={h} fill="rgba(120,120,120,0.4)" listening={false} />
     );
   } else if (layer.kind === "text") {
-    body = (
-      <Text
-        text={text}
-        x={0}
-        y={0}
-        fontSize={7 * TEX_SCALE}
-        fontFamily="ui-monospace, monospace"
-        fill={layer.color ?? "#404040"}
-      />
-    );
+    if (fontAsset) {
+      // Baseline-relative: McFontText's `y` is the baseline; the Group's y
+      // is the layer's top, so we shift the baseline down by the MC font
+      // ascent (7 px scaled) to match the plain Konva `<Text>` placement
+      // and what the plugin does in-game.
+      body = (
+        <McFontText
+          text={text}
+          font={fontAsset}
+          x={0}
+          y={MC_FONT_ASCENT_PX * TEX_SCALE}
+          scale={TEX_SCALE}
+        />
+      );
+    } else {
+      body = (
+        <Text
+          text={text}
+          x={0}
+          y={0}
+          fontSize={7 * TEX_SCALE}
+          fontFamily="ui-monospace, monospace"
+          fill={layer.color ?? "#404040"}
+        />
+      );
+    }
   } else {
     // external_glyph — runtime resolves these; in the editor we show a
     // dashed placeholder labelled with `provider:glyphName` so the user
@@ -191,6 +224,10 @@ function LayerNode({
       {selected ? (
         // Selection halo — sized to body for glyph/text/external; for bg
         // it spans the whole bar.
+        // Note: for text layers (with or without a bound font) we use an
+        // approximate width heuristic (`length * 4 * SCALE`). Measuring the
+        // real bitmap-glyph advance would require summing glyphMap entries;
+        // the heuristic is close enough for an MVP halo.
         <Rect
           x={-1}
           y={-1}
@@ -272,6 +309,10 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
             layer.kind === "background" || layer.kind === "glyph"
               ? assets.find((a) => a.id === layer.assetId)
               : undefined;
+          const fontAsset =
+            layer.kind === "text" && layer.fontAssetId
+              ? assets.find((a) => a.id === layer.fontAssetId)
+              : undefined;
           const text =
             layer.kind === "text" && pack ? getText(pack, layer.value, activeLang) : "";
           return (
@@ -280,6 +321,7 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
               key={idx}
               layer={layer}
               asset={asset}
+              fontAsset={fontAsset}
               text={text}
               selected={selected === idx}
               bgYOffset={bgYOffset}
