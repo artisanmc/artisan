@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildAssetIndex } from "./assetIndexBuilder";
 
-function row(over: Partial<{ id: string; type: string; name: string; codepoint: number | null; ascent: number | null; height: number }>) {
+function row(over: Partial<{ id: string; type: string; name: string; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
   return {
     id: over.id ?? "asset_g1",
     serverKeyId: "sk",
@@ -11,7 +11,7 @@ function row(over: Partial<{ id: string; type: string; name: string; codepoint: 
     height: over.height ?? 9,
     ascent: over.ascent !== undefined ? over.ascent : 8,
     codepoint: over.codepoint !== undefined ? over.codepoint : 0xE000,
-    fontMeta: null,
+    fontMeta: over.fontMeta !== undefined ? over.fontMeta : null,
     contentHash: "h",
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -77,5 +77,64 @@ describe("buildAssetIndex", () => {
       height: 16,
     });
     expect(index.assets["asset_f1"]).not.toHaveProperty("codepoint");
+  });
+
+  test("font asset emits namespace from fontMeta.namespace", () => {
+    const f = row({
+      id: "asset_f_ns",
+      type: "font",
+      name: "myfont",
+      codepoint: null,
+      ascent: null,
+      height: 16,
+      fontMeta: { namespace: "myfont_ns" },
+    });
+    const index = buildAssetIndex([f]);
+    expect(index.assets["asset_f_ns"].namespace).toBe("myfont_ns");
+    expect(index.assets["asset_f_ns"]).toEqual({
+      name: "myfont",
+      type: "font",
+      ascent: null,
+      height: 16,
+      namespace: "myfont_ns",
+    });
+  });
+
+  test("glyph asset does not have namespace property", () => {
+    const g = row({ id: "asset_g_ns", type: "glyph", name: "coin", codepoint: 0xE000, ascent: 8, height: 9 });
+    const index = buildAssetIndex([g]);
+    expect(index.assets["asset_g_ns"]).not.toHaveProperty("namespace");
+  });
+
+  test("texture asset does not have namespace property", () => {
+    const t = row({ id: "asset_t_ns", type: "texture", name: "bg", codepoint: null, ascent: null, height: 64 });
+    const index = buildAssetIndex([t]);
+    expect(index.assets["asset_t_ns"]).not.toHaveProperty("namespace");
+  });
+
+  test("font asset with null fontMeta does not crash and omits namespace", () => {
+    const f = row({ id: "asset_f_null", type: "font", name: "nofontmeta", codepoint: null, ascent: null, height: 16, fontMeta: null });
+    const index = buildAssetIndex([f]);
+    expect(index.assets["asset_f_null"]).not.toHaveProperty("namespace");
+    expect(index.assets["asset_f_null"]).toEqual({
+      name: "nofontmeta",
+      type: "font",
+      ascent: null,
+      height: 16,
+    });
+  });
+
+  test("font asset with fontMeta missing namespace omits namespace", () => {
+    const f = row({
+      id: "asset_f_partial",
+      type: "font",
+      name: "partial",
+      codepoint: null,
+      ascent: null,
+      height: 16,
+      fontMeta: { somethingElse: "x" },
+    });
+    const index = buildAssetIndex([f]);
+    expect(index.assets["asset_f_partial"]).not.toHaveProperty("namespace");
   });
 });
