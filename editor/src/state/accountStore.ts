@@ -1,5 +1,4 @@
 import {
-  newAssetId,
   commandId,
   newCommandId,
   newLayerId,
@@ -523,17 +522,6 @@ interface AccountState {
     elementIds: ElementId[];
     dCol: number;
     dRow: number;
-  }) => void;
-  /**
-   * Set (or clear) a menu's background image. When `dataUrl` is provided we
-   * also create a new Asset on the pack with the given metadata. When null, the
-   * background is detached (the asset stays in the pack so other menus can
-   * still reference it).
-   */
-  setMenuBackground: (input: {
-    packId: PackId;
-    menuId: MenuId;
-    asset: { name: string; dataUrl: string; width: number; height: number } | null;
   }) => void;
   /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
   pasteEntities: (input: {
@@ -2651,30 +2639,6 @@ export const useAccountStore = create<AccountState>()(
                 pack.updatedAt = new Date().toISOString();
                 return;
               }
-            }),
-          ),
-        setMenuBackground: ({ packId: pId, menuId: mId, asset }) =>
-          set(
-            produce((draft: AccountState) => {
-              const pack = draft.account.packs.find((p) => p.id === pId);
-              if (!pack) return;
-              const menu = pack.menus.find((m) => m.id === mId);
-              if (!menu) return;
-              if (asset === null) {
-                menu.background = undefined;
-              } else {
-                const id = newAssetId();
-                pack.assets.push({
-                  id,
-                  packId: pId,
-                  name: asset.name,
-                  url: asset.dataUrl,
-                  width: asset.width,
-                  height: asset.height,
-                });
-                menu.background = { assetId: id };
-              }
-              pack.updatedAt = new Date().toISOString();
             }),
           ),
         pasteEntities: ({ packId: pId, menus, commands, offset }) => {

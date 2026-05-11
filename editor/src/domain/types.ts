@@ -72,7 +72,6 @@ export interface Menu {
   title: LText;
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   permission?: string;
-  background?: { assetId: AssetId };
   layers: Layer[];
   /**
    * Named values the menu expects when opened — typically passed by the
