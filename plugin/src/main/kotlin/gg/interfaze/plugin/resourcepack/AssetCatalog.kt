@@ -12,6 +12,8 @@ import java.util.zip.ZipInputStream
  * @param codepoint Unicode codepoint (for glyph-type assets), or null for non-glyph types.
  * @param ascent    Pixel ascent used by the font glyph (defaults to 0 when absent).
  * @param height    Pixel height used by the font glyph (defaults to 0 when absent).
+ * @param namespace Font namespace (e.g. `interfaze:my_font`) for font-type assets;
+ *                  null for non-font types (glyph, texture, etc.).
  */
 data class AssetEntry(
     val name: String,
@@ -19,6 +21,7 @@ data class AssetEntry(
     val codepoint: Int?,
     val ascent: Int,
     val height: Int,
+    val namespace: String? = null,
 ) {
     /** Codepoint as a [Char] for direct use in MiniMessage / Component text. */
     val codepointChar: Char? get() = codepoint?.let { it.toChar() }
@@ -88,6 +91,7 @@ class AssetCatalog(
                 codepoint = if (node["codepoint"]?.isNumber == true) node["codepoint"].asInt() else null,
                 ascent = node["ascent"]?.asInt() ?: 0,
                 height = node["height"]?.asInt() ?: 0,
+                namespace = node["namespace"]?.asText(),
             )
         }
         return out

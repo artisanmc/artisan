@@ -131,6 +131,67 @@ class AssetCatalogTest {
     }
 
     @Test
+    fun `font entry exposes namespace`() {
+        MockWebServer().use { server ->
+            server.start()
+            val indexJson = """
+                {
+                  "version": 1,
+                  "assets": {
+                    "asset_x": {
+                      "name": "my_font",
+                      "type": "font",
+                      "namespace": "interfaze:my_font",
+                      "ascent": 0,
+                      "height": 0
+                    }
+                  }
+                }
+            """.trimIndent()
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            val entry = catalog.lookup("asset_x")
+            assertNotNull(entry)
+            assertEquals("font", entry.type)
+            assertEquals("interfaze:my_font", entry.namespace)
+        }
+    }
+
+    @Test
+    fun `glyph entry has null namespace`() {
+        MockWebServer().use { server ->
+            server.start()
+            val indexJson = """
+                {
+                  "version": 1,
+                  "assets": {
+                    "asset_g": {
+                      "name": "coin",
+                      "type": "glyph",
+                      "codepoint": 57344,
+                      "ascent": 8,
+                      "height": 9
+                    }
+                  }
+                }
+            """.trimIndent()
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            val entry = catalog.lookup("asset_g")
+            assertNotNull(entry)
+            assertNull(entry.namespace)
+        }
+    }
+
+    @Test
     fun `update preserves previous state on later failure`() {
         MockWebServer().use { server ->
             server.start()
