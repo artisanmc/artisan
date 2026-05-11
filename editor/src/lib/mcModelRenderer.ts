@@ -15,6 +15,7 @@ interface ModelElement {
   from: [number, number, number];
   to: [number, number, number];
   rotation?: { origin: [number, number, number]; axis: "x" | "y" | "z"; angle: number; rescale?: boolean };
+  shade?: boolean; // default: true — when false, face brightness is always 1.0
   faces: Partial<Record<"down" | "up" | "north" | "south" | "west" | "east", ModelFace>>;
 }
 
@@ -527,6 +528,7 @@ function buildFaceMesh(
   to: [number,number,number],
   textures: Map<string, THREE.Texture>,
   modelTextures: Record<string, string>,
+  shaded: boolean,
 ): THREE.Mesh | null {
   const texKey = faceData.texture.startsWith("#")
     ? faceData.texture.slice(1)
@@ -549,10 +551,10 @@ function buildFaceMesh(
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
 
-  const shade = FACE_SHADE[face] ?? 1.0;
+  const brightness = shaded ? (FACE_SHADE[face] ?? 1.0) : 1.0;
   const mat = new THREE.MeshBasicMaterial({
     map: tex,
-    color: new THREE.Color(shade, shade, shade),
+    color: new THREE.Color(brightness, brightness, brightness),
     transparent: true,
     alphaTest: 0.01,
     side: THREE.DoubleSide,
@@ -571,22 +573,39 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
 
   for (const elem of model.elements) {
     const elemGroup = new THREE.Group();
+    // gui_light:"front" or shade:false → no directional shading (all faces at full brightness).
+    // gui_light:"side" with shade:true (the default) → Minecraft's per-face FACE_SHADE values.
+    const shaded = elem.shade !== false && model.guiLight !== "front";
 
     if (elem.rotation) {
-      const { origin, axis, angle } = elem.rotation;
+      const { origin, axis, angle, rescale } = elem.rotation;
       const rad = THREE.MathUtils.degToRad(angle);
       const pivot = new THREE.Group();
       pivot.position.set(origin[0] - 8, origin[1] - 8, origin[2] - 8);
-      const inner = new THREE.Group();
-      inner.position.set(-(origin[0] - 8), -(origin[1] - 8), -(origin[2] - 8));
       if (axis === "x") pivot.rotation.x = rad;
       else if (axis === "y") pivot.rotation.y = rad;
       else if (axis === "z") pivot.rotation.z = rad;
-      pivot.add(inner);
+
+      // rescale: expand element perpendicular to rotation axis so it covers the original voxel.
+      // Factor = 1/cos(θ). Applied as a child of the rotated pivot so it acts in rotated space.
+      let container: THREE.Object3D = pivot;
+      if (rescale) {
+        const factor = 1 / Math.cos(Math.abs(rad));
+        const sg = new THREE.Group();
+        if (axis === "x") sg.scale.set(1, factor, factor);
+        else if (axis === "y") sg.scale.set(factor, 1, factor);
+        else sg.scale.set(factor, factor, 1);
+        pivot.add(sg);
+        container = sg;
+      }
+
+      const inner = new THREE.Group();
+      inner.position.set(-(origin[0] - 8), -(origin[1] - 8), -(origin[2] - 8));
+      container.add(inner);
       for (const face of FACES) {
         const faceData = elem.faces[face];
         if (!faceData) continue;
-        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures);
+        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures, shaded);
         if (mesh) inner.add(mesh);
       }
       elemGroup.add(pivot);
@@ -594,7 +613,7 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
       for (const face of FACES) {
         const faceData = elem.faces[face];
         if (!faceData) continue;
-        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures);
+        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures, shaded);
         if (mesh) elemGroup.add(mesh);
       }
     }
