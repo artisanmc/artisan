@@ -2,7 +2,7 @@ import type { Pack } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
-import { itemTextureUrl } from "./itemTextures";
+import { getTextureUrl } from "./textureStore";
 
 interface EdgeTooltipProps {
   pack: Pack;
@@ -85,7 +85,7 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
 }
 
 function ElementIcon({ material }: { material: string }) {
-  const url = itemTextureUrl(material);
+  const url = getTextureUrl(material);
   return (
     <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
       {url ? (

@@ -10,7 +10,7 @@ import { cx } from "@/lib/cx";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { itemTextureUrl, knownMaterials } from "./itemTextures";
+import { getTextureUrl, useTextureStore } from "./textureStore";
 
 interface MaterialPickerProps {
   /** Trigger element rendered by the consumer (a small icon button typically). */
@@ -26,8 +26,13 @@ interface MaterialPickerProps {
 export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const all = knownMaterials();
-  const filtered = all.filter((m) => m.toLowerCase().includes(search.toLowerCase()));
+  const libraryItems = useTextureStore((s) => s.libraryItems);
+  const customItems = useTextureStore((s) => s.libraryCustomData.items);
+  const allItems = [...libraryItems, ...customItems];
+  const filtered = allItems.filter((item) =>
+    item.id.toLowerCase().includes(search.toLowerCase()) ||
+    item.label.toLowerCase().includes(search.toLowerCase()),
+  );
   const { t } = useTranslation();
 
   const pick = (name: string) => {
@@ -54,8 +59,8 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
           />
         </div>
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
-          {filtered.map((name) => (
-            <Tile key={name} name={name} onClick={() => pick(name)} />
+          {filtered.map((item) => (
+            <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
           ))}
           {filtered.length === 0 && (
             <div className="col-span-6 py-4 text-center text-xs text-zinc-500 sm:col-span-8">
@@ -68,13 +73,13 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
   );
 }
 
-function Tile({ name, onClick }: { name: string; onClick: () => void }) {
-  const url = itemTextureUrl(name);
+function Tile({ name, label, onClick }: { name: string; label: string; onClick: () => void }) {
+  const url = getTextureUrl(name);
   return (
     <button
       type="button"
       onClick={onClick}
-      title={name}
+      title={label}
       className={cx(
         "group relative flex aspect-square cursor-pointer items-center justify-center",
         "rounded border border-zinc-800 bg-zinc-900 hover:border-emerald-500 hover:bg-emerald-500/5",
@@ -89,7 +94,7 @@ function Tile({ name, onClick }: { name: string; onClick: () => void }) {
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[8px] text-zinc-400">{name.slice(0, 4)}</span>
+        <span className="text-[8px] text-zinc-400">{label.slice(0, 4)}</span>
       )}
     </button>
   );
