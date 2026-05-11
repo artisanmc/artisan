@@ -166,6 +166,12 @@ plugins/Interfaze/packs/
 | `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG custom depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
 | `GET /api/models/:version/:path*` | Sert les JSON de modèles vanilla depuis `data/mc-assets/{version}/models/{path}.json`. |
 | `GET /api/models/custom/:serverKeyId/:path*` | Sert les JSON de modèles custom depuis `data/custom-items/{serverKeyId}/models/{path}.json`. |
+| `POST /api/editor-session/:token/assets` | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + serverKey, alloc codepoint pour glyph. |
+| `GET /api/editor-session/:token/assets` | Liste les assets du server_key. Query `type=&search=`. |
+| `GET /api/editor-session/:token/assets/:id` | Détail d'un asset. 404 si autre server_key. |
+| `PATCH /api/editor-session/:token/assets/:id` | Renommer ou changer ascent (glyph). Body JSON `{ name?, ascent? }`. |
+| `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
+| `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset depuis `data/assets/{server_key_id}/{asset_id}.png`. |
 
 Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
 
@@ -188,9 +194,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, etc. | ~104 pass (2 pre-existing failures: `link_codes schema`, `findSessionByTrustCode`) |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, etc. | 140 pass (1 pre-existing failure: `link_codes schema`) |
 | Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, etc. (26 fichiers) | ~190 |
-| Editor unit | Vitest, 400 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer | 400 |
+| Editor unit | Vitest, 422 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetDetailPanel, AssetsTab, etc. | 422 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
