@@ -1,5 +1,5 @@
 import { dialogId, elementId, menuId, packId } from "@/domain/ids";
-import type { I18nKey, Menu } from "@/domain/types";
+import type { I18nKey, Menu, MenuTitleLayer } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
@@ -899,54 +899,50 @@ describe("accountStore", () => {
   });
 
   describe("semantic i18n keys", () => {
-    it("createMenu gives the title a semantic key", () => {
+    it("createMenu initializes title as empty layer array", () => {
       const mId = useAccountStore.getState().createMenu({
         packId: PERSONAL,
         id: "my_menu",
       });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === mId)!;
-      expect(menu.title?.key).toBe(`menus.${mId}.title`);
-      expect(pack.i18nKeys[`menus.${mId}.title` as I18nKey]).toEqual({ en: "my_menu" });
+      expect(Array.isArray(menu.title)).toBe(true);
+      expect(menu.title).toHaveLength(0);
     });
 
-    it("setMenuTitle lazy-allocates a semantic key on first write", () => {
-      // Reset to a pack without a title on shop_main (mock fixture gives it one,
-      // but we exercise the lazy-alloc path by using a freshly created menu).
+    it("setMenuTitle prepends a text layer when title array is empty", () => {
+      // createMenu initializes title: [] — call setMenuTitle to exercise the
+      // "prepend new text layer" path.
       const mId = useAccountStore.getState().createMenu({ packId: PERSONAL, id: "lazy_test_menu" });
-      // Fresh menu already has a title from createMenu; clear it to test lazy-alloc.
-      useAccountStore.setState({
-        account: {
-          ...useAccountStore.getState().account,
-          packs: useAccountStore.getState().account.packs.map((p) =>
-            p.id !== PERSONAL
-              ? p
-              : {
-                  ...p,
-                  menus: p.menus.map((m) =>
-                    m.id !== mId ? m : ({ ...m, title: undefined } as unknown as Menu),
-                  ),
-                },
-          ),
-        },
-      });
       useAccountStore.getState().setMenuTitle({ packId: PERSONAL, menuId: mId, lang: "en", value: "Lazy" });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === mId)!;
-      expect(menu.title?.key).toBe(`menus.${mId}.title`);
+      expect(menu.title).toHaveLength(1);
+      const first = menu.title[0]!;
+      expect(first.kind).toBe("text");
+      if (first.kind === "text") {
+        expect(first.value.key).toBe(`menus.${mId}.title`);
+        expect(pack.i18nKeys[first.value.key]?.["en"]).toBe("Lazy");
+      }
     });
 
     it("setMenuId renames i18n keys to new prefix", () => {
       const pack0 = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu0 = pack0.menus.find((m) => m.id === SHOP_MAIN)!;
-      const oldTitleKey = menu0.title?.key;
+      // title is now MenuTitleLayer[]; grab the first text layer's key.
+      const firstLayer0 = menu0.title[0];
+      expect(firstLayer0?.kind).toBe("text");
+      const oldTitleKey = firstLayer0?.kind === "text" ? firstLayer0.value.key : undefined;
       expect(oldTitleKey).toBeDefined();
 
       useAccountStore.getState().setMenuId({ packId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_shop_new") });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === menuId("m_shop_new"))!;
 
-      expect(menu.title?.key).toBe("menus.m_shop_new.title");
+      const firstLayer = menu.title[0];
+      expect(firstLayer?.kind).toBe("text");
+      const newTitleKey = firstLayer?.kind === "text" ? firstLayer.value.key : undefined;
+      expect(newTitleKey).toBe("menus.m_shop_new.title");
       expect(pack.i18nKeys["menus.m_shop_new.title" as I18nKey]).toBeDefined();
       expect(pack.i18nKeys[oldTitleKey!]).toBeUndefined();
     });
@@ -1022,6 +1018,94 @@ describe("accountStore", () => {
       );
       const keys = msgSteps.map((s) => (s.action as { type: "send_message"; text: { key: string } }).text.key);
       expect(new Set(keys).size).toBe(keys.length);
+    });
+  });
+
+  describe("title layer actions", () => {
+    const setupMenu = () => {
+      const mId = useAccountStore.getState().createMenu({ packId: PERSONAL, id: "tl_test_menu" });
+      return mId;
+    };
+
+    const getMenu = (mId: string) => {
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      return pack.menus.find((m) => m.id === mId)!;
+    };
+
+    it("addMenuTitleLayer appends a layer", () => {
+      const mId = setupMenu();
+      const layer: MenuTitleLayer = { kind: "glyph", assetId: "asset_foo" as import("@/domain/types").AssetId, x: 0, y: 0 };
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer });
+      const menu = getMenu(mId);
+      expect(menu.title).toHaveLength(1);
+      expect(menu.title[0]!.kind).toBe("glyph");
+    });
+
+    it("removeMenuTitleLayer removes by index", () => {
+      const mId = setupMenu();
+      const layerA: MenuTitleLayer = { kind: "glyph", assetId: "asset_a" as import("@/domain/types").AssetId, x: 0, y: 0 };
+      const layerB: MenuTitleLayer = { kind: "glyph", assetId: "asset_b" as import("@/domain/types").AssetId, x: 10, y: 0 };
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer: layerA });
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer: layerB });
+      useAccountStore.getState().removeMenuTitleLayer({ packId: PERSONAL, menuId: mId, index: 0 });
+      const menu = getMenu(mId);
+      expect(menu.title).toHaveLength(1);
+      expect(menu.title[0]!.kind).toBe("glyph");
+      if (menu.title[0]!.kind === "glyph") {
+        expect(menu.title[0]!.assetId).toBe("asset_b");
+      }
+    });
+
+    it("reorderMenuTitleLayers moves a layer", () => {
+      const mId = setupMenu();
+      const mkGlyph = (id: string): MenuTitleLayer => ({
+        kind: "glyph",
+        assetId: id as import("@/domain/types").AssetId,
+        x: 0,
+        y: 0,
+      });
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer: mkGlyph("first") });
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer: mkGlyph("second") });
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer: mkGlyph("third") });
+      // Move index 0 ("first") to index 2 (last).
+      useAccountStore.getState().reorderMenuTitleLayers({ packId: PERSONAL, menuId: mId, fromIndex: 0, toIndex: 2 });
+      const menu = getMenu(mId);
+      const ids = menu.title.map((l) => (l.kind === "glyph" ? l.assetId : "?"));
+      expect(ids).toEqual(["second", "third", "first"]);
+    });
+
+    it("updateMenuTitleLayer patches a layer", () => {
+      const mId = setupMenu();
+      const layer: MenuTitleLayer = { kind: "glyph", assetId: "asset_orig" as import("@/domain/types").AssetId, x: 0, y: 0 };
+      useAccountStore.getState().addMenuTitleLayer({ packId: PERSONAL, menuId: mId, layer });
+      useAccountStore.getState().updateMenuTitleLayer({
+        packId: PERSONAL,
+        menuId: mId,
+        index: 0,
+        patch: { x: 42 },
+      });
+      const menu = getMenu(mId);
+      const first = menu.title[0]!;
+      expect(first.kind).toBe("glyph");
+      if (first.kind === "glyph") expect(first.x).toBe(42);
+    });
+
+    it("setMenuTitleLayers replaces entire array", () => {
+      const mId = setupMenu();
+      useAccountStore.getState().addMenuTitleLayer({
+        packId: PERSONAL,
+        menuId: mId,
+        layer: { kind: "background", assetId: "bg1" as import("@/domain/types").AssetId },
+      });
+      const newLayers: MenuTitleLayer[] = [
+        { kind: "background", assetId: "bg2" as import("@/domain/types").AssetId },
+        { kind: "background", assetId: "bg3" as import("@/domain/types").AssetId },
+      ];
+      useAccountStore.getState().setMenuTitleLayers({ packId: PERSONAL, menuId: mId, layers: newLayers });
+      const menu = getMenu(mId);
+      expect(menu.title).toHaveLength(2);
+      if (menu.title[0]!.kind === "background") expect(menu.title[0]!.assetId).toBe("bg2");
+      if (menu.title[1]!.kind === "background") expect(menu.title[1]!.assetId).toBe("bg3");
     });
   });
 });

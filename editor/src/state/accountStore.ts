@@ -30,6 +30,7 @@ import type {
   Layer,
   Menu,
   MenuId,
+  MenuTitleLayer,
   Pack,
   PackId,
   SourceRef,
@@ -141,8 +142,18 @@ interface AccountState {
     field: "permission" | "rows";
     value: string | MenuRows;
   }) => void;
-  /** Update the menu's title in the given language. Allocates the LText on first write. */
+  /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
   setMenuTitle: (input: { packId: PackId; menuId: MenuId; lang: string; value: string }) => void;
+  /** Replace the entire title layer array. */
+  setMenuTitleLayers: (input: { packId: PackId; menuId: MenuId; layers: MenuTitleLayer[] }) => void;
+  /** Patch a single title layer by index. */
+  updateMenuTitleLayer: (input: { packId: PackId; menuId: MenuId; index: number; patch: Partial<MenuTitleLayer> }) => void;
+  /** Append a new title layer. */
+  addMenuTitleLayer: (input: { packId: PackId; menuId: MenuId; layer: MenuTitleLayer }) => void;
+  /** Remove the title layer at `index`. */
+  removeMenuTitleLayer: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
+  /** Move a title layer from `fromIndex` to `toIndex`. */
+  reorderMenuTitleLayers: (input: { packId: PackId; menuId: MenuId; fromIndex: number; toIndex: number }) => void;
   setCommandField: (input: {
     packId: PackId;
     commandId: CommandId;
@@ -616,9 +627,11 @@ function gcAppearanceLTexts(pack: Pack, appearance: Appearance): void {
 function gcElementLTexts(pack: Pack, element: Element): void {
   for (const a of element.appearances) gcAppearanceLTexts(pack, a);
 }
-/** GC every LText held by a menu (title + every element). */
+/** GC every LText held by a menu (title layers + every element). */
 function gcMenuLTexts(pack: Pack, menu: Menu): void {
-  deleteLText(pack, menu.title);
+  for (const titleLayer of menu.title) {
+    if (titleLayer.kind === "text") deleteLText(pack, titleLayer.value);
+  }
   for (const layer of menu.layers) {
     for (const el of layer.elements) gcElementLTexts(pack, el);
   }
@@ -1433,10 +1446,73 @@ export const useAccountStore = create<AccountState>()(
               if (!pack) return;
               const menu = pack.menus.find((m) => m.id === mId);
               if (!menu) return;
-              // Defensive: a menu created via the typed path always has a
-              // title LText, but legacy paths might not — lazy-allocate.
-              if (!menu.title) menu.title = createLTextAt(pack, menuTitleKey(mId), value, lang);
-              else setLText(pack, menu.title, lang, value);
+              // menu.title is MenuTitleLayer[]. Write into the first text
+              // layer if present; otherwise prepend a new one.
+              const first = menu.title[0];
+              if (first && first.kind === "text") {
+                setLText(pack, first.value, lang, value);
+              } else {
+                const newLText = createLTextAt(pack, menuTitleKey(mId), value, lang);
+                menu.title.unshift({ kind: "text", value: newLText, x: 8, y: 5 });
+              }
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        setMenuTitleLayers: ({ packId: pId, menuId: mId, layers }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              menu.title = layers;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        updateMenuTitleLayer: ({ packId: pId, menuId: mId, index, patch }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              const layer = menu.title[index];
+              if (!layer) return;
+              menu.title[index] = { ...layer, ...patch } as MenuTitleLayer;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        addMenuTitleLayer: ({ packId: pId, menuId: mId, layer }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              menu.title.push(layer);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        removeMenuTitleLayer: ({ packId: pId, menuId: mId, index }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              menu.title.splice(index, 1);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        reorderMenuTitleLayers: ({ packId: pId, menuId: mId, fromIndex, toIndex }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const menu = pack.menus.find((m) => m.id === mId);
+              if (!menu) return;
+              const [moved] = menu.title.splice(fromIndex, 1);
+              if (moved) menu.title.splice(toIndex, 0, moved);
               pack.updatedAt = new Date().toISOString();
             }),
           ),
@@ -2682,11 +2758,15 @@ export const useAccountStore = create<AccountState>()(
             };
             for (const m of menus) {
               const stamped: Menu = { ...m, packId: pId };
-              if (stamped.title) {
-                const src = pack.i18nKeys[stamped.title.key];
-                stamped.title = createLText(pack, "", pack.defaultLang);
-                if (src) pack.i18nKeys[stamped.title.key] = { ...src };
-              }
+              // Clone each text layer's LText under a fresh key, copying the
+              // value map so the pasted copy doesn't share keys with the original.
+              stamped.title = stamped.title.map((titleLayer) => {
+                if (titleLayer.kind !== "text") return titleLayer;
+                const src = pack.i18nKeys[titleLayer.value.key];
+                const cloned = createLText(pack, "", pack.defaultLang);
+                if (src) pack.i18nKeys[cloned.key] = { ...src };
+                return { ...titleLayer, value: cloned };
+              });
               for (const layer of stamped.layers) {
                 for (const el of layer.elements) {
                   for (const a of el.appearances) cloneAppearanceLTexts(a);
