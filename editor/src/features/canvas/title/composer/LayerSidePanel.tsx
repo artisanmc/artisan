@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, PackId, MenuId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -38,7 +39,19 @@ export function LayerSidePanel({ packId, menuId }: LayerSidePanelProps) {
       />
     );
   }
-  // Image/external branches added in Task 9.
+  if (layer.kind === "background" || layer.kind === "glyph") {
+    return (
+      <ImageLayerPanel
+        packId={packId}
+        menuId={menuId}
+        index={selectedIndex}
+        layer={layer}
+      />
+    );
+  }
+  if (layer.kind === "external_glyph") {
+    return <ExternalLayerPanel layer={layer} />;
+  }
   return null;
 }
 
@@ -159,6 +172,147 @@ function TextLayerPanel({ packId, menuId, index, layer }: TextLayerPanelProps) {
       >
         Delete layer
       </Button>
+    </div>
+  );
+}
+
+interface ImageLayerPanelProps {
+  packId: PackId;
+  menuId: MenuId;
+  index: number;
+  layer:
+    | Extract<MenuTitleLayer, { kind: "background" }>
+    | Extract<MenuTitleLayer, { kind: "glyph" }>;
+}
+
+function ImageLayerPanel({ packId, menuId, index, layer }: ImageLayerPanelProps) {
+  const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
+  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
+  const setSelected = useTitleSelectionStore((s) => s.setSelectedIndex);
+  const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const menu = pack?.menus.find((m) => m.id === menuId);
+  if (!menu) return null;
+
+  const isBg = layer.kind === "background";
+  const tooNarrow = asset && asset.width < 176;
+
+  const toggleStretch = () => {
+    const next: MenuTitleLayer = isBg
+      ? { kind: "glyph", assetId: layer.assetId, x: 0, y: 0 }
+      : { kind: "background", assetId: layer.assetId };
+    const newTitle = menu.title.slice();
+    newTitle[index] = next;
+    setMenuTitleLayers({ packId, menuId, layers: newTitle });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+      <div className="flex items-center gap-2">
+        {asset ? (
+          <img
+            src={assetPreviewUrl(asset)}
+            alt={asset.name}
+            className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900 object-contain"
+            style={{ imageRendering: "pixelated" }}
+          />
+        ) : (
+          <div className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900" />
+        )}
+        <div>
+          <div className="text-xs text-zinc-200">{asset?.name ?? "<missing>"}</div>
+          <div className="text-[10px] text-zinc-500">
+            {asset
+              ? `${asset.type} · ${asset.width} × ${asset.height} px`
+              : "asset not loaded"}
+          </div>
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={isBg} onChange={toggleStretch} />
+        Stretch to chest (full cover)
+      </label>
+
+      {tooNarrow ? (
+        <div className="rounded border border-amber-700/40 bg-amber-900/10 px-2 py-1.5 text-[11px] text-amber-300">
+          Image is {asset!.width} px wide — Minecraft chest is 176 px. It won't cover horizontally.
+        </div>
+      ) : null}
+
+      <div className="flex gap-2">
+        <label htmlFor="layer-img-x" className="flex-1">
+          <span className="block text-[10px] uppercase text-zinc-500">x</span>
+          <Input
+            id="layer-img-x"
+            type="number"
+            value={isBg ? 0 : layer.x}
+            disabled={isBg}
+            onChange={(e) => {
+              if (isBg) return;
+              const x = Number(e.target.value);
+              if (Number.isFinite(x)) {
+                updateLayer({
+                  packId,
+                  menuId,
+                  index,
+                  patch: { x } as Partial<Extract<MenuTitleLayer, { kind: "glyph" }>>,
+                });
+              }
+            }}
+            className="h-8 font-mono text-xs disabled:opacity-50"
+          />
+        </label>
+        <label htmlFor="layer-img-y" className="flex-1">
+          <span className="block text-[10px] uppercase text-zinc-500">y</span>
+          <Input
+            id="layer-img-y"
+            type="number"
+            value={isBg ? 0 : layer.y}
+            disabled={isBg}
+            onChange={(e) => {
+              if (isBg) return;
+              const y = Number(e.target.value);
+              if (Number.isFinite(y)) {
+                updateLayer({
+                  packId,
+                  menuId,
+                  index,
+                  patch: { y } as Partial<Extract<MenuTitleLayer, { kind: "glyph" }>>,
+                });
+              }
+            }}
+            className="h-8 font-mono text-xs disabled:opacity-50"
+          />
+        </label>
+      </div>
+
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => {
+          removeLayer({ packId, menuId, index });
+          setSelected(null);
+        }}
+      >
+        Delete layer
+      </Button>
+    </div>
+  );
+}
+
+interface ExternalLayerPanelProps {
+  layer: Extract<MenuTitleLayer, { kind: "external_glyph" }>;
+}
+
+function ExternalLayerPanel({ layer }: ExternalLayerPanelProps) {
+  return (
+    <div className="rounded border border-amber-700/40 bg-amber-900/10 p-3 text-[11px] text-amber-200">
+      <div className="font-mono text-xs text-amber-100">
+        External glyph — {layer.provider}:{layer.glyphName}
+      </div>
+      <p className="mt-2">Managed by SP5. Read-only in v2.</p>
     </div>
   );
 }
