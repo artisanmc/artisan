@@ -58,6 +58,13 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProvider = menuProvider as? SyncedMenuProvider
         syncedProvider?.setCustomItemsManager(customItemsManager)
+        val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+            plugin = this,
+            config = cfg.resourcePack,
+            logger = logger,
+        )
+        syncedProvider?.setResourcePackManager(resourcePackManager)
+        server.pluginManager.registerEvents(resourcePackManager, this)
         menuProvider.load()
         if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
@@ -161,6 +168,13 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProviderReinit = menuProvider as? SyncedMenuProvider
         syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
+        val resourcePackManagerReinit = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+            plugin = this,
+            config = cfg.resourcePack,
+            logger = logger,
+        )
+        syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
+        server.pluginManager.registerEvents(resourcePackManagerReinit, this)
         menuProvider.load()
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
