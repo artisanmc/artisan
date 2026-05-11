@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
+import { join } from "path";
 import { db } from "../db/index";
 import { assets, serverKeys } from "../db/schema";
 import { assetPath } from "./assetStorage";
-import { buildResourcePackZip } from "./resourcePackBuilder";
+import { fontDirPaths } from "./fontStorage";
+import { buildResourcePackZip, type FontMeta } from "./resourcePackBuilder";
 import {
   pruneOldResourcePacks,
   resourcePackPath,
@@ -30,7 +32,22 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
     glyphPngs.set(a.id, new Uint8Array(await readFile(p)));
   }
 
-  const { zipBytes, hash } = buildResourcePackZip(rows, glyphPngs);
+  const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
+  for (const a of rows) {
+    if (a.type !== "font" || !a.fontMeta) continue;
+    const meta = a.fontMeta as FontMeta | null;
+    const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
+    const fontMap = new Map<string, Uint8Array>();
+    const { dir } = fontDirPaths(serverKeyId, a.id);
+    for (const g of glyphMap) {
+      const filePath = join(dir, g.texture);
+      if (!existsSync(filePath)) continue;
+      fontMap.set(g.texture, new Uint8Array(await readFile(filePath)));
+    }
+    fontGlyphPngs.set(a.id, fontMap);
+  }
+
+  const { zipBytes, hash } = buildResourcePackZip(rows, glyphPngs, fontGlyphPngs);
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
   await db.update(serverKeys)
