@@ -37,6 +37,15 @@ export interface LText {
   key: I18nKey;
 }
 
+export type MenuTitleLayer =
+  | { kind: "background"; assetId: AssetId }
+  | { kind: "glyph"; assetId: AssetId; x: number; y: number }
+  | { kind: "text"; value: LText; x: number; y: number;
+      fontAssetId?: AssetId;
+      color?: string }
+  | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder";
+      glyphName: string; x: number; y: number };
+
 export type PackSource = "user_created" | "imported" | "forked";
 
 export interface Account {
@@ -69,7 +78,7 @@ export interface Pack {
 export interface Menu {
   id: MenuId;
   packId: PackId;
-  title: LText;
+  title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   permission?: string;
   layers: Layer[];
