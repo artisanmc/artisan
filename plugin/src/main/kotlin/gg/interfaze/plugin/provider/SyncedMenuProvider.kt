@@ -6,6 +6,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import gg.interfaze.plugin.customitems.CustomItemsManager
 import gg.interfaze.plugin.engine.ActionExecutor
+import gg.interfaze.plugin.resourcepack.ResourcePackInfo
+import gg.interfaze.plugin.resourcepack.ResourcePackManager
 import gg.interfaze.plugin.engine.BundleCompiler
 import gg.interfaze.plugin.engine.ConditionEvaluator
 import gg.interfaze.plugin.engine.ExecutionContext
@@ -55,6 +57,7 @@ class SyncedMenuProvider(
     private val onReload: (() -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
+    private val resourcePackManager: ResourcePackManager? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -185,6 +188,24 @@ class SyncedMenuProvider(
 
                 apiUrl = node["bundle_url"]?.asText() ?: node["api_url"]?.asText()
 
+                val rpNode = node["resource_pack"]
+                if (rpNode == null || rpNode.isNull) {
+                    resourcePackManager?.onUpdate(null)
+                } else {
+                    val rpUrl = rpNode["url"]?.asText()
+                    val rpHash = rpNode["hash"]?.asText()
+                    val promptMini = "<gold>Pack Interfaze</gold>"
+                    if (rpUrl != null && rpHash != null) {
+                        try {
+                            resourcePackManager?.onUpdate(
+                                ResourcePackInfo.from(rpUrl, rpHash, promptMini)
+                            )
+                        } catch (t: Throwable) {
+                            logger?.warning("Invalid resource_pack info from hello_ack: ${t.message}")
+                        }
+                    }
+                }
+
                 val packHashesNode = node["pack_hashes"] ?: run {
                     logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
                     return
@@ -291,6 +312,19 @@ class SyncedMenuProvider(
                     } else {
                         logger?.warning("[IFZ] custom_items_request received but no custom items available — bundle not sent")
                     }
+                }
+            }
+
+            "resource_pack_updated" -> {
+                val rpUrl = node["url"]?.asText() ?: return
+                val rpHash = node["hash"]?.asText() ?: return
+                val promptMini = "<gold>Pack Interfaze</gold>"
+                try {
+                    resourcePackManager?.onUpdate(
+                        ResourcePackInfo.from(rpUrl, rpHash, promptMini)
+                    )
+                } catch (t: Throwable) {
+                    logger?.warning("Invalid resource_pack_updated payload: ${t.message}")
                 }
             }
 
