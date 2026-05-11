@@ -12,6 +12,14 @@ vi.mock("@dnd-kit/core", () => ({
   useDraggable: () => ({ attributes: {}, listeners: {}, setNodeRef: () => {}, isDragging: false }),
 }));
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getTotalSize: () => count * estimateSize(),
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({ index: i, start: i * estimateSize(), size: estimateSize() })),
+  }),
+}));
+
 const MOCK_DATA: LibraryData = {
   version: "1.21.4",
   items: [
@@ -59,6 +67,26 @@ describe("Library", () => {
     fireEvent.click(screen.getByRole("button", { name: /food/i }));
     expect(screen.queryByTitle("Diamond Sword")).toBeNull();
     expect(screen.getByTitle("Bread")).toBeTruthy();
+  });
+
+  it("renders a placeholder for custom items without texture or model", () => {
+    // Seed the texture store with a custom item that has no texture and no model.
+    useTextureStore.setState({
+      libraryItems: [],
+      libraryCustomData: {
+        serverKeyId: "sk_test",
+        items: [{ id: "nexo:forest_sword", label: "forest_sword", category: "nexo" }],
+      },
+      libraryBundleReady: true,
+      libraryError: false,
+    });
+
+    render(<Library />);
+    // The tile renders with the item label as title, and uses the placeholder
+    // marker `data-placeholder` instead of an <img> with a broken src.
+    const tile = screen.getByTitle("forest_sword");
+    expect(tile.querySelector("[data-placeholder]")).not.toBeNull();
+    expect(tile.querySelector("img")).toBeNull();
   });
 });
 

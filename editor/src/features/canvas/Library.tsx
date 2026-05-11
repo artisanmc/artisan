@@ -1,9 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { cx } from "@/lib/cx";
-import type { LibraryItem, CustomItemsData } from "@/lib/packApi";
+import { renderToCanvas } from "@/lib/mcModelRenderer";
+import type { LibraryItem } from "@/lib/packApi";
 import { useUiStore } from "@/state/uiStore";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDraggable } from "@dnd-kit/core";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTextureStore } from "./textureStore";
 
@@ -11,6 +13,9 @@ import { useTextureStore } from "./textureStore";
 export const LIBRARY_DRAG_PREFIX = "lib:";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
+const TILE_SIZE = 48;
+const GAP = 6;
 
 interface ItemTileProps {
   item: LibraryItem;
@@ -23,7 +28,6 @@ interface ItemTileProps {
 }
 
 function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleReady, tints }: ItemTileProps) {
-  const flatUrl = `${textureBase}/${item.texture}`;
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -32,9 +36,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
   });
   const tileRef = useRef<HTMLButtonElement>(null);
   const setRendered = useTextureStore((s) => s.setRendered);
-  // Read from the global render store so canvas slots stay in sync
   const renderedSrc = useTextureStore((s) => item.model ? s.renderedByMaterial[item.id.toLowerCase()] ?? null : null);
-  const style: CSSProperties = { opacity: isDragging ? 0.4 : 1 };
 
   useEffect(() => {
     if (!item.model || !bundleReady || !tileRef.current) return;
@@ -64,28 +66,38 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
         (tileRef as React.MutableRefObject<HTMLButtonElement | null>).current = el;
       }}
       type="button"
-      style={style}
       onClick={() => setArmedMaterial(armed ? null : item.id)}
       title={item.label}
       {...listeners}
       {...attributes}
       className={cx(
-        "group relative flex h-12 w-12 shrink-0 select-none touch-none items-center justify-center",
+        "group relative flex shrink-0 select-none touch-none items-center justify-center",
         "rounded border bg-[#8b8b8b] active:cursor-grabbing",
         armed
           ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500"
           : "border-zinc-600 cursor-grab hover:border-zinc-400",
       )}
+      style={{ opacity: isDragging ? 0.4 : 1, width: TILE_SIZE, height: TILE_SIZE }}
     >
-      <img
-        src={renderedSrc ?? flatUrl}
-        alt={item.label}
-        loading="lazy"
-        draggable={false}
-        className="h-full w-full object-contain p-1"
-        style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
-        onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
-      />
+      {(renderedSrc || item.texture) ? (
+        <img
+          src={renderedSrc ?? `${textureBase}/${item.texture}`}
+          alt={item.label}
+          loading="lazy"
+          draggable={false}
+          className="h-full w-full object-contain p-1"
+          style={{ imageRendering: renderedSrc ? "auto" : "pixelated" }}
+          onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+        />
+      ) : (
+        <span
+          data-placeholder
+          className="flex h-full w-full items-center justify-center text-xs font-medium uppercase text-zinc-400"
+          aria-hidden="true"
+        >
+          {item.category.charAt(0)}
+        </span>
+      )}
     </button>
   );
 }
@@ -100,6 +112,20 @@ export function Library() {
   const [category, setCategory] = useState("all");
   const { t } = useTranslation();
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(280);
+
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const allItems = [...items, ...customData.items];
   const categories = ["all", ...Array.from(new Set(allItems.map((i) => i.category))).sort()];
 
@@ -108,6 +134,19 @@ export function Library() {
       (category === "all" || i.category === category) &&
       (i.id.includes(search.toLowerCase()) || i.label.toLowerCase().includes(search.toLowerCase())),
   );
+
+  const columns = Math.max(3, Math.floor((containerWidth + GAP) / (TILE_SIZE + GAP)));
+  const rows: LibraryItem[][] = [];
+  for (let i = 0; i < filtered.length; i += columns) {
+    rows.push(filtered.slice(i, i + columns));
+  }
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => TILE_SIZE + GAP,
+    overscan: 4,
+  });
 
   if (error) {
     return (
@@ -141,31 +180,51 @@ export function Library() {
           </button>
         ))}
       </div>
-      <div className="flex flex-wrap gap-1.5 overflow-y-auto pb-2">
-        {allItems.length === 0 && !error && (
-          <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.loading")}</div>
-        )}
-        {filtered.map((item) => {
-          const isCustom = customData.items.some((c) => c.id === item.id);
-          const textureBase = isCustom
-            ? `${API_URL}/api/textures/custom/${customData.serverKeyId}`
-            : `${API_URL}/api/textures/${version}`;
-          return (
-            <ItemTile
-              key={item.id}
-              item={item}
-              textureBase={textureBase}
-              version={version}
-              isCustom={isCustom}
-              serverKeyId={isCustom ? customData.serverKeyId : undefined}
-              bundleReady={bundleReady}
-              tints={item.tints}
-            />
-          );
-        })}
-        {allItems.length > 0 && filtered.length === 0 && (
-          <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
-        )}
+
+      {allItems.length === 0 && !error && (
+        <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.loading")}</div>
+      )}
+      {allItems.length > 0 && filtered.length === 0 && (
+        <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
+      )}
+
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto pb-2">
+        <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+            <div
+              key={virtualRow.index}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+                display: "flex",
+                gap: GAP,
+                paddingBottom: GAP,
+              }}
+            >
+              {(rows[virtualRow.index] ?? []).map((item) => {
+                const isCustom = customData.items.some((c) => c.id === item.id);
+                const textureBase = isCustom
+                  ? `${API_URL}/api/textures/custom/${customData.serverKeyId}`
+                  : `${API_URL}/api/textures/${version}`;
+                return (
+                  <ItemTile
+                    key={item.id}
+                    item={item}
+                    textureBase={textureBase}
+                    version={version}
+                    isCustom={isCustom}
+                    serverKeyId={isCustom ? customData.serverKeyId : undefined}
+                    bundleReady={bundleReady}
+                    tints={item.tints}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
