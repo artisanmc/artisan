@@ -15,3 +15,11 @@ per_player_language: false
 editor:
   # Set to true to restrict /ifz editor to console only (no in-game players).
   console_only: false
+
+# Resource pack pushed by Interfaze (independent from Oraxen/Nexo/ItemsAdder packs;
+# uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
+resource-pack:
+  enabled: true
+  prompt: "<gold>Pack Interfaze</gold>"
+  send-on-join: true
+  send-delay-ticks: 20
