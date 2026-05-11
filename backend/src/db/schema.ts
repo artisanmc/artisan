@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uniqueIndex, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const serverKeys = pgTable("server_keys", {
@@ -46,4 +46,25 @@ export const editorSessions = pgTable("editor_sessions", {
   trustedIp:       text("trusted_ip"),
 }, (t) => [
   uniqueIndex("trust_code_uniq").on(t.trustCode).where(sql`trust_code IS NOT NULL`),
+]);
+
+export const assets = pgTable("assets", {
+  id: text("id").primaryKey(),
+  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id),
+  type: text("type").notNull(),                 // "texture" | "glyph" | "font"
+  name: text("name").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  ascent: integer("ascent"),                    // nullable, set only for type=glyph
+  codepoint: integer("codepoint"),              // nullable, set only for type=glyph
+  fontMeta: jsonb("font_meta"),                 // forward-compat for Sub-project 4
+  contentHash: text("content_hash").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("assets_serverkey_name_type_uniq").on(t.serverKeyId, t.type, t.name),
+  uniqueIndex("assets_serverkey_codepoint_uniq")
+    .on(t.serverKeyId, t.codepoint)
+    .where(sql`codepoint IS NOT NULL`),
+  index("assets_serverkey_type_idx").on(t.serverKeyId, t.type),
 ]);
