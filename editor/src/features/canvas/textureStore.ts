@@ -13,8 +13,8 @@ interface TextureState {
   libraryCustomData: CustomItemsData;
   libraryBundleReady: boolean;
   libraryError: boolean;
-  setData: (version: string, items: Array<{ id: string; texture: string }>) => void;
-  setCustomData: (items: Array<{ id: string; texture: string }>, serverKeyId: string) => void;
+  setData: (version: string, items: Array<{ id: string; texture?: string }>) => void;
+  setCustomData: (items: Array<{ id: string; texture?: string }>, serverKeyId: string) => void;
   setRendered: (materialId: string, dataUrl: string) => void;
   setLibraryItems: (items: LibraryItem[]) => void;
   setLibraryCustomData: (data: CustomItemsData) => void;
@@ -33,12 +33,16 @@ export const useTextureStore = create<TextureState>()((set) => ({
   libraryError: false,
   setData: (version, items) => {
     const byMaterial: Record<string, string> = {};
-    for (const item of items) byMaterial[item.id] = item.texture;
+    for (const item of items) {
+      if (!item.texture) continue;
+      byMaterial[item.id] = item.texture;
+    }
     set({ version, byMaterial });
   },
   setCustomData: (items, serverKeyId) => {
     const customByMaterial: Record<string, string> = {};
     for (const item of items) {
+      if (!item.texture) continue;
       customByMaterial[item.id.toLowerCase()] =
         `${API_URL}/api/textures/custom/${serverKeyId}/${item.texture}`;
     }
