@@ -94,6 +94,12 @@ assetsRouter.post("/:token/assets", async (c) => {
       updatedAt: now,
     });
   } catch (err) {
+    // Race condition: pre-SELECT passed but the DB unique constraint fired.
+    // Postgres "unique_violation" error code = 23505.
+    const code = (err as { code?: string })?.code;
+    if (code === "23505") {
+      return c.json({ error: "Asset name already exists" }, 409);
+    }
     return c.json({ error: "Failed to persist asset" }, 500);
   }
 
