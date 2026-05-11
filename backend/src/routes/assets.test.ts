@@ -273,6 +273,21 @@ describe("PATCH /api/editor-session/:token/assets/:id", () => {
     });
     expect(res.status).toBe(409);
   });
+
+  test("404 when patching an asset from another server_key", async () => {
+    const sessA = await seedSession();
+    const sessB = await seedSession();
+    const post = await app.request(`/api/editor-session/${sessA.token}/assets`, {
+      method: "POST", body: uploadForm({ name: "cross_patch" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${sessB.token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "renamed" }),
+    });
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("DELETE /api/editor-session/:token/assets/:id", () => {
@@ -293,6 +308,19 @@ describe("DELETE /api/editor-session/:token/assets/:id", () => {
   test("404 for unknown id", async () => {
     const { token } = await seedSession();
     const res = await app.request(`/api/editor-session/${token}/assets/asset_xxx`, { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  test("404 when deleting an asset from another server_key", async () => {
+    const sessA = await seedSession();
+    const sessB = await seedSession();
+    const post = await app.request(`/api/editor-session/${sessA.token}/assets`, {
+      method: "POST", body: uploadForm({ name: "cross_delete" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${sessB.token}/assets/${a.id}`, {
+      method: "DELETE",
+    });
     expect(res.status).toBe(404);
   });
 });
