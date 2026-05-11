@@ -85,7 +85,6 @@ export function TitleLayerList({ packId, menu, onEditText }: TitleLayerListProps
             index={idx}
             selected={selectedIndex === idx}
             preview={preview}
-            asset={asset}
             onSelect={() => setSelected(idx)}
             onDelete={() => remove({ packId, menuId: menu.id, index: idx })}
             onEditText={onEditText ? () => onEditText(idx) : undefined}

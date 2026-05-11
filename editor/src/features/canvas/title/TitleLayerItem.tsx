@@ -1,7 +1,6 @@
 import { Image as ImageIcon, Sparkles, Trash2, Type as TypeIcon, Wand2 } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
-import type { Asset } from "@/domain/asset";
 import type { MenuTitleLayer } from "@/domain/types";
 import { cn } from "@/lib/cx";
 
@@ -14,8 +13,6 @@ interface TitleLayerItemProps {
    * stays unaware of stores / i18n lookups.
    */
   preview: string;
-  /** Pre-resolved asset (background/glyph only). Used for the type icon hint. */
-  asset?: Asset;
   onSelect: () => void;
   onDelete: () => void;
   onEditText?: () => void;
