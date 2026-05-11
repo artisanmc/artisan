@@ -1,5 +1,5 @@
 import { commandId, elementId, layerId, menuId } from "@/domain/ids";
-import type { Command, I18nKey, Menu, Pack } from "@/domain/types";
+import type { Command, I18nKey, Menu, MenuTitleLayer, Pack } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import {
   clickHandlerKeyPrefix,
@@ -83,17 +83,20 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
 describe("rekeyMenuLTexts", () => {
   it("renames menu title key to semantic key", () => {
     const pack = makePack({ i18nKeys: { lt_abc: { en: "Shop" } } as Pack["i18nKeys"] });
+    const titleLayer: MenuTitleLayer = { kind: "text", value: { key: "lt_abc" as I18nKey }, x: 8, y: 5 };
     const menu: Menu = {
       id: menuId("shop_main"),
       packId: pack.id,
       rows: 3,
-      title: { key: "lt_abc" as I18nKey },
+      title: [titleLayer],
       layers: [],
     };
 
     rekeyMenuLTexts(pack, menu);
 
-    expect(menu.title?.key).toBe("menus.shop_main.title");
+    const first = menu.title[0];
+    expect(first?.kind).toBe("text");
+    if (first?.kind === "text") expect(first.value.key).toBe("menus.shop_main.title");
     expect(pack.i18nKeys["menus.shop_main.title" as I18nKey]).toEqual({ en: "Shop" });
     expect(pack.i18nKeys["lt_abc" as I18nKey]).toBeUndefined();
   });
@@ -109,7 +112,7 @@ describe("rekeyMenuLTexts", () => {
       id: menuId("shop"),
       packId: pack.id,
       rows: 3,
-      title: { key: "menus.shop.title" as I18nKey },
+      title: [],
       layers: [
         {
           id: layerId("layer1"),
@@ -143,17 +146,20 @@ describe("rekeyMenuLTexts", () => {
   it("is idempotent when key is already semantic", () => {
     const semanticKey = "menus.shop_main.title" as I18nKey;
     const pack = makePack({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Pack["i18nKeys"] });
+    const titleLayer: MenuTitleLayer = { kind: "text", value: { key: semanticKey }, x: 8, y: 5 };
     const menu: Menu = {
       id: menuId("shop_main"),
       packId: pack.id,
       rows: 3,
-      title: { key: semanticKey },
+      title: [titleLayer],
       layers: [],
     };
 
     rekeyMenuLTexts(pack, menu);
 
-    expect(menu.title?.key).toBe(semanticKey);
+    const first = menu.title[0];
+    expect(first?.kind).toBe("text");
+    if (first?.kind === "text") expect(first.value.key).toBe(semanticKey);
     expect(pack.i18nKeys[semanticKey]).toEqual({ en: "Shop" });
   });
 
@@ -163,7 +169,7 @@ describe("rekeyMenuLTexts", () => {
       id: menuId("shop"),
       packId: pack.id,
       rows: 3,
-      title: { key: "menus.shop.title" as I18nKey },
+      title: [],
       layers: [
         {
           id: layerId("layer1"),
