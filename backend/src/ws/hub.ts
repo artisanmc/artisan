@@ -398,3 +398,7 @@ export async function getMcVersion(serverKeyId: string): Promise<string | undefi
   if (persisted) serverIdToMcVersion.set(serverKeyId, persisted);
   return persisted;
 }
+
+export function pushResourcePackUpdated(_serverKeyId: string, _url: string, _hash: string): void {
+  // Implemented in Task 8
+}
