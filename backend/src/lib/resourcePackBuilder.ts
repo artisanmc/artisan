@@ -30,9 +30,23 @@ const PACK_PNG_FALLBACK = new Uint8Array([
   0x82,
 ]);
 
+export interface FontGlyphMeta {
+  char: string;
+  texture: string;
+  ascent: number;
+  height: number;
+  width?: number;
+}
+
+export interface FontMeta {
+  namespace: string;
+  glyphMap: FontGlyphMeta[];
+}
+
 export function buildResourcePackZip(
   assets: AssetRow[],
   glyphPngs: Map<string, Uint8Array>,
+  fontGlyphPngs: Map<string, Map<string, Uint8Array>>,
 ): BuildResult {
   const files: Record<string, Uint8Array> = {};
 
@@ -52,6 +66,33 @@ export function buildResourcePackZip(
     const png = glyphPngs.get(g.id);
     if (!png) continue;
     files[`assets/interfaze/textures/font/${g.name}.png`] = png;
+  }
+
+  const fontAssets = assets
+    .filter((a) => a.type === "font" && a.fontMeta !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  for (const fa of fontAssets) {
+    const meta = fa.fontMeta as FontMeta | null;
+    if (!meta) continue;
+    const glyphMap = Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
+
+    const providers = glyphMap.map((g) => ({
+      type: "bitmap" as const,
+      file: `interfaze:font/${fa.name}/${g.texture}`,
+      ascent: g.ascent,
+      height: g.height,
+      chars: [g.char],
+    }));
+    files[`assets/interfaze/font/${fa.name}.json`] =
+      strToU8(JSON.stringify({ providers }, null, 2));
+
+    const pngsForFont = fontGlyphPngs.get(fa.id);
+    if (!pngsForFont) continue;
+    for (const g of glyphMap) {
+      const png = pngsForFont.get(g.texture);
+      if (!png) continue;
+      files[`assets/interfaze/textures/font/${fa.name}/${g.texture}`] = png;
+    }
   }
 
   const zipBytes = zipSync(files, { level: 0 });
