@@ -14,7 +14,7 @@ import type {
   PackId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { itemTextureUrl } from "@/features/canvas/itemTextures";
+import { useTextureUrl } from "@/features/canvas/textureStore";
 import {
   ArgInsertBar,
   type PlaceholderInfo,
@@ -147,7 +147,7 @@ function ElementEditor({
   const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
   const headerMaterial = focusedState?.material ?? "";
-  const headerTextureUrl = itemTextureUrl(headerMaterial);
+  const headerTextureUrl = useTextureUrl(headerMaterial);
   const getText = useGetText(packId);
   const headerTitle = getText(focusedState?.title);
   const menuTitle = getText(menu.title);
@@ -528,7 +528,7 @@ function StateCard({
   if (!appearance) return null;
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
-  const textureUrl = itemTextureUrl(material);
+  const textureUrl = useTextureUrl(material);
   const title = getText(appearance.title);
   const count = appearance.count ?? 1;
   const loreText = appearance.lore ? getText(appearance.lore) : "";
