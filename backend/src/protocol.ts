@@ -18,6 +18,7 @@ export interface HelloAckMessage {
   api_url: string;
   bundle_url: string;  // plugin-internal URL for bundle downloads/uploads (may differ from api_url in Docker)
   pack_hashes: Record<string, string>;  // packId → latest stored hash on backend
+  resource_pack: { url: string; hash: string } | null;
 }
 
 export interface BundleAvailableMessage {
@@ -115,6 +116,12 @@ export type PluginToServerMessage =
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage;
 
+export interface ResourcePackUpdatedMessage {
+  type: "resource_pack_updated";
+  url: string;
+  hash: string;
+}
+
 export type ServerToPluginMessage =
   | HelloAckMessage
   | BundleAvailableMessage
@@ -123,4 +130,5 @@ export type ServerToPluginMessage =
   | SetupCodeMessage
   | LinkConfirmedMessage
   | EditorSessionReadyMessage
-  | CustomItemsRequestMessage;
+  | CustomItemsRequestMessage
+  | ResourcePackUpdatedMessage;
