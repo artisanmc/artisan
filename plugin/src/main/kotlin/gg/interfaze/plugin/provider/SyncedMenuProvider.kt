@@ -18,6 +18,7 @@ import gg.interfaze.plugin.model.MenuYaml
 import gg.interfaze.plugin.model.PackBundle
 import gg.interfaze.plugin.render.DialogRenderer
 import gg.interfaze.plugin.render.MenuRenderer
+import gg.interfaze.plugin.resourcepack.AssetEntry
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
 import gg.interfaze.plugin.sync.BundleUploader
@@ -57,6 +58,7 @@ class SyncedMenuProvider(
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
     private val resourcePackManager: ResourcePackManager? = null,
+    private val lookupAsset: (String) -> AssetEntry? = { null },
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -140,7 +142,7 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
-        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator)
+        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset)
         sessions?.set(player, session)
         logger?.info("[IFZ-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }

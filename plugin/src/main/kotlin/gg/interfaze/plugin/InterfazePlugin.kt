@@ -19,6 +19,7 @@ open class InterfazePlugin : JavaPlugin() {
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
+    private lateinit var assetCatalog: gg.interfaze.plugin.resourcepack.AssetCatalog
     lateinit var langManager: LangManager
         private set
 
@@ -33,6 +34,7 @@ open class InterfazePlugin : JavaPlugin() {
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
+        assetCatalog = gg.interfaze.plugin.resourcepack.AssetCatalog()
 
         commandRegistrar = CommandRegistrar(this, langManager)
         menuProvider = SyncedMenuProvider(
@@ -44,6 +46,7 @@ open class InterfazePlugin : JavaPlugin() {
             sessions         = sessions,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
+            lookupAsset      = assetCatalog::lookup,
         )
         // Inject before load() so the initial hello includes the correct custom_items_hash.
         // Nexo/Oraxen fire their "items loaded" events before Interfaze enables (softdepend order),
@@ -62,6 +65,7 @@ open class InterfazePlugin : JavaPlugin() {
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
+            assetCatalog = assetCatalog,
         )
         syncedProvider?.setResourcePackManager(resourcePackManager)
         server.pluginManager.registerEvents(resourcePackManager, this)
@@ -166,6 +170,7 @@ open class InterfazePlugin : JavaPlugin() {
             sessions         = sessions,
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
+            lookupAsset      = assetCatalog::lookup,
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = gg.interfaze.plugin.customitems.CustomItemsManager(
@@ -181,6 +186,7 @@ open class InterfazePlugin : JavaPlugin() {
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
+            assetCatalog = assetCatalog,
         )
         syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
         server.pluginManager.registerEvents(resourcePackManagerReinit, this)

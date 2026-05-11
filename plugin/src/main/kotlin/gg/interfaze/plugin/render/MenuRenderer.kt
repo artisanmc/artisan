@@ -3,6 +3,7 @@ package gg.interfaze.plugin.render
 import gg.interfaze.plugin.engine.*
 import gg.interfaze.plugin.model.AppearanceYaml
 import gg.interfaze.plugin.model.BundleMenu
+import gg.interfaze.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -30,17 +31,20 @@ object MenuRenderer {
         lang: String,
         ctx: ExecutionContext = ExecutionContext(player),
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
+        lookupAsset: (String) -> AssetEntry? = { null },
     ): MenuSession {
         val langMap = menu.langMaps[lang] ?: emptyMap()
         val papi = evaluator.deps.papi
-        val rawTitle = menu.resolveTitle(lang)
-        val resolvedTitle = run {
-            var t = rawTitle
-            ctx.args.forEach { (k, v) -> t = t.replace("{$k}", v.toString()) }
-            if (papi != null) t = papi.resolve(player, t)
-            t
-        }
-        val title = mm.deserialize(resolvedTitle)
+        // NOTE: Per-title `{arg}` and PlaceholderAPI interpolation are intentionally
+        // not applied here. The title-composer spec (Tasks 16–19) routes titles through
+        // TitleCompiler, which resolves layers + i18n only. If a future sub-project needs
+        // arg/PAPI in titles, plumb an ExecutionContext into TitleCompiler.compileLayer.
+        val title = TitleCompiler.compileTitle(
+            layers = menu.title,
+            lang = lang,
+            langMap = langMap,
+            lookupAsset = lookupAsset,
+        )
         val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
 
