@@ -144,6 +144,111 @@ class TitleCompilerTest {
     }
 
     @Test
+    fun `text layer with fontAssetId resolving to a font asset emits font tag`() {
+        val layer = MenuTitleLayer.Text(
+            value = LText("greeting"),
+            x = 0,
+            y = 0,
+            color = null,
+            fontAssetId = "asset_my_font",
+        )
+        val lookup = stubLookup(mapOf(
+            "asset_my_font" to AssetEntry(
+                name = "my_font",
+                type = "font",
+                codepoint = null,
+                ascent = 0,
+                height = 0,
+                namespace = "interfaze:my_font",
+            ),
+        ))
+        val s = TitleCompiler.compileLayer(layer, mapOf("greeting" to "hello"), lookup)
+        assertEquals("<font:interfaze:my_font>hello</font>", s)
+    }
+
+    @Test
+    fun `text layer with fontAssetId missing from catalog falls back to bare text`() {
+        val layer = MenuTitleLayer.Text(
+            value = LText("greeting"),
+            x = 0,
+            y = 0,
+            color = null,
+            fontAssetId = "asset_missing",
+        )
+        val s = TitleCompiler.compileLayer(layer, mapOf("greeting" to "hello"), emptyLookup)
+        assertEquals("hello", s)
+    }
+
+    @Test
+    fun `text layer with fontAssetId resolving to non-font asset falls back to bare text`() {
+        val layer = MenuTitleLayer.Text(
+            value = LText("greeting"),
+            x = 0,
+            y = 0,
+            color = null,
+            fontAssetId = "asset_not_a_font",
+        )
+        val lookup = stubLookup(mapOf(
+            "asset_not_a_font" to AssetEntry(
+                name = "coin",
+                type = "glyph",
+                codepoint = 57344,
+                ascent = 8,
+                height = 9,
+                namespace = "interfaze:default",
+            ),
+        ))
+        val s = TitleCompiler.compileLayer(layer, mapOf("greeting" to "hello"), lookup)
+        assertEquals("hello", s)
+    }
+
+    @Test
+    fun `text layer with font and color wraps color inside font`() {
+        val layer = MenuTitleLayer.Text(
+            value = LText("greeting"),
+            x = 0,
+            y = 0,
+            color = "#ff0000",
+            fontAssetId = "asset_my_font",
+        )
+        val lookup = stubLookup(mapOf(
+            "asset_my_font" to AssetEntry(
+                name = "my_font",
+                type = "font",
+                codepoint = null,
+                ascent = 0,
+                height = 0,
+                namespace = "interfaze:my_font",
+            ),
+        ))
+        val s = TitleCompiler.compileLayer(layer, mapOf("greeting" to "hello"), lookup)
+        assertEquals("<font:interfaze:my_font><color:#ff0000>hello</color></font>", s)
+    }
+
+    @Test
+    fun `text layer with font and offset wraps font inside offset`() {
+        val layer = MenuTitleLayer.Text(
+            value = LText("greeting"),
+            x = 12,
+            y = 0,
+            color = null,
+            fontAssetId = "asset_my_font",
+        )
+        val lookup = stubLookup(mapOf(
+            "asset_my_font" to AssetEntry(
+                name = "my_font",
+                type = "font",
+                codepoint = null,
+                ascent = 0,
+                height = 0,
+                namespace = "interfaze:my_font",
+            ),
+        ))
+        val s = TitleCompiler.compileLayer(layer, mapOf("greeting" to "hello"), lookup)
+        assertEquals("<offset:12px><font:interfaze:my_font>hello</font></offset>", s)
+    }
+
+    @Test
     fun `compileTitle concatenates layers in order and renders to a Component`() {
         val layers = listOf(
             MenuTitleLayer.Background(assetId = "asset_bg"),
