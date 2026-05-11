@@ -3,7 +3,7 @@ import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type EditorTab = "edit" | "library";
+export type EditorTab = "edit" | "library" | "assets";
 
 /**
  * Best-effort detection of the user's preferred language from the
@@ -98,7 +98,7 @@ export const useUiStore = create<UiState>()(
       // uses the right locale (avoids an EN flash when the user is on FR).
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<UiState>;
-        const t: EditorTab = p.editorTab === "library" ? "library" : "edit";
+        const t: EditorTab = p.editorTab === "library" ? "library" : p.editorTab === "assets" ? "assets" : "edit";
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }

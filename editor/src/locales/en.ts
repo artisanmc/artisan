@@ -356,6 +356,7 @@ export default {
   editorPane: {
     tabEdit: "Edit",
     tabLibrary: "Library",
+    tabAssets: "Assets",
   },
   materialPicker: {
     title: "Pick item",

@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PackId } from "@/domain/types";
+import { AssetsTab } from "@/features/assets/AssetsTab";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
@@ -43,12 +44,18 @@ export function EditorPane({ packId }: EditorPaneProps) {
           <TabsTrigger value="library" className={tabClass}>
             {t("editorPane.tabLibrary")}
           </TabsTrigger>
+          <TabsTrigger value="assets" className={tabClass}>
+            {t("editorPane.tabAssets")}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="edit" className="min-h-0 flex-1 overflow-hidden">
           <FlowCanvas packId={packId} />
         </TabsContent>
         <TabsContent value="library" className="min-h-0 flex-1 p-3">
           <Library />
+        </TabsContent>
+        <TabsContent value="assets" className="h-full m-0 p-0">
+          <AssetsTab />
         </TabsContent>
       </Tabs>
     </div>
