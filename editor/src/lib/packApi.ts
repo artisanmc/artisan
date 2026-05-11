@@ -1,4 +1,5 @@
 import type { Pack } from "@/domain/types";
+import type { Asset, AssetType } from "@/domain/asset";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -91,4 +92,64 @@ export async function fetchCustomItems(token: string): Promise<CustomItemsData> 
   } catch {
     return { serverKeyId: "", items: [] };
   }
+}
+
+export async function listAssets(
+  token: string,
+  filters: { type?: AssetType; search?: string } = {},
+): Promise<Asset[]> {
+  const params = new URLSearchParams();
+  if (filters.type) params.set("type", filters.type);
+  if (filters.search) params.set("search", filters.search);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets${qs ? "?" + qs : ""}`);
+  if (!res.ok) throw new Error("Failed to load assets");
+  const data = (await res.json()) as { assets: Asset[] };
+  return data.assets;
+}
+
+export async function uploadAsset(
+  token: string,
+  input: { file: File; type: AssetType; name: string; ascent?: number },
+): Promise<Asset> {
+  const fd = new FormData();
+  fd.set("type", input.type);
+  fd.set("name", input.name);
+  if (input.ascent !== undefined) fd.set("ascent", String(input.ascent));
+  fd.set("file", input.file);
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets`, {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(err.error ?? "Upload failed");
+  }
+  const data = (await res.json()) as { asset: Asset };
+  return data.asset;
+}
+
+export async function updateAsset(
+  token: string,
+  id: string,
+  patch: { name?: string; ascent?: number },
+): Promise<Asset> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Update failed" }));
+    throw new Error(err.error ?? "Update failed");
+  }
+  const data = (await res.json()) as { asset: Asset };
+  return data.asset;
+}
+
+export async function deleteAsset(token: string, id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Delete failed");
 }
