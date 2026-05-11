@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { assets, serverKeys } from "../db/schema";
@@ -22,6 +22,23 @@ async function seedGlyph(serverKeyId: string, codepoint: number): Promise<void> 
     codepoint,
     fontMeta: null,
     contentHash: "abc" + codepoint,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+
+async function seedTexture(serverKeyId: string): Promise<void> {
+  await db.insert(assets).values({
+    id: crypto.randomUUID(),
+    serverKeyId,
+    type: "texture",
+    name: "tex_" + crypto.randomUUID().slice(0, 8),
+    width: 16,
+    height: 16,
+    ascent: null,
+    codepoint: null,
+    fontMeta: null,
+    contentHash: "tex" + crypto.randomUUID().slice(0, 8),
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -56,5 +73,11 @@ describe("allocateCodepoint", () => {
     } catch (e: any) {
       expect(e.message).toMatch(/range exhausted/i);
     }
+  });
+
+  test("ignores texture rows with NULL codepoint", async () => {
+    const sk = await seedServerKey();
+    await seedTexture(sk);
+    expect(await allocateCodepoint(sk)).toBe(CODEPOINT_MIN);
   });
 });
