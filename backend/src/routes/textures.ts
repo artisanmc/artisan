@@ -47,7 +47,8 @@ router.get("/:version/*", async (c) => {
   return new Response(file, {
     headers: {
       "Content-Type": "image/png",
-      "Cache-Control": "no-cache",
+      // Vanilla textures are versioned in the URL — safe to cache indefinitely.
+      "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
 });
