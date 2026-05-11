@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
 import { summarizeFieldType } from "@/features/data/helpers";
-import { TitleComposer } from "@/features/canvas/title/TitleComposer";
+import { TitleThumbnail } from "@/features/canvas/title/composer/TitleThumbnail";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
@@ -67,7 +68,18 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <MenuIdField packId={packId} menuId={menu.id} />
-      <TitleComposer packId={packId} menu={menu} />
+      <div>
+        <div className="mb-1 text-[10px] uppercase text-zinc-500">Title</div>
+        <TitleThumbnail packId={packId} menuId={menu.id} />
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-1.5 w-full"
+          onClick={() => useUiStore.getState().openTitleComposer(packId, menu.id)}
+        >
+          Edit title…
+        </Button>
+      </div>
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}
