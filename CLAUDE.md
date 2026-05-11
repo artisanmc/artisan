@@ -23,7 +23,7 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 
 ```bash
 cd plugin
-./gradlew test          # ~190 tests (unit + intégration MockWebServer)
+./gradlew test          # ~206 tests (unit + intégration MockWebServer)
 ./gradlew shadowJar     # → build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
@@ -34,7 +34,7 @@ cd backend
 bun install
 bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis)
 bun run dev             # Dev avec --watch sur port 3001
-bun test                # ~104 tests (unit + intégration WS réel)
+bun test                # ~175 tests (unit + intégration WS réel)
 ```
 
 ```bash
@@ -111,7 +111,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | Message | Sens | Contenu clé |
 |---|---|---|
 | `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
-| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url` |
+| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null` |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
 | `editor_session_request` | plugin → backend | `sender` |
@@ -121,6 +121,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | `session_trusted` | backend → éditeur WS | `{}` |
 | `session_expired` | backend → éditeur WS | `{}` |
 | `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
+| `resource_pack_updated` | backend → plugin | `{ url, hash }` — broadcast après chaque rebuild |
 | `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
 | `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
 | `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
@@ -172,6 +173,8 @@ plugins/Interfaze/packs/
 | `PATCH /api/editor-session/:token/assets/:id` | Renommer ou changer ascent (glyph). Body JSON `{ name?, ascent? }`. |
 | `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
 | `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset depuis `data/assets/{server_key_id}/{asset_id}.png`. |
+| `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
+| `POST /api/editor-session/:token/resource-pack/rebuild` | Force la régénération du resource pack pour le server_key de la session. Returns `{ url, hash }` et broadcast `resource_pack_updated`. |
 
 Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
 
@@ -194,8 +197,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, etc. | 140 pass (1 pre-existing failure: `link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, etc. (26 fichiers) | ~190 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 175 pass (1 pre-existing failure: `link_codes schema`) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, etc. (29 fichiers) | 206 |
 | Editor unit | Vitest, 422 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetDetailPanel, AssetsTab, etc. | 422 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
