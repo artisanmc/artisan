@@ -129,6 +129,26 @@ export async function uploadAsset(
   return data.asset;
 }
 
+export async function uploadFontAsset(
+  token: string,
+  input: { name: string; file: File },
+): Promise<{ asset: Asset; warnings?: string[] }> {
+  const fd = new FormData();
+  fd.set("type", "font");
+  fd.set("name", input.name);
+  fd.set("file", input.file);
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets`, {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(err.error ?? "Upload failed");
+  }
+  const data = (await res.json()) as { asset: Asset; warnings?: string[] };
+  return data;
+}
+
 export async function updateAsset(
   token: string,
   id: string,
