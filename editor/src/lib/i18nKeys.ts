@@ -32,7 +32,19 @@ export const messageKeyAt = (prefix: string, idx: number): I18nKey =>
  * an immer producer. Idempotent: no-ops when key is already correct.
  */
 export function rekeyMenuLTexts(pack: Pack, menu: Menu): void {
-  if (menu.title) moveLTextKey(pack, menu.title, menuTitleKey(menu.id));
+  // menu.title is now MenuTitleLayer[]; rekey each text layer's LText.
+  // First text layer gets the canonical "menus.{id}.title" key;
+  // subsequent text layers get "menus.{id}.title_1", "menus.{id}.title_2", etc.
+  let extraIdx = 1;
+  for (const layer of menu.title) {
+    if (layer.kind === "text") {
+      const key = extraIdx === 1
+        ? menuTitleKey(menu.id)
+        : (`${menuTitleKey(menu.id)}_${extraIdx}` as I18nKey);
+      moveLTextKey(pack, layer.value, key);
+      extraIdx++;
+    }
+  }
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
       el.appearances.forEach((app, appIdx) => {

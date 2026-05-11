@@ -1,5 +1,10 @@
 import { accountId, commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { Account, I18nKey, Pack } from "@/domain/types";
+import type { Account, I18nKey, MenuTitleLayer, Pack } from "@/domain/types";
+
+/** Wrap an existing i18n key into a single text MenuTitleLayer (migration helper for fixtures). */
+const textLayer = (key: I18nKey): MenuTitleLayer[] => [
+  { kind: "text", value: { key }, x: 8, y: 5 },
+];
 
 const ts = "2026-04-30T10:00:00Z";
 
@@ -42,7 +47,7 @@ const personalPack = (): Pack => {
       {
         id: shopMainId,
         packId: pId,
-        title: { key: k("menus.m_shop_main.title") },
+        title: textLayer(k("menus.m_shop_main.title")),
         rows: 3,
         layers: [
           {
@@ -73,14 +78,14 @@ const personalPack = (): Pack => {
       {
         id: profileId,
         packId: pId,
-        title: { key: k("menus.m_profile.title") },
+        title: textLayer(k("menus.m_profile.title")),
         rows: 3,
         layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
       },
       {
         id: aboutId,
         packId: pId,
-        title: { key: k("menus.m_about.title") },
+        title: textLayer(k("menus.m_about.title")),
         rows: 3,
         layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
       },
@@ -133,21 +138,21 @@ const shopSystemPack = (): Pack => {
       {
         id: shopRootId,
         packId: pId,
-        title: { key: k("menus.m_shop_root.title") },
+        title: textLayer(k("menus.m_shop_root.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
       },
       {
         id: catArmorsId,
         packId: pId,
-        title: { key: k("menus.m_cat_armors.title") },
+        title: textLayer(k("menus.m_cat_armors.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
       },
       {
         id: catWeaponsId,
         packId: pId,
-        title: { key: k("menus.m_cat_weapons.title") },
+        title: textLayer(k("menus.m_cat_weapons.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
       },
@@ -193,7 +198,7 @@ const dailyQuestsPack = (): Pack => {
       {
         id: questsMainId,
         packId: pId,
-        title: { key: k("menus.m_quests_main.title") },
+        title: textLayer(k("menus.m_quests_main.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
       },
