@@ -6,6 +6,7 @@ export interface AssetIndexEntry {
   ascent: number | null;
   height: number;
   codepoint?: number;
+  namespace?: string;
 }
 
 export interface AssetIndex {
@@ -24,6 +25,10 @@ export function buildAssetIndex(assets: AssetRow[]): AssetIndex {
     };
     if (a.type === "glyph" && a.codepoint !== null && a.codepoint !== undefined) {
       entry.codepoint = a.codepoint;
+    }
+    if (a.type === "font" && a.fontMeta) {
+      const meta = a.fontMeta as { namespace?: string };
+      if (typeof meta.namespace === "string") entry.namespace = meta.namespace;
     }
     out[a.id] = entry;
   }
