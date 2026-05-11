@@ -13,6 +13,7 @@ class ResourcePackManager(
     private val plugin: JavaPlugin,
     private val config: ResourcePackConfig,
     private val logger: Logger? = null,
+    private val assetCatalog: AssetCatalog? = null,
 ) : Listener {
 
     @Volatile
@@ -26,9 +27,24 @@ class ResourcePackManager(
     fun onUpdate(info: ResourcePackInfo?) {
         currentPackInfo = info
         if (info == null) return
+        assetCatalog?.let { cat -> updateCatalogAsync(cat, info) }
         if (!config.enabled) return
         for (player in plugin.server.onlinePlayers) {
             pushToPlayer(player)
+        }
+    }
+
+    private fun updateCatalogAsync(catalog: AssetCatalog, info: ResourcePackInfo) {
+        Thread {
+            try {
+                catalog.update(info.url, info.hash)
+            } catch (t: Throwable) {
+                logger?.warning("[asset-catalog] update failed: ${t.message}")
+            }
+        }.apply {
+            isDaemon = true
+            name = "interfaze-asset-catalog-update"
+            start()
         }
     }
 
