@@ -1,11 +1,9 @@
-import { getFirstTitleText } from "@/domain/menuTitle";
 import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
-import { useEditingStore } from "@/state/editingStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -15,12 +13,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
-import { MiniMessageKonvaText } from "./MiniMessageKonvaText";
 import { hitTestSlot } from "./hitTest";
 import { useTextureUrl } from "./textureStore";
+import { TitleRender } from "./title/composer/TitleRender";
 import {
   COLS,
-  TEX_FIRST_SLOT_X,
   TEX_SCALE,
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
@@ -273,12 +270,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id, packId, layout],
   );
 
+  const openComposer = useUiStore((s) => s.openTitleComposer);
   const onTitleDblClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
-      useEditingStore.getState().setEditing(menu.id);
+      openComposer(packId, menu.id);
     },
-    [menu.id],
+    [openComposer, packId, menu.id],
   );
 
   /**
@@ -702,22 +700,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
           perfectDrawEnabled={false}
         />
       ) : null}
-      {/* Title text in the texture's title bar — MiniMessage-aware so e.g.
-          "<gold>Profil</gold>" actually renders gold. Resolved against
-          enhancedCtx so users can write `<gold>Page {pagination.page}/
-          {pagination.totalPages}</gold>` or interpolate any sample-context
-          field directly into the title. */}
-      <MiniMessageKonvaText
-        source={(() => {
-          if (!pack) return "";
-          const lt = getFirstTitleText(menu);
-          if (!lt) return "";
-          return renderPreview(getText(pack, lt, activeLang), enhancedCtx, pack, activeLang);
-        })()}
-        x={TEX_FIRST_SLOT_X + 1}
-        y={5 * TEX_SCALE}
-        fontSize={7 * TEX_SCALE}
-        defaultColor="#404040"
+      {/* Title bar — TitleRender draws all title layers (background + glyphs +
+          text) faithfully, matching what the plugin emits in-game. */}
+      <TitleRender
+        packId={packId}
+        menuId={menu.id}
+        scale={TEX_SCALE}
+        mode="compact"
       />
       {/* Interactive title-bar overlay: dblclicking it opens the inline title
           editor. Constrained to the title row only so dblclicks elsewhere on
