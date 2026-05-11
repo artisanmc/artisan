@@ -364,6 +364,7 @@ const fr: typeof en = {
   editorPane: {
     tabEdit: "Édition",
     tabLibrary: "Library",
+    tabAssets: "Assets",
   },
   materialPicker: {
     title: "Choisir un item",
