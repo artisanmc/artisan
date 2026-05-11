@@ -9,18 +9,18 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from "react-konva";
 import useImage from "use-image";
+import { TEX_SCALE } from "../menuLayout";
 import { useTitleSelectionStore } from "./titleSelectionStore";
 
 /**
  * Vanilla chest GUI title bar dimensions, in MC pixels.
  *
- * The vanilla `generic_54.png` title bar is 176 × 16. We render at 2× scale
- * so it lines up visually with our other Konva surfaces (also 2× per
- * `TEX_SCALE`).
+ * The vanilla `generic_54.png` title bar occupies 176 × 17 in the source
+ * texture (matching `MC_W` / `MC_TITLE_H` in `menuLayout.ts`). We render at
+ * `TEX_SCALE` (2×) so it lines up visually with the rest of the menu canvas.
  */
-const WIDTH = 176;
-const HEIGHT = 16;
-const SCALE = 2;
+const TITLE_BAR_W = 176;
+const TITLE_BAR_H = 17;
 /** Slot grid alignment used when Alt is held during a drag. */
 const SLOT_STEP = 18;
 
@@ -29,10 +29,10 @@ const SLOT_STEP = 18;
  * it can be unit-tested without a Konva stage.
  *
  * Input: raw stage coordinates produced by the dragged node (already in the
- * Stage's pixel space — i.e. multiplied by `SCALE`).
+ * Stage's pixel space — i.e. multiplied by `TEX_SCALE`).
  *
- * Output: domain coordinates (i.e. divided by `SCALE`) ready to persist on
- * the layer.
+ * Output: domain coordinates (i.e. divided by `TEX_SCALE`) ready to persist
+ * on the layer.
  *
  * Modifiers:
  *  - default        → round to nearest whole pixel
@@ -62,7 +62,6 @@ export function snapDragPosition(
 
 interface LayerNodeProps {
   layer: MenuTitleLayer;
-  index: number;
   asset?: Asset;
   text: string;
   selected: boolean;
@@ -72,7 +71,7 @@ interface LayerNodeProps {
 
 /**
  * Renders one title layer as a Konva Group. The Group is positioned at the
- * layer's `(x, y)` in stage coords (i.e. multiplied by `SCALE`). For
+ * layer's `(x, y)` in stage coords (i.e. multiplied by `TEX_SCALE`). For
  * `background` layers there's no x/y on the layer; we pin it at the origin.
  *
  * The shape inside the Group varies by `kind`:
@@ -81,24 +80,24 @@ interface LayerNodeProps {
  *  - text             → Text with the resolved i18n string + optional color
  *  - external_glyph   → dashed placeholder Rect (rendered later by plugin)
  */
-function LayerNode({ layer, index: _index, asset, text, selected, onSelect, onDragEnd }: LayerNodeProps) {
+function LayerNode({ layer, asset, text, selected, onSelect, onDragEnd }: LayerNodeProps) {
   const [image] = useImage(asset ? assetPreviewUrl(asset) : "");
 
-  const groupX = layer.kind === "background" ? 0 : layer.x * SCALE;
-  const groupY = layer.kind === "background" ? 0 : layer.y * SCALE;
+  const groupX = layer.kind === "background" ? 0 : layer.x * TEX_SCALE;
+  const groupY = layer.kind === "background" ? 0 : layer.y * TEX_SCALE;
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (layer.kind === "background") return; // bg has no x/y
       const evt = e.evt as DragEvent & { shiftKey: boolean; altKey: boolean };
-      const snapped = snapDragPosition(e.target.x(), e.target.y(), SCALE, {
+      const snapped = snapDragPosition(e.target.x(), e.target.y(), TEX_SCALE, {
         shift: Boolean(evt.shiftKey),
         alt: Boolean(evt.altKey),
       });
       // Snap the node back so Konva's internal position matches the
       // committed domain coords (otherwise on subsequent drags it would
       // accumulate sub-pixel drift).
-      e.target.position({ x: snapped.x * SCALE, y: snapped.y * SCALE });
+      e.target.position({ x: snapped.x * TEX_SCALE, y: snapped.y * TEX_SCALE });
       onDragEnd(snapped.x, snapped.y);
     },
     [layer.kind, onDragEnd],
@@ -108,13 +107,20 @@ function LayerNode({ layer, index: _index, asset, text, selected, onSelect, onDr
   let body: React.ReactNode = null;
   if (layer.kind === "background") {
     body = image ? (
-      <KonvaImage image={image} x={0} y={0} width={WIDTH * SCALE} height={HEIGHT * SCALE} listening={false} />
+      <KonvaImage
+        image={image}
+        x={0}
+        y={0}
+        width={TITLE_BAR_W * TEX_SCALE}
+        height={TITLE_BAR_H * TEX_SCALE}
+        listening={false}
+      />
     ) : (
-      <Rect width={WIDTH * SCALE} height={HEIGHT * SCALE} fill="#5a5a5a" listening={false} />
+      <Rect width={TITLE_BAR_W * TEX_SCALE} height={TITLE_BAR_H * TEX_SCALE} fill="#5a5a5a" listening={false} />
     );
   } else if (layer.kind === "glyph") {
-    const w = (asset?.width ?? 8) * SCALE;
-    const h = (asset?.height ?? 8) * SCALE;
+    const w = (asset?.width ?? 8) * TEX_SCALE;
+    const h = (asset?.height ?? 8) * TEX_SCALE;
     body = image ? (
       <KonvaImage image={image} x={0} y={0} width={w} height={h} listening={false} />
     ) : (
@@ -126,7 +132,7 @@ function LayerNode({ layer, index: _index, asset, text, selected, onSelect, onDr
         text={text}
         x={0}
         y={0}
-        fontSize={7 * SCALE}
+        fontSize={7 * TEX_SCALE}
         fontFamily="ui-monospace, monospace"
         fill={layer.color ?? "#404040"}
       />
@@ -138,8 +144,8 @@ function LayerNode({ layer, index: _index, asset, text, selected, onSelect, onDr
     body = (
       <>
         <Rect
-          width={10 * SCALE}
-          height={10 * SCALE}
+          width={10 * TEX_SCALE}
+          height={10 * TEX_SCALE}
           fill="rgba(245,158,11,0.15)"
           stroke="#f59e0b"
           strokeWidth={1}
@@ -176,21 +182,21 @@ function LayerNode({ layer, index: _index, asset, text, selected, onSelect, onDr
           y={-1}
           width={
             layer.kind === "background"
-              ? WIDTH * SCALE + 2
+              ? TITLE_BAR_W * TEX_SCALE + 2
               : layer.kind === "glyph"
-                ? (asset?.width ?? 8) * SCALE + 2
+                ? (asset?.width ?? 8) * TEX_SCALE + 2
                 : layer.kind === "external_glyph"
-                  ? 10 * SCALE + 2
-                  : Math.max(text.length * 4 * SCALE, 8) + 2
+                  ? 10 * TEX_SCALE + 2
+                  : Math.max(text.length * 4 * TEX_SCALE, 8) + 2
           }
           height={
             layer.kind === "background"
-              ? HEIGHT * SCALE + 2
+              ? TITLE_BAR_H * TEX_SCALE + 2
               : layer.kind === "glyph"
-                ? (asset?.height ?? 8) * SCALE + 2
+                ? (asset?.height ?? 8) * TEX_SCALE + 2
                 : layer.kind === "external_glyph"
-                  ? 10 * SCALE + 2
-                  : 7 * SCALE + 2
+                  ? 10 * TEX_SCALE + 2
+                  : 7 * TEX_SCALE + 2
           }
           stroke="#22c55e"
           strokeWidth={1}
@@ -225,10 +231,15 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
 
   return (
-    <Stage width={WIDTH * SCALE} height={HEIGHT * SCALE}>
+    <Stage width={TITLE_BAR_W * TEX_SCALE} height={TITLE_BAR_H * TEX_SCALE}>
       <Layer>
         {/* Title-bar backdrop — vanilla MC title row dark grey. */}
-        <Rect width={WIDTH * SCALE} height={HEIGHT * SCALE} fill="#3f3f3f" listening={false} />
+        <Rect
+          width={TITLE_BAR_W * TEX_SCALE}
+          height={TITLE_BAR_H * TEX_SCALE}
+          fill="#3f3f3f"
+          listening={false}
+        />
         {menu.title.map((layer, idx) => {
           const asset =
             layer.kind === "background" || layer.kind === "glyph"
@@ -241,19 +252,24 @@ export function TitleMockup({ packId, menu }: TitleMockupProps) {
               // biome-ignore lint/suspicious/noArrayIndexKey: layer order is the stable identifier
               key={idx}
               layer={layer}
-              index={idx}
               asset={asset}
               text={text}
               selected={selected === idx}
               onSelect={() => setSelected(idx)}
-              onDragEnd={(x, y) =>
+              onDragEnd={(x, y) => {
+                // `background` layers have no x/y in the union; the drag
+                // handler in `LayerNode` already early-returns for them, so
+                // this callback only fires for variants with `x: number;
+                // y: number`. Narrow the patch type accordingly so we don't
+                // pretend `{ x, y }` is valid for the `background` variant.
+                if (layer.kind === "background") return;
                 updateLayer({
                   packId,
                   menuId: menu.id,
                   index: idx,
-                  patch: { x, y } as Partial<MenuTitleLayer>,
-                })
-              }
+                  patch: { x, y } as Partial<Extract<MenuTitleLayer, { x: number; y: number }>>,
+                });
+              }}
             />
           );
         })}
