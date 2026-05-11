@@ -43,7 +43,7 @@ router.get("/:version/*", async (c) => {
   if (!existsSync(filePath)) return c.newResponse(null, 404);
 
   return new Response(Bun.file(filePath), {
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=31536000, immutable" },
   });
 });
 
