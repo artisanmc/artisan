@@ -170,7 +170,17 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
     patch.ascent = body.ascent;
   }
 
-  await db.update(assets).set(patch).where(eq(assets.id, id));
+  try {
+    await db.update(assets).set(patch).where(eq(assets.id, id));
+  } catch (err) {
+    // Race condition: pre-SELECT passed but the DB unique constraint fired
+    // when another request renamed a different asset to the same name.
+    const code = (err as { code?: string })?.code;
+    if (code === "23505") {
+      return c.json({ error: "Asset name already exists" }, 409);
+    }
+    return c.json({ error: "Failed to persist asset" }, 500);
+  }
   const updated = (await db.select().from(assets).where(eq(assets.id, id)))[0];
   return c.json({ asset: serialize(updated) });
 });
