@@ -80,18 +80,19 @@ class SyncedMenuProvider(
                 "1.21.4"
             }
             val availableSources = customItemsManager.availableSources()
-            val rawCount = customItemsManager.rawItemCount()
-            logger?.info("[IFZ] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}, $rawCount item(s) found")
-            val customHash = customItemsManager.computeHash()
-            if (customHash.isNotEmpty()) logger?.info("[IFZ] Custom items hash: ${customHash.take(8)}… ($rawCount items with textures)")
-            else logger?.info("[IFZ] Custom items hash: EMPTY — items without textures found or no custom plugin active")
+            logger?.info("[IFZ] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
+            // Custom items hash is computed asynchronously after server startup
+            // (see registerCustomItemsReloadListeners → ServerLoadEvent handler).
+            // Indexing a large Nexo pack (1700+ items, hundreds of MB of zip data)
+            // would otherwise block onEnable for tens of seconds. The backend learns
+            // the real hash via a custom_items_changed message once indexing finishes.
             val client = WsClient(
                 url               = wsUrl,
                 serverKey         = serverKey,
                 mcVersion         = mcVersion,
                 currentBundleHash = currentHash,
                 localPackIds      = bundles.map { it.packId },
-                customItemsHash   = customHash,
+                customItemsHash   = "",
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
