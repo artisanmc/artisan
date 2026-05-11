@@ -4,6 +4,10 @@ import { join, resolve, sep } from "path";
 import { textureFilePath, assetsDone, ensureAssets } from "../lib/mcAssets";
 import { customItemsCacheDir } from "../lib/customItems";
 import { assetPath } from "../lib/assetStorage";
+import { db } from "../db/index";
+import { assets } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { readFontGlyph } from "../lib/fontStorage";
 
 const router = new Hono();
 
@@ -35,6 +39,29 @@ router.get("/asset/:serverKeyId/:assetId", async (c) => {
   if (!existsSync(filePath)) return c.newResponse(null, 404);
   return new Response(Bun.file(filePath), {
     headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
+  });
+});
+
+router.get("/asset-font/:assetId/*", async (c) => {
+  const assetId = c.req.param("assetId");
+  const fullPath = c.req.path;
+  const prefix = `/asset-font/${assetId}/`;
+  const idx = fullPath.indexOf(prefix);
+  const rest = idx >= 0 ? fullPath.slice(idx + prefix.length) : "";
+  if (!rest) return c.newResponse(null, 404);
+
+  const rows = await db.select().from(assets).where(eq(assets.id, assetId));
+  const row = rows[0];
+  if (!row || row.type !== "font") return c.newResponse(null, 404);
+
+  const bytes = await readFontGlyph(row.serverKeyId, assetId, rest);
+  if (!bytes) return c.newResponse(null, 404);
+
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": "image/png",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
   });
 });
 
