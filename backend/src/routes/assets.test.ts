@@ -261,6 +261,84 @@ describe("PATCH /api/editor-session/:token/assets/:id", () => {
     expect(body.asset.ascent).toBe(9);
   });
 
+  test("updates glyph height", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_height", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 16 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.height).toBe(16);
+  });
+
+  test("rejects height patch on a font asset", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadFontForm({ name: "fnt_height" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 16 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects height = 0", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_h0", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 0 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects height = 257 (above max)", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_h257", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 257 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("applies height + name together in a single PATCH", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_both", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 32, name: "g_both_renamed" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.height).toBe(32);
+    expect(body.asset.name).toBe("g_both_renamed");
+  });
+
   test("rejects rename to invalid pattern", async () => {
     const { token } = await seedSession();
     const post = await app.request(`/api/editor-session/${token}/assets`, {
@@ -378,6 +456,51 @@ describe("resource pack regeneration on asset mutations", () => {
     expect(patch.status).toBe(200);
     const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
     expect(after).not.toBe(before);
+  });
+
+  test("PATCH height rebuilds the pack and changes the hash", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_h_rebuild", ascent: "7" }),
+    });
+    const created = (await post.json()).asset;
+    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+
+    const patch = await app.request(`/api/editor-session/${token}/assets/${created.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 16 }),
+    });
+    expect(patch.status).toBe(200);
+    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    expect(after).not.toBe(before);
+  });
+
+  test("PATCH height ends up in the generated font.json", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_h_font", ascent: "7" }),
+    });
+    const created = (await post.json()).asset;
+
+    const patch = await app.request(`/api/editor-session/${token}/assets/${created.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 24 }),
+    });
+    expect(patch.status).toBe(200);
+
+    // Read the regenerated pack zip from disk and inspect font/default.json.
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const { resourcePackPath } = await import("../lib/resourcePackStorage");
+    const { readFile } = await import("fs/promises");
+    const hash = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
+    const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
+    const entries = unzipSync(new Uint8Array(zipBytes));
+    const fontJson = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const glyphProvider = fontJson.providers.find((p: { file?: string }) => p.file === "interfaze:font/g_h_font.png");
+    expect(glyphProvider).toBeDefined();
+    expect(glyphProvider.height).toBe(24);
   });
 
   test("DELETE asset rebuilds the pack", async () => {

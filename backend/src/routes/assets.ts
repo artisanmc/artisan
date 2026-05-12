@@ -208,7 +208,7 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   const current = rows[0];
 
   const body = await c.req.json().catch(() => ({}));
-  const patch: { name?: string; ascent?: number; updatedAt: Date } = { updatedAt: new Date() };
+  const patch: { name?: string; ascent?: number; height?: number; updatedAt: Date } = { updatedAt: new Date() };
 
   if (typeof body.name === "string") {
     if (!NAME_RE.test(body.name)) return c.json({ error: "Invalid name" }, 400);
@@ -225,6 +225,13 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   if (typeof body.ascent === "number") {
     if (current.type !== "glyph") return c.json({ error: "ascent only valid for glyph" }, 400);
     patch.ascent = body.ascent;
+  }
+  if (typeof body.height === "number") {
+    if (current.type !== "glyph") return c.json({ error: "height only valid for glyph" }, 400);
+    if (!Number.isInteger(body.height) || body.height < 1 || body.height > 256) {
+      return c.json({ error: "Invalid height (must be integer between 1 and 256)" }, 400);
+    }
+    patch.height = body.height;
   }
 
   try {
