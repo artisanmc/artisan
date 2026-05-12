@@ -53,12 +53,13 @@ function fontRow(over: Partial<{
 }
 
 describe("buildResourcePackZip", () => {
-  test("emits pack.mcmeta with format 22", () => {
+  test("emits pack.mcmeta with format 64 and supported_formats range", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     expect(entries["pack.mcmeta"]).toBeDefined();
     const meta = JSON.parse(strFromU8(entries["pack.mcmeta"]));
-    expect(meta.pack.pack_format).toBe(22);
+    expect(meta.pack.pack_format).toBe(64);
+    expect(meta.pack.supported_formats).toEqual({ min_inclusive: 22, max_inclusive: 200 });
     expect(typeof meta.pack.description).toBe("string");
   });
 

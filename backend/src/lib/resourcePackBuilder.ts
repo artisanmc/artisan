@@ -12,7 +12,8 @@ export interface BuildResult {
 
 const PACK_MCMETA = {
   pack: {
-    pack_format: 22,
+    pack_format: 64,
+    supported_formats: { min_inclusive: 22, max_inclusive: 200 },
     description: "Interfaze pack",
   },
 };
