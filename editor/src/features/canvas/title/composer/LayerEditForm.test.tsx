@@ -120,14 +120,14 @@ describe("LayerEditForm — empty state", () => {
   it("renders an empty-state hint when no layer is selected", () => {
     seedPack([{ kind: "text", value: { key: K("g") }, x: 0, y: 0 }]);
     render(<LayerEditForm packId={PACK_ID} />);
-    expect(screen.getByText(/select a layer/i)).toBeTruthy();
+    expect(screen.getByText(/sélectionne un élément/i)).toBeTruthy();
   });
 
   it("renders empty state when selectedLayerKey points to a missing index", () => {
     seedPack([{ kind: "text", value: { key: K("g") }, x: 0, y: 0 }]);
     useUiStore.setState({ selectedLayerKey: { menuId: MENU_ID, index: 99 } } as any);
     render(<LayerEditForm packId={PACK_ID} />);
-    expect(screen.getByText(/select a layer/i)).toBeTruthy();
+    expect(screen.getByText(/sélectionne un élément/i)).toBeTruthy();
   });
 
   it("renders empty state when the menu doesn't exist on the pack", () => {
@@ -136,7 +136,7 @@ describe("LayerEditForm — empty state", () => {
       { selectedLayerKey: { menuId: "ghost" as MenuId, index: 0 } } as any,
     );
     render(<LayerEditForm packId={PACK_ID} />);
-    expect(screen.getByText(/select a layer/i)).toBeTruthy();
+    expect(screen.getByText(/sélectionne un élément/i)).toBeTruthy();
   });
 });
 
@@ -152,20 +152,20 @@ describe("LayerEditForm — image layer (background)", () => {
   it("shows the current asset name + Pick asset button + Duplicate glyph button", () => {
     render(<LayerEditForm packId={PACK_ID} />);
     expect(screen.getByText("shop_bg")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /pick asset/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /duplicate glyph/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /choisir une image/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /dupliquer l'image/i })).toBeTruthy();
   });
 
   it("clicking Pick asset opens the AssetPicker (typeFilter=glyph)", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /pick asset/i }));
+    fireEvent.click(screen.getByRole("button", { name: /choisir une image/i }));
     const picker = screen.getByTestId("asset-picker");
     expect(picker.getAttribute("data-type-filter")).toBe("glyph");
   });
 
   it("picking a new asset updates the layer's asset_id", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /pick asset/i }));
+    fireEvent.click(screen.getByRole("button", { name: /choisir une image/i }));
     fireEvent.click(screen.getByTestId("asset-picker"));
     const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g_new");
@@ -183,8 +183,8 @@ describe("LayerEditForm — image layer (glyph)", () => {
 
   it("shows asset picker + Duplicate glyph button", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    expect(screen.getByRole("button", { name: /pick asset/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /duplicate glyph/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /choisir une image/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /dupliquer l'image/i })).toBeTruthy();
   });
 
   it("Duplicate glyph → confirms, calls API, upserts asset, points layer at new id", async () => {
@@ -193,7 +193,7 @@ describe("LayerEditForm — image layer (glyph)", () => {
     vi.mocked(duplicateAsset).mockResolvedValue(dup);
 
     render(<LayerEditForm packId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /duplicate glyph/i }));
+    fireEvent.click(screen.getByRole("button", { name: /dupliquer l'image/i }));
 
     // Wait for the async chain to flush.
     await new Promise((r) => setTimeout(r, 0));
@@ -207,7 +207,7 @@ describe("LayerEditForm — image layer (glyph)", () => {
   it("Duplicate glyph cancelled (confirm=false) → no API call, no store change", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<LayerEditForm packId={PACK_ID} />);
-    fireEvent.click(screen.getByRole("button", { name: /duplicate glyph/i }));
+    fireEvent.click(screen.getByRole("button", { name: /dupliquer l'image/i }));
     await new Promise((r) => setTimeout(r, 0));
 
     expect(duplicateAsset).not.toHaveBeenCalled();
@@ -227,13 +227,13 @@ describe("LayerEditForm — text layer", () => {
 
   it("renders a textarea bound to the resolved text", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    const textarea = screen.getByLabelText(/text \(minimessage\)/i) as HTMLTextAreaElement;
+    const textarea = screen.getByLabelText(/texte \(minimessage\)/i) as HTMLTextAreaElement;
     expect(textarea.value).toBe("Hello");
   });
 
   it("typing in the textarea writes via setI18nValue", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    const textarea = screen.getByLabelText(/text \(minimessage\)/i);
+    const textarea = screen.getByLabelText(/texte \(minimessage\)/i);
     fireEvent.change(textarea, { target: { value: "<gold>Hi</gold>" } });
     expect(
       useAccountStore.getState().account.packs[0]!.i18nKeys[K("greet")]!.en,

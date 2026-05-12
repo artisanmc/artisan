@@ -80,14 +80,20 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
 
   return (
     <>
-      {/* Title-bar grey backdrop — vanilla MC title row tint. Listens so
-          clicks on empty title-bar area can clear the selection. */}
+      {/* Title-bar backdrop — invisible hit area covering the chest's title
+          row. Vanilla MC chests don't paint a gray block here (the title
+          text floats directly over the wood texture), so we keep the Rect
+          for click/tap detection but use an almost-transparent fill so
+          Konva's hit-testing still picks it up while the user sees the
+          underlying texture unchanged.
+          (`fill="transparent"` works too, but a near-zero-alpha fill is
+          maximally portable across Konva versions.) */}
       <Rect
         x={0}
         y={0}
         width={TITLE_BAR_W * scale}
         height={MC_TITLE_H * scale}
-        fill="#3f3f3f"
+        fill="rgba(0,0,0,0.001)"
         onClick={onBackdropClick}
         onTap={onBackdropClick}
       />

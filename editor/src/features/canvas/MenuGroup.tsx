@@ -261,6 +261,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         }
       }
 
+      // Make this menu the "current" one for the LayersPanel (3rd column).
+      // Without this, clicking on the body/slots area of a menu would leave
+      // the LayersPanel showing whatever menu was previously selected — only
+      // clicking the title-bar backdrop (handled by TitleRender) would update
+      // it. Mirroring the call here covers every menu hit area.
+      useUiStore.getState().setSelectedMenuId(menu.id);
+
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(menu.id);

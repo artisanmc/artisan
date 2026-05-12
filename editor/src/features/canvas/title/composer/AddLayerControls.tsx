@@ -185,7 +185,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         onClick={(e) => onClick("text", e)}
       >
         <Type className="mr-1 h-3.5 w-3.5" />
-        + Text
+        + Texte
       </Button>
     </div>
   );
