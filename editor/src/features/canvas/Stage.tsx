@@ -22,6 +22,7 @@ import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useTextureUrl } from "./textureStore";
 import { setStageDropTarget } from "./stageDropTarget";
+import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
 
@@ -289,6 +290,28 @@ export function Stage({ packId }: StageProps) {
     });
     return () => setStageDropTarget(null);
   }, [pack, layout, viewport, packId]);
+
+  // Expose the live wrapper rect + viewport so the 3rd-column LayersPanel can
+  // convert drag-end client coords into canvas coords (cursor-based new-layer
+  // attach in P1.11). The provider reads refs at call time, so consumers
+  // always see the current pan/scale + bounding box.
+  useEffect(() => {
+    setStageGeometryProvider(() => {
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return null;
+      const rect = wrapper.getBoundingClientRect();
+      return {
+        wrapperRect: {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+        },
+        viewport,
+      };
+    });
+    return () => setStageGeometryProvider(null);
+  }, [viewport]);
 
   useCanvasKeyboard({
     packId,

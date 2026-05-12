@@ -7,8 +7,10 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
 import { AddLayerControls } from "./AddLayerControls";
+import { attachLayerAtCursor } from "./attachLayerAtCursor";
 import { LayerEditForm } from "./LayerEditForm";
 import { LayerListItem } from "./LayerListItem";
+import { getStageGeometry } from "../../stageGeometry";
 
 interface LayersPanelProps {
   packId: PackId;
@@ -37,6 +39,7 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
   const selectedMenuId = useUiStore((s) => s.selectedMenuId);
   const lastSelectedMenuId = useUiStore((s) => s.lastSelectedMenuId);
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
+  const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
   // Sticky menu: prefer the live selection, fall back to the last-known one.
   const menuId: MenuId | null = selectedMenuId ?? lastSelectedMenuId;
@@ -52,27 +55,63 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
   // strips custom MIME types in some cases — local state is robust.
   const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
 
+  /** Build the new layer to append. Image layers default to (0, 0); the
+   *  caller patches in cursor-derived coords when applicable. */
+  const buildLayer = (
+    kind: "image" | "text",
+    placement: { x: number; y: number } | null,
+  ): MenuTitleLayer => {
+    if (kind === "text") {
+      return {
+        kind: "text",
+        value: { key: newI18nKey() },
+        x: placement?.x ?? 8,
+        y: placement?.y ?? 5,
+      };
+    }
+    return {
+      kind: "glyph",
+      assetId: "" as AssetId,
+      x: placement?.x ?? 0,
+      y: placement?.y ?? 0,
+    };
+    // ↑ assetId is intentionally an empty string until the user picks one
+    // through the LayerEditForm picker. The image sub-form treats unknown
+    // ids as "asset not loaded", which surfaces a placeholder in the UI.
+  };
+
   const onPlace = (
     kind: "image" | "text",
     cursor: { x: number; y: number } | null,
   ) => {
-    // TODO P1.11: when the pack route owns the screen→canvas mapping,
-    // route `cursor !== null` through `findNearestMenu` instead of
-    // pinning to `lastSelectedMenuId`. For now both branches collapse to
-    // the same default placement.
-    void cursor;
+    // Drag-end branch — try cursor-driven attach first. If the pack canvas
+    // has a menu within range we use its id + the cursor-derived layer
+    // coords; otherwise we fall through to the default placement on
+    // `menuId` (sticky lastSelectedMenuId).
+    if (cursor !== null && pack) {
+      const geometry = getStageGeometry();
+      if (geometry) {
+        const placement = attachLayerAtCursor(pack, geometry, cursor);
+        if (placement) {
+          const targetMenu = pack.menus.find((m) => m.id === placement.menuId);
+          if (targetMenu) {
+            const newIndex = targetMenu.title.length;
+            const layer = buildLayer(kind, { x: placement.x, y: placement.y });
+            addMenuTitleLayer({ packId, menuId: placement.menuId, layer });
+            setSelectedMenuId(placement.menuId);
+            setSelectedLayerKey({ menuId: placement.menuId, index: newIndex });
+            return;
+          }
+        }
+      }
+    }
+
+    // Default placement — click branch or drag-end with no nearby menu.
     const targetMenuId = menuId;
     if (!targetMenuId || !menu) return;
 
     const newIndex = menu.title.length;
-    const layer: MenuTitleLayer =
-      kind === "text"
-        ? { kind: "text", value: { key: newI18nKey() }, x: 8, y: 5 }
-        : { kind: "glyph", assetId: "" as AssetId, x: 0, y: 0 };
-    // ↑ assetId is intentionally an empty string until the user picks one
-    // through the LayerEditForm picker. The image sub-form treats unknown
-    // ids as "asset not loaded", which surfaces a placeholder in the UI.
-
+    const layer = buildLayer(kind, null);
     addMenuTitleLayer({ packId, menuId: targetMenuId, layer });
     setSelectedLayerKey({ menuId: targetMenuId, index: newIndex });
   };
