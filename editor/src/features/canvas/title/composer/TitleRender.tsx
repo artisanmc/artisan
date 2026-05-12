@@ -54,20 +54,26 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
   const assets = useAssetStore((s) => s.assets);
   const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
+  const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
   const hiddenLayerKeys = useUiStore((s) => s.hiddenLayerKeys);
 
   const onBackdropClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      // Clicking the grey title-bar area (anywhere not on a layer) clears
-      // the title-layer selection. We don't cancelBubble here — MenuGroup's
-      // own title-bar handlers may still want to receive the click (e.g.
-      // to select the menu).
+    (_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Clicking the grey title-bar area (anywhere not on a layer):
+      //   1. Makes this menu the selected one in `uiStore` (v3 — drives
+      //      LayersPanel and the sticky lastSelectedMenuId mirror).
+      //   2. Clears any title-layer selection that belonged to this menu
+      //      (matches the v2 "click empty area = deselect layer" feel).
+      // We deliberately do NOT cancelBubble — MenuGroup's parent onClick
+      // still needs to fire so the menu becomes the selectionStore selection
+      // (used by element selection / drag-out logic). Both stores end up
+      // pointing at this menu after a title-bar click.
+      setSelectedMenuId(menuId);
       if (selectedLayerKey?.menuId === menuId) {
-        e.cancelBubble = true;
         setSelectedLayerKey(null);
       }
     },
-    [menuId, selectedLayerKey, setSelectedLayerKey],
+    [menuId, selectedLayerKey, setSelectedLayerKey, setSelectedMenuId],
   );
 
   if (!pack || !menu) return null;
