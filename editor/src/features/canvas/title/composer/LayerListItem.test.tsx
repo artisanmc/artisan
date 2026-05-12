@@ -73,12 +73,15 @@ afterEach(() => {
 });
 
 describe("LayerListItem — auto-name", () => {
-  it("renders 'Background • {asset name}' for a background layer", () => {
+  it("renders 'Image • {asset name}' for a background layer (background vocabulary hidden)", () => {
     useAssetStore.setState({ assets: [asset("asset_bg1", "shop_bg")] } as any);
     const layer: MenuTitleLayer = { kind: "background", assetId: A("asset_bg1") };
     seedPack([layer]);
     render(<LayerListItem packId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
-    expect(screen.getByText(/Background.*shop_bg/)).toBeInTheDocument();
+    expect(screen.getByText(/Image.*shop_bg/)).toBeInTheDocument();
+    // The word "Background" should NOT appear — UX renaming hides the
+    // technical vocabulary so users only see "Image".
+    expect(screen.queryByText(/Background/)).toBeNull();
   });
 
   it("renders 'Image • {asset name}' for a glyph layer", () => {
@@ -89,14 +92,14 @@ describe("LayerListItem — auto-name", () => {
     expect(screen.getByText(/Image.*sword_icon/)).toBeInTheDocument();
   });
 
-  it("renders 'Text • {text}' using the resolved i18n value for a text layer", () => {
+  it("renders 'Texte • {text}' using the resolved i18n value for a text layer", () => {
     const layer: MenuTitleLayer = { kind: "text", value: { key: K("k1") }, x: 0, y: 0 };
     seedPack([layer], { k1: { en: "Welcome to the shop" } });
     render(<LayerListItem packId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
-    expect(screen.getByText(/Text.*Welcome to the shop/)).toBeInTheDocument();
+    expect(screen.getByText(/Texte.*Welcome to the shop/)).toBeInTheDocument();
   });
 
-  it("renders 'External • {provider}:{name}' for an external_glyph layer", () => {
+  it("renders 'Image (Oraxen) • {name}' for an external_glyph layer (no 'glyph' jargon)", () => {
     const layer: MenuTitleLayer = {
       kind: "external_glyph",
       provider: "oraxen",
@@ -106,7 +109,7 @@ describe("LayerListItem — auto-name", () => {
     };
     seedPack([layer]);
     render(<LayerListItem packId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
-    expect(screen.getByText(/External.*oraxen:my_glyph/)).toBeInTheDocument();
+    expect(screen.getByText(/Image \(Oraxen\).*my_glyph/)).toBeInTheDocument();
   });
 
   it("falls back to truncated asset id when asset not loaded", () => {

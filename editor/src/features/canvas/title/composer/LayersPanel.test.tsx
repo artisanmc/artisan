@@ -127,7 +127,7 @@ describe("LayersPanel — empty state", () => {
   it("renders the 'select a menu' hint when no menu has been selected", () => {
     render(<LayersPanel packId={PACK_ID} />);
     expect(
-      screen.getByText(/Select a menu on the canvas to start editing/i),
+      screen.getByText(/Sélectionne un menu sur le canvas/i),
     ).toBeInTheDocument();
     // Header should NOT be present in empty state
     expect(screen.queryByTestId("layers-panel-header")).not.toBeInTheDocument();
@@ -149,8 +149,8 @@ describe("LayersPanel — menu selected", () => {
 
     // AddLayerControls present
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
-    // LayerEditForm's "select a layer" empty state is shown (no layer selected)
-    expect(screen.getByText(/Select a layer to edit its details/i)).toBeInTheDocument();
+    // LayerEditForm's empty state is shown (no layer selected)
+    expect(screen.getByText(/Sélectionne un élément pour modifier ses détails/i)).toBeInTheDocument();
   });
 
   it("renders layers in the order they appear in menu.title", () => {

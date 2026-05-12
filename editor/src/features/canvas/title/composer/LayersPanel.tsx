@@ -166,12 +166,14 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
         )}
         data-testid="layers-panel-empty"
       >
-        Select a menu on the canvas to start editing its title layers.
+        Sélectionne un menu sur le canvas pour modifier son titre.
       </div>
     );
   }
 
   // ─── Populated state ────────────────────────────────────────────────────
+  // Header: menu id as primary heading, subtitle explains what's editable
+  // ("Éléments du titre") — avoids exposing the internal "layers" jargon.
   return (
     <div
       className={cn("flex h-full flex-col gap-3 p-3", className)}
@@ -181,11 +183,12 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
         data-testid="layers-panel-header"
         className="border-b border-zinc-800 pb-2 text-xs text-zinc-300"
       >
-        <span className="font-mono text-zinc-100">Title layers</span>
-        <span className="text-zinc-500"> · </span>
-        <span className="font-mono text-zinc-400">{pack?.name}</span>
-        <span className="text-zinc-500"> / </span>
-        <span className="font-mono text-zinc-200">{menuId}</span>
+        <div className="font-mono text-zinc-100">{menuId}</div>
+        <div className="text-[10px] text-zinc-500">
+          Éléments du titre
+          <span className="text-zinc-600"> · </span>
+          <span className="font-mono">{pack?.name}</span>
+        </div>
       </div>
 
       <AddLayerControls onPlace={onPlace} />
