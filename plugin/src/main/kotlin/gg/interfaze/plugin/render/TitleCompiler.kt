@@ -11,59 +11,88 @@ import net.kyori.adventure.text.minimessage.MiniMessage
  * Compiles a list of [MenuTitleLayer]s into an Adventure [Component] suitable for
  * use as a `GuiInventory` title.
  *
- * Each layer is converted to a MiniMessage string fragment (with optional `<color>`
- * and `<font>` wrappers), the fragments are concatenated, and the result is rendered
- * via [MiniMessage.deserialize] in a single pass.
+ * Positioning model (since the "spaces font" sub-project):
  *
- * NOTE: Per-layer `x` offsets are intentionally dropped — Adventure MiniMessage
- * does not natively support `<offset:Xpx>` tags, so emitting them resulted in literal
- * text leaking into titles. Proper positioning requires a "negative space font" in
- * the resource pack plus a custom `TagResolver` that maps `<offset>` to space-char
- * sequences. Filed as a future SP. For now, layers render in array order without
- * explicit horizontal positioning.
+ *  - The compiler wraps the entire title in `<font:interfaze:default>...</font>`.
+ *    That font includes a `reference` to `minecraft:default` (so plain text falls
+ *    back to vanilla), the bitmap providers for project glyphs, and a `space`
+ *    provider mapping a set of codepoints (U+F900..U+F911) to positive/negative
+ *    pixel advances (powers of two, ±1..±256).
+ *  - Between layers the compiler emits a sequence of "space" chars produced by
+ *    [OffsetEncoder] that advances the cursor from the previous layer's end to
+ *    the next layer's `x`. After the body of a layer it estimates the body's
+ *    rendered width and updates the running cursor.
+ *
+ * Width estimation is best-effort:
+ *  - Image (background/glyph): [AssetEntry.width]; falls back to 16 px when 0.
+ *  - Text: heuristic `length * 6` (MC default font is mostly 6 px wide per char;
+ *    real widths range 1–9 — accuracy is not pixel-perfect for v1).
+ *  - External glyph: 8 px placeholder.
  *
  * Pure function: no side effects, no global state, no I/O. The [lookupAsset]
- * parameter is the only injected dependency — pass `assetCatalog::lookup` at the
- * call site to bind it to a live catalog, or a stub `Map<String, AssetEntry>::get`
- * in tests.
+ * and [offsetEncoder] parameters are the only injected dependencies — pass
+ * `assetCatalog::lookup` and `assetCatalog.offsetEncoder()` at the call site
+ * to bind them to a live catalog, or stubs in tests.
  */
 object TitleCompiler {
 
+    /** Default font wrapper for the title. */
+    private const val DEFAULT_FONT = "interfaze:default"
+
+    /** Fallback width for an image asset whose `width` is unknown (legacy v1 pack). */
+    private const val FALLBACK_IMAGE_WIDTH = 16
+
+    /** Approximate pixel width of one MC default-font character. */
+    private const val APPROX_CHAR_WIDTH = 6
+
+    /** Width estimate for an external-provider glyph (since we can't introspect it). */
+    private const val EXTERNAL_GLYPH_WIDTH = 8
+
     /**
-     * Compiles [layers] into a [Component].
+     * Compiles [layers] into a [Component]. Returns [Component.empty] when
+     * [layers] is empty.
      *
-     * Returns [Component.empty] when [layers] is empty.
+     * The returned component has its shadow suppressed at the root — vanilla
+     * MC draws a 1-px drop shadow under every glyph in chest titles, which
+     * darkens image glyphs sampled from the font texture. Suppressing it at
+     * the root cascades to every child segment. Trade-off: text layers also
+     * lose their shadow. Acceptable for v3; per-layer shadow control can be
+     * reintroduced later if needed.
      */
     fun compileTitle(
         layers: List<MenuTitleLayer>,
         lang: String,
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
+        offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
     ): Component {
         if (layers.isEmpty()) return Component.empty()
         val sb = StringBuilder()
+        sb.append("<font:$DEFAULT_FONT>")
+        var currentX = 0
         for (layer in layers) {
-            sb.append(compileLayer(layer, langMap, lookupAsset))
+            val targetX = layerX(layer)
+            if (targetX != currentX) {
+                sb.append(offsetEncoder.encode(targetX - currentX))
+            }
+            sb.append(compileLayerBody(layer, langMap, lookupAsset))
+            currentX = targetX + estimateBodyWidth(layer, langMap, lookupAsset)
         }
-        // Drop the default MC text shadow on the entire title. Vanilla draws a 1px
-        // dark drop-shadow under every glyph in chest titles; this is fine for letters
-        // but darkens image glyphs sampled from the font texture, making custom
-        // backgrounds/icons look "obscured". Setting shadowColor to fully transparent
-        // (ARGB 0x00000000) at the root suppresses it for every child segment.
-        // Trade-off: text layers also lose their shadow. Acceptable for v3; per-layer
-        // shadow control can be reintroduced later if needed.
+        sb.append("</font>")
         return MiniMessage.miniMessage()
             .deserialize(sb.toString())
             .shadowColor(ShadowColor.none())
     }
 
     /**
-     * Compiles a single [layer] to its MiniMessage string fragment.
+     * Compiles a single [layer] to its MiniMessage string fragment WITHOUT
+     * the outer font wrapper or offset chars. Internal so unit tests can
+     * assert on the produced string directly.
      *
-     * Internal so unit tests can assert on the raw produced string directly
-     * (cleaner than introspecting Adventure Components).
+     * Returned MiniMessage assumes it will be rendered inside an outer
+     * `<font:interfaze:default>` (set by [compileTitle]).
      */
-    internal fun compileLayer(
+    internal fun compileLayerBody(
         layer: MenuTitleLayer,
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
@@ -71,37 +100,63 @@ object TitleCompiler {
         is MenuTitleLayer.Background -> {
             val entry = lookupAsset(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
-            // No offset for backgrounds — they anchor at the title baseline.
-            "<font:interfaze:default>$ch</font>"
+            "$ch"
         }
         is MenuTitleLayer.Glyph -> {
             val entry = lookupAsset(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
-            wrapOffset(layer.x, "<font:interfaze:default>$ch</font>")
+            "$ch"
         }
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
             val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
-            val fonted = layer.fontAssetId?.let { id ->
+            layer.fontAssetId?.let { id ->
                 val ns = lookupAsset(id)?.takeIf { it.type == "font" }?.namespace
                 if (ns != null) "<font:$ns>$colored</font>" else colored
             } ?: colored
-            wrapOffset(layer.x, fonted)
         }
         is MenuTitleLayer.ExternalGlyph -> {
             // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
             // Fall back to a visible placeholder so the menu still opens.
-            wrapOffset(layer.x, "□")
+            "□"
         }
     }
 
     /**
-     * Offset emission is dropped pending a real space-font implementation
-     * (see KDoc on [TitleCompiler]). This function is kept as a single
-     * choke-point so the future fix can re-introduce wrapping in one place.
+     * Pixel `x` of the layer's origin. [MenuTitleLayer.Background] has no `x`
+     * field — it anchors at the title origin (0).
      */
-    @Suppress("UNUSED_PARAMETER")
-    private fun wrapOffset(xPixels: Int, body: String): String = body
+    internal fun layerX(layer: MenuTitleLayer): Int = when (layer) {
+        is MenuTitleLayer.Background -> 0
+        is MenuTitleLayer.Glyph -> layer.x
+        is MenuTitleLayer.Text -> layer.x
+        is MenuTitleLayer.ExternalGlyph -> layer.x
+    }
+
+    /**
+     * Best-effort pixel width of [layer]'s rendered body. Used to advance the
+     * cursor past the layer so the next offset is measured relative to the
+     * layer's end. See KDoc on [TitleCompiler] for accuracy notes.
+     */
+    internal fun estimateBodyWidth(
+        layer: MenuTitleLayer,
+        langMap: Map<String, String>,
+        lookupAsset: (String) -> AssetEntry?,
+    ): Int = when (layer) {
+        is MenuTitleLayer.Background -> {
+            val w = lookupAsset(layer.assetId)?.width ?: 0
+            if (w > 0) w else FALLBACK_IMAGE_WIDTH
+        }
+        is MenuTitleLayer.Glyph -> {
+            val w = lookupAsset(layer.assetId)?.width ?: 0
+            if (w > 0) w else FALLBACK_IMAGE_WIDTH
+        }
+        is MenuTitleLayer.Text -> {
+            val text = resolveLText(layer.value, langMap)
+            text.length * APPROX_CHAR_WIDTH
+        }
+        is MenuTitleLayer.ExternalGlyph -> EXTERNAL_GLYPH_WIDTH
+    }
 
     private fun resolveLText(value: LText, langMap: Map<String, String>): String =
         langMap[value.key] ?: value.key

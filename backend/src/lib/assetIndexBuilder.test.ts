@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { buildAssetIndex } from "./assetIndexBuilder";
+import { SPACE_OFFSET_ADVANCES, SPACE_OFFSET_CODEPOINT_START } from "./spaceOffsets";
 
-function row(over: Partial<{ id: string; type: string; name: string; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
+function row(over: Partial<{ id: string; type: string; name: string; width: number; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
   return {
     id: over.id ?? "asset_g1",
     serverKeyId: "sk",
     type: over.type ?? "glyph",
     name: over.name ?? "coin",
-    width: 8,
+    width: over.width ?? 8,
     height: over.height ?? 9,
     ascent: over.ascent !== undefined ? over.ascent : 8,
     codepoint: over.codepoint !== undefined ? over.codepoint : 0xE000,
@@ -19,31 +20,36 @@ function row(over: Partial<{ id: string; type: string; name: string; codepoint: 
 }
 
 describe("buildAssetIndex", () => {
-  test("empty assets → { version: 1, assets: {} }", () => {
-    expect(buildAssetIndex([])).toEqual({ version: 1, assets: {} });
+  test("empty assets → version 2 with empty assets but full offsets", () => {
+    const index = buildAssetIndex([]);
+    expect(index.version).toBe(2);
+    expect(index.assets).toEqual({});
+    expect(Object.keys(index.offsets)).toHaveLength(SPACE_OFFSET_ADVANCES.length);
   });
 
-  test("glyph emits codepoint + ascent + height + name + type", () => {
-    const g = row({ id: "asset_g1", type: "glyph", name: "coin", codepoint: 0xE000, ascent: 8, height: 9 });
+  test("glyph emits codepoint + ascent + height + name + type + width", () => {
+    const g = row({ id: "asset_g1", type: "glyph", name: "coin", width: 8, codepoint: 0xE000, ascent: 8, height: 9 });
     const index = buildAssetIndex([g]);
-    expect(index.version).toBe(1);
+    expect(index.version).toBe(2);
     expect(index.assets["asset_g1"]).toEqual({
       name: "coin",
       type: "glyph",
       codepoint: 0xE000,
       ascent: 8,
       height: 9,
+      width: 8,
     });
   });
 
   test("texture omits codepoint key entirely", () => {
-    const t = row({ id: "asset_t1", type: "texture", name: "bg", codepoint: null, ascent: null, height: 64 });
+    const t = row({ id: "asset_t1", type: "texture", name: "bg", width: 128, codepoint: null, ascent: null, height: 64 });
     const index = buildAssetIndex([t]);
     expect(index.assets["asset_t1"]).toEqual({
       name: "bg",
       type: "texture",
       ascent: null,
       height: 64,
+      width: 128,
     });
     expect(index.assets["asset_t1"]).not.toHaveProperty("codepoint");
   });
@@ -68,13 +74,14 @@ describe("buildAssetIndex", () => {
   });
 
   test("font asset has no codepoint regardless of value", () => {
-    const f = row({ id: "asset_f1", type: "font", name: "myfont", codepoint: 0xE010, ascent: null, height: 16 });
+    const f = row({ id: "asset_f1", type: "font", name: "myfont", width: 0, codepoint: 0xE010, ascent: null, height: 16 });
     const index = buildAssetIndex([f]);
     expect(index.assets["asset_f1"]).toEqual({
       name: "myfont",
       type: "font",
       ascent: null,
       height: 16,
+      width: 0,
     });
     expect(index.assets["asset_f1"]).not.toHaveProperty("codepoint");
   });
@@ -84,6 +91,7 @@ describe("buildAssetIndex", () => {
       id: "asset_f_ns",
       type: "font",
       name: "myfont",
+      width: 0,
       codepoint: null,
       ascent: null,
       height: 16,
@@ -96,6 +104,7 @@ describe("buildAssetIndex", () => {
       type: "font",
       ascent: null,
       height: 16,
+      width: 0,
       namespace: "myfont_ns",
     });
   });
@@ -113,7 +122,7 @@ describe("buildAssetIndex", () => {
   });
 
   test("font asset with null fontMeta does not crash and omits namespace", () => {
-    const f = row({ id: "asset_f_null", type: "font", name: "nofontmeta", codepoint: null, ascent: null, height: 16, fontMeta: null });
+    const f = row({ id: "asset_f_null", type: "font", name: "nofontmeta", width: 0, codepoint: null, ascent: null, height: 16, fontMeta: null });
     const index = buildAssetIndex([f]);
     expect(index.assets["asset_f_null"]).not.toHaveProperty("namespace");
     expect(index.assets["asset_f_null"]).toEqual({
@@ -121,6 +130,7 @@ describe("buildAssetIndex", () => {
       type: "font",
       ascent: null,
       height: 16,
+      width: 0,
     });
   });
 
@@ -136,5 +146,28 @@ describe("buildAssetIndex", () => {
     });
     const index = buildAssetIndex([f]);
     expect(index.assets["asset_f_partial"]).not.toHaveProperty("namespace");
+  });
+
+  test("emits offsets keyed by uppercase-hex codepoint", () => {
+    const index = buildAssetIndex([]);
+    // F900 → 1, F901 → 2, ..., F909 → -1, etc.
+    for (let i = 0; i < SPACE_OFFSET_ADVANCES.length; i++) {
+      const key = (SPACE_OFFSET_CODEPOINT_START + i).toString(16).toUpperCase();
+      expect(index.offsets[key]).toBe(SPACE_OFFSET_ADVANCES[i]);
+    }
+  });
+
+  test("offsets has exactly 18 entries (powers of 2 up to 256, both signs)", () => {
+    const index = buildAssetIndex([]);
+    expect(Object.keys(index.offsets)).toHaveLength(18);
+    const advances = Object.values(index.offsets).sort((a, b) => a - b);
+    expect(advances).toEqual([
+      -256, -128, -64, -32, -16, -8, -4, -2, -1,
+      1, 2, 4, 8, 16, 32, 64, 128, 256,
+    ]);
+  });
+
+  test("version is 2 (asset-index schema bump for space-font support)", () => {
+    expect(buildAssetIndex([]).version).toBe(2);
   });
 });

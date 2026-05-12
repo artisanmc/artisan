@@ -59,6 +59,7 @@ class SyncedMenuProvider(
     private val langManager: LangManager? = null,
     private val resourcePackManager: ResourcePackManager? = null,
     private val lookupAsset: (String) -> AssetEntry? = { null },
+    private val offsetEncoderProvider: () -> gg.interfaze.plugin.render.OffsetEncoder = { gg.interfaze.plugin.render.OffsetEncoder.EMPTY },
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -142,7 +143,7 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
-        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset)
+        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider())
         sessions?.set(player, session)
         logger?.info("[IFZ-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
