@@ -10,9 +10,16 @@ import net.kyori.adventure.text.minimessage.MiniMessage
  * Compiles a list of [MenuTitleLayer]s into an Adventure [Component] suitable for
  * use as a `GuiInventory` title.
  *
- * Each layer is converted to a MiniMessage string fragment (with optional `<offset>`,
- * `<color>`, and `<font>` wrappers), the fragments are concatenated, and the result
- * is rendered via [MiniMessage.deserialize] in a single pass.
+ * Each layer is converted to a MiniMessage string fragment (with optional `<color>`
+ * and `<font>` wrappers), the fragments are concatenated, and the result is rendered
+ * via [MiniMessage.deserialize] in a single pass.
+ *
+ * NOTE: Per-layer `x` offsets are intentionally dropped — Adventure MiniMessage
+ * does not natively support `<offset:Xpx>` tags, so emitting them resulted in literal
+ * text leaking into titles. Proper positioning requires a "negative space font" in
+ * the resource pack plus a custom `TagResolver` that maps `<offset>` to space-char
+ * sequences. Filed as a future SP. For now, layers render in array order without
+ * explicit horizontal positioning.
  *
  * Pure function: no side effects, no global state, no I/O. The [lookupAsset]
  * parameter is the only injected dependency — pass `assetCatalog::lookup` at the
@@ -78,8 +85,13 @@ object TitleCompiler {
         }
     }
 
-    private fun wrapOffset(xPixels: Int, body: String): String =
-        if (xPixels == 0) body else "<offset:${xPixels}px>$body</offset>"
+    /**
+     * Offset emission is dropped pending a real space-font implementation
+     * (see KDoc on [TitleCompiler]). This function is kept as a single
+     * choke-point so the future fix can re-introduce wrapping in one place.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun wrapOffset(xPixels: Int, body: String): String = body
 
     private fun resolveLText(value: LText, langMap: Map<String, String>): String =
         langMap[value.key] ?: value.key

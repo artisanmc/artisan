@@ -49,9 +49,17 @@ class ResourcePackManager(
     }
 
     fun pushToPlayer(player: Player) {
-        if (!config.enabled) return
-        val info = currentPackInfo ?: return
+        if (!config.enabled) {
+            logger?.info("[resource-pack] pushToPlayer: pack disabled for ${player.name}")
+            return
+        }
+        val info = currentPackInfo
+        if (info == null) {
+            logger?.warning("[resource-pack] pushToPlayer: no pack info available for ${player.name} (currentPackInfo is null)")
+            return
+        }
         try {
+            logger?.info("[resource-pack] pushing pack to ${player.name}: ${info.url} hash=${info.hash}")
             player.setResourcePack(info.uuid, info.url, info.sha1Bytes, info.prompt, false)
         } catch (t: Throwable) {
             logger?.warning("[resource-pack] setResourcePack failed for ${player.name}: ${t.message}")
