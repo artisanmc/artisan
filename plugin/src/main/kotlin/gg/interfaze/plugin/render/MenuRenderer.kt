@@ -13,6 +13,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 
 class InterfazeMenuHolder : InventoryHolder {
     override fun getInventory(): Inventory = error("not used")
@@ -32,18 +33,19 @@ object MenuRenderer {
         ctx: ExecutionContext = ExecutionContext(player),
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
         lookupAsset: (String) -> AssetEntry? = { null },
+        offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
     ): MenuSession {
         val langMap = menu.langMaps[lang] ?: emptyMap()
-        val papi = evaluator.deps.papi
         // NOTE: Per-title `{arg}` and PlaceholderAPI interpolation are intentionally
         // not applied here. The title-composer spec (Tasks 16–19) routes titles through
         // TitleCompiler, which resolves layers + i18n only. If a future sub-project needs
-        // arg/PAPI in titles, plumb an ExecutionContext into TitleCompiler.compileLayer.
+        // arg/PAPI in titles, plumb an ExecutionContext into TitleCompiler.compileLayerBody.
         val title = TitleCompiler.compileTitle(
             layers = menu.title,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
+            offsetEncoder = offsetEncoder,
         )
         val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
@@ -55,7 +57,7 @@ object MenuRenderer {
                     evaluator.evaluateAll(ca.conditions, ctx)
                 } ?: continue
 
-                val item = buildItem(chosen.yaml, langMap, ctx, papi)
+                val item = buildItem(chosen.yaml, langMap, ctx, evaluator.deps)
                 val slots = parsePositions(element.positions, menu.yaml.size)
                 for (slot in slots) {
                     inv.setItem(slot, item)
@@ -72,13 +74,16 @@ object MenuRenderer {
         app: AppearanceYaml,
         langMap: Map<String, String>,
         ctx: ExecutionContext,
-        papi: PapiProvider?,
+        deps: SoftDepRegistry,
     ): ItemStack {
-        val material = app.material
-            ?.let { runCatching { Material.valueOf(it.uppercase()) }.getOrNull() }
-            ?: Material.STONE
-        val item = ItemStack(material, app.count.coerceAtLeast(1))
-        val meta = item.itemMeta ?: return item
+        val papi = deps.papi
+        val count = app.count.coerceAtLeast(1)
+        val item = app.material?.let { mat ->
+            deps.buildCustomStack(mat, count)
+                ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
+                    ?.let { ItemStack(it, count) }
+        } ?: ItemStack(Material.STONE, count)
+        val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) meta.displayName(parse(resolveText(app.title, langMap, ctx, papi)))
         if (app.lore.isNotEmpty()) {
             meta.lore(app.lore.flatMap { raw ->

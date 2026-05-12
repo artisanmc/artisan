@@ -182,7 +182,19 @@ title:
     y: 5
 ```
 
-Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource pack pour mapper `asset_id → codepoint + ascent + height + namespace?`. Le `TitleCompiler` traduit chaque couche en MiniMessage (`<font:interfaze:default>`, `<offset:Xpx>`, `<color>`, `<font:interfaze:{font_name}>` pour text avec `font_asset_id`) et concatène en un seul `Component` titre.
+Le plugin embarque un `assets/interfaze/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:interfaze:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
+
+### Title Composer — pixel offsets (spaces font)
+
+Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/interfaze/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F900..U+F911`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars).
+
+Pipeline :
+
+1. **Backend** — `backend/src/lib/spaceOffsets.ts` est la source de vérité de la table. `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet aussi le champ `offsets` (codepoint hex uppercase → advance) + un `width` par entrée pour permettre au plugin de mesurer la largeur rendue d'une layer image.
+2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update du resource pack et construit un `OffsetEncoder` (`gg.interfaze.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, et avance `currentX = targetX + estimateBodyWidth(layer)`.
+3. **Estimation de largeur** — best-effort : Image (background/glyph) → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique du width par défaut MC, imprécis pour les caractères très étroits/larges) ; ExternalGlyph → 8 px.
+
+L'encoder du plugin est lenient : il ne lève **jamais** d'exception, retourne `""` quand la table est vide (catalog pas encore chargé), et fait du best-effort hors plage. Côté backend, `encodeOffset` est strict (throw) pour attraper les bugs à la source.
 
 ### Custom fonts (SP4)
 
@@ -260,8 +272,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 241 pass / 1 pre-existing failure (`link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 241 (inchangé en v3 — plugin non touché) |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 258 pass / 1 pre-existing failure (`link_codes schema`) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, `OffsetEncoderTest`, etc. | 277 |
 | Editor unit | Vitest, 622 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, etc. | 622 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 

@@ -95,7 +95,10 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([t], pngs, new Map());
     const entries = unzipSync(zipBytes);
     const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
-    expect(json.providers).toHaveLength(1);
+    // reference + space (no bitmap for texture without codepoint)
+    expect(json.providers).toHaveLength(2);
+    expect(json.providers[0].type).toBe("reference");
+    expect(json.providers[1].type).toBe("space");
     expect(entries["assets/interfaze/textures/font/bg_one.png"]).toBeUndefined();
   });
 
@@ -113,28 +116,35 @@ describe("buildResourcePackZip", () => {
     expect(entries["assets/interfaze/asset-index.json"]).toBeDefined();
   });
 
-  test("asset-index.json parses to expected { version, assets } shape", () => {
+  test("asset-index.json parses to expected { version, assets, offsets } shape", () => {
     const g = row({ id: "asset_g1", codepoint: 0xE000, name: "coin", ascent: 8, height: 9 });
     const t = row({ id: "asset_t1", type: "texture", name: "bg", codepoint: null, ascent: null, height: 32 });
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g, t], pngs, new Map());
     const entries = unzipSync(zipBytes);
     const index = JSON.parse(strFromU8(entries["assets/interfaze/asset-index.json"]));
-    expect(index.version).toBe(1);
+    expect(index.version).toBe(2);
     expect(index.assets["asset_g1"]).toEqual({
       name: "coin",
       type: "glyph",
       codepoint: 0xE000,
       ascent: 8,
       height: 9,
+      width: 8,
     });
     expect(index.assets["asset_t1"]).toEqual({
       name: "bg",
       type: "texture",
       ascent: null,
       height: 32,
+      width: 8,
     });
     expect(index.assets["asset_t1"]).not.toHaveProperty("codepoint");
+    // offsets present, keyed by uppercase-hex codepoint
+    expect(typeof index.offsets).toBe("object");
+    expect(index.offsets["F900"]).toBe(1);
+    expect(index.offsets["F909"]).toBe(-1);
+    expect(Object.keys(index.offsets)).toHaveLength(18);
   });
 
   test("emits assets/interfaze/font/<name>.json for each font asset", () => {

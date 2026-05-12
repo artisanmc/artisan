@@ -192,6 +192,118 @@ class AssetCatalogTest {
     }
 
     @Test
+    fun `update parses offsets and exposes a working OffsetEncoder`() {
+        MockWebServer().use { server ->
+            server.start()
+            val indexJson = """
+                {
+                  "version": 2,
+                  "assets": {},
+                  "offsets": {
+                    "F900": 1,
+                    "F901": 2,
+                    "F902": 4,
+                    "F909": -1,
+                    "F90A": -2,
+                    "F90B": -4
+                  }
+                }
+            """.trimIndent()
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            val enc = catalog.offsetEncoder()
+            // 7 = 4 + 2 + 1
+            val out = enc.encode(7)
+            assertEquals(3, out.length)
+            val byCp = mapOf(0xF900 to 1, 0xF901 to 2, 0xF902 to 4, 0xF909 to -1, 0xF90A to -2, 0xF90B to -4)
+            val sum = out.sumOf { byCp[it.code] ?: 0 }
+            assertEquals(7, sum)
+        }
+    }
+
+    @Test
+    fun `update with no offsets field leaves encoder as EMPTY`() {
+        MockWebServer().use { server ->
+            server.start()
+            // version 1 — no offsets
+            val indexJson = """{"version":1,"assets":{}}"""
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            // EMPTY encoder returns "" for any offset.
+            assertEquals("", catalog.offsetEncoder().encode(7))
+        }
+    }
+
+    @Test
+    fun `width field is parsed when present`() {
+        MockWebServer().use { server ->
+            server.start()
+            val indexJson = """
+                {
+                  "version": 2,
+                  "assets": {
+                    "asset_bg": {
+                      "name": "bg",
+                      "type": "texture",
+                      "height": 64,
+                      "width": 176
+                    }
+                  },
+                  "offsets": {}
+                }
+            """.trimIndent()
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            val entry = catalog.lookup("asset_bg")
+            assertNotNull(entry)
+            assertEquals(176, entry.width)
+        }
+    }
+
+    @Test
+    fun `width defaults to 0 when absent (legacy v1 pack)`() {
+        MockWebServer().use { server ->
+            server.start()
+            val indexJson = """
+                {
+                  "version": 1,
+                  "assets": {
+                    "asset_bg": { "name": "bg", "type": "texture" }
+                  }
+                }
+            """.trimIndent()
+            val zipBytes = makeZip(mapOf("assets/interfaze/asset-index.json" to indexJson.toByteArray()))
+            server.enqueue(MockResponse().setBody(Buffer().apply { write(zipBytes) }))
+
+            val catalog = AssetCatalog()
+            catalog.update(server.url("/pack.zip").toString(), "deadbeef")
+
+            val entry = catalog.lookup("asset_bg")
+            assertNotNull(entry)
+            assertEquals(0, entry.width)
+        }
+    }
+
+    @Test
+    fun `initial offsetEncoder is EMPTY (returns empty for any input)`() {
+        val catalog = AssetCatalog()
+        assertEquals("", catalog.offsetEncoder().encode(5))
+        assertEquals("", catalog.offsetEncoder().encode(-100))
+    }
+
+    @Test
     fun `update preserves previous state on later failure`() {
         MockWebServer().use { server ->
             server.start()

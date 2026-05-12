@@ -47,6 +47,7 @@ open class InterfazePlugin : JavaPlugin() {
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
+            offsetEncoderProvider = assetCatalog::offsetEncoder,
         )
         // Inject before load() so the initial hello includes the correct custom_items_hash.
         // Nexo/Oraxen fire their "items loaded" events before Interfaze enables (softdepend order),
@@ -171,6 +172,7 @@ open class InterfazePlugin : JavaPlugin() {
             onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
+            offsetEncoderProvider = assetCatalog::offsetEncoder,
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = gg.interfaze.plugin.customitems.CustomItemsManager(
