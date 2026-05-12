@@ -702,12 +702,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         />
       ) : null}
       {/* Title bar — TitleRender draws all title layers (background + glyphs +
-          text) faithfully, matching what the plugin emits in-game. */}
+          text) faithfully, matching what the plugin emits in-game. Always
+          interactive (v3): clicks select / drags move layers via uiStore. */}
       <TitleRender
         packId={packId}
         menuId={menu.id}
         scale={TEX_SCALE}
-        mode="compact"
       />
       {/* Interactive title-bar overlay: dblclicking it opens the inline title
           editor. Constrained to the title row only so dblclicks elsewhere on
