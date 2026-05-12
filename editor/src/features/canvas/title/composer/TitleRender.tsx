@@ -223,6 +223,7 @@ function LayerNode({
         x={0}
         y={BASELINE_Y_PX * scale}
         scale={scale}
+        listening={false}
       />
     ) : (
       <MiniMessageKonvaText
@@ -231,6 +232,7 @@ function LayerNode({
         y={0}
         fontSize={BASELINE_Y_PX * scale}
         defaultColor="#404040"
+        listening={false}
       />
     );
   } else {
@@ -282,6 +284,30 @@ function LayerNode({
   const showResizeHandles =
     selected && (layer.kind === "background" || layer.kind === "glyph");
 
+  // Text and external_glyph bodies don't form a reliable hit area — text
+  // hit-tests on rendered glyphs only (sub-pixel gaps between letters break
+  // Konva's drag pickup), and the external_glyph placeholder uses
+  // `listening={false}` on every child. Without a backing hit area, Group's
+  // `draggable` triggers nowhere and the user can't move the layer.
+  //
+  // We render an almost-transparent Rect sized to the layer's bounding box
+  // BEFORE the visible body so Konva picks it up on mousedown anywhere
+  // inside the outline (drag works, click selects). The same trick is used
+  // for the title-bar backdrop above.
+  const needsHitArea = layer.kind === "text" || layer.kind === "external_glyph";
+  const hitW =
+    layer.kind === "text"
+      ? Math.max(text.length * 4 * scale, 8)
+      : layer.kind === "external_glyph"
+        ? 10 * scale
+        : 0;
+  const hitH =
+    layer.kind === "text"
+      ? 7 * scale
+      : layer.kind === "external_glyph"
+        ? 10 * scale
+        : 0;
+
   return (
     <Group
       x={groupX}
@@ -291,6 +317,19 @@ function LayerNode({
       onTap={handleClick}
       onDragEnd={handleDragEnd}
     >
+      {needsHitArea ? (
+        // Hit area at z=0 — under the visible body so it doesn't obscure
+        // anything, but listening={true} (default) so it captures pointer
+        // events on the whole bounding box. Near-zero-alpha fill keeps it
+        // invisible while still hit-testable.
+        <Rect
+          x={0}
+          y={0}
+          width={hitW}
+          height={hitH}
+          fill="rgba(0,0,0,0.001)"
+        />
+      ) : null}
       {body}
       {selected ? (
         // Yellow 1-px stroke around the bounding box. Matches the v3 design

@@ -2,9 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AssetType } from "@/domain/asset";
 import { cx } from "@/lib/cx";
-import { listAssets } from "@/lib/packApi";
-import { useSessionStore } from "@/state/sessionStore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { AssetGrid } from "./AssetGrid";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
@@ -14,22 +12,17 @@ import { useAssetStore } from "./assetStore";
 const TYPES: (AssetType | "all")[] = ["all", "texture", "glyph", "font"];
 
 export function AssetsTab() {
-  const token = useSessionStore((s) => s.accessToken);
+  // Assets are loaded by `useAssetInit` mounted in EditorPane — title-layer
+  // rendering needs them before the user ever opens this tab, so we
+  // can't gate the fetch on AssetsTab being visible.
   const assets = useAssetStore((s) => s.assets);
   const selectedId = useAssetStore((s) => s.selectedId);
-  const setAssets = useAssetStore((s) => s.setAssets);
   const setSelectedId = useAssetStore((s) => s.setSelectedId);
-  const setError = useAssetStore((s) => s.setError);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AssetType | "all">("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [importFontOpen, setImportFontOpen] = useState(false);
-
-  useEffect(() => {
-    if (!token) return;
-    listAssets(token).then(setAssets).catch((e) => setError((e as Error).message));
-  }, [token, setAssets, setError]);
 
   const filtered = assets.filter(
     (a) =>

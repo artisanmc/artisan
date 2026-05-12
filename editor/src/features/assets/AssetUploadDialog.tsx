@@ -1,7 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { AssetType } from "@/domain/asset";
 import { uploadAsset } from "@/lib/packApi";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
@@ -12,19 +11,28 @@ interface AssetUploadDialogProps {
   onClose: () => void;
 }
 
+/**
+ * Image upload dialog. The internal `asset.type` distinction
+ * (texture / glyph) is intentionally hidden from the user — they think in
+ * terms of "an image". We always upload as `glyph` because it has the
+ * broadest capability (allocates a font codepoint so the asset can be
+ * used in titles AND as a slot icon), and existing texture-typed assets
+ * keep working unchanged. Font uploads have their own dedicated dialog
+ * (`AssetImportFontDialog`) — that concept stays distinct in the UI.
+ */
 export function AssetUploadDialog({ open, onClose }: AssetUploadDialogProps) {
   const token = useSessionStore((s) => s.accessToken);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
-  const [type, setType] = useState<AssetType>("texture");
   const [name, setName] = useState("");
-  const [ascent, setAscent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setType("texture"); setName(""); setAscent(""); setFile(null); setError(null);
+    setName("");
+    setFile(null);
+    setError(null);
   };
 
   const onSubmit = async () => {
@@ -34,9 +42,11 @@ export function AssetUploadDialog({ open, onClose }: AssetUploadDialogProps) {
     try {
       const asset = await uploadAsset(token, {
         file,
-        type,
+        // Always `glyph` — see the component docblock for the rationale.
+        // The backend allocates a font codepoint for glyph uploads, which
+        // makes the asset usable everywhere (titles + slot icons).
+        type: "glyph",
         name,
-        ascent: type === "glyph" && ascent !== "" ? parseInt(ascent, 10) : undefined,
       });
       upsertAsset(asset);
       reset();
@@ -53,26 +63,10 @@ export function AssetUploadDialog({ open, onClose }: AssetUploadDialogProps) {
       <DialogContent>
         <DialogHeader><DialogTitle>Upload asset</DialogTitle></DialogHeader>
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <label className="flex items-center gap-1 text-sm">
-              <input type="radio" name="type" checked={type === "texture"}
-                     onChange={() => setType("texture")} /> Texture
-            </label>
-            <label className="flex items-center gap-1 text-sm">
-              <input type="radio" name="type" checked={type === "glyph"}
-                     onChange={() => setType("glyph")} /> Glyph
-            </label>
-          </div>
           <label className="text-xs">Name
             <Input value={name} onChange={(e) => setName(e.target.value)}
                    placeholder="lowercase, digits, _ and - only" />
           </label>
-          {type === "glyph" && (
-            <label className="text-xs">Ascent
-              <Input type="number" value={ascent} onChange={(e) => setAscent(e.target.value)}
-                     placeholder="default: height-1" />
-            </label>
-          )}
           <label className="text-xs">File
             <input type="file" accept="image/png"
                    onChange={(e) => setFile(e.target.files?.[0] ?? null)} />

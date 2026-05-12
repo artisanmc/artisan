@@ -156,11 +156,18 @@ describe("LayerEditForm — image layer (background)", () => {
     expect(screen.getByRole("button", { name: /dupliquer l'image/i })).toBeTruthy();
   });
 
-  it("clicking Pick asset opens the AssetPicker (typeFilter=glyph)", () => {
+  it("clicking Pick asset opens the AssetPicker without a typeFilter (shows all image assets)", () => {
+    // The upload UX no longer distinguishes texture/glyph — the picker
+    // shouldn't either. AssetPicker without `typeFilter` falls back to
+    // every image asset (texture + glyph).
     render(<LayerEditForm packId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /choisir une image/i }));
     const picker = screen.getByTestId("asset-picker");
-    expect(picker.getAttribute("data-type-filter")).toBe("glyph");
+    // `data-type-filter` is rendered from `props.typeFilter` — undefined
+    // becomes the string "undefined" in DOM attribute land, OR the attribute
+    // is absent. Either way it must NOT be "glyph" anymore.
+    const attr = picker.getAttribute("data-type-filter");
+    expect(attr === null || attr === "undefined").toBe(true);
   });
 
   it("picking a new asset updates the layer's asset_id", () => {
