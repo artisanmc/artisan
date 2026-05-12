@@ -4,6 +4,7 @@ import gg.interfaze.plugin.model.LText
 import gg.interfaze.plugin.model.MenuTitleLayer
 import gg.interfaze.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.ShadowColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 
 /**
@@ -44,7 +45,16 @@ object TitleCompiler {
         for (layer in layers) {
             sb.append(compileLayer(layer, langMap, lookupAsset))
         }
-        return MiniMessage.miniMessage().deserialize(sb.toString())
+        // Drop the default MC text shadow on the entire title. Vanilla draws a 1px
+        // dark drop-shadow under every glyph in chest titles; this is fine for letters
+        // but darkens image glyphs sampled from the font texture, making custom
+        // backgrounds/icons look "obscured". Setting shadowColor to fully transparent
+        // (ARGB 0x00000000) at the root suppresses it for every child segment.
+        // Trade-off: text layers also lose their shadow. Acceptable for v3; per-layer
+        // shadow control can be reintroduced later if needed.
+        return MiniMessage.miniMessage()
+            .deserialize(sb.toString())
+            .shadowColor(ShadowColor.none())
     }
 
     /**
