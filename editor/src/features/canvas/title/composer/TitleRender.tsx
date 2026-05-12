@@ -183,8 +183,29 @@ function LayerNode({
     [menuId, index, setSelectedLayerKey],
   );
 
+  const handleDragStart = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Stop the drag from bubbling up to MenuGroup's drag handler — the
+      // parent reads `e.target.x()/y()` on dragend and would otherwise apply
+      // the layer's coords as the menu's new position. Same pattern as
+      // `handleClick` above.
+      e.cancelBubble = true;
+    },
+    [],
+  );
+
+  const handleDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      e.cancelBubble = true;
+    },
+    [],
+  );
+
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      // See `handleDragStart` — without this, MenuGroup's onDragEnd fires too
+      // and overwrites the menu position with the layer's coords.
+      e.cancelBubble = true;
       if (layer.kind === "background") return; // bg has no x/y
       const evt = e.evt as DragEvent & { shiftKey: boolean; altKey: boolean };
       const snapped = snapDragPosition(e.target.x(), e.target.y(), scale, {
@@ -315,6 +336,8 @@ function LayerNode({
       draggable={draggable}
       onClick={handleClick}
       onTap={handleClick}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
       {needsHitArea ? (
