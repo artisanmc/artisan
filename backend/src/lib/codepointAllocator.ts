@@ -3,7 +3,12 @@ import { db } from "../db/index";
 import { assets } from "../db/schema";
 
 export const CODEPOINT_MIN = 0xE000;   // 57344
-export const CODEPOINT_MAX = 0xF7FF;   // 63487 (we reserve U+F800–U+F8FF for Oraxen/Nexo)
+// We stop at U+F7FF (63487) and reserve U+F800..U+F8FF for the `space` provider
+// codepoints (see lib/spaceOffsets.ts). Codepoints at or above U+F900 are
+// intentionally NOT used: U+F900..U+FAFF is the CJK Compatibility Ideographs
+// block and MC's default font has glyphs there, which would render as Chinese
+// chars instead of letting bitmap providers apply.
+export const CODEPOINT_MAX = 0xF7FF;   // 63487
 
 /**
  * Returns the next free codepoint for glyphs of a given server_key.

@@ -142,8 +142,8 @@ describe("buildResourcePackZip", () => {
     expect(index.assets["asset_t1"]).not.toHaveProperty("codepoint");
     // offsets present, keyed by uppercase-hex codepoint
     expect(typeof index.offsets).toBe("object");
-    expect(index.offsets["F900"]).toBe(1);
-    expect(index.offsets["F909"]).toBe(-1);
+    expect(index.offsets["F800"]).toBe(1);
+    expect(index.offsets["F809"]).toBe(-1);
     expect(Object.keys(index.offsets)).toHaveLength(18);
   });
 

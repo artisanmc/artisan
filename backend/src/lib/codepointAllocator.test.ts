@@ -80,4 +80,15 @@ describe("allocateCodepoint", () => {
     await seedTexture(sk);
     expect(await allocateCodepoint(sk)).toBe(CODEPOINT_MIN);
   });
+
+  test("never allocates into the U+F800..U+F8FF reserved range (space-offset codepoints)", async () => {
+    // Sanity: the cap (CODEPOINT_MAX = U+F7FF) sits exactly below the
+    // reserved range used by lib/spaceOffsets.ts. Any allocation up to and
+    // including the cap must stay below U+F800.
+    const sk = await seedServerKey();
+    await seedGlyph(sk, CODEPOINT_MAX - 1);
+    const next = await allocateCodepoint(sk);
+    expect(next).toBe(CODEPOINT_MAX);
+    expect(next).toBeLessThan(0xF800);
+  });
 });

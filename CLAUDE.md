@@ -186,7 +186,7 @@ Le plugin embarque un `assets/interfaze/asset-index.json` (schéma **v2**) dans 
 
 ### Title Composer — pixel offsets (spaces font)
 
-Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/interfaze/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F900..U+F911`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars).
+Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/interfaze/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes (caractères chinois) qui empêcheraient le `space` provider de s'appliquer.
 
 Pipeline :
 
