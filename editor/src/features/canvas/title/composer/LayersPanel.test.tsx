@@ -123,34 +123,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("LayersPanel — empty state", () => {
-  it("renders the 'select a menu' hint when no menu has been selected", () => {
-    render(<LayersPanel packId={PACK_ID} />);
-    expect(
-      screen.getByText(/Sélectionne un menu sur le canvas/i),
-    ).toBeInTheDocument();
-    // Header should NOT be present in empty state
-    expect(screen.queryByTestId("layers-panel-header")).not.toBeInTheDocument();
-    // AddLayerControls should NOT be present in empty state
-    expect(screen.queryByTestId("add-layer-controls")).not.toBeInTheDocument();
-  });
-});
-
-describe("LayersPanel — menu selected", () => {
-  it("shows header, AddLayerControls, and LayerEditForm when a menu is selected", () => {
-    useUiStore.setState({ selectedMenuId: MENU_ID, lastSelectedMenuId: MENU_ID } as any);
-    render(<LayersPanel packId={PACK_ID} />);
-
-    // Header shows pack name + menu id
-    const header = screen.getByTestId("layers-panel-header");
-    expect(header).toBeInTheDocument();
-    expect(header.textContent).toMatch(/my_pack/);
-    expect(header.textContent).toMatch(/shop_menu/);
+describe("LayersPanel — body", () => {
+  it("shows AddLayerControls + empty LayerEditForm hint for the provided menu", () => {
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
 
     // AddLayerControls present
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
     // LayerEditForm's empty state is shown (no layer selected)
-    expect(screen.getByText(/Sélectionne un élément pour modifier ses détails/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sélectionne un élément pour modifier ses détails/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders nothing when the menuId doesn't resolve in the pack", () => {
+    const { container } = render(
+      <LayersPanel packId={PACK_ID} menuId={"missing_menu" as MenuId} />,
+    );
+    // The component returns null — container should be empty.
+    expect(container.firstChild).toBeNull();
   });
 
   it("renders layers in the order they appear in menu.title", () => {
@@ -164,8 +154,7 @@ describe("LayersPanel — menu selected", () => {
       k2: { en: "beta" },
       k3: { en: "gamma" },
     });
-    useUiStore.setState({ selectedMenuId: MENU_ID, lastSelectedMenuId: MENU_ID } as any);
-    render(<LayersPanel packId={PACK_ID} />);
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
 
     const rows = screen.getAllByTestId("layer-list-item-row");
     expect(rows).toHaveLength(3);
@@ -175,30 +164,9 @@ describe("LayersPanel — menu selected", () => {
   });
 });
 
-describe("LayersPanel — sticky selection", () => {
-  it("keeps showing the last menu's layers after selectedMenuId becomes null", () => {
-    const layers: MenuTitleLayer[] = [
-      { kind: "text", value: { key: K("k1") }, x: 0, y: 0 },
-    ];
-    seedPack(layers, { k1: { en: "alpha" } });
-    // Simulate "user selected the menu, then clicked empty space"
-    useUiStore.getState().setSelectedMenuId(MENU_ID);
-    useUiStore.getState().setSelectedMenuId(null);
-    // Sticky: lastSelectedMenuId still holds MENU_ID
-    expect(useUiStore.getState().selectedMenuId).toBeNull();
-    expect(useUiStore.getState().lastSelectedMenuId).toBe(MENU_ID);
-
-    render(<LayersPanel packId={PACK_ID} />);
-    // Panel should still show that menu's row + header
-    expect(screen.getByTestId("layers-panel-header").textContent).toMatch(/shop_menu/);
-    expect(screen.getAllByTestId("layer-list-item-row")).toHaveLength(1);
-  });
-});
-
 describe("LayersPanel — AddLayerControls wiring", () => {
-  it("clicking + Image appends a glyph layer to the current menu and selects it", () => {
-    useUiStore.setState({ selectedMenuId: MENU_ID, lastSelectedMenuId: MENU_ID } as any);
-    render(<LayersPanel packId={PACK_ID} />);
+  it("clicking + Image appends a glyph layer to the provided menu and selects it", () => {
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
 
     // Real browsers synthesize a keyboard-activated click with detail=0 when
     // a focused <button> is hit via Enter/Space; AddLayerControls uses that
@@ -214,8 +182,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
   });
 
   it("clicking + Text appends a text layer with an empty value and selects it", () => {
-    useUiStore.setState({ selectedMenuId: MENU_ID, lastSelectedMenuId: MENU_ID } as any);
-    render(<LayersPanel packId={PACK_ID} />);
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
 
     fireEvent.click(screen.getByTestId("add-layer-text"));
 
@@ -231,18 +198,6 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     expect(typeof lt.key).toBe("string");
     expect(pack.i18nKeys[lt.key]).toBeUndefined();
   });
-
-  it("falls back to lastSelectedMenuId when selectedMenuId is null", () => {
-    // Menu was selected then deselected — should still add to the last menu.
-    useUiStore.getState().setSelectedMenuId(MENU_ID);
-    useUiStore.getState().setSelectedMenuId(null);
-
-    render(<LayersPanel packId={PACK_ID} />);
-    fireEvent.click(screen.getByTestId("add-layer-image"));
-
-    const title = useAccountStore.getState().account.packs[0]!.menus[0]!.title;
-    expect(title).toHaveLength(1);
-  });
 });
 
 describe("LayersPanel — drag-to-reorder", () => {
@@ -257,8 +212,7 @@ describe("LayersPanel — drag-to-reorder", () => {
       k2: { en: "beta" },
       k3: { en: "gamma" },
     });
-    useUiStore.setState({ selectedMenuId: MENU_ID, lastSelectedMenuId: MENU_ID } as any);
-    render(<LayersPanel packId={PACK_ID} />);
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
 
     const wrappers = screen.getAllByTestId("layer-row-wrapper");
     expect(wrappers).toHaveLength(3);
@@ -289,26 +243,22 @@ describe("LayersPanel — drag-to-reorder", () => {
   });
 });
 
-describe("LayersPanel — cursor-based new-layer attach (P1.11)", () => {
-  it("drag-end near menu A's title bar attaches the new layer to menu A with cursor-derived coords", () => {
+describe("LayersPanel — cross-menu drag-to-attach", () => {
+  it("drag-end near menu A's title bar attaches the new layer to menu A and switches selection", () => {
     // Place MENU_ID at (40, 40) and OTHER_MENU_ID far away so the nearest-
     // menu pick is unambiguous. Title-bar center for MENU_ID = (40+176, 40+17)
     // = (216, 57) in canvas coords. With identity viewport + origin wrapper,
     // screen coords == canvas coords.
     seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
-    // Pre-select OTHER_MENU_ID so we can prove the cursor branch overrides
-    // the sticky menu when it picks a different target.
-    useUiStore.setState({
-      selectedMenuId: OTHER_MENU_ID,
-      lastSelectedMenuId: OTHER_MENU_ID,
-    } as any);
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 2000, bottom: 1400 },
       viewport: { x: 0, y: 0, scale: 1 },
     }));
 
-    render(<LayersPanel packId={PACK_ID} />);
+    // Render the panel scoped to OTHER_MENU_ID — the cursor-driven attach
+    // should override and target MENU_ID instead.
+    render(<LayersPanel packId={PACK_ID} menuId={OTHER_MENU_ID} />);
     const btn = screen.getByTestId("add-layer-image");
 
     // Pointerdown on the button, then a window pointermove far enough to
@@ -336,21 +286,17 @@ describe("LayersPanel — cursor-based new-layer attach (P1.11)", () => {
     expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 0 });
   });
 
-  it("drag-end far from any menu falls back to lastSelectedMenuId default placement", () => {
+  it("drag-end far from any menu falls back to the panel's own menuId default placement", () => {
     // Both menus parked at small coords; cursor far away (9000, 9000) is
     // well beyond NEAREST_MENU_THRESHOLD_PX.
     seedPack([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
-    useUiStore.setState({
-      selectedMenuId: MENU_ID,
-      lastSelectedMenuId: MENU_ID,
-    } as any);
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 10000, bottom: 10000 },
       viewport: { x: 0, y: 0, scale: 1 },
     }));
 
-    render(<LayersPanel packId={PACK_ID} />);
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-image");
     fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
     dispatchWindowPointer("pointermove", 9000, 9000);
@@ -370,12 +316,8 @@ describe("LayersPanel — cursor-based new-layer attach (P1.11)", () => {
   it("drag-end with no Stage geometry registered falls back to default placement", () => {
     // No setStageGeometryProvider call → getStageGeometry returns null.
     seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 } });
-    useUiStore.setState({
-      selectedMenuId: MENU_ID,
-      lastSelectedMenuId: MENU_ID,
-    } as any);
 
-    render(<LayersPanel packId={PACK_ID} />);
+    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-text");
     fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
     dispatchWindowPointer("pointermove", 220, 50);

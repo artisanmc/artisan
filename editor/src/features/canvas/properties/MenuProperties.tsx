@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
 import { summarizeFieldType } from "@/features/data/helpers";
+import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
@@ -66,6 +67,12 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <MenuIdField packId={packId} menuId={menu.id} />
+      <div className="flex flex-col gap-1.5" data-testid="menu-properties-title-section">
+        <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
+          {t("menuProperties.titleSection")}
+        </div>
+        <LayersPanel packId={packId} menuId={menu.id} />
+      </div>
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}

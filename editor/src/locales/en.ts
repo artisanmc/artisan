@@ -103,6 +103,7 @@ export default {
     emptyMenuHint:
       'Drag items from the Library onto a slot, or tap a Library item to "arm" it then tap a slot.',
     openLibrary: "Open Library",
+    titleSection: "Title",
     titleLabel: "title ({{lang}})",
     titleLabelFallback: "title ({{lang}} — fallback)",
     permission: "permission",

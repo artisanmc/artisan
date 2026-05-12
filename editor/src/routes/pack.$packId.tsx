@@ -13,7 +13,6 @@ import { EditorPane } from "@/features/canvas/EditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { getTextureUrl } from "@/features/canvas/textureStore";
-import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
@@ -236,19 +235,6 @@ function PackCanvasPage() {
             )}
           </div>
         </main>
-
-        {/* 3rd column — always-on LayersPanel (v3 title composer). Desktop
-            only; on mobile the title-layer editing flow happens elsewhere.
-            Gated by `useIsDesktop` (≥ lg breakpoint) so we don't pay the
-            Konva subtree cost on phones. */}
-        {isDesktop ? (
-          <aside
-            data-testid="layers-panel-column"
-            className="h-full w-[280px] shrink-0 border-zinc-800 border-l bg-zinc-950"
-          >
-            <LayersPanel packId={pId} />
-          </aside>
-        ) : null}
 
         {/* Translations panel (right-side sheet). */}
         {pack ? (
