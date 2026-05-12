@@ -152,10 +152,11 @@ export async function uploadFontAsset(
 export async function updateAsset(
   token: string,
   id: string,
-  // Note: `height` is accepted client-side ahead of P2.13 (backend support).
-  // Hook code (useTitleLayerDrag) commits via this field; until the backend
-  // ships, the response is whatever the backend returns — clients must not
-  // rely on the new height being persisted.
+  // `height` is persisted server-side and re-bakes the resource pack so the
+  // generated `font.json` reflects the new dimensions (see backend PATCH
+  // /assets/:id). `width` is intentionally NOT a server-side field — MC fonts
+  // derive width from PNG transparency. Local `width` changes are kept
+  // optimistic-only in `assetStore` and never sent here.
   patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
   const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {

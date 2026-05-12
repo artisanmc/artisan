@@ -148,6 +148,13 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<missing>"}</div>
           <div className="text-[10px] text-zinc-500">
+            {/* `width` is intentionally local-only — MC fonts derive glyph
+                width from PNG transparency, so the backend doesn't persist a
+                width field. ResizeHandles mutates `asset.width` optimistically
+                in `assetStore` (via `useTitleLayerDrag.onResize`) for live
+                preview; only `height` round-trips through PATCH. The number
+                below therefore reflects the latest optimistic value, not a
+                server-confirmed one. */}
             {asset
               ? `${asset.type} · ${asset.width} × ${asset.height} px`
               : "asset not loaded"}
