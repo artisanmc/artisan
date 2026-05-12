@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,17 +70,6 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
       <div>
         <div className="mb-1 text-[10px] uppercase text-zinc-500">Title</div>
         <TitleThumbnail packId={packId} menuId={menu.id} />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="mt-1.5 w-full"
-          // TODO P1.11: drop entirely — v3 surfaces title editing in the new
-          // always-visible LayersPanel (3rd column), so this dedicated button
-          // becomes redundant. No-op'd until the new panel ships.
-          onClick={() => {}}
-        >
-          Edit title…
-        </Button>
       </div>
       <PropertyField
         label={t("menuProperties.permission")}

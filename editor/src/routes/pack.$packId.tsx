@@ -13,7 +13,7 @@ import { EditorPane } from "@/features/canvas/EditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
 import { getTextureUrl } from "@/features/canvas/textureStore";
-// TODO P1.11: FocusComposer is being deleted by the v3 LayersPanel rework — import dropped here.
+import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
@@ -73,9 +73,6 @@ function PackCanvasPage() {
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
-  // TODO P1.11: drop entirely — v3 renders the LayersPanel as an always-on
-  // 3rd column, so there is no focus-mode flag to gate on. Left removed
-  // until the new layout lands.
   const packs = useAccountStore((s) => s.account.packs);
   const pack = packs.find((p) => p.id === pId);
   const isDesktop = useIsDesktop();
@@ -113,11 +110,6 @@ function PackCanvasPage() {
   // accountStore is not persisted — empty after a page refresh, bounce to /session to reload.
   if (packs.length === 0) return <Navigate to="/session" replace />;
   if (!pack) return <Navigate to={`/pack/${packs[0]!.id}`} replace />;
-
-  // TODO P1.11: replaced by the always-on LayersPanel 3rd column. The old
-  // focus-mode branch lived here; for this transitional commit FocusComposer
-  // is never mounted so the canvas behaves normally.
-
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
@@ -244,6 +236,19 @@ function PackCanvasPage() {
             )}
           </div>
         </main>
+
+        {/* 3rd column — always-on LayersPanel (v3 title composer). Desktop
+            only; on mobile the title-layer editing flow happens elsewhere.
+            Gated by `useIsDesktop` (≥ lg breakpoint) so we don't pay the
+            Konva subtree cost on phones. */}
+        {isDesktop ? (
+          <aside
+            data-testid="layers-panel-column"
+            className="h-full w-[280px] shrink-0 border-zinc-800 border-l bg-zinc-950"
+          >
+            <LayersPanel packId={pId} />
+          </aside>
+        ) : null}
 
         {/* Translations panel (right-side sheet). */}
         {pack ? (

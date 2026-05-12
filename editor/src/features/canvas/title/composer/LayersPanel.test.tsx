@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { I18nKey, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { setStageGeometryProvider } from "@/features/canvas/stageGeometry";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
@@ -23,6 +24,33 @@ vi.mock("@/features/assets/AssetPicker", () => ({
     ) : null,
 }));
 
+/**
+ * jsdom doesn't ship PointerEvent — synthesize one that fireEvent + window
+ * dispatch understand. Same shape as the polyfill in
+ * `AddLayerControls.test.tsx`.
+ */
+class PointerEventStub extends MouseEvent {
+  pointerId: number;
+  pointerType: string;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 1;
+    this.pointerType = init.pointerType ?? "mouse";
+  }
+}
+
+function dispatchWindowPointer(type: "pointermove" | "pointerup", x: number, y: number) {
+  const evt = new (globalThis as any).PointerEvent(type, {
+    clientX: x,
+    clientY: y,
+    bubbles: true,
+    pointerId: 1,
+  });
+  act(() => {
+    window.dispatchEvent(evt);
+  });
+}
+
 const PACK_ID = "p1" as PackId;
 const MENU_ID = "shop_menu" as MenuId;
 const OTHER_MENU_ID = "other_menu" as MenuId;
@@ -31,6 +59,7 @@ const K = (s: string) => s as I18nKey;
 function seedPack(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>> = {},
+  canvasLayout: Record<string, { x: number; y: number }> = {},
 ) {
   useAccountStore.setState({
     account: {
@@ -54,7 +83,7 @@ function seedPack(
           i18nKeys,
           defaultLang: "en",
           dialogs: [],
-          canvasLayout: {},
+          canvasLayout,
         },
       ],
       packOrder: [PACK_ID],
@@ -73,10 +102,24 @@ beforeEach(() => {
     activeLang: "en",
   } as any);
   useAssetStore.setState({ assets: [], selectedId: null, loading: false, error: null } as any);
+  // Reset the stage geometry registry so each test starts with no live Stage.
+  setStageGeometryProvider(null);
+  // PointerEvent + setPointerCapture polyfills (AddLayerControls relies on
+  // both during drag gestures; jsdom doesn't implement them).
+  if (typeof (globalThis as any).PointerEvent === "undefined") {
+    (globalThis as any).PointerEvent = PointerEventStub;
+  }
+  if (!HTMLElement.prototype.setPointerCapture) {
+    HTMLElement.prototype.setPointerCapture = function () {};
+  }
+  if (!HTMLElement.prototype.releasePointerCapture) {
+    HTMLElement.prototype.releasePointerCapture = function () {};
+  }
   seedPack([]);
 });
 
 afterEach(() => {
+  setStageGeometryProvider(null);
   vi.restoreAllMocks();
 });
 
@@ -243,5 +286,108 @@ describe("LayersPanel — drag-to-reorder", () => {
     expect((title[0] as any).value.key).toBe("k2");
     expect((title[1] as any).value.key).toBe("k3");
     expect((title[2] as any).value.key).toBe("k1");
+  });
+});
+
+describe("LayersPanel — cursor-based new-layer attach (P1.11)", () => {
+  it("drag-end near menu A's title bar attaches the new layer to menu A with cursor-derived coords", () => {
+    // Place MENU_ID at (40, 40) and OTHER_MENU_ID far away so the nearest-
+    // menu pick is unambiguous. Title-bar center for MENU_ID = (40+176, 40+17)
+    // = (216, 57) in canvas coords. With identity viewport + origin wrapper,
+    // screen coords == canvas coords.
+    seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
+    // Pre-select OTHER_MENU_ID so we can prove the cursor branch overrides
+    // the sticky menu when it picks a different target.
+    useUiStore.setState({
+      selectedMenuId: OTHER_MENU_ID,
+      lastSelectedMenuId: OTHER_MENU_ID,
+    } as any);
+
+    setStageGeometryProvider(() => ({
+      wrapperRect: { left: 0, top: 0, right: 2000, bottom: 1400 },
+      viewport: { x: 0, y: 0, scale: 1 },
+    }));
+
+    render(<LayersPanel packId={PACK_ID} />);
+    const btn = screen.getByTestId("add-layer-image");
+
+    // Pointerdown on the button, then a window pointermove far enough to
+    // cross the drag threshold, then a pointerup at canvas (220, 50). The
+    // drag-end resolves to MENU_ID with local MC px (220-40)/2=90,
+    // (50-40)/2=5.
+    fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
+    dispatchWindowPointer("pointermove", 220, 50);
+    dispatchWindowPointer("pointerup", 220, 50);
+
+    const pack = useAccountStore.getState().account.packs[0]!;
+    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
+    const otherMenu = pack.menus.find((m) => m.id === OTHER_MENU_ID)!;
+    expect(targetMenu.title).toHaveLength(1);
+    expect(otherMenu.title).toHaveLength(0);
+
+    const layer = targetMenu.title[0]!;
+    expect(layer.kind).toBe("glyph");
+    expect((layer as any).x).toBe(90);
+    expect((layer as any).y).toBe(5);
+
+    // Selection should follow: setSelectedMenuId(MENU_ID) +
+    // setSelectedLayerKey({ menuId: MENU_ID, index: 0 }).
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_ID, index: 0 });
+  });
+
+  it("drag-end far from any menu falls back to lastSelectedMenuId default placement", () => {
+    // Both menus parked at small coords; cursor far away (9000, 9000) is
+    // well beyond NEAREST_MENU_THRESHOLD_PX.
+    seedPack([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
+    useUiStore.setState({
+      selectedMenuId: MENU_ID,
+      lastSelectedMenuId: MENU_ID,
+    } as any);
+
+    setStageGeometryProvider(() => ({
+      wrapperRect: { left: 0, top: 0, right: 10000, bottom: 10000 },
+      viewport: { x: 0, y: 0, scale: 1 },
+    }));
+
+    render(<LayersPanel packId={PACK_ID} />);
+    const btn = screen.getByTestId("add-layer-image");
+    fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
+    dispatchWindowPointer("pointermove", 9000, 9000);
+    dispatchWindowPointer("pointerup", 9000, 9000);
+
+    const pack = useAccountStore.getState().account.packs[0]!;
+    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
+    // Fallback path → MENU_ID gets the new layer at default (0, 0) coords
+    // (image kind default).
+    expect(targetMenu.title).toHaveLength(1);
+    const layer = targetMenu.title[0]!;
+    expect(layer.kind).toBe("glyph");
+    expect((layer as any).x).toBe(0);
+    expect((layer as any).y).toBe(0);
+  });
+
+  it("drag-end with no Stage geometry registered falls back to default placement", () => {
+    // No setStageGeometryProvider call → getStageGeometry returns null.
+    seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 } });
+    useUiStore.setState({
+      selectedMenuId: MENU_ID,
+      lastSelectedMenuId: MENU_ID,
+    } as any);
+
+    render(<LayersPanel packId={PACK_ID} />);
+    const btn = screen.getByTestId("add-layer-text");
+    fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
+    dispatchWindowPointer("pointermove", 220, 50);
+    dispatchWindowPointer("pointerup", 220, 50);
+
+    const pack = useAccountStore.getState().account.packs[0]!;
+    const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
+    expect(targetMenu.title).toHaveLength(1);
+    const layer = targetMenu.title[0]!;
+    expect(layer.kind).toBe("text");
+    // Default text placement is (8, 5), not the cursor-derived coords.
+    expect((layer as any).x).toBe(8);
+    expect((layer as any).y).toBe(5);
   });
 });
