@@ -5,6 +5,7 @@ import gg.interfaze.plugin.model.MenuTitleLayer
 import gg.interfaze.plugin.render.TitleCompiler
 import gg.interfaze.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.ShadowColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -282,8 +283,39 @@ class TitleCompilerTest {
 
         // Same MiniMessage round-trip should produce an equal Component.
         // Offset is dropped (see TitleCompiler KDoc) — layers concatenate in order.
+        // Shadow is suppressed on the root (see TitleCompiler.compileTitle).
         val expected = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
             .deserialize("<font:interfaze:default>$ch</font>hello")
+            .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
+    }
+
+    @Test
+    fun `compileTitle suppresses default text shadow on the root component`() {
+        val layers = listOf(
+            MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 0, color = null),
+        )
+        val result = TitleCompiler.compileTitle(
+            layers = layers,
+            lang = "en_us",
+            langMap = mapOf("greeting" to "hello"),
+            lookupAsset = emptyLookup,
+        )
+        assertEquals(ShadowColor.none(), result.shadowColor())
+    }
+
+    @Test
+    fun `compileTitle suppresses shadow even with a single glyph layer`() {
+        val ch = 57345.toChar()
+        val lookup = stubLookup(mapOf("asset_bg" to glyphEntry("bg", 57345)))
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(MenuTitleLayer.Background(assetId = "asset_bg")),
+            lang = "en_us",
+            langMap = emptyMap(),
+            lookupAsset = lookup,
+        )
+        assertEquals(ShadowColor.none(), result.shadowColor())
+        // sanity: still actually contains the glyph
+        assertEquals(true, result.toString().contains(ch.toString()))
     }
 }
