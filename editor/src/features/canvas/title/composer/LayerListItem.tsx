@@ -66,7 +66,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
 
   const onDeleteClick = (e: MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Delete this layer?")) {
+    if (window.confirm("Supprimer cet élément du titre ?")) {
       removeLayer({ packId, menuId, index });
       // Sync uiStore: clear/shift stale selection + hidden flags. Without
       // this, the next layer (which shifted up) would inherit selection and
@@ -100,8 +100,8 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         data-testid="layer-list-item-eye"
         data-hidden={hidden ? "true" : "false"}
         onClick={onEyeClick}
-        title={hidden ? "Show" : "Hide"}
-        aria-label={hidden ? "Show layer" : "Hide layer"}
+        title={hidden ? "Afficher" : "Masquer"}
+        aria-label={hidden ? "Afficher l'élément" : "Masquer l'élément"}
         className="grid h-6 w-6 place-items-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
       >
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -111,8 +111,8 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         data-testid="layer-list-item-drag"
         data-drag-handle="true"
         onClick={onDragHandleClick}
-        title="Drag to reorder"
-        aria-label="Drag to reorder"
+        title="Glisser pour réordonner"
+        aria-label="Glisser pour réordonner"
         className="grid h-6 w-4 cursor-grab place-items-center text-zinc-500 hover:text-zinc-300"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -126,8 +126,8 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         type="button"
         data-testid="layer-list-item-delete"
         onClick={onDeleteClick}
-        title="Delete layer"
-        aria-label="Delete layer"
+        title="Supprimer"
+        aria-label="Supprimer l'élément du titre"
         className="grid h-6 w-6 place-items-center rounded text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-red-300 focus:opacity-100 group-hover:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -137,13 +137,15 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
 }
 
 /**
- * Compute the display name for a layer row. The format mirrors what the
- * user sees in the AddLayerBar chips, but expanded so it works on its own
- * line:
- *  - background    → "Background • <asset name | truncated id>"
- *  - glyph         → "Image • <asset name | truncated id>"
- *  - text          → "Text • <first 20 chars of the resolved i18n value>"
- *  - external_glyph → "External • <provider>:<glyph name>"
+ * Compute the display name for a layer row. Phrasing is intentionally
+ * user-friendly — the underlying type names ("background", "glyph",
+ * "external_glyph") are technical jargon the user shouldn't have to learn:
+ *  - background / glyph → "Image • <asset name | truncated id>"
+ *      The two runtime kinds collapse into one UI concept; we drop the
+ *      "Background" vocabulary entirely.
+ *  - text               → "Texte • <first 20 chars of the resolved value>"
+ *  - external_glyph     → "Image (Oraxen/Nexo) • <name>" so the user
+ *      understands the source without seeing the word "glyph".
  */
 function deriveAutoName(
   layer: MenuTitleLayer,
@@ -151,22 +153,25 @@ function deriveAutoName(
   pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number] | undefined,
   activeLang: string,
 ): string {
-  if (layer.kind === "background") {
-    return `Background • ${resolveAssetName(layer.assetId, assets)}`;
-  }
-  if (layer.kind === "glyph") {
+  if (layer.kind === "background" || layer.kind === "glyph") {
     return `Image • ${resolveAssetName(layer.assetId, assets)}`;
   }
   if (layer.kind === "text") {
     const raw = pack ? getText(pack, layer.value, activeLang) : "";
     const display = raw && raw.length > 0 ? raw : layer.value.key;
-    return `Text • ${truncate(display, 20)}`;
+    return `Texte • ${truncate(display, 20)}`;
   }
   if (layer.kind === "external_glyph") {
-    return `External • ${layer.provider}:${layer.glyphName}`;
+    return `Image (${externalProviderLabel(layer.provider)}) • ${layer.glyphName}`;
   }
   // Exhaustiveness — discriminated union is closed.
-  return "Unknown layer";
+  return "Calque inconnu";
+}
+
+function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): string {
+  if (provider === "oraxen") return "Oraxen";
+  if (provider === "nexo") return "Nexo";
+  return "ItemsAdder";
 }
 
 function resolveAssetName(id: AssetId, assets: Asset[]): string {

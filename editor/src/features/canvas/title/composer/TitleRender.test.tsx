@@ -197,6 +197,10 @@ vi.mock("./ResizeHandles", () => ({
   ),
 }));
 
+// Must mirror the value used in TitleRender.tsx — a near-zero-alpha fill so
+// the backdrop Rect remains clickable but doesn't paint a visible block.
+const BACKDROP_FILL = "rgba(0,0,0,0.001)";
+
 const PACK_ID = "p1" as PackId;
 const MENU_ID = "m1" as MenuId;
 const ASSET_BG = "asset_bg" as AssetId;
@@ -295,11 +299,14 @@ beforeEach(() => {
 });
 
 describe("TitleRender", () => {
-  it("renders the title-bar grey backdrop (#3f3f3f)", () => {
+  it("renders an invisible title-bar backdrop (transparent fill, still hit-testable)", () => {
     seedPack([]);
     render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const rects = screen.getAllByTestId("rect");
-    expect(rects.some((r) => r.getAttribute("data-fill") === "#3f3f3f")).toBe(true);
+    // The backdrop uses a near-zero-alpha fill so it stays clickable but
+    // doesn't paint a grey block over the chest's title row (vanilla MC
+    // chests have no such block — title text floats over the wood texture).
+    expect(rects.some((r) => r.getAttribute("data-fill") === BACKDROP_FILL)).toBe(true);
   });
 
   it("renders one Group per layer in declared order (3 layers → 3 groups)", () => {
@@ -393,7 +400,7 @@ describe("TitleRender", () => {
     render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const backdrop = screen
       .getAllByTestId("rect")
-      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL)!;
     fireEvent.click(backdrop);
     expect(useUiStore.getState().selectedLayerKey).toBeNull();
   });
@@ -408,7 +415,7 @@ describe("TitleRender", () => {
     render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const backdrop = screen
       .getAllByTestId("rect")
-      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL)!;
     fireEvent.click(backdrop);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
     // setSelectedMenuId also bumps the sticky lastSelectedMenuId mirror.
@@ -428,7 +435,7 @@ describe("TitleRender", () => {
     render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const backdrop = screen
       .getAllByTestId("rect")
-      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL)!;
     fireEvent.click(backdrop);
     // Menu stays selected.
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
@@ -449,7 +456,7 @@ describe("TitleRender", () => {
     render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
     const backdrop = screen
       .getAllByTestId("rect")
-      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+      .find((r) => r.getAttribute("data-fill") === BACKDROP_FILL)!;
     fireEvent.click(backdrop);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
     expect(useUiStore.getState().selectedLayerKey).toEqual({

@@ -38,7 +38,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (!selectedKey || !menu || !layer) {
     return (
       <div className="rounded border border-dashed border-zinc-800 bg-zinc-900/40 px-3 py-4 text-center text-[11px] text-zinc-500">
-        Select a layer to edit its details
+        Sélectionne un élément pour modifier ses détails
       </div>
     );
   }
@@ -109,7 +109,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
     if (!token) return;
     if (
       !window.confirm(
-        "Duplicate this glyph for this menu only? Other menus keep the original.",
+        "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
       )
     ) {
       return;
@@ -146,7 +146,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
           <div className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<missing>"}</div>
+          <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<image manquante>"}</div>
           <div className="text-[10px] text-zinc-500">
             {/* `width` is intentionally local-only — MC fonts derive glyph
                 width from PNG transparency, so the backend doesn't persist a
@@ -157,17 +157,17 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
                 server-confirmed one. */}
             {asset
               ? `${asset.type} · ${asset.width} × ${asset.height} px`
-              : "asset not loaded"}
+              : "image non chargée"}
           </div>
         </div>
       </div>
 
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
-          Pick asset…
+          Choisir une image…
         </Button>
         <Button size="sm" variant="outline" onClick={onDuplicate} disabled={duplicating}>
-          {duplicating ? "Duplicating…" : "Duplicate glyph"}
+          {duplicating ? "Duplication…" : "Dupliquer l'image"}
         </Button>
       </div>
 
@@ -176,7 +176,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
         typeFilter="glyph"
         onClose={() => setPickerOpen(false)}
         onPick={onPick}
-        title="Pick an image"
+        title="Choisir une image"
       />
     </div>
   );
@@ -202,7 +202,7 @@ function TextLayerForm({ packId, layer }: TextLayerFormProps) {
           htmlFor="layer-edit-text"
           className="mb-1 block text-[10px] uppercase text-zinc-500"
         >
-          Text (MiniMessage) — {textEdit.lang}
+          Texte (MiniMessage) — {textEdit.lang}
         </label>
         <textarea
           id="layer-edit-text"
@@ -220,7 +220,7 @@ function TextLayerForm({ packId, layer }: TextLayerFormProps) {
       </div>
 
       <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Preview</div>
+        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
         <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>
