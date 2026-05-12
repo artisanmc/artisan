@@ -105,6 +105,11 @@ export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDra
       // the user's last committed state, not the previous tick's optimistic
       // value.
       if (!preDragAssetRef.current) preDragAssetRef.current = asset;
+      // Note: `width` is mutated locally only. MC fonts derive glyph width
+      // from PNG transparency, so the backend has no width field — only
+      // `height` is sent in `onResizeEnd`. Keeping width in the optimistic
+      // assetStore lets the canvas re-render with the new bounds during
+      // drag; on reload, width is re-derived from the PNG.
       useAssetStore.getState().upsertAsset({
         ...asset,
         width: dims.width,

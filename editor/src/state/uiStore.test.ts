@@ -93,3 +93,108 @@ describe("uiStore — v3 title composer fields", () => {
     expect(useUiStore.getState().lastSelectedMenuId).toBe(MENU_B);
   });
 });
+
+describe("uiStore — applyLayerDeleted", () => {
+  beforeEach(() => {
+    useUiStore.setState({
+      selectedLayerKey: null,
+      hiddenLayerKeys: new Set<string>(),
+    });
+  });
+
+  it("clears selectedLayerKey when the deleted layer was selected", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 1 });
+    useUiStore.getState().applyLayerDeleted(MENU_A, 1);
+    expect(useUiStore.getState().selectedLayerKey).toBeNull();
+  });
+
+  it("decrements selectedLayerKey.index when a lower index was deleted", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 3 });
+    useUiStore.getState().applyLayerDeleted(MENU_A, 1);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 2 });
+  });
+
+  it("leaves selectedLayerKey unchanged when the deleted index is above", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 1 });
+    useUiStore.getState().applyLayerDeleted(MENU_A, 3);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 1 });
+  });
+
+  it("leaves selectedLayerKey unchanged when the deletion is in a different menu", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 1 });
+    useUiStore.getState().applyLayerDeleted(MENU_B, 0);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 1 });
+  });
+
+  it("drops the hidden entry for the deleted index and shifts higher entries down", () => {
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 0); // stays
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 1); // dropped
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 2); // → 1
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 3); // → 2
+    useUiStore.getState().toggleHiddenLayer(MENU_B, 1); // untouched (different menu)
+    useUiStore.getState().applyLayerDeleted(MENU_A, 1);
+    const keys = useUiStore.getState().hiddenLayerKeys;
+    expect(keys.has(`${MENU_A}:0`)).toBe(true);
+    expect(keys.has(`${MENU_A}:1`)).toBe(true); // was index 2
+    expect(keys.has(`${MENU_A}:2`)).toBe(true); // was index 3
+    expect(keys.has(`${MENU_A}:3`)).toBe(false); // shifted down
+    expect(keys.has(`${MENU_B}:1`)).toBe(true);
+  });
+});
+
+describe("uiStore — applyLayerMoved", () => {
+  beforeEach(() => {
+    useUiStore.setState({
+      selectedLayerKey: null,
+      hiddenLayerKeys: new Set<string>(),
+    });
+  });
+
+  it("remaps selectedLayerKey when the selected layer itself moves (from → to)", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 0 });
+    useUiStore.getState().applyLayerMoved(MENU_A, 0, 2);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 2 });
+  });
+
+  it("remaps selectedLayerKey when an intermediate layer crosses it (downward shift)", () => {
+    // move from 0 to 2: layers at indices 1 and 2 shift down to 0 and 1
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 1 });
+    useUiStore.getState().applyLayerMoved(MENU_A, 0, 2);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 0 });
+  });
+
+  it("remaps selectedLayerKey when an intermediate layer crosses it (upward shift)", () => {
+    // move from 3 to 1: layers at indices 1 and 2 shift up to 2 and 3
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 2 });
+    useUiStore.getState().applyLayerMoved(MENU_A, 3, 1);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 3 });
+  });
+
+  it("leaves selectedLayerKey unchanged when the move doesn't touch it", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 0 });
+    useUiStore.getState().applyLayerMoved(MENU_A, 2, 3);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 0 });
+  });
+
+  it("leaves selectedLayerKey unchanged when the move is in a different menu", () => {
+    useUiStore.getState().setSelectedLayerKey({ menuId: MENU_A, index: 1 });
+    useUiStore.getState().applyLayerMoved(MENU_B, 0, 2);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({ menuId: MENU_A, index: 1 });
+  });
+
+  it("remaps hiddenLayerKeys for the same menu using the same move semantics", () => {
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 0); // moving from 0 → 2 → ends at 2
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 1); // crossed by move, shifts down to 0
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 2); // crossed by move, shifts down to 1
+    useUiStore.getState().toggleHiddenLayer(MENU_A, 3); // untouched
+    useUiStore.getState().toggleHiddenLayer(MENU_B, 0); // untouched (different menu)
+    useUiStore.getState().applyLayerMoved(MENU_A, 0, 2);
+    const keys = useUiStore.getState().hiddenLayerKeys;
+    expect(keys.has(`${MENU_A}:0`)).toBe(true); // was 1
+    expect(keys.has(`${MENU_A}:1`)).toBe(true); // was 2
+    expect(keys.has(`${MENU_A}:2`)).toBe(true); // was 0 (the moved one)
+    expect(keys.has(`${MENU_A}:3`)).toBe(true); // unchanged
+    expect(keys.has(`${MENU_B}:0`)).toBe(true);
+    expect(keys.size).toBe(5);
+  });
+});

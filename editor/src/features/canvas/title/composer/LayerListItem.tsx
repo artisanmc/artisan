@@ -42,6 +42,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
 
   const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
+  const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
@@ -67,6 +68,10 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
     e.stopPropagation();
     if (window.confirm("Delete this layer?")) {
       removeLayer({ packId, menuId, index });
+      // Sync uiStore: clear/shift stale selection + hidden flags. Without
+      // this, the next layer (which shifted up) would inherit selection and
+      // hidden-eye state from the deleted one.
+      applyLayerDeleted(menuId, index);
     }
   };
 
