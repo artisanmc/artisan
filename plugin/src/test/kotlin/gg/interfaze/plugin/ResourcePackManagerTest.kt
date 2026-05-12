@@ -6,6 +6,10 @@ import gg.interfaze.plugin.config.ResourcePackConfig
 import gg.interfaze.plugin.resourcepack.AssetCatalog
 import gg.interfaze.plugin.resourcepack.ResourcePackInfo
 import gg.interfaze.plugin.resourcepack.ResourcePackManager
+import org.bukkit.entity.Player
+import org.bukkit.plugin.java.JavaPlugin
+import java.util.UUID
+import java.util.logging.Logger
 import kotlin.test.*
 
 class ResourcePackManagerTest {
@@ -25,6 +29,35 @@ class ResourcePackManagerTest {
         ResourcePackConfig(enabled = enabled, prompt = "<gold>x</gold>", sendOnJoin = sendOnJoin, sendDelayTicks = delayTicks)
 
     private val SAMPLE_HASH = "0".repeat(40)
+    private val OTHER_HASH = "f".repeat(40)
+
+    /**
+     * Records every [addPack]/[removePack] call so tests can assert the exact sequence
+     * of Bukkit API interactions. MockBukkit's [Player.addResourcePack] and
+     * [Player.removeResourcePack] throw `UnimplementedOperationException`, so we override
+     * the [ResourcePackManager] test seams instead of exercising the real player API.
+     */
+    private class RecordingManager(
+        plugin: JavaPlugin,
+        config: ResourcePackConfig,
+        logger: Logger?,
+        assetCatalog: AssetCatalog? = null,
+    ) : ResourcePackManager(plugin, config, logger, assetCatalog) {
+        sealed interface Call {
+            data class Add(val playerName: String, val uuid: UUID, val url: String, val hash: String) : Call
+            data class Remove(val playerName: String, val uuid: UUID) : Call
+        }
+
+        val calls = mutableListOf<Call>()
+
+        override fun addPack(player: Player, info: ResourcePackInfo) {
+            calls += Call.Add(player.name, info.uuid, info.url, info.hash)
+        }
+
+        override fun removePack(player: Player, uuid: UUID) {
+            calls += Call.Remove(player.name, uuid)
+        }
+    }
 
     @Test
     fun `from() produces stable UUID for the same hash`() {
@@ -65,25 +98,119 @@ class ResourcePackManagerTest {
 
     @Test
     fun `pushToPlayer is a no-op when currentPackInfo is null`() {
-        val mgr = ResourcePackManager(plugin, config(), logger = plugin.logger)
+        val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
         val player = server.addPlayer()
         mgr.pushToPlayer(player)
+        assertTrue(mgr.calls.isEmpty())
     }
 
     @Test
     fun `pushToPlayer is a no-op when disabled`() {
-        val mgr = ResourcePackManager(plugin, config(enabled = false), logger = plugin.logger)
+        val mgr = RecordingManager(plugin, config(enabled = false), logger = plugin.logger)
         mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
         val player = server.addPlayer()
         mgr.pushToPlayer(player)
+        assertTrue(mgr.calls.isEmpty())
     }
 
     @Test
     fun `onJoin pushes only if send-on-join is true`() {
-        val mgr = ResourcePackManager(plugin, config(sendOnJoin = false, delayTicks = 0L), logger = plugin.logger)
+        val mgr = RecordingManager(plugin, config(sendOnJoin = false, delayTicks = 0L), logger = plugin.logger)
         mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
         val player = server.addPlayer()
         mgr.onJoin(player)
+        // sendOnJoin=false → no add call, but onUpdate ran with no online players → no calls either.
+        assertTrue(mgr.calls.isEmpty())
+    }
+
+    @Test
+    fun `first push calls addPack and does NOT call removePack`() {
+        val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
+        val player = server.addPlayer("alice")
+        mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
+        // onUpdate runs pushToPlayer for online players (alice was online before onUpdate).
+        val adds = mgr.calls.filterIsInstance<RecordingManager.Call.Add>()
+        val removes = mgr.calls.filterIsInstance<RecordingManager.Call.Remove>()
+        assertEquals(1, adds.size)
+        assertEquals("alice", adds[0].playerName)
+        assertEquals(SAMPLE_HASH, adds[0].hash)
+        assertTrue(removes.isEmpty(), "first push must not call removePack (no previous Interfaze pack)")
+    }
+
+    @Test
+    fun `second push after onUpdate removes the previous pack and then adds the new one`() {
+        val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
+        val player = server.addPlayer("alice")
+
+        val info1 = ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>")
+        mgr.onUpdate(info1)
+        mgr.calls.clear()
+
+        val info2 = ResourcePackInfo.from("http://y", OTHER_HASH, "<gold>x</gold>")
+        mgr.onUpdate(info2)
+
+        // Expect: removeResourcePack(prev) then addResourcePack(new) for alice.
+        assertEquals(2, mgr.calls.size, "expected exactly one remove + one add, got ${mgr.calls}")
+        val first = mgr.calls[0]
+        val second = mgr.calls[1]
+        assertTrue(first is RecordingManager.Call.Remove, "first call must be Remove, got $first")
+        assertTrue(second is RecordingManager.Call.Add, "second call must be Add, got $second")
+        assertEquals(info1.uuid, (first as RecordingManager.Call.Remove).uuid)
+        val secondAdd = second as RecordingManager.Call.Add
+        assertEquals(info2.uuid, secondAdd.uuid)
+        assertEquals(OTHER_HASH, secondAdd.hash)
+    }
+
+    @Test
+    fun `onUpdate(null) removes the pack for all online players and clears previousUuid`() {
+        val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
+        val alice = server.addPlayer("alice")
+        val bob = server.addPlayer("bob")
+
+        val info = ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>")
+        mgr.onUpdate(info)
+        // 2 adds (alice + bob)
+        assertEquals(2, mgr.calls.size)
+        mgr.calls.clear()
+
+        mgr.onUpdate(null)
+
+        // Expect: one removeResourcePack per online player.
+        val removes = mgr.calls.filterIsInstance<RecordingManager.Call.Remove>()
+        val adds = mgr.calls.filterIsInstance<RecordingManager.Call.Add>()
+        assertEquals(2, removes.size, "expected one remove per online player")
+        assertTrue(adds.isEmpty(), "no add calls expected when clearing the pack")
+        assertEquals(setOf("alice", "bob"), removes.map { it.playerName }.toSet())
+        for (r in removes) assertEquals(info.uuid, r.uuid)
+
+        // currentPackInfo cleared; previousUuid also reset so a subsequent first push won't try
+        // to remove a stale UUID.
+        assertNull(mgr.currentPackInfo)
+        mgr.calls.clear()
+        mgr.onUpdate(ResourcePackInfo.from("http://z", SAMPLE_HASH, "<gold>x</gold>"))
+        val addsAfter = mgr.calls.filterIsInstance<RecordingManager.Call.Add>()
+        val removesAfter = mgr.calls.filterIsInstance<RecordingManager.Call.Remove>()
+        assertEquals(2, addsAfter.size, "after clear, next update should add for online players")
+        assertTrue(removesAfter.isEmpty(), "after clear, previousUuid must be reset (no remove)")
+    }
+
+    @Test
+    fun `same UUID push does not call removePack`() {
+        // If the hash hasn't changed, the UUID is stable. We shouldn't churn the player's
+        // stack by remove+add of the same UUID.
+        val mgr = RecordingManager(plugin, config(), logger = plugin.logger)
+        server.addPlayer("alice")
+        val info = ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>")
+        mgr.onUpdate(info)
+        mgr.calls.clear()
+
+        // Same hash → same UUID.
+        mgr.onUpdate(ResourcePackInfo.from("http://x-bis", SAMPLE_HASH, "<gold>x</gold>"))
+
+        val removes = mgr.calls.filterIsInstance<RecordingManager.Call.Remove>()
+        val adds = mgr.calls.filterIsInstance<RecordingManager.Call.Add>()
+        assertEquals(1, adds.size)
+        assertTrue(removes.isEmpty(), "must not remove when the UUID is unchanged")
     }
 
     @Test
@@ -131,7 +258,7 @@ class ResourcePackManagerTest {
         assertNotNull(info)
         // The download URL is what AssetCatalog.update is called with (see
         // ResourcePackManager.updateCatalogAsync). The player URL is what
-        // pushToPlayer sends via setResourcePack.
+        // pushToPlayer sends via addResourcePack.
         assertEquals("http://backend:3001/api/resource-pack/aa.zip", info.downloadUrl)
         assertEquals("http://player-only.example/pack.zip", info.url)
     }
