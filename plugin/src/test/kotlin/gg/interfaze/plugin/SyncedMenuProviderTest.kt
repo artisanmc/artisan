@@ -119,6 +119,60 @@ class SyncedMenuProviderTest {
     }
 
     @Test
+    fun `hello_ack with bundle_url splits player and download URLs`() {
+        // When the backend sends a Docker-internal bundle_url AND a player-facing
+        // resource_pack.url, the plugin must:
+        //   - keep the player URL on ResourcePackInfo.url (for setResourcePack)
+        //   - rewrite resource_pack.url with bundle_url's host for downloadUrl
+        //     (so AssetCatalog can actually reach the backend).
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        provider.load()
+        val hash = "f".repeat(40)
+        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        val info = mgr.currentPackInfo
+        assertNotNull(info)
+        assertEquals("http://localhost:3001/api/resource-pack/sk/${hash}.zip", info.url)
+        assertEquals("http://backend:3001/api/resource-pack/sk/${hash}.zip", info.downloadUrl)
+    }
+
+    @Test
+    fun `resource_pack_updated rewrites downloadUrl using apiUrl`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
+        provider.load()
+        // First seed apiUrl via a hello_ack.
+        val helloHash = "a".repeat(40)
+        val hello = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, hello)
+        // Now send a resource_pack_updated — should reuse the cached apiUrl.
+        val newHash = "b".repeat(40)
+        val updated = """{"type":"resource_pack_updated","url":"http://localhost:3001/api/resource-pack/sk/${newHash}.zip","hash":"$newHash"}"""
+        handle.invoke(provider, updated)
+        val info = mgr.currentPackInfo
+        assertNotNull(info)
+        assertEquals(newHash, info.hash)
+        assertEquals("http://backend:3001/api/resource-pack/sk/${newHash}.zip", info.downloadUrl)
+    }
+
+    @Test
+    fun `resolvePluginDownloadUrl falls back to player URL when apiUrl is unset`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        // No hello_ack received → apiUrl is null → resolve returns input untouched.
+        val resolved = provider.resolvePluginDownloadUrl("http://localhost:3001/api/resource-pack/x.zip")
+        assertEquals("http://localhost:3001/api/resource-pack/x.zip", resolved)
+    }
+
+    @Test
     fun `provider clears resource pack when hello_ack resource_pack is null`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))

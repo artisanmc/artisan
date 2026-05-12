@@ -20,8 +20,26 @@ class ResourcePackManager(
     var currentPackInfo: ResourcePackInfo? = null
         private set
 
+    /**
+     * Build and apply a [ResourcePackInfo] from a backend-supplied URL + hash.
+     *
+     * @param url  External URL used to push the pack to the player.
+     * @param hash 40-char hex SHA-1.
+     */
     fun applyFromBackend(url: String, hash: String) {
-        onUpdate(ResourcePackInfo.from(url, hash, config.prompt))
+        applyFromBackend(url, url, hash)
+    }
+
+    /**
+     * Build and apply a [ResourcePackInfo] with split URLs.
+     *
+     * @param playerUrl   External URL the player's client uses (sent via `setResourcePack`).
+     * @param downloadUrl Plugin-side URL the plugin uses to download the pack itself (for
+     *                    [AssetCatalog]). In Docker, this should be the internal backend URL.
+     * @param hash        40-char hex SHA-1.
+     */
+    fun applyFromBackend(playerUrl: String, downloadUrl: String, hash: String) {
+        onUpdate(ResourcePackInfo.from(playerUrl, downloadUrl, hash, config.prompt))
     }
 
     fun onUpdate(info: ResourcePackInfo?) {
@@ -37,7 +55,8 @@ class ResourcePackManager(
     private fun updateCatalogAsync(catalog: AssetCatalog, info: ResourcePackInfo) {
         Thread {
             try {
-                catalog.update(info.url, info.hash)
+                // Use the plugin-side download URL (Docker-internal), NOT the player-facing URL.
+                catalog.update(info.downloadUrl, info.hash)
             } catch (t: Throwable) {
                 logger?.warning("[asset-catalog] update failed: ${t.message}")
             }
