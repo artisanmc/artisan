@@ -694,3 +694,181 @@ describe("DELETE /api/editor-session/:token/assets/:id (font)", () => {
     expect(check.status).toBe(404);
   });
 });
+
+describe("POST /api/editor-session/:token/assets/:id/duplicate", () => {
+  test("duplicates a glyph asset: returns new id + new codepoint", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "dup_glyph", ascent: "7" }),
+    });
+    expect(post.status).toBe(201);
+    const original = (await post.json()).asset;
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.id).not.toBe(original.id);
+    expect(body.asset.type).toBe("glyph");
+    expect(body.asset.codepoint).toBeGreaterThan(original.codepoint);
+    expect(body.asset.height).toBe(original.height);
+    expect(body.asset.ascent).toBe(original.ascent);
+    expect(body.asset.contentHash).toBe(original.contentHash);
+    expect(body.asset.name).toBe("dup_glyph_copy");
+  });
+
+  test("rejects duplicating a texture (only glyphs allowed) with 400", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "texture", name: "no_dup_tex" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects duplicating a font asset with 400", async () => {
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadFontForm({ name: "no_dup_font" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("404 on non-existent id", async () => {
+    const { token } = await seedSession();
+    const res = await app.request(`/api/editor-session/${token}/assets/asset_does_not_exist/duplicate`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("404 when source belongs to another server_key", async () => {
+    const sessA = await seedSession();
+    const sessB = await seedSession();
+    const post = await app.request(`/api/editor-session/${sessA.token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "cross_dup", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+    const res = await app.request(`/api/editor-session/${sessB.token}/assets/${a.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("both source and copy exist in DB after duplicate", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "both_exist", ascent: "7" }),
+    });
+    const original = (await post.json()).asset;
+
+    const dup = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    const copy = (await dup.json()).asset;
+
+    const srcRow = await db.select().from(assets).where(eq(assets.id, original.id));
+    const copyRow = await db.select().from(assets).where(eq(assets.id, copy.id));
+    expect(srcRow.length).toBe(1);
+    expect(copyRow.length).toBe(1);
+    expect(srcRow[0].serverKeyId).toBe(serverKeyId);
+    expect(copyRow[0].serverKeyId).toBe(serverKeyId);
+  });
+
+  test("copy PNG file exists on disk at expected path", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "png_on_disk", ascent: "7" }),
+    });
+    const original = (await post.json()).asset;
+
+    const dup = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    const copy = (await dup.json()).asset;
+
+    const { assetPath } = await import("../lib/assetStorage");
+    expect(existsSync(assetPath(serverKeyId, copy.id))).toBe(true);
+    expect(existsSync(assetPath(serverKeyId, original.id))).toBe(true);
+  });
+
+  test("rebuilds resource pack and changes the hash", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "rp_dup", ascent: "7" }),
+    });
+    const original = (await post.json()).asset;
+    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+
+    const dup = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(dup.status).toBe(200);
+    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    expect(after).not.toBe(before);
+  });
+
+  test("regenerated font.json contains both source and copy codepoints", async () => {
+    const { token, serverKeyId } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "fjson_dup", ascent: "7" }),
+    });
+    const original = (await post.json()).asset;
+
+    const dup = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(dup.status).toBe(200);
+    const copy = (await dup.json()).asset;
+
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const { resourcePackPath } = await import("../lib/resourcePackStorage");
+    const { readFile } = await import("fs/promises");
+    const hash = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
+    const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
+    const entries = unzipSync(new Uint8Array(zipBytes));
+    const fontJson = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+
+    const srcChar = String.fromCodePoint(original.codepoint);
+    const copyChar = String.fromCodePoint(copy.codepoint);
+    const srcProvider = fontJson.providers.find(
+      (p: { chars?: string[] }) => p.chars?.includes(srcChar),
+    );
+    const copyProvider = fontJson.providers.find(
+      (p: { chars?: string[] }) => p.chars?.includes(copyChar),
+    );
+    expect(srcProvider).toBeDefined();
+    expect(copyProvider).toBeDefined();
+    expect(srcProvider.file).toBe("interfaze:font/fjson_dup.png");
+    expect(copyProvider.file).toBe("interfaze:font/fjson_dup_copy.png");
+  });
+
+  test("dedupes copy name when '<name>_copy' already exists", async () => {
+    const { token } = await seedSession();
+    // Original
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "name_clash", ascent: "7" }),
+    });
+    const original = (await post.json()).asset;
+    // First duplicate → "name_clash_copy"
+    const dup1 = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(dup1.status).toBe(200);
+    expect((await dup1.json()).asset.name).toBe("name_clash_copy");
+    // Second duplicate of original → "name_clash_copy2"
+    const dup2 = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
+      method: "POST",
+    });
+    expect(dup2.status).toBe(200);
+    expect((await dup2.json()).asset.name).toBe("name_clash_copy2");
+  });
+});

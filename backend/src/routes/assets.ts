@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { and, eq, ilike } from "drizzle-orm";
 import { createHash } from "crypto";
 import { strToU8 } from "fflate";
+import { readFile } from "fs/promises";
 import { db } from "../db/index";
 import { assets } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
-import { writeAssetFile, deleteAssetFile } from "../lib/assetStorage";
+import { writeAssetFile, deleteAssetFile, assetPath } from "../lib/assetStorage";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { parseMcFontsZip, type ParsedMcFont } from "../lib/mcFontsParser";
 import { readPngDimensions } from "../lib/pngDimensions";
@@ -250,6 +251,91 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
   return c.json({ asset: serialize(updated) });
 });
+
+assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
+  const token = c.req.param("token");
+  const session = await validateAccessToken(token);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const id = c.req.param("id");
+  const rows = await db.select().from(assets)
+    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
+  const source = rows[0];
+
+  if (source.type !== "glyph") {
+    return c.json({ error: "Only glyph assets can be duplicated" }, 400);
+  }
+
+  // Pick a free name: "<name>_copy", "<name>_copy2", "<name>_copy3", ...
+  const newName = await findFreeCopyName(session.serverKeyId, source.type, source.name);
+
+  // New unique id
+  const newId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const newCodepoint = await allocateCodepoint(session.serverKeyId);
+  const now = new Date();
+
+  // Copy the source PNG to the new asset path
+  let bytes: Uint8Array;
+  try {
+    const buf = await readFile(assetPath(session.serverKeyId, source.id));
+    bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return c.json({ error: "Source asset file missing on disk" }, 500);
+    }
+    throw err;
+  }
+
+  try {
+    await writeAssetFile(session.serverKeyId, newId, bytes);
+    await db.insert(assets).values({
+      id: newId,
+      serverKeyId: session.serverKeyId,
+      type: source.type,
+      name: newName,
+      width: source.width,
+      height: source.height,
+      ascent: source.ascent,
+      codepoint: newCodepoint,
+      fontMeta: source.fontMeta,
+      contentHash: source.contentHash,
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code === "23505") {
+      return c.json({ error: "Asset name or codepoint collision" }, 409);
+    }
+    return c.json({ error: "Failed to persist asset" }, 500);
+  }
+
+  const created = (await db.select().from(assets).where(eq(assets.id, newId)))[0];
+  const _packInfo = await rebuildResourcePack(session.serverKeyId);
+  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+  return c.json({ asset: serialize(created) }, 200);
+});
+
+async function findFreeCopyName(
+  serverKeyId: string,
+  type: string,
+  baseName: string,
+): Promise<string> {
+  // Try `<base>_copy`, then `<base>_copy2`, `<base>_copy3`, ... until free.
+  for (let i = 1; i < 1000; i++) {
+    const candidate = i === 1 ? `${baseName}_copy` : `${baseName}_copy${i}`;
+    const clash = await db.select().from(assets).where(
+      and(
+        eq(assets.serverKeyId, serverKeyId),
+        eq(assets.type, type),
+        eq(assets.name, candidate),
+      ),
+    );
+    if (clash.length === 0) return candidate;
+  }
+  throw new Error("Could not find a free copy name after 1000 attempts");
+}
 
 assetsRouter.delete("/:token/assets/:id", async (c) => {
   const token = c.req.param("token");
