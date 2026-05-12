@@ -7,13 +7,22 @@ import {
 } from "./spaceOffsets";
 
 describe("spaceOffsetTable", () => {
-  test("returns one entry per advance, codepoints starting at F900", () => {
+  test("returns one entry per advance, codepoints starting at F800", () => {
     const table = spaceOffsetTable();
     expect(table).toHaveLength(SPACE_OFFSET_ADVANCES.length);
     for (let i = 0; i < table.length; i++) {
       expect(table[i].codepoint).toBe(SPACE_OFFSET_CODEPOINT_START + i);
       expect(table[i].advance).toBe(SPACE_OFFSET_ADVANCES[i]);
     }
+  });
+
+  test("codepoint range stays inside BMP PUA and avoids CJK Compatibility Ideographs", () => {
+    // U+E000..U+F8FF = BMP Private Use Area (no vanilla glyph).
+    // U+F900..U+FAFF = CJK Compatibility Ideographs (vanilla MC font HAS glyphs here,
+    // which would render as Chinese characters and block the `space` provider).
+    expect(SPACE_OFFSET_CODEPOINT_START).toBeGreaterThanOrEqual(0xE000);
+    const lastCodepoint = SPACE_OFFSET_CODEPOINT_START + SPACE_OFFSET_ADVANCES.length - 1;
+    expect(lastCodepoint).toBeLessThan(0xF900);
   });
 
   test("includes powers of 2 up to 256 in both signs", () => {

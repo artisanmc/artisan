@@ -200,12 +200,12 @@ class AssetCatalogTest {
                   "version": 2,
                   "assets": {},
                   "offsets": {
-                    "F900": 1,
-                    "F901": 2,
-                    "F902": 4,
-                    "F909": -1,
-                    "F90A": -2,
-                    "F90B": -4
+                    "F800": 1,
+                    "F801": 2,
+                    "F802": 4,
+                    "F809": -1,
+                    "F80A": -2,
+                    "F80B": -4
                   }
                 }
             """.trimIndent()
@@ -219,7 +219,7 @@ class AssetCatalogTest {
             // 7 = 4 + 2 + 1
             val out = enc.encode(7)
             assertEquals(3, out.length)
-            val byCp = mapOf(0xF900 to 1, 0xF901 to 2, 0xF902 to 4, 0xF909 to -1, 0xF90A to -2, 0xF90B to -4)
+            val byCp = mapOf(0xF800 to 1, 0xF801 to 2, 0xF802 to 4, 0xF809 to -1, 0xF80A to -2, 0xF80B to -4)
             val sum = out.sumOf { byCp[it.code] ?: 0 }
             assertEquals(7, sum)
         }

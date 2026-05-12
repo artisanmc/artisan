@@ -16,7 +16,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
  *  - The compiler wraps the entire title in `<font:interfaze:default>...</font>`.
  *    That font includes a `reference` to `minecraft:default` (so plain text falls
  *    back to vanilla), the bitmap providers for project glyphs, and a `space`
- *    provider mapping a set of codepoints (U+F900..U+F911) to positive/negative
+ *    provider mapping a set of codepoints (U+F800..U+F811) to positive/negative
  *    pixel advances (powers of two, ±1..±256).
  *  - Between layers the compiler emits a sequence of "space" chars produced by
  *    [OffsetEncoder] that advances the cursor from the previous layer's end to
