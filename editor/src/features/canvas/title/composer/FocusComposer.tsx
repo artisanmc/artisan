@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { PackId, MenuId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
 import { ArrowLeft } from "lucide-react";
 import { useEffect } from "react";
 import { useTitleSelectionStore } from "../titleSelectionStore";
@@ -15,7 +14,10 @@ interface FocusComposerProps {
 }
 
 export function FocusComposer({ packId, menuId }: FocusComposerProps) {
-  const closeFocus = useUiStore((s) => s.closeTitleComposer);
+  // TODO P1.12: whole file is being deleted alongside the v2 composer.
+  // Until then the focus-close handler is a no-op (the route no longer
+  // mounts FocusComposer anyway, so this code path is unreachable).
+  const closeFocus = () => {};
   const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
   const selectedIndex = useTitleSelectionStore((s) => s.selectedIndex);
   const setSelected = useTitleSelectionStore((s) => s.setSelectedIndex);
@@ -40,7 +42,7 @@ export function FocusComposer({ packId, menuId }: FocusComposerProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [closeFocus, removeLayer, packId, menuId, selectedIndex, menu, setSelected]);
+  }, [removeLayer, packId, menuId, selectedIndex, menu, setSelected]);
 
   return (
     <div className="flex h-full flex-col gap-3 p-3">

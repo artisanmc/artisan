@@ -75,7 +75,10 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
           size="sm"
           variant="ghost"
           className="mt-1.5 w-full"
-          onClick={() => useUiStore.getState().openTitleComposer(packId, menu.id)}
+          // TODO P1.11: drop entirely — v3 surfaces title editing in the new
+          // always-visible LayersPanel (3rd column), so this dedicated button
+          // becomes redundant. No-op'd until the new panel ships.
+          onClick={() => {}}
         >
           Edit title…
         </Button>

@@ -17,6 +17,20 @@ function detectInitialLang(): string {
   return "en";
 }
 
+/** v3 title composer — currently-selected layer inside a menu's title. */
+export interface SelectedLayerKey {
+  menuId: MenuId;
+  index: number;
+}
+
+/** v3 title composer — ghost state for the "drag-to-attach" gesture from + Image / + Text buttons. */
+export interface DraggingNewLayer {
+  kind: "image" | "text";
+  /** Pointer position in screen coords (px); consumers convert as needed. */
+  x: number;
+  y: number;
+}
+
 interface UiState {
   /** Last pack the user opened. The index route reads this to redirect. */
   lastActivePackId: PackId | null;
@@ -55,12 +69,40 @@ interface UiState {
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
   /**
-   * When set, the editor is in title-composer focus mode for the given
-   * menu. Null means the composer is closed and the regular canvas is shown.
+   * v3 title composer — id of the menu currently selected in the pack canvas.
+   * Drives the contents of the 3rd-column LayersPanel. Distinct from the
+   * `lastSelectedMenuId` "sticky" mirror below.
    */
-  titleComposerOpen: { packId: PackId; menuId: MenuId } | null;
-  openTitleComposer: (packId: PackId, menuId: MenuId) => void;
-  closeTitleComposer: () => void;
+  selectedMenuId: MenuId | null;
+  /**
+   * v3 title composer — sticky reference to the most recently selected menu.
+   * Survives when `selectedMenuId` goes null (e.g. user clicks empty space on
+   * the canvas) so the LayersPanel can keep showing the last menu's layers.
+   * Kept in sync automatically by `setSelectedMenuId`.
+   */
+  lastSelectedMenuId: MenuId | null;
+  setSelectedMenuId: (id: MenuId | null) => void;
+  setLastSelectedMenuId: (id: MenuId | null) => void;
+  /**
+   * v3 title composer — currently-selected layer inside a menu's title.
+   * Set by canvas clicks and panel clicks. Null = no layer selected.
+   */
+  selectedLayerKey: SelectedLayerKey | null;
+  setSelectedLayerKey: (key: SelectedLayerKey | null) => void;
+  /**
+   * v3 title composer — ephemeral "hide-this-layer" flags. Keys formatted
+   * as `${menuId}:${index}`. Pure UI state, not persisted, not exported.
+   */
+  hiddenLayerKeys: Set<string>;
+  toggleHiddenLayer: (menuId: MenuId, index: number) => void;
+  clearHiddenLayers: () => void;
+  /**
+   * v3 title composer — ghost state during the "drag-to-attach" gesture
+   * from + Image / + Text buttons in the LayersPanel. Null when no drag
+   * is in flight.
+   */
+  draggingNewLayer: DraggingNewLayer | null;
+  setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -87,13 +129,38 @@ export const useUiStore = create<UiState>()(
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       activeDragMaterial: null,
       setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
-      titleComposerOpen: null,
-      openTitleComposer: (packId, menuId) => set({ titleComposerOpen: { packId, menuId } }),
-      closeTitleComposer: () => set({ titleComposerOpen: null }),
+      selectedMenuId: null,
+      lastSelectedMenuId: null,
+      setSelectedMenuId: (id) =>
+        set((s) => ({
+          selectedMenuId: id,
+          // Sticky: only refresh lastSelectedMenuId when a real id arrives;
+          // when id is null, preserve the previous lastSelectedMenuId so the
+          // LayersPanel can keep showing the most recent menu.
+          lastSelectedMenuId: id ?? s.lastSelectedMenuId,
+        })),
+      setLastSelectedMenuId: (id) => set({ lastSelectedMenuId: id }),
+      selectedLayerKey: null,
+      setSelectedLayerKey: (key) => set({ selectedLayerKey: key }),
+      hiddenLayerKeys: new Set<string>(),
+      toggleHiddenLayer: (menuId, index) =>
+        set((s) => {
+          const key = `${menuId}:${index}`;
+          const next = new Set(s.hiddenLayerKeys);
+          if (next.has(key)) next.delete(key);
+          else next.add(key);
+          return { hiddenLayerKeys: next };
+        }),
+      clearHiddenLayers: () => set({ hiddenLayerKeys: new Set<string>() }),
+      draggingNewLayer: null,
+      setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
     }),
     {
       name: "interfaze:ui",
       // armedMaterial is session state; don't persist it.
+      // Title-composer v3 fields (selectedLayerKey, hiddenLayerKeys,
+      // draggingNewLayer, selectedMenuId, lastSelectedMenuId) are all
+      // ephemeral UI state; never persisted.
       partialize: (state) => ({
         lastActivePackId: state.lastActivePackId,
         activeLang: state.activeLang,
