@@ -19,6 +19,18 @@ import { ResizeHandles } from "./ResizeHandles";
 //
 // This stays close to how the production code reads drag positions —
 // `e.target.x()` / `e.target.y()` — without spinning up a real stage.
+// Shared fake stage container — the component mutates this via
+// `e.target.getStage().container().style.cursor = ...`. Tests can read it
+// back via `getStageCursor()`.
+const fakeStageContainer = { style: { cursor: "default" } };
+const fakeStage = { container: () => fakeStageContainer };
+function getStageCursor() {
+  return fakeStageContainer.style.cursor;
+}
+function setStageCursor(c: string) {
+  fakeStageContainer.style.cursor = c;
+}
+
 vi.mock("react-konva", () => {
   const Rect = (props: {
     x?: number;
@@ -28,13 +40,32 @@ vi.mock("react-konva", () => {
     fill?: string;
     stroke?: string;
     draggable?: boolean;
+    onDragStart?: (e: {
+      evt: MouseEvent;
+      target: {
+        x: () => number;
+        y: () => number;
+        position: (p: { x: number; y: number }) => void;
+        getStage: () => { container: () => { style: { cursor: string } } } | null;
+      };
+    }) => void;
     onDragMove?: (e: {
       evt: MouseEvent;
-      target: { x: () => number; y: () => number; position: (p: { x: number; y: number }) => void };
+      target: {
+        x: () => number;
+        y: () => number;
+        position: (p: { x: number; y: number }) => void;
+        getStage: () => { container: () => { style: { cursor: string } } } | null;
+      };
     }) => void;
     onDragEnd?: (e: {
       evt: MouseEvent;
-      target: { x: () => number; y: () => number; position: (p: { x: number; y: number }) => void };
+      target: {
+        x: () => number;
+        y: () => number;
+        position: (p: { x: number; y: number }) => void;
+        getStage: () => { container: () => { style: { cursor: string } } } | null;
+      };
     }) => void;
     onMouseEnter?: (e: {
       target: { getStage: () => { container: () => { style: { cursor: string } } } | null };
@@ -60,6 +91,21 @@ vi.mock("react-konva", () => {
           // Capture initial cursor position on the element for later math.
           (e.currentTarget as unknown as { __startX: number }).__startX = e.clientX;
           (e.currentTarget as unknown as { __startY: number }).__startY = e.clientY;
+          // Fire onDragStart to mimic Konva's drag protocol
+          // (mousedown → dragstart → dragmove* → dragend).
+          if (!props.onDragStart) return;
+          const evt = { shiftKey: e.shiftKey, altKey: e.altKey } as MouseEvent;
+          const sx = e.clientX;
+          const sy = e.clientY;
+          props.onDragStart({
+            evt,
+            target: {
+              x: () => sx,
+              y: () => sy,
+              position: () => {},
+              getStage: () => fakeStage,
+            },
+          });
         }}
         onMouseMove={(e) => {
           if (!props.onDragMove) return;
@@ -76,6 +122,7 @@ vi.mock("react-konva", () => {
               x: () => x,
               y: () => y,
               position: () => {},
+              getStage: () => fakeStage,
             },
           });
         }}
@@ -95,6 +142,7 @@ vi.mock("react-konva", () => {
               x: () => x,
               y: () => y,
               position: () => {},
+              getStage: () => fakeStage,
             },
           });
         }}
@@ -363,5 +411,160 @@ describe("ResizeHandles", () => {
       .find((a) => a.getAttribute("data-corner") === "se")!;
     dragAnchorMoveOnly(se, { clientX: 200, clientY: 100 });
     expect(onResizeEnd).not.toHaveBeenCalled();
+  });
+
+  it("sequential drags compute deltas from each drag's own origin (snapshot independence)", () => {
+    // First drag: 100×50 → 200×100 (aspect 2 preserved). The snapshot
+    // captured at dragStart should be ORIG=100×50, opposite NW=(0,0).
+    // Second drag: parent re-renders with new size 200×100 (aspect 2).
+    // Drag SE to (400, 200). Opposite NW=(0,0). dx=400, dy=200.
+    //   dx/origW = 2.0, dy/origH = 2.0 — tie → width wins.
+    // → final width=400, height=200.
+    // If snapshot independence is broken (e.g. the second drag still sees
+    // origW=100, origH=50), the math would compute height = 400/2 = 200
+    // by coincidence here — so we also verify origin via the FIRST move of
+    // the second drag at an asymmetric target.
+    const onResize = vi.fn();
+    const onResizeEnd = vi.fn();
+    const { rerender } = render(
+      <ResizeHandles
+        x={0}
+        y={0}
+        width={100}
+        height={50}
+        onResize={onResize}
+        onResizeEnd={onResizeEnd}
+      />,
+    );
+    let se = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "se")!;
+    dragAnchor(se, { clientX: 200, clientY: 100 });
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+    const first = onResizeEnd.mock.calls[0]![0] as { width: number; height: number };
+    expect(first.width).toBeCloseTo(200);
+    expect(first.height).toBeCloseTo(100);
+
+    // Parent commits the new size — re-render with the new dimensions.
+    rerender(
+      <ResizeHandles
+        x={0}
+        y={0}
+        width={200}
+        height={100}
+        onResize={onResize}
+        onResizeEnd={onResizeEnd}
+      />,
+    );
+    // Re-fetch the SE anchor (new DOM node after rerender).
+    se = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "se")!;
+
+    onResize.mockClear();
+    onResizeEnd.mockClear();
+
+    // Second drag: target (300, 120). Opposite NW=(0,0). dx=300, dy=120.
+    //   Using NEW origin (200×100, aspect 2): dx/origW = 1.5; dy/origH = 1.2.
+    //     → width wins. newW=300, newH=300/2=150.
+    //   If we WRONGLY used the OLD origin (100×50, aspect 2): dx/origW = 3.0;
+    //   dy/origH = 2.4 → width wins. newW=300, newH=300/2=150. Same! So
+    //   we instead use an asymmetric NEW aspect to disambiguate: rerender
+    //   with width=200 height=100 (still aspect 2) is not enough. Tweak:
+    //   pick clientX=300 clientY=180. With NEW origin: dx/origW=1.5,
+    //   dy/origH=1.8 → height wins → newH=180, newW=180*2=360.
+    //   With OLD origin: dx/origW=3.0, dy/origH=3.6 → height wins →
+    //   newH=180, newW=180*2=360. Still the same because aspect is identical.
+    //
+    // To make the test actually disambiguate, rerender with a DIFFERENT
+    // aspect (e.g. 200×80, aspect=2.5) — then OLD vs NEW snapshot would
+    // produce a different aspect in the result.
+    rerender(
+      <ResizeHandles
+        x={0}
+        y={0}
+        width={200}
+        height={80}
+        onResize={onResize}
+        onResizeEnd={onResizeEnd}
+      />,
+    );
+    se = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "se")!;
+
+    // Target (300, 120). Opposite NW=(0,0). dx=300, dy=120.
+    //   With NEW origin (200×80, aspect=2.5): dx/origW=1.5, dy/origH=1.5
+    //     → tie → width wins. newW=300, newH=300/2.5=120.
+    //   With OLD origin (100×50, aspect=2.0): dx/origW=3.0, dy/origH=2.4
+    //     → width wins. newW=300, newH=300/2.0=150.
+    // → aspect of the result reveals which snapshot was used.
+    dragAnchor(se, { clientX: 300, clientY: 120 });
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+    const second = onResizeEnd.mock.calls[0]![0] as { width: number; height: number };
+    // Width is the same in both cases (300) but height pinpoints origin:
+    // NEW snapshot → 120; OLD (leaked) snapshot → 150.
+    expect(second.width).toBeCloseTo(300);
+    expect(second.height).toBeCloseTo(120);
+    // And aspect matches NEW (2.5), not OLD (2.0).
+    expect(second.width / second.height).toBeCloseTo(2.5);
+  });
+
+  it("dragging NE (opposite SW fixed) preserves aspect", () => {
+    // Original (0,0)→(100,50), aspect = 2. SW opposite stays at (0, 50).
+    // Drag NE to (300, -20). dx = |300 - 0| = 300, dy = |-20 - 50| = 70.
+    //   dx/origW = 3.0; dy/origH = 1.4 → width wins.
+    // → width = 300, height = 300 / 2 = 150 (aspect preserved).
+    const onResize = vi.fn();
+    render(<ResizeHandles x={0} y={0} width={100} height={50} onResize={onResize} />);
+    const ne = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "ne")!;
+    dragAnchor(ne, { clientX: 300, clientY: -20 });
+
+    const last = onResize.mock.calls[onResize.mock.calls.length - 1]![0] as {
+      width: number;
+      height: number;
+    };
+    expect(last.width).toBeCloseTo(300);
+    expect(last.height).toBeCloseTo(150);
+    expect(last.width / last.height).toBeCloseTo(2);
+  });
+
+  it("dragging SW (opposite NE fixed) preserves aspect", () => {
+    // Original (0,0)→(100,50), aspect = 2. NE opposite stays at (100, 0).
+    // Drag SW to (-200, 100). dx = |-200 - 100| = 300, dy = |100 - 0| = 100.
+    //   dx/origW = 3.0; dy/origH = 2.0 → width wins.
+    // → width = 300, height = 300 / 2 = 150 (aspect preserved).
+    const onResize = vi.fn();
+    render(<ResizeHandles x={0} y={0} width={100} height={50} onResize={onResize} />);
+    const sw = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "sw")!;
+    dragAnchor(sw, { clientX: -200, clientY: 100 });
+
+    const last = onResize.mock.calls[onResize.mock.calls.length - 1]![0] as {
+      width: number;
+      height: number;
+    };
+    expect(last.width).toBeCloseTo(300);
+    expect(last.height).toBeCloseTo(150);
+    expect(last.width / last.height).toBeCloseTo(2);
+  });
+
+  it("resets the stage cursor to 'default' on drag end (covers mid-drag mouseLeave miss)", () => {
+    // Even if the user dragged off the anchor mid-drag and never triggered
+    // onMouseLeave, the cursor must reset on dragEnd. We pre-set the cursor
+    // to "nwse-resize" (as if hover handler had fired) and verify dragEnd
+    // resets it.
+    setStageCursor("nwse-resize");
+    const onResize = vi.fn();
+    render(<ResizeHandles x={0} y={0} width={100} height={50} onResize={onResize} />);
+    const se = screen
+      .getAllByTestId("konva-rect")
+      .find((a) => a.getAttribute("data-corner") === "se")!;
+    dragAnchor(se, { clientX: 200, clientY: 100 });
+
+    expect(getStageCursor()).toBe("default");
   });
 });
