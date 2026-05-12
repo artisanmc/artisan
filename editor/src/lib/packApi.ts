@@ -152,7 +152,11 @@ export async function uploadFontAsset(
 export async function updateAsset(
   token: string,
   id: string,
-  patch: { name?: string; ascent?: number },
+  // Note: `height` is accepted client-side ahead of P2.13 (backend support).
+  // Hook code (useTitleLayerDrag) commits via this field; until the backend
+  // ships, the response is whatever the backend returns — clients must not
+  // rely on the new height being persisted.
+  patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
   const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {
     method: "PATCH",
