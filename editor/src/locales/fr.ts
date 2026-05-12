@@ -108,6 +108,7 @@ const fr: typeof en = {
     emptyMenuHint:
       "Glissez des items depuis la Library sur un slot, ou tapez sur un item pour l'« armer » puis tapez sur un slot.",
     openLibrary: "Ouvrir la Library",
+    titleSection: "Titre",
     titleLabel: "titre ({{lang}})",
     titleLabelFallback: "titre ({{lang}} — fallback)",
     permission: "permission",
