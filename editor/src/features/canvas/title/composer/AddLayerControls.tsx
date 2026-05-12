@@ -1,5 +1,11 @@
 import { Image as ImageIcon, Type } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { useUiStore } from "@/state/uiStore";
@@ -43,10 +49,17 @@ interface ActiveGesture {
  * pointerdown and removed on pointerup OR on component unmount (so we
  * don't leak global state if the component unmounts mid-drag).
  *
- * The component intentionally does NOT use the synthetic `onClick` event
- * — both branches (click and drag) are resolved in the pointerup handler,
- * which removes the click/drag race-condition with React's event system
- * and keeps the keyboard "Enter to add" path (when added later) orthogonal.
+ * Pointer activation (mouse / touch / pen) is resolved in the pointerup
+ * handler — both branches (click and drag) — to keep React's synthetic
+ * event system out of the click/drag race.
+ *
+ * Keyboard activation (Tab to focus + Enter / Space) goes through the
+ * synthetic `onClick` handler, which the browser synthesizes for focused
+ * `<button>` elements. We disambiguate the two paths with `event.detail`:
+ *   - pointer-originated click: `detail >= 1` (the click count) → bail,
+ *     pointerup already invoked `onPlace`.
+ *   - keyboard-originated click: `detail === 0` → invoke `onPlace(kind, null)`.
+ * This avoids double-fire without needing a shared flag between handlers.
  */
 export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
   const setDragging = useUiStore((s) => s.setDraggingNewLayer);
@@ -129,6 +142,22 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
     [endGesture, onPlace, setDragging],
   );
 
+  // Keyboard activation path. Browsers synthesize a `click` event with
+  // `detail === 0` when a focused <button> is activated via Enter / Space.
+  // Mouse / touch / pen clicks bubble through with `detail >= 1`, and we
+  // bail in that case because pointerup already invoked `onPlace`. Also
+  // bail if a pointer gesture is mid-flight (defense-in-depth: shouldn't
+  // happen since the button can't be focused-and-keyboarded while the
+  // pointer is held, but cheap to check).
+  const onClick = useCallback(
+    (kind: "image" | "text", e: ReactMouseEvent<HTMLButtonElement>) => {
+      if (e.detail !== 0) return;
+      if (gestureRef.current) return;
+      onPlace(kind, null);
+    },
+    [onPlace],
+  );
+
   return (
     <div
       data-testid="add-layer-controls"
@@ -141,6 +170,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         variant="outline"
         className="flex-1"
         onPointerDown={(e) => onPointerDown("image", e)}
+        onClick={(e) => onClick("image", e)}
       >
         <ImageIcon className="mr-1 h-3.5 w-3.5" />
         + Image
@@ -152,6 +182,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         variant="outline"
         className="flex-1"
         onPointerDown={(e) => onPointerDown("text", e)}
+        onClick={(e) => onClick("text", e)}
       >
         <Type className="mr-1 h-3.5 w-3.5" />
         + Text
