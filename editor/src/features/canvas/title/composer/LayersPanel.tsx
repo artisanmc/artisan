@@ -14,6 +14,12 @@ import { getStageGeometry } from "../../stageGeometry";
 
 interface LayersPanelProps {
   packId: PackId;
+  /**
+   * The menu whose title layers this panel edits. Provided by the parent
+   * (typically `MenuProperties`) — required, no fallback. If the menu id is
+   * not in the pack, the component renders nothing.
+   */
+  menuId: MenuId;
   /** Optional class for the outer container — parent controls width / borders. */
   className?: string;
 }
@@ -22,27 +28,28 @@ interface LayersPanelProps {
 const DND_MIME = "application/x-layer-index";
 
 /**
- * Top-level container for the 3rd column of the pack editor — composes
- * `AddLayerControls` + a list of `LayerListItem` rows + `LayerEditForm`
- * into the side panel UX defined by the v3 title composer plan.
+ * Embedded layer editor used by `MenuProperties`. Renders:
+ *  - `AddLayerControls` (+ Image / + Text buttons that support drag-to-attach)
+ *  - a drag-reorderable list of `LayerListItem` rows for `menu.title`
+ *  - a `LayerEditForm` for the currently-selected layer (driven by uiStore).
  *
- * Selection is sticky via `uiStore`: when `selectedMenuId` is non-null it
- * drives the panel; otherwise `lastSelectedMenuId` takes over so the
- * panel survives the user clicking empty canvas space. If neither is
- * set, an empty-state hint replaces the whole body.
+ * The panel is unconditionally scoped to `menuId` from props — there is no
+ * "sticky" fallback because the parent only mounts this when a menu is
+ * selected via `selectionStore` (i.e. MenuProperties' own gate).
  *
  * Drag-to-reorder uses native HTML5 DnD (no extra dependency). The drag
- * payload is the source row's index as a string under the `DND_MIME`
- * MIME type; on drop, we splice via `reorderMenuTitleLayers`.
+ * payload is the source row's index as a string under the `DND_MIME` MIME
+ * type; on drop, we splice via `reorderMenuTitleLayers`.
+ *
+ * Cross-menu drag-to-attach: dragging from + Image / + Text and dropping
+ * on a different menu's title bar resolves to that menu via
+ * `attachLayerAtCursor` — we then call `setSelectedMenuId` so the host
+ * panel switches to the new target (MenuProperties re-renders against
+ * whichever menu the selectionStore now points at).
  */
-export function LayersPanel({ packId, className }: LayersPanelProps) {
-  const selectedMenuId = useUiStore((s) => s.selectedMenuId);
-  const lastSelectedMenuId = useUiStore((s) => s.lastSelectedMenuId);
+export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
-
-  // Sticky menu: prefer the live selection, fall back to the last-known one.
-  const menuId: MenuId | null = selectedMenuId ?? lastSelectedMenuId;
 
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const menu = pack?.menus.find((m) => m.id === menuId);
@@ -88,7 +95,7 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
     // Drag-end branch — try cursor-driven attach first. If the pack canvas
     // has a menu within range we use its id + the cursor-derived layer
     // coords; otherwise we fall through to the default placement on
-    // `menuId` (sticky lastSelectedMenuId).
+    // the current `menuId` (from props).
     if (cursor !== null && pack) {
       const geometry = getStageGeometry();
       if (geometry) {
@@ -108,13 +115,11 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
     }
 
     // Default placement — click branch or drag-end with no nearby menu.
-    const targetMenuId = menuId;
-    if (!targetMenuId || !menu) return;
-
+    if (!menu) return;
     const newIndex = menu.title.length;
     const layer = buildLayer(kind, null);
-    addMenuTitleLayer({ packId, menuId: targetMenuId, layer });
-    setSelectedLayerKey({ menuId: targetMenuId, index: newIndex });
+    addMenuTitleLayer({ packId, menuId, layer });
+    setSelectedLayerKey({ menuId, index: newIndex });
   };
 
   const onDragStart = (index: number) => (e: DragEvent<HTMLDivElement>) => {
@@ -142,7 +147,6 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
 
   const onDrop = (toIndex: number) => (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (!menuId) return;
     let fromIndex = dragFromIndex;
     if (fromIndex === null) {
       const raw = e.dataTransfer.getData(DND_MIME);
@@ -156,41 +160,16 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
     applyLayerMoved(menuId, fromIndex, toIndex);
   };
 
-  // ─── Empty state ────────────────────────────────────────────────────────
-  if (!menuId || !menu) {
-    return (
-      <div
-        className={cn(
-          "flex h-full items-center justify-center p-4 text-center text-[11px] text-zinc-500",
-          className,
-        )}
-        data-testid="layers-panel-empty"
-      >
-        Sélectionne un menu sur le canvas pour modifier son titre.
-      </div>
-    );
-  }
+  // Defensive: if the menuId doesn't resolve in the pack (e.g. a stale
+  // selection that's being torn down), render nothing rather than a broken
+  // body. The parent shouldn't ever pass an invalid id in practice.
+  if (!menu) return null;
 
-  // ─── Populated state ────────────────────────────────────────────────────
-  // Header: menu id as primary heading, subtitle explains what's editable
-  // ("Éléments du titre") — avoids exposing the internal "layers" jargon.
   return (
     <div
-      className={cn("flex h-full flex-col gap-3 p-3", className)}
+      className={cn("flex flex-col gap-3", className)}
       data-testid="layers-panel"
     >
-      <div
-        data-testid="layers-panel-header"
-        className="border-b border-zinc-800 pb-2 text-xs text-zinc-300"
-      >
-        <div className="font-mono text-zinc-100">{menuId}</div>
-        <div className="text-[10px] text-zinc-500">
-          Éléments du titre
-          <span className="text-zinc-600"> · </span>
-          <span className="font-mono">{pack?.name}</span>
-        </div>
-      </div>
-
       <AddLayerControls onPlace={onPlace} />
 
       <div className="flex flex-col gap-0.5">
