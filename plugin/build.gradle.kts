@@ -46,6 +46,10 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("com.github.seeseemelk:MockBukkit-v1.21:3.133.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    // Force Adventure 4.23 in tests (MockBukkit pulls 4.17 which lacks ShadowColor).
+    // Paper 1.21.7 ships with Adventure 4.23 at runtime, so this matches main classpath.
+    testImplementation("net.kyori:adventure-api:4.23.0")
+    testImplementation("net.kyori:adventure-text-minimessage:4.23.0")
 }
 
 tasks.test {
