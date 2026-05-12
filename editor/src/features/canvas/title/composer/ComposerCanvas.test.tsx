@@ -1,9 +1,8 @@
-import { fireEvent, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nKey, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { useTitleSelectionStore } from "../titleSelectionStore";
 import { ComposerCanvas } from "./ComposerCanvas";
 
 vi.mock("react-konva", () => ({
@@ -25,16 +24,12 @@ vi.mock("react-konva", () => ({
   ),
 }));
 vi.mock("./TitleRender", () => ({
-  TitleRender: (props: {
-    mode: string;
-    selectedIndex?: number;
-    onLayerClick?: (i: number) => void;
-  }) => (
+  TitleRender: (props: { packId: string; menuId: string; scale: number }) => (
     <div
       data-testid="title-render"
-      data-mode={props.mode}
-      data-selected={props.selectedIndex ?? "null"}
-      onClick={() => props.onLayerClick?.(0)}
+      data-pack-id={props.packId}
+      data-menu-id={props.menuId}
+      data-scale={props.scale}
     />
   ),
   titleRenderHeight: () => 100,
@@ -82,32 +77,17 @@ function seedPack(layers: MenuTitleLayer[]) {
 }
 
 beforeEach(() => {
-  useTitleSelectionStore.getState().reset();
   seedPack([]);
 });
 
 describe("ComposerCanvas", () => {
-  it("renders TitleRender in edit mode", () => {
+  it("mounts TitleRender for the given pack/menu", () => {
     const { getByTestId } = render(
       <ComposerCanvas packId={PACK_ID} menuId={MENU_ID} />,
     );
-    expect(getByTestId("title-render").getAttribute("data-mode")).toBe("edit");
-  });
-
-  it("passes selectedIndex from titleSelectionStore", () => {
-    useTitleSelectionStore.getState().setSelectedIndex(2);
-    const { getByTestId } = render(
-      <ComposerCanvas packId={PACK_ID} menuId={MENU_ID} />,
-    );
-    expect(getByTestId("title-render").getAttribute("data-selected")).toBe("2");
-  });
-
-  it("clicking a layer updates the selection store", () => {
-    const { getByTestId } = render(
-      <ComposerCanvas packId={PACK_ID} menuId={MENU_ID} />,
-    );
-    fireEvent.click(getByTestId("title-render"));
-    expect(useTitleSelectionStore.getState().selectedIndex).toBe(0);
+    const node = getByTestId("title-render");
+    expect(node.getAttribute("data-pack-id")).toBe(PACK_ID);
+    expect(node.getAttribute("data-menu-id")).toBe(MENU_ID);
   });
 
   it("Stage height comes from titleRenderHeight (mocked to 100)", () => {
@@ -115,5 +95,12 @@ describe("ComposerCanvas", () => {
       <ComposerCanvas packId={PACK_ID} menuId={MENU_ID} />,
     );
     expect(getByTestId("stage").getAttribute("data-height")).toBe("100");
+  });
+
+  it("renders nothing when the menu does not exist", () => {
+    const { queryByTestId } = render(
+      <ComposerCanvas packId={PACK_ID} menuId={"missing" as MenuId} />,
+    );
+    expect(queryByTestId("stage")).toBeNull();
   });
 });
