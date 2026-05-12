@@ -47,4 +47,25 @@ describe("AssetPicker", () => {
     render(<AssetPicker open typeFilter="texture" onClose={() => {}} onPick={() => {}} />);
     expect(screen.getByText(/no texture assets/i)).toBeTruthy();
   });
+
+  it("without typeFilter shows every image asset (texture + glyph)", () => {
+    render(<AssetPicker open onClose={() => {}} onPick={() => {}} />);
+    // Both kinds appear — the upload UX no longer distinguishes them so the
+    // picker shouldn't either.
+    expect(screen.getByTitle("shop_bg")).toBeTruthy();
+    expect(screen.getByTitle("coin")).toBeTruthy();
+  });
+
+  it("accepts an array of types and shows all matching ones", () => {
+    render(
+      <AssetPicker
+        open
+        typeFilter={["texture", "glyph"]}
+        onClose={() => {}}
+        onPick={() => {}}
+      />,
+    );
+    expect(screen.getByTitle("shop_bg")).toBeTruthy();
+    expect(screen.getByTitle("coin")).toBeTruthy();
+  });
 });

@@ -12,10 +12,10 @@ vi.mock("@/state/sessionStore", () => ({
 describe("AssetUploadDialog", () => {
   beforeEach(() => useAssetStore.getState().reset());
 
-  it("uploads a texture and upserts the result into the store", async () => {
+  it("uploads as glyph (no type selector exposed) and upserts the result", async () => {
     const fakeAsset = {
-      id: "asset_x", serverKeyId: "sk", type: "texture" as const, name: "tex",
-      width: 16, height: 16, ascent: null, codepoint: null, fontMeta: null,
+      id: "asset_x", serverKeyId: "sk", type: "glyph" as const, name: "tex",
+      width: 16, height: 16, ascent: 7, codepoint: 0xe000, fontMeta: null,
       contentHash: "h", createdAt: "", updatedAt: "",
     };
     const spy = vi.spyOn(packApi, "uploadAsset").mockResolvedValue(fakeAsset);
@@ -29,6 +29,9 @@ describe("AssetUploadDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /upload/i }));
 
     await waitFor(() => expect(spy).toHaveBeenCalled());
+    // Every upload routes through the `glyph` codepath — the user no longer
+    // picks between texture/glyph.
+    expect(spy.mock.calls[0]?.[1]?.type).toBe("glyph");
     expect(useAssetStore.getState().assets[0]?.id).toBe("asset_x");
     expect(onClose).toHaveBeenCalled();
   });
@@ -43,10 +46,13 @@ describe("AssetUploadDialog", () => {
     await waitFor(() => expect(screen.getByText(/Asset name already exists/i)).toBeTruthy());
   });
 
-  it("shows ascent input only when type=glyph", () => {
+  it("does not expose the texture/glyph type selector to the user", () => {
+    // The user should think "upload an image" — internal `asset.type` is
+    // not part of the UI surface area.
     render(<AssetUploadDialog open onClose={() => {}} />);
+    expect(screen.queryByLabelText(/texture/i)).toBeNull();
+    expect(screen.queryByLabelText(/^glyph$/i)).toBeNull();
+    // Ascent has likewise disappeared (was gated on type=glyph).
     expect(screen.queryByLabelText(/ascent/i)).toBeNull();
-    fireEvent.click(screen.getByLabelText(/glyph/i));
-    expect(screen.getByLabelText(/ascent/i)).toBeTruthy();
   });
 });

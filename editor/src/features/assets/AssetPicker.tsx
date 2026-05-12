@@ -9,23 +9,48 @@ import { useAssetStore } from "./assetStore";
 interface AssetPickerProps {
   open: boolean;
   onClose: () => void;
-  typeFilter: AssetType;
+  /**
+   * Which asset types to show.
+   * - omit / `undefined`: every image asset (texture + glyph). Use this when
+   *   the upload UX no longer distinguishes the two — the user thinks
+   *   "image", not "texture vs glyph".
+   * - a single type: only assets of that type.
+   * - an array: assets matching any of the listed types.
+   */
+  typeFilter?: AssetType | AssetType[];
   onPick: (asset: Asset) => void;
   title?: string;
 }
 
+// What we show when no `typeFilter` is provided. Excludes `font` because
+// fonts aren't pickable as images in any current call site.
+const DEFAULT_IMAGE_TYPES: AssetType[] = ["texture", "glyph"];
+
 export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetPickerProps) {
   const all = useAssetStore((s) => s.assets);
   const [search, setSearch] = useState("");
+
+  const allowedTypes: AssetType[] =
+    typeFilter === undefined
+      ? DEFAULT_IMAGE_TYPES
+      : Array.isArray(typeFilter)
+        ? typeFilter
+        : [typeFilter];
+
   const matches = all
-    .filter((a) => a.type === typeFilter)
+    .filter((a) => allowedTypes.includes(a.type))
     .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
+
+  // Label only references a single type when one was explicitly requested,
+  // otherwise we say "image" — matches the simplified upload UX.
+  const typeLabel =
+    typeFilter && !Array.isArray(typeFilter) ? typeFilter : "image";
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-zinc-800 bg-zinc-950 p-3 text-zinc-200">
         <DialogHeader>
-          <DialogTitle className="text-sm">{title ?? `Pick a ${typeFilter}`}</DialogTitle>
+          <DialogTitle className="text-sm">{title ?? `Pick a ${typeLabel}`}</DialogTitle>
         </DialogHeader>
         <Input
           placeholder="Search..."
@@ -55,7 +80,7 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
           ))}
           {matches.length === 0 && (
             <div className="col-span-6 py-4 text-center text-xs text-zinc-500">
-              No {typeFilter} assets found.
+              No {typeLabel} assets found.
             </div>
           )}
         </div>
