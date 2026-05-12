@@ -186,17 +186,35 @@ Le plugin embarque un `assets/interfaze/asset-index.json` dans le zip resource p
 
 ### Custom fonts (SP4)
 
-Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleMockup` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
-Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu. Le pack canvas (`MenuGroup` → `TitleRender` mode compact) et le focus mode du composer (`ComposerCanvas` → `TitleRender` mode edit) partagent le même rendu Konva — les menus s'affichent en forme finale (toutes layers + items dessus) à tous les endroits.
+Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu. Le pack canvas affiche les menus en forme finale (toutes layers + items dessus) en édition directe — `MenuGroup` rend `TitleRender` interactif (drag layers, resize handles, sélection).
 
-### Title Composer UX v2
+### Title Composer UX v3
 
-- Édition d'un titre = mode focus dédié (`FocusComposer`), ouvert par double-clic sur la title bar d'un menu dans le pack canvas OU via le bouton "Edit title…" dans `MenuProperties`. La route `pack.$packId.tsx` route vers `FocusComposer` quand `useUiStore.titleComposerOpen` matche le pack courant.
-- Côté UI, **2 types de layers seulement** : Image (collapse background + glyph avec un flag `stretchToChest`) et Text. L'éditeur convertit en runtime `MenuTitleLayer` (background/glyph/text/external_glyph) au save via `editor/src/features/canvas/title/composer/uiLayerMapping.ts`.
-- Texte = MiniMessage tags inline (`<gold>`, `<bold>`, etc.) ; preview live dans le panel side (`LayerSidePanel`) et sur le canvas central (`ComposerCanvas`). Le champ `color` per-layer a disparu en v2 (coloring 100% par tags).
-- Composants principaux : `composer/TitleRender.tsx` (Konva subtree partagé entre pack canvas et focus mode), `composer/ComposerCanvas.tsx`, `composer/LayerSidePanel.tsx`, `composer/AddLayerBar.tsx`, `composer/FocusComposer.tsx`, `composer/TitleThumbnail.tsx` (preview HTML dans MenuProperties).
-- Files supprimés vs SP3/SP4 : `TitleComposer`, `TitleMockup`, `TitleLayerList`, `TitleLayerItem`, `TitleTextEditor` (et le legacy single-line `TextEditor.tsx` + `editingStore.ts`).
+- **Édition in-place** : les layers d'un titre sont édités **directement sur le pack canvas** via une 3ᵉ colonne (`LayersPanel`, toujours visible, ~280 px). Plus de focus mode dédié — l'édition se fait au même endroit que la vue d'ensemble du pack.
+- **Layout 3 colonnes** : Pack canvas (gauche) | `MenuProperties` (centre, rows / permission / actions) | `LayersPanel` (droite). Route principale `pack.$packId.tsx`.
+- **Composition du `LayersPanel`** : Header + `AddLayerControls` (boutons `+ Image` / `+ Text`) + liste drag-reorderable de `LayerListItem` + `LayerEditForm` pour le layer sélectionné.
+- **Modèle de sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` désigne un layer unique sélectionné ; `uiStore.lastSelectedMenuId` reste sticky pour que le panel survive aux clics dans le vide (pas de "tout désélectionner par accident").
+- **Types de layers en UI** : **2 visibles** — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, la couche Image se split en runtime entre `background` / `glyph` (`MenuTitleLayer`). Les glyphs externes (Oraxen / Nexo / ItemsAdder) ont leur propre branche, mais l'UI v3 ne les expose pas encore comme bouton dédié.
+- **Texte** = MiniMessage tags inline (`<gold>`, `<bold>`, etc.) ; preview live dans `LayerEditForm` + rendu live sur le canvas. Pas de champ `color` per-layer (coloring 100% par tags, hérité de v2).
+- **Manipulation directe** : drag d'un layer sur le canvas pour repositionner ; corner-drag (`ResizeHandles`) pour redimensionner (aspect-locked par défaut ; shift = no-op en v3, scope futur si PNG resample est implémenté).
+- **Sémantique du resize — IMPORTANT** : redimensionner un glyph mute l'**asset** lui-même (pas juste la couche). Tous les menus qui référencent le même asset voient la nouvelle taille. Pour avoir une taille per-menu, utiliser le bouton **"Duplicate glyph"** dans `LayerEditForm` — crée une copie de l'asset (nouveau `codepoint`, PNG copié) et repointe le layer courant vers le nouvel asset.
+- **Cursor-based new-layer attach** : drag depuis le bouton `+ Image` / `+ Text` → le curseur suit le geste → drop près d'un menu → la couche s'attache au menu le plus proche (seuil 200 px). Click sans drag → attache au last-selected menu.
+- **Nouveaux fichiers v3** sous `editor/src/features/canvas/title/composer/` :
+  - `LayersPanel.tsx` (composition de la 3ᵉ colonne)
+  - `LayerListItem.tsx`
+  - `LayerEditForm.tsx`
+  - `AddLayerControls.tsx`
+  - `ResizeHandles.tsx`
+  - `TitleRender.tsx` (interactif, plus de split compact/edit)
+  - `useTitleLayerDrag.ts`
+  - `dragPlacement.ts`
+  - `attachLayerAtCursor.ts`
+  - `screenToCanvasCoords.ts`
+  - `stageGeometry.ts` (dans `editor/src/features/canvas/`)
+- **Files supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ leurs tests).
+- **Runtime YAML** inchangé en v3 : seul l'éditeur évolue. Le plugin lit toujours le même format `MenuTitleLayer[]` (background / glyph / text / external_glyph).
 
 ---
 
@@ -212,7 +230,8 @@ Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif p
 | `POST /api/editor-session/:token/assets` | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + serverKey, alloc codepoint pour glyph. |
 | `GET /api/editor-session/:token/assets` | Liste les assets du server_key. Query `type=&search=`. |
 | `GET /api/editor-session/:token/assets/:id` | Détail d'un asset. 404 si autre server_key. |
-| `PATCH /api/editor-session/:token/assets/:id` | Renommer ou changer ascent (glyph). Body JSON `{ name?, ascent? }`. |
+| `PATCH /api/editor-session/:token/assets/:id` | Renommer / changer ascent / changer height (glyph). Body JSON `{ name?, ascent?, height? }`. Validation `height` : entier, 1 ≤ height ≤ 256, applicable uniquement aux assets `type=glyph`. Après update : rebuild RP + broadcast `resource_pack_updated`. |
+| `POST /api/editor-session/:token/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
 | `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
 | `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{server_key_id}/{asset_id}.png`. |
 | `GET /api/textures/asset-font/:asset_id/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{sk}/fonts/{asset_id}/{path}`. Lookup par asset_id (le server_key est lu en DB). 404 si pas un asset font ou path traversal. |
@@ -241,9 +260,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts`, `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 224 pass (1 pre-existing failure: `link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 241 |
-| Editor unit | Vitest, 531 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v2 (TitleRender / ComposerCanvas / LayerSidePanel / AddLayerBar / FocusComposer / TitleThumbnail / uiLayerMapping / snap), McFontText, fontGlyphUrl, etc. | 531 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 241 pass / 1 pre-existing failure (`link_codes schema`) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, etc. | 241 (inchangé en v3 — plugin non touché) |
+| Editor unit | Vitest, 622 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, etc. | 622 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
