@@ -22,7 +22,6 @@ import {
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
   TEX_SLOT_STRIDE,
-  TEX_TITLE_H,
   TEX_URL,
   bottomPieceCrop,
   bottomPieceY,
@@ -268,16 +267,6 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       else if (!ids.has(menu.id) || ids.size > 1) set([menu.id]);
     },
     [menu.id, packId, layout],
-  );
-
-  // TODO P1.10: drop entirely — v3 makes the title bar interactive in-place,
-  // there is no focus mode to open. Kept as a no-op dblclick handler so the
-  // existing Konva wiring below still type-checks until P1.10 reworks it.
-  const onTitleDblClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      e.cancelBubble = true;
-    },
-    [],
   );
 
   /**
@@ -703,24 +692,14 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       ) : null}
       {/* Title bar — TitleRender draws all title layers (background + glyphs +
           text) faithfully, matching what the plugin emits in-game. Always
-          interactive (v3): clicks select / drags move layers via uiStore. */}
+          interactive (v3): clicks on layers select them, clicks on the grey
+          backdrop set this menu as the selected one (and clear any layer
+          selection belonging to this menu). All wiring lives in TitleRender;
+          no overlay Rect needed here. */}
       <TitleRender
         packId={packId}
         menuId={menu.id}
         scale={TEX_SCALE}
-      />
-      {/* Interactive title-bar overlay: dblclicking it opens the inline title
-          editor. Constrained to the title row only so dblclicks elsewhere on
-          the menu (e.g. on a slot) don't accidentally open the editor at the
-          wrong target. Single click bubbles through to select the menu. */}
-      <Rect
-        x={0}
-        y={0}
-        width={box.width}
-        height={TEX_TITLE_H}
-        fill="transparent"
-        onDblClick={onTitleDblClick}
-        onDblTap={onTitleDblClick}
       />
       {/* Slot interaction overlays */}
       {Array.from({ length: slotCount }, (_, i) => {

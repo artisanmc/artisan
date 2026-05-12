@@ -288,6 +288,8 @@ beforeEach(() => {
   useAssetStore.getState().reset();
   useUiStore.setState({
     selectedLayerKey: null,
+    selectedMenuId: null,
+    lastSelectedMenuId: null,
     hiddenLayerKeys: new Set<string>(),
   } as never);
 });
@@ -394,6 +396,66 @@ describe("TitleRender", () => {
       .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
     fireEvent.click(backdrop);
     expect(useUiStore.getState().selectedLayerKey).toBeNull();
+  });
+
+  it("click on title-bar backdrop sets uiStore.selectedMenuId to this menu's id (P1.10)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(layers);
+    // Start with no menu selected.
+    expect(useUiStore.getState().selectedMenuId).toBeNull();
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const backdrop = screen
+      .getAllByTestId("rect")
+      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+    fireEvent.click(backdrop);
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+    // setSelectedMenuId also bumps the sticky lastSelectedMenuId mirror.
+    expect(useUiStore.getState().lastSelectedMenuId).toBe(MENU_ID);
+  });
+
+  it("click on title-bar backdrop when already selected keeps menu selected and clears matching layer (P1.10)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(layers);
+    useUiStore.setState({
+      selectedMenuId: MENU_ID,
+      lastSelectedMenuId: MENU_ID,
+      selectedLayerKey: { menuId: MENU_ID, index: 0 },
+    } as never);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const backdrop = screen
+      .getAllByTestId("rect")
+      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+    fireEvent.click(backdrop);
+    // Menu stays selected.
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+    // The layer that belonged to this menu is cleared.
+    expect(useUiStore.getState().selectedLayerKey).toBeNull();
+  });
+
+  it("backdrop click does NOT clear another menu's layer selection (scoped to this menu)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(layers);
+    // Pre-existing layer selection belongs to a DIFFERENT menu — we shouldn't
+    // touch it when clicking THIS menu's title bar.
+    useUiStore.setState({
+      selectedLayerKey: { menuId: "other-menu" as MenuId, index: 0 },
+    } as never);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const backdrop = screen
+      .getAllByTestId("rect")
+      .find((r) => r.getAttribute("data-fill") === "#3f3f3f")!;
+    fireEvent.click(backdrop);
+    expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
+    expect(useUiStore.getState().selectedLayerKey).toEqual({
+      menuId: "other-menu",
+      index: 0,
+    });
   });
 
   it("selected layer shows a yellow 1-px stroke outline", () => {
