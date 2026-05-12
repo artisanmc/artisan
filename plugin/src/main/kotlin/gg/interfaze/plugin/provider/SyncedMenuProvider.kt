@@ -203,7 +203,8 @@ class SyncedMenuProvider(
                     val hash = rpNode["hash"]?.asText()
                     if (url != null && hash != null) {
                         try {
-                            rpm()?.applyFromBackend(url, hash)
+                            val downloadUrl = resolvePluginDownloadUrl(url)
+                            rpm()?.applyFromBackend(url, downloadUrl, hash)
                         } catch (t: Throwable) {
                             logger?.warning("Invalid resource_pack info from hello_ack: ${t.message}")
                         }
@@ -323,13 +324,46 @@ class SyncedMenuProvider(
                 val url = node["url"]?.asText() ?: return
                 val hash = node["hash"]?.asText() ?: return
                 try {
-                    rpm()?.applyFromBackend(url, hash)
+                    val downloadUrl = resolvePluginDownloadUrl(url)
+                    rpm()?.applyFromBackend(url, downloadUrl, hash)
                 } catch (t: Throwable) {
                     logger?.warning("Invalid resource_pack_updated payload: ${t.message}")
                 }
             }
 
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
+        }
+    }
+
+    /**
+     * Resolve the plugin-side download URL for a resource pack.
+     *
+     * The backend sends the player-facing URL in `resource_pack.url` (built from
+     * `RESOURCE_PACK_BASE_URL`), which is what the player's MC client needs. In a
+     * Docker setup, that URL is typically `http://localhost:3001/...` — which from
+     * inside the `minecraft` container resolves to the minecraft container itself,
+     * not the backend.
+     *
+     * To let the plugin download the same pack (for [gg.interfaze.plugin.resourcepack.AssetCatalog]),
+     * we rebuild the URL using [apiUrl] (Docker-internal backend address from
+     * `bundle_url` / `api_url` in `hello_ack`) plus the path of the original URL.
+     *
+     * Falls back to [playerUrl] if [apiUrl] is null (single-host deployments) or if
+     * the URL cannot be parsed.
+     */
+    internal fun resolvePluginDownloadUrl(playerUrl: String): String {
+        val base = apiUrl ?: return playerUrl
+        return try {
+            val parsed = java.net.URI(playerUrl)
+            val pathAndQuery = buildString {
+                append(parsed.rawPath ?: "")
+                parsed.rawQuery?.let { append('?').append(it) }
+            }
+            // Trim trailing slash on base to avoid double slashes.
+            val trimmedBase = if (base.endsWith('/')) base.dropLast(1) else base
+            if (pathAndQuery.isEmpty()) playerUrl else trimmedBase + pathAndQuery
+        } catch (_: Throwable) {
+            playerUrl
         }
     }
 }
