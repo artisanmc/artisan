@@ -150,7 +150,7 @@ describe("buildAssetIndex", () => {
 
   test("emits offsets keyed by uppercase-hex codepoint", () => {
     const index = buildAssetIndex([]);
-    // F900 → 1, F901 → 2, ..., F909 → -1, etc.
+    // F800 → 1, F801 → 2, ..., F809 → -1, etc.
     for (let i = 0; i < SPACE_OFFSET_ADVANCES.length; i++) {
       const key = (SPACE_OFFSET_CODEPOINT_START + i).toString(16).toUpperCase();
       expect(index.offsets[key]).toBe(SPACE_OFFSET_ADVANCES[i]);

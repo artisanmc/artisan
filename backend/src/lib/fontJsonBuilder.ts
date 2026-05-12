@@ -33,7 +33,7 @@ export interface DefaultFontJson {
  * Providers (in order):
  *   1. `reference` → `minecraft:default` (so plain text falls back to vanilla)
  *   2. one `bitmap` per glyph asset, sorted by codepoint for deterministic output
- *   3. one `space` provider mapping the pixel-offset codepoints (U+F900..)
+ *   3. one `space` provider mapping the pixel-offset codepoints (U+F800..)
  *      to positive/negative pixel advances. Used by [TitleCompiler] to position
  *      layers at arbitrary X via greedy decomposition into powers of two.
  */

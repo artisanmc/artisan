@@ -4,8 +4,15 @@
  * by descending absolute value lets us shift the rendering cursor by any
  * integer in `[-511, +511]` using at most 9 chars.
  *
- * Reserved range: U+F900..U+F911 (Private Use Area, distinct from glyph
- * codepoints which start at U+E000 and grow upward).
+ * Reserved range: U+F800..U+F811 (Private Use Area, distinct from glyph
+ * codepoints which live in U+E000..U+F7FF).
+ *
+ * Why U+F800 and not U+F900? U+F900..U+FAFF is the CJK Compatibility
+ * Ideographs Unicode block, for which MC's default font has glyphs (Chinese
+ * characters). Picking codepoints there means the client renders Chinese
+ * chars before the `space` provider's advance ever applies. U+F800..U+F8FF
+ * is still in the BMP Private Use Area (no vanilla glyph), so the override
+ * works reliably.
  *
  * Ordering convention: positives ascending (1, 2, 4, ..., 256) at offsets
  * 0..8, then negatives descending in magnitude (-1, -2, ..., -256) at
@@ -13,7 +20,7 @@
  * via `spaceOffsetTable()`, so as long as that table is the source of truth
  * the layout is irrelevant to callers.
  */
-export const SPACE_OFFSET_CODEPOINT_START = 0xF900;
+export const SPACE_OFFSET_CODEPOINT_START = 0xF800;
 
 /**
  * Pixel advances supported by the space provider. The codepoint for each

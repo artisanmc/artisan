@@ -10,7 +10,7 @@ class OffsetEncoderTest {
     /** Standard table mirroring `backend/src/lib/spaceOffsets.ts`. */
     private val standardMap: Map<Int, Int> = run {
         val advances = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256, -1, -2, -4, -8, -16, -32, -64, -128, -256)
-        advances.mapIndexed { i, adv -> (0xF900 + i) to adv }.toMap()
+        advances.mapIndexed { i, adv -> (0xF800 + i) to adv }.toMap()
     }
     private val byChar: Map<Char, Int> = standardMap.mapKeys { it.key.toChar() }
 
@@ -103,8 +103,8 @@ class OffsetEncoderTest {
     @Test
     fun `from with single small advance produces only allowed chars`() {
         // Encoder with only +1 and -1 advances.
-        val plusCp = 0xF900
-        val minusCp = 0xF909
+        val plusCp = 0xF800
+        val minusCp = 0xF809
         val enc = OffsetEncoder.from(mapOf(plusCp to 1, minusCp to -1))
         val plus3 = enc.encode(3)
         assertEquals(3, plus3.length)

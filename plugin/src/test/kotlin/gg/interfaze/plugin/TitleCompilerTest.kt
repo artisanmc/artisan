@@ -17,7 +17,7 @@ class TitleCompilerTest {
     /** Standard space-offset table mirroring `backend/src/lib/spaceOffsets.ts`. */
     private val standardOffsetMap: Map<Int, Int> = run {
         val advances = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256, -1, -2, -4, -8, -16, -32, -64, -128, -256)
-        advances.mapIndexed { i, adv -> (0xF900 + i) to adv }.toMap()
+        advances.mapIndexed { i, adv -> (0xF800 + i) to adv }.toMap()
     }
     private val offsetByChar: Map<Char, Int> = standardOffsetMap.mapKeys { it.key.toChar() }
     private val standardEncoder = OffsetEncoder.from(standardOffsetMap)
@@ -354,10 +354,10 @@ class TitleCompilerTest {
         // Render via MM round-trip and look at the produced string's chars.
         val asString = (result.toString())
         // We can't fully introspect a Component's inner string, but offset chars all live
-        // in U+F900..U+F911. Just check the encoder itself: encode(50) chars are in range.
+        // in U+F800..U+F811. Just check the encoder itself: encode(50) chars are in range.
         val encoded = standardEncoder.encode(50)
         for (c in encoded) {
-            assertTrue(c.code in 0xF900..0xF911, "char ${c.code.toString(16)} out of offset range")
+            assertTrue(c.code in 0xF800..0xF811, "char ${c.code.toString(16)} out of offset range")
         }
         // And the resulting Component contains the glyph
         assertTrue(asString.contains(ch.toString()) || asString.isNotEmpty())
