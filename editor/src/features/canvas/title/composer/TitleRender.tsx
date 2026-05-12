@@ -12,7 +12,9 @@ import useImage from "use-image";
 import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H } from "../../menuLayout";
 import { MiniMessageKonvaText } from "../../MiniMessageKonvaText";
 import { McFontText } from "../McFontText";
+import { ResizeHandles } from "./ResizeHandles";
 import { snapDragPosition } from "./snap";
+import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
 /** Vanilla chest title bar width, in MC pixels. Matches `MC_W` in menuLayout. */
 const TITLE_BAR_W = 176;
@@ -25,17 +27,6 @@ interface TitleRenderProps {
   menuId: MenuId;
   /** Pixel scale (e.g. 2 for the title canvas, smaller for thumbnails). */
   scale: number;
-  /** `compact` = read-only render for the pack canvas (no drag, no click);
-   *  `edit` = interactive focus-mode composer. */
-  mode: "compact" | "edit";
-  /** Index of the layer currently selected (highlights with a green halo).
-   *  Only meaningful in `edit` mode. */
-  selectedIndex?: number;
-  /** Fired when a non-background layer is clicked. Edit mode only. */
-  onLayerClick?: (index: number) => void;
-  /** Fired when a non-background layer drag ends. `x` and `y` are domain
-   *  coords (already divided by scale + snapped). Edit mode only. */
-  onLayerDragEnd?: (index: number, x: number, y: number) => void;
 }
 
 /**
@@ -43,9 +34,10 @@ interface TitleRenderProps {
  * backdrop + every layer in array order (first = bottom). Designed to live
  * inside an existing `<Stage><Layer>`; the caller owns Stage sizing.
  *
- * Shared by:
- *  - `MenuGroup` (pack canvas) — `mode="compact"`, read-only
- *  - `ComposerCanvas` (focus mode) — `mode="edit"`, draggable + clickable
+ * Always interactive (v3): clicks on layers select them via
+ * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`,
+ * and image layers expose `ResizeHandles` when selected. Clicks on the
+ * title-bar grey backdrop (non-layer area) clear the selection.
  *
  * Layer body rendering matches the plugin runtime:
  *  - background → big glyph anchored below the title bar (matches negative
@@ -55,34 +47,47 @@ interface TitleRenderProps {
  *    MiniMessageKonvaText (vector fallback)
  *  - external_glyph → dashed amber placeholder until SP5
  */
-export function TitleRender({
-  packId,
-  menuId,
-  scale,
-  mode,
-  selectedIndex,
-  onLayerClick,
-  onLayerDragEnd,
-}: TitleRenderProps) {
+export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const menu = pack?.menus.find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
+  const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
+  const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
+  const hiddenLayerKeys = useUiStore((s) => s.hiddenLayerKeys);
+
+  const onBackdropClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Clicking the grey title-bar area (anywhere not on a layer) clears
+      // the title-layer selection. We don't cancelBubble here — MenuGroup's
+      // own title-bar handlers may still want to receive the click (e.g.
+      // to select the menu).
+      if (selectedLayerKey?.menuId === menuId) {
+        e.cancelBubble = true;
+        setSelectedLayerKey(null);
+      }
+    },
+    [menuId, selectedLayerKey, setSelectedLayerKey],
+  );
 
   if (!pack || !menu) return null;
 
   return (
     <>
-      {/* Title-bar grey backdrop — vanilla MC title row tint. */}
+      {/* Title-bar grey backdrop — vanilla MC title row tint. Listens so
+          clicks on empty title-bar area can clear the selection. */}
       <Rect
         x={0}
         y={0}
         width={TITLE_BAR_W * scale}
         height={MC_TITLE_H * scale}
         fill="#3f3f3f"
-        listening={false}
+        onClick={onBackdropClick}
+        onTap={onBackdropClick}
       />
       {menu.title.map((layer, idx) => {
+        const hidden = hiddenLayerKeys.has(`${menuId}:${idx}`);
+        if (hidden) return null;
         const asset =
           layer.kind === "background" || layer.kind === "glyph"
             ? assets.find((a) => a.id === layer.assetId)
@@ -92,21 +97,22 @@ export function TitleRender({
             ? assets.find((a) => a.id === layer.fontAssetId)
             : undefined;
         const text = layer.kind === "text" ? getText(pack, layer.value, activeLang) : "";
+        const selected =
+          selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
         return (
           <LayerNode
             // biome-ignore lint/suspicious/noArrayIndexKey: layer order is the stable identifier
             key={idx}
+            packId={packId}
+            menuId={menuId}
             layer={layer}
             index={idx}
             scale={scale}
-            mode={mode}
             asset={asset}
             fontAsset={fontAsset}
             text={text}
-            selected={selectedIndex === idx}
-            onLayerClick={onLayerClick}
-            onLayerDragEnd={onLayerDragEnd}
+            selected={selected}
           />
         );
       })}
@@ -115,31 +121,34 @@ export function TitleRender({
 }
 
 interface LayerNodeProps {
+  packId: PackId;
+  menuId: MenuId;
   layer: MenuTitleLayer;
   index: number;
   scale: number;
-  mode: "compact" | "edit";
   asset?: Asset;
   fontAsset?: Asset;
   text: string;
   selected: boolean;
-  onLayerClick?: (index: number) => void;
-  onLayerDragEnd?: (index: number, x: number, y: number) => void;
 }
 
 function LayerNode({
+  packId: _packId,
+  menuId,
   layer,
   index,
   scale,
-  mode,
   asset,
   fontAsset,
   text,
   selected,
-  onLayerClick,
-  onLayerDragEnd,
 }: LayerNodeProps) {
   const [image] = useImage(asset ? assetPreviewUrl(asset) : "");
+  const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
+  const { onPositionChange, onResize, onResizeEnd } = useTitleLayerDrag({
+    menuId,
+    layerIndex: index,
+  });
 
   // Group position. Background pins below the title bar (matches the plugin
   // runtime which uses negative ascent to push the glyph down). Other layers
@@ -152,9 +161,18 @@ function LayerNode({
         ? layer.y * scale
         : 0;
 
+  const handleClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Stop the click from bubbling up to the menu's own click handler —
+      // selecting a layer should not also select/move the parent menu.
+      e.cancelBubble = true;
+      setSelectedLayerKey({ menuId, index });
+    },
+    [menuId, index, setSelectedLayerKey],
+  );
+
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      if (mode !== "edit") return;
       if (layer.kind === "background") return; // bg has no x/y
       const evt = e.evt as DragEvent & { shiftKey: boolean; altKey: boolean };
       const snapped = snapDragPosition(e.target.x(), e.target.y(), scale, {
@@ -164,22 +182,26 @@ function LayerNode({
       // Snap the node back so Konva's internal position matches the
       // committed domain coords (no sub-pixel drift on subsequent drags).
       e.target.position({ x: snapped.x * scale, y: snapped.y * scale });
-      onLayerDragEnd?.(index, snapped.x, snapped.y);
+      onPositionChange({ x: snapped.x, y: snapped.y });
     },
-    [mode, layer.kind, scale, index, onLayerDragEnd],
+    [layer.kind, scale, onPositionChange],
   );
+
+  // Intrinsic bounding-box for image-kind layers — drives both the selection
+  // outline and the ResizeHandles geometry. Falls back to a sane default when
+  // the asset hasn't loaded yet (or is missing).
+  const imageW =
+    (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
+  const imageH =
+    (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
 
   // Per-kind body. Background and glyph share the image path.
   let body: React.ReactNode = null;
   if (layer.kind === "background" || layer.kind === "glyph") {
-    const w =
-      (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
-    const h =
-      (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
     body = image ? (
-      <KonvaImage image={image} x={0} y={0} width={w} height={h} listening={false} />
+      <KonvaImage image={image} x={0} y={0} width={imageW} height={imageH} listening={false} />
     ) : (
-      <Rect width={w} height={h} fill="rgba(120,120,120,0.4)" listening={false} />
+      <Rect width={imageW} height={imageH} fill="rgba(120,120,120,0.4)" listening={false} />
     );
   } else if (layer.kind === "text") {
     body = fontAsset ? (
@@ -226,47 +248,60 @@ function LayerNode({
     );
   }
 
-  const interactive = mode === "edit" && layer.kind !== "background";
+  // Background can't be dragged (no x/y in domain), other layers are.
+  const draggable = layer.kind !== "background";
+
+  // Selection outline dimensions — match the body's intrinsic box.
+  const outlineW =
+    layer.kind === "background" || layer.kind === "glyph"
+      ? imageW
+      : layer.kind === "external_glyph"
+        ? 10 * scale
+        : Math.max(text.length * 4 * scale, 8);
+  const outlineH =
+    layer.kind === "background" || layer.kind === "glyph"
+      ? imageH
+      : layer.kind === "external_glyph"
+        ? 10 * scale
+        : 7 * scale;
+
+  // ResizeHandles only render for selected image-kind layers (background or
+  // glyph). Other kinds don't have a meaningful "resize" semantic in v3.
+  const showResizeHandles =
+    selected && (layer.kind === "background" || layer.kind === "glyph");
 
   return (
     <Group
       x={groupX}
       y={groupY}
-      draggable={interactive}
-      listening={mode === "edit"}
-      onClick={mode === "edit" ? () => onLayerClick?.(index) : undefined}
-      onTap={mode === "edit" ? () => onLayerClick?.(index) : undefined}
+      draggable={draggable}
+      onClick={handleClick}
+      onTap={handleClick}
       onDragEnd={handleDragEnd}
     >
       {body}
       {selected ? (
-        // Selection halo. For text we use the same heuristic as TitleMockup
-        // (`length * 4 * scale`) — exact bitmap measurement is deferred.
+        // Yellow 1-px stroke around the bounding box. Matches the v3 design
+        // spec (was emerald in v2).
         <Rect
           x={-1}
           y={-1}
-          width={
-            layer.kind === "background" || layer.kind === "glyph"
-              ? (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) *
-                  scale +
-                2
-              : layer.kind === "external_glyph"
-                ? 10 * scale + 2
-                : Math.max(text.length * 4 * scale, 8) + 2
-          }
-          height={
-            layer.kind === "background" || layer.kind === "glyph"
-              ? (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) *
-                  scale +
-                2
-              : layer.kind === "external_glyph"
-                ? 10 * scale + 2
-                : 7 * scale + 2
-          }
-          stroke="#22c55e"
+          width={outlineW + 2}
+          height={outlineH + 2}
+          stroke="#eab308"
           strokeWidth={1}
           fill="transparent"
           listening={false}
+        />
+      ) : null}
+      {showResizeHandles ? (
+        <ResizeHandles
+          x={0}
+          y={0}
+          width={outlineW}
+          height={outlineH}
+          onResize={onResize}
+          onResizeEnd={onResizeEnd}
         />
       ) : null}
     </Group>
