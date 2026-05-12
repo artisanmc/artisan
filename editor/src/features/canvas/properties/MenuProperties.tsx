@@ -9,7 +9,6 @@ import {
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
 import { summarizeFieldType } from "@/features/data/helpers";
-import { TitleThumbnail } from "@/features/canvas/title/composer/TitleThumbnail";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
@@ -67,10 +66,6 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <MenuIdField packId={packId} menuId={menu.id} />
-      <div>
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Title</div>
-        <TitleThumbnail packId={packId} menuId={menu.id} />
-      </div>
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}
