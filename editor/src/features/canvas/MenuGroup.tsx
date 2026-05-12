@@ -270,13 +270,14 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     [menu.id, packId, layout],
   );
 
-  const openComposer = useUiStore((s) => s.openTitleComposer);
+  // TODO P1.10: drop entirely — v3 makes the title bar interactive in-place,
+  // there is no focus mode to open. Kept as a no-op dblclick handler so the
+  // existing Konva wiring below still type-checks until P1.10 reworks it.
   const onTitleDblClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
-      openComposer(packId, menu.id);
     },
-    [openComposer, packId, menu.id],
+    [],
   );
 
   /**
