@@ -177,3 +177,26 @@ export async function deleteAsset(token: string, id: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Delete failed");
 }
+
+/**
+ * Duplicate an existing asset (typically a glyph) into a new asset row. The
+ * backend endpoint is added in P2.14 — until it ships, this client call will
+ * 404. Tests mock the network. The planned signature:
+ *
+ *   POST /api/editor-session/:token/assets/:id/duplicate
+ *   → 200 { asset: Asset }
+ *
+ * Caller is responsible for upserting the returned asset into `assetStore`
+ * and (optionally) re-pointing any referencing layer to the new id.
+ */
+export async function duplicateAsset(token: string, id: string): Promise<Asset> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}/duplicate`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Duplicate failed" }));
+    throw new Error(err.error ?? "Duplicate failed");
+  }
+  const data = (await res.json()) as { asset: Asset };
+  return data.asset;
+}
