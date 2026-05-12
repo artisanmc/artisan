@@ -119,14 +119,19 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {
       // TODO P3+: shift-drag = stretch (requires PNG resample on backend)
       // For now shift is a no-op — drag stays aspect-locked.
-      if (!dragStartRef.current) {
-        beginDrag();
-      }
+      //
+      // Konva guarantees the drag protocol: dragstart → dragmove → dragend.
+      // `onDragStart={beginDrag}` always runs first, so `dragStartRef.current`
+      // is populated before the first dragmove. If it's somehow null here
+      // (e.g. an unexpected event ordering), we bail rather than snapshot
+      // from stale props — re-snapshotting mid-drag would diverge from the
+      // dragstart geometry whenever a re-render slipped in between.
+      if (!dragStartRef.current) return;
       const node = e.target;
       const dims = computeDims(corner, node.x(), node.y());
       onResize(dims);
     },
-    [beginDrag, computeDims, onResize],
+    [computeDims, onResize],
   );
 
   const handleDragEnd = useCallback(
@@ -136,6 +141,13 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
       const dims = computeDims(corner, node.x(), node.y());
       // Reset the drag snapshot so the next drag samples the current size.
       dragStartRef.current = null;
+      // Explicitly reset the stage cursor — Konva doesn't reliably fire
+      // onMouseLeave mid-drag, so if the user dragged off the anchor and
+      // released elsewhere, the cursor would otherwise stay stuck on
+      // "nwse-resize" / "nesw-resize". The hover-out path still uses
+      // `onMouseLeave`; this is the belt-and-braces reset on drag end.
+      const stage = node.getStage();
+      if (stage) stage.container().style.cursor = "default";
       onResizeEnd?.(dims);
     },
     [computeDims, onResizeEnd],
@@ -145,7 +157,7 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
     const stage = e.target.getStage();
     if (stage) stage.container().style.cursor = cursor;
   };
-  const resetCursor = () => (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const resetCursor = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
     if (stage) stage.container().style.cursor = "default";
   };
@@ -183,7 +195,7 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
           onDragMove={handleDragMove(c.corner)}
           onDragEnd={handleDragEnd(c.corner)}
           onMouseEnter={setCursor(c.cursor)}
-          onMouseLeave={resetCursor()}
+          onMouseLeave={resetCursor}
         />
       ))}
     </Group>
