@@ -97,6 +97,26 @@ interface UiState {
   toggleHiddenLayer: (menuId: MenuId, index: number) => void;
   clearHiddenLayers: () => void;
   /**
+   * v3 title composer — invoke AFTER `accountStore.removeMenuTitleLayer` to
+   * keep UI state in sync with the new layer indices. Without this, a stale
+   * `selectedLayerKey` would point at the shifted-up neighbour (or nothing),
+   * and `hiddenLayerKeys` would still flag indices that no longer exist.
+   *
+   * Behaviour:
+   *  - If `selectedLayerKey === {menuId, index: deletedIndex}` → cleared.
+   *  - If `selectedLayerKey.menuId === menuId && selectedLayerKey.index > deletedIndex` → decremented by 1.
+   *  - Hidden entries for `(menuId, deletedIndex)` are dropped; entries with `index > deletedIndex` shift down by 1.
+   *  - Entries from other menus are untouched.
+   */
+  applyLayerDeleted: (menuId: MenuId, deletedIndex: number) => void;
+  /**
+   * v3 title composer — invoke AFTER `accountStore.reorderMenuTitleLayers`
+   * to remap `selectedLayerKey` and `hiddenLayerKeys` indices to match the
+   * post-move ordering. Mirrors the splice semantics: pull element out at
+   * `fromIndex`, insert at `toIndex`. Entries in other menus are untouched.
+   */
+  applyLayerMoved: (menuId: MenuId, fromIndex: number, toIndex: number) => void;
+  /**
    * v3 title composer — ghost state during the "drag-to-attach" gesture
    * from + Image / + Text buttons in the LayersPanel. Null when no drag
    * is in flight.
@@ -152,6 +172,80 @@ export const useUiStore = create<UiState>()(
           return { hiddenLayerKeys: next };
         }),
       clearHiddenLayers: () => set({ hiddenLayerKeys: new Set<string>() }),
+      applyLayerDeleted: (menuId, deletedIndex) =>
+        set((s) => {
+          // selectedLayerKey: clear if it pointed at the deleted layer, or
+          // shift down by 1 if it pointed past it.
+          let nextSelected = s.selectedLayerKey;
+          if (nextSelected && nextSelected.menuId === menuId) {
+            if (nextSelected.index === deletedIndex) {
+              nextSelected = null;
+            } else if (nextSelected.index > deletedIndex) {
+              nextSelected = { menuId, index: nextSelected.index - 1 };
+            }
+          }
+          // hiddenLayerKeys: drop the deleted index and shift higher indices
+          // down by 1. Iterate keys, parse `${menuId}:${index}`, rewrite.
+          const nextHidden = new Set<string>();
+          for (const key of s.hiddenLayerKeys) {
+            const sep = key.lastIndexOf(":");
+            if (sep < 0) {
+              nextHidden.add(key);
+              continue;
+            }
+            const k = key.slice(0, sep) as MenuId;
+            const i = Number(key.slice(sep + 1));
+            if (k !== menuId || !Number.isFinite(i)) {
+              nextHidden.add(key);
+              continue;
+            }
+            if (i === deletedIndex) continue; // dropped
+            if (i > deletedIndex) {
+              nextHidden.add(`${k}:${i - 1}`);
+            } else {
+              nextHidden.add(key);
+            }
+          }
+          return { selectedLayerKey: nextSelected, hiddenLayerKeys: nextHidden };
+        }),
+      applyLayerMoved: (menuId, fromIndex, toIndex) =>
+        set((s) => {
+          const remap = (i: number): number => {
+            if (i === fromIndex) return toIndex;
+            // Element moves up the list (smaller → larger): indices in
+            // (fromIndex, toIndex] shift down by 1 to fill the gap.
+            if (fromIndex < toIndex && i > fromIndex && i <= toIndex) return i - 1;
+            // Element moves down the list (larger → smaller): indices in
+            // [toIndex, fromIndex) shift up by 1 to make room.
+            if (toIndex < fromIndex && i >= toIndex && i < fromIndex) return i + 1;
+            return i;
+          };
+
+          let nextSelected = s.selectedLayerKey;
+          if (nextSelected && nextSelected.menuId === menuId) {
+            const newIndex = remap(nextSelected.index);
+            if (newIndex !== nextSelected.index) {
+              nextSelected = { menuId, index: newIndex };
+            }
+          }
+
+          const nextHidden = new Set<string>();
+          for (const key of s.hiddenLayerKeys) {
+            const sep = key.lastIndexOf(":");
+            if (sep < 0) {
+              nextHidden.add(key);
+              continue;
+            }
+            const k = key.slice(0, sep) as MenuId;
+            const i = Number(key.slice(sep + 1));
+            if (k !== menuId || !Number.isFinite(i)) {
+              nextHidden.add(key);
+              continue;
+            }
+            nextHidden.add(`${k}:${remap(i)}`);
+          }
+          return { selectedLayerKey: nextSelected, hiddenLayerKeys: nextHidden };
+        }),
       draggingNewLayer: null,
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
     }),

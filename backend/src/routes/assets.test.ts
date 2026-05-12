@@ -425,8 +425,6 @@ describe("DELETE /api/editor-session/:token/assets/:id", () => {
   });
 });
 
-import { eq as eqDrizzle } from "drizzle-orm";
-
 describe("resource pack regeneration on asset mutations", () => {
   test("POST asset triggers a resource pack rebuild", async () => {
     const { token, serverKeyId } = await seedSession();
@@ -435,7 +433,7 @@ describe("resource pack regeneration on asset mutations", () => {
     });
     expect(res.status).toBe(201);
 
-    const rows = await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId));
+    const rows = await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId));
     expect(rows[0].resourcePackHash).toMatch(/^[0-9a-f]{40}$/);
     expect(rows[0].resourcePackUpdatedAt).toBeInstanceOf(Date);
   });
@@ -446,7 +444,7 @@ describe("resource pack regeneration on asset mutations", () => {
       method: "POST", body: uploadForm({ type: "glyph", name: "g_orig", ascent: "7" }),
     });
     const created = (await post.json()).asset;
-    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const before = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
 
     const patch = await app.request(`/api/editor-session/${token}/assets/${created.id}`, {
       method: "PATCH",
@@ -454,7 +452,7 @@ describe("resource pack regeneration on asset mutations", () => {
       body: JSON.stringify({ name: "g_renamed" }),
     });
     expect(patch.status).toBe(200);
-    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const after = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
     expect(after).not.toBe(before);
   });
 
@@ -464,7 +462,7 @@ describe("resource pack regeneration on asset mutations", () => {
       method: "POST", body: uploadForm({ type: "glyph", name: "g_h_rebuild", ascent: "7" }),
     });
     const created = (await post.json()).asset;
-    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const before = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
 
     const patch = await app.request(`/api/editor-session/${token}/assets/${created.id}`, {
       method: "PATCH",
@@ -472,7 +470,7 @@ describe("resource pack regeneration on asset mutations", () => {
       body: JSON.stringify({ height: 16 }),
     });
     expect(patch.status).toBe(200);
-    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const after = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
     expect(after).not.toBe(before);
   });
 
@@ -494,7 +492,7 @@ describe("resource pack regeneration on asset mutations", () => {
     const { unzipSync, strFromU8 } = await import("fflate");
     const { resourcePackPath } = await import("../lib/resourcePackStorage");
     const { readFile } = await import("fs/promises");
-    const hash = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
+    const hash = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
     const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
     const entries = unzipSync(new Uint8Array(zipBytes));
     const fontJson = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
@@ -509,11 +507,11 @@ describe("resource pack regeneration on asset mutations", () => {
       method: "POST", body: uploadForm({ type: "glyph", name: "g_del", ascent: "7" }),
     });
     const created = (await post.json()).asset;
-    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const before = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
 
     const del = await app.request(`/api/editor-session/${token}/assets/${created.id}`, { method: "DELETE" });
     expect(del.status).toBe(204);
-    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const after = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
     expect(after).not.toBe(before);
   });
 });
@@ -806,13 +804,13 @@ describe("POST /api/editor-session/:token/assets/:id/duplicate", () => {
       method: "POST", body: uploadForm({ type: "glyph", name: "rp_dup", ascent: "7" }),
     });
     const original = (await post.json()).asset;
-    const before = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const before = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
 
     const dup = await app.request(`/api/editor-session/${token}/assets/${original.id}/duplicate`, {
       method: "POST",
     });
     expect(dup.status).toBe(200);
-    const after = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash;
+    const after = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash;
     expect(after).not.toBe(before);
   });
 
@@ -832,7 +830,7 @@ describe("POST /api/editor-session/:token/assets/:id/duplicate", () => {
     const { unzipSync, strFromU8 } = await import("fflate");
     const { resourcePackPath } = await import("../lib/resourcePackStorage");
     const { readFile } = await import("fs/promises");
-    const hash = (await db.select().from(serverKeys).where(eqDrizzle(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
+    const hash = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0].resourcePackHash!;
     const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
     const entries = unzipSync(new Uint8Array(zipBytes));
     const fontJson = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));

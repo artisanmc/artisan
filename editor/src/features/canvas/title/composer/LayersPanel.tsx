@@ -49,6 +49,7 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
   const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
+  const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
 
   // Local DnD source-index tracker. We could read it back from the
   // dataTransfer payload on drop (and we do, as a fallback), but jsdom
@@ -151,6 +152,8 @@ export function LayersPanel({ packId, className }: LayersPanelProps) {
     setDragFromIndex(null);
     if (fromIndex === null || fromIndex === toIndex) return;
     reorderMenuTitleLayers({ packId, menuId, fromIndex, toIndex });
+    // Sync uiStore: remap stale selection + hidden flags to the new ordering.
+    applyLayerMoved(menuId, fromIndex, toIndex);
   };
 
   // ─── Empty state ────────────────────────────────────────────────────────
