@@ -154,4 +154,42 @@ describe("AddLayerControls", () => {
     unmount();
     expect(useUiStore.getState().draggingNewLayer).toBeNull();
   });
+
+  // --- Keyboard accessibility (P1.7 fix) ---
+
+  it("Enter key on focused + Image button calls onPlace('image', null)", () => {
+    const onPlace = vi.fn();
+    render(<AddLayerControls onPlace={onPlace} />);
+    const btn = screen.getByTestId("add-layer-image");
+    // Browsers synthesize a `click` event with detail === 0 when a focused
+    // <button> is activated via Enter or Space.
+    fireEvent.click(btn, { detail: 0 });
+    expect(onPlace).toHaveBeenCalledTimes(1);
+    expect(onPlace).toHaveBeenCalledWith("image", null);
+  });
+
+  it("Enter key on focused + Text button calls onPlace('text', null)", () => {
+    const onPlace = vi.fn();
+    render(<AddLayerControls onPlace={onPlace} />);
+    const btn = screen.getByTestId("add-layer-text");
+    fireEvent.click(btn, { detail: 0 });
+    expect(onPlace).toHaveBeenCalledTimes(1);
+    expect(onPlace).toHaveBeenCalledWith("text", null);
+  });
+
+  it("pointerdown + pointerup + synthetic click (detail >= 1) fires onPlace exactly once", () => {
+    // Reproduces the full browser sequence for a real mouse click:
+    // pointerdown → pointerup → click (with detail = 1). The pointerup
+    // handler resolves the gesture and invokes onPlace; the synthetic
+    // click that follows must NOT double-fire.
+    const onPlace = vi.fn();
+    render(<AddLayerControls onPlace={onPlace} />);
+    const btn = screen.getByTestId("add-layer-image");
+    fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
+    dispatchWindowPointer("pointerup", 10, 10);
+    // The browser would now dispatch a click with detail = 1; mimic that.
+    fireEvent.click(btn, { detail: 1 });
+    expect(onPlace).toHaveBeenCalledTimes(1);
+    expect(onPlace).toHaveBeenCalledWith("image", null);
+  });
 });
