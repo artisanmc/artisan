@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AssetsTab } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
-import * as packApi from "@/lib/packApi";
 
 vi.mock("@/state/sessionStore", () => ({
   useSessionStore: (sel: (s: { accessToken: string | null }) => unknown) =>
@@ -29,35 +28,35 @@ const A2 = {
 };
 
 describe("AssetsTab", () => {
-  beforeEach(() => useAssetStore.getState().reset());
+  beforeEach(() => {
+    // AssetsTab no longer fetches itself — the assets are loaded by
+    // `useAssetInit` mounted on EditorPane. Tests seed the store directly.
+    useAssetStore.getState().reset();
+    useAssetStore.getState().setAssets([A1, A2]);
+  });
 
-  it("loads assets on mount", async () => {
-    vi.spyOn(packApi, "listAssets").mockResolvedValue([A1, A2]);
+  it("renders the assets from the store", () => {
     render(<AssetsTab />);
-    await waitFor(() => expect(screen.getByTitle("bg_one")).toBeTruthy());
+    expect(screen.getByTitle("bg_one")).toBeTruthy();
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
 
-  it("opens the upload dialog when clicking Upload", async () => {
-    vi.spyOn(packApi, "listAssets").mockResolvedValue([]);
+  it("opens the upload dialog when clicking Upload", () => {
+    useAssetStore.getState().setAssets([]);
     render(<AssetsTab />);
     fireEvent.click(screen.getByRole("button", { name: /upload/i }));
     expect(screen.getByText(/upload asset/i)).toBeTruthy();
   });
 
-  it("filters by search query (case-insensitive)", async () => {
-    vi.spyOn(packApi, "listAssets").mockResolvedValue([A1, A2]);
+  it("filters by search query (case-insensitive)", () => {
     render(<AssetsTab />);
-    await waitFor(() => expect(screen.getByTitle("bg_one")).toBeTruthy());
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: "ico" } });
     expect(screen.queryByTitle("bg_one")).toBeNull();
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
 
-  it("filters by type chip", async () => {
-    vi.spyOn(packApi, "listAssets").mockResolvedValue([A1, A2]);
+  it("filters by type chip", () => {
     render(<AssetsTab />);
-    await waitFor(() => expect(screen.getByTitle("bg_one")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /^glyph$/i }));
     expect(screen.queryByTitle("bg_one")).toBeNull();
     expect(screen.getByTitle("ico_one")).toBeTruthy();

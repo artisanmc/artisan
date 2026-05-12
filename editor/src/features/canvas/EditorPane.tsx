@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PackId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
+import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,10 @@ const tabClass =
  */
 export function EditorPane({ packId }: EditorPaneProps) {
   useTextureInit();
+  // Load the server-key's assets eagerly so title-layer rendering (which
+  // happens before the user ever opens the Assets tab) can find the
+  // referenced PNGs. Mirrors useTextureInit above.
+  useAssetInit();
   const tab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
   const { t } = useTranslation();

@@ -173,7 +173,9 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
 
       <AssetPicker
         open={pickerOpen}
-        typeFilter="glyph"
+        // No typeFilter → shows every image asset (texture + glyph). The
+        // upload UX no longer distinguishes the two, so the picker
+        // shouldn't either.
         onClose={() => setPickerOpen(false)}
         onPick={onPick}
         title="Choisir une image"

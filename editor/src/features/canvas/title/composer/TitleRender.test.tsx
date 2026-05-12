@@ -559,6 +559,65 @@ describe("TitleRender", () => {
     expect(screen.getAllByTestId("mm-text")).toHaveLength(2);
   });
 
+  it("text layer Group contains a hit-area Rect with non-zero dimensions (Issue 1)", () => {
+    // Konva's drag needs a hit-testable shape under the pointer. Text bodies
+    // hit-test on rendered glyphs only — sub-pixel gaps between letters
+    // break drag pickup. We render a near-zero-alpha Rect sized to the
+    // layer's bounding box so the user can grab the layer anywhere inside
+    // its outline.
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(layers);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+
+    // The layer's Group is the second `[data-testid="group"]` (the first is
+    // unrelated to layers — actually layers ARE the only groups here, but
+    // we filter defensively).
+    const groups = screen.getAllByTestId("group");
+    const layerGroup = groups[0]!;
+    // The hit-area is the first child rect with the near-zero-alpha fill,
+    // EXCLUDING the title-bar backdrop which is outside this Group.
+    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
+      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    expect(hitAreas.length).toBeGreaterThan(0);
+    const hit = hitAreas[0]!;
+    expect(Number(hit.getAttribute("data-width"))).toBeGreaterThan(0);
+    expect(Number(hit.getAttribute("data-height"))).toBeGreaterThan(0);
+  });
+
+  it("external_glyph layer Group contains a hit-area Rect for drag pickup (Issue 1)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "external_glyph", provider: "oraxen", glyphName: "coin", x: 20, y: 4 },
+    ];
+    seedPack(layers);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+
+    const layerGroup = screen.getAllByTestId("group")[0]!;
+    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
+      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    expect(hitAreas.length).toBeGreaterThan(0);
+    const hit = hitAreas[0]!;
+    expect(Number(hit.getAttribute("data-width"))).toBeGreaterThan(0);
+    expect(Number(hit.getAttribute("data-height"))).toBeGreaterThan(0);
+  });
+
+  it("image layers do NOT need a separate hit-area Rect (KonvaImage already provides one)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "glyph", assetId: ASSET_GLYPH, x: 10, y: 3 },
+    ];
+    seedPack(layers);
+    useAssetStore.getState().setAssets([GLYPH_ASSET]);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+
+    // No near-zero-alpha Rect inside an image layer's Group — the
+    // KonvaImage at intrinsic size already serves as the hit area.
+    const layerGroup = screen.getAllByTestId("group")[0]!;
+    const hitAreas = Array.from(layerGroup.querySelectorAll('[data-testid="rect"]'))
+      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL);
+    expect(hitAreas.length).toBe(0);
+  });
+
   it("dragging a layer dispatches a position update through useTitleLayerDrag → packStore", () => {
     const layers: MenuTitleLayer[] = [
       { kind: "glyph", assetId: ASSET_GLYPH, x: 0, y: 0 },
