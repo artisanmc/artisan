@@ -5,6 +5,7 @@ import { cn } from "@/lib/cx";
 import { newI18nKey } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
+import { PlainTitleForm } from "./PlainTitleForm";
 
 import { AddLayerControls } from "./AddLayerControls";
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
@@ -55,8 +56,36 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
   const menu = pack?.menus.find((m) => m.id === menuId);
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
+  const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
   const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
+
+  const isVanillaMode = menu !== undefined && menu.title.length === 1 && menu.title[0]?.kind === "plain";
+
+  const switchToVanilla = () => {
+    if (!menu) return;
+    if (
+      menu.title.length > 0 &&
+      !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
+    ) return;
+    setMenuTitleLayers({
+      packId,
+      menuId,
+      layers: [{ kind: "plain", value: { key: newI18nKey() } }],
+    });
+    setSelectedLayerKey(null);
+  };
+
+  const switchToComposed = () => {
+    if (!menu) return;
+    // Migrate the plain layer's i18n key to a composed text layer so translations are preserved.
+    const plainLayer = menu.title.find((l) => l.kind === "plain");
+    const migratedLayers: MenuTitleLayer[] = plainLayer
+      ? [{ kind: "text", value: plainLayer.value, x: 8, y: 5 }]
+      : [];
+    setMenuTitleLayers({ packId, menuId, layers: migratedLayers });
+    setSelectedLayerKey(null);
+  };
 
   // Local DnD source-index tracker. We could read it back from the
   // dataTransfer payload on drop (and we do, as a fallback), but jsdom
@@ -66,9 +95,19 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
   /** Build the new layer to append. Image layers default to (0, 0); the
    *  caller patches in cursor-derived coords when applicable. */
   const buildLayer = (
-    kind: "image" | "text",
+    kind: "image" | "text" | "textarea",
     placement: { x: number; y: number } | null,
   ): MenuTitleLayer => {
+    if (kind === "textarea") {
+      return {
+        kind: "textarea",
+        value: { key: newI18nKey() },
+        x: placement?.x ?? 8,
+        y: placement?.y ?? 6,
+        lineHeight: 10,
+        alignment: "left",
+      };
+    }
     if (kind === "text") {
       return {
         kind: "text",
@@ -89,7 +128,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
   };
 
   const onPlace = (
-    kind: "image" | "text",
+    kind: "image" | "text" | "textarea",
     cursor: { x: number; y: number } | null,
   ) => {
     // Drag-end branch — try cursor-driven attach first. If the pack canvas
@@ -170,32 +209,67 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
       className={cn("flex flex-col gap-3", className)}
       data-testid="layers-panel"
     >
-      <AddLayerControls onPlace={onPlace} />
+      {/* Mode toggle */}
+      <div className="flex rounded border border-zinc-700 bg-zinc-900 p-0.5 text-[11px]">
+        <button
+          type="button"
+          onClick={switchToVanilla}
+          className={cn(
+            "flex-1 rounded px-2 py-1 transition-colors",
+            isVanillaMode
+              ? "bg-zinc-700 text-zinc-100"
+              : "text-zinc-400 hover:text-zinc-200",
+          )}
+        >
+          Vanilla
+        </button>
+        <button
+          type="button"
+          onClick={switchToComposed}
+          className={cn(
+            "flex-1 rounded px-2 py-1 transition-colors",
+            !isVanillaMode
+              ? "bg-zinc-700 text-zinc-100"
+              : "text-zinc-400 hover:text-zinc-200",
+          )}
+        >
+          Composé (Resource Pack)
+        </button>
+      </div>
 
-      <div className="flex flex-col gap-0.5">
-        {menu.title.map((layer, index) => (
-          <div
-            key={index}
-            data-testid="layer-row-wrapper"
-            data-index={index}
-            draggable
-            onDragStart={onDragStart(index)}
-            onDragOver={onDragOver}
-            onDrop={onDrop(index)}
-          >
-            <LayerListItem
-              packId={packId}
-              menuId={menuId}
-              index={index}
-              layer={layer}
-            />
+      {isVanillaMode ? (
+        // Vanilla mode: show the plain layer form directly.
+        <PlainTitleForm packId={packId} menuId={menuId} />
+      ) : (
+        <>
+          <AddLayerControls onPlace={onPlace} />
+
+          <div className="flex flex-col gap-0.5">
+            {menu.title.map((layer, index) => (
+              <div
+                key={index}
+                data-testid="layer-row-wrapper"
+                data-index={index}
+                draggable
+                onDragStart={onDragStart(index)}
+                onDragOver={onDragOver}
+                onDrop={onDrop(index)}
+              >
+                <LayerListItem
+                  packId={packId}
+                  menuId={menuId}
+                  index={index}
+                  layer={layer}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="mt-2 border-t border-zinc-800 pt-2">
-        <LayerEditForm packId={packId} />
-      </div>
+          <div className="mt-2 border-t border-zinc-800 pt-2">
+            <LayerEditForm packId={packId} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
