@@ -125,20 +125,23 @@ router.put("/:token/packs/:packId", async (c) => {
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
+  const filesJson = JSON.stringify(body.files);
+  const editorJson = JSON.stringify(body.pack);
 
-  await db.transaction(async (tx) => {
-    await tx.delete(packBundles).where(
-      and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId))
-    );
-    await tx.insert(packBundles).values({
-      id: crypto.randomUUID(),
-      serverId: session.serverKeyId,
-      packId,
-      hash,
-      filesJson: JSON.stringify(body.files),
-      editorJson: JSON.stringify(body.pack),
-      createdAt: new Date(),
-    });
+  // UPSERT: prior delete+insert pattern raced under concurrent saves
+  // (autosave PUT + explicit POST /deploy). Each transaction would
+  // delete (one no-op), then both INSERTs collided on server_pack_uniq.
+  await db.insert(packBundles).values({
+    id: crypto.randomUUID(),
+    serverId: session.serverKeyId,
+    packId,
+    hash,
+    filesJson,
+    editorJson,
+    createdAt: new Date(),
+  }).onConflictDoUpdate({
+    target: [packBundles.serverId, packBundles.packId],
+    set: { hash, filesJson, editorJson, createdAt: new Date() },
   });
 
   return c.json({ hash }, 201);
@@ -155,21 +158,27 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
+  const filesJson = JSON.stringify(body.files);
+  const editorJson = JSON.stringify(body.pack);
 
-  await db.transaction(async (tx) => {
-    await tx.delete(packBundles).where(
-      and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId))
-    );
-    await tx.insert(packBundles).values({
-      id: crypto.randomUUID(),
-      serverId: session.serverKeyId,
-      packId,
+  await db.insert(packBundles).values({
+    id: crypto.randomUUID(),
+    serverId: session.serverKeyId,
+    packId,
+    hash,
+    filesJson,
+    editorJson,
+    deployedEditorJson: editorJson,
+    createdAt: new Date(),
+  }).onConflictDoUpdate({
+    target: [packBundles.serverId, packBundles.packId],
+    set: {
       hash,
-      filesJson: JSON.stringify(body.files),
-      editorJson: JSON.stringify(body.pack),
-      deployedEditorJson: JSON.stringify(body.pack),
+      filesJson,
+      editorJson,
+      deployedEditorJson: editorJson,
       createdAt: new Date(),
-    });
+    },
   });
 
   pushBundleAvailable(session.serverKeyId, packId, hash);
