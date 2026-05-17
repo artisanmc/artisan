@@ -97,6 +97,7 @@ describe("useTitleLayerDrag", () => {
           value: { key: "menus.m_shop_main.instructions" as never },
           x: 0,
           y: 0,
+          width: 168,
           lineHeight: 10,
           alignment: "left",
         },
