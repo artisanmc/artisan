@@ -69,6 +69,63 @@ object TitleCompiler {
     }
 
     /**
+     * Splits a single line into N sub-lines, each fitting within [maxWidth] px.
+     * Wraps at whitespace boundaries. A single word wider than [maxWidth]
+     * overflows on its own line (soft constraint — see textarea-auto-wrap spec).
+     *
+     * MiniMessage tags are inline; [measureLineWidth] strips them so they don't
+     * count toward the measured width. Tag spans crossing sub-line boundaries
+     * are tolerated by MC's MiniMessage stack.
+     */
+    private fun wrapLine(line: String, maxWidth: Int): List<String> {
+        if (line.isEmpty()) return listOf("")
+        // Tokens alternate between word-runs and whitespace-runs; preserved
+        // separately so we can trim them at sub-line edges without losing
+        // internal spacing.
+        val tokens = line.split(Regex("(?<=\\s)|(?=\\s)")).filter { it.isNotEmpty() }
+        val out = mutableListOf<String>()
+        val current = StringBuilder()
+        var currentWidth = 0
+        for (token in tokens) {
+            val tokenWidth = measureLineWidth(token)
+            if (currentWidth + tokenWidth <= maxWidth) {
+                current.append(token)
+                currentWidth += tokenWidth
+                continue
+            }
+            // Doesn't fit. If current line is empty (or only whitespace), place
+            // this token alone — overflow if longer than maxWidth (soft).
+            if (current.isBlank()) {
+                out.add(token.trimEnd())
+                current.clear()
+                currentWidth = 0
+                continue
+            }
+            // Flush current line, start fresh with this token.
+            out.add(current.toString().trimEnd())
+            current.clear()
+            val trimmed = token.trimStart()
+            if (trimmed.isNotEmpty()) {
+                current.append(trimmed)
+                currentWidth = measureLineWidth(trimmed)
+            } else {
+                currentWidth = 0
+            }
+        }
+        if (current.isNotEmpty()) {
+            val flushed = current.toString().trimEnd()
+            if (flushed.isNotEmpty()) out.add(flushed)
+        }
+        return out.ifEmpty { listOf("") }
+    }
+
+    /** Test-only: exposes the private wrapLine for unit tests. */
+    internal fun testWrapLine(line: String, maxWidth: Int): List<String> = wrapLine(line, maxWidth)
+
+    /** Test-only: exposes measureLineWidth for unit tests asserting on wrap output. */
+    internal fun testMeasure(line: String): Int = measureLineWidth(line)
+
+    /**
      * Per-character advance (px) for the MC 1.21 default ASCII bitmap font
      * (minecraft:font/ascii.png, 8×8 glyph cells, height=8, scale=1).
      *
@@ -238,7 +295,8 @@ object TitleCompiler {
             }
             is MenuTitleLayer.Textarea -> {
                 val text = resolveLText(layer.value, langMap)
-                val lines = text.split("\n")
+                val hardLines = text.split("\n")
+                val lines = hardLines.flatMap { wrapLine(it, layer.width) }
                 val sb2 = StringBuilder()
                 var localX = startX
                 var maxLastX = startX
@@ -308,7 +366,8 @@ object TitleCompiler {
         is MenuTitleLayer.ExternalGlyph -> EXTERNAL_GLYPH_WIDTH
         is MenuTitleLayer.Textarea -> {
             val text = resolveLText(layer.value, langMap)
-            val lines = text.split("\n")
+            val hardLines = text.split("\n")
+            val lines = hardLines.flatMap { wrapLine(it, layer.width) }
             lines.maxOfOrNull { measureLineWidth(it) } ?: 0
         }
     }
