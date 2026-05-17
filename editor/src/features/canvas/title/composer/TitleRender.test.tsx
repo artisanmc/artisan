@@ -217,6 +217,26 @@ vi.mock("./ResizeHandles", () => ({
   ),
 }));
 
+// Stub WidthResizeHandle so tests can assert its presence via data-testid.
+vi.mock("./WidthResizeHandle", () => ({
+  WidthResizeHandle: (props: {
+    x: number;
+    y: number;
+    height: number;
+    currentWidth: number;
+    scale?: number;
+    onResize: (w: number) => void;
+  }) => (
+    <div
+      data-testid="width-resize-handle"
+      data-x={props.x}
+      data-y={props.y}
+      data-height={props.height}
+      data-current-width={props.currentWidth}
+    />
+  ),
+}));
+
 // Must mirror the value used in TitleRender.tsx — a near-zero-alpha fill so
 // the backdrop Rect remains clickable but doesn't paint a visible block.
 const BACKDROP_FILL = "rgba(0,0,0,0.001)";
@@ -802,6 +822,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_multiline" as I18nKey },
                     x: 10,
                     y: 6,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "left",
                   },
@@ -840,6 +861,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_ml2" as I18nKey },
                     x: 10,
                     y: 6,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "left",
                   },
@@ -877,6 +899,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_center" as I18nKey },
                     x: 20,
                     y: 6,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "center",
                   },
@@ -913,6 +936,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_right" as I18nKey },
                     x: 20,
                     y: 6,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "right",
                   },
@@ -948,6 +972,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_single" as I18nKey },
                     x: 8,
                     y: 6,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "left",
                   },
@@ -983,6 +1008,7 @@ describe("TitleRender — textarea layer", () => {
                     value: { key: "lt_pos" as I18nKey },
                     x: 15,
                     y: 8,
+                    width: 256,
                     lineHeight: 10,
                     alignment: "left",
                   },
@@ -998,5 +1024,142 @@ describe("TitleRender — textarea layer", () => {
     const groups = screen.getAllByTestId("group");
     expect(groups[0]!.getAttribute("data-x")).toBe(String(15 * TEX_SCALE));
     expect(groups[0]!.getAttribute("data-y")).toBe(String(8 * TEX_SCALE));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for the wrap + resize-handle describe block below.
+// Mirrors the pattern from LayerEditForm.test.tsx (seedPack with i18nKeys).
+// ---------------------------------------------------------------------------
+
+const K = (s: string) => s as I18nKey;
+
+function seedPackWithI18n(
+  layers: MenuTitleLayer[],
+  i18nKeys: Record<string, Record<string, string>>,
+) {
+  useAccountStore.setState({
+    account: {
+      id: "acc" as never,
+      packs: [
+        {
+          id: PACK_ID,
+          name: "p",
+          source: "user_created",
+          createdAt: "",
+          updatedAt: "",
+          menus: [{ id: MENU_ID, packId: PACK_ID, title: layers, rows: 3, layers: [] }],
+          commands: [],
+          templates: [],
+          assets: [],
+          dataSources: [],
+          importedConnectors: [],
+          i18nKeys,
+          defaultLang: "en",
+          dialogs: [],
+          canvasLayout: {},
+        },
+      ],
+      packOrder: [PACK_ID],
+    },
+  } as never);
+  useUiStore.setState({ activeLang: "en", selectedLayerKey: null } as never);
+}
+
+function selectLayer(index: number) {
+  useUiStore.setState({ selectedLayerKey: { menuId: MENU_ID, index } } as never);
+}
+
+describe("TitleRender — textarea wrap and resize handle", () => {
+  beforeEach(() => {
+    useAssetStore.getState().reset();
+    useUiStore.setState({
+      selectedLayerKey: null,
+      selectedMenuId: null,
+      lastSelectedMenuId: null,
+      hiddenLayerKeys: new Set<string>(),
+    } as never);
+  });
+
+  it("wraps a long single line into multiple VanillaMcText children when width is tight", () => {
+    seedPackWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("ta_long") },
+          x: 0,
+          y: 0,
+          width: 20,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { ta_long: { en: "ab cd ef" } },
+    );
+    selectLayer(0);
+    const { container } = render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={1} />);
+    const subLines = container.querySelectorAll("[data-testid='vanilla-mc-text']");
+    expect(subLines.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does NOT wrap when width is wide enough", () => {
+    seedPackWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("ta_short") },
+          x: 0,
+          y: 0,
+          width: 256,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { ta_short: { en: "ab cd ef" } },
+    );
+    selectLayer(0);
+    const { container } = render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={1} />);
+    const subLines = container.querySelectorAll("[data-testid='vanilla-mc-text']");
+    expect(subLines.length).toBe(1);
+  });
+
+  it("mounts WidthResizeHandle when textarea is selected", () => {
+    seedPackWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("ta_sel") },
+          x: 0,
+          y: 0,
+          width: 168,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { ta_sel: { en: "hi" } },
+    );
+    selectLayer(0);
+    const { container } = render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={1} />);
+    expect(container.querySelector("[data-testid='width-resize-handle']")).toBeTruthy();
+  });
+
+  it("does NOT mount WidthResizeHandle when textarea is unselected", () => {
+    seedPackWithI18n(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("ta_unsel") },
+          x: 0,
+          y: 0,
+          width: 168,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { ta_unsel: { en: "hi" } },
+    );
+    // No selectLayer call — textarea is unselected.
+    const { container } = render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={1} />);
+    expect(container.querySelector("[data-testid='width-resize-handle']")).toBeNull();
   });
 });
