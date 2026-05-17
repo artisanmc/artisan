@@ -25,12 +25,9 @@ object MenuTitleParser {
     @Suppress("UNCHECKED_CAST")
     fun parse(node: Any?): List<MenuTitleLayer> = when (node) {
         null -> emptyList()
+        // Legacy bare-string format → plain vanilla layer (no resource pack needed).
         is String -> if (node.isEmpty()) emptyList() else listOf(
-            MenuTitleLayer.Text(
-                value = literalToLText(node),
-                x = DEFAULT_TEXT_X,
-                y = DEFAULT_TEXT_Y,
-            )
+            MenuTitleLayer.Plain(value = literalToLText(node))
         )
         is Map<*, *> -> listOfNotNull(parseLayer(node as Map<String, Any?>))
         is List<*> -> node.mapNotNull { (it as? Map<String, Any?>)?.let(::parseLayer) }
@@ -54,14 +51,32 @@ object MenuTitleParser {
                 fontAssetId = m["font_asset_id"] as? String,
                 color = m["color"] as? String,
             )
+            "textarea" -> MenuTitleLayer.Textarea(
+                value = parseLText(m["value"]),
+                x = (m["x"] as? Number)?.toInt() ?: 0,
+                y = (m["y"] as? Number)?.toInt() ?: 0,
+                lineHeight = ((m["line_height"] as? Number)?.toInt() ?: 10).coerceIn(1, 32),
+                alignment = parseAlignment(m["alignment"] as? String),
+                fontAssetId = m["font_asset_id"] as? String,
+            )
             "external_glyph" -> MenuTitleLayer.ExternalGlyph(
                 provider = m["provider"] as? String ?: return null,
                 glyphName = m["glyph_name"] as? String ?: return null,
                 x = (m["x"] as? Number)?.toInt() ?: 0,
                 y = (m["y"] as? Number)?.toInt() ?: 0,
             )
+            "plain" -> MenuTitleLayer.Plain(
+                value = parseLText(m["value"]),
+                color = m["color"] as? String,
+            )
             else -> null // unknown kind → skip
         }
+    }
+
+    private fun parseAlignment(s: String?): MenuTitleLayer.Alignment = when (s?.lowercase()) {
+        "center" -> MenuTitleLayer.Alignment.CENTER
+        "right" -> MenuTitleLayer.Alignment.RIGHT
+        else -> MenuTitleLayer.Alignment.LEFT
     }
 
     private fun parseLText(v: Any?): LText = when (v) {
