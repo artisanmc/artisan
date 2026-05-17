@@ -19,6 +19,40 @@ import { WidthResizeHandle } from "./WidthResizeHandle";
 const TAG_RX = /<[^>]+>/g;
 
 /**
+ * Counts visible characters (stripped of tags) inside `<bold>` / `<b>` spans.
+ * MC bold rendering shifts each glyph 1 px right, adding 1 px to its advance.
+ * TS port of TitleCompiler.countBoldChars — match the plugin so wrap output
+ * matches what MC actually renders.
+ */
+function countBoldChars(text: string): number {
+  const boldTagPattern = /<\/?(?:bold|b)>/g;
+  let inBold = false;
+  let count = 0;
+  let lastEnd = 0;
+  for (const match of text.matchAll(boldTagPattern)) {
+    const idx = match.index!;
+    if (inBold) {
+      count += text.substring(lastEnd, idx).replace(TAG_RX, "").length;
+    }
+    inBold = !match[0].startsWith("</");
+    lastEnd = idx + match[0].length;
+  }
+  if (inBold) {
+    count += text.substring(lastEnd).replace(TAG_RX, "").length;
+  }
+  return count;
+}
+
+/**
+ * TS port of TitleCompiler.measureLineWidth — strips MiniMessage tags, sums
+ * per-char advances from VANILLA_ADVANCES, and adds bold compensation.
+ * Used by `wrapLineJs` so width math matches the plugin (and therefore MC).
+ */
+function measureLineWidthJs(text: string): number {
+  return vanillaTextWidth(text.replace(TAG_RX, "")) + countBoldChars(text);
+}
+
+/**
  * TS port of TitleCompiler.wrapLine. Splits a single line into sub-lines that
  * fit within maxWidth (MC pixels). Wraps on whitespace; words wider than
  * maxWidth overflow on their own line. MiniMessage tags are stripped for
@@ -31,7 +65,7 @@ function wrapLineJs(line: string, maxWidth: number): string[] {
   let current = "";
   let currentW = 0;
   for (const tok of tokens) {
-    const tokW = vanillaTextWidth(tok.replace(TAG_RX, ""));
+    const tokW = measureLineWidthJs(tok);
     if (currentW + tokW <= maxWidth) {
       current += tok;
       currentW += tokW;
@@ -47,7 +81,7 @@ function wrapLineJs(line: string, maxWidth: number): string[] {
     const trimmed = tok.trimStart();
     if (trimmed !== "") {
       current = trimmed;
-      currentW = vanillaTextWidth(trimmed.replace(TAG_RX, ""));
+      currentW = measureLineWidthJs(trimmed);
     } else {
       current = "";
       currentW = 0;
