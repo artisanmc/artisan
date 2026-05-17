@@ -434,7 +434,7 @@ class TitleCompilerTest {
 
         val textareaFirst = listOf(
             MenuTitleLayer.Textarea(
-                value = LText("k"), x = 8, y = 0, lineHeight = 10,
+                value = LText("k"), x = 8, y = 0, width = 256, lineHeight = 10,
                 alignment = MenuTitleLayer.Alignment.LEFT,
             ),
             MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
@@ -442,7 +442,7 @@ class TitleCompilerTest {
         val glyphFirst = listOf(
             MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
             MenuTitleLayer.Textarea(
-                value = LText("k"), x = 8, y = 0, lineHeight = 10,
+                value = LText("k"), x = 8, y = 0, width = 256, lineHeight = 10,
                 alignment = MenuTitleLayer.Alignment.LEFT,
             ),
         )
@@ -555,7 +555,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea with one line renders one text_y wrapper`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -567,7 +567,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea with three lines emits three text_y wrappers`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -581,7 +581,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea alignment center positions lines around layer x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 50, y = 0, lineHeight = 10,
+            value = LText("g"), x = 50, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.CENTER,
         )
         // "ab" width = 6+6 = 12, so center → lineX = 50 - 12/2 = 44.
@@ -596,7 +596,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea alignment right ends all lines at layer x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 60, y = 0, lineHeight = 10,
+            value = LText("g"), x = 60, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.RIGHT,
         )
         // "ab" width = 12, right → lineX = 60 - 12 = 48.
@@ -610,7 +610,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea truncates lines past y=140`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 135, lineHeight = 10,
+            value = LText("g"), x = 0, y = 135, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         // y=135 → line 0 at 135 (≤140 ok). Line 1 at 145 → drops. Line 2 at 155 → drops.
@@ -625,7 +625,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea empty value returns empty fragment with unchanged x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, newX) = TitleCompiler.compileLayerBody(
@@ -639,7 +639,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea reports maxLastX of last line for cursor tracking`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         // "a" width 6, "bc" width 12. After 2 lines starting at x=0: cursor max = 0 + 12 = 12.
@@ -656,7 +656,7 @@ class TitleCompilerTest {
         val result = TitleCompiler.compileTitle(
             layers = listOf(
                 MenuTitleLayer.Textarea(
-                    value = LText("g"), x = 0, y = 0, lineHeight = 10,
+                    value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
                     alignment = MenuTitleLayer.Alignment.LEFT,
                 ),
                 MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 0),
@@ -668,6 +668,104 @@ class TitleCompilerTest {
         )
         // Decode the rendered Component to ensure glyph appears.
         assertTrue(result.toString().contains(glyphCh.toString()))
+    }
+
+    // ---------- wrapLine (private helper, exposed via test entry points) ----------
+
+    @Test
+    fun `wrapLine returns single element when input fits within width`() {
+        val result = TitleCompiler.testWrapLine("hello", 100)
+        assertEquals(listOf("hello"), result)
+    }
+
+    @Test
+    fun `wrapLine breaks at word boundary when line exceeds width`() {
+        // Each sub-line must measure <= 20.
+        val result = TitleCompiler.testWrapLine("ab cd ef", 20)
+        for (line in result) {
+            assertTrue(TitleCompiler.testMeasure(line) <= 20, "Line '$line' exceeds 20px")
+        }
+        assertEquals("ab cd ef", result.joinToString(" "))
+    }
+
+    @Test
+    fun `wrapLine overflow for word longer than maxWidth`() {
+        // "verylongword" is wider than 8 — overflows on its own line (soft constraint).
+        val result = TitleCompiler.testWrapLine("verylongword", 8)
+        assertEquals(listOf("verylongword"), result)
+    }
+
+    @Test
+    fun `wrapLine trims trailing whitespace per sub-line`() {
+        val result = TitleCompiler.testWrapLine("a  b", 8)
+        assertEquals(listOf("a", "b"), result)
+    }
+
+    @Test
+    fun `wrapLine on empty string returns single empty element`() {
+        assertEquals(listOf(""), TitleCompiler.testWrapLine("", 100))
+    }
+
+    @Test
+    fun `wrapLine strips MiniMessage tags for measurement but keeps them in output`() {
+        val result = TitleCompiler.testWrapLine("<gold>foo</gold> <gold>bar</gold>", 20)
+        for (line in result) {
+            assertTrue(TitleCompiler.testMeasure(line) <= 20, "Line '$line' exceeds 20px after stripping tags")
+        }
+    }
+
+    // ---------- Textarea wrap integration ----------
+
+    @Test
+    fun `compileLayerBody textarea wraps long content into multiple text_y wrappers`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, width = 20, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
+        )
+        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        assertTrue(text_yCount >= 2, "Expected at least 2 text_y wrappers but got $text_yCount in '$s'")
+    }
+
+    @Test
+    fun `compileLayerBody textarea respects explicit and auto-wrapped lines together`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, width = 20, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "line1\nab cd ef"), emptyLookup, standardEncoder,
+        )
+        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        assertTrue(text_yCount >= 3, "Expected at least 3 text_y wrappers but got $text_yCount in '$s'")
+    }
+
+    @Test
+    fun `compileLayerBody textarea wrap with width=256 produces single line for short text`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "short"), emptyLookup, standardEncoder,
+        )
+        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        assertEquals(1, text_yCount)
+    }
+
+    @Test
+    fun `compileLayerBody textarea wrap + alignment center centers each sub-line independently`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 100, y = 0, width = 20, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.CENTER,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
+        )
+        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        assertTrue(text_yCount >= 2, "Expected at least 2 sub-lines but got $text_yCount in '$s'")
     }
 
     @Test
