@@ -161,6 +161,18 @@ function deriveAutoName(
     const display = raw && raw.length > 0 ? raw : layer.value.key;
     return `Texte • ${truncate(display, 20)}`;
   }
+  if (layer.kind === "plain") {
+    const raw = pack ? getText(pack, layer.value, activeLang) : "";
+    const display = raw && raw.length > 0 ? raw : layer.value.key;
+    return `Titre vanilla • ${truncate(display, 20)}`;
+  }
+  if (layer.kind === "textarea") {
+    const raw = pack ? getText(pack, layer.value, activeLang) : "";
+    const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
+    const hasMore = raw && raw.includes("\n");
+    const suffix = hasMore ? "…" : "";
+    return `Bloc texte • ${truncate(firstLine, 18)}${suffix}`;
+  }
   if (layer.kind === "external_glyph") {
     return `Image (${externalProviderLabel(layer.provider)}) • ${layer.glyphName}`;
   }
