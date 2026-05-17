@@ -1,5 +1,5 @@
 import { commandId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { AssetId, Dialog, I18nKey, Pack } from "@/domain/types";
+import type { Appearance, AssetId, Condition, Dialog, I18nKey, Pack } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 import { parseTitleNode, transform } from "./transform";
@@ -473,6 +473,165 @@ describe("transform — title layers", () => {
   });
 });
 
+describe("transform — textarea title layer", () => {
+  const menuWithTitle = (title: Pack["menus"][number]["title"]): Pack =>
+    makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title,
+          layers: [],
+        },
+      ],
+    });
+
+  it("serializeTitleLayer emits snake_case fields for textarea with all fields", () => {
+    const files = transform(
+      menuWithTitle([
+        {
+          kind: "textarea",
+          value: { key: "k_ta" as I18nKey },
+          x: 12,
+          y: 8,
+          lineHeight: 11,
+          alignment: "center",
+          fontAssetId: "font_a" as AssetId,
+        },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title).toHaveLength(1);
+    expect(menu.title[0]).toEqual({
+      kind: "textarea",
+      value: { key: "k_ta" },
+      x: 12,
+      y: 8,
+      line_height: 11,
+      alignment: "center",
+      font_asset_id: "font_a",
+    });
+  });
+
+  it("serializeTitleLayer omits font_asset_id when not set", () => {
+    const files = transform(
+      menuWithTitle([
+        {
+          kind: "textarea",
+          value: { key: "k_ta" as I18nKey },
+          x: 0,
+          y: 0,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ]),
+    );
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    expect(menu.title[0]).not.toHaveProperty("font_asset_id");
+    expect(menu.title[0].line_height).toBe(10);
+    expect(menu.title[0].alignment).toBe("left");
+  });
+});
+
+describe("parseTitleNode — textarea", () => {
+  it("round-trips a textarea with all fields", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 12,
+        y: 8,
+        line_height: 11,
+        alignment: "center",
+        font_asset_id: "font_a",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 12,
+        y: 8,
+        lineHeight: 11,
+        alignment: "center",
+        fontAssetId: "font_a",
+      },
+    ]);
+  });
+
+  it("applies defaults when line_height and alignment are absent", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 0,
+        y: 0,
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ lineHeight: 10, alignment: "left" });
+  });
+
+  it("falls back to left for unknown alignment value", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 0,
+        y: 0,
+        line_height: 10,
+        alignment: "junk",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect((result[0] as { alignment: string }).alignment).toBe("left");
+  });
+
+  it("rejects textarea without value.key and filters it out", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        x: 0,
+        y: 0,
+        line_height: 10,
+        alignment: "left",
+      },
+    ]);
+    expect(result).toEqual([]);
+  });
+
+  it("clamps line_height to [1, 32] — below minimum becomes 1", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 0,
+        y: 0,
+        line_height: 0,
+        alignment: "left",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect((result[0] as { lineHeight: number }).lineHeight).toBe(1);
+  });
+
+  it("clamps line_height to [1, 32] — above maximum becomes 32", () => {
+    const result = parseTitleNode([
+      {
+        kind: "textarea",
+        value: { key: "k_ta" },
+        x: 0,
+        y: 0,
+        line_height: 999,
+        alignment: "left",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect((result[0] as { lineHeight: number }).lineHeight).toBe(32);
+  });
+});
+
 describe("parseTitleNode — legacy reader", () => {
   it("normalises null to []", () => {
     expect(parseTitleNode(null)).toEqual([]);
@@ -482,11 +641,9 @@ describe("parseTitleNode — legacy reader", () => {
     expect(parseTitleNode(undefined)).toEqual([]);
   });
 
-  it("treats a bare string as one text layer at (8,5)", () => {
+  it("treats a bare string as one plain (vanilla) layer", () => {
     const result = parseTitleNode("Hello");
-    expect(result).toEqual([
-      { kind: "text", value: { key: "Hello" }, x: 8, y: 5 },
-    ]);
+    expect(result).toEqual([{ kind: "plain", value: { key: "Hello" } }]);
   });
 
   it("parses a single-layer map by wrapping it in an array", () => {
@@ -544,5 +701,102 @@ describe("parseTitleNode — legacy reader", () => {
       { kind: "text" }, // no value.key
     ]);
     expect(result).toEqual([]);
+  });
+});
+
+describe("transform — appearance conditions", () => {
+  const baseMenu = (appearances: Partial<Appearance>[]) => ({
+    id: menuId("shop"),
+    packId: packId("p_test"),
+    rows: 3 as const,
+    title: [{ kind: "text" as const, value: { key: "t" as I18nKey }, x: 8, y: 5 }],
+    layers: [
+      {
+        id: layerId("l1"),
+        name: "default",
+        elements: [
+          {
+            id: elementId("btn"),
+            positions: "0",
+            appearances: appearances as Appearance[],
+          },
+        ],
+      },
+    ],
+  });
+
+  const getApp = (files: Record<string, string>) => {
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    return menu.layers[0].elements[0].appearances[0];
+  };
+
+  it("single condition is written as a map, not an array", () => {
+    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])] });
+    const app = getApp(transform(pack));
+    expect(Array.isArray(app.if)).toBe(false);
+    expect(app.if).toEqual({ type: "has_permission", perm: "vip" });
+  });
+
+  it("two conditions with 'and' join are wrapped in { type: 'and', all: [...] }", () => {
+    const pack = makePack({
+      menus: [
+        baseMenu([
+          {
+            if: [
+              { type: "has_permission", perm: "vip" } as Condition,
+              { type: "has_money", amount: 100 } as Condition,
+            ],
+            ifJoins: ["and"],
+          },
+        ]),
+      ],
+    });
+    const app = getApp(transform(pack));
+    expect(app.if).toEqual({
+      type: "and",
+      all: [{ type: "has_permission", perm: "vip" }, { type: "has_money", amount: 100 }],
+    });
+    expect(app.if_joins).toBeUndefined();
+  });
+
+  it("two conditions with 'or' join are wrapped in { type: 'or', any: [...] }", () => {
+    const pack = makePack({
+      menus: [
+        baseMenu([
+          {
+            if: [
+              { type: "has_permission", perm: "vip" } as Condition,
+              { type: "has_permission", perm: "admin" } as Condition,
+            ],
+            ifJoins: ["or"],
+          },
+        ]),
+      ],
+    });
+    const app = getApp(transform(pack));
+    expect(app.if).toEqual({
+      type: "or",
+      any: [{ type: "has_permission", perm: "vip" }, { type: "has_permission", perm: "admin" }],
+    });
+  });
+
+  it("composite 'and' condition uses 'all' key, not 'of'", () => {
+    const inner: Condition = { type: "has_permission", perm: "vip" };
+    const pack = makePack({
+      menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])],
+    });
+    const app = getApp(transform(pack));
+    expect(app.if.all).toBeDefined();
+    expect(app.if.of).toBeUndefined();
+  });
+
+  it("composite 'or' condition uses 'any' key, not 'of'", () => {
+    const inner: Condition = { type: "has_permission", perm: "vip" };
+    const pack = makePack({
+      menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])],
+    });
+    const app = getApp(transform(pack));
+    expect(app.if.any).toBeDefined();
+    expect(app.if.of).toBeUndefined();
   });
 });
