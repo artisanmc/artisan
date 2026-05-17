@@ -135,12 +135,21 @@ object TitleCompiler {
         // cursor position (which MC draws at titleLabelX from the chest left edge).
         var currentX = TITLE_LABEL_X
         for (layer in sorted) {
+            val isTextarea = layer is MenuTitleLayer.Textarea
             val targetX = layerX(layer)
-            if (targetX != currentX) {
-                sb.append(offsetEncoder.encode(targetX - currentX))
+            // For non-textarea: emit outer offset to position cursor at targetX,
+            // then pass targetX as startX (the layer body draws from there).
+            // For textarea: skip the outer offset; the branch emits its own
+            // per-line offsets from `currentX`.
+            val startX = if (isTextarea) {
+                currentX
+            } else {
+                if (targetX != currentX) sb.append(offsetEncoder.encode(targetX - currentX))
+                targetX
             }
-            sb.append(compileLayerBody(layer, langMap, lookupAsset))
-            currentX = targetX + estimateBodyWidth(layer, langMap, lookupAsset)
+            val (frag, newX) = compileLayerBody(layer, startX, langMap, lookupAsset, offsetEncoder)
+            sb.append(frag)
+            currentX = newX
         }
         sb.append("</font>")
         return MiniMessage.miniMessage()
@@ -153,54 +162,68 @@ object TitleCompiler {
      * the outer font wrapper or offset chars. Internal so unit tests can
      * assert on the produced string directly.
      *
+     * Returns a [Pair] of (fragment, newCursorX). [startX] is the cursor position
+     * at the moment this layer begins drawing; the returned cursor is
+     * `startX + estimateBodyWidth(...)` for all current kinds. The Textarea branch
+     * (Task 4) will own its own per-line offset emission and therefore needs both
+     * the incoming cursor and the [offsetEncoder].
+     *
      * Returned MiniMessage assumes it will be rendered inside an outer
      * `<font:interfaze:default>` (set by [compileTitle]).
      */
     internal fun compileLayerBody(
         layer: MenuTitleLayer,
+        startX: Int,
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
-    ): String { return when (layer) {
-        is MenuTitleLayer.Background -> {
-            val entry = lookupAsset(layer.assetId) ?: return ""
-            val ch = entry.codepointChar ?: return ""
-            // Explicit white: chest titles render with MC's dark-gray 0x404040 by default.
-            // Without a color override the glyph pixels get tinted dark, making the image
-            // look wrong. White (×1.0 multiply) preserves the original PNG colors.
-            "<white>$ch</white>"
-        }
-        is MenuTitleLayer.Glyph -> {
-            val entry = lookupAsset(layer.assetId) ?: return ""
-            val ch = entry.codepointChar ?: return ""
-            "<white>$ch</white>"
-        }
-        is MenuTitleLayer.Text -> {
-            val text = resolveLText(layer.value, langMap)
-            val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
-            // Custom font asset: use its namespace directly (user-imported font).
-            if (layer.fontAssetId != null) {
-                val ns = lookupAsset(layer.fontAssetId)?.takeIf { it.type == "font" }?.namespace
-                if (ns != null) return "<font:$ns>$colored</font>"
+        offsetEncoder: OffsetEncoder,
+    ): Pair<String, Int> {
+        val body: String = when (layer) {
+            is MenuTitleLayer.Background -> {
+                val entry = lookupAsset(layer.assetId) ?: return Pair("", startX)
+                val ch = entry.codepointChar ?: return Pair("", startX)
+                // Explicit white: chest titles render with MC's dark-gray 0x404040 by default.
+                // Without a color override the glyph pixels get tinted dark, making the image
+                // look wrong. White (×1.0 multiply) preserves the original PNG colors.
+                "<white>$ch</white>"
             }
-            // Y-specific font: resource pack includes text_y{Y}.json for Y=0..140,
-            // each using minecraft:font/ascii.png with ascent = 13 - Y so the glyph
-            // top lands at the desired chest-relative Y pixel.
-            "<font:interfaze:text_y${layer.y}>$colored</font>"
+            is MenuTitleLayer.Glyph -> {
+                val entry = lookupAsset(layer.assetId) ?: return Pair("", startX)
+                val ch = entry.codepointChar ?: return Pair("", startX)
+                "<white>$ch</white>"
+            }
+            is MenuTitleLayer.Text -> {
+                val text = resolveLText(layer.value, langMap)
+                val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
+                // Custom font asset: use its namespace directly (user-imported font).
+                if (layer.fontAssetId != null) {
+                    val ns = lookupAsset(layer.fontAssetId)?.takeIf { it.type == "font" }?.namespace
+                    if (ns != null) return Pair(
+                        "<font:$ns>$colored</font>",
+                        startX + estimateBodyWidth(layer, langMap, lookupAsset),
+                    )
+                }
+                // Y-specific font: resource pack includes text_y{Y}.json for Y=0..140,
+                // each using minecraft:font/ascii.png with ascent = 13 - Y so the glyph
+                // top lands at the desired chest-relative Y pixel.
+                "<font:interfaze:text_y${layer.y}>$colored</font>"
+            }
+            is MenuTitleLayer.Plain -> {
+                val text = resolveLText(layer.value, langMap)
+                layer.color?.let { "<color:$it>$text</color>" } ?: text
+            }
+            is MenuTitleLayer.ExternalGlyph -> {
+                // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
+                // Fall back to a visible placeholder so the menu still opens.
+                "□"
+            }
+            is MenuTitleLayer.Textarea -> {
+                // Implemented in Task 4. For now, no-op so existing kinds still compile.
+                return Pair("", startX)
+            }
         }
-        is MenuTitleLayer.Plain -> {
-            val text = resolveLText(layer.value, langMap)
-            layer.color?.let { "<color:$it>$text</color>" } ?: text
-        }
-        is MenuTitleLayer.ExternalGlyph -> {
-            // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
-            // Fall back to a visible placeholder so the menu still opens.
-            "□"
-        }
-        is MenuTitleLayer.Textarea -> {
-            // TODO: Task 4 — implement textarea compilation
-            ""
-        }
-    } }
+        return Pair(body, startX + estimateBodyWidth(layer, langMap, lookupAsset))
+    }
 
     /**
      * Pixel `x` of the layer's origin. [MenuTitleLayer.Background] has no `x`
