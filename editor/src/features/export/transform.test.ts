@@ -532,6 +532,39 @@ describe("transform — textarea title layer", () => {
     expect(menu.title[0].line_height).toBe(10);
     expect(menu.title[0].alignment).toBe("left");
   });
+
+  it("textarea i18n key is exported to lang/<lang>.yaml (regression: was silently dropped)", () => {
+    // Without `textarea` in getTitleTextLayers, the key wasn't in
+    // referencedKeys and the lang file came out empty — plugin then rendered
+    // `<i18nKey>` literally as the title text.
+    const pack = makePack({
+      defaultLang: "en",
+      i18nKeys: {
+        k_ta: { en: "Hello\nWorld" },
+      } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [
+            {
+              kind: "textarea",
+              value: { key: "k_ta" as I18nKey },
+              x: 8,
+              y: 6,
+              lineHeight: 10,
+              alignment: "left",
+            },
+          ],
+          layers: [],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const lang = parse(files["plugins/Interfaze/packs/p_test/lang/en.yaml"]!);
+    expect(lang).toEqual({ k_ta: "Hello\nWorld" });
+  });
 });
 
 describe("parseTitleNode — textarea", () => {

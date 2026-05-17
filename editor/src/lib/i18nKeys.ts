@@ -37,7 +37,7 @@ export function rekeyMenuLTexts(pack: Pack, menu: Menu): void {
   // subsequent text layers get "menus.{id}.title_1", "menus.{id}.title_2", etc.
   let extraIdx = 1;
   for (const layer of menu.title) {
-    if (layer.kind === "text") {
+    if (layer.kind === "text" || layer.kind === "textarea" || layer.kind === "plain") {
       const key = extraIdx === 1
         ? menuTitleKey(menu.id)
         : (`${menuTitleKey(menu.id)}_${extraIdx}` as I18nKey);

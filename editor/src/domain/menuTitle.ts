@@ -10,19 +10,27 @@ import type { LText, Menu } from "./types";
  * empty title stack).
  */
 export function getFirstTitleText(menu: Menu): LText | undefined {
-  const first = menu.title.find((l) => l.kind === "text");
-  return first?.kind === "text" ? first.value : undefined;
+  const first = menu.title.find(
+    (l) => l.kind === "text" || l.kind === "plain" || l.kind === "textarea",
+  );
+  return first &&
+    (first.kind === "text" || first.kind === "plain" || first.kind === "textarea")
+    ? first.value
+    : undefined;
 }
 
 /**
- * Walk every text layer in a menu's title stack and yield its LText.
+ * Walk every text-bearing layer in a menu's title stack and yield its LText.
  * Useful for i18n collection (validate/export translations) where every
- * referenced key must be tracked.
+ * referenced key must be tracked. Includes `text`, `plain`, and `textarea` —
+ * the three layer kinds whose `value` resolves through the i18n map.
  */
 export function getTitleTextLayers(menu: Menu): LText[] {
   const out: LText[] = [];
   for (const layer of menu.title) {
-    if (layer.kind === "text") out.push(layer.value);
+    if (layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea") {
+      out.push(layer.value);
+    }
   }
   return out;
 }
