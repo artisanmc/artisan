@@ -135,12 +135,18 @@ object TitleCompiler {
             return MiniMessage.miniMessage().deserialize(sb.toString())
         }
         // Stable-sort so non-text layers come first. Image/glyph widths are known
-        // from the asset catalog, so cursor tracking is exact for them. Text widths
-        // are estimated (length × APPROX_CHAR_WIDTH), so placing text last means
+        // from the asset catalog, so cursor tracking is exact for them. Text-bearing
+        // widths are estimated (charAdvance-based), so placing them last means
         // estimation error never propagates to subsequent glyph/background positions.
+        // Both `Text` and `Textarea` are text-bearing — they share this property.
         // Within each group the original array order (= visual stacking from bottom
         // to top) is preserved.
-        val sorted = layers.sortedWith(compareBy { if (it is MenuTitleLayer.Text) 1 else 0 })
+        val sorted = layers.sortedWith(compareBy {
+            when (it) {
+                is MenuTitleLayer.Text, is MenuTitleLayer.Textarea -> 1
+                else -> 0
+            }
+        })
         val sb = StringBuilder()
         sb.append("<font:$DEFAULT_FONT>")
         // Start the cursor at TITLE_LABEL_X so layer.x values (chest-left-relative,

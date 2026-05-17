@@ -412,6 +412,45 @@ class TitleCompilerTest {
     }
 
     @Test
+    fun `compileTitle places glyph at same x regardless of textarea layer order`() {
+        // Same invariant as the text-layer ordering test below, extended to
+        // Textarea. Regression: before this fix Textarea was in the "first"
+        // sort group, so a Textarea BEFORE a Glyph in input order would push
+        // the Glyph's offset by the Textarea's estimated end-cursor, visibly
+        // shifting the glyph.
+        val glyphCh = 0xE000.toChar()
+        val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 0xE000, width = 8)))
+
+        fun render(orderedLayers: List<MenuTitleLayer>): String {
+            val result = TitleCompiler.compileTitle(
+                layers = orderedLayers,
+                lang = "en_us",
+                langMap = mapOf("k" to "Hello"),
+                lookupAsset = lookup,
+                offsetEncoder = standardEncoder,
+            )
+            return result.toString()
+        }
+
+        val textareaFirst = listOf(
+            MenuTitleLayer.Textarea(
+                value = LText("k"), x = 8, y = 0, lineHeight = 10,
+                alignment = MenuTitleLayer.Alignment.LEFT,
+            ),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+        )
+        val glyphFirst = listOf(
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+            MenuTitleLayer.Textarea(
+                value = LText("k"), x = 8, y = 0, lineHeight = 10,
+                alignment = MenuTitleLayer.Alignment.LEFT,
+            ),
+        )
+
+        assertEquals(render(textareaFirst), render(glyphFirst))
+    }
+
+    @Test
     fun `compileTitle places glyph at same x regardless of text layer order`() {
         // If text is listed BEFORE the glyph in the input array, the glyph should
         // still land at x=50. Tag-inflated text-width estimates must not shift it.
