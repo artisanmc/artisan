@@ -24,11 +24,37 @@ sealed class MenuTitleLayer {
         val color: String? = null,
     ) : MenuTitleLayer()
 
+    /**
+     * A plain vanilla text layer — no resource pack required.
+     * Emitted as raw MiniMessage without any custom font wrapper, so the
+     * vanilla MC font renders it exactly as the client expects. Servers that
+     * don't distribute a resource pack should use this instead of [Text].
+     */
+    data class Plain(val value: LText, val color: String? = null) : MenuTitleLayer()
+
     /** A glyph from an external provider (Oraxen, Nexo, ItemsAdder…). */
     data class ExternalGlyph(
         val provider: String,
         val glyphName: String,
         val x: Int,
         val y: Int,
+    ) : MenuTitleLayer()
+
+    /** Alignment of each line inside a [Textarea] layer. */
+    enum class Alignment { LEFT, CENTER, RIGHT }
+
+    /**
+     * A multi-line text block. The resolved [LText] string is split on `\n`
+     * at compile time; each line is rendered at `(layer.x, layer.y + i * lineHeight)`
+     * with the same [alignment]. Coexists with [Text] (single-line, no
+     * line-height/alignment).
+     */
+    data class Textarea(
+        val value: LText,
+        val x: Int,
+        val y: Int,
+        val lineHeight: Int,
+        val alignment: Alignment,
+        val fontAssetId: String? = null,
     ) : MenuTitleLayer()
 }
