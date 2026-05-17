@@ -53,6 +53,7 @@ sealed class MenuTitleLayer {
         val value: LText,
         val x: Int,
         val y: Int,
+        val width: Int,
         val lineHeight: Int,
         val alignment: Alignment,
         val fontAssetId: String? = null,
