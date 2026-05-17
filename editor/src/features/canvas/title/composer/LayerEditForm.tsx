@@ -686,6 +686,25 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
         </select>
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] uppercase text-zinc-500">Largeur (px)</div>
+        <Input
+          type="number"
+          data-testid="textarea-width"
+          value={layer.width}
+          onChange={(e) => {
+            const raw = parseInt(e.target.value, 10);
+            if (!Number.isFinite(raw)) return;
+            const clamped = Math.min(256, Math.max(8, raw));
+            updateLayer({
+              packId, menuId, index,
+              patch: { width: clamped } as Partial<MenuTitleLayer>,
+            });
+          }}
+          className="h-7 w-full font-mono text-xs"
+        />
+      </div>
+
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="text-[10px] uppercase text-zinc-500">X</div>

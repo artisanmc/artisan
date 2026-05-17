@@ -384,6 +384,7 @@ describe("LayerEditForm — textarea layer", () => {
           value: { key: K("t1") },
           x: 8,
           y: 6,
+          width: 168,
           lineHeight: 10,
           alignment: "left",
         },
@@ -440,6 +441,7 @@ describe("LayerEditForm — textarea layer", () => {
           value: { key: K("t1") },
           x: 0,
           y: 130,
+          width: 168,
           lineHeight: 10,
           alignment: "left",
         },
@@ -454,5 +456,31 @@ describe("LayerEditForm — textarea layer", () => {
   it("does not show Y-overflow warning when all lines fit", () => {
     render(<LayerEditForm packId={PACK_ID} />);
     expect(screen.queryByTestId("textarea-y-overflow-warning")).toBeNull();
+  });
+
+  it("width input renders and shows layer.width", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const input = screen.getByTestId("textarea-width") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("168");
+  });
+
+  it("editing width updates layer.width in store", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const input = screen.getByTestId("textarea-width") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "100" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.width).toBe(100);
+  });
+
+  it("width input clamps to [8, 256]", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const input = screen.getByTestId("textarea-width") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "1" } });
+    let layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.width).toBe(8);
+    fireEvent.change(input, { target: { value: "9999" } });
+    layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.width).toBe(256);
   });
 });
