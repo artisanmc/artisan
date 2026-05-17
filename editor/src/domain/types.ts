@@ -43,6 +43,16 @@ export type MenuTitleLayer =
   | { kind: "text"; value: LText; x: number; y: number;
       fontAssetId?: AssetId;
       color?: string }
+  /** Plain vanilla title — no resource pack required. Emitted as a raw
+   *  MiniMessage string in YAML (legacy format) so any server can use it. */
+  | { kind: "plain"; value: LText; color?: string }
+  /** Multi-line text block. `value` resolves to a string containing literal
+   *  `\n`s; the runtime splits and renders one line per split at
+   *  `(x, y + i * lineHeight)`. Lines share alignment + optional font. */
+  | { kind: "textarea"; value: LText; x: number; y: number;
+      lineHeight: number;
+      alignment: "left" | "center" | "right";
+      fontAssetId?: AssetId }
   | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder";
       glyphName: string; x: number; y: number };
 
