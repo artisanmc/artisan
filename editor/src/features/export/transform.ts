@@ -186,6 +186,7 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
       value: { key: layer.value.key },
       x: layer.x,
       y: layer.y,
+      width: layer.width,
       line_height: layer.lineHeight,
       alignment: layer.alignment,
     };
@@ -302,11 +303,14 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         rawAlign === "center" ? "center" : rawAlign === "right" ? "right" : "left";
       const rawLh = typeof m.line_height === "number" ? m.line_height : 10;
       const lineHeight = Math.min(32, Math.max(1, rawLh));
+      const rawW = typeof m.width === "number" ? m.width : 168;
+      const width = Math.min(256, Math.max(8, rawW));
       const out: MenuTitleLayer = {
         kind: "textarea",
         value: { key },
         x: typeof m.x === "number" ? m.x : 0,
         y: typeof m.y === "number" ? m.y : 0,
+        width,
         lineHeight,
         alignment,
       };

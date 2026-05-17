@@ -495,6 +495,7 @@ describe("transform — textarea title layer", () => {
           value: { key: "k_ta" as I18nKey },
           x: 12,
           y: 8,
+          width: 120,
           lineHeight: 11,
           alignment: "center",
           fontAssetId: "font_a" as AssetId,
@@ -508,6 +509,7 @@ describe("transform — textarea title layer", () => {
       value: { key: "k_ta" },
       x: 12,
       y: 8,
+      width: 120,
       line_height: 11,
       alignment: "center",
       font_asset_id: "font_a",
@@ -522,6 +524,7 @@ describe("transform — textarea title layer", () => {
           value: { key: "k_ta" as I18nKey },
           x: 0,
           y: 0,
+          width: 168,
           lineHeight: 10,
           alignment: "left",
         },
@@ -553,6 +556,7 @@ describe("transform — textarea title layer", () => {
               value: { key: "k_ta" as I18nKey },
               x: 8,
               y: 6,
+              width: 168,
               lineHeight: 10,
               alignment: "left",
             },
@@ -575,6 +579,7 @@ describe("parseTitleNode — textarea", () => {
         value: { key: "k_ta" },
         x: 12,
         y: 8,
+        width: 120,
         line_height: 11,
         alignment: "center",
         font_asset_id: "font_a",
@@ -586,6 +591,7 @@ describe("parseTitleNode — textarea", () => {
         value: { key: "k_ta" },
         x: 12,
         y: 8,
+        width: 120,
         lineHeight: 11,
         alignment: "center",
         fontAssetId: "font_a",
@@ -603,7 +609,7 @@ describe("parseTitleNode — textarea", () => {
       },
     ]);
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ lineHeight: 10, alignment: "left" });
+    expect(result[0]).toMatchObject({ width: 168, lineHeight: 10, alignment: "left" });
   });
 
   it("falls back to left for unknown alignment value", () => {
@@ -613,6 +619,7 @@ describe("parseTitleNode — textarea", () => {
         value: { key: "k_ta" },
         x: 0,
         y: 0,
+        width: 168,
         line_height: 10,
         alignment: "junk",
       },
@@ -627,6 +634,7 @@ describe("parseTitleNode — textarea", () => {
         kind: "textarea",
         x: 0,
         y: 0,
+        width: 168,
         line_height: 10,
         alignment: "left",
       },
@@ -641,6 +649,7 @@ describe("parseTitleNode — textarea", () => {
         value: { key: "k_ta" },
         x: 0,
         y: 0,
+        width: 168,
         line_height: 0,
         alignment: "left",
       },
@@ -656,12 +665,51 @@ describe("parseTitleNode — textarea", () => {
         value: { key: "k_ta" },
         x: 0,
         y: 0,
+        width: 168,
         line_height: 999,
         alignment: "left",
       },
     ]);
     expect(result).toHaveLength(1);
     expect((result[0] as { lineHeight: number }).lineHeight).toBe(32);
+  });
+
+  it("parseTitleNode round-trips a textarea with width", () => {
+    const node = [
+      {
+        kind: "textarea",
+        value: { key: "k1" },
+        x: 0,
+        y: 0,
+        width: 120,
+        line_height: 10,
+        alignment: "left",
+      },
+    ];
+    const layers = parseTitleNode(node);
+    expect(layers[0]).toMatchObject({ kind: "textarea", width: 120 });
+  });
+
+  it("parseTitleNode defaults textarea width to 168 when absent", () => {
+    const node = [
+      {
+        kind: "textarea",
+        value: { key: "k1" },
+        x: 0,
+        y: 0,
+        line_height: 10,
+        alignment: "left",
+      },
+    ];
+    const layers = parseTitleNode(node);
+    expect(layers[0]).toMatchObject({ kind: "textarea", width: 168 });
+  });
+
+  it("parseTitleNode clamps textarea width to [8, 256]", () => {
+    const tooSmall = parseTitleNode([{ kind: "textarea", value: { key: "k" }, x: 0, y: 0, width: 0 }]);
+    expect(tooSmall[0]).toMatchObject({ width: 8 });
+    const tooLarge = parseTitleNode([{ kind: "textarea", value: { key: "k" }, x: 0, y: 0, width: 9999 }]);
+    expect(tooLarge[0]).toMatchObject({ width: 256 });
   });
 });
 
