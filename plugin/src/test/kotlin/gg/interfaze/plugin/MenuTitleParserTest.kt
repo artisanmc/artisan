@@ -15,24 +15,28 @@ class MenuTitleParserTest {
         assertEquals(emptyList(), MenuTitleParser.parse(""))
     }
 
-    @Test fun `legacy bare string yields one text layer at default position`() {
+    @Test fun `legacy bare string yields one plain layer`() {
         val result = MenuTitleParser.parse("Shop")
         assertEquals(1, result.size)
-        val text = result.single()
-        assertIs<MenuTitleLayer.Text>(text)
-        assertEquals(LText("Shop"), text.value)
-        assertEquals(8, text.x)
-        assertEquals(5, text.y)
-        assertNull(text.fontAssetId)
-        assertNull(text.color)
+        val plain = result.single()
+        assertIs<MenuTitleLayer.Plain>(plain)
+        assertEquals(LText("Shop"), plain.value)
+        assertNull(plain.color)
     }
 
-    @Test fun `legacy i18n-wrapped string unwraps the bare key`() {
+    @Test fun `legacy i18n-wrapped string unwraps the bare key into a plain layer`() {
         val result = MenuTitleParser.parse("{i18n:menu.shop.title}")
-        val text = result.single() as MenuTitleLayer.Text
-        assertEquals(LText("menu.shop.title"), text.value)
-        assertEquals(8, text.x)
-        assertEquals(5, text.y)
+        val plain = result.single() as MenuTitleLayer.Plain
+        assertEquals(LText("menu.shop.title"), plain.value)
+    }
+
+    @Test fun `plain kind in array is parsed correctly`() {
+        val raw = listOf(
+            mapOf("kind" to "plain", "value" to mapOf("key" to "menu.title"), "color" to "#ff0000"),
+        )
+        val plain = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Plain
+        assertEquals(LText("menu.title"), plain.value)
+        assertEquals("#ff0000", plain.color)
     }
 
     @Test fun `single map is treated as a one-layer list`() {
@@ -134,7 +138,80 @@ class MenuTitleParserTest {
         val bundle = gg.interfaze.plugin.engine.BundleCompiler.compile(yaml, emptyMap())
         assertEquals(MenuTitleParser.parse("{i18n:menu.shop.title}"), bundle.title)
         assertEquals(1, bundle.title.size)
-        val text = bundle.title.single() as MenuTitleLayer.Text
-        assertEquals(LText("menu.shop.title"), text.value)
+        val plain = bundle.title.single() as MenuTitleLayer.Plain
+        assertEquals(LText("menu.shop.title"), plain.value)
+    }
+
+    @Test fun `textarea kind parses all fields`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "menu.welcome"),
+            "x" to 12,
+            "y" to 8,
+            "line_height" to 11,
+            "alignment" to "center",
+            "font_asset_id" to "font_pixel",
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(LText("menu.welcome"), ta.value)
+        assertEquals(12, ta.x)
+        assertEquals(8, ta.y)
+        assertEquals(11, ta.lineHeight)
+        assertEquals(MenuTitleLayer.Alignment.CENTER, ta.alignment)
+        assertEquals("font_pixel", ta.fontAssetId)
+    }
+
+    @Test fun `textarea defaults lineHeight to 10 and alignment to LEFT when absent`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(10, ta.lineHeight)
+        assertEquals(MenuTitleLayer.Alignment.LEFT, ta.alignment)
+        assertNull(ta.fontAssetId)
+    }
+
+    @Test fun `textarea unknown alignment falls back to LEFT`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "alignment" to "junk",
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(MenuTitleLayer.Alignment.LEFT, ta.alignment)
+    }
+
+    @Test fun `textarea lineHeight clamps to 1 minimum`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "line_height" to 0,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(1, ta.lineHeight)
+    }
+
+    @Test fun `textarea lineHeight clamps to 32 maximum`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "line_height" to 999,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(32, ta.lineHeight)
+    }
+
+    @Test fun `textarea with missing value yields key empty string (parser leniency)`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "x" to 0, "y" to 0,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(LText(""), ta.value)
     }
 }
