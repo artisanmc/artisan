@@ -104,6 +104,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
         value: { key: newI18nKey() },
         x: placement?.x ?? 8,
         y: placement?.y ?? 6,
+        width: 168,
         lineHeight: 10,
         alignment: "left",
       };
