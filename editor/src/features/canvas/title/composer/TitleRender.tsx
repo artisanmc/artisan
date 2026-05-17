@@ -10,17 +10,38 @@ import { useCallback } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
 import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H } from "../../menuLayout";
-import { MiniMessageKonvaText } from "../../MiniMessageKonvaText";
 import { McFontText } from "../McFontText";
-import { ResizeHandles } from "./ResizeHandles";
+import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { snapDragPosition } from "./snap";
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
 /** Vanilla chest title bar width, in MC pixels. Matches `MC_W` in menuLayout. */
 const TITLE_BAR_W = 176;
-/** MC default font ascent — used to push McFontText's baseline down to match
- *  the plugin's runtime placement. */
+/** MC default title label X offset (AbstractContainerScreen.titleLabelX). */
+const TITLE_LABEL_X = 8;
+/**
+ * MC default font ascent. Used to position McFontText's baseline within the
+ * text group: baseline = group_origin + BASELINE_Y_PX.
+ */
 const BASELINE_Y_PX = 7;
+/**
+ * MC chest GUI title draw Y (AbstractContainerScreen.titleLabelY).
+ * TitleCompiler wraps text in `<font:interfaze:text_y{Y}>` whose ascent shifts
+ * the baseline so the glyph top lands at the desired Y — `layer.y` IS used.
+ */
+const MC_TITLE_LABEL_Y = 6;
+/**
+ * Empirically confirmed MC formula: glyph_top = GLYPH_Y_BASE - ascent.
+ * Used to position background and glyph layers in the editor so they match
+ * exactly what TitleCompiler renders in-game. layer.y is NOT used by the
+ * plugin — vertical placement is fully determined by asset.ascent.
+ */
+const GLYPH_Y_BASE = 13;
+/**
+ * MC default font character height in pixels. Used as the approximated
+ * font size for MiniMessageKonvaText (vector fallback, not pixel-perfect).
+ */
+const MC_FONT_HEIGHT_PX = 8;
 
 interface TitleRenderProps {
   packId: PackId;
@@ -59,21 +80,15 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
 
   const onBackdropClick = useCallback(
     (_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      // Clicking the grey title-bar area (anywhere not on a layer):
-      //   1. Makes this menu the selected one in `uiStore` (v3 — drives
-      //      LayersPanel and the sticky lastSelectedMenuId mirror).
-      //   2. Clears any title-layer selection that belonged to this menu
-      //      (matches the v2 "click empty area = deselect layer" feel).
-      // We deliberately do NOT cancelBubble — MenuGroup's parent onClick
-      // still needs to fire so the menu becomes the selectionStore selection
-      // (used by element selection / drag-out logic). Both stores end up
-      // pointing at this menu after a title-bar click.
+      // Clicking the title-bar area (not on a layer) selects this menu and
+      // clears any active title-layer selection (regardless of which menu it
+      // belongs to — "click elsewhere = deselect" applies globally).
+      // No cancelBubble: MenuGroup's onClick still fires so the menu enters
+      // the selection store used by element/drag-out logic.
       setSelectedMenuId(menuId);
-      if (selectedLayerKey?.menuId === menuId) {
-        setSelectedLayerKey(null);
-      }
+      setSelectedLayerKey(null);
     },
-    [menuId, selectedLayerKey, setSelectedLayerKey, setSelectedMenuId],
+    [menuId, setSelectedLayerKey, setSelectedMenuId],
   );
 
   if (!pack || !menu) return null;
@@ -105,10 +120,10 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
             ? assets.find((a) => a.id === layer.assetId)
             : undefined;
         const fontAsset =
-          layer.kind === "text" && layer.fontAssetId
+          (layer.kind === "text" || layer.kind === "textarea") && layer.fontAssetId
             ? assets.find((a) => a.id === layer.fontAssetId)
             : undefined;
-        const text = layer.kind === "text" ? getText(pack, layer.value, activeLang) : "";
+        const text = (layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea") ? getText(pack, layer.value, activeLang) : "";
         const selected =
           selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
@@ -157,30 +172,65 @@ function LayerNode({
 }: LayerNodeProps) {
   const [image] = useImage(asset ? assetPreviewUrl(asset) : "");
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
-  const { onPositionChange, onResize, onResizeEnd } = useTitleLayerDrag({
-    menuId,
-    layerIndex: index,
-  });
+  const { onPositionChange } = useTitleLayerDrag({ menuId, layerIndex: index });
 
-  // Group position. Background pins below the title bar (matches the plugin
-  // runtime which uses negative ascent to push the glyph down). Other layers
-  // use their explicit (x, y) in domain coords.
-  const groupX = layer.kind === "background" ? 0 : "x" in layer ? layer.x * scale : 0;
+  // Reference ascent for text layers with a custom font. The maximum ascent
+  // across all glyphs determines the topmost rendered pixel: groupY is placed
+  // there so the hit area aligns with the actual visual. McFontText is then
+  // given `fontRefAscent * scale` as its baseline-y so the highest glyph top
+  // lands at y=0 relative to the group.
+  // For vanilla text (no fontAsset) this is null and falls back to MC_TITLE_LABEL_Y.
+  const fontRefAscent: number | null =
+    (layer.kind === "text" || layer.kind === "textarea") && fontAsset?.fontMeta?.glyphMap.length
+      ? Math.max(...fontAsset.fontMeta.glyphMap.map((g) => g.ascent))
+      : null;
+
+  // Height of text layer content in MC pixels: from the topmost glyph (ascent
+  // = fontRefAscent, top at y=0) to the bottom of the deepest glyph.
+  const textContentH: number =
+    fontRefAscent != null && fontAsset?.fontMeta?.glyphMap.length
+      ? Math.max(
+          ...fontAsset.fontMeta.glyphMap.map((g) => (fontRefAscent - g.ascent) + g.height),
+        )
+      : MC_FONT_HEIGHT_PX;
+
+  // Group position. Background and glyph Y are derived from asset.ascent
+  // via the empirically confirmed formula: glyph_top = GLYPH_Y_BASE - ascent.
+  // Text with a custom font uses the font's max ascent the same way so the
+  // group origin aligns with the first visible pixel (enables body-area text).
+  // Plain text falls back to MC_TITLE_LABEL_Y.
+  const groupX =
+    layer.kind === "background" ? 0
+    : layer.kind === "plain" ? TITLE_LABEL_X * scale
+    : "x" in layer ? layer.x * scale : 0;
   const groupY =
     layer.kind === "background"
-      ? MC_TITLE_H * scale
-      : "y" in layer
-        ? layer.y * scale
-        : 0;
+      ? (asset?.ascent != null ? (GLYPH_Y_BASE - asset.ascent) * scale : MC_TITLE_H * scale)
+      : layer.kind === "plain"
+        ? MC_TITLE_LABEL_Y * scale
+        : layer.kind === "text"
+          ? fontRefAscent != null
+            ? (GLYPH_Y_BASE - fontRefAscent) * scale
+            : layer.y * scale
+          : layer.kind === "glyph"
+            ? (asset?.ascent != null ? (GLYPH_Y_BASE - asset.ascent) * scale : layer.y * scale)
+            : layer.kind === "textarea"
+              ? layer.y * scale
+              : "y" in layer
+                ? layer.y * scale
+                : 0;
 
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      // Stop the click from bubbling up to the menu's own click handler —
-      // selecting a layer should not also select/move the parent menu.
       e.cancelBubble = true;
-      setSelectedLayerKey({ menuId, index });
+      // Toggle: clicking a selected layer deselects it (lets the user dismiss
+      // focus without needing to click the backdrop or an empty slot area).
+      if (selected) {
+        setSelectedLayerKey(null);
+      }
+      // When not selected, hit area is listening=false so this never fires.
     },
-    [menuId, index, setSelectedLayerKey],
+    [selected, setSelectedLayerKey],
   );
 
   const handleDragStart = useCallback(
@@ -206,18 +256,27 @@ function LayerNode({
       // See `handleDragStart` — without this, MenuGroup's onDragEnd fires too
       // and overwrites the menu position with the layer's coords.
       e.cancelBubble = true;
-      if (layer.kind === "background") return; // bg has no x/y
+      if (layer.kind === "background" || layer.kind === "plain") return; // no x/y
       const evt = e.evt as DragEvent & { shiftKey: boolean; altKey: boolean };
       const snapped = snapDragPosition(e.target.x(), e.target.y(), scale, {
         shift: Boolean(evt.shiftKey),
         alt: Boolean(evt.altKey),
       });
+      // Y is controlled by asset/font ascent for glyphs and custom-font text.
+      // Plain text and external_glyph use the dragged Y (free positioning via
+      // Y-specific ascii fonts in the resource pack).
+      const finalY =
+        layer.kind === "text" && fontRefAscent != null
+          ? GLYPH_Y_BASE - fontRefAscent
+          : layer.kind === "glyph" && asset?.ascent != null
+            ? GLYPH_Y_BASE - asset.ascent
+            : snapped.y;
       // Snap the node back so Konva's internal position matches the
       // committed domain coords (no sub-pixel drift on subsequent drags).
-      e.target.position({ x: snapped.x * scale, y: snapped.y * scale });
-      onPositionChange({ x: snapped.x, y: snapped.y });
+      e.target.position({ x: snapped.x * scale, y: finalY * scale });
+      onPositionChange({ x: snapped.x, y: finalY });
     },
-    [layer.kind, scale, onPositionChange],
+    [layer.kind, asset?.ascent, fontRefAscent, scale, onPositionChange],
   );
 
   // Intrinsic bounding-box for image-kind layers — drives both the selection
@@ -227,6 +286,16 @@ function LayerNode({
     (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
   const imageH =
     (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
+
+  const textareaLines = layer.kind === "textarea" ? text.split("\n") : [];
+  const textareaMaxLineW =
+    layer.kind === "textarea"
+      ? Math.max(...textareaLines.map((l) => vanillaTextWidth(l)), 8)
+      : 0;
+  const textareaTotalH =
+    layer.kind === "textarea"
+      ? Math.max(1, textareaLines.length) * layer.lineHeight
+      : 0;
 
   // Per-kind body. Background and glyph share the image path.
   let body: React.ReactNode = null;
@@ -242,21 +311,71 @@ function LayerNode({
         text={text}
         font={fontAsset}
         x={0}
-        y={BASELINE_Y_PX * scale}
+        y={fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale}
         scale={scale}
         listening={false}
       />
     ) : (
-      <MiniMessageKonvaText
+      <VanillaMcText
         source={text}
         x={0}
         y={0}
-        fontSize={BASELINE_Y_PX * scale}
+        scale={scale}
         defaultColor="#404040"
         listening={false}
       />
     );
-  } else {
+  } else if (layer.kind === "plain") {
+    body = (
+      <VanillaMcText
+        source={text}
+        x={0}
+        y={0}
+        scale={scale}
+        defaultColor="#404040"
+        listening={false}
+      />
+    );
+  } else if (layer.kind === "textarea") {
+    const lines = text.split("\n");
+    body = (
+      <>
+        {lines.map((line, i) => {
+          const lineWidth = vanillaTextWidth(line);
+          const lineX =
+            layer.alignment === "center"
+              ? -(lineWidth / 2) * scale
+              : layer.alignment === "right"
+                ? -lineWidth * scale
+                : 0;
+          const lineY = i * layer.lineHeight * scale;
+          return fontAsset ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable visual order
+            <McFontText
+              key={i}
+              text={line}
+              font={fontAsset}
+              x={lineX}
+              y={lineY + (fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale)}
+              scale={scale}
+              listening={false}
+            />
+          ) : (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable visual order
+            <VanillaMcText
+              key={i}
+              source={line}
+              x={lineX}
+              y={lineY}
+              scale={scale}
+              defaultColor="#404040"
+              listening={false}
+            />
+          );
+        })}
+      </>
+    );
+  } else if (layer.kind === "external_glyph") {
     // external_glyph — runtime resolves these; in the editor we show a
     // dashed placeholder labelled with `provider:glyphName` (SP5 will do
     // proper rendering).
@@ -283,51 +402,54 @@ function LayerNode({
     );
   }
 
-  // Background can't be dragged (no x/y in domain), other layers are.
-  const draggable = layer.kind !== "background";
+  // Drag is only active when the layer is selected. Unselected layers are
+  // click-through: events fall to the backdrop (which deselects) or the
+  // underlying menu. This preserves menu clickability.
+  const draggable = selected && layer.kind !== "background";
 
-  // Selection outline dimensions — match the body's intrinsic box.
+  // Bounding-box dimensions — used for the selection outline and hit area.
   const outlineW =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageW
       : layer.kind === "external_glyph"
         ? 10 * scale
-        : Math.max(text.length * 4 * scale, 8);
+        : layer.kind === "textarea"
+          ? textareaMaxLineW * scale
+          : Math.max(vanillaTextWidth(text) * scale, 8);
   const outlineH =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageH
       : layer.kind === "external_glyph"
         ? 10 * scale
-        : 7 * scale;
+        : layer.kind === "textarea"
+          ? textareaTotalH * scale
+          : MC_FONT_HEIGHT_PX * scale;
 
-  // ResizeHandles only render for selected image-kind layers (background or
-  // glyph). Other kinds don't have a meaningful "resize" semantic in v3.
-  const showResizeHandles =
-    selected && (layer.kind === "background" || layer.kind === "glyph");
-
-  // Text and external_glyph bodies don't form a reliable hit area — text
-  // hit-tests on rendered glyphs only (sub-pixel gaps between letters break
-  // Konva's drag pickup), and the external_glyph placeholder uses
-  // `listening={false}` on every child. Without a backing hit area, Group's
-  // `draggable` triggers nowhere and the user can't move the layer.
+  // All layer kinds need an explicit hit area: KonvaImage has listening={false}
+  // (so glyph/background Groups have no listening child), text hit-tests on
+  // rendered glyphs only (gaps break drag pickup), and external_glyph uses
+  // listening={false} on every child.
   //
   // We render an almost-transparent Rect sized to the layer's bounding box
   // BEFORE the visible body so Konva picks it up on mousedown anywhere
   // inside the outline (drag works, click selects). The same trick is used
   // for the title-bar backdrop above.
-  const needsHitArea = layer.kind === "text" || layer.kind === "external_glyph";
   const hitW =
-    layer.kind === "text"
-      ? Math.max(text.length * 4 * scale, 8)
-      : layer.kind === "external_glyph"
-        ? 10 * scale
-        : 0;
+    layer.kind === "background" || layer.kind === "glyph"
+      ? imageW
+      : layer.kind === "text" || layer.kind === "plain"
+        ? Math.max(vanillaTextWidth(text) * scale, 8)
+        : layer.kind === "textarea"
+          ? textareaMaxLineW * scale
+          : 10 * scale;
   const hitH =
-    layer.kind === "text"
-      ? 7 * scale
-      : layer.kind === "external_glyph"
-        ? 10 * scale
-        : 0;
+    layer.kind === "background" || layer.kind === "glyph"
+      ? imageH
+      : layer.kind === "text" || layer.kind === "plain"
+        ? MC_FONT_HEIGHT_PX * scale
+        : layer.kind === "textarea"
+          ? textareaTotalH * scale
+          : 10 * scale;
 
   return (
     <Group
@@ -340,19 +462,10 @@ function LayerNode({
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
-      {needsHitArea ? (
-        // Hit area at z=0 — under the visible body so it doesn't obscure
-        // anything, but listening={true} (default) so it captures pointer
-        // events on the whole bounding box. Near-zero-alpha fill keeps it
-        // invisible while still hit-testable.
-        <Rect
-          x={0}
-          y={0}
-          width={hitW}
-          height={hitH}
-          fill="rgba(0,0,0,0.001)"
-        />
-      ) : null}
+      {/* Hit area — only listening when selected. Unselected layers are
+          click-through so the underlying menu remains reachable. When
+          selected, this Rect captures pointer events for drag and click. */}
+      <Rect x={0} y={0} width={hitW} height={hitH} fill="rgba(0,0,0,0.001)" listening={selected} />
       {body}
       {selected ? (
         // Yellow 1-px stroke around the bounding box. Matches the v3 design
@@ -366,16 +479,6 @@ function LayerNode({
           strokeWidth={1}
           fill="transparent"
           listening={false}
-        />
-      ) : null}
-      {showResizeHandles ? (
-        <ResizeHandles
-          x={0}
-          y={0}
-          width={outlineW}
-          height={outlineH}
-          onResize={onResize}
-          onResizeEnd={onResizeEnd}
         />
       ) : null}
     </Group>
