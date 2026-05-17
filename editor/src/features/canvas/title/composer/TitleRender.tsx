@@ -14,6 +14,51 @@ import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { snapDragPosition } from "./snap";
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
+import { WidthResizeHandle } from "./WidthResizeHandle";
+
+const TAG_RX = /<[^>]+>/g;
+
+/**
+ * TS port of TitleCompiler.wrapLine. Splits a single line into sub-lines that
+ * fit within maxWidth (MC pixels). Wraps on whitespace; words wider than
+ * maxWidth overflow on their own line. MiniMessage tags are stripped for
+ * measurement but kept in the output verbatim.
+ */
+function wrapLineJs(line: string, maxWidth: number): string[] {
+  if (line === "") return [""];
+  const tokens = line.split(/(?<=\s)|(?=\s)/).filter((t) => t !== "");
+  const out: string[] = [];
+  let current = "";
+  let currentW = 0;
+  for (const tok of tokens) {
+    const tokW = vanillaTextWidth(tok.replace(TAG_RX, ""));
+    if (currentW + tokW <= maxWidth) {
+      current += tok;
+      currentW += tokW;
+      continue;
+    }
+    if (current.trim() === "") {
+      out.push(tok.trimEnd());
+      current = "";
+      currentW = 0;
+      continue;
+    }
+    out.push(current.trimEnd());
+    const trimmed = tok.trimStart();
+    if (trimmed !== "") {
+      current = trimmed;
+      currentW = vanillaTextWidth(trimmed.replace(TAG_RX, ""));
+    } else {
+      current = "";
+      currentW = 0;
+    }
+  }
+  if (current !== "") {
+    const flushed = current.trimEnd();
+    if (flushed !== "") out.push(flushed);
+  }
+  return out.length === 0 ? [""] : out;
+}
 
 /** Vanilla chest title bar width, in MC pixels. Matches `MC_W` in menuLayout. */
 const TITLE_BAR_W = 176;
@@ -287,11 +332,11 @@ function LayerNode({
   const imageH =
     (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
 
-  const textareaLines = layer.kind === "textarea" ? text.split("\n") : [];
-  const textareaMaxLineW =
+  const textareaLines =
     layer.kind === "textarea"
-      ? Math.max(...textareaLines.map((l) => vanillaTextWidth(l)), 8)
-      : 0;
+      ? text.split("\n").flatMap((l) => wrapLineJs(l, layer.width))
+      : [];
+  const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
   const textareaTotalH =
     layer.kind === "textarea"
       ? Math.max(1, textareaLines.length) * layer.lineHeight
@@ -337,7 +382,8 @@ function LayerNode({
       />
     );
   } else if (layer.kind === "textarea") {
-    const lines = text.split("\n");
+    const hardLines = text.split("\n");
+    const lines = hardLines.flatMap((l) => wrapLineJs(l, layer.width));
     body = (
       <>
         {lines.map((line, i) => {
@@ -414,7 +460,7 @@ function LayerNode({
       : layer.kind === "external_glyph"
         ? 10 * scale
         : layer.kind === "textarea"
-          ? textareaMaxLineW * scale
+          ? textareaBoxW * scale
           : Math.max(vanillaTextWidth(text) * scale, 8);
   const outlineH =
     layer.kind === "background" || layer.kind === "glyph"
@@ -440,7 +486,7 @@ function LayerNode({
       : layer.kind === "text" || layer.kind === "plain"
         ? Math.max(vanillaTextWidth(text) * scale, 8)
         : layer.kind === "textarea"
-          ? textareaMaxLineW * scale
+          ? textareaBoxW * scale
           : 10 * scale;
   const hitH =
     layer.kind === "background" || layer.kind === "glyph"
@@ -468,18 +514,37 @@ function LayerNode({
       <Rect x={0} y={0} width={hitW} height={hitH} fill="rgba(0,0,0,0.001)" listening={selected} />
       {body}
       {selected ? (
-        // Yellow 1-px stroke around the bounding box. Matches the v3 design
-        // spec (was emerald in v2).
-        <Rect
-          x={-1}
-          y={-1}
-          width={outlineW + 2}
-          height={outlineH + 2}
-          stroke="#eab308"
-          strokeWidth={1}
-          fill="transparent"
-          listening={false}
-        />
+        <>
+          {/* Yellow 1-px stroke around the bounding box. Matches the v3 design
+              spec (was emerald in v2). */}
+          <Rect
+            x={-1}
+            y={-1}
+            width={outlineW + 2}
+            height={outlineH + 2}
+            stroke="#eab308"
+            strokeWidth={1}
+            fill="transparent"
+            listening={false}
+          />
+          {layer.kind === "textarea" ? (
+            <WidthResizeHandle
+              x={outlineW}
+              y={0}
+              height={outlineH}
+              currentWidth={layer.width}
+              scale={scale}
+              onResize={(newWidth) => {
+                useAccountStore.getState().updateMenuTitleLayer({
+                  packId: _packId,
+                  menuId,
+                  index,
+                  patch: { width: newWidth } as Partial<MenuTitleLayer>,
+                });
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
     </Group>
   );
