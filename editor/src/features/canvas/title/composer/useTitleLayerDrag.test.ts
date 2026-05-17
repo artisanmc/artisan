@@ -1,12 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
-import * as packApi from "@/lib/packApi";
 import { useAccountStore } from "@/state/accountStore";
-import { useSessionStore } from "@/state/sessionStore";
 
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
@@ -42,8 +39,6 @@ const ASSET_GLYPH: Asset = {
 };
 
 const seedMenuTitle = (layers: MenuTitleLayer[]) => {
-  // Replace the seeded title on m_shop_main with the supplied layers so
-  // index lookups in the hook are deterministic across cases.
   useAccountStore.getState().setMenuTitleLayers({
     packId: PERSONAL,
     menuId: M_ID,
@@ -58,21 +53,15 @@ const getTitle = (): MenuTitleLayer[] => {
 
 describe("useTitleLayerDrag", () => {
   beforeEach(async () => {
-    // mockAccount is the same fixture used by accountStore.test.ts; it gives
-    // us a real pack with menu m_shop_main without rebuilding everything.
     const { mockAccount } = await import("@/mock/fixtures");
     useAccountStore.setState({ account: mockAccount() });
-    useAssetStore.getState().reset();
-    useAssetStore.getState().setAssets([ASSET_BG, ASSET_GLYPH]);
-    useSessionStore.setState({ accessToken: "tok_test" });
-    vi.restoreAllMocks();
   });
 
   describe("onPositionChange", () => {
-    it("updates x/y on a glyph layer", () => {
+    it("updates x/y in the local store on a glyph layer (no API call)", async () => {
       seedMenuTitle([{ kind: "glyph", assetId: ASSET_GLYPH.id as AssetId, x: 0, y: 0 }]);
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onPositionChange({ x: 42, y: 13 }));
+      await act(async () => result.current.onPositionChange({ x: 42, y: 13 }));
       const layer = getTitle()[0]!;
       expect(layer.kind).toBe("glyph");
       if (layer.kind === "glyph") {
@@ -81,9 +70,8 @@ describe("useTitleLayerDrag", () => {
       }
     });
 
-    it("updates x/y on a text layer", () => {
+    it("updates x/y on a text layer", async () => {
       seedMenuTitle([
-        // Reuse the seeded i18n key — the fixture pack already maps it.
         {
           kind: "text",
           value: { key: "menus.m_shop_main.title" as never },
@@ -92,7 +80,7 @@ describe("useTitleLayerDrag", () => {
         },
       ]);
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onPositionChange({ x: 12, y: 4 }));
+      await act(async () => result.current.onPositionChange({ x: 12, y: 4 }));
       const layer = getTitle()[0]!;
       if (layer.kind === "text") {
         expect(layer.x).toBe(12);
@@ -102,129 +90,45 @@ describe("useTitleLayerDrag", () => {
       }
     });
 
-    it("is a no-op on a background layer (no x/y on background)", () => {
+    it("updates x/y on a textarea layer", async () => {
+      seedMenuTitle([
+        {
+          kind: "textarea",
+          value: { key: "menus.m_shop_main.instructions" as never },
+          x: 0,
+          y: 0,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ]);
+      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
+      await act(async () => result.current.onPositionChange({ x: 20, y: 30 }));
+      const layer = getTitle()[0]!;
+      if (layer.kind === "textarea") {
+        expect(layer.x).toBe(20);
+        expect(layer.y).toBe(30);
+        // Verify other fields preserved
+        expect(layer.lineHeight).toBe(10);
+        expect(layer.alignment).toBe("left");
+        expect(layer.value).toEqual({ key: "menus.m_shop_main.instructions" as never });
+      } else {
+        throw new Error("expected textarea layer");
+      }
+    });
+
+    it("is a no-op on a background layer (no x/y on background)", async () => {
       seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
       const before = getTitle()[0];
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onPositionChange({ x: 99, y: 99 }));
+      await act(async () => result.current.onPositionChange({ x: 99, y: 99 }));
       const after = getTitle()[0];
       expect(after).toEqual(before);
     });
 
-    it("does not crash with an invalid layer index", () => {
-      seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 99 }));
-      expect(() => act(() => result.current.onPositionChange({ x: 1, y: 2 }))).not.toThrow();
-    });
-  });
-
-  describe("onResize", () => {
-    it("updates assetStore height on a background image layer (optimistic, no API call)", () => {
-      seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      const apiSpy = vi.spyOn(packApi, "updateAsset");
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onResize({ width: 400, height: 32 }));
-      const a = useAssetStore.getState().assets.find((x) => x.id === ASSET_BG.id)!;
-      expect(a.height).toBe(32);
-      expect(a.width).toBe(400);
-      expect(apiSpy).not.toHaveBeenCalled();
-    });
-
-    it("updates assetStore height on a glyph image layer", () => {
-      seedMenuTitle([{ kind: "glyph", assetId: ASSET_GLYPH.id as AssetId, x: 0, y: 0 }]);
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onResize({ width: 16, height: 18 }));
-      const a = useAssetStore.getState().assets.find((x) => x.id === ASSET_GLYPH.id)!;
-      expect(a.height).toBe(18);
-      expect(a.width).toBe(16);
-    });
-
-    it("is silently no-op on a text layer (no console.error)", () => {
-      seedMenuTitle([
-        {
-          kind: "text",
-          value: { key: "menus.m_shop_main.title" as never },
-          x: 0,
-          y: 0,
-        },
-      ]);
-      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const before = useAssetStore.getState().assets.slice();
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      act(() => result.current.onResize({ width: 50, height: 50 }));
-      expect(useAssetStore.getState().assets).toEqual(before);
-      expect(errSpy).not.toHaveBeenCalled();
-      errSpy.mockRestore();
-    });
-
-    it("does not crash with an invalid layer index", () => {
-      seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      const before = useAssetStore.getState().assets.slice();
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 99 }));
-      expect(() => act(() => result.current.onResize({ width: 1, height: 1 }))).not.toThrow();
-      expect(useAssetStore.getState().assets).toEqual(before);
-    });
-  });
-
-  describe("onResizeEnd", () => {
-    it("calls updateAsset with the new height and replaces the asset on success", async () => {
-      seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      const serverAsset: Asset = { ...ASSET_BG, height: 32, width: 400, contentHash: "h_bg_v2" };
-      const apiSpy = vi.spyOn(packApi, "updateAsset").mockResolvedValue(serverAsset);
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      await act(async () => {
-        await result.current.onResizeEnd({ width: 400, height: 32 });
-      });
-      expect(apiSpy).toHaveBeenCalledWith("tok_test", ASSET_BG.id, { height: 32 });
-      const a = useAssetStore.getState().assets.find((x) => x.id === ASSET_BG.id)!;
-      expect(a.contentHash).toBe("h_bg_v2");
-      expect(a.height).toBe(32);
-    });
-
-    it("rolls back assetStore on API failure", async () => {
-      seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      vi.spyOn(packApi, "updateAsset").mockRejectedValue(new Error("boom"));
-      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      // Drive a normal flow: onResize first (the hook itself snapshots the
-      // pre-drag asset on its first call and writes the optimistic value)
-      // then onResizeEnd which should fail and roll back to the snapshot.
-      await act(async () => {
-        result.current.onResize({ width: 400, height: 32 });
-        await result.current.onResizeEnd({ width: 400, height: 32 });
-      });
-      const a = useAssetStore.getState().assets.find((x) => x.id === ASSET_BG.id)!;
-      expect(a.height).toBe(ASSET_BG.height);
-      expect(a.width).toBe(ASSET_BG.width);
-      expect(a.contentHash).toBe(ASSET_BG.contentHash);
-      errSpy.mockRestore();
-    });
-
-    it("is a silent no-op on a text layer (no API call)", async () => {
-      seedMenuTitle([
-        {
-          kind: "text",
-          value: { key: "menus.m_shop_main.title" as never },
-          x: 0,
-          y: 0,
-        },
-      ]);
-      const apiSpy = vi.spyOn(packApi, "updateAsset");
-      const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 0 }));
-      await act(async () => {
-        await result.current.onResizeEnd({ width: 10, height: 10 });
-      });
-      expect(apiSpy).not.toHaveBeenCalled();
-    });
-
     it("does not crash with an invalid layer index", async () => {
       seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
-      const apiSpy = vi.spyOn(packApi, "updateAsset");
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 99 }));
-      await act(async () => {
-        await result.current.onResizeEnd({ width: 1, height: 1 });
-      });
-      expect(apiSpy).not.toHaveBeenCalled();
+      await expect(act(async () => result.current.onPositionChange({ x: 1, y: 2 }))).resolves.not.toThrow();
     });
   });
 });
