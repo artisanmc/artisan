@@ -175,12 +175,22 @@ title:
     y: 5
     color: "#FFAA00"     # optionnel
     font_asset_id: ...   # optionnel (Sub-project 4)
+  - kind: textarea
+    value:
+      key: i18nKey_block
+    x: 8
+    y: 6
+    line_height: 10
+    alignment: left      # left | center | right
+    font_asset_id: ...   # optionnel (Sub-project 4)
   - kind: external_glyph
     provider: oraxen     # nexo | oraxen | itemsadder
     glyph_name: my_glyph
     x: 50
     y: 5
 ```
+
+Le kind `textarea` (SP5) est un bloc de texte multi-ligne. La string i18n est split sur `\n` au runtime ; chaque ligne est rendue à `(x, y + i * line_height)` avec l'`alignment` (`left`/`center`/`right`) partagé sur toutes les lignes. La police optionnelle `font_asset_id` s'applique aussi à toutes les lignes.
 
 Le plugin embarque un `assets/interfaze/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:interfaze:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
 
@@ -194,13 +204,15 @@ Pipeline :
 2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update du resource pack et construit un `OffsetEncoder` (`gg.interfaze.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, et avance `currentX = targetX + estimateBodyWidth(layer)`.
 3. **Estimation de largeur** — best-effort : Image (background/glyph) → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique du width par défaut MC, imprécis pour les caractères très étroits/larges) ; ExternalGlyph → 8 px.
 
+**Système de coordonnées x** : `layer.x` est exprimé en pixels depuis le bord gauche du coffre (`chest-x 0`). Le titre MC est dessiné à `titleLabelX = 8` (bord gauche du coffre + 8 px). `TitleCompiler` initialise `currentX = TITLE_LABEL_X = 8` pour absorber ce décalage : une layer à `x=8` produit un offset nul (position naturelle du titre), une layer à `x=0` produit un offset `-8` (bord gauche du coffre).
+
 L'encoder du plugin est lenient : il ne lève **jamais** d'exception, retourne `""` quand la table est vide (catalog pas encore chargé), et fait du best-effort hors plage. Côté backend, `encodeOffset` est strict (throw) pour attraper les bugs à la source.
 
 ### Custom fonts (SP4)
 
 Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
-Background = "gros glyph" : l'utilisateur upload un glyph avec ascent négatif pour couvrir le menu. Le pack canvas affiche les menus en forme finale (toutes layers + items dessus) en édition directe — `MenuGroup` rend `TitleRender` interactif (drag layers, resize handles, sélection).
+Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est calibré pour couvrir la zone souhaitée. Le `LayerEditForm` pour les layers Background expose un bouton "Calibrer pour coffre" qui set `ascent = -11` (couvre la zone des slots, en-dessous de la barre de titre). Pour couvrir depuis le haut du coffre (y=0), utiliser `ascent = 6`. Formule : `ascent = titleLabelY(6) - targetY`. Le pack canvas affiche les menus en forme finale (toutes layers + items dessus) en édition directe — `MenuGroup` rend `TitleRender` interactif (drag layers, resize handles, sélection).
 
 ### Title Composer UX v3
 
@@ -273,8 +285,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 | Scope | Fichiers | Count |
 |---|---|---|
 | Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 258 pass / 1 pre-existing failure (`link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest`, `AssetCatalogTest`, `TitleCompilerTest`, `OffsetEncoderTest`, etc. | 277 |
-| Editor unit | Vitest, 622 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, etc. | 622 |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, etc. | 303 |
+| Editor unit | Vitest, 675 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText), etc. | 675 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
