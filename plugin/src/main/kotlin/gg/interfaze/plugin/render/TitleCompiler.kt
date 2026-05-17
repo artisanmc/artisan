@@ -39,14 +39,57 @@ object TitleCompiler {
     /** Default font wrapper for the title. */
     private const val DEFAULT_FONT = "interfaze:default"
 
+    /**
+     * Standard MC chest GUI title draw X offset (`titleLabelX = 8`). The title
+     * Component's cursor 0 corresponds to chest-x 8, so we start `currentX` at
+     * this value to convert from chest-left-relative layer coordinates (what the
+     * editor stores) to plugin cursor coordinates.
+     *
+     * Exposed `internal` so unit tests can reference the constant directly.
+     */
+    internal const val TITLE_LABEL_X = 8
+
     /** Fallback width for an image asset whose `width` is unknown (legacy v1 pack). */
     private const val FALLBACK_IMAGE_WIDTH = 16
 
-    /** Approximate pixel width of one MC default-font character. */
-    private const val APPROX_CHAR_WIDTH = 6
-
     /** Width estimate for an external-provider glyph (since we can't introspect it). */
     private const val EXTERNAL_GLYPH_WIDTH = 8
+
+    /**
+     * Per-character advance (px) for the MC 1.21 default ASCII bitmap font
+     * (minecraft:font/ascii.png, 8×8 glyph cells, height=8, scale=1).
+     *
+     * Formula: advance = (rightmost_non_transparent_column + 1) + 1 spacing.
+     * Space uses the `space` provider in text_y{Y}.json → 4 px (same as vanilla).
+     * Non-ASCII characters fall back to 6 (most extended Latin chars are 5-wide).
+     * Scanned from the actual 1.21.4 ascii.png via alpha-channel rightmost column.
+     */
+    private fun charAdvance(ch: Char): Int = when (ch) {
+        ' '  -> 4
+        '!'  -> 2; '"'  -> 4; '#'  -> 6; '$'  -> 6; '%'  -> 6; '&'  -> 6
+        '\'' -> 2; '('  -> 4; ')'  -> 4; '*'  -> 4; '+'  -> 6; ','  -> 2
+        '-'  -> 6; '.'  -> 2; '/'  -> 6
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> 6
+        ':'  -> 2; ';'  -> 2; '<'  -> 5; '='  -> 6; '>'  -> 5; '?'  -> 6
+        '@'  -> 7
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' -> 6
+        'I'  -> 4
+        'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+        'U', 'V', 'W', 'X', 'Y', 'Z' -> 6
+        '['  -> 4; '\\'  -> 6; ']'  -> 4; '^'  -> 6; '_'  -> 6; '`'  -> 3
+        'a', 'b', 'c', 'd', 'e' -> 6
+        'f'  -> 5
+        'g', 'h' -> 6
+        'i'  -> 2
+        'j'  -> 6
+        'k'  -> 5
+        'l'  -> 3
+        'm', 'n', 'o', 'p', 'q', 'r', 's' -> 6
+        't'  -> 4
+        'u', 'v', 'w', 'x', 'y', 'z' -> 6
+        '{'  -> 4; '|'  -> 2; '}'  -> 4; '~'  -> 7
+        else -> 6
+    }
 
     /**
      * Compiles [layers] into a [Component]. Returns [Component.empty] when
@@ -67,10 +110,31 @@ object TitleCompiler {
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
     ): Component {
         if (layers.isEmpty()) return Component.empty()
+        // Plain (vanilla) mode: no resource pack, no font wrapper, no shadow suppression.
+        // Emit raw MiniMessage and let MC render with its default font and shadow.
+        if (layers.all { it is MenuTitleLayer.Plain }) {
+            val sb = StringBuilder()
+            for (layer in layers) {
+                layer as MenuTitleLayer.Plain
+                val text = resolveLText(layer.value, langMap)
+                sb.append(layer.color?.let { "<color:$it>$text</color>" } ?: text)
+            }
+            return MiniMessage.miniMessage().deserialize(sb.toString())
+        }
+        // Stable-sort so non-text layers come first. Image/glyph widths are known
+        // from the asset catalog, so cursor tracking is exact for them. Text widths
+        // are estimated (length × APPROX_CHAR_WIDTH), so placing text last means
+        // estimation error never propagates to subsequent glyph/background positions.
+        // Within each group the original array order (= visual stacking from bottom
+        // to top) is preserved.
+        val sorted = layers.sortedWith(compareBy { if (it is MenuTitleLayer.Text) 1 else 0 })
         val sb = StringBuilder()
         sb.append("<font:$DEFAULT_FONT>")
-        var currentX = 0
-        for (layer in layers) {
+        // Start the cursor at TITLE_LABEL_X so layer.x values (chest-left-relative,
+        // matching the editor's coordinate system) map correctly to the title string's
+        // cursor position (which MC draws at titleLabelX from the chest left edge).
+        var currentX = TITLE_LABEL_X
+        for (layer in sorted) {
             val targetX = layerX(layer)
             if (targetX != currentX) {
                 sb.append(offsetEncoder.encode(targetX - currentX))
@@ -96,31 +160,47 @@ object TitleCompiler {
         layer: MenuTitleLayer,
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
-    ): String = when (layer) {
+    ): String { return when (layer) {
         is MenuTitleLayer.Background -> {
             val entry = lookupAsset(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
-            "$ch"
+            // Explicit white: chest titles render with MC's dark-gray 0x404040 by default.
+            // Without a color override the glyph pixels get tinted dark, making the image
+            // look wrong. White (×1.0 multiply) preserves the original PNG colors.
+            "<white>$ch</white>"
         }
         is MenuTitleLayer.Glyph -> {
             val entry = lookupAsset(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
-            "$ch"
+            "<white>$ch</white>"
         }
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
             val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
-            layer.fontAssetId?.let { id ->
-                val ns = lookupAsset(id)?.takeIf { it.type == "font" }?.namespace
-                if (ns != null) "<font:$ns>$colored</font>" else colored
-            } ?: colored
+            // Custom font asset: use its namespace directly (user-imported font).
+            if (layer.fontAssetId != null) {
+                val ns = lookupAsset(layer.fontAssetId)?.takeIf { it.type == "font" }?.namespace
+                if (ns != null) return "<font:$ns>$colored</font>"
+            }
+            // Y-specific font: resource pack includes text_y{Y}.json for Y=0..140,
+            // each using minecraft:font/ascii.png with ascent = 13 - Y so the glyph
+            // top lands at the desired chest-relative Y pixel.
+            "<font:interfaze:text_y${layer.y}>$colored</font>"
+        }
+        is MenuTitleLayer.Plain -> {
+            val text = resolveLText(layer.value, langMap)
+            layer.color?.let { "<color:$it>$text</color>" } ?: text
         }
         is MenuTitleLayer.ExternalGlyph -> {
             // ExternalGlyphsCatalog doesn't exist yet (Sub-project 5).
             // Fall back to a visible placeholder so the menu still opens.
             "□"
         }
-    }
+        is MenuTitleLayer.Textarea -> {
+            // TODO: Task 4 — implement textarea compilation
+            ""
+        }
+    } }
 
     /**
      * Pixel `x` of the layer's origin. [MenuTitleLayer.Background] has no `x`
@@ -130,7 +210,9 @@ object TitleCompiler {
         is MenuTitleLayer.Background -> 0
         is MenuTitleLayer.Glyph -> layer.x
         is MenuTitleLayer.Text -> layer.x
+        is MenuTitleLayer.Plain -> 0
         is MenuTitleLayer.ExternalGlyph -> layer.x
+        is MenuTitleLayer.Textarea -> layer.x
     }
 
     /**
@@ -144,18 +226,58 @@ object TitleCompiler {
         lookupAsset: (String) -> AssetEntry?,
     ): Int = when (layer) {
         is MenuTitleLayer.Background -> {
+            // MC bitmap font advance = measured_width + 1 (BitmapFont.Glyph.getAdvance()).
             val w = lookupAsset(layer.assetId)?.width ?: 0
-            if (w > 0) w else FALLBACK_IMAGE_WIDTH
+            (if (w > 0) w else FALLBACK_IMAGE_WIDTH) + 1
         }
         is MenuTitleLayer.Glyph -> {
             val w = lookupAsset(layer.assetId)?.width ?: 0
-            if (w > 0) w else FALLBACK_IMAGE_WIDTH
+            (if (w > 0) w else FALLBACK_IMAGE_WIDTH) + 1
         }
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
-            text.length * APPROX_CHAR_WIDTH
+            // MC bold rendering shifts each glyph 1px right, adding 1px to its advance.
+            // Count visible chars inside bold spans so we can compensate.
+            val boldExtra = countBoldChars(text)
+            val visible = text.replace(Regex("<[^>]+>"), "")
+            visible.sumOf { charAdvance(it) } + boldExtra
+        }
+        is MenuTitleLayer.Plain -> {
+            val text = resolveLText(layer.value, langMap)
+            val hasBold = text.contains("<bold>") || text.contains("<b>")
+            val visible = text.replace(Regex("<[^>]+>"), "")
+            visible.sumOf { charAdvance(it) } + (if (hasBold) visible.length else 0)
         }
         is MenuTitleLayer.ExternalGlyph -> EXTERNAL_GLYPH_WIDTH
+        is MenuTitleLayer.Textarea -> 0 // TODO: Task 4 — implement proper width estimation
+    }
+
+    /**
+     * Counts visible characters (stripped of tags) inside bold spans.
+     * Handles both closed (`<bold>…</bold>`, `<b>…</b>`) and unclosed (`<bold>…` to
+     * end-of-string) spans, since MiniMessage allows implicit close at string end.
+     * Used to add 1px per bold char to the advance estimate (MC bold rendering shifts
+     * each glyph 1px right, increasing its effective advance by 1).
+     */
+    private fun countBoldChars(text: String): Int {
+        val boldTagPattern = Regex("</?(?:bold|b)>")
+        val anyTagPattern = Regex("<[^>]+>")
+        var inBold = false
+        var count = 0
+        var lastEnd = 0
+        for (match in boldTagPattern.findAll(text)) {
+            if (inBold) {
+                val segment = text.substring(lastEnd, match.range.first)
+                count += anyTagPattern.replace(segment, "").length
+            }
+            inBold = !match.value.startsWith("</")
+            lastEnd = match.range.last + 1
+        }
+        // Handle unclosed bold tag (bold until end of string).
+        if (inBold) {
+            count += anyTagPattern.replace(text.substring(lastEnd), "").length
+        }
+        return count
     }
 
     private fun resolveLText(value: LText, langMap: Map<String, String>): String =
