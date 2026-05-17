@@ -180,6 +180,7 @@ title:
       key: i18nKey_block
     x: 8
     y: 6
+    width: 168
     line_height: 10
     alignment: left      # left | center | right
     font_asset_id: ...   # optionnel (Sub-project 4)
@@ -190,7 +191,7 @@ title:
     y: 5
 ```
 
-Le kind `textarea` (SP5) est un bloc de texte multi-ligne. La string i18n est split sur `\n` au runtime ; chaque ligne est rendue à `(x, y + i * line_height)` avec l'`alignment` (`left`/`center`/`right`) partagé sur toutes les lignes. La police optionnelle `font_asset_id` s'applique aussi à toutes les lignes.
+Le kind `textarea` (SP5) est un bloc de texte multi-ligne. La string i18n est split sur `\n` au runtime, puis chaque ligne est word-wrappée pour tenir dans `width` (px). Chaque sous-ligne est rendue à `(x, y + i * line_height)` avec l'`alignment` (`left`/`center`/`right`) partagé. La police optionnelle `font_asset_id` s'applique à toutes les lignes. Mots plus larges que `width` débordent (soft constraint).
 
 Le plugin embarque un `assets/interfaze/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:interfaze:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
 
@@ -285,8 +286,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 | Scope | Fichiers | Count |
 |---|---|---|
 | Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, etc. | 258 pass / 1 pre-existing failure (`link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, etc. | 303 |
-| Editor unit | Vitest, 675 tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText), etc. | 675 |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, etc. | 318 (317 pass + 1 ignored) |
+| Editor unit | Vitest, tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), etc. | 689 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
