@@ -28,9 +28,17 @@ const i18nRef = (key: string): string => `{i18n:${key}}`;
 
 function serializeCondition(c: Condition): unknown {
   if (c.type === "not") return { type: "not", of: serializeCondition(c.of) };
-  if (c.type === "and") return { type: "and", of: (c.of as Condition[]).map(serializeCondition) };
-  if (c.type === "or") return { type: "or", of: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "and") return { type: "and", all: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "or") return { type: "or", any: (c.of as Condition[]).map(serializeCondition) };
   return c;
+}
+
+function collapseConditions(conditions: Condition[], joins?: ("and" | "or")[]): unknown {
+  // biome-ignore lint/style/noNonNullAssertion: length === 1 guarantees [0] exists
+  if (conditions.length === 1) return serializeCondition(conditions[0]!);
+  const op = joins?.[0] ?? "and";
+  const items = conditions.map(serializeCondition);
+  return op === "or" ? { type: "or", any: items } : { type: "and", all: items };
 }
 
 // ─── action serialization ────────────────────────────────────────────────────
@@ -105,8 +113,7 @@ function serializeSteps(steps: Step[], pack: Pack): unknown[] {
 
 function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (app.if && app.if.length > 0) out.if = app.if.map(serializeCondition);
-  if (app.ifJoins && app.ifJoins.length > 0) out.if_joins = app.ifJoins;
+  if (app.if && app.if.length > 0) out.if = collapseConditions(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
   if (app.count !== undefined) out.count = app.count;
   if (app.title) out.title = i18nRef(app.title.key);
@@ -165,6 +172,26 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
     if (layer.fontAssetId !== undefined) out.font_asset_id = layer.fontAssetId;
     return out;
   }
+  if (layer.kind === "plain") {
+    // Plain layers are serialized as arrays when mixed with other layers,
+    // but serializeMenu short-circuits to legacy string format when the
+    // title is plain-only (see serializeMenu). This path is a fallback.
+    const out: Record<string, unknown> = { kind: "plain", value: { key: layer.value.key } };
+    if (layer.color !== undefined) out.color = layer.color;
+    return out;
+  }
+  if (layer.kind === "textarea") {
+    const out: Record<string, unknown> = {
+      kind: "textarea",
+      value: { key: layer.value.key },
+      x: layer.x,
+      y: layer.y,
+      line_height: layer.lineHeight,
+      alignment: layer.alignment,
+    };
+    if (layer.fontAssetId !== undefined) out.font_asset_id = layer.fontAssetId;
+    return out;
+  }
   if (layer.kind === "external_glyph") {
     return {
       kind: "external_glyph",
@@ -202,14 +229,8 @@ const LEGACY_TEXT_Y = 5;
 export function parseTitleNode(node: unknown): MenuTitleLayer[] {
   if (node === null || node === undefined) return [];
   if (typeof node === "string") {
-    return [
-      {
-        kind: "text",
-        value: { key: node as I18nKey },
-        x: LEGACY_TEXT_X,
-        y: LEGACY_TEXT_Y,
-      },
-    ];
+    // Legacy string format → plain vanilla layer (no resource pack needed).
+    return [{ kind: "plain", value: { key: node as I18nKey } }];
   }
   if (Array.isArray(node)) {
     const out: MenuTitleLayer[] = [];
@@ -258,6 +279,40 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
       if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
       return out;
     }
+    case "plain": {
+      const value = m.value;
+      let key: I18nKey | undefined;
+      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+        key = (value as { key: string }).key as I18nKey;
+      }
+      if (!key) return null;
+      const out: MenuTitleLayer = { kind: "plain", value: { key } };
+      if (typeof m.color === "string") out.color = m.color;
+      return out;
+    }
+    case "textarea": {
+      const value = m.value;
+      let key: I18nKey | undefined;
+      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+        key = (value as { key: string }).key as I18nKey;
+      }
+      if (!key) return null;
+      const rawAlign = typeof m.alignment === "string" ? m.alignment : "left";
+      const alignment: "left" | "center" | "right" =
+        rawAlign === "center" ? "center" : rawAlign === "right" ? "right" : "left";
+      const rawLh = typeof m.line_height === "number" ? m.line_height : 10;
+      const lineHeight = Math.min(32, Math.max(1, rawLh));
+      const out: MenuTitleLayer = {
+        kind: "textarea",
+        value: { key },
+        x: typeof m.x === "number" ? m.x : 0,
+        y: typeof m.y === "number" ? m.y : 0,
+        lineHeight,
+        alignment,
+      };
+      if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      return out;
+    }
     case "external_glyph": {
       const provider = m.provider;
       if (provider !== "oraxen" && provider !== "nexo" && provider !== "itemsadder") return null;
@@ -278,10 +333,17 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
 // ─── menu serialization ──────────────────────────────────────────────────────
 
 function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
+  // Plain (vanilla) mode: export as legacy string format so any server can use
+  // it without a resource pack. Single plain layer → "{i18n:key}" string.
+  const plainOnly = menu.title.length > 0 && menu.title.every((l) => l.kind === "plain");
+  const titleField = plainOnly
+    ? i18nRef((menu.title[0] as Extract<(typeof menu.title)[number], { kind: "plain" }>).value.key)
+    : menu.title.map(serializeTitleLayer);
+
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: menu.title.map(serializeTitleLayer),
+    title: titleField,
     size: menu.rows * 9,
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
