@@ -23,9 +23,9 @@ export interface SelectedLayerKey {
   index: number;
 }
 
-/** v3 title composer — ghost state for the "drag-to-attach" gesture from + Image / + Text buttons. */
+/** v3 title composer — ghost state for the "drag-to-attach" gesture from + Image / + Text / + Bloc texte buttons. */
 export interface DraggingNewLayer {
-  kind: "image" | "text";
+  kind: "image" | "text" | "textarea";
   /** Pointer position in screen coords (px); consumers convert as needed. */
   x: number;
   y: number;
