@@ -56,6 +56,19 @@ object TitleCompiler {
     private const val EXTERNAL_GLYPH_WIDTH = 8
 
     /**
+     * Best-effort pixel width of a single MiniMessage-bearing line. Strips
+     * tags via the same regex used by [estimateBodyWidth], sums per-char
+     * advances from [charAdvance], and adds the MC bold-shift bump via
+     * [countBoldChars]. Used by the [MenuTitleLayer.Textarea] branch to
+     * compute per-line widths for alignment math.
+     */
+    private fun measureLineWidth(text: String): Int {
+        val anyTagPattern = Regex("<[^>]+>")
+        val visible = anyTagPattern.replace(text, "")
+        return visible.sumOf { charAdvance(it) } + countBoldChars(text)
+    }
+
+    /**
      * Per-character advance (px) for the MC 1.21 default ASCII bitmap font
      * (minecraft:font/ascii.png, 8×8 glyph cells, height=8, scale=1).
      *
@@ -218,8 +231,29 @@ object TitleCompiler {
                 "□"
             }
             is MenuTitleLayer.Textarea -> {
-                // Implemented in Task 4. For now, no-op so existing kinds still compile.
-                return Pair("", startX)
+                val text = resolveLText(layer.value, langMap)
+                val lines = text.split("\n")
+                val sb2 = StringBuilder()
+                var localX = startX
+                var maxLastX = startX
+                for ((i, line) in lines.withIndex()) {
+                    val lineY = layer.y + i * layer.lineHeight
+                    if (lineY > 140) break // text_y fonts exist for Y=0..140
+                    if (line.isEmpty()) continue // skip empty lines (no advance, no render)
+                    val lineWidth = measureLineWidth(line)
+                    val lineX = when (layer.alignment) {
+                        MenuTitleLayer.Alignment.LEFT -> layer.x
+                        MenuTitleLayer.Alignment.CENTER -> layer.x - lineWidth / 2
+                        MenuTitleLayer.Alignment.RIGHT -> layer.x - lineWidth
+                    }
+                    if (lineX != localX) sb2.append(offsetEncoder.encode(lineX - localX))
+                    sb2.append("<font:interfaze:text_y${lineY}>")
+                    sb2.append(line)
+                    sb2.append("</font>")
+                    localX = lineX + lineWidth
+                    if (localX > maxLastX) maxLastX = localX
+                }
+                return Pair(sb2.toString(), maxLastX)
             }
         }
         return Pair(body, startX + estimateBodyWidth(layer, langMap, lookupAsset))
@@ -259,20 +293,18 @@ object TitleCompiler {
         }
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
-            // MC bold rendering shifts each glyph 1px right, adding 1px to its advance.
-            // Count visible chars inside bold spans so we can compensate.
-            val boldExtra = countBoldChars(text)
-            val visible = text.replace(Regex("<[^>]+>"), "")
-            visible.sumOf { charAdvance(it) } + boldExtra
+            measureLineWidth(text)
         }
         is MenuTitleLayer.Plain -> {
             val text = resolveLText(layer.value, langMap)
-            val hasBold = text.contains("<bold>") || text.contains("<b>")
-            val visible = text.replace(Regex("<[^>]+>"), "")
-            visible.sumOf { charAdvance(it) } + (if (hasBold) visible.length else 0)
+            measureLineWidth(text)
         }
         is MenuTitleLayer.ExternalGlyph -> EXTERNAL_GLYPH_WIDTH
-        is MenuTitleLayer.Textarea -> 0 // TODO: Task 4 — implement proper width estimation
+        is MenuTitleLayer.Textarea -> {
+            val text = resolveLText(layer.value, langMap)
+            val lines = text.split("\n")
+            lines.maxOfOrNull { measureLineWidth(it) } ?: 0
+        }
     }
 
     /**

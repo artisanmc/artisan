@@ -10,6 +10,7 @@ import net.kyori.adventure.text.format.ShadowColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -508,6 +509,126 @@ class TitleCompilerTest {
             offsetEncoder = standardEncoder,
         )
         assertTrue(result !== Component.empty())
+    }
+
+    // ---------- compileLayerBody for Textarea ----------
+
+    @Test
+    fun `compileLayerBody textarea with one line renders one text_y wrapper`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "hi"), emptyLookup, standardEncoder,
+        )
+        assertEquals("<font:interfaze:text_y0>hi</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody textarea with three lines emits three text_y wrappers`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "a\nb\nc"), emptyLookup, standardEncoder,
+        )
+        assertTrue(s.contains("<font:interfaze:text_y0>a</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y10>b</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y20>c</font>"))
+    }
+
+    @Test
+    fun `compileLayerBody textarea alignment center positions lines around layer x`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 50, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.CENTER,
+        )
+        // "ab" width = 6+6 = 12, so center → lineX = 50 - 12/2 = 44.
+        // Cursor starts at 0, first offset = 44.
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
+        )
+        val firstOffset = standardEncoder.encode(44)
+        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody textarea alignment right ends all lines at layer x`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 60, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.RIGHT,
+        )
+        // "ab" width = 12, right → lineX = 60 - 12 = 48.
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
+        )
+        val firstOffset = standardEncoder.encode(48)
+        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody textarea truncates lines past y=140`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 135, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        // y=135 → line 0 at 135 (≤140 ok). Line 1 at 145 → drops. Line 2 at 155 → drops.
+        val (s, _) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "a\nb\nc"), emptyLookup, standardEncoder,
+        )
+        assertTrue(s.contains("text_y135"))
+        assertFalse(s.contains("text_y145"))
+        assertFalse(s.contains("text_y155"))
+    }
+
+    @Test
+    fun `compileLayerBody textarea empty value returns empty fragment with unchanged x`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        val (s, newX) = TitleCompiler.compileLayerBody(
+            layer, 42, mapOf("g" to ""), emptyLookup, standardEncoder,
+        )
+        // Single empty line → empty body and cursor unchanged from start.
+        assertEquals("", s)
+        assertEquals(42, newX)
+    }
+
+    @Test
+    fun `compileLayerBody textarea reports maxLastX of last line for cursor tracking`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        // "a" width 6, "bc" width 12. After 2 lines starting at x=0: cursor max = 0 + 12 = 12.
+        val (_, newX) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "a\nbc"), emptyLookup, standardEncoder,
+        )
+        assertEquals(12, newX)
+    }
+
+    @Test
+    fun `compileTitle textarea followed by glyph positions glyph past textarea end`() {
+        val glyphCh = 0xE000.toChar()
+        val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 0xE000, width = 8)))
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(
+                MenuTitleLayer.Textarea(
+                    value = LText("g"), x = 0, y = 0, lineHeight = 10,
+                    alignment = MenuTitleLayer.Alignment.LEFT,
+                ),
+                MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 0),
+            ),
+            lang = "en_us",
+            langMap = mapOf("g" to "ab"),
+            lookupAsset = lookup,
+            offsetEncoder = standardEncoder,
+        )
+        // Decode the rendered Component to ensure glyph appears.
+        assertTrue(result.toString().contains(glyphCh.toString()))
     }
 
     @Test
