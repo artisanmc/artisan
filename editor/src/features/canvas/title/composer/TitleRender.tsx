@@ -337,6 +337,18 @@ function LayerNode({
       ? text.split("\n").flatMap((l) => wrapLineJs(l, layer.width))
       : [];
   const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
+  // Alignment-aware x offset for the bbox/hit/handle: the textarea's lines
+  // render at relative x = 0 (left), -width/2 (center), or -width (right).
+  // The bounding box needs to follow the same offset so it actually wraps
+  // around the visible text.
+  const textareaBoxOffsetX =
+    layer.kind === "textarea"
+      ? layer.alignment === "center"
+        ? -layer.width / 2
+        : layer.alignment === "right"
+          ? -layer.width
+          : 0
+      : 0;
   const textareaTotalH =
     layer.kind === "textarea"
       ? Math.max(1, textareaLines.length) * layer.lineHeight
@@ -511,14 +523,21 @@ function LayerNode({
       {/* Hit area — only listening when selected. Unselected layers are
           click-through so the underlying menu remains reachable. When
           selected, this Rect captures pointer events for drag and click. */}
-      <Rect x={0} y={0} width={hitW} height={hitH} fill="rgba(0,0,0,0.001)" listening={selected} />
+      <Rect
+        x={textareaBoxOffsetX * scale}
+        y={0}
+        width={hitW}
+        height={hitH}
+        fill="rgba(0,0,0,0.001)"
+        listening={selected}
+      />
       {body}
       {selected ? (
         <>
           {/* Yellow 1-px stroke around the bounding box. Matches the v3 design
               spec (was emerald in v2). */}
           <Rect
-            x={-1}
+            x={textareaBoxOffsetX * scale - 1}
             y={-1}
             width={outlineW + 2}
             height={outlineH + 2}
@@ -529,7 +548,7 @@ function LayerNode({
           />
           {layer.kind === "textarea" ? (
             <WidthResizeHandle
-              x={outlineW}
+              x={(textareaBoxOffsetX + layer.width) * scale}
               y={0}
               height={outlineH}
               currentWidth={layer.width}
