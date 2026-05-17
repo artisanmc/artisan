@@ -10,6 +10,7 @@ import net.kyori.adventure.text.format.ShadowColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class TitleCompilerTest {
@@ -36,49 +37,63 @@ class TitleCompilerTest {
     // ---------- compileLayerBody (per-layer fragment, no font wrapper) ----------
 
     @Test
-    fun `compileLayerBody for text without color or font returns bare text`() {
+    fun `compileLayerBody for text without color or font wraps in text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 0)
-        val s = TitleCompiler.compileLayerBody(layer, mapOf("greeting" to "hello"), emptyLookup)
-        assertEquals("hello", s)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y0>hello</font>", s)
     }
 
     @Test
-    fun `compileLayerBody for text with color wraps in color tag`() {
+    fun `compileLayerBody for text at non-default y wraps in matching text_y font`() {
+        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 20)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y20>hello</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody for text at title-label y=6 wraps in text_y6 font`() {
+        val layer = MenuTitleLayer.Text(value = LText("k"), x = 8, y = 6)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("k" to "hi"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y6>hi</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody for text with color wraps color inside text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 10, y = 0, color = "#FFAA00")
-        val s = TitleCompiler.compileLayerBody(layer, mapOf("greeting" to "hello"), emptyLookup)
-        assertEquals("<color:#FFAA00>hello</color>", s)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y0><color:#FFAA00>hello</color></font>", s)
     }
 
     @Test
-    fun `compileLayerBody for text with missing langMap key falls back to the key`() {
+    fun `compileLayerBody for text with missing langMap key wraps fallback key in text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("missing.key"), x = 0, y = 0)
-        val s = TitleCompiler.compileLayerBody(layer, emptyMap(), emptyLookup)
-        assertEquals("missing.key", s)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y0>missing.key</font>", s)
     }
 
     @Test
-    fun `compileLayerBody for glyph emits just the codepoint char (no font wrapper)`() {
+    fun `compileLayerBody for glyph emits white-wrapped codepoint char`() {
         val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = 0)
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344)))
-        val s = TitleCompiler.compileLayerBody(layer, emptyMap(), lookup)
-        assertEquals("$ch", s)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), lookup, OffsetEncoder.EMPTY)
+        assertEquals("<white>$ch</white>", s)
     }
 
     @Test
     fun `compileLayerBody for unknown glyph asset returns empty string`() {
         val layer = MenuTitleLayer.Glyph(assetId = "asset_missing", x = 32, y = 0)
-        val s = TitleCompiler.compileLayerBody(layer, emptyMap(), emptyLookup)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
         assertEquals("", s)
     }
 
     @Test
-    fun `compileLayerBody for background emits just the codepoint char`() {
+    fun `compileLayerBody for background emits white-wrapped codepoint char`() {
         val layer = MenuTitleLayer.Background(assetId = "asset_bg")
         val ch = 57345.toChar()
         val lookup = stubLookup(mapOf("asset_bg" to glyphEntry("bg", 57345)))
-        val s = TitleCompiler.compileLayerBody(layer, emptyMap(), lookup)
-        assertEquals("$ch", s)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), lookup, OffsetEncoder.EMPTY)
+        assertEquals("<white>$ch</white>", s)
     }
 
     @Test
@@ -94,7 +109,7 @@ class TitleCompilerTest {
                 ascent = 0, height = 0, namespace = "interfaze:my_font",
             ),
         ))
-        val s = TitleCompiler.compileLayerBody(layer, mapOf("greeting" to "hello"), lookup)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), lookup, OffsetEncoder.EMPTY)
         assertEquals("<font:interfaze:my_font>hello</font>", s)
     }
 
@@ -111,14 +126,14 @@ class TitleCompilerTest {
                 ascent = 0, height = 0, namespace = "interfaze:my_font",
             ),
         ))
-        val s = TitleCompiler.compileLayerBody(layer, mapOf("greeting" to "hello"), lookup)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), lookup, OffsetEncoder.EMPTY)
         assertEquals("<font:interfaze:my_font><color:#ff0000>hello</color></font>", s)
     }
 
     @Test
     fun `compileLayerBody for external glyph emits placeholder`() {
         val layer = MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "coin", x = 5, y = 0)
-        val s = TitleCompiler.compileLayerBody(layer, emptyMap(), emptyLookup)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
         assertEquals("□", s)
     }
 
@@ -138,6 +153,9 @@ class TitleCompilerTest {
 
     @Test
     fun `compileTitle wraps output in interfaze default font and suppresses shadow`() {
+        // Text at x=0 (chest-left). The compiler emits a -TITLE_LABEL_X offset so
+        // the cursor starts at chest-x 0 instead of the title-draw start (chest-x 8).
+        // Plain text is wrapped in the Y-specific font (text_y0 here).
         val layers = listOf(MenuTitleLayer.Text(value = LText("k"), x = 0, y = 0))
         val result = TitleCompiler.compileTitle(
             layers = layers,
@@ -146,17 +164,18 @@ class TitleCompilerTest {
             lookupAsset = emptyLookup,
             offsetEncoder = standardEncoder,
         )
-        // Same MM round-trip should match.
+        val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>hi</font>")
+            .deserialize("<font:interfaze:default>${initOffset}<font:interfaze:text_y0>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
         assertEquals(ShadowColor.none(), result.shadowColor())
     }
 
     @Test
-    fun `compileTitle emits no offset chars for a single layer at x=0`() {
-        // Glyph layer at x=0 — no offset should be emitted before it.
+    fun `compileTitle emits -TITLE_LABEL_X offset for a single layer at x=0`() {
+        // Glyph layer at x=0 — the compiler emits an initial -8 offset to anchor
+        // from chest-left, then no additional offset.
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
@@ -166,35 +185,37 @@ class TitleCompilerTest {
             lookupAsset = lookup,
             offsetEncoder = standardEncoder,
         )
+        val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$ch</font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$ch</white></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
     }
 
     @Test
-    fun `compileTitle emits offset chars summing to x for a single glyph at non-zero x`() {
+    fun `compileTitle emits no offset for a single glyph at x=TITLE_LABEL_X`() {
+        // x=8 is exactly at the title draw start → no net offset after the initial
+        // cursor adjustment. This is the legacy default text position.
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
-            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 8, y = 0)),
+            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = TitleCompiler.TITLE_LABEL_X, y = 0)),
             lang = "en_us",
             langMap = emptyMap(),
             lookupAsset = lookup,
             offsetEncoder = standardEncoder,
         )
-        // Reverse-engineer via the same encoder.
-        val offset = standardEncoder.encode(8)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$offset$ch</font>")
+            .deserialize("<font:interfaze:default><white>$ch</white></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
     }
 
     @Test
     fun `compileTitle inserts backtracking offset between two glyph layers`() {
-        // Glyph A at x=0, width=10 → cursor after A = 10.
-        // Glyph B at x=4 → need offset of -6.
+        // Glyph A at x=0, width=10 → MC advance = 10+1 = 11. Cursor after A = 0+11 = 11.
+        // Glyph B at x=4 → need offset 4-11 = -7 between them.
+        // Initial -8 prefix anchors the cursor to chest-left before A.
         val chA = 57344.toChar()
         val chB = 57345.toChar()
         val lookup = stubLookup(mapOf(
@@ -211,16 +232,19 @@ class TitleCompilerTest {
             lookupAsset = lookup,
             offsetEncoder = standardEncoder,
         )
-        val expectedOffset = standardEncoder.encode(-6)
+        val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
+        val backOffset = standardEncoder.encode(-7)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$chA$expectedOffset$chB</font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$chA</white>$backOffset<white>$chB</white></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
     }
 
     @Test
-    fun `compileTitle does not emit offset between adjacent zero-gap layers`() {
-        // Background at x=0 with width=16 followed by glyph at x=16 → no offset needed.
+    fun `compileTitle accounts for MC +1 advance between adjacent layers`() {
+        // Background at x=0 with width=16, glyph at x=16.
+        // MC advance for bg = 16+1 = 17, so cursor is at 17 after bg.
+        // To place glyph at x=16 → need offset 16-17 = -1.
         val chBg = 57345.toChar()
         val chG = 57344.toChar()
         val lookup = stubLookup(mapOf(
@@ -237,8 +261,10 @@ class TitleCompilerTest {
             lookupAsset = lookup,
             offsetEncoder = standardEncoder,
         )
+        val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
+        val gapOffset = standardEncoder.encode(-1)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$chBg$chG</font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>$gapOffset<white>$chG</white></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
     }
@@ -256,7 +282,7 @@ class TitleCompilerTest {
             offsetEncoder = OffsetEncoder.EMPTY,
         )
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$ch</font>")
+            .deserialize("<font:interfaze:default><white>$ch</white></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
     }
@@ -265,7 +291,11 @@ class TitleCompilerTest {
     fun `compileTitle composes background + offset-positioned text`() {
         val chBg = 57345.toChar()
         val lookup = stubLookup(mapOf("asset_bg" to glyphEntry("bg", 57345, width = 176)))
-        // Background occupies 176px; text at x=80 → needs -96 backtrack.
+        // Background at x=0, width=176. Text at x=80, y=0.
+        // Initial -8 offset anchors cursor to chest-left (x=0).
+        // After background: MC advance = 176+1 = 177, so cursor = 177.
+        // Text offset: 80 - 177 = -97.
+        // Plain text is wrapped in text_y0 font.
         val result = TitleCompiler.compileTitle(
             layers = listOf(
                 MenuTitleLayer.Background(assetId = "asset_bg"),
@@ -276,13 +306,16 @@ class TitleCompilerTest {
             lookupAsset = lookup,
             offsetEncoder = standardEncoder,
         )
-        val expectedOffset = standardEncoder.encode(-96)
+        // After bg: MC advance = 176+1 = 177. currentX = 177. Text at x=80 → offset = 80-177 = -97.
+        val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
+        val textOffset = standardEncoder.encode(-97)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$chBg${expectedOffset}hi</font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>${textOffset}<font:interfaze:text_y0>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
-        // sanity: decoded offset chars sum to -96
-        assertEquals(-96, decodeOffset(expectedOffset))
+        // sanity: decoded offsets
+        assertEquals(-TitleCompiler.TITLE_LABEL_X, decodeOffset(initOffset))
+        assertEquals(-97, decodeOffset(textOffset))
     }
 
     // ---------- layerX + estimateBodyWidth (internal helpers) ----------
@@ -300,33 +333,112 @@ class TitleCompilerTest {
     }
 
     @Test
-    fun `estimateBodyWidth for glyph uses asset width when present`() {
+    fun `estimateBodyWidth for glyph uses asset width + 1 (MC inter-char advance)`() {
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 9)))
         val w = TitleCompiler.estimateBodyWidth(
             MenuTitleLayer.Glyph(assetId = "asset_coin", x = 0, y = 0),
             emptyMap(), lookup,
         )
-        assertEquals(9, w)
+        assertEquals(10, w)
     }
 
     @Test
-    fun `estimateBodyWidth for glyph falls back to 16 when width is 0`() {
+    fun `estimateBodyWidth for glyph falls back to 16 + 1 when width is 0`() {
         val lookup = stubLookup(mapOf("asset_g" to glyphEntry("g", 57344, width = 0)))
         val w = TitleCompiler.estimateBodyWidth(
             MenuTitleLayer.Glyph(assetId = "asset_g", x = 0, y = 0),
             emptyMap(), lookup,
         )
-        assertEquals(16, w)
+        assertEquals(17, w)
     }
 
     @Test
-    fun `estimateBodyWidth for text uses length times 6`() {
+    fun `estimateBodyWidth for text sums per-char advances from MC ascii font`() {
+        // "hello": h=6, e=6, l=3, l=3, o=6 → 24
         val w = TitleCompiler.estimateBodyWidth(
             MenuTitleLayer.Text(value = LText("hi"), x = 0, y = 0),
             mapOf("hi" to "hello"),
             emptyLookup,
         )
-        assertEquals(30, w)
+        assertEquals(24, w)
+    }
+
+    @Test
+    fun `estimateBodyWidth for text strips MiniMessage tags before summing advances`() {
+        // "<gold>hello</gold>" strips to "hello" → h=6, e=6, l=3, l=3, o=6 → 24 (not 18*6=108)
+        val w = TitleCompiler.estimateBodyWidth(
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            mapOf("key" to "<gold>hello</gold>"),
+            emptyLookup,
+        )
+        assertEquals(24, w)
+    }
+
+    @Test
+    fun `estimateBodyWidth for bold text adds 1 per bold char (MC bold glyph shift)`() {
+        // MC renders bold by drawing the glyph shifted 1px right, adding 1 to each char's advance.
+        // "<bold>hello</bold>" → per-char sum 24 + 5 bold chars = 29.
+        val w = TitleCompiler.estimateBodyWidth(
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            mapOf("key" to "<bold>hello</bold>"),
+            emptyLookup,
+        )
+        assertEquals(29, w)
+    }
+
+    @Test
+    fun `estimateBodyWidth for unclosed bold tag counts to end of string`() {
+        // MiniMessage allows implicit close at end of string.
+        // "<bold>hello" (no closing tag) → same 5 bold chars → 29.
+        val w = TitleCompiler.estimateBodyWidth(
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            mapOf("key" to "<bold>hello"),
+            emptyLookup,
+        )
+        assertEquals(29, w)
+    }
+
+    @Test
+    fun `estimateBodyWidth for mixed bold and plain text only adds bold correction to bold chars`() {
+        // "ab<bold>cd</bold>ef" → a=6,b=6 (plain) + c=6,d=6+2 bold (12+2) + e=6,f=5 (plain)
+        // sum of chars = 6+6+6+6+6+5 = 35; bold correction = 2 → 37
+        val w = TitleCompiler.estimateBodyWidth(
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            mapOf("key" to "ab<bold>cd</bold>ef"),
+            emptyLookup,
+        )
+        assertEquals(37, w)
+    }
+
+    @Test
+    fun `compileTitle places glyph at same x regardless of text layer order`() {
+        // If text is listed BEFORE the glyph in the input array, the glyph should
+        // still land at x=50. Tag-inflated text-width estimates must not shift it.
+        val glyphCh = 0xE000.toChar()
+        val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 0xE000, width = 8)))
+
+        fun offsetsFor(orderedLayers: List<MenuTitleLayer>): String {
+            val result = TitleCompiler.compileTitle(
+                layers = orderedLayers,
+                lang = "en_us",
+                langMap = mapOf("title" to "<gold>Titre</gold>"),
+                lookupAsset = lookup,
+                offsetEncoder = standardEncoder,
+            )
+            return result.toString()
+        }
+
+        val textFirst = listOf(
+            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+        )
+        val glyphFirst = listOf(
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 0),
+        )
+
+        // Both orderings must produce the same component (glyph at x=50 in both cases).
+        assertEquals(offsetsFor(textFirst), offsetsFor(glyphFirst))
     }
 
     @Test
@@ -336,6 +448,66 @@ class TitleCompilerTest {
             emptyMap(), emptyLookup,
         )
         assertEquals(8, w)
+    }
+
+    // ---------- Plain (vanilla) layers ----------------------------------------
+
+    @Test
+    fun `compileTitle with single Plain layer returns raw MiniMessage without font wrapper`() {
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(MenuTitleLayer.Plain(value = LText("k"))),
+            lang = "en_us",
+            langMap = mapOf("k" to "hello"),
+            lookupAsset = emptyLookup,
+            offsetEncoder = standardEncoder,
+        )
+        val expected = MiniMessage.miniMessage().deserialize("hello")
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `compileTitle with Plain layer with color wraps in color tag`() {
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(MenuTitleLayer.Plain(value = LText("k"), color = "#ff0000")),
+            lang = "en_us",
+            langMap = mapOf("k" to "hello"),
+            lookupAsset = emptyLookup,
+            offsetEncoder = standardEncoder,
+        )
+        val expected = MiniMessage.miniMessage().deserialize("<color:#ff0000>hello</color>")
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `compileTitle with Plain layer does NOT suppress shadow (vanilla MC renders shadow)`() {
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(MenuTitleLayer.Plain(value = LText("k"))),
+            lang = "en_us",
+            langMap = mapOf("k" to "hi"),
+            lookupAsset = emptyLookup,
+            offsetEncoder = standardEncoder,
+        )
+        // Plain mode should NOT call shadowColor(none()) — shadow is part of vanilla MC.
+        // We verify by checking the component does NOT have ShadowColor.none() set.
+        assertNotEquals(net.kyori.adventure.text.format.ShadowColor.none(), result.shadowColor())
+    }
+
+    @Test
+    fun `compileTitle with mixed Plain and non-Plain falls through to composed path`() {
+        // Mixed layers (shouldn't happen in practice, but must not crash).
+        val layers = listOf(
+            MenuTitleLayer.Plain(value = LText("k")),
+            MenuTitleLayer.Glyph(assetId = "x", x = 0, y = 0),
+        )
+        // Should not throw; result is some non-empty component.
+        val result = TitleCompiler.compileTitle(
+            layers = layers,
+            lang = "en_us",
+            langMap = mapOf("k" to "hi"),
+            lookupAsset = emptyLookup,
+            offsetEncoder = standardEncoder,
+        )
+        assertTrue(result !== Component.empty())
     }
 
     @Test
