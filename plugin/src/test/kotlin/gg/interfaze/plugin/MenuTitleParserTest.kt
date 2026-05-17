@@ -148,6 +148,7 @@ class MenuTitleParserTest {
             "value" to mapOf("key" to "menu.welcome"),
             "x" to 12,
             "y" to 8,
+            "width" to 120,
             "line_height" to 11,
             "alignment" to "center",
             "font_asset_id" to "font_pixel",
@@ -156,6 +157,7 @@ class MenuTitleParserTest {
         assertEquals(LText("menu.welcome"), ta.value)
         assertEquals(12, ta.x)
         assertEquals(8, ta.y)
+        assertEquals(120, ta.width)
         assertEquals(11, ta.lineHeight)
         assertEquals(MenuTitleLayer.Alignment.CENTER, ta.alignment)
         assertEquals("font_pixel", ta.fontAssetId)
@@ -213,5 +215,48 @@ class MenuTitleParserTest {
         )
         val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
         assertEquals(LText(""), ta.value)
+    }
+
+    @Test fun `textarea parses width field`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "width" to 120,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(120, ta.width)
+    }
+
+    @Test fun `textarea defaults width to 168 when absent`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(168, ta.width)
+    }
+
+    @Test fun `textarea width clamps to 8 minimum`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "width" to 0,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(8, ta.width)
+    }
+
+    @Test fun `textarea width clamps to 256 maximum`() {
+        val raw = mapOf(
+            "kind" to "textarea",
+            "value" to mapOf("key" to "k"),
+            "x" to 0, "y" to 0,
+            "width" to 9999,
+        )
+        val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
+        assertEquals(256, ta.width)
     }
 }

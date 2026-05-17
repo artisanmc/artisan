@@ -55,6 +55,7 @@ object MenuTitleParser {
                 value = parseLText(m["value"]),
                 x = (m["x"] as? Number)?.toInt() ?: 0,
                 y = (m["y"] as? Number)?.toInt() ?: 0,
+                width = ((m["width"] as? Number)?.toInt() ?: 168).coerceIn(8, 256),
                 lineHeight = ((m["line_height"] as? Number)?.toInt() ?: 10).coerceIn(1, 32),
                 alignment = parseAlignment(m["alignment"] as? String),
                 fontAssetId = m["font_asset_id"] as? String,
