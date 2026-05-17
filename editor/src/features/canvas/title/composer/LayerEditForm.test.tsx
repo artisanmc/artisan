@@ -223,6 +223,43 @@ describe("LayerEditForm — image layer (glyph)", () => {
   });
 });
 
+describe("LayerEditForm — text layer — X/Y position inputs", () => {
+  beforeEach(() => {
+    seedPack(
+      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }],
+      { [K("greet")]: { en: "Hello" } },
+    );
+    selectLayer(0);
+  });
+
+  it("shows X and Y number inputs bound to layer.x and layer.y", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    const xInput = inputs.find((i) => Number(i.value) === 8);
+    const yInput = inputs.find((i) => Number(i.value) === 5);
+    expect(xInput).toBeTruthy();
+    expect(yInput).toBeTruthy();
+  });
+
+  it("changing Y input updates layer.y in the store", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    const yInput = inputs.find((i) => Number(i.value) === 5)!;
+    fireEvent.change(yInput, { target: { value: "20" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as any).y).toBe(20);
+  });
+
+  it("changing X input updates layer.x in the store", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const inputs = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    const xInput = inputs.find((i) => Number(i.value) === 8)!;
+    fireEvent.change(xInput, { target: { value: "16" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as any).x).toBe(16);
+  });
+});
+
 describe("LayerEditForm — text layer", () => {
   beforeEach(() => {
     seedPack(
@@ -250,6 +287,60 @@ describe("LayerEditForm — text layer", () => {
   it("renders a live preview area that contains the resolved value", () => {
     const { container } = render(<LayerEditForm packId={PACK_ID} />);
     expect(container.textContent).toContain("Hello");
+  });
+});
+
+describe("LayerEditForm — text layer — font picker", () => {
+  function makeFont(id: string, name: string): Asset {
+    return makeAsset(id, name, { type: "font", ascent: null, codepoint: null, fontMeta: null });
+  }
+
+  beforeEach(() => {
+    seedPack(
+      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5 }],
+      { [K("greet")]: { en: "Hello" } },
+    );
+    selectLayer(0);
+  });
+
+  it("shows a font select defaulting to Aucune when no font is assigned", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select.value).toBe("");
+  });
+
+  it("lists available font assets in the select dropdown", () => {
+    useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.getByRole("option", { name: "my_font" })).toBeTruthy();
+  });
+
+  it("selecting a font updates fontAssetId on the layer", () => {
+    useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
+    render(<LayerEditForm packId={PACK_ID} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "f1" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as any).fontAssetId).toBe("f1");
+  });
+
+  it("selecting the empty option clears fontAssetId", () => {
+    useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
+    seedPack(
+      [{ kind: "text", value: { key: K("greet") }, x: 8, y: 5, fontAssetId: A("f1") }],
+      { [K("greet")]: { en: "Hello" } },
+    );
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select.value).toBe("f1");
+    fireEvent.change(select, { target: { value: "" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as any).fontAssetId).toBeUndefined();
+  });
+
+  it("shows a hint about importing fonts when none exist", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.getByText(/importe une police/i)).toBeTruthy();
   });
 });
 
@@ -281,5 +372,87 @@ describe("LayerEditForm — external glyph layer", () => {
     fireEvent.change(screen.getByLabelText(/glyph name/i), { target: { value: "diamond" } });
     const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
     expect((layer as any).glyphName).toBe("diamond");
+  });
+});
+
+describe("LayerEditForm — textarea layer", () => {
+  beforeEach(() => {
+    seedPack(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("t1") },
+          x: 8,
+          y: 6,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { t1: { en: "hello\nworld" } },
+    );
+    selectLayer(0);
+  });
+
+  it("renders the multi-line textarea + line-height + alignment + font picker + xy inputs", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.getByTestId("textarea-content")).toBeTruthy();
+    expect(screen.getByTestId("textarea-line-height")).toBeTruthy();
+    expect(screen.getByTestId("textarea-align-left")).toBeTruthy();
+    expect(screen.getByTestId("textarea-align-center")).toBeTruthy();
+    expect(screen.getByTestId("textarea-align-right")).toBeTruthy();
+    expect(screen.getByTestId("textarea-font")).toBeTruthy();
+    expect(screen.getByTestId("textarea-x")).toBeTruthy();
+    expect(screen.getByTestId("textarea-y")).toBeTruthy();
+  });
+
+  it("editing the content writes newlines to the i18n value", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const ta = screen.getByTestId("textarea-content") as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: "line1\nline2\nline3" } });
+    const updated = useAccountStore.getState().account.packs[0]!.i18nKeys.t1?.en;
+    expect(updated).toBe("line1\nline2\nline3");
+  });
+
+  it("clicking center alignment updates layer.alignment", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    fireEvent.click(screen.getByTestId("textarea-align-center"));
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.alignment).toBe("center");
+  });
+
+  it("line height clamps to [1, 32]", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    const lh = screen.getByTestId("textarea-line-height") as HTMLInputElement;
+    fireEvent.change(lh, { target: { value: "0" } });
+    let layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.lineHeight).toBe(1);
+    fireEvent.change(lh, { target: { value: "999" } });
+    layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
+    expect(layer.lineHeight).toBe(32);
+  });
+
+  it("shows a Y-overflow warning when y + (lines-1)*lineHeight > 140", () => {
+    // 5 lines, y=130, lineHeight=10 → line 4 at y=170 > 140.
+    seedPack(
+      [
+        {
+          kind: "textarea",
+          value: { key: K("t1") },
+          x: 0,
+          y: 130,
+          lineHeight: 10,
+          alignment: "left",
+        },
+      ],
+      { t1: { en: "a\nb\nc\nd\ne" } },
+    );
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.getByTestId("textarea-y-overflow-warning")).toBeTruthy();
+  });
+
+  it("does not show Y-overflow warning when all lines fit", () => {
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.queryByTestId("textarea-y-overflow-warning")).toBeNull();
   });
 });
