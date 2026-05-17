@@ -50,6 +50,7 @@ export type MenuTitleLayer =
    *  `\n`s; the runtime splits and renders one line per split at
    *  `(x, y + i * lineHeight)`. Lines share alignment + optional font. */
   | { kind: "textarea"; value: LText; x: number; y: number;
+      width: number;
       lineHeight: number;
       alignment: "left" | "center" | "right";
       fontAssetId?: AssetId }
