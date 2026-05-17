@@ -1,4 +1,4 @@
-import { Image as ImageIcon, Type } from "lucide-react";
+import { AlignLeft, Image as ImageIcon, Type } from "lucide-react";
 import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -21,11 +21,11 @@ interface AddLayerControlsProps {
    *  - `cursor !== null` → drag completed at the given screen coords;
    *    parent decides which menu to attach to (e.g. via `findNearestMenu`).
    */
-  onPlace: (kind: "image" | "text", cursor: { x: number; y: number } | null) => void;
+  onPlace: (kind: "image" | "text" | "textarea", cursor: { x: number; y: number } | null) => void;
 }
 
 interface ActiveGesture {
-  kind: "image" | "text";
+  kind: "image" | "text" | "textarea";
   startX: number;
   startY: number;
   moved: boolean;
@@ -88,7 +88,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
   }, [endGesture]);
 
   const onPointerDown = useCallback(
-    (kind: "image" | "text", e: ReactPointerEvent<HTMLButtonElement>) => {
+    (kind: "image" | "text" | "textarea", e: ReactPointerEvent<HTMLButtonElement>) => {
       // Only react to the primary mouse button (or any touch/pen press —
       // those report `button === 0` too).
       if (e.button !== 0) return;
@@ -150,7 +150,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
   // happen since the button can't be focused-and-keyboarded while the
   // pointer is held, but cheap to check).
   const onClick = useCallback(
-    (kind: "image" | "text", e: ReactMouseEvent<HTMLButtonElement>) => {
+    (kind: "image" | "text" | "textarea", e: ReactMouseEvent<HTMLButtonElement>) => {
       if (e.detail !== 0) return;
       if (gestureRef.current) return;
       onPlace(kind, null);
@@ -186,6 +186,18 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
       >
         <Type className="mr-1 h-3.5 w-3.5" />
         + Texte
+      </Button>
+      <Button
+        type="button"
+        data-testid="add-layer-textarea"
+        size="sm"
+        variant="outline"
+        className="flex-1"
+        onPointerDown={(e) => onPointerDown("textarea", e)}
+        onClick={(e) => onClick("textarea", e)}
+      >
+        <AlignLeft className="mr-1 h-3.5 w-3.5" />
+        + Bloc texte
       </Button>
     </div>
   );
