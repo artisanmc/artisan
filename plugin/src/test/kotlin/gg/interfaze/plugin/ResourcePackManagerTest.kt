@@ -268,4 +268,87 @@ class ResourcePackManagerTest {
         assertEquals("http://backend:3001/api/resource-pack/aa.zip", info.downloadUrl)
         assertEquals("http://player-only.example/pack.zip", info.url)
     }
+
+    /**
+     * Records `apply()` invocations. Overrides the production HTTP path so
+     * tests never make a network call. Returns silently — no extraction in
+     * tests; we only care that the manager calls us.
+     */
+    private class RecordingDelegator : gg.interfaze.plugin.resourcepack.ResourcePackDelegator(
+        targetDir = java.io.File("."),
+        logger = null,
+    ) {
+        data class Call(val url: String, val hash: String)
+        val calls = mutableListOf<Call>()
+        override fun apply(downloadUrl: String, expectedHash: String) {
+            calls += Call(downloadUrl, expectedHash)
+        }
+    }
+
+    /**
+     * Manager subclass that runs the delegate action inline instead of on a
+     * daemon thread, so tests can assert immediately without race conditions.
+     */
+    private class InlineManager(
+        plugin: JavaPlugin,
+        config: ResourcePackConfig,
+        logger: Logger?,
+        delegator: gg.interfaze.plugin.resourcepack.ResourcePackDelegator?,
+    ) : gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        plugin = plugin,
+        config = config,
+        logger = logger,
+        delegator = delegator,
+    ) {
+        override fun runDelegate(action: () -> Unit) { action() }
+    }
+
+    @Test
+    fun `onUpdate in delegate mode calls delegator and skips player push`() {
+        server.addPlayer()
+        val delegator = RecordingDelegator()
+        val mgr = InlineManager(plugin, config(), plugin.logger, delegator)
+
+        val info = ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>")
+        mgr.onUpdate(info)
+
+        // Delegator was called with the expected URL + hash.
+        assertEquals(1, delegator.calls.size)
+        assertEquals("http://x", delegator.calls[0].url)
+        assertEquals(SAMPLE_HASH, delegator.calls[0].hash)
+        // currentPackInfo is still set after delegate.
+        assertEquals(info, mgr.currentPackInfo)
+        // No player push happened — if addResourcePack had been called,
+        // MockBukkit's Player would have thrown UnimplementedOperationException
+        // and this assertion would never run.
+    }
+
+    @Test
+    fun `onUpdate with null in delegate mode does NOT iterate online players`() {
+        server.addPlayer()
+        val delegator = RecordingDelegator()
+        val mgr = InlineManager(plugin, config(), plugin.logger, delegator)
+        mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
+        delegator.calls.clear()
+
+        mgr.onUpdate(null)
+
+        assertTrue(delegator.calls.isEmpty(), "delegator should NOT be called on null")
+        assertNull(mgr.currentPackInfo)
+    }
+
+    @Test
+    fun `onJoin in delegate mode is a no-op`() {
+        val player = server.addPlayer()
+        val delegator = RecordingDelegator()
+        val mgr = InlineManager(plugin, config(sendOnJoin = true, delayTicks = 0L), plugin.logger, delegator)
+        mgr.onUpdate(ResourcePackInfo.from("http://x", SAMPLE_HASH, "<gold>x</gold>"))
+        delegator.calls.clear()
+
+        mgr.onJoin(player)
+
+        assertTrue(delegator.calls.isEmpty(), "delegator should NOT be called on join")
+        // If addResourcePack had been called, MockBukkit's Player would have
+        // thrown UnimplementedOperationException.
+    }
 }

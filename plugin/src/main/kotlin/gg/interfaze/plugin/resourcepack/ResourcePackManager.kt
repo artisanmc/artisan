@@ -16,6 +16,7 @@ open class ResourcePackManager(
     private val config: ResourcePackConfig,
     private val logger: Logger? = null,
     private val assetCatalog: AssetCatalog? = null,
+    private val delegator: ResourcePackDelegator? = null,
 ) : Listener {
 
     @Volatile
@@ -61,17 +62,23 @@ open class ResourcePackManager(
         val oldInfo = currentPackInfo
         currentPackInfo = info
         if (info == null) {
-            // Pack removed entirely — clean up any lingering Interfaze pack on online players
-            // so we don't leave clients with a stale Interfaze layer on their stack.
-            oldInfo?.let { old ->
-                for (player in plugin.server.onlinePlayers) {
-                    removePackSafe(player, old.uuid)
+            // In delegate mode there's nothing on player packs to clean up
+            // (we never added). Skip the per-player removal loop.
+            if (delegator == null) {
+                oldInfo?.let { old ->
+                    for (player in plugin.server.onlinePlayers) {
+                        removePackSafe(player, old.uuid)
+                    }
                 }
+                previousUuid = null
             }
-            previousUuid = null
             return
         }
         assetCatalog?.let { cat -> updateCatalogAsync(cat, info) }
+        if (delegator != null) {
+            applyDelegateAsync(info)
+            return
+        }
         if (!config.enabled) return
         for (player in plugin.server.onlinePlayers) {
             pushToPlayer(player)
@@ -80,6 +87,32 @@ open class ResourcePackManager(
         // pushToPlayer reads previousUuid BEFORE we overwrite it here, so the first push
         // sees null and only adds; subsequent pushes see the prior UUID and remove+add.
         previousUuid = info.uuid
+    }
+
+    private fun applyDelegateAsync(info: ResourcePackInfo) {
+        runDelegate {
+            delegator!!.apply(info.downloadUrl, info.hash)
+            logger?.info("[delegate] pack updated — reload the host RP plugin to apply")
+        }
+    }
+
+    /**
+     * Test seam — production runs the delegate apply on a daemon thread so
+     * the WS callback isn't blocked by a multi-MB download + extract.
+     * Tests override this to run inline for race-free assertions.
+     */
+    protected open fun runDelegate(action: () -> Unit) {
+        Thread {
+            try {
+                action()
+            } catch (t: Throwable) {
+                logger?.warning("[delegate] apply failed: ${t.message}")
+            }
+        }.apply {
+            isDaemon = true
+            name = "interfaze-rp-delegate"
+            start()
+        }
     }
 
     private fun updateCatalogAsync(catalog: AssetCatalog, info: ResourcePackInfo) {
@@ -152,6 +185,7 @@ open class ResourcePackManager(
     }
 
     fun onJoin(player: Player) {
+        if (delegator != null) return
         if (!config.enabled || !config.sendOnJoin) return
         if (config.sendDelayTicks <= 0L) {
             pushToPlayer(player)
