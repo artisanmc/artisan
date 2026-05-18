@@ -23,3 +23,14 @@ resource-pack:
   prompt: "<gold>Pack Interfaze</gold>"
   send-on-join: true
   send-delay-ticks: 20
+  # When set, Interfaze stops pushing its own RP to players and extracts its
+  # pack contents into this directory. The admin configures the host RP
+  # plugin (Oraxen / Nexo / ItemsAdder / etc.) to read from this path, then
+  # runs the host's reload command after every Interfaze update.
+  #
+  # Path is filesystem-absolute or relative to the server root. Interfaze
+  # owns the `assets/interfaze/` subtree inside it and wipes it before
+  # every extraction. Other files in the dir are left untouched.
+  #
+  # Default: empty (legacy mode — Interfaze pushes its own RP to players).
+  delegate-to-dir: ""
