@@ -62,11 +62,27 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProvider = menuProvider as? SyncedMenuProvider
         syncedProvider?.setCustomItemsManager(customItemsManager)
+        val delegator: gg.interfaze.plugin.resourcepack.ResourcePackDelegator? =
+            cfg.resourcePack.delegateToDir?.let { path ->
+                val dir = File(path)
+                if (!dir.exists()) dir.mkdirs()
+                if (!dir.isDirectory || !dir.canWrite()) {
+                    logger.warning(
+                        "[delegate] delegate-to-dir ${dir.absolutePath} is not a writable directory — " +
+                        "falling back to legacy push mode"
+                    )
+                    null
+                } else {
+                    logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
+                    gg.interfaze.plugin.resourcepack.ResourcePackDelegator(dir, logger)
+                }
+            }
         val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
             assetCatalog = assetCatalog,
+            delegator = delegator,
         )
         syncedProvider?.setResourcePackManager(resourcePackManager)
         server.pluginManager.registerEvents(resourcePackManager, this)
@@ -184,11 +200,27 @@ open class InterfazePlugin : JavaPlugin() {
         )
         val syncedProviderReinit = menuProvider as? SyncedMenuProvider
         syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
+        val delegatorReinit: gg.interfaze.plugin.resourcepack.ResourcePackDelegator? =
+            cfg.resourcePack.delegateToDir?.let { path ->
+                val dir = File(path)
+                if (!dir.exists()) dir.mkdirs()
+                if (!dir.isDirectory || !dir.canWrite()) {
+                    logger.warning(
+                        "[delegate] delegate-to-dir ${dir.absolutePath} is not a writable directory — " +
+                        "falling back to legacy push mode"
+                    )
+                    null
+                } else {
+                    logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
+                    gg.interfaze.plugin.resourcepack.ResourcePackDelegator(dir, logger)
+                }
+            }
         val resourcePackManagerReinit = gg.interfaze.plugin.resourcepack.ResourcePackManager(
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
             assetCatalog = assetCatalog,
+            delegator = delegatorReinit,
         )
         syncedProviderReinit?.setResourcePackManager(resourcePackManagerReinit)
         server.pluginManager.registerEvents(resourcePackManagerReinit, this)
