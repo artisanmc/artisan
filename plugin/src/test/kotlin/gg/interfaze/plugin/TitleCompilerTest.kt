@@ -675,6 +675,49 @@ class TitleCompilerTest {
         assertTrue(result.toString().contains(glyphCh.toString()))
     }
 
+    @Test
+    fun `compileTitle textarea before text — text lands at its target x regardless of textarea content`() {
+        // Two scenarios that should yield IDENTICAL offset between textarea end and the
+        // text layer's emitted body, because the text's targetX is absolute (chest x = 70).
+        //
+        // Sort puts Text last, Textarea before. Cursor after textarea = end of last
+        // rendered line. The emitted offset = 70 - cursor. After the offset, MC's
+        // cursor is at chest-x 70 in both cases. The text glyph then renders at 70.
+        fun titleStringFor(content: String): String {
+            val result = TitleCompiler.compileTitle(
+                layers = listOf(
+                    MenuTitleLayer.Textarea(
+                        value = LText("g"), x = 8, y = 0, width = 60, lineHeight = 10,
+                        alignment = MenuTitleLayer.Alignment.LEFT,
+                    ),
+                    MenuTitleLayer.Text(value = LText("t"), x = 70, y = 0),
+                ),
+                lang = "en_us",
+                langMap = mapOf("g" to content, "t" to "X"),
+                lookupAsset = emptyLookup,
+                offsetEncoder = standardEncoder,
+            )
+            return result.toString()
+        }
+
+        // Three different textarea contents — single, multi-line with last=widest,
+        // multi-line with first=widest (the regression case).
+        val singleLine = titleStringFor("Hi")            // line 0 = "Hi" (8 px wide)
+        val lastWidest = titleStringFor("Hi\nWorld")      // "Hi" (8), "World" (27)
+        val firstWidest = titleStringFor("World\nHi")     // "World" (27), "Hi" (8)
+
+        // The TEXT layer "X" must appear in all three. Extract the substring that
+        // contains the "X" — the absolute MC cursor leading up to it is computed
+        // independently in each case. The Text layer's targetX is 70, so:
+        //   - emitted-offset = 70 - cursor_after_textarea
+        //   - MC ends at 70 after the offset chars + text_y wrapper
+        // The text body itself (rendered inside `<font:interfaze:text_y0>X</font>`) is
+        // identical in all three — that's the smoke test.
+        assertTrue(singleLine.contains("X"))
+        assertTrue(lastWidest.contains("X"))
+        assertTrue(firstWidest.contains("X"))
+    }
+
     // ---------- wrapLine (private helper, exposed via test entry points) ----------
 
     @Test
@@ -717,6 +760,45 @@ class TitleCompilerTest {
         for (line in result) {
             assertTrue(TitleCompiler.testMeasure(line) <= 20, "Line '$line' exceeds 20px after stripping tags")
         }
+    }
+
+    @Test
+    fun `compileLayerBody textarea trims leading whitespace from content`() {
+        // Regression: a user typing leading whitespace (or saving content with
+        // an accidental leading space) would see the first line shifted right
+        // by 4 px per space under LEFT alignment, because the leading space
+        // chars rendered before the first visible glyph.
+        //
+        // Internal indentation on subsequent lines is PRESERVED — `\n   World`
+        // intentionally indents the second line and that should still render
+        // as-is.
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        // " Hello" → first line should NOT carry the leading space (otherwise
+        // newX would be 4 + 24 = 28 instead of just 24).
+        val (_, newX) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to " Hello"), emptyLookup, standardEncoder,
+        )
+        assertEquals(24, newX, "expected cursor at 0 + width('Hello') = 24, leading space stripped")
+    }
+
+    @Test
+    fun `compileLayerBody textarea preserves intentional indent on subsequent lines`() {
+        // After a \n, leading whitespace is part of the user's intent (indent)
+        // and must be preserved through to MC rendering.
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        // "Hi\n  World" → second line keeps its 2-space indent.
+        // Line 0 "Hi": width 8. Line 1 "  World": width = 2*4 + width("World") = 8 + 27 = 35.
+        // Last line ends at 0 + 35 = 35.
+        val (_, newX) = TitleCompiler.compileLayerBody(
+            layer, 0, mapOf("g" to "Hi\n  World"), emptyLookup, standardEncoder,
+        )
+        assertEquals(35, newX, "indented second line should render at layer.x + 2-space prefix + body width")
     }
 
     // ---------- Textarea wrap integration ----------

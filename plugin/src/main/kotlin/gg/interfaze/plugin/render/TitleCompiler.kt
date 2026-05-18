@@ -294,7 +294,12 @@ object TitleCompiler {
                 "□"
             }
             is MenuTitleLayer.Textarea -> {
-                val text = resolveLText(layer.value, langMap)
+                val raw = resolveLText(layer.value, langMap)
+                // Trim leading whitespace from the ENTIRE content (drops accidental
+                // leading spaces / newlines at the start of the textarea). Internal
+                // indentation after a hard `\n` is preserved — the user's intent on
+                // subsequent lines is kept (e.g. `"Title\n  Indented"` stays indented).
+                val text = raw.trimStart()
                 val hardLines = text.split("\n")
                 val lines = hardLines.flatMap { wrapLine(it, layer.width) }
                 val sb2 = StringBuilder()
