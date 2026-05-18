@@ -637,16 +637,21 @@ class TitleCompilerTest {
     }
 
     @Test
-    fun `compileLayerBody textarea reports maxLastX of last line for cursor tracking`() {
+    fun `compileLayerBody textarea reports end of LAST rendered line for cursor tracking`() {
+        // MC's cursor is sequential: after the final offset + final line are
+        // emitted, the cursor sits at (lineX_last + lineWidth_last) — NOT at
+        // the max across all lines. Returning the max would push subsequent
+        // layers' offsets too far left in-game.
         val layer = MenuTitleLayer.Textarea(
             value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
-        // "a" width 6, "bc" width 12. After 2 lines starting at x=0: cursor max = 0 + 12 = 12.
+        // "ab" width 12 (longer line), "a" width 6 (last line). Cursor at end
+        // = 0 + 6 = 6, NOT 12 (the max).
         val (_, newX) = TitleCompiler.compileLayerBody(
-            layer, 0, mapOf("g" to "a\nbc"), emptyLookup, standardEncoder,
+            layer, 0, mapOf("g" to "ab\na"), emptyLookup, standardEncoder,
         )
-        assertEquals(12, newX)
+        assertEquals(6, newX)
     }
 
     @Test
