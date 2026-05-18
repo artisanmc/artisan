@@ -7,6 +7,7 @@ data class ResourcePackConfig(
     val prompt: String,
     val sendOnJoin: Boolean,
     val sendDelayTicks: Long,
+    val delegateToDir: String?,
 )
 
 data class PluginConfig(
@@ -29,6 +30,7 @@ data class PluginConfig(
                 prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Interfaze</gold>") ?: "<gold>Pack Interfaze</gold>",
                 sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
                 sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
+                delegateToDir  = cfg.getString("resource-pack.delegate-to-dir")?.takeIf { it.isNotBlank() },
             ),
         )
     }

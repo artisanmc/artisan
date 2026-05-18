@@ -26,7 +26,13 @@ class ResourcePackManagerTest {
     fun teardown() { MockBukkit.unmock() }
 
     private fun config(enabled: Boolean = true, sendOnJoin: Boolean = true, delayTicks: Long = 0L) =
-        ResourcePackConfig(enabled = enabled, prompt = "<gold>x</gold>", sendOnJoin = sendOnJoin, sendDelayTicks = delayTicks)
+        ResourcePackConfig(
+            enabled = enabled,
+            prompt = "<gold>x</gold>",
+            sendOnJoin = sendOnJoin,
+            sendDelayTicks = delayTicks,
+            delegateToDir = null,
+        )
 
     private val SAMPLE_HASH = "0".repeat(40)
     private val OTHER_HASH = "f".repeat(40)
