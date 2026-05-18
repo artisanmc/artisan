@@ -4,6 +4,7 @@ import gg.interfaze.plugin.config.PluginConfig
 import org.bukkit.configuration.file.YamlConfiguration
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PluginConfigTest {
@@ -34,5 +35,49 @@ class PluginConfigTest {
         val cfg = PluginConfig.from(yaml)
         assertTrue(cfg.resourcePack.enabled)
         assertEquals(20L, cfg.resourcePack.sendDelayTicks)
+    }
+
+    @Test
+    fun `parses resource-pack delegate-to-dir when set`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            server_key: ""
+            ws_url: "ws://x"
+            resource-pack:
+              enabled: true
+              prompt: "<gold>x</gold>"
+              send-on-join: true
+              send-delay-ticks: 20
+              delegate-to-dir: "/srv/mc/plugins/Oraxen/pack"
+        """.trimIndent())
+        val cfg = PluginConfig.from(yaml)
+        assertEquals("/srv/mc/plugins/Oraxen/pack", cfg.resourcePack.delegateToDir)
+    }
+
+    @Test
+    fun `resource-pack delegate-to-dir defaults to null when absent`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            server_key: ""
+            ws_url: "ws://x"
+            resource-pack:
+              enabled: true
+        """.trimIndent())
+        val cfg = PluginConfig.from(yaml)
+        assertNull(cfg.resourcePack.delegateToDir)
+    }
+
+    @Test
+    fun `resource-pack delegate-to-dir parses empty string as null`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            server_key: ""
+            ws_url: "ws://x"
+            resource-pack:
+              enabled: true
+              delegate-to-dir: ""
+        """.trimIndent())
+        val cfg = PluginConfig.from(yaml)
+        assertNull(cfg.resourcePack.delegateToDir)
     }
 }
