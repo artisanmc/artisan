@@ -279,6 +279,17 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
 
+### Resource pack distribution modes
+
+Two modes, switched by the plugin config `resource-pack.delegate-to-dir`:
+
+| Mode | When | Behavior |
+|---|---|---|
+| Legacy (default) | `delegate-to-dir` empty | Plugin pushes its own RP via `addResourcePack` on join + on every update. Coexists with other RP plugins via the multi-pack stack (each pack has its own UUID). Two prompts at login when a host plugin also pushes. |
+| Delegation | `delegate-to-dir: <path>` | Plugin extracts `assets/interfaze/*` into `<path>/assets/interfaze/` on every update. Skips player push. Admin manually reloads the host RP plugin (`/oraxen reload`, `/iazip`, etc.) after each update. Single download for the player (host pack only). |
+
+The delegation path owns the `assets/interfaze/` subtree only — `pack.mcmeta` and anything outside that namespace is skipped, so it's safe to point at Oraxen/Nexo/ItemsAdder/etc. pack-source directories.
+
 ---
 
 ## Tests — ce qui est couvert
