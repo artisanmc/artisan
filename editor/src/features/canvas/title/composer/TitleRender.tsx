@@ -368,7 +368,10 @@ function LayerNode({
 
   const textareaLines =
     layer.kind === "textarea"
-      ? text.split("\n").flatMap((l) => wrapLineJs(l, layer.width))
+      // Trim leading whitespace from the whole content so the first sub-line
+      // doesn't carry accidental leading spaces (matches the plugin runtime).
+      // Internal indentation after explicit `\n` is preserved.
+      ? text.replace(/^\s+/, "").split("\n").flatMap((l) => wrapLineJs(l, layer.width))
       : [];
   const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
   // Alignment-aware x offset for the bbox/hit/handle: the textarea's lines
@@ -428,7 +431,10 @@ function LayerNode({
       />
     );
   } else if (layer.kind === "textarea") {
-    const hardLines = text.split("\n");
+    // Match the plugin: trim leading whitespace from the whole content so
+    // the first sub-line doesn't carry accidental leading spaces. Internal
+    // indentation after explicit `\n` is preserved.
+    const hardLines = text.replace(/^\s+/, "").split("\n");
     const lines = hardLines.flatMap((l) => wrapLineJs(l, layer.width));
     body = (
       <>
