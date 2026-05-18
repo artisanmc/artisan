@@ -298,8 +298,14 @@ object TitleCompiler {
                 val hardLines = text.split("\n")
                 val lines = hardLines.flatMap { wrapLine(it, layer.width) }
                 val sb2 = StringBuilder()
+                // localX = MC's cursor position, advanced sequentially: each
+                // offset emission and each rendered line moves the cursor by
+                // the corresponding delta. The cursor at the END of the
+                // textarea sits at `localX` after the last iteration — NOT at
+                // the max across all lines. Subsequent layers anchor their
+                // own offsets from this value, so returning anything else
+                // (e.g. max-end-of-line) would shift them left/right in-game.
                 var localX = startX
-                var maxLastX = startX
                 for ((i, line) in lines.withIndex()) {
                     val lineY = layer.y + i * layer.lineHeight
                     if (lineY > 140) break // text_y fonts exist for Y=0..140
@@ -315,9 +321,8 @@ object TitleCompiler {
                     sb2.append(line)
                     sb2.append("</font>")
                     localX = lineX + lineWidth
-                    if (localX > maxLastX) maxLastX = localX
                 }
-                return Pair(sb2.toString(), maxLastX)
+                return Pair(sb2.toString(), localX)
             }
         }
         return Pair(body, startX + estimateBodyWidth(layer, langMap, lookupAsset))
