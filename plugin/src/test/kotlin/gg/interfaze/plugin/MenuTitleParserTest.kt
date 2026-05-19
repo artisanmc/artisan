@@ -259,4 +259,51 @@ class MenuTitleParserTest {
         val ta = MenuTitleParser.parse(raw).single() as MenuTitleLayer.Textarea
         assertEquals(256, ta.width)
     }
+
+    @Test
+    fun `parses size on text layer`() {
+        val src = listOf(
+            mapOf("kind" to "text", "value" to mapOf("key" to "k"), "x" to 8, "y" to 5, "size" to 16),
+        )
+        val layers = MenuTitleParser.parse(src)
+        val text = layers.single() as MenuTitleLayer.Text
+        assertEquals(16, text.size)
+    }
+
+    @Test
+    fun `parses size on textarea layer`() {
+        val src = listOf(
+            mapOf("kind" to "textarea", "value" to mapOf("key" to "k"),
+                  "x" to 8, "y" to 20, "width" to 168, "line_height" to 14,
+                  "alignment" to "left", "size" to 12),
+        )
+        val layers = MenuTitleParser.parse(src)
+        val ta = layers.single() as MenuTitleLayer.Textarea
+        assertEquals(12, ta.size)
+    }
+
+    @Test
+    fun `text size defaults to 8 when absent`() {
+        val src = listOf(mapOf("kind" to "text", "value" to mapOf("key" to "k"), "x" to 8, "y" to 5))
+        val text = MenuTitleParser.parse(src).single() as MenuTitleLayer.Text
+        assertEquals(8, text.size)
+    }
+
+    @Test
+    fun `text size falls back to 8 when invalid`() {
+        // 10 is not in {4,8,12,16,20,24,32} — parser must reject silently.
+        val src = listOf(mapOf("kind" to "text", "value" to mapOf("key" to "k"),
+                                "x" to 8, "y" to 5, "size" to 10))
+        val text = MenuTitleParser.parse(src).single() as MenuTitleLayer.Text
+        assertEquals(8, text.size)
+    }
+
+    @Test
+    fun `textarea size falls back to 8 when invalid`() {
+        val src = listOf(mapOf("kind" to "textarea", "value" to mapOf("key" to "k"),
+                                "x" to 8, "y" to 20, "width" to 168, "line_height" to 14,
+                                "alignment" to "left", "size" to 999))
+        val ta = MenuTitleParser.parse(src).single() as MenuTitleLayer.Textarea
+        assertEquals(8, ta.size)
+    }
 }

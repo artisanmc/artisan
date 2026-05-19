@@ -50,6 +50,7 @@ object MenuTitleParser {
                 y = (m["y"] as? Number)?.toInt() ?: 0,
                 fontAssetId = m["font_asset_id"] as? String,
                 color = m["color"] as? String,
+                size = parseSize(m["size"]),
             )
             "textarea" -> MenuTitleLayer.Textarea(
                 value = parseLText(m["value"]),
@@ -59,6 +60,7 @@ object MenuTitleParser {
                 lineHeight = ((m["line_height"] as? Number)?.toInt() ?: 10).coerceIn(1, 32),
                 alignment = parseAlignment(m["alignment"] as? String),
                 fontAssetId = m["font_asset_id"] as? String,
+                size = parseSize(m["size"]),
             )
             "external_glyph" -> MenuTitleLayer.ExternalGlyph(
                 provider = m["provider"] as? String ?: return null,
@@ -72,6 +74,13 @@ object MenuTitleParser {
             )
             else -> null // unknown kind → skip
         }
+    }
+
+    private val ALLOWED_SIZES = setOf(4, 8, 12, 16, 20, 24, 32)
+
+    private fun parseSize(v: Any?): Int {
+        val n = (v as? Number)?.toInt() ?: return 8
+        return if (n in ALLOWED_SIZES) n else 8
     }
 
     private fun parseAlignment(s: String?): MenuTitleLayer.Alignment = when (s?.lowercase()) {
