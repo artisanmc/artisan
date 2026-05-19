@@ -170,7 +170,14 @@ object TitleCompiler {
         't'  -> 4
         'u', 'v', 'w', 'x', 'y', 'z' -> 6
         '{'  -> 4; '|'  -> 2; '}'  -> 4; '~'  -> 7
-        else -> 6
+        // Non-ASCII fallback: our text_y{Y}.json bitmap providers only cover
+        // printable ASCII (rows 2-7 of ascii.png). Any other char (à, é, ñ,
+        // emoji, etc.) lands on a TRANSPARENT cell in ascii.png. MC computes
+        // advance = rightmost_non_transparent_col + 2 = -1 + 2 = 1 for an
+        // empty cell. Matching that here keeps our wrap math aligned with what
+        // MC actually renders — until accented.png is bundled (separate fix)
+        // for proper accented-glyph rendering.
+        else -> 1
     }
 
     /**
