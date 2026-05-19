@@ -89,7 +89,7 @@ export function VanillaMcText({
     for (const seg of segments) {
       const bold = seg.style.bold ?? false;
       for (const ch of seg.text) {
-        totalWidth += ((VANILLA_ADVANCES[ch] ?? 6) + (bold ? 1 : 0)) * scale;
+        totalWidth += ((VANILLA_ADVANCES[ch] ?? 1) + (bold ? 1 : 0)) * scale;
       }
     }
     if (totalWidth <= 0) {
@@ -176,6 +176,10 @@ export function VanillaMcText({
  */
 export function vanillaTextWidth(text: string): number {
   let w = 0;
-  for (const ch of text) w += VANILLA_ADVANCES[ch] ?? 6;
+  // Non-ASCII fallback: 1, matching MC's empty-cell advance in ascii.png.
+  // See TitleCompiler.charAdvance in the plugin for the rationale — text_y{Y}
+  // currently only bundles printable-ASCII glyphs, so accented chars land on
+  // transparent cells (advance = rightmost-non-transparent + 2 = -1 + 2 = 1).
+  for (const ch of text) w += VANILLA_ADVANCES[ch] ?? 1;
   return w;
 }
