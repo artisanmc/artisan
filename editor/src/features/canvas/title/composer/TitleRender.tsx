@@ -513,8 +513,9 @@ function LayerNode({
 
   // Scale factor for text/textarea layers based on their `size` property.
   // size=8 (default) → sizeScale=1, size=16 → sizeScale=2, etc.
+  // `plain` has no `size` field (it's a legacy kind without per-layer sizing).
   const layerSizeScale =
-    layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
+    layer.kind === "text" || layer.kind === "textarea"
       ? (layer.size ?? 8) / 8
       : 1;
 
