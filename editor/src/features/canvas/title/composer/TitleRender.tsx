@@ -45,7 +45,7 @@ function countBoldChars(text: string): number {
 
 /**
  * TS port of TitleCompiler.measureLineWidth — strips MiniMessage tags, sums
- * per-char advances from VANILLA_ADVANCES, and adds bold compensation.
+ * per-char advances from the CHAR_ADVANCES table (vanilla MC font scan),
  * Used by `wrapLineJs` so width math matches the plugin (and therefore MC).
  */
 function measureLineWidthJs(text: string): number {

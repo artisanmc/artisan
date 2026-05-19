@@ -138,47 +138,16 @@ object TitleCompiler {
     internal fun testMeasure(line: String): Int = measureLineWidth(line)
 
     /**
-     * Per-character advance (px) for the MC 1.21 default ASCII bitmap font
-     * (minecraft:font/ascii.png, 8×8 glyph cells, height=8, scale=1).
+     * Per-character advance (MC pixels) for the vanilla default font.
+     * Consults [CHAR_ADVANCES] — a generated table built from the actual
+     * vanilla 1.21.4 textures (ascii.png + accented.png + nonlatin_european.png)
+     * in vanilla provider order, with the space provider overlay applied.
      *
-     * Formula: advance = (rightmost_non_transparent_column + 1) + 1 spacing.
-     * Space uses the `space` provider in text_y{Y}.json → 4 px (same as vanilla).
-     * Non-ASCII characters fall back to 6 (most extended Latin chars are 5-wide).
-     * Scanned from the actual 1.21.4 ascii.png via alpha-channel rightmost column.
+     * Fallback to 1 mirrors MC's empty-cell behavior (rightmost-non-transparent
+     * column = -1, plus 1 spacing). Surrogate-pair code points (e.g. emoji)
+     * land on the fallback too — the table only covers the BMP.
      */
-    private fun charAdvance(ch: Char): Int = when (ch) {
-        ' '  -> 4
-        '!'  -> 2; '"'  -> 4; '#'  -> 6; '$'  -> 6; '%'  -> 6; '&'  -> 6
-        '\'' -> 2; '('  -> 4; ')'  -> 4; '*'  -> 4; '+'  -> 6; ','  -> 2
-        '-'  -> 6; '.'  -> 2; '/'  -> 6
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> 6
-        ':'  -> 2; ';'  -> 2; '<'  -> 5; '='  -> 6; '>'  -> 5; '?'  -> 6
-        '@'  -> 7
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' -> 6
-        'I'  -> 4
-        'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-        'U', 'V', 'W', 'X', 'Y', 'Z' -> 6
-        '['  -> 4; '\\'  -> 6; ']'  -> 4; '^'  -> 6; '_'  -> 6; '`'  -> 3
-        'a', 'b', 'c', 'd', 'e' -> 6
-        'f'  -> 5
-        'g', 'h' -> 6
-        'i'  -> 2
-        'j'  -> 6
-        'k'  -> 5
-        'l'  -> 3
-        'm', 'n', 'o', 'p', 'q', 'r', 's' -> 6
-        't'  -> 4
-        'u', 'v', 'w', 'x', 'y', 'z' -> 6
-        '{'  -> 4; '|'  -> 2; '}'  -> 4; '~'  -> 7
-        // Non-ASCII fallback: our text_y{Y}.json bitmap providers only cover
-        // printable ASCII (rows 2-7 of ascii.png). Any other char (à, é, ñ,
-        // emoji, etc.) lands on a TRANSPARENT cell in ascii.png. MC computes
-        // advance = rightmost_non_transparent_col + 2 = -1 + 2 = 1 for an
-        // empty cell. Matching that here keeps our wrap math aligned with what
-        // MC actually renders — until accented.png is bundled (separate fix)
-        // for proper accented-glyph rendering.
-        else -> 1
-    }
+    private fun charAdvance(ch: Char): Int = CHAR_ADVANCES[ch.code] ?: 1
 
     /**
      * Compiles [layers] into a [Component]. Returns [Component.empty] when
