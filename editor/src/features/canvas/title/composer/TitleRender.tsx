@@ -371,7 +371,9 @@ function LayerNode({
       // Trim leading whitespace from the whole content so the first sub-line
       // doesn't carry accidental leading spaces (matches the plugin runtime).
       // Internal indentation after explicit `\n` is preserved.
-      ? text.replace(/^\s+/, "").split("\n").flatMap((l) => wrapLineJs(l, layer.width))
+      ? text.replace(/^\s+/, "").split("\n").flatMap((l) =>
+          wrapLineJs(l, Math.floor(layer.width * 8 / (layer.size ?? 8)))
+        )
       : [];
   const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
   // Alignment-aware x offset for the bbox/hit/handle: the textarea's lines
@@ -415,6 +417,7 @@ function LayerNode({
         x={0}
         y={0}
         scale={scale}
+        sizeScale={(layer.size ?? 8) / 8}
         defaultColor="#404040"
         listening={false}
       />
@@ -435,7 +438,9 @@ function LayerNode({
     // the first sub-line doesn't carry accidental leading spaces. Internal
     // indentation after explicit `\n` is preserved.
     const hardLines = text.replace(/^\s+/, "").split("\n");
-    const lines = hardLines.flatMap((l) => wrapLineJs(l, layer.width));
+    const lines = hardLines.flatMap((l) =>
+      wrapLineJs(l, Math.floor(layer.width * 8 / (layer.size ?? 8)))
+    );
     body = (
       <>
         {lines.map((line, i) => {
@@ -466,6 +471,7 @@ function LayerNode({
               x={lineX}
               y={lineY}
               scale={scale}
+              sizeScale={(layer.size ?? 8) / 8}
               defaultColor="#404040"
               listening={false}
             />

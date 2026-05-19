@@ -180,6 +180,7 @@ vi.mock("../VanillaMcText", () => ({
     x: number;
     y: number;
     scale: number;
+    sizeScale?: number;
   }) => (
     <div
       data-testid="vanilla-mc-text"
@@ -187,6 +188,7 @@ vi.mock("../VanillaMcText", () => ({
       data-x={props.x}
       data-y={props.y}
       data-scale={props.scale}
+      data-size-scale={props.sizeScale ?? 1}
     />
   ),
   vanillaTextWidth: (text: string) => text.length * 6,
@@ -369,6 +371,26 @@ describe("TitleRender", () => {
     const vm = screen.getByTestId("vanilla-mc-text");
     expect(vm.getAttribute("data-source")).toBe("Hello");
     expect(screen.queryByTestId("mc-font-text")).toBeNull();
+  });
+
+  it("text layer with size=16 passes sizeScale=2 to VanillaMcText", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0, size: 16 },
+    ];
+    seedPack(layers);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const node = screen.getByTestId("vanilla-mc-text");
+    expect(node.getAttribute("data-size-scale")).toBe("2");
+  });
+
+  it("text layer without explicit size passes sizeScale=1 (default)", () => {
+    const layers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(layers);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const node = screen.getByTestId("vanilla-mc-text");
+    expect(node.getAttribute("data-size-scale")).toBe("1");
   });
 
   it("text layer WITH fontAssetId resolving to a font asset uses McFontText", () => {
