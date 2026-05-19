@@ -894,6 +894,7 @@ describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files w
     const body = await getRes.json() as { packs: Array<{ id: string; canvasLayout: Record<string, { x: number; y: number }> }> };
     const p = body.packs.find((x) => x.id === "p_files_win")!;
     expect(p.canvasLayout).toEqual({ shop: { x: 77, y: 88 } });
+    expect(p.name).toBe("Files Win");
   });
 });
 
@@ -924,5 +925,34 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout 
     const body = await getRes.json() as { packs: Array<{ id: string; canvasLayout: Record<string, { x: number; y: number }> }> };
     const p = body.packs.find((x) => x.id === "p_deploy_layout")!;
     expect(p.canvasLayout).toEqual({ bar: { x: 200, y: 300 } });
+    expect(p.name).toBe("Deploy Layout");
+  });
+});
+
+describe("PUT /api/editor-session/:token/packs/:packId — invalid pack rejection", () => {
+  test("400 when body.pack is null", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/p_null`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("missing_or_invalid_pack");
+  });
+});
+
+describe("POST /api/editor-session/:token/packs/:packId/deploy — invalid pack rejection", () => {
+  test("400 when body.pack is null", async () => {
+    const { token } = await createTrustedSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/p_null/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("missing_or_invalid_pack");
   });
 });
