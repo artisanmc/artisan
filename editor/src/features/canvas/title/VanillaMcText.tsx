@@ -4,6 +4,7 @@ import useImage from "use-image";
 
 import { parseMiniMessage } from "@/lib/miniMessage";
 import { CHAR_ADVANCES } from "./charAdvances";
+import { ATLAS_META, charCell, type AtlasName } from "./charCells";
 
 /**
  * Per-character advance lookup. Backed by the generated CHAR_ADVANCES map
@@ -16,20 +17,28 @@ function advance(ch: string): number {
   return cp !== undefined ? (CHAR_ADVANCES[cp] ?? 1) : 1;
 }
 
-/** Atlas cell size in the vanilla 128×128 ascii.png (8×8 per character). */
-const ATLAS_CELL = 8;
-
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-/** URL of the vanilla MC ASCII font atlas served by the backend. */
-const ATLAS_URL = `${API_URL}/api/textures/1.21.4/font/ascii`;
+const ATLAS_URLS: Record<AtlasName, string> = {
+  ascii: `${API_URL}/api/textures/1.21.4/font/ascii`,
+  accented: `${API_URL}/api/textures/1.21.4/font/accented`,
+  nonlatin_european: `${API_URL}/api/textures/1.21.4/font/nonlatin_european`,
+};
 
-/** Map a printable ASCII char to its (col, row) cell in the atlas. */
-function charCell(ch: string): { col: number; row: number } | null {
-  const code = ch.charCodeAt(0);
-  if (code < 0x20 || code > 0x7e) return null;
-  return { col: code % 16, row: Math.floor(code / 16) };
-}
+// All atlases share the same ascent reference: the canvas's top-of-line is
+// placed at chest-y 6 (vanilla title position). Each char is drawn so its
+// baseline sits at `MAX_ASCENT` from the canvas top.
+const MAX_ASCENT = Math.max(
+  ATLAS_META.ascii.ascent,
+  ATLAS_META.accented.ascent,
+  ATLAS_META.nonlatin_european.ascent,
+);
+// Canvas height covers the tallest possible cell, anchored so baselines align.
+const CANVAS_H_SRC = Math.max(
+  ATLAS_META.ascii.cellH + (MAX_ASCENT - ATLAS_META.ascii.ascent),
+  ATLAS_META.accented.cellH + (MAX_ASCENT - ATLAS_META.accented.ascent),
+  ATLAS_META.nonlatin_european.cellH + (MAX_ASCENT - ATLAS_META.nonlatin_european.ascent),
+);
 
 interface VanillaMcTextProps {
   /** MiniMessage markup to render. */
@@ -37,34 +46,37 @@ interface VanillaMcTextProps {
   x: number;
   y: number;
   scale: number;
+  /** Multiplier applied to glyph dimensions only (not coordinates). Defaults
+   *  to 1, meaning vanilla 8-px height. Plugin's `size=16` text uses 2 here. */
+  sizeScale?: number;
   /** Default text color when no MiniMessage color tag is active. */
   defaultColor?: string;
   listening?: boolean;
 }
 
 /**
- * Renders text using the vanilla MC ASCII bitmap atlas.
+ * Renders text using the vanilla MC bitmap atlases (ascii + accented +
+ * nonlatin_european). Each glyph is cropped from the atlas that owns it
+ * (per vanilla provider priority), tinted to the active MiniMessage color,
+ * and blitted with a per-atlas vertical offset so baselines align across
+ * cells of different heights.
  *
- * Each character is cropped from the 128×128 atlas and tinted to the
- * active MiniMessage color using a reusable offscreen canvas. Advance
- * widths match MC's runtime behavior (trimmed glyph width + 1 kerning px).
- *
- * Non-ASCII characters and chars not in the atlas silently advance the
- * cursor by 6 MC pixels without rendering a glyph.
- *
- * Color tinting: the atlas has white glyphs on transparent background.
- * We apply `source-in` compositing to replace white with the desired
- * color, preserving the original per-pixel alpha.
+ * Color tinting uses `source-in` compositing: the atlas glyph (white on
+ * transparent) becomes a mask, and the active color fills it while
+ * preserving per-pixel alpha.
  */
 export function VanillaMcText({
   source,
   x,
   y,
   scale,
+  sizeScale = 1,
   defaultColor = "#404040",
   listening = false,
 }: VanillaMcTextProps) {
-  const [atlas] = useImage(ATLAS_URL, "anonymous");
+  const [ascii] = useImage(ATLAS_URLS.ascii, "anonymous");
+  const [accented] = useImage(ATLAS_URLS.accented, "anonymous");
+  const [nonlatin] = useImage(ATLAS_URLS.nonlatin_european, "anonymous");
   const tempRef = useRef<HTMLCanvasElement | null>(null);
   const [rendered, setRendered] = useState<{
     canvas: HTMLCanvasElement;
@@ -72,7 +84,12 @@ export function VanillaMcText({
   } | null>(null);
 
   useEffect(() => {
-    if (!atlas) return;
+    if (!ascii || !accented || !nonlatin) return;
+    const atlases: Record<AtlasName, HTMLImageElement> = {
+      ascii,
+      accented,
+      nonlatin_european: nonlatin,
+    };
     const segments = parseMiniMessage(source);
 
     // Compute the total canvas width in canvas pixels.
@@ -80,7 +97,7 @@ export function VanillaMcText({
     for (const seg of segments) {
       const bold = seg.style.bold ?? false;
       for (const ch of seg.text) {
-        totalWidth += (advance(ch) + (bold ? 1 : 0)) * scale;
+        totalWidth += (advance(ch) + (bold ? 1 : 0)) * scale * sizeScale;
       }
     }
     if (totalWidth <= 0) {
@@ -90,16 +107,18 @@ export function VanillaMcText({
 
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(totalWidth);
-    canvas.height = ATLAS_CELL * scale;
+    canvas.height = CANVAS_H_SRC * scale * sizeScale;
     const ctx = canvas.getContext("2d")!;
     ctx.imageSmoothingEnabled = false;
 
-    // Reuse a small offscreen canvas for per-glyph coloring.
-    const cellPx = ATLAS_CELL * scale;
-    if (!tempRef.current || tempRef.current.width !== cellPx) {
+    // Reuse a small offscreen canvas for per-glyph coloring. Sized to the
+    // tallest possible cell so any atlas glyph fits.
+    const tempW = Math.max(ATLAS_META.ascii.cellW, ATLAS_META.accented.cellW, ATLAS_META.nonlatin_european.cellW) * scale * sizeScale;
+    const tempH = Math.max(ATLAS_META.ascii.cellH, ATLAS_META.accented.cellH, ATLAS_META.nonlatin_european.cellH) * scale * sizeScale;
+    if (!tempRef.current || tempRef.current.width !== tempW || tempRef.current.height !== tempH) {
       tempRef.current = document.createElement("canvas");
-      tempRef.current.width = cellPx;
-      tempRef.current.height = cellPx;
+      tempRef.current.width = tempW;
+      tempRef.current.height = tempH;
     }
     const temp = tempRef.current;
     const tctx = temp.getContext("2d")!;
@@ -112,49 +131,63 @@ export function VanillaMcText({
       for (const ch of seg.text) {
         const cell = charCell(ch);
         // MC bold adds 1px to the advance (glyph drawn twice, shifted 1px right).
-        const adv = (advance(ch) + (bold ? 1 : 0)) * scale;
+        const adv = (advance(ch) + (bold ? 1 : 0)) * scale * sizeScale;
         if (cell) {
+          const meta = ATLAS_META[cell.atlas];
+          const cw = meta.cellW * scale * sizeScale;
+          const cellH = meta.cellH * scale * sizeScale;
+          // Vertical offset to align baselines: top of this glyph's cell is
+          // placed `MAX_ASCENT - meta.ascent` source pixels below the canvas
+          // top, so its baseline lands at MAX_ASCENT — same as every other
+          // glyph regardless of which atlas it came from.
+          const yOffset = (MAX_ASCENT - meta.ascent) * scale * sizeScale;
           // Draw the white atlas glyph onto the temp canvas.
-          tctx.clearRect(0, 0, cellPx, cellPx);
+          tctx.clearRect(0, 0, tempW, tempH);
           tctx.drawImage(
-            atlas,
-            cell.col * ATLAS_CELL,
-            cell.row * ATLAS_CELL,
-            ATLAS_CELL,
-            ATLAS_CELL,
+            atlases[cell.atlas],
+            cell.col * meta.cellW,
+            cell.row * meta.cellH,
+            meta.cellW,
+            meta.cellH,
             0,
             0,
-            cellPx,
-            cellPx,
+            cw,
+            cellH,
           );
           // Tint: `source-in` keeps the glyph's alpha mask and replaces
           // the color with `color` (white × color = color).
           tctx.globalCompositeOperation = "source-in";
           tctx.fillStyle = color;
-          tctx.fillRect(0, 0, cellPx, cellPx);
+          tctx.fillRect(0, 0, cw, cellH);
           tctx.globalCompositeOperation = "source-over";
           // Blit the tinted glyph to the main canvas. MC bold: draw twice,
-          // second pass shifted 1px right (replicates MC's double-draw bold).
-          ctx.drawImage(temp, cursor, 0);
-          if (bold) ctx.drawImage(temp, cursor + scale, 0);
+          // second pass shifted 1px right.
+          ctx.drawImage(temp, 0, 0, cw, cellH, cursor, yOffset, cw, cellH);
+          if (bold) ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale * sizeScale, yOffset, cw, cellH);
         }
         cursor += adv;
       }
     }
 
     setRendered({ canvas, width: Math.ceil(totalWidth) });
-  }, [atlas, source, scale, defaultColor]);
+  }, [ascii, accented, nonlatin, source, scale, sizeScale, defaultColor]);
 
   if (!rendered) return null;
 
+  // Callers position `y` against the top of an ASCII cell (the pre-multi-atlas
+  // anchor). The canvas top sits `(MAX_ASCENT - ascii.ascent)` source pixels
+  // above that anchor so accent rows (which need a taller cell) can extend
+  // upward without being clipped.
+  const groupY = y - (MAX_ASCENT - ATLAS_META.ascii.ascent) * scale * sizeScale;
+
   return (
-    <Group x={x} y={y} listening={listening}>
+    <Group x={x} y={groupY} listening={listening}>
       <KonvaImage
         image={rendered.canvas}
         x={0}
         y={0}
         width={rendered.width}
-        height={ATLAS_CELL * scale}
+        height={CANVAS_H_SRC * scale * sizeScale}
         listening={false}
       />
     </Group>
