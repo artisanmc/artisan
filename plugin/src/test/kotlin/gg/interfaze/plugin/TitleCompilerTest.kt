@@ -41,35 +41,35 @@ class TitleCompilerTest {
     fun `compileLayerBody for text without color or font wraps in text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 0)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0>hello</font>", s)
+        assertEquals("<font:interfaze:text_y0_h8>hello</font>", s)
     }
 
     @Test
     fun `compileLayerBody for text at non-default y wraps in matching text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 20)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y20>hello</font>", s)
+        assertEquals("<font:interfaze:text_y20_h8>hello</font>", s)
     }
 
     @Test
     fun `compileLayerBody for text at title-label y=6 wraps in text_y6 font`() {
         val layer = MenuTitleLayer.Text(value = LText("k"), x = 8, y = 6)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("k" to "hi"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y6>hi</font>", s)
+        assertEquals("<font:interfaze:text_y6_h8>hi</font>", s)
     }
 
     @Test
     fun `compileLayerBody for text with color wraps color inside text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 10, y = 0, color = "#FFAA00")
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0><color:#FFAA00>hello</color></font>", s)
+        assertEquals("<font:interfaze:text_y0_h8><color:#FFAA00>hello</color></font>", s)
     }
 
     @Test
     fun `compileLayerBody for text with missing langMap key wraps fallback key in text_y font`() {
         val layer = MenuTitleLayer.Text(value = LText("missing.key"), x = 0, y = 0)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0>missing.key</font>", s)
+        assertEquals("<font:interfaze:text_y0_h8>missing.key</font>", s)
     }
 
     @Test
@@ -167,7 +167,7 @@ class TitleCompilerTest {
         )
         val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>${initOffset}<font:interfaze:text_y0>hi</font></font>")
+            .deserialize("<font:interfaze:default>${initOffset}<font:interfaze:text_y0_h8>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
         assertEquals(ShadowColor.none(), result.shadowColor())
@@ -311,7 +311,7 @@ class TitleCompilerTest {
         val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val textOffset = standardEncoder.encode(-97)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>${textOffset}<font:interfaze:text_y0>hi</font></font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>${textOffset}<font:interfaze:text_y0_h8>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
         // sanity: decoded offsets
@@ -561,7 +561,7 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "hi"), emptyLookup, standardEncoder,
         )
-        assertEquals("<font:interfaze:text_y0>hi</font>", s)
+        assertEquals("<font:interfaze:text_y0_h8>hi</font>", s)
     }
 
     @Test
@@ -573,9 +573,9 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "a\nb\nc"), emptyLookup, standardEncoder,
         )
-        assertTrue(s.contains("<font:interfaze:text_y0>a</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y10>b</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y20>c</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y0_h8>a</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y10_h8>b</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y20_h8>c</font>"))
     }
 
     @Test
@@ -590,7 +590,7 @@ class TitleCompilerTest {
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(44)
-        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+        assertEquals("$firstOffset<font:interfaze:text_y0_h8>ab</font>", s)
     }
 
     @Test
@@ -604,7 +604,7 @@ class TitleCompilerTest {
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(48)
-        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+        assertEquals("$firstOffset<font:interfaze:text_y0_h8>ab</font>", s)
     }
 
     @Test
@@ -880,7 +880,7 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:interfaze:text_y\\d+_h\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 2, "Expected at least 2 text_y wrappers but got $text_yCount in '$s'")
     }
 
@@ -893,7 +893,7 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "line1\nab cd ef"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:interfaze:text_y\\d+_h\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 3, "Expected at least 3 text_y wrappers but got $text_yCount in '$s'")
     }
 
@@ -906,7 +906,7 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "short"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:interfaze:text_y\\d+_h\\d+>").findAll(s).count()
         assertEquals(1, text_yCount)
     }
 
@@ -919,8 +919,47 @@ class TitleCompilerTest {
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:interfaze:text_y\\d+_h\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 2, "Expected at least 2 sub-lines but got $text_yCount in '$s'")
+    }
+
+    @Test
+    fun `compileLayerBody for text with size=16 wraps in text_y_h16 font tag`() {
+        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 5, size = 16)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "Big"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y5_h16>Big</font>", s)
+    }
+
+    @Test
+    fun `compileLayerBody for text size=16 doubles end cursor`() {
+        val langMap = mapOf("k" to "Hello")
+        val small = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5, size = 8)
+        val large = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5, size = 16)
+        val (_, smallEnd) = TitleCompiler.compileLayerBody(small, 0, langMap, emptyLookup, OffsetEncoder.EMPTY)
+        val (_, largeEnd) = TitleCompiler.compileLayerBody(large, 0, langMap, emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals(smallEnd * 2, largeEnd)
+    }
+
+    @Test
+    fun `compileLayerBody for textarea with size=12 wraps each line in text_y_h12`() {
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("k"),
+            x = 8, y = 20,
+            width = 168, lineHeight = 18,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+            size = 12,
+        )
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("k" to "Line A\nLine B"), emptyLookup, OffsetEncoder.EMPTY)
+        assertTrue(s.contains("<font:interfaze:text_y20_h12>"), "missing first line tag in: $s")
+        // Second line lives at y = 20 + lineHeight(18) = 38.
+        assertTrue(s.contains("<font:interfaze:text_y38_h12>"), "missing second line tag in: $s")
+    }
+
+    @Test
+    fun `compileLayerBody for text without explicit size emits h8 (default)`() {
+        val layer = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 0)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("k" to "hi"), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:interfaze:text_y0_h8>hi</font>", s)
     }
 
     @Test
