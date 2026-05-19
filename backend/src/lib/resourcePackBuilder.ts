@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { strToU8, zipSync } from "fflate";
 import { buildAssetIndex } from "./assetIndexBuilder";
-import { buildDefaultFontJson, type AssetRow } from "./fontJsonBuilder";
+import { buildDefaultFontJson, buildTextYFontJson, type AssetRow } from "./fontJsonBuilder";
 
 export type { AssetRow };
 
@@ -59,6 +59,23 @@ export function buildResourcePackZip(
 
   files["assets/interfaze/asset-index.json"] =
     strToU8(JSON.stringify(buildAssetIndex(assets), null, 2));
+
+  // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
+  // TitleCompiler wraps plain text layers in <font:interfaze:text_y{Y}> to
+  // achieve arbitrary vertical positioning using minecraft:font/ascii.png
+  // with a shifted ascent. Always included so the plugin can reference any
+  // Y value without needing a resource-pack rebuild when layers change.
+  //
+  // Range covers: ~32 px above the chest title bar (negative Y) for floating
+  // text effects, the title bar itself (Y=0..16), the slot area for any chest
+  // size up to 6 rows (Y=18..139), the bottom border (Y=140..149), and the
+  // top of the player inventory (Y=150..172). A user picking Y outside this
+  // range would otherwise see missing-glyph squares in-game because MC
+  // can't find the referenced font asset.
+  for (let y = -32; y <= 172; y++) {
+    files[`assets/interfaze/font/text_y${y}.json`] =
+      strToU8(JSON.stringify(buildTextYFontJson(y), null, 2));
+  }
 
   const glyphs = assets
     .filter((a) => a.type === "glyph" && a.codepoint !== null)

@@ -608,18 +608,19 @@ class TitleCompilerTest {
     }
 
     @Test
-    fun `compileLayerBody textarea truncates lines past y=140`() {
+    fun `compileLayerBody textarea truncates lines past TEXT_Y_MAX`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 135, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 168, width = 256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
-        // y=135 → line 0 at 135 (≤140 ok). Line 1 at 145 → drops. Line 2 at 155 → drops.
+        // y=168, lineHeight=10. TEXT_Y_MAX=172.
+        // Line 0 at 168 (<=172 ok). Line 1 at 178 → drops. Line 2 at 188 → drops.
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "a\nb\nc"), emptyLookup, standardEncoder,
         )
-        assertTrue(s.contains("text_y135"))
-        assertFalse(s.contains("text_y145"))
-        assertFalse(s.contains("text_y155"))
+        assertTrue(s.contains("text_y168"))
+        assertFalse(s.contains("text_y178"))
+        assertFalse(s.contains("text_y188"))
     }
 
     @Test
