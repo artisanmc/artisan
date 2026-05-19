@@ -28,6 +28,14 @@ class OffsetEncoder(entries: List<Pair<Char, Int>>) {
     val maxNegative: Int = sorted.filter { it.second < 0 }.sumOf { it.second }
 
     /**
+     * Returns the (char → advance) map of every entry this encoder can emit.
+     * Used by diagnostic commands (e.g. /ifz dump-title) to decode an
+     * assembled string back into pixel sums, mirroring what MC's space
+     * provider does at render time.
+     */
+    fun advances(): Map<Char, Int> = sorted.toMap()
+
+    /**
      * Returns a sequence of "space" chars whose advances sum to [pixels].
      * Empty string for `0`. For out-of-range inputs, emits as many same-sign
      * advances as possible and stops (best-effort — caller may compare

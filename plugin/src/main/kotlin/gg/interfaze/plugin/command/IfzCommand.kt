@@ -4,6 +4,7 @@ import gg.interfaze.plugin.InterfazePlugin
 import gg.interfaze.plugin.config.ConfigWriter
 import gg.interfaze.plugin.config.PluginConfig
 import gg.interfaze.plugin.lang.LangManager
+import gg.interfaze.plugin.render.TitleCompiler
 import gg.interfaze.plugin.ws.SetupClient
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
@@ -33,9 +34,11 @@ class IfzCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor")
+            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor", "dump-title")
                 .filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
+                plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
+            args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
@@ -88,9 +91,91 @@ class IfzCommand(
                 plugin.menuProvider.sendTrustRequest(code.uppercase())
                 sender.sendMessage(lang.get("ifz.trust_sent", sender))
             }
+            "dump-title" -> {
+                val menuId = args.getOrNull(1) ?: run {
+                    sender.sendMessage("Usage: /ifz dump-title <menu_id> [lang]")
+                    return true
+                }
+                dumpTitle(sender, menuId, args.getOrNull(2))
+            }
             else -> sender.sendMessage(lang.get("ifz.usage_main", sender))
         }
         return true
+    }
+
+    /**
+     * Diagnostic: compile the title for [menuId] and print every step.
+     * Useful when in-game position differs from the editor preview — the
+     * dump shows the exact MiniMessage emitted, the offset advances, and
+     * the resulting MC cursor X at each layer boundary.
+     */
+    private fun dumpTitle(sender: CommandSender, menuId: String, langOverride: String?) {
+        val menu = plugin.menuProvider.findMenu(menuId)
+        if (menu == null) {
+            sender.sendMessage("Menu '$menuId' not found. Known: ${plugin.menuProvider.listMenuIds()}")
+            return
+        }
+        val resolvedLang = langOverride ?: PluginConfig.from(plugin.config).language
+        val langMap = menu.langMaps[resolvedLang] ?: emptyMap()
+        val encoder = plugin.assetCatalog.offsetEncoder()
+        val advances: Map<Char, Int> = encoder.advances()
+
+        // Re-decode the offset chars char-by-char so we can show MC's cursor as
+        // it advances through the assembled MiniMessage string.
+        fun decodeOffsetSum(s: String): Int = s.sumOf { advances[it] ?: 0 }
+
+        // Walk the assembled string and pretty-print each offset run + each
+        // <font:text_y{Y}>…</font> body, with the running cursor X.
+        val result = TitleCompiler.compileTitle(
+            layers = menu.title,
+            lang = resolvedLang,
+            langMap = langMap,
+            lookupAsset = plugin.assetCatalog::lookup,
+            offsetEncoder = encoder,
+        )
+        val raw = result.toString()
+
+        sender.sendMessage("─── dump-title $menuId (lang=$resolvedLang) ───")
+        sender.sendMessage("Title.title layers: ${menu.title.size}")
+        for ((i, l) in menu.title.withIndex()) sender.sendMessage("  [$i] $l")
+        sender.sendMessage("Component.toString() length=${raw.length}")
+        sender.sendMessage(raw)
+
+        // Now walk the assembled MiniMessage string we'd EMIT (we reconstruct
+        // via compileLayerBody so cursor tracking matches the production path).
+        sender.sendMessage("─── cursor walk (initial currentX=${TitleCompiler.TITLE_LABEL_X}) ───")
+        val sorted = menu.title.sortedWith(compareBy {
+            when (it) {
+                is gg.interfaze.plugin.model.MenuTitleLayer.Text,
+                is gg.interfaze.plugin.model.MenuTitleLayer.Textarea -> 1
+                else -> 0
+            }
+        })
+        var currentX = TitleCompiler.TITLE_LABEL_X
+        for ((i, layer) in sorted.withIndex()) {
+            val isTextarea = layer is gg.interfaze.plugin.model.MenuTitleLayer.Textarea
+            val targetX = TitleCompiler.layerX(layer)
+            val before = currentX
+            val outerOffset: Int
+            val startX: Int
+            if (isTextarea) {
+                outerOffset = 0
+                startX = currentX
+            } else {
+                outerOffset = if (targetX != currentX) targetX - currentX else 0
+                startX = targetX
+            }
+            val (frag, newX) = TitleCompiler.compileLayerBody(
+                layer, startX, langMap, plugin.assetCatalog::lookup, encoder,
+            )
+            currentX = newX
+            sender.sendMessage(
+                "  [$i] ${layer.javaClass.simpleName} targetX=$targetX " +
+                "before=$before  outer-offset=$outerOffset  startX=$startX  newX=$newX  " +
+                "decoded-frag-offsets=${decodeOffsetSum(frag)}px"
+            )
+        }
+        sender.sendMessage("─── final cursor=$currentX ───")
     }
 
     private fun editor(sender: CommandSender) {

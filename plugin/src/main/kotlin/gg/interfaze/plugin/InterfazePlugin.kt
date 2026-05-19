@@ -19,7 +19,9 @@ open class InterfazePlugin : JavaPlugin() {
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var commandRegistrar: CommandRegistrar
-    private lateinit var assetCatalog: gg.interfaze.plugin.resourcepack.AssetCatalog
+    /** Exposed for /ifz dump-title diagnostics. */
+    lateinit var assetCatalog: gg.interfaze.plugin.resourcepack.AssetCatalog
+        private set
     lateinit var langManager: LangManager
         private set
 
