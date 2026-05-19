@@ -56,6 +56,18 @@ object TitleCompiler {
     private const val EXTERNAL_GLYPH_WIDTH = 8
 
     /**
+     * Range of Y values for which the backend generates `text_y{Y}.json` font
+     * files. Kept in sync with `backend/src/lib/resourcePackBuilder.ts`.
+     *
+     * Lines whose Y lands outside this range would resolve to a missing font
+     * namespace and render as missing-glyph squares in-game. Both the Text and
+     * Textarea branches clamp/drop content that would otherwise reference an
+     * out-of-range font.
+     */
+    internal const val TEXT_Y_MIN = -32
+    internal const val TEXT_Y_MAX = 172
+
+    /**
      * Best-effort pixel width of a single MiniMessage-bearing line. Strips
      * tags via the same regex used by [estimateBodyWidth], sums per-char
      * advances from [charAdvance], and adds the MC bold-shift bump via
@@ -279,10 +291,14 @@ object TitleCompiler {
                         startX + estimateBodyWidth(layer, langMap, lookupAsset),
                     )
                 }
-                // Y-specific font: resource pack includes text_y{Y}.json for Y=0..140,
-                // each using minecraft:font/ascii.png with ascent = 13 - Y so the glyph
-                // top lands at the desired chest-relative Y pixel.
-                "<font:interfaze:text_y${layer.y}>$colored</font>"
+                // Y-specific font: resource pack includes text_y{Y}.json for Y in
+                // [TEXT_Y_MIN, TEXT_Y_MAX], each using minecraft:font/ascii.png with
+                // ascent = 13 - Y so the glyph top lands at the desired chest-relative
+                // Y pixel. Clamp out-of-range Y to the nearest valid value — without
+                // this, MC would resolve a missing font and render every char as a
+                // missing-glyph square in the title.
+                val clampedY = layer.y.coerceIn(TEXT_Y_MIN, TEXT_Y_MAX)
+                "<font:interfaze:text_y${clampedY}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
                 val text = resolveLText(layer.value, langMap)
@@ -313,7 +329,11 @@ object TitleCompiler {
                 var localX = startX
                 for ((i, line) in lines.withIndex()) {
                     val lineY = layer.y + i * layer.lineHeight
-                    if (lineY > 140) break // text_y fonts exist for Y=0..140
+                    // text_y{Y}.json files exist for Y in [TEXT_Y_MIN, TEXT_Y_MAX]
+                    // (kept in sync with backend/src/lib/resourcePackBuilder.ts).
+                    // Lines outside this range would render as missing-glyph
+                    // squares in-game, so drop them rather than emit broken refs.
+                    if (lineY < TEXT_Y_MIN || lineY > TEXT_Y_MAX) break
                     if (line.isEmpty()) continue // skip empty lines (no advance, no render)
                     val lineWidth = measureLineWidth(line)
                     val lineX = when (layer.alignment) {
