@@ -719,6 +719,28 @@ class TitleCompilerTest {
         assertTrue(firstWidest.contains("X"))
     }
 
+    @Test
+    fun `compileLayerBody textarea user-reported scenario — cursor ends at last line right edge`() {
+        // Mirrors docker/server/plugins/Interfaze/packs/test/menus/test.yaml:
+        // Textarea(x=24, y=57, width=177, lineHeight=10, LEFT) with the lang value
+        // from lang/en.yaml. The textarea wraps into 3 sub-lines. Returned cursor
+        // must be the END of the LAST sub-line so a subsequent layer can compute
+        // its offset correctly.
+        val layer = MenuTitleLayer.Textarea(
+            value = LText("k"), x = 24, y = 57, width = 177, lineHeight = 10,
+            alignment = MenuTitleLayer.Alignment.LEFT,
+        )
+        // The user's content (whole sentence, no \n, but contains a <rainbow> tag mid-text).
+        val content = "Bonjour à tous et à toutes ! Bienvenue sur spartacube ! <rainbow>Bienvenue sur spartacube !"
+        // Pre-cursor at 38 (matches the chain Glyph -> Text(title) -> Text(title_2) in the user's menu).
+        val (_, newX) = TitleCompiler.compileLayerBody(
+            layer, 38, mapOf("k" to content), emptyLookup, standardEncoder,
+        )
+        // Wrap result is 3 sub-lines with widths (144, 140, 140).
+        // For LEFT alignment, last sub-line's end = layer.x + width_last = 24 + 140 = 164.
+        assertEquals(164, newX, "cursor must reflect MC's actual position after the last sub-line")
+    }
+
     // ---------- wrapLine (private helper, exposed via test entry points) ----------
 
     @Test
