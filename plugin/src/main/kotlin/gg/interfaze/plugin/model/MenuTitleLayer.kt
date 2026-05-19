@@ -22,6 +22,10 @@ sealed class MenuTitleLayer {
         val y: Int,
         val fontAssetId: String? = null,
         val color: String? = null,
+        /** Bitmap font height in MC pixels. Must be in {4,8,12,16,20,24,32}; the
+         *  parser falls back to 8 for invalid values. Ignored when [fontAssetId]
+         *  is set — custom fonts ship at their own native size. */
+        val size: Int = 8,
     ) : MenuTitleLayer()
 
     /**
@@ -57,5 +61,7 @@ sealed class MenuTitleLayer {
         val lineHeight: Int,
         val alignment: Alignment,
         val fontAssetId: String? = null,
+        /** See [Text.size]. */
+        val size: Int = 8,
     ) : MenuTitleLayer()
 }
