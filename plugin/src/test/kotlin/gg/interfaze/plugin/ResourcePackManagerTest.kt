@@ -32,6 +32,7 @@ class ResourcePackManagerTest {
             sendOnJoin = sendOnJoin,
             sendDelayTicks = delayTicks,
             delegateToDir = null,
+            delegateReloadCommand = null,
         )
 
     private val SAMPLE_HASH = "0".repeat(40)

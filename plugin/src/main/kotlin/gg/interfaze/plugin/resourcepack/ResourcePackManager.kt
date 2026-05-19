@@ -92,8 +92,31 @@ open class ResourcePackManager(
     private fun applyDelegateAsync(info: ResourcePackInfo) {
         runDelegate {
             delegator!!.apply(info.downloadUrl, info.hash)
-            logger?.info("[delegate] pack updated — reload the host RP plugin to apply")
+            val reloadCmd = config.delegateReloadCommand
+            if (reloadCmd != null) {
+                // Bukkit's command dispatch isn't thread-safe — schedule the
+                // host's reload command on the main thread. Without this, the
+                // host plugin keeps serving its old pack (which doesn't yet
+                // contain our `assets/interfaze/`) until the admin manually
+                // runs the reload command. Players who joined before the
+                // extraction completed would see missing-glyph placeholders
+                // (Nexo's red barred circle, MC's white square, etc.).
+                runMainThread {
+                    logger?.info("[delegate] dispatching host reload: /$reloadCmd")
+                    plugin.server.dispatchCommand(plugin.server.consoleSender, reloadCmd)
+                }
+            } else {
+                logger?.info("[delegate] pack updated — reload the host RP plugin to apply (set resource-pack.delegate-reload-command to automate)")
+            }
         }
+    }
+
+    /**
+     * Test seam — production hops to the main server thread before dispatching
+     * the host reload command. Tests override to run inline.
+     */
+    protected open fun runMainThread(action: () -> Unit) {
+        plugin.server.scheduler.runTask(plugin, Runnable { action() })
     }
 
     /**
