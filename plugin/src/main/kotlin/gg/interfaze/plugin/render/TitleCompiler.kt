@@ -274,7 +274,7 @@ object TitleCompiler {
                 // this, MC would resolve a missing font and render every char as a
                 // missing-glyph square in the title.
                 val clampedY = layer.y.coerceIn(TEXT_Y_MIN, TEXT_Y_MAX)
-                "<font:interfaze:text_y${clampedY}>$colored</font>"
+                "<font:interfaze:text_y${clampedY}_h${layer.size}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
                 val text = resolveLText(layer.value, langMap)
@@ -293,7 +293,11 @@ object TitleCompiler {
                 // subsequent lines is kept (e.g. `"Title\n  Indented"` stays indented).
                 val text = raw.trimStart()
                 val hardLines = text.split("\n")
-                val lines = hardLines.flatMap { wrapLine(it, layer.width) }
+                // wrapLine measures in size-8 pixel units; for sized text we
+                // shrink the effective wrap width so the rendered line still
+                // fits in `layer.width` chest pixels.
+                val effectiveWidth = (layer.width * 8) / layer.size
+                val lines = hardLines.flatMap { wrapLine(it, effectiveWidth) }
                 val sb2 = StringBuilder()
                 // localX = MC's cursor position, advanced sequentially: each
                 // offset emission and each rendered line moves the cursor by
@@ -311,14 +315,14 @@ object TitleCompiler {
                     // squares in-game, so drop them rather than emit broken refs.
                     if (lineY < TEXT_Y_MIN || lineY > TEXT_Y_MAX) break
                     if (line.isEmpty()) continue // skip empty lines (no advance, no render)
-                    val lineWidth = measureLineWidth(line)
+                    val lineWidth = (measureLineWidth(line) * layer.size) / 8
                     val lineX = when (layer.alignment) {
                         MenuTitleLayer.Alignment.LEFT -> layer.x
                         MenuTitleLayer.Alignment.CENTER -> layer.x - lineWidth / 2
                         MenuTitleLayer.Alignment.RIGHT -> layer.x - lineWidth
                     }
                     if (lineX != localX) sb2.append(offsetEncoder.encode(lineX - localX))
-                    sb2.append("<font:interfaze:text_y${lineY}>")
+                    sb2.append("<font:interfaze:text_y${lineY}_h${layer.size}>")
                     sb2.append(line)
                     sb2.append("</font>")
                     localX = lineX + lineWidth
@@ -363,7 +367,9 @@ object TitleCompiler {
         }
         is MenuTitleLayer.Text -> {
             val text = resolveLText(layer.value, langMap)
-            measureLineWidth(text)
+            // Bitmap font scales advance proportionally with height: a width of
+            // N px at size 8 becomes N × (size/8) at any other size.
+            (measureLineWidth(text) * layer.size) / 8
         }
         is MenuTitleLayer.Plain -> {
             val text = resolveLText(layer.value, langMap)
@@ -373,8 +379,9 @@ object TitleCompiler {
         is MenuTitleLayer.Textarea -> {
             val text = resolveLText(layer.value, langMap)
             val hardLines = text.split("\n")
-            val lines = hardLines.flatMap { wrapLine(it, layer.width) }
-            lines.maxOfOrNull { measureLineWidth(it) } ?: 0
+            val effectiveWidth = (layer.width * 8) / layer.size
+            val lines = hardLines.flatMap { wrapLine(it, effectiveWidth) }
+            lines.maxOfOrNull { (measureLineWidth(it) * layer.size) / 8 } ?: 0
         }
     }
 
