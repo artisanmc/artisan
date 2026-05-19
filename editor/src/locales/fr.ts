@@ -400,6 +400,9 @@ const fr: typeof en = {
     newCommandHere: "Nouvelle commande ici",
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
+    newCommandDialogTitle: "Nouvelle commande",
+    idPreviewLabel: "id :",
+    idConflict: "Cet identifiant est déjà utilisé par un menu, une commande ou un dialog.",
     cancel: "Annuler",
     create: "Créer",
   },
@@ -425,6 +428,21 @@ const fr: typeof en = {
     noButtons: "Au moins un bouton est requis.",
     rename: "Renommer le dialogue",
     renameRejected: "Renommage refusé",
+  },
+  layerEditForm: {
+    size: {
+      label: "Taille",
+      align: "Aligner à la taille",
+      options: {
+        xxs: "Très petit (4)",
+        normal: "Normal (8)",
+        s: "Moyen (12)",
+        m: "Grand (16)",
+        l: "Très grand (20)",
+        xl: "Énorme (24)",
+        xxl: "Géant (32)",
+      },
+    },
   },
   patterns: {
     title: "Aide-mémoire",
