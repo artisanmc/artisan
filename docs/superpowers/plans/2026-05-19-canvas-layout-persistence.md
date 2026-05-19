@@ -678,7 +678,7 @@ We don't have a clean cross-package import path (both `tsconfig.json` files scop
 - [ ] **Step 1: Add the editor-side mirror test** — append to the `describe("transform", ...)` block in `editor/src/features/export/transform.test.ts`:
 
 ```ts
-it("emits the exact editor_layout YAML literal the backend round-trip test expects", () => {
+it("emits editor_layout in block-style YAML the backend round-trip test parses", () => {
   const pack = makePack({
     menus: [
       { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
@@ -687,20 +687,24 @@ it("emits the exact editor_layout YAML literal the backend round-trip test expec
   });
   const files = transform(pack);
   const manifestYaml = files["plugins/Interfaze/packs/p_test/manifest.yaml"]!;
-  // This exact substring is what backend/packImport.test.ts asserts is parseable.
-  // If you change the YAML output here, update the backend mirror too.
+  // The editor emits block-style YAML for nested objects (the `yaml` lib's
+  // default with our yamlOpts). The backend mirror test below asserts the
+  // same block-style shape is parseable. If you change to flow style here,
+  // update the backend mirror fixture too.
   expect(manifestYaml).toContain("editor_layout:");
-  expect(manifestYaml).toMatch(/shop:\s*\{\s*x:\s*123,\s*y:\s*456\s*\}/);
+  expect(manifestYaml).toContain("shop:");
+  expect(manifestYaml).toMatch(/x:\s*123/);
+  expect(manifestYaml).toMatch(/y:\s*456/);
 });
 ```
 
-- [ ] **Step 2: Add the backend-side mirror test** — append to `backend/src/lib/packImport.test.ts`:
+- [ ] **Step 2: Add the backend-side mirror test** — append to `backend/src/lib/packImport.test.ts`. The fixture uses the SAME block-style nesting the editor produces; this is the "mirror":
 
 ```ts
 describe("round-trip mirror — backend parses what the editor emits", () => {
-  test("manifest with the editor's shape yields matching canvasLayout", () => {
+  test("manifest with the editor's block-style shape yields matching canvasLayout", () => {
     // Mirror of editor/src/features/export/transform.test.ts:
-    // "emits the exact editor_layout YAML literal the backend round-trip test expects"
+    // "emits editor_layout in block-style YAML the backend round-trip test parses"
     const files = {
       "plugins/Interfaze/packs/p_mirror/manifest.yaml": [
         "schema: manifest/v1",
@@ -714,7 +718,9 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
         "  commands: []",
         "  dialogs: []",
         "editor_layout:",
-        "  shop: { x: 123, y: 456 }",
+        "  shop:",
+        "    x: 123",
+        "    y: 456",
       ].join("\n") + "\n",
       "plugins/Interfaze/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
     };
