@@ -93,7 +93,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider forwards resource_pack_updated to manager`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "0".repeat(40)
@@ -107,7 +107,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider applies resource_pack from hello_ack`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
@@ -126,7 +126,7 @@ class SyncedMenuProviderTest {
         //   - rewrite resource_pack.url with bundle_url's host for downloadUrl
         //     (so AssetCatalog can actually reach the backend).
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
@@ -143,7 +143,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `resource_pack_updated rewrites downloadUrl using apiUrl`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         // First seed apiUrl via a hello_ack.
@@ -175,7 +175,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider clears resource pack when hello_ack resource_pack is null`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()

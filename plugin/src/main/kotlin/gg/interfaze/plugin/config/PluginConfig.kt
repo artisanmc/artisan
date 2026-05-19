@@ -8,6 +8,7 @@ data class ResourcePackConfig(
     val sendOnJoin: Boolean,
     val sendDelayTicks: Long,
     val delegateToDir: String?,
+    val delegateReloadCommand: String?,
 )
 
 data class PluginConfig(
@@ -31,6 +32,7 @@ data class PluginConfig(
                 sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
                 sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
                 delegateToDir  = cfg.getString("resource-pack.delegate-to-dir")?.takeIf { it.isNotBlank() },
+                delegateReloadCommand = cfg.getString("resource-pack.delegate-reload-command")?.takeIf { it.isNotBlank() },
             ),
         )
     }
