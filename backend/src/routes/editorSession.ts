@@ -11,6 +11,14 @@ import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion, trackEditorIp 
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { readEditorLayoutFromFiles } from "../lib/packImport";
 
+function buildEditorJsonWithLayout(rawPack: unknown, files: Record<string, string>, packId: string): string {
+  // Spread to a fresh object — mutating rawPack in place is a footgun for any
+  // caller that later reads body.pack.
+  const pack = { ...(rawPack as Record<string, unknown>) };
+  pack.canvasLayout = readEditorLayoutFromFiles(files, packId); // files win
+  return JSON.stringify(pack);
+}
+
 const router = new Hono();
 
 function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
@@ -125,12 +133,12 @@ router.put("/:token/packs/:packId", async (c) => {
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
+  if (body.pack == null || typeof body.pack !== "object") {
+    return c.json({ error: "missing_or_invalid_pack" }, 400);
+  }
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
-
-  const packObj = (body.pack as Record<string, unknown>) ?? {};
-  packObj.canvasLayout = readEditorLayoutFromFiles(body.files, packId); // files win
-  const editorJson = JSON.stringify(packObj);
+  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
 
   // UPSERT: prior delete+insert pattern raced under concurrent saves
   // (autosave PUT + explicit POST /deploy). Each transaction would
@@ -161,12 +169,12 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   if (session.trustedIp !== clientIp(c)) return c.json({ error: "session_not_trusted" }, 403);
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
+  if (body.pack == null || typeof body.pack !== "object") {
+    return c.json({ error: "missing_or_invalid_pack" }, 400);
+  }
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
-
-  const packObj = (body.pack as Record<string, unknown>) ?? {};
-  packObj.canvasLayout = readEditorLayoutFromFiles(body.files, packId); // files win
-  const editorJson = JSON.stringify(packObj);
+  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
 
   await db.insert(packBundles).values({
     id: crypto.randomUUID(),
