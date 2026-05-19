@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { strToU8, zipSync } from "fflate";
 import { buildAssetIndex } from "./assetIndexBuilder";
-import { buildDefaultFontJson, buildTextYFontJson, type AssetRow } from "./fontJsonBuilder";
+import { buildDefaultFontJson, buildTextYFontJson, minYForSize, type AssetRow } from "./fontJsonBuilder";
 
 export type { AssetRow };
 
@@ -76,8 +76,13 @@ export function buildResourcePackZip(
   // total ~700 KB is dwarfed by texture assets. The vanilla ASCII/accented/
   // nonlatin PNGs are referenced by URL — no extra textures are bundled.
   const TEXT_SIZES = [4, 8, 12, 16, 20, 24, 32] as const;
-  for (let y = -32; y <= 172; y++) {
-    for (const h of TEXT_SIZES) {
+  for (const h of TEXT_SIZES) {
+    // Skip emit for (Y, H) combos that would violate MC's `ascent <= height`
+    // strict constraint (Nexo + vanilla 1.21+ both reject these). Plugin
+    // clamps Y to the same floor so render falls back to the lowest valid Y
+    // instead of a missing-font reference.
+    const yMin = minYForSize(h);
+    for (let y = yMin; y <= 172; y++) {
       files[`assets/interfaze/font/text_y${y}_h${h}.json`] =
         strToU8(JSON.stringify(buildTextYFontJson(y, h), null, 2));
     }

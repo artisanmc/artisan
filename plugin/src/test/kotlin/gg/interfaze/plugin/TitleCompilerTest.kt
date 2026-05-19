@@ -39,9 +39,9 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody for text without color or font wraps in text_y font`() {
-        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 0)
+        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 0, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0_h8>hello</font>", s)
+        assertEquals("<font:interfaze:text_y5_h8>hello</font>", s)
     }
 
     @Test
@@ -60,21 +60,21 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody for text with color wraps color inside text_y font`() {
-        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 10, y = 0, color = "#FFAA00")
+        val layer = MenuTitleLayer.Text(value = LText("greeting"), x = 10, y = 5, color ="#FFAA00")
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0_h8><color:#FFAA00>hello</color></font>", s)
+        assertEquals("<font:interfaze:text_y5_h8><color:#FFAA00>hello</color></font>", s)
     }
 
     @Test
     fun `compileLayerBody for text with missing langMap key wraps fallback key in text_y font`() {
-        val layer = MenuTitleLayer.Text(value = LText("missing.key"), x = 0, y = 0)
+        val layer = MenuTitleLayer.Text(value = LText("missing.key"), x = 0, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0_h8>missing.key</font>", s)
+        assertEquals("<font:interfaze:text_y5_h8>missing.key</font>", s)
     }
 
     @Test
     fun `compileLayerBody for glyph emits white-wrapped codepoint char`() {
-        val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = 0)
+        val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = 5)
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344)))
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), lookup, OffsetEncoder.EMPTY)
@@ -83,7 +83,7 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody for unknown glyph asset returns empty string`() {
-        val layer = MenuTitleLayer.Glyph(assetId = "asset_missing", x = 32, y = 0)
+        val layer = MenuTitleLayer.Glyph(assetId = "asset_missing", x = 32, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
         assertEquals("", s)
     }
@@ -118,7 +118,7 @@ class TitleCompilerTest {
     fun `compileLayerBody for text with fontAssetId and color wraps color inside font`() {
         val layer = MenuTitleLayer.Text(
             value = LText("greeting"),
-            x = 0, y = 0, color = "#ff0000",
+            x = 0, y = 5, color ="#ff0000",
             fontAssetId = "asset_my_font",
         )
         val lookup = stubLookup(mapOf(
@@ -133,7 +133,7 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody for external glyph emits placeholder`() {
-        val layer = MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "coin", x = 5, y = 0)
+        val layer = MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "coin", x = 5, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
         assertEquals("□", s)
     }
@@ -157,7 +157,7 @@ class TitleCompilerTest {
         // Text at x=0 (chest-left). The compiler emits a -TITLE_LABEL_X offset so
         // the cursor starts at chest-x 0 instead of the title-draw start (chest-x 8).
         // Plain text is wrapped in the Y-specific font (text_y0 here).
-        val layers = listOf(MenuTitleLayer.Text(value = LText("k"), x = 0, y = 0))
+        val layers = listOf(MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5))
         val result = TitleCompiler.compileTitle(
             layers = layers,
             lang = "en_us",
@@ -167,7 +167,7 @@ class TitleCompilerTest {
         )
         val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>${initOffset}<font:interfaze:text_y0_h8>hi</font></font>")
+            .deserialize("<font:interfaze:default>${initOffset}<font:interfaze:text_y5_h8>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
         assertEquals(ShadowColor.none(), result.shadowColor())
@@ -180,7 +180,7 @@ class TitleCompilerTest {
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
-            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 0, y = 0)),
+            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 0, y = 5)),
             lang = "en_us",
             langMap = emptyMap(),
             lookupAsset = lookup,
@@ -200,7 +200,7 @@ class TitleCompilerTest {
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
-            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = TitleCompiler.TITLE_LABEL_X, y = 0)),
+            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = TitleCompiler.TITLE_LABEL_X, y = 5)),
             lang = "en_us",
             langMap = emptyMap(),
             lookupAsset = lookup,
@@ -225,8 +225,8 @@ class TitleCompilerTest {
         ))
         val result = TitleCompiler.compileTitle(
             layers = listOf(
-                MenuTitleLayer.Glyph(assetId = "a", x = 0, y = 0),
-                MenuTitleLayer.Glyph(assetId = "b", x = 4, y = 0),
+                MenuTitleLayer.Glyph(assetId = "a", x = 0, y = 5),
+                MenuTitleLayer.Glyph(assetId = "b", x = 4, y = 5),
             ),
             lang = "en_us",
             langMap = emptyMap(),
@@ -255,7 +255,7 @@ class TitleCompilerTest {
         val result = TitleCompiler.compileTitle(
             layers = listOf(
                 MenuTitleLayer.Background(assetId = "asset_bg"),
-                MenuTitleLayer.Glyph(assetId = "asset_g", x = 16, y = 0),
+                MenuTitleLayer.Glyph(assetId = "asset_g", x = 16, y = 5),
             ),
             lang = "en_us",
             langMap = emptyMap(),
@@ -276,7 +276,7 @@ class TitleCompilerTest {
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
-            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 0)),
+            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 5)),
             lang = "en_us",
             langMap = emptyMap(),
             lookupAsset = lookup,
@@ -300,7 +300,7 @@ class TitleCompilerTest {
         val result = TitleCompiler.compileTitle(
             layers = listOf(
                 MenuTitleLayer.Background(assetId = "asset_bg"),
-                MenuTitleLayer.Text(value = LText("k"), x = 80, y = 0),
+                MenuTitleLayer.Text(value = LText("k"), x = 80, y = 5),
             ),
             lang = "en_us",
             langMap = mapOf("k" to "hi"),
@@ -311,7 +311,7 @@ class TitleCompilerTest {
         val initOffset = standardEncoder.encode(-TitleCompiler.TITLE_LABEL_X)
         val textOffset = standardEncoder.encode(-97)
         val expected = MiniMessage.miniMessage()
-            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>${textOffset}<font:interfaze:text_y0_h8>hi</font></font>")
+            .deserialize("<font:interfaze:default>$initOffset<white>$chBg</white>${textOffset}<font:interfaze:text_y5_h8>hi</font></font>")
             .shadowColor(ShadowColor.none())
         assertEquals(expected, result)
         // sanity: decoded offsets
@@ -328,16 +328,16 @@ class TitleCompilerTest {
 
     @Test
     fun `layerX returns x field for glyph text and external glyph`() {
-        assertEquals(7, TitleCompiler.layerX(MenuTitleLayer.Glyph(assetId = "x", x = 7, y = 0)))
-        assertEquals(11, TitleCompiler.layerX(MenuTitleLayer.Text(value = LText("k"), x = 11, y = 0)))
-        assertEquals(13, TitleCompiler.layerX(MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "g", x = 13, y = 0)))
+        assertEquals(7, TitleCompiler.layerX(MenuTitleLayer.Glyph(assetId = "x", x = 7, y = 5)))
+        assertEquals(11, TitleCompiler.layerX(MenuTitleLayer.Text(value = LText("k"), x = 11, y = 5)))
+        assertEquals(13, TitleCompiler.layerX(MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "g", x = 13, y = 5)))
     }
 
     @Test
     fun `estimateBodyWidth for glyph uses asset width + 1 (MC inter-char advance)`() {
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 9)))
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 0, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 0, y = 5),
             emptyMap(), lookup,
         )
         assertEquals(10, w)
@@ -347,7 +347,7 @@ class TitleCompilerTest {
     fun `estimateBodyWidth for glyph falls back to 16 + 1 when width is 0`() {
         val lookup = stubLookup(mapOf("asset_g" to glyphEntry("g", 57344, width = 0)))
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Glyph(assetId = "asset_g", x = 0, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_g", x = 0, y = 5),
             emptyMap(), lookup,
         )
         assertEquals(17, w)
@@ -357,7 +357,7 @@ class TitleCompilerTest {
     fun `estimateBodyWidth for text sums per-char advances from MC ascii font`() {
         // "hello": h=6, e=6, l=3, l=3, o=6 → 24
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Text(value = LText("hi"), x = 0, y = 0),
+            MenuTitleLayer.Text(value = LText("hi"), x = 0, y = 5),
             mapOf("hi" to "hello"),
             emptyLookup,
         )
@@ -368,7 +368,7 @@ class TitleCompilerTest {
     fun `estimateBodyWidth for text strips MiniMessage tags before summing advances`() {
         // "<gold>hello</gold>" strips to "hello" → h=6, e=6, l=3, l=3, o=6 → 24 (not 18*6=108)
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 5),
             mapOf("key" to "<gold>hello</gold>"),
             emptyLookup,
         )
@@ -380,7 +380,7 @@ class TitleCompilerTest {
         // MC renders bold by drawing the glyph shifted 1px right, adding 1 to each char's advance.
         // "<bold>hello</bold>" → per-char sum 24 + 5 bold chars = 29.
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 5),
             mapOf("key" to "<bold>hello</bold>"),
             emptyLookup,
         )
@@ -392,7 +392,7 @@ class TitleCompilerTest {
         // MiniMessage allows implicit close at end of string.
         // "<bold>hello" (no closing tag) → same 5 bold chars → 29.
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 5),
             mapOf("key" to "<bold>hello"),
             emptyLookup,
         )
@@ -404,7 +404,7 @@ class TitleCompilerTest {
         // "ab<bold>cd</bold>ef" → a=6,b=6 (plain) + c=6,d=6+2 bold (12+2) + e=6,f=5 (plain)
         // sum of chars = 6+6+6+6+6+5 = 35; bold correction = 2 → 37
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 0),
+            MenuTitleLayer.Text(value = LText("key"), x = 0, y = 5),
             mapOf("key" to "ab<bold>cd</bold>ef"),
             emptyLookup,
         )
@@ -434,15 +434,15 @@ class TitleCompilerTest {
 
         val textareaFirst = listOf(
             MenuTitleLayer.Textarea(
-                value = LText("k"), x = 8, y = 0, width = 256, lineHeight = 10,
+                value = LText("k"), x = 8, y = 5, width =256, lineHeight = 10,
                 alignment = MenuTitleLayer.Alignment.LEFT,
             ),
-            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 5),
         )
         val glyphFirst = listOf(
-            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 5),
             MenuTitleLayer.Textarea(
-                value = LText("k"), x = 8, y = 0, width = 256, lineHeight = 10,
+                value = LText("k"), x = 8, y = 5, width =256, lineHeight = 10,
                 alignment = MenuTitleLayer.Alignment.LEFT,
             ),
         )
@@ -469,12 +469,12 @@ class TitleCompilerTest {
         }
 
         val textFirst = listOf(
-            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 0),
-            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
+            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 5),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 5),
         )
         val glyphFirst = listOf(
-            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0),
-            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 0),
+            MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 5),
+            MenuTitleLayer.Text(value = LText("title"), x = 8, y = 5),
         )
 
         // Both orderings must produce the same component (glyph at x=50 in both cases).
@@ -484,7 +484,7 @@ class TitleCompilerTest {
     @Test
     fun `estimateBodyWidth for external glyph is 8`() {
         val w = TitleCompiler.estimateBodyWidth(
-            MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "g", x = 0, y = 0),
+            MenuTitleLayer.ExternalGlyph(provider = "oraxen", glyphName = "g", x = 0, y = 5),
             emptyMap(), emptyLookup,
         )
         assertEquals(8, w)
@@ -537,7 +537,7 @@ class TitleCompilerTest {
         // Mixed layers (shouldn't happen in practice, but must not crash).
         val layers = listOf(
             MenuTitleLayer.Plain(value = LText("k")),
-            MenuTitleLayer.Glyph(assetId = "x", x = 0, y = 0),
+            MenuTitleLayer.Glyph(assetId = "x", x = 0, y = 5),
         )
         // Should not throw; result is some non-empty component.
         val result = TitleCompiler.compileTitle(
@@ -555,33 +555,33 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea with one line renders one text_y wrapper`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "hi"), emptyLookup, standardEncoder,
         )
-        assertEquals("<font:interfaze:text_y0_h8>hi</font>", s)
+        assertEquals("<font:interfaze:text_y5_h8>hi</font>", s)
     }
 
     @Test
     fun `compileLayerBody textarea with three lines emits three text_y wrappers`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "a\nb\nc"), emptyLookup, standardEncoder,
         )
-        assertTrue(s.contains("<font:interfaze:text_y0_h8>a</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y10_h8>b</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y20_h8>c</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y5_h8>a</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y15_h8>b</font>"))
+        assertTrue(s.contains("<font:interfaze:text_y25_h8>c</font>"))
     }
 
     @Test
     fun `compileLayerBody textarea alignment center positions lines around layer x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 50, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 50, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.CENTER,
         )
         // "ab" width = 6+6 = 12, so center → lineX = 50 - 12/2 = 44.
@@ -590,13 +590,13 @@ class TitleCompilerTest {
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(44)
-        assertEquals("$firstOffset<font:interfaze:text_y0_h8>ab</font>", s)
+        assertEquals("$firstOffset<font:interfaze:text_y5_h8>ab</font>", s)
     }
 
     @Test
     fun `compileLayerBody textarea alignment right ends all lines at layer x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 60, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 60, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.RIGHT,
         )
         // "ab" width = 12, right → lineX = 60 - 12 = 48.
@@ -604,7 +604,7 @@ class TitleCompilerTest {
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(48)
-        assertEquals("$firstOffset<font:interfaze:text_y0_h8>ab</font>", s)
+        assertEquals("$firstOffset<font:interfaze:text_y5_h8>ab</font>", s)
     }
 
     @Test
@@ -626,7 +626,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea empty value returns empty fragment with unchanged x`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, newX) = TitleCompiler.compileLayerBody(
@@ -644,7 +644,7 @@ class TitleCompilerTest {
         // the max across all lines. Returning the max would push subsequent
         // layers' offsets too far left in-game.
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         // "ab" width 12 (longer line), "a" width 6 (last line). Cursor at end
@@ -662,10 +662,10 @@ class TitleCompilerTest {
         val result = TitleCompiler.compileTitle(
             layers = listOf(
                 MenuTitleLayer.Textarea(
-                    value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+                    value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
                     alignment = MenuTitleLayer.Alignment.LEFT,
                 ),
-                MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 0),
+                MenuTitleLayer.Glyph(assetId = "asset_coin", x = 100, y = 5),
             ),
             lang = "en_us",
             langMap = mapOf("g" to "ab"),
@@ -688,10 +688,10 @@ class TitleCompilerTest {
             val result = TitleCompiler.compileTitle(
                 layers = listOf(
                     MenuTitleLayer.Textarea(
-                        value = LText("g"), x = 8, y = 0, width = 60, lineHeight = 10,
+                        value = LText("g"), x = 8, y = 5, width =60, lineHeight = 10,
                         alignment = MenuTitleLayer.Alignment.LEFT,
                     ),
-                    MenuTitleLayer.Text(value = LText("t"), x = 70, y = 0),
+                    MenuTitleLayer.Text(value = LText("t"), x = 70, y = 5),
                 ),
                 lang = "en_us",
                 langMap = mapOf("g" to content, "t" to "X"),
@@ -757,7 +757,7 @@ class TitleCompilerTest {
         )
         val result = TitleCompiler.compileTitle(
             layers = listOf(
-                MenuTitleLayer.Glyph(assetId = "asset_a5bff8c5987b", x = 0, y = 0),
+                MenuTitleLayer.Glyph(assetId = "asset_a5bff8c5987b", x = 0, y = 5),
                 MenuTitleLayer.Text(value = LText("menus.test.title"), x = 48, y = 107),
                 MenuTitleLayer.Text(value = LText("menus.test.title_2"), x = 8, y = 6),
                 MenuTitleLayer.Textarea(
@@ -841,7 +841,7 @@ class TitleCompilerTest {
         // intentionally indents the second line and that should still render
         // as-is.
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         // " Hello" → first line should NOT carry the leading space (otherwise
@@ -857,7 +857,7 @@ class TitleCompilerTest {
         // After a \n, leading whitespace is part of the user's intent (indent)
         // and must be preserved through to MC rendering.
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         // "Hi\n  World" → second line keeps its 2-space indent.
@@ -874,7 +874,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea wraps long content into multiple text_y wrappers`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 20, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =20, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -887,7 +887,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea respects explicit and auto-wrapped lines together`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 20, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =20, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -900,7 +900,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea wrap with width=256 produces single line for short text`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 0, y = 0, width = 256, lineHeight = 10,
+            value = LText("g"), x = 0, y = 5, width =256, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.LEFT,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -913,7 +913,7 @@ class TitleCompilerTest {
     @Test
     fun `compileLayerBody textarea wrap + alignment center centers each sub-line independently`() {
         val layer = MenuTitleLayer.Textarea(
-            value = LText("g"), x = 100, y = 0, width = 20, lineHeight = 10,
+            value = LText("g"), x = 100, y = 5, width =20, lineHeight = 10,
             alignment = MenuTitleLayer.Alignment.CENTER,
         )
         val (s, _) = TitleCompiler.compileLayerBody(
@@ -957,9 +957,9 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody for text without explicit size emits h8 (default)`() {
-        val layer = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 0)
+        val layer = MenuTitleLayer.Text(value = LText("k"), x = 0, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("k" to "hi"), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:interfaze:text_y0_h8>hi</font>", s)
+        assertEquals("<font:interfaze:text_y5_h8>hi</font>", s)
     }
 
     @Test
@@ -969,7 +969,7 @@ class TitleCompilerTest {
         val ch = 57344.toChar()
         val lookup = stubLookup(mapOf("asset_coin" to glyphEntry("coin", 57344, width = 8)))
         val result = TitleCompiler.compileTitle(
-            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 0)),
+            layers = listOf(MenuTitleLayer.Glyph(assetId = "asset_coin", x = 50, y = 5)),
             lang = "en_us",
             langMap = emptyMap(),
             lookupAsset = lookup,
