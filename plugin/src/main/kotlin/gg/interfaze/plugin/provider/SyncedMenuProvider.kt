@@ -116,6 +116,13 @@ class SyncedMenuProvider(
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
+        // Executor is intentionally NOT shut down here — it is shared across load/unload
+        // cycles (e.g. /ifz reload) and shutting it would break subsequent bundle downloads.
+        // The hard tear-down lives in shutdown().
+    }
+
+    override fun shutdown() {
+        unload()
         httpClient.dispatcher.executorService.shutdown()
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }

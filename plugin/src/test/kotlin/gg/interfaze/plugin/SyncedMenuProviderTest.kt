@@ -91,6 +91,34 @@ class SyncedMenuProviderTest {
     }
 
     @Test
+    fun `unload preserves httpClient executor (reload safety)`() {
+        // Regression: pre-fix unload() called executorService.shutdown(), which broke
+        // every subsequent bundle download after /ifz reload because the executor is
+        // shared across load/unload cycles. After the fix, only shutdown() may stop it.
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        provider.unload()
+        val httpField = SyncedMenuProvider::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
+        val client = httpField.get(provider) as okhttp3.OkHttpClient
+        assertFalse(
+            client.dispatcher.executorService.isShutdown,
+            "unload() must not shut down the httpClient executor — that breaks bundle downloads after /ifz reload",
+        )
+    }
+
+    @Test
+    fun `shutdown tears down httpClient executor`() {
+        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        provider.shutdown()
+        val httpField = SyncedMenuProvider::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
+        val client = httpField.get(provider) as okhttp3.OkHttpClient
+        assertTrue(client.dispatcher.executorService.isShutdown)
+    }
+
+    @Test
     fun `provider forwards resource_pack_updated to manager`() {
         val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))

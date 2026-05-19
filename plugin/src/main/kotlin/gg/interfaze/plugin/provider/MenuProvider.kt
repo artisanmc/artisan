@@ -8,7 +8,10 @@ import org.bukkit.entity.Player
 
 interface MenuProvider {
     fun load()
+    /** Soft tear-down used by `/ifz reload` etc. — must leave the provider re-loadable. */
     fun unload() {}
+    /** Hard tear-down used by `onDisable` — releases resources that cannot be reused. */
+    fun shutdown() { unload() }
     fun findMenu(menuId: String): BundleMenu?
     fun listMenuIds(): List<String> = emptyList()
     fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext)
