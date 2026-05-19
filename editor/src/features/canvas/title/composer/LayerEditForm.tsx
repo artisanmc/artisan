@@ -18,6 +18,8 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 
+import { TextSizeSelector } from "./TextSizeSelector";
+
 interface LayerEditFormProps {
   packId: PackId;
 }
@@ -391,33 +393,18 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
       </div>
 
       {layer.fontAssetId === undefined && (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="layer-edit-size" className="text-[10px] uppercase text-zinc-500">
-            {t("layerEditForm.size.label")}
-          </label>
-          <select
-            id="layer-edit-size"
-            value={layer.size ?? 8}
-            onChange={(e) => {
-              const n = parseInt(e.target.value, 10) as 4 | 8 | 12 | 16 | 20 | 24 | 32;
-              updateLayer({
-                packId,
-                menuId,
-                index,
-                patch: { size: n === 8 ? undefined : n } as Partial<MenuTitleLayer>,
-              });
-            }}
-            className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
-          >
-            <option value={4}>{t("layerEditForm.size.options.xxs")}</option>
-            <option value={8}>{t("layerEditForm.size.options.normal")}</option>
-            <option value={12}>{t("layerEditForm.size.options.s")}</option>
-            <option value={16}>{t("layerEditForm.size.options.m")}</option>
-            <option value={20}>{t("layerEditForm.size.options.l")}</option>
-            <option value={24}>{t("layerEditForm.size.options.xl")}</option>
-            <option value={32}>{t("layerEditForm.size.options.xxl")}</option>
-          </select>
-        </div>
+        <TextSizeSelector
+          id="layer-edit-size"
+          value={layer.size}
+          onChange={(size) =>
+            updateLayer({
+              packId,
+              menuId,
+              index,
+              patch: { size } as Partial<MenuTitleLayer>,
+            })
+          }
+        />
       )}
 
       <div className="flex gap-3">
@@ -733,31 +720,18 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
       </div>
 
       {layer.fontAssetId === undefined && (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="layer-edit-textarea-size" className="text-[10px] uppercase text-zinc-500">
-            {t("layerEditForm.size.label")}
-          </label>
-          <select
-            id="layer-edit-textarea-size"
-            value={layer.size ?? 8}
-            onChange={(e) => {
-              const n = parseInt(e.target.value, 10) as 4 | 8 | 12 | 16 | 20 | 24 | 32;
-              updateLayer({
-                packId, menuId, index,
-                patch: { size: n === 8 ? undefined : n } as Partial<MenuTitleLayer>,
-              });
-            }}
-            className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
-          >
-            <option value={4}>{t("layerEditForm.size.options.xxs")}</option>
-            <option value={8}>{t("layerEditForm.size.options.normal")}</option>
-            <option value={12}>{t("layerEditForm.size.options.s")}</option>
-            <option value={16}>{t("layerEditForm.size.options.m")}</option>
-            <option value={20}>{t("layerEditForm.size.options.l")}</option>
-            <option value={24}>{t("layerEditForm.size.options.xl")}</option>
-            <option value={32}>{t("layerEditForm.size.options.xxl")}</option>
-          </select>
-        </div>
+        <TextSizeSelector
+          id="layer-edit-textarea-size"
+          value={layer.size}
+          onChange={(size) =>
+            updateLayer({
+              packId,
+              menuId,
+              index,
+              patch: { size } as Partial<MenuTitleLayer>,
+            })
+          }
+        />
       )}
 
       <div className="flex flex-col gap-1.5">
