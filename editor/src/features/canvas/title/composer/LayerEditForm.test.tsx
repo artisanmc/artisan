@@ -305,7 +305,7 @@ describe("LayerEditForm — text layer — font picker", () => {
 
   it("shows a font select defaulting to Aucune when no font is assigned", () => {
     render(<LayerEditForm packId={PACK_ID} />);
-    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    const select = screen.getByLabelText(/police personnalisée/i) as HTMLSelectElement;
     expect(select.value).toBe("");
   });
 
@@ -318,7 +318,7 @@ describe("LayerEditForm — text layer — font picker", () => {
   it("selecting a font updates fontAssetId on the layer", () => {
     useAssetStore.setState({ assets: [makeFont(A("f1"), "my_font")] } as any);
     render(<LayerEditForm packId={PACK_ID} />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "f1" } });
+    fireEvent.change(screen.getByLabelText(/police personnalisée/i), { target: { value: "f1" } });
     const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
     expect((layer as any).fontAssetId).toBe("f1");
   });
@@ -331,7 +331,7 @@ describe("LayerEditForm — text layer — font picker", () => {
     );
     selectLayer(0);
     render(<LayerEditForm packId={PACK_ID} />);
-    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    const select = screen.getByLabelText(/police personnalisée/i) as HTMLSelectElement;
     expect(select.value).toBe("f1");
     fireEvent.change(select, { target: { value: "" } });
     const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
@@ -482,5 +482,65 @@ describe("LayerEditForm — textarea layer", () => {
     fireEvent.change(input, { target: { value: "9999" } });
     layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0] as any;
     expect(layer.width).toBe(256);
+  });
+});
+
+describe("LayerEditForm — text layer size", () => {
+  it("renders a size dropdown defaulting to 8 (Normal)", () => {
+    seedPack([{ kind: "text", value: { key: K("k") }, x: 0, y: 0 }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    const select = screen.getByLabelText(/size|taille/i) as HTMLSelectElement;
+    expect(select.value).toBe("8");
+  });
+
+  it("changing the dropdown to 16 writes size=16 on the layer", () => {
+    seedPack([{ kind: "text", value: { key: K("k") }, x: 0, y: 0 }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    const select = screen.getByLabelText(/size|taille/i);
+    fireEvent.change(select, { target: { value: "16" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as { size?: number }).size).toBe(16);
+  });
+
+  it("changing dropdown back to 8 stores undefined (default-omit)", () => {
+    seedPack([{ kind: "text", value: { key: K("k") }, x: 0, y: 0, size: 16 }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    fireEvent.change(screen.getByLabelText(/size|taille/i), { target: { value: "8" } });
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as { size?: number }).size).toBeUndefined();
+  });
+
+  it("size dropdown is hidden when fontAssetId is set", () => {
+    seedPack([{ kind: "text", value: { key: K("k") }, x: 0, y: 0, fontAssetId: A("f1") }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.queryByLabelText(/size|taille/i)).toBeNull();
+  });
+});
+
+describe("LayerEditForm — textarea layer size + lineHeight align", () => {
+  it("renders the size dropdown for textarea layers", () => {
+    seedPack([{
+      kind: "textarea", value: { key: K("k") }, x: 0, y: 20,
+      width: 168, lineHeight: 10, alignment: "left",
+    }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    expect(screen.getByLabelText(/size|taille/i)).toBeTruthy();
+  });
+
+  it("'Aligner lineHeight' button sets lineHeight to size + 2", () => {
+    seedPack([{
+      kind: "textarea", value: { key: K("k") }, x: 0, y: 20,
+      width: 168, lineHeight: 10, alignment: "left", size: 16,
+    }]);
+    selectLayer(0);
+    render(<LayerEditForm packId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /aligner à la taille|match line height to size/i }));
+    const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
+    expect((layer as { lineHeight: number }).lineHeight).toBe(18);
   });
 });
