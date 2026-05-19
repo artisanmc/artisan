@@ -102,6 +102,20 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
 
 // ─── Image (background | glyph) ────────────────────────────────────────────
 
+/**
+ * MC font rendering formula (empirically confirmed): glyph_top = 13 - ascent.
+ *
+ * generic_54.png asymmetry (Mojang bug): chest slot border is at y=17 but the item
+ * area starts at y=18 (1 px gap). Player-inv slot border AND item area are both at
+ * y=139 (no gap). A single glyph cannot perfectly align both sections at once.
+ *
+ * Workaround: add 1 px of transparent padding at the very top of the background PNG.
+ * With ascent=-4 (glyph at y=17): transparent pixel 0→y=17 (border), actual image
+ * content pixel 1→y=18 (chest item area) ✓, pixel 122→y=139 (player-inv) ✓.
+ */
+const ASCENT_FOR_CHEST_BACKGROUND = -4;
+const Y_FOR_CHEST_BACKGROUND = 17; // glyph top = chest slot border row
+
 interface ImageLayerFormProps {
   packId: PackId;
   menuId: import("@/domain/types").MenuId;
@@ -264,6 +278,28 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
               }
             }}
           />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={patchingAscent}
+            className="text-[11px]"
+            onClick={() => {
+              onPatchAscent(ASCENT_FOR_CHEST_BACKGROUND);
+              if (layer.kind === "glyph") {
+                updateLayer({
+                  packId,
+                  menuId,
+                  index,
+                  patch: { x: 0, y: Y_FOR_CHEST_BACKGROUND } as Partial<MenuTitleLayer>,
+                });
+              }
+            }}
+          >
+            {patchingAscent ? "…" : `Calibrer pour coffre (x=0, y=${Y_FOR_CHEST_BACKGROUND}, ascent ${ASCENT_FOR_CHEST_BACKGROUND})`}
+          </Button>
+          <div className="text-[10px] text-zinc-500 leading-snug">
+            {`Zone des slots : ascent ${ASCENT_FOR_CHEST_BACKGROUND} → glyphe à y=${Y_FOR_CHEST_BACKGROUND} (bordure du coffre). Pour aligner coffre ET inventaire joueur simultanément, ajoute 1px de padding transparent en haut du PNG.`}
+          </div>
         </div>
       )}
 
