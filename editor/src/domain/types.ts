@@ -39,11 +39,12 @@ export interface LText {
 
 /**
  * Discrete font heights for `text` and `textarea` title layers. The backend
- * bakes one resource-pack font variant per (Y, size) pair; the set is
- * intentionally constrained to multiples of 4 so the bitmap PNG can be
- * sampled cleanly without ugly interpolation. Default 8 = vanilla.
+ * bakes one resource-pack font variant per (Y, size) pair. Restricted to
+ * vanilla and upscale multiples — downscale (h<8) was dropped because
+ * nearest-neighbor downsampling renders ASCII glyphs illegible and MC's
+ * 1-pixel bold offset becomes visually dominant. Default 8 = vanilla.
  */
-export type TextSize = 4 | 8 | 12 | 16 | 20 | 24 | 32;
+export type TextSize = 8 | 12 | 16 | 20 | 24 | 32;
 
 export type MenuTitleLayer =
   | { kind: "background"; assetId: AssetId }

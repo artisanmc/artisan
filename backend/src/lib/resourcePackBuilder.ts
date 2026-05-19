@@ -75,7 +75,7 @@ export function buildResourcePackZip(
   // Matrix: Y × size. Each (Y, H) combination is a tiny JSON (~500 B), so the
   // total ~700 KB is dwarfed by texture assets. The vanilla ASCII/accented/
   // nonlatin PNGs are referenced by URL — no extra textures are bundled.
-  const TEXT_SIZES = [4, 8, 12, 16, 20, 24, 32] as const;
+  const TEXT_SIZES = [8, 12, 16, 20, 24, 32] as const;
   for (const h of TEXT_SIZES) {
     // Skip emit for (Y, H) combos that would violate MC's `ascent <= height`
     // strict constraint (Nexo + vanilla 1.21+ both reject these). Plugin

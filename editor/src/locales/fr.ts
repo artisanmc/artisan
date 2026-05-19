@@ -431,7 +431,6 @@ const fr: typeof en = {
       label: "Taille",
       align: "Aligner à la taille",
       options: {
-        xxs: "Très petit (4)",
         normal: "Normal (8)",
         s: "Moyen (12)",
         m: "Grand (16)",
