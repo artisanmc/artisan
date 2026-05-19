@@ -41,6 +41,32 @@ describe("transform", () => {
     expect(manifest.files.commands).toContain("heal");
   });
 
+  it("emits editor_layout in manifest with menu/command/dialog positions", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      commands: [
+        { id: commandId("heal"), packId: packId("p_test"), name: "heal", arguments: [], steps: [] },
+      ],
+      dialogs: [
+        { id: dialogId("confirm"), packId: packId("p_test"), title: { key: "k" as I18nKey }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as unknown as Dialog,
+      ],
+      canvasLayout: {
+        [menuId("shop")]: { x: 40, y: 40 },
+        [commandId("heal")]: { x: 260, y: 40 },
+        [dialogId("confirm")]: { x: 480, y: 40 },
+      },
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_layout).toEqual({
+      shop:    { x: 40,  y: 40 },
+      heal:    { x: 260, y: 40 },
+      confirm: { x: 480, y: 40 },
+    });
+  });
+
   it("emits a menu yaml with title array containing the text layer", () => {
     const pack = makePack({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
@@ -879,31 +905,5 @@ describe("transform — appearance conditions", () => {
     const app = getApp(transform(pack));
     expect(app.if.any).toBeDefined();
     expect(app.if.of).toBeUndefined();
-  });
-
-  it("emits editor_layout in manifest with menu/command/dialog positions", () => {
-    const pack = makePack({
-      menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
-      ],
-      commands: [
-        { id: commandId("heal"), packId: packId("p_test"), name: "heal", arguments: [], steps: [] },
-      ],
-      dialogs: [
-        { id: dialogId("confirm"), packId: packId("p_test"), title: { key: "k" as I18nKey }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as unknown as Dialog,
-      ],
-      canvasLayout: {
-        [menuId("shop")]: { x: 40, y: 40 },
-        [commandId("heal")]: { x: 260, y: 40 },
-        [dialogId("confirm")]: { x: 480, y: 40 },
-      },
-    });
-    const files = transform(pack);
-    const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
-    expect(manifest.editor_layout).toEqual({
-      shop:    { x: 40,  y: 40 },
-      heal:    { x: 260, y: 40 },
-      confirm: { x: 480, y: 40 },
-    });
   });
 });
