@@ -1,0 +1,68 @@
+import { describe, expect, test } from "bun:test";
+import { importPackFromFiles, readEditorLayoutFromFiles } from "./packImport";
+
+const PACK_ID = "p_layout";
+const base = `plugins/Interfaze/packs/${PACK_ID}`;
+
+function manifestWith(editorLayout: string | null): Record<string, string> {
+  const body = [
+    "schema: manifest/v1",
+    `pack_id: ${PACK_ID}`,
+    "default_lang: en",
+    "files:",
+    "  menus: [shop]",
+    "  commands: []",
+    "  dialogs: []",
+    ...(editorLayout ? [editorLayout] : []),
+  ].join("\n");
+  return {
+    [`${base}/manifest.yaml`]: body,
+    [`${base}/menus/shop.yaml`]: "id: shop\nsize: 27\n",
+  };
+}
+
+describe("readEditorLayoutFromFiles", () => {
+  test("parses editor_layout from manifest", () => {
+    const files = manifestWith("editor_layout:\n  shop: { x: 40, y: 80 }\n");
+    expect(readEditorLayoutFromFiles(files, PACK_ID)).toEqual({
+      shop: { x: 40, y: 80 },
+    });
+  });
+
+  test("missing editor_layout → {}", () => {
+    const files = manifestWith(null);
+    expect(readEditorLayoutFromFiles(files, PACK_ID)).toEqual({});
+  });
+
+  test("malformed entries silently ignored (non-numeric x/y, null value)", () => {
+    const files = manifestWith(
+      [
+        "editor_layout:",
+        "  shop:    { x: 40, y: 80 }",
+        "  bad_xy:  { x: \"oops\", y: 5 }",
+        "  bad_inf: { x: .inf, y: 1 }",
+        "  null_v:  null",
+      ].join("\n"),
+    );
+    expect(readEditorLayoutFromFiles(files, PACK_ID)).toEqual({
+      shop: { x: 40, y: 80 },
+    });
+  });
+
+  test("missing manifest.yaml → {}", () => {
+    expect(readEditorLayoutFromFiles({}, PACK_ID)).toEqual({});
+  });
+});
+
+describe("importPackFromFiles — canvasLayout", () => {
+  test("populates canvasLayout from manifest.editor_layout", () => {
+    const files = manifestWith("editor_layout:\n  shop: { x: 12, y: 34 }\n");
+    const pack = importPackFromFiles(PACK_ID, files) as { canvasLayout: Record<string, { x: number; y: number }> };
+    expect(pack.canvasLayout).toEqual({ shop: { x: 12, y: 34 } });
+  });
+
+  test("no editor_layout → canvasLayout: {}", () => {
+    const pack = importPackFromFiles(PACK_ID, manifestWith(null)) as { canvasLayout: Record<string, unknown> };
+    expect(pack.canvasLayout).toEqual({});
+  });
+});
