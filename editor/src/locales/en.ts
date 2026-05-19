@@ -392,6 +392,9 @@ export default {
     newCommandHere: "New command here",
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
+    newCommandDialogTitle: "New command",
+    idPreviewLabel: "id:",
+    idConflict: "This ID is already used by a menu, a command, or a dialog.",
     cancel: "Cancel",
     create: "Create",
   },
@@ -417,6 +420,21 @@ export default {
     noButtons: "At least one button required.",
     rename: "Rename dialog",
     renameRejected: "Rename rejected",
+  },
+  layerEditForm: {
+    size: {
+      label: "Size",
+      align: "Match line height to size",
+      options: {
+        xxs: "Tiny (4)",
+        normal: "Normal (8)",
+        s: "Medium (12)",
+        m: "Large (16)",
+        l: "Very large (20)",
+        xl: "Huge (24)",
+        xxl: "Giant (32)",
+      },
+    },
   },
   patterns: {
     title: "Cheat sheet",
