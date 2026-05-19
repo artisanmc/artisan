@@ -858,6 +858,79 @@ describe("parseTitleNode — legacy reader", () => {
   });
 });
 
+describe("transform — size field on text/textarea layers", () => {
+  it("emits size on text layer when not default (8)", () => {
+    const pack = makePack({
+      i18nKeys: { "k": { en: "Big" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 }],
+        layers: [],
+      }],
+    });
+    const files = transform(pack);
+    const menuYaml = parse(files["plugins/Interfaze/packs/p_test/menus/m.yaml"]!);
+    expect(menuYaml.title[0].size).toBe(16);
+  });
+
+  it("omits size on text layer when default (8) or undefined", () => {
+    const pack = makePack({
+      i18nKeys: { "k": { en: "Plain" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        title: [
+          { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 },
+          { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 15, size: 8 },
+        ],
+        layers: [],
+      }],
+    });
+    const files = transform(pack);
+    const menuYaml = parse(files["plugins/Interfaze/packs/p_test/menus/m.yaml"]!);
+    expect(menuYaml.title[0].size).toBeUndefined();
+    expect(menuYaml.title[1].size).toBeUndefined();
+  });
+
+  it("emits size on textarea layer when not default", () => {
+    const pack = makePack({
+      i18nKeys: { "k": { en: "A\nB" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        title: [{
+          kind: "textarea", value: { key: "k" as I18nKey },
+          x: 8, y: 20, width: 168, lineHeight: 14, alignment: "left", size: 12,
+        }],
+        layers: [],
+      }],
+    });
+    const files = transform(pack);
+    const menuYaml = parse(files["plugins/Interfaze/packs/p_test/menus/m.yaml"]!);
+    expect(menuYaml.title[0].size).toBe(12);
+  });
+
+  it("imports size from text/textarea layer YAML", () => {
+    const pack = makePack({
+      i18nKeys: { "k": { en: "X" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        title: [
+          { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 },
+          { kind: "textarea", value: { key: "k" as I18nKey }, x: 8, y: 20,
+            width: 168, lineHeight: 14, alignment: "left", size: 12 },
+        ],
+        layers: [],
+      }],
+    });
+    const files = transform(pack);
+    const menuYaml = files["plugins/Interfaze/packs/p_test/menus/m.yaml"]!;
+    const parsed = parse(menuYaml).title;
+    const reimported = parseTitleNode(parsed);
+    expect(reimported).toHaveLength(2);
+    expect((reimported[0] as { size?: number }).size).toBe(16);
+    expect((reimported[1] as { size?: number }).size).toBe(12);
+  });
+});
+
 describe("transform — appearance conditions", () => {
   const baseMenu = (appearances: Partial<Appearance>[]) => ({
     id: menuId("shop"),
