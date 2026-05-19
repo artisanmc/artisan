@@ -423,7 +423,6 @@ export default {
       label: "Size",
       align: "Match line height to size",
       options: {
-        xxs: "Tiny (4)",
         normal: "Normal (8)",
         s: "Medium (12)",
         m: "Large (16)",

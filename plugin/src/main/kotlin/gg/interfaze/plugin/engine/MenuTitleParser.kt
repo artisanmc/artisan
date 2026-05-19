@@ -76,7 +76,7 @@ object MenuTitleParser {
         }
     }
 
-    private val ALLOWED_SIZES = setOf(4, 8, 12, 16, 20, 24, 32)
+    private val ALLOWED_SIZES = setOf(8, 12, 16, 20, 24, 32)
 
     private fun parseSize(v: Any?): Int {
         val n = (v as? Number)?.toInt() ?: return 8

@@ -163,15 +163,6 @@ describe("buildTextYFontJson — size scaling", () => {
     expect(nonlatin.height).toBe(16);
   });
 
-  test("h=4 halves every bitmap height", () => {
-    const json = buildTextYFontJson(0, 4);
-    const bitmaps = json.providers.filter((p) => p.type === "bitmap") as Array<{ height: number; file: string }>;
-    const ascii = bitmaps.find((b) => b.file === "minecraft:font/ascii.png")!;
-    const accented = bitmaps.find((b) => b.file === "minecraft:font/accented.png")!;
-    expect(ascii.height).toBe(4);
-    expect(accented.height).toBe(6);
-  });
-
   test("h does not affect ascent (top edge stays put)", () => {
     const a = buildTextYFontJson(20, 8);
     const b = buildTextYFontJson(20, 16);
@@ -182,10 +173,7 @@ describe("buildTextYFontJson — size scaling", () => {
 });
 
 describe("minYForSize", () => {
-  test("returns the floor Y for each size (tightest of ASCII, accented, nonlatin)", () => {
-    // ASCII is tightest for h>=8; ACCENTED is tightest for h<8 (its natural
-    // height 12 scales down to 6 at h=4, but ascent stays proportional → bites).
-    expect(minYForSize(4)).toBe(10);   // ACCENTED: 10 + 6 - 6 = 10
+  test("returns the floor Y for each size (ASCII is the tightest provider at h>=8)", () => {
     expect(minYForSize(8)).toBe(5);    // ASCII: 7 + 6 - 8 = 5
     expect(minYForSize(12)).toBe(1);   // ASCII: 7 + 6 - 12 = 1
     expect(minYForSize(16)).toBe(-3);  // ASCII: 7 + 6 - 16 = -3
@@ -195,7 +183,7 @@ describe("minYForSize", () => {
   });
 
   test("buildTextYFontJson at exactly minYForSize satisfies ascent<=height for every provider", () => {
-    for (const h of [4, 8, 12, 16, 20, 24, 32]) {
+    for (const h of [8, 12, 16, 20, 24, 32]) {
       const y = minYForSize(h);
       const json = buildTextYFontJson(y, h);
       const bitmaps = json.providers.filter((p) => p.type === "bitmap") as Array<{ ascent: number; height: number; file: string }>;
