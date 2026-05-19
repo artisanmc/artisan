@@ -68,6 +68,24 @@ object TitleCompiler {
     internal const val TEXT_Y_MAX = 172
 
     /**
+     * Minimum chest-Y for which the backend emits `text_y{Y}_h{H}.json`. Below
+     * this, the font's ascent would exceed its height — MC 1.21+ and Nexo both
+     * reject these as schema-invalid. Kept in sync with `minYForSize(h)` in
+     * `backend/src/lib/fontJsonBuilder.ts`; see the test there for the formula.
+     */
+    internal val MIN_Y_BY_SIZE: Map<Int, Int> = mapOf(
+        4 to 10,
+        8 to 5,
+        12 to 1,
+        16 to -3,
+        20 to -7,
+        24 to -11,
+        32 to -19,
+    )
+
+    internal fun minYForSize(size: Int): Int = MIN_Y_BY_SIZE[size] ?: TEXT_Y_MIN
+
+    /**
      * Best-effort pixel width of a single MiniMessage-bearing line. Strips
      * tags via the same regex used by [estimateBodyWidth], sums per-char
      * advances from [charAdvance], and adds the MC bold-shift bump via
@@ -273,7 +291,10 @@ object TitleCompiler {
                 // Y pixel. Clamp out-of-range Y to the nearest valid value — without
                 // this, MC would resolve a missing font and render every char as a
                 // missing-glyph square in the title.
-                val clampedY = layer.y.coerceIn(TEXT_Y_MIN, TEXT_Y_MAX)
+                // Clamp UP to the per-size floor (ascent <= height schema constraint)
+                // and DOWN to TEXT_Y_MAX. Anything below the floor would resolve to
+                // a missing-font reference and render as missing-glyph squares.
+                val clampedY = layer.y.coerceIn(minYForSize(layer.size), TEXT_Y_MAX)
                 "<font:interfaze:text_y${clampedY}_h${layer.size}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
@@ -309,11 +330,11 @@ object TitleCompiler {
                 var localX = startX
                 for ((i, line) in lines.withIndex()) {
                     val lineY = layer.y + i * layer.lineHeight
-                    // text_y{Y}.json files exist for Y in [TEXT_Y_MIN, TEXT_Y_MAX]
+                    // text_y{Y}_h{H}.json files exist for Y in [minYForSize(H), TEXT_Y_MAX]
                     // (kept in sync with backend/src/lib/resourcePackBuilder.ts).
                     // Lines outside this range would render as missing-glyph
                     // squares in-game, so drop them rather than emit broken refs.
-                    if (lineY < TEXT_Y_MIN || lineY > TEXT_Y_MAX) break
+                    if (lineY < minYForSize(layer.size) || lineY > TEXT_Y_MAX) break
                     if (line.isEmpty()) continue // skip empty lines (no advance, no render)
                     val lineWidth = (measureLineWidth(line) * layer.size) / 8
                     val lineX = when (layer.alignment) {
