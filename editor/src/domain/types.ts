@@ -37,12 +37,21 @@ export interface LText {
   key: I18nKey;
 }
 
+/**
+ * Discrete font heights for `text` and `textarea` title layers. The backend
+ * bakes one resource-pack font variant per (Y, size) pair; the set is
+ * intentionally constrained to multiples of 4 so the bitmap PNG can be
+ * sampled cleanly without ugly interpolation. Default 8 = vanilla.
+ */
+export type TextSize = 4 | 8 | 12 | 16 | 20 | 24 | 32;
+
 export type MenuTitleLayer =
   | { kind: "background"; assetId: AssetId }
   | { kind: "glyph"; assetId: AssetId; x: number; y: number }
   | { kind: "text"; value: LText; x: number; y: number;
       fontAssetId?: AssetId;
-      color?: string }
+      color?: string;
+      size?: TextSize }
   /** Plain vanilla title — no resource pack required. Emitted as a raw
    *  MiniMessage string in YAML (legacy format) so any server can use it. */
   | { kind: "plain"; value: LText; color?: string }
@@ -53,7 +62,8 @@ export type MenuTitleLayer =
       width: number;
       lineHeight: number;
       alignment: "left" | "center" | "right";
-      fontAssetId?: AssetId }
+      fontAssetId?: AssetId;
+      size?: TextSize }
   | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder";
       glyphName: string; x: number; y: number };
 
