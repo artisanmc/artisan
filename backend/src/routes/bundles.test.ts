@@ -131,4 +131,65 @@ describe("bundle upload/download", () => {
     const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, unknown> };
     expect(pack.canvasLayout).toEqual({});
   });
+
+  test("POST overwrites pre-existing non-stub canvasLayout from manifest (real files-win branch)", async () => {
+    const keyRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "layout-overwrite" }),
+    });
+    const { key, id: serverId } = (await keyRes.json()) as { key: string; id: string };
+
+    const { db } = await import("../db/index");
+    const { packBundles } = await import("../db/schema");
+    const { and, eq } = await import("drizzle-orm");
+
+    // Seed a non-stub editorJson with a stale canvasLayout. isEmptyStub returns
+    // false when source !== "imported" OR commands have non-empty steps. Use a
+    // user_created source + one command with one step to be safe.
+    const staleEditorJson = JSON.stringify({
+      id: "p_overwrite",
+      name: "Overwrite Me",
+      source: "user_created",
+      menus: [{ id: "shop" }],
+      commands: [{ id: "c1", steps: [{ kind: "action", action: { type: "close_menu" } }] }],
+      dialogs: [],
+      canvasLayout: { ghost: { x: 1, y: 1 } }, // STALE — must be overwritten
+    });
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(),
+      serverId,
+      packId: "p_overwrite",
+      hash: "0".repeat(64),
+      filesJson: "{}",
+      editorJson: staleEditorJson,
+      createdAt: new Date(),
+    });
+
+    const files = {
+      "plugins/Interfaze/packs/p_overwrite/manifest.yaml": [
+        "schema: manifest/v1",
+        "pack_id: p_overwrite",
+        "default_lang: en",
+        "files:",
+        "  menus: [shop]",
+        "  commands: []",
+        "  dialogs: []",
+        "editor_layout:",
+        "  shop: { x: 333, y: 444 }",
+      ].join("\n") + "\n",
+      "plugins/Interfaze/packs/p_overwrite/menus/shop.yaml": "id: shop\nsize: 27\n",
+    };
+    const res = await app.request("/api/bundles/p_overwrite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ files }),
+    });
+    expect(res.status).toBe(201);
+
+    const row = (await db.select().from(packBundles)
+      .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, "p_overwrite"))))[0];
+    const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, { x: number; y: number }> };
+    expect(pack.canvasLayout).toEqual({ shop: { x: 333, y: 444 } }); // manifest wins, ghost is gone
+  });
 });
