@@ -3,27 +3,18 @@ import { Group, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 import { parseMiniMessage } from "@/lib/miniMessage";
+import { CHAR_ADVANCES } from "./charAdvances";
 
 /**
- * Advance widths (MC pixels, trimmed glyph width + 1 kerning gap)
- * computed from vanilla 1.21.4 ascii.png by scanning each 8×8 cell
- * for the rightmost non-transparent column.
+ * Per-character advance lookup. Backed by the generated CHAR_ADVANCES map
+ * (built from vanilla MC ascii.png + accented.png + nonlatin_european.png).
+ * Falls back to 1 — MC's empty-cell default — for codepoints not in the
+ * table (rare scripts, emojis, etc.).
  */
-export const VANILLA_ADVANCES: Readonly<Record<string, number>> = {
-  " ": 4,
-  "!": 2, '"': 4, "#": 6, $: 6, "%": 6, "&": 6, "'": 2,
-  "(": 4, ")": 4, "*": 4, "+": 6, ",": 2, "-": 6, ".": 2, "/": 6,
-  "0": 6, "1": 6, "2": 6, "3": 6, "4": 6, "5": 6, "6": 6, "7": 6, "8": 6, "9": 6,
-  ":": 2, ";": 2, "<": 5, "=": 6, ">": 5, "?": 6, "@": 7,
-  A: 6, B: 6, C: 6, D: 6, E: 6, F: 6, G: 6, H: 6, I: 4,
-  J: 6, K: 6, L: 6, M: 6, N: 6, O: 6, P: 6, Q: 6, R: 6,
-  S: 6, T: 6, U: 6, V: 6, W: 6, X: 6, Y: 6, Z: 6,
-  "[": 4, "\\": 6, "]": 4, "^": 6, _: 6, "`": 3,
-  a: 6, b: 6, c: 6, d: 6, e: 6, f: 5, g: 6, h: 6, i: 2,
-  j: 6, k: 5, l: 3, m: 6, n: 6, o: 6, p: 6, q: 6, r: 6,
-  s: 6, t: 4, u: 6, v: 6, w: 6, x: 6, y: 6, z: 6,
-  "{": 4, "|": 2, "}": 4, "~": 7,
-};
+function advance(ch: string): number {
+  const cp = ch.codePointAt(0);
+  return cp !== undefined ? (CHAR_ADVANCES[cp] ?? 1) : 1;
+}
 
 /** Atlas cell size in the vanilla 128×128 ascii.png (8×8 per character). */
 const ATLAS_CELL = 8;
@@ -89,7 +80,7 @@ export function VanillaMcText({
     for (const seg of segments) {
       const bold = seg.style.bold ?? false;
       for (const ch of seg.text) {
-        totalWidth += ((VANILLA_ADVANCES[ch] ?? 1) + (bold ? 1 : 0)) * scale;
+        totalWidth += (advance(ch) + (bold ? 1 : 0)) * scale;
       }
     }
     if (totalWidth <= 0) {
@@ -176,10 +167,6 @@ export function VanillaMcText({
  */
 export function vanillaTextWidth(text: string): number {
   let w = 0;
-  // Non-ASCII fallback: 1, matching MC's empty-cell advance in ascii.png.
-  // See TitleCompiler.charAdvance in the plugin for the rationale — text_y{Y}
-  // currently only bundles printable-ASCII glyphs, so accented chars land on
-  // transparent cells (advance = rightmost-non-transparent + 2 = -1 + 2 = 1).
-  for (const ch of text) w += VANILLA_ADVANCES[ch] ?? 1;
+  for (const ch of text) w += advance(ch);
   return w;
 }

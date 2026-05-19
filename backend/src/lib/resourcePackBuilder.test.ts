@@ -266,6 +266,45 @@ describe("buildResourcePackZip", () => {
     expect(entries["assets/interfaze/font/broken.json"]).toBeUndefined();
   });
 
+  test("includes Y-specific text fonts for y=-32..172", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const entries = unzipSync(zipBytes);
+    // Spot-check a few Y values across the range
+    expect(entries["assets/interfaze/font/text_y-32.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y0.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y6.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y20.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y140.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y172.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y-33.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y173.json"]).toBeUndefined();
+  });
+
+  test("text_y6.json has space + ascii + accented + nonlatin providers in vanilla order", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const entries = unzipSync(zipBytes);
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y6.json"]));
+    expect(json.providers[0].type).toBe("space");
+    expect(json.providers[0].advances[" "]).toBe(4);
+    // Y=6 is the vanilla title position → bitmap ascents match vanilla unchanged.
+    expect(json.providers[1].file).toBe("minecraft:font/ascii.png");
+    expect(json.providers[1].ascent).toBe(7);
+    expect(json.providers[2].file).toBe("minecraft:font/accented.png");
+    expect(json.providers[2].ascent).toBe(10);
+    expect(json.providers[3].file).toBe("minecraft:font/nonlatin_european.png");
+    expect(json.providers[3].ascent).toBe(7);
+  });
+
+  test("text_y0.json shifts every bitmap ascent by +6", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const entries = unzipSync(zipBytes);
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0.json"]));
+    // shift = 6 - 0 = 6. Vanilla ascents +6.
+    expect(json.providers[1].ascent).toBe(7 + 6);
+    expect(json.providers[2].ascent).toBe(10 + 6);
+    expect(json.providers[3].ascent).toBe(7 + 6);
+  });
+
   test("hash changes when a font asset is added", () => {
     const f = fontRow({
       name: "myfont",
