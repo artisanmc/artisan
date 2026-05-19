@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildDefaultFontJson, buildTextYFontJson, type SpaceProvider } from "./fontJsonBuilder";
+import { buildDefaultFontJson, buildTextYFontJson, minYForSize, type SpaceProvider } from "./fontJsonBuilder";
 import { SPACE_OFFSET_ADVANCES, SPACE_OFFSET_CODEPOINT_START } from "./spaceOffsets";
 
 function glyph(over: Partial<{ id: string; name: string; ascent: number | null; codepoint: number | null; height: number; type: string }>) {
@@ -178,5 +178,30 @@ describe("buildTextYFontJson — size scaling", () => {
     const ascii_a = a.providers.find((p) => p.type === "bitmap" && p.file === "minecraft:font/ascii.png") as { ascent: number };
     const ascii_b = b.providers.find((p) => p.type === "bitmap" && p.file === "minecraft:font/ascii.png") as { ascent: number };
     expect(ascii_a.ascent).toBe(ascii_b.ascent);
+  });
+});
+
+describe("minYForSize", () => {
+  test("returns the floor Y for each size (tightest of ASCII, accented, nonlatin)", () => {
+    // ASCII is tightest for h>=8; ACCENTED is tightest for h<8 (its natural
+    // height 12 scales down to 6 at h=4, but ascent stays proportional → bites).
+    expect(minYForSize(4)).toBe(10);   // ACCENTED: 10 + 6 - 6 = 10
+    expect(minYForSize(8)).toBe(5);    // ASCII: 7 + 6 - 8 = 5
+    expect(minYForSize(12)).toBe(1);   // ASCII: 7 + 6 - 12 = 1
+    expect(minYForSize(16)).toBe(-3);  // ASCII: 7 + 6 - 16 = -3
+    expect(minYForSize(20)).toBe(-7);
+    expect(minYForSize(24)).toBe(-11);
+    expect(minYForSize(32)).toBe(-19);
+  });
+
+  test("buildTextYFontJson at exactly minYForSize satisfies ascent<=height for every provider", () => {
+    for (const h of [4, 8, 12, 16, 20, 24, 32]) {
+      const y = minYForSize(h);
+      const json = buildTextYFontJson(y, h);
+      const bitmaps = json.providers.filter((p) => p.type === "bitmap") as Array<{ ascent: number; height: number; file: string }>;
+      for (const b of bitmaps) {
+        expect(b.ascent).toBeLessThanOrEqual(b.height);
+      }
+    }
   });
 });

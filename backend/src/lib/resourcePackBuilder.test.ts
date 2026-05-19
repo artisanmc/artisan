@@ -266,17 +266,19 @@ describe("buildResourcePackZip", () => {
     expect(entries["assets/interfaze/font/broken.json"]).toBeUndefined();
   });
 
-  test("includes Y-specific text fonts for y=-32..172 (new Y×H filenames)", () => {
+  test("includes Y-specific text fonts up to Y=172 for h=8 (ascent<=height filter applied)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    // Spot-check a few Y values across the range (default size h=8)
-    expect(entries["assets/interfaze/font/text_y-32_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeDefined();
+    // For h=8, minYForSize=5 (ASCII ascent 7 + shift 1 = 8 = height). Spot-check.
+    expect(entries["assets/interfaze/font/text_y5_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y20_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y140_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y172_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y-33_h8.json"]).toBeUndefined();
+    // Below the floor and above the cap: not emitted.
+    expect(entries["assets/interfaze/font/text_y4_h8.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y-32_h8.json"]).toBeUndefined();
     expect(entries["assets/interfaze/font/text_y173_h8.json"]).toBeUndefined();
   });
 
@@ -295,11 +297,13 @@ describe("buildResourcePackZip", () => {
     expect(json.providers[3].ascent).toBe(7);
   });
 
-  test("text_y0_h8.json shifts every bitmap ascent by +6", () => {
+  test("text_y0_h16.json shifts every bitmap ascent by +6 (smallest valid h for y=0)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0_h8.json"]));
-    // shift = 6 - 0 = 6. Vanilla ascents +6.
+    // y=0 with h=8 would need ascent=13 > height=8 (invalid, skipped). h=16 is
+    // the smallest valid size for y=0: ASCII ascent 13 <= height 16.
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0_h16.json"]));
+    // shift = 6 - 0 = 6. Vanilla ascents +6, independent of h.
     expect(json.providers[1].ascent).toBe(7 + 6);
     expect(json.providers[2].ascent).toBe(10 + 6);
     expect(json.providers[3].ascent).toBe(7 + 6);
@@ -322,16 +326,26 @@ describe("buildResourcePackZip", () => {
 });
 
 describe("resource pack — text_y matrix with size dimension", () => {
-  test("emits text_y{Y}_h{H}.json for Y in [-32,172] × H in {4,8,12,16,20,24,32}", () => {
+  test("emits text_y{Y}_h{H}.json only for Y >= minYForSize(H) (skips invalid ascent>height combos)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     const textYKeys = Object.keys(entries).filter((k) => k.startsWith("assets/interfaze/font/text_y"));
-    // 205 Y values × 7 sizes = 1435 files.
-    expect(textYKeys).toHaveLength(205 * 7);
-    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeDefined();
+    // Per-h Y count = 172 - minY + 1. Min Ys: h=4→10, h=8→5, h=12→1, h=16→-3,
+    // h=20→-7, h=24→-11, h=32→-19. Total = 163+168+172+176+180+184+192 = 1235.
+    expect(textYKeys).toHaveLength(1235);
+    // Valid combos present:
+    expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y20_h16.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y-32_h4.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y172_h32.json"]).toBeDefined();
+    // Boundary: y exactly at the min for each h.
+    expect(entries["assets/interfaze/font/text_y10_h4.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y5_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y-19_h32.json"]).toBeDefined();
+    // Invalid combos (ascent>height): not emitted.
+    expect(entries["assets/interfaze/font/text_y9_h4.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y4_h8.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y-32_h4.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y-20_h32.json"]).toBeUndefined();
   });
 
   test("does NOT emit the old text_y{Y}.json filenames", () => {
