@@ -67,6 +67,34 @@ describe("transform", () => {
     });
   });
 
+  it("omits editor_layout when canvasLayout is empty", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      canvasLayout: {},
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_layout).toBeUndefined();
+  });
+
+  it("filters orphaned ids from editor_layout (id no longer in pack)", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      canvasLayout: {
+        [menuId("shop")]: { x: 40, y: 40 },
+        // "ghost_menu" is NOT in pack.menus — stale entry, should be dropped:
+        "ghost_menu": { x: 999, y: 999 },
+      } as Pack["canvasLayout"],
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_layout).toEqual({ shop: { x: 40, y: 40 } });
+  });
+
   it("emits a menu yaml with title array containing the text layer", () => {
     const pack = makePack({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
