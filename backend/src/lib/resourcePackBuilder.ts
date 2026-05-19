@@ -72,9 +72,15 @@ export function buildResourcePackZip(
   // top of the player inventory (Y=150..172). A user picking Y outside this
   // range would otherwise see missing-glyph squares in-game because MC
   // can't find the referenced font asset.
+  // Matrix: Y × size. Each (Y, H) combination is a tiny JSON (~500 B), so the
+  // total ~700 KB is dwarfed by texture assets. The vanilla ASCII/accented/
+  // nonlatin PNGs are referenced by URL — no extra textures are bundled.
+  const TEXT_SIZES = [4, 8, 12, 16, 20, 24, 32] as const;
   for (let y = -32; y <= 172; y++) {
-    files[`assets/interfaze/font/text_y${y}.json`] =
-      strToU8(JSON.stringify(buildTextYFontJson(y), null, 2));
+    for (const h of TEXT_SIZES) {
+      files[`assets/interfaze/font/text_y${y}_h${h}.json`] =
+        strToU8(JSON.stringify(buildTextYFontJson(y, h), null, 2));
+    }
   }
 
   const glyphs = assets

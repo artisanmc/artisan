@@ -266,24 +266,24 @@ describe("buildResourcePackZip", () => {
     expect(entries["assets/interfaze/font/broken.json"]).toBeUndefined();
   });
 
-  test("includes Y-specific text fonts for y=-32..172", () => {
+  test("includes Y-specific text fonts for y=-32..172 (new Y×H filenames)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    // Spot-check a few Y values across the range
-    expect(entries["assets/interfaze/font/text_y-32.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y0.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y6.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y20.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y140.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y172.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y-33.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y173.json"]).toBeUndefined();
+    // Spot-check a few Y values across the range (default size h=8)
+    expect(entries["assets/interfaze/font/text_y-32_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y20_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y140_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y172_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y-33_h8.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y173_h8.json"]).toBeUndefined();
   });
 
-  test("text_y6.json has space + ascii + accented + nonlatin providers in vanilla order", () => {
+  test("text_y6_h8.json has space + ascii + accented + nonlatin providers in vanilla order", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y6.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y6_h8.json"]));
     expect(json.providers[0].type).toBe("space");
     expect(json.providers[0].advances[" "]).toBe(4);
     // Y=6 is the vanilla title position → bitmap ascents match vanilla unchanged.
@@ -295,10 +295,10 @@ describe("buildResourcePackZip", () => {
     expect(json.providers[3].ascent).toBe(7);
   });
 
-  test("text_y0.json shifts every bitmap ascent by +6", () => {
+  test("text_y0_h8.json shifts every bitmap ascent by +6", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0_h8.json"]));
     // shift = 6 - 0 = 6. Vanilla ascents +6.
     expect(json.providers[1].ascent).toBe(7 + 6);
     expect(json.providers[2].ascent).toBe(10 + 6);
@@ -318,5 +318,27 @@ describe("buildResourcePackZip", () => {
     const a = buildResourcePackZip([], new Map(), new Map()).hash;
     const b = buildResourcePackZip([f], new Map(), fontPngs).hash;
     expect(a).not.toBe(b);
+  });
+});
+
+describe("resource pack — text_y matrix with size dimension", () => {
+  test("emits text_y{Y}_h{H}.json for Y in [-32,172] × H in {4,8,12,16,20,24,32}", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const entries = unzipSync(zipBytes);
+    const textYKeys = Object.keys(entries).filter((k) => k.startsWith("assets/interfaze/font/text_y"));
+    // 205 Y values × 7 sizes = 1435 files.
+    expect(textYKeys).toHaveLength(205 * 7);
+    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y20_h16.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y-32_h4.json"]).toBeDefined();
+    expect(entries["assets/interfaze/font/text_y172_h32.json"]).toBeDefined();
+  });
+
+  test("does NOT emit the old text_y{Y}.json filenames", () => {
+    const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
+    const entries = unzipSync(zipBytes);
+    // Old format had no _h suffix; assert that shape is fully gone.
+    const oldFormat = Object.keys(entries).filter((k) => /assets\/interfaze\/font\/text_y-?\d+\.json$/.test(k));
+    expect(oldFormat).toHaveLength(0);
   });
 });
