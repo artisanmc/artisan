@@ -66,3 +66,33 @@ describe("importPackFromFiles — canvasLayout", () => {
     expect(pack.canvasLayout).toEqual({});
   });
 });
+
+describe("round-trip mirror — backend parses what the editor emits", () => {
+  test("manifest with the editor's block-style shape yields matching canvasLayout", () => {
+    // Mirror of editor/src/features/export/transform.test.ts:
+    // "emits editor_layout in block-style YAML the backend round-trip test parses"
+    const files = {
+      "plugins/Interfaze/packs/p_mirror/manifest.yaml": [
+        "schema: manifest/v1",
+        "pack_id: p_mirror",
+        "default_lang: en",
+        "languages:",
+        "  - en",
+        "files:",
+        "  menus:",
+        "    - shop",
+        "  commands: []",
+        "  dialogs: []",
+        "editor_layout:",
+        "  shop:",
+        "    x: 123",
+        "    y: 456",
+      ].join("\n") + "\n",
+      "plugins/Interfaze/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
+    };
+    const pack = importPackFromFiles("p_mirror", files) as {
+      canvasLayout: Record<string, { x: number; y: number }>;
+    };
+    expect(pack.canvasLayout).toEqual({ shop: { x: 123, y: 456 } });
+  });
+});
