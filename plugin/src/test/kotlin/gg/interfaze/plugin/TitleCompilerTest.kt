@@ -741,6 +741,51 @@ class TitleCompilerTest {
         assertEquals(164, newX, "cursor must reflect MC's actual position after the last sub-line")
     }
 
+    @Test
+    fun `compileTitle full user-menu — text_y references match clamped Y values`() {
+        // End-to-end render of the user's actual test.yaml menu. We can't depend
+        // on a real AssetCatalog so we stub the glyph asset. The test checks the
+        // sequence of font references emitted (text_y values) — confirms the
+        // Y-clamp from layer.y=200 to TEXT_Y_MAX=172 and the textarea's text_y57/67/77.
+        val glyphCh = 0xE000.toChar()
+        val lookup = stubLookup(mapOf("asset_a5bff8c5987b" to glyphEntry("u_glyph", 0xE000, width = 16)))
+        val langMap = mapOf(
+            "menus.test.title" to "<b>Hehehe <rainbow>:))))))",
+            "menus.test.title_2" to "<red>TITLE",
+            "menus.test.title_3" to "Bonjour à tous et à toutes ! Bienvenue sur spartacube ! <rainbow>Bienvenue sur spartacube !",
+            "menus.test.title_4" to "<green>TITLE",
+        )
+        val result = TitleCompiler.compileTitle(
+            layers = listOf(
+                MenuTitleLayer.Glyph(assetId = "asset_a5bff8c5987b", x = 0, y = 0),
+                MenuTitleLayer.Text(value = LText("menus.test.title"), x = 48, y = 107),
+                MenuTitleLayer.Text(value = LText("menus.test.title_2"), x = 8, y = 6),
+                MenuTitleLayer.Textarea(
+                    value = LText("menus.test.title_3"), x = 24, y = 57,
+                    width = 177, lineHeight = 10,
+                    alignment = MenuTitleLayer.Alignment.LEFT,
+                ),
+                MenuTitleLayer.Text(value = LText("menus.test.title_4"), x = 127, y = 200),
+            ),
+            lang = "en_us",
+            langMap = langMap,
+            lookupAsset = lookup,
+            offsetEncoder = standardEncoder,
+        )
+        val s = result.toString()
+
+        // Y=200 must be clamped to TEXT_Y_MAX=172 (no missing-glyph squares).
+        assertFalse(s.contains("text_y200"), "Y=200 must be clamped to 172")
+        assertTrue(s.contains("text_y172"), "title_4 must reference text_y172 (clamped from 200)")
+        // Textarea wraps to 3 sub-lines at y=57, 67, 77.
+        assertTrue(s.contains("text_y57"))
+        assertTrue(s.contains("text_y67"))
+        assertTrue(s.contains("text_y77"))
+        // The other text layers' Y values are in range, no clamp.
+        assertTrue(s.contains("text_y107"))
+        assertTrue(s.contains("text_y6"))
+    }
+
     // ---------- wrapLine (private helper, exposed via test entry points) ----------
 
     @Test
