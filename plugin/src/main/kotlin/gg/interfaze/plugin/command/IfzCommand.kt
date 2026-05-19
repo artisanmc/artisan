@@ -135,15 +135,18 @@ class IfzCommand(
         )
         val raw = result.toString()
 
-        sender.sendMessage("─── dump-title $menuId (lang=$resolvedLang) ───")
-        sender.sendMessage("Title.title layers: ${menu.title.size}")
-        for ((i, l) in menu.title.withIndex()) sender.sendMessage("  [$i] $l")
-        sender.sendMessage("Component.toString() length=${raw.length}")
-        sender.sendMessage(raw)
+        // Helper: both to chat and to server console (logs are easier to grep
+        // than a chat scrollback that truncates and filters PUA chars).
+        fun out(msg: String) {
+            sender.sendMessage(msg)
+            plugin.logger.info("[dump-title] $msg")
+        }
 
-        // Now walk the assembled MiniMessage string we'd EMIT (we reconstruct
-        // via compileLayerBody so cursor tracking matches the production path).
-        sender.sendMessage("─── cursor walk (initial currentX=${TitleCompiler.TITLE_LABEL_X}) ───")
+        out("─── dump-title $menuId (lang=$resolvedLang) ───")
+        out("Title layers (input order): ${menu.title.size}")
+        for ((i, l) in menu.title.withIndex()) out("  [$i] $l")
+
+        out("─── cursor walk (initial currentX=${TitleCompiler.TITLE_LABEL_X}) ───")
         val sorted = menu.title.sortedWith(compareBy {
             when (it) {
                 is gg.interfaze.plugin.model.MenuTitleLayer.Text,
@@ -169,13 +172,18 @@ class IfzCommand(
                 layer, startX, langMap, plugin.assetCatalog::lookup, encoder,
             )
             currentX = newX
-            sender.sendMessage(
-                "  [$i] ${layer.javaClass.simpleName} targetX=$targetX " +
-                "before=$before  outer-offset=$outerOffset  startX=$startX  newX=$newX  " +
-                "decoded-frag-offsets=${decodeOffsetSum(frag)}px"
+            val kindShort = layer.javaClass.simpleName
+            out(
+                "  sorted[$i] $kindShort targetX=$targetX  " +
+                "before=$before  outer-offset=$outerOffset  startX=$startX  " +
+                "newX=$newX  inner-offset-sum=${decodeOffsetSum(frag)}px"
             )
         }
-        sender.sendMessage("─── final cursor=$currentX ───")
+        out("─── final cursor=$currentX ───")
+
+        // Last so chat doesn't truncate the cursor walk.
+        plugin.logger.info("[dump-title] full Component.toString (length=${raw.length}):")
+        plugin.logger.info("[dump-title] $raw")
     }
 
     private fun editor(sender: CommandSender) {
