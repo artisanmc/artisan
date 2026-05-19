@@ -170,6 +170,7 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
     };
     if (layer.color !== undefined) out.color = layer.color;
     if (layer.fontAssetId !== undefined) out.font_asset_id = layer.fontAssetId;
+    if (layer.size !== undefined && layer.size !== 8) out.size = layer.size;
     return out;
   }
   if (layer.kind === "plain") {
@@ -191,6 +192,7 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
       alignment: layer.alignment,
     };
     if (layer.fontAssetId !== undefined) out.font_asset_id = layer.fontAssetId;
+    if (layer.size !== undefined && layer.size !== 8) out.size = layer.size;
     return out;
   }
   if (layer.kind === "external_glyph") {
@@ -278,6 +280,9 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
       };
       if (typeof m.color === "string") out.color = m.color;
       if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      if (typeof m.size === "number" && [4, 8, 12, 16, 20, 24, 32].includes(m.size)) {
+        out.size = m.size as 4 | 8 | 12 | 16 | 20 | 24 | 32;
+      }
       return out;
     }
     case "plain": {
@@ -315,6 +320,9 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         alignment,
       };
       if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
+      if (typeof m.size === "number" && [4, 8, 12, 16, 20, 24, 32].includes(m.size)) {
+        out.size = m.size as 4 | 8 | 12 | 16 | 20 | 24 | 32;
+      }
       return out;
     }
     case "external_glyph": {
