@@ -539,20 +539,30 @@ export function transform(pack: Pack): Record<string, string> {
     files[`${base}/lang/${lang}.yaml`] = stringify(serializeLang(pack, lang, referencedKeys), yamlOpts);
   }
 
-  files[`${base}/manifest.yaml`] = stringify(
-    {
-      schema: "manifest/v1",
-      pack_id: pack.id,
-      default_lang: pack.defaultLang,
-      languages: langs,
-      files: {
-        menus: pack.menus.map((m) => m.id),
-        commands: pack.commands.map((c) => c.id),
-        dialogs: pack.dialogs.map((d) => d.id),
-      },
-    },
-    yamlOpts,
+  const liveIds = new Set<string>([
+    ...pack.menus.map((m) => m.id as string),
+    ...pack.commands.map((c) => c.id as string),
+    ...pack.dialogs.map((d) => d.id as string),
+  ]);
+  const editorLayout = Object.fromEntries(
+    Object.entries(pack.canvasLayout).filter(([id]) => liveIds.has(id)),
   );
+
+  const manifest: Record<string, unknown> = {
+    schema: "manifest/v1",
+    pack_id: pack.id,
+    default_lang: pack.defaultLang,
+    languages: langs,
+    files: {
+      menus: pack.menus.map((m) => m.id),
+      commands: pack.commands.map((c) => c.id),
+      dialogs: pack.dialogs.map((d) => d.id),
+    },
+  };
+  if (Object.keys(editorLayout).length > 0) {
+    manifest.editor_layout = editorLayout;
+  }
+  files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 
   files[`${base}/meta.yaml`] = stringify(
     {
