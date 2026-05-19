@@ -95,6 +95,25 @@ describe("transform", () => {
     expect(manifest.editor_layout).toEqual({ shop: { x: 40, y: 40 } });
   });
 
+  it("emits editor_layout in block-style YAML the backend round-trip test parses", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
+    });
+    const files = transform(pack);
+    const manifestYaml = files["plugins/Interfaze/packs/p_test/manifest.yaml"]!;
+    // The editor emits block-style YAML for nested objects (the `yaml` lib's
+    // default with our yamlOpts). The backend mirror test below asserts the
+    // same block-style shape is parseable. If you change to flow style here,
+    // update the backend mirror fixture too.
+    expect(manifestYaml).toContain("editor_layout:");
+    expect(manifestYaml).toContain("shop:");
+    expect(manifestYaml).toMatch(/x:\s*123/);
+    expect(manifestYaml).toMatch(/y:\s*456/);
+  });
+
   it("emits a menu yaml with title array containing the text layer", () => {
     const pack = makePack({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
