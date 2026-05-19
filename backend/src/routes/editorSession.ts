@@ -9,6 +9,7 @@ import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
+import { readEditorLayoutFromFiles } from "../lib/packImport";
 
 const router = new Hono();
 
@@ -126,7 +127,10 @@ router.put("/:token/packs/:packId", async (c) => {
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = JSON.stringify(body.pack);
+
+  const packObj = (body.pack as Record<string, unknown>) ?? {};
+  packObj.canvasLayout = readEditorLayoutFromFiles(body.files, packId); // files win
+  const editorJson = JSON.stringify(packObj);
 
   // UPSERT: prior delete+insert pattern raced under concurrent saves
   // (autosave PUT + explicit POST /deploy). Each transaction would
@@ -159,7 +163,10 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = JSON.stringify(body.pack);
+
+  const packObj = (body.pack as Record<string, unknown>) ?? {};
+  packObj.canvasLayout = readEditorLayoutFromFiles(body.files, packId); // files win
+  const editorJson = JSON.stringify(packObj);
 
   await db.insert(packBundles).values({
     id: crypto.randomUUID(),

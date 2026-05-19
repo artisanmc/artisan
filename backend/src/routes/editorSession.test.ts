@@ -866,3 +866,63 @@ describe("custom_items_changed edge cases", () => {
     connSenders.delete(orphanConnId);
   });
 });
+
+describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files win)", () => {
+  test("manifest editor_layout overrides pack.canvasLayout in stored editorJson", async () => {
+    const { token } = await createSession();
+    const fakePack = {
+      id: "p_files_win",
+      name: "Files Win",
+      menus: [],
+      canvasLayout: { shop: { x: 1, y: 1 } }, // STALE — files should win
+    };
+    const fakeFiles = {
+      "plugins/Interfaze/packs/p_files_win/manifest.yaml": [
+        "schema: manifest/v1", "pack_id: p_files_win", "default_lang: en",
+        "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
+        "editor_layout:", "  shop: { x: 77, y: 88 }",
+      ].join("\n") + "\n",
+    };
+    const res = await app.request(`/api/editor-session/${token}/packs/p_files_win`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    expect(res.status).toBe(201);
+
+    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const body = await getRes.json() as { packs: Array<{ id: string; canvasLayout: Record<string, { x: number; y: number }> }> };
+    const p = body.packs.find((x) => x.id === "p_files_win")!;
+    expect(p.canvasLayout).toEqual({ shop: { x: 77, y: 88 } });
+  });
+});
+
+describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout (files win)", () => {
+  test("deploy applies manifest editor_layout to stored editorJson", async () => {
+    const { token } = await createTrustedSession(); // existing helper that returns a trusted session
+    const fakePack = {
+      id: "p_deploy_layout",
+      name: "Deploy Layout",
+      menus: [],
+      canvasLayout: { foo: { x: 0, y: 0 } }, // stale
+    };
+    const fakeFiles = {
+      "plugins/Interfaze/packs/p_deploy_layout/manifest.yaml": [
+        "schema: manifest/v1", "pack_id: p_deploy_layout", "default_lang: en",
+        "files:", "  menus: []", "  commands: []", "  dialogs: []",
+        "editor_layout:", "  bar: { x: 200, y: 300 }",
+      ].join("\n") + "\n",
+    };
+    const res = await app.request(`/api/editor-session/${token}/packs/p_deploy_layout/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    expect(res.status).toBe(201);
+
+    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const body = await getRes.json() as { packs: Array<{ id: string; canvasLayout: Record<string, { x: number; y: number }> }> };
+    const p = body.packs.find((x) => x.id === "p_deploy_layout")!;
+    expect(p.canvasLayout).toEqual({ bar: { x: 200, y: 300 } });
+  });
+});
