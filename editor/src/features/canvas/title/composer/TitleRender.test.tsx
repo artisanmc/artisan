@@ -699,6 +699,39 @@ describe("TitleRender", () => {
     expect(Number(hit.getAttribute("data-height"))).toBeGreaterThan(0);
   });
 
+  it("text layer with size=16 has hit area DOUBLED vs default size", () => {
+    // vanillaTextWidth mock: text.length * 6 → "Hello" (I18N_KEY fallback) = 5 * 6 = 30
+    // scale = TEX_SCALE = 2
+    // default size (8): hitW = 30 * 2 = 60, hitH = 8 * 2 = 16
+    // size 16 (sizeScale=2): hitW = 60 * 2 = 120, hitH = 16 * 2 = 32
+    const defaultLayers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0 },
+    ];
+    seedPack(defaultLayers);
+    const { unmount } = render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const defaultGroup = screen.getAllByTestId("group")[0]!;
+    const defaultHit = Array.from(defaultGroup.querySelectorAll('[data-testid="rect"]'))
+      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL)[0]!;
+    const defaultW = Number(defaultHit.getAttribute("data-width"));
+    const defaultH = Number(defaultHit.getAttribute("data-height"));
+    unmount();
+
+    const scaledLayers: MenuTitleLayer[] = [
+      { kind: "text", value: { key: I18N_KEY }, x: 0, y: 0, size: 16 },
+    ];
+    seedPack(scaledLayers);
+    render(<TitleRender packId={PACK_ID} menuId={MENU_ID} scale={TEX_SCALE} />);
+    const scaledGroup = screen.getAllByTestId("group")[0]!;
+    const scaledHit = Array.from(scaledGroup.querySelectorAll('[data-testid="rect"]'))
+      .filter((r) => r.getAttribute("data-fill") === BACKDROP_FILL)[0]!;
+    const scaledW = Number(scaledHit.getAttribute("data-width"));
+    const scaledH = Number(scaledHit.getAttribute("data-height"));
+
+    // size=16 is 2× the default size=8 → hit area should be 2× in both dimensions
+    expect(scaledW).toBe(defaultW * 2);
+    expect(scaledH).toBe(defaultH * 2);
+  });
+
   it("external_glyph layer Group contains a hit-area Rect for drag pickup (Issue 1)", () => {
     const layers: MenuTitleLayer[] = [
       { kind: "external_glyph", provider: "oraxen", glyphName: "coin", x: 20, y: 4 },

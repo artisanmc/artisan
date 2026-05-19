@@ -511,6 +511,13 @@ function LayerNode({
   // underlying menu. This preserves menu clickability.
   const draggable = selected && layer.kind !== "background";
 
+  // Scale factor for text/textarea layers based on their `size` property.
+  // size=8 (default) → sizeScale=1, size=16 → sizeScale=2, etc.
+  const layerSizeScale =
+    layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
+      ? (layer.size ?? 8) / 8
+      : 1;
+
   // Bounding-box dimensions — used for the selection outline and hit area.
   const outlineW =
     layer.kind === "background" || layer.kind === "glyph"
@@ -518,16 +525,16 @@ function LayerNode({
       : layer.kind === "external_glyph"
         ? 10 * scale
         : layer.kind === "textarea"
-          ? textareaBoxW * scale
-          : Math.max(vanillaTextWidth(text) * scale, 8);
+          ? textareaBoxW * scale * layerSizeScale
+          : Math.max(vanillaTextWidth(text) * scale * layerSizeScale, 8);
   const outlineH =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageH
       : layer.kind === "external_glyph"
         ? 10 * scale
         : layer.kind === "textarea"
-          ? textareaTotalH * scale
-          : MC_FONT_HEIGHT_PX * scale;
+          ? textareaTotalH * scale * layerSizeScale
+          : MC_FONT_HEIGHT_PX * scale * layerSizeScale;
 
   // All layer kinds need an explicit hit area: KonvaImage has listening={false}
   // (so glyph/background Groups have no listening child), text hit-tests on
@@ -542,17 +549,17 @@ function LayerNode({
     layer.kind === "background" || layer.kind === "glyph"
       ? imageW
       : layer.kind === "text" || layer.kind === "plain"
-        ? Math.max(vanillaTextWidth(text) * scale, 8)
+        ? Math.max(vanillaTextWidth(text) * scale * layerSizeScale, 8)
         : layer.kind === "textarea"
-          ? textareaBoxW * scale
+          ? textareaBoxW * scale * layerSizeScale
           : 10 * scale;
   const hitH =
     layer.kind === "background" || layer.kind === "glyph"
       ? imageH
       : layer.kind === "text" || layer.kind === "plain"
-        ? MC_FONT_HEIGHT_PX * scale
+        ? MC_FONT_HEIGHT_PX * scale * layerSizeScale
         : layer.kind === "textarea"
-          ? textareaTotalH * scale
+          ? textareaTotalH * scale * layerSizeScale
           : 10 * scale;
 
   return (
