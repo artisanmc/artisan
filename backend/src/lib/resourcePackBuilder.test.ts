@@ -330,22 +330,22 @@ describe("resource pack — text_y matrix with size dimension", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     const textYKeys = Object.keys(entries).filter((k) => k.startsWith("assets/interfaze/font/text_y"));
-    // Per-h Y count = 172 - minY + 1. Min Ys: h=4→10, h=8→5, h=12→1, h=16→-3,
-    // h=20→-7, h=24→-11, h=32→-19. Total = 163+168+172+176+180+184+192 = 1235.
-    expect(textYKeys).toHaveLength(1235);
+    // Per-h Y count = 172 - minY + 1. Min Ys: h=8→5, h=12→1, h=16→-3,
+    // h=20→-7, h=24→-11, h=32→-19. Total = 168+172+176+180+184+192 = 1072.
+    expect(textYKeys).toHaveLength(1072);
     // Valid combos present:
     expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y20_h16.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y172_h32.json"]).toBeDefined();
     // Boundary: y exactly at the min for each h.
-    expect(entries["assets/interfaze/font/text_y10_h4.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y5_h8.json"]).toBeDefined();
     expect(entries["assets/interfaze/font/text_y-19_h32.json"]).toBeDefined();
     // Invalid combos (ascent>height): not emitted.
-    expect(entries["assets/interfaze/font/text_y9_h4.json"]).toBeUndefined();
     expect(entries["assets/interfaze/font/text_y4_h8.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y-32_h4.json"]).toBeUndefined();
     expect(entries["assets/interfaze/font/text_y-20_h32.json"]).toBeUndefined();
+    // h=4 is no longer in the bake set at all.
+    expect(entries["assets/interfaze/font/text_y10_h4.json"]).toBeUndefined();
+    expect(entries["assets/interfaze/font/text_y50_h4.json"]).toBeUndefined();
   });
 
   test("does NOT emit the old text_y{Y}.json filenames", () => {

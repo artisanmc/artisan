@@ -74,7 +74,6 @@ object TitleCompiler {
      * `backend/src/lib/fontJsonBuilder.ts`; see the test there for the formula.
      */
     internal val MIN_Y_BY_SIZE: Map<Int, Int> = mapOf(
-        4 to 10,
         8 to 5,
         12 to 1,
         16 to -3,

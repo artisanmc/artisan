@@ -280,8 +280,8 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
       };
       if (typeof m.color === "string") out.color = m.color;
       if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
-      if (typeof m.size === "number" && [4, 8, 12, 16, 20, 24, 32].includes(m.size)) {
-        out.size = m.size as 4 | 8 | 12 | 16 | 20 | 24 | 32;
+      if (typeof m.size === "number" && [8, 12, 16, 20, 24, 32].includes(m.size)) {
+        out.size = m.size as 8 | 12 | 16 | 20 | 24 | 32;
       }
       return out;
     }
@@ -320,8 +320,8 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
         alignment,
       };
       if (typeof m.font_asset_id === "string") out.fontAssetId = m.font_asset_id as AssetId;
-      if (typeof m.size === "number" && [4, 8, 12, 16, 20, 24, 32].includes(m.size)) {
-        out.size = m.size as 4 | 8 | 12 | 16 | 20 | 24 | 32;
+      if (typeof m.size === "number" && [8, 12, 16, 20, 24, 32].includes(m.size)) {
+        out.size = m.size as 8 | 12 | 16 | 20 | 24 | 32;
       }
       return out;
     }

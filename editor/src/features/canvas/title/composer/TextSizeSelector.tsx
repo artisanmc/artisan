@@ -14,8 +14,9 @@ interface TextSizeSelectorProps {
 
 /**
  * Dropdown for choosing a text layer's bitmap size (vanilla text only — hide
- * this selector when the layer has a custom `fontAssetId`). The 7 options are
- * the set the backend bakes: multiples of 4 between 4 and 32. Default 8 (vanilla).
+ * this selector when the layer has a custom `fontAssetId`). 6 options: 8
+ * (vanilla) and five upscale multiples of 4. Downscale h<8 was dropped
+ * because the bitmap PNG isn't authored for it. Default 8.
  */
 export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps) {
   const { t } = useTranslation();
@@ -33,7 +34,6 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
         }}
         className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
       >
-        <option value={4}>{t("layerEditForm.size.options.xxs")}</option>
         <option value={8}>{t("layerEditForm.size.options.normal")}</option>
         <option value={12}>{t("layerEditForm.size.options.s")}</option>
         <option value={16}>{t("layerEditForm.size.options.m")}</option>
