@@ -4,7 +4,7 @@ import { db } from "../db/index";
 import { packBundles } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
-import { importPackFromFiles, isEmptyStub } from "../lib/packImport";
+import { importPackFromFiles, isEmptyStub, readEditorLayoutFromFiles } from "../lib/packImport";
 
 const router = new Hono();
 
@@ -22,11 +22,17 @@ router.post("/:packId", async (c) => {
       .from(packBundles)
       .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
 
-    // Preserve rich editorJson written by the editor; generate from files only when the
-    // current editorJson is empty (stub) or absent.
-    const keepEditorJson = existing.length > 0 && !isEmptyStub(existing[0].editorJson)
-      ? existing[0].editorJson
-      : JSON.stringify(importPackFromFiles(packId, body.files));
+    const incomingLayout = readEditorLayoutFromFiles(body.files, packId);
+
+    let editorJsonObj: Record<string, unknown>;
+    if (existing.length > 0 && !isEmptyStub(existing[0].editorJson)) {
+      editorJsonObj = JSON.parse(existing[0].editorJson!) as Record<string, unknown>;
+    } else {
+      editorJsonObj = importPackFromFiles(packId, body.files) as Record<string, unknown>;
+    }
+    editorJsonObj.canvasLayout = incomingLayout; // files win
+
+    const keepEditorJson = JSON.stringify(editorJsonObj);
 
     if (existing.length > 0) {
       await tx.update(packBundles)
