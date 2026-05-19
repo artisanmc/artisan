@@ -104,7 +104,7 @@ open class InterfazePlugin : JavaPlugin() {
     override fun onDisable() {
         ifzCommand.shutdown()
         commandRegistrar.unregisterAll()
-        menuProvider.unload()
+        menuProvider.shutdown()
         logger.info("Interfaze disabled")
     }
 
