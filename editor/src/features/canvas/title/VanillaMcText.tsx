@@ -112,7 +112,7 @@ export function VanillaMcText({
       for (const ch of seg.text) {
         const cell = charCell(ch);
         // MC bold adds 1px to the advance (glyph drawn twice, shifted 1px right).
-        const advance = ((VANILLA_ADVANCES[ch] ?? 6) + (bold ? 1 : 0)) * scale;
+        const adv = (advance(ch) + (bold ? 1 : 0)) * scale;
         if (cell) {
           // Draw the white atlas glyph onto the temp canvas.
           tctx.clearRect(0, 0, cellPx, cellPx);
@@ -138,7 +138,7 @@ export function VanillaMcText({
           ctx.drawImage(temp, cursor, 0);
           if (bold) ctx.drawImage(temp, cursor + scale, 0);
         }
-        cursor += advance;
+        cursor += adv;
       }
     }
 
