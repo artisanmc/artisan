@@ -127,6 +127,7 @@ interface ManifestYaml {
   pack_id?: string;
   default_lang?: string;
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
+  editor_layout?: Record<string, unknown>;
 }
 
 interface CommandYaml {
@@ -165,6 +166,29 @@ function getFile(files: Record<string, string>, packId: string, rel: string): st
 function tryParse<T>(text: string | null): T | null {
   if (!text) return null;
   try { return parseYaml(text) as T; } catch { return null; }
+}
+
+// ─── editor layout ───────────────────────────────────────────────────────────
+
+function parseEditorLayout(raw: unknown): Record<string, { x: number; y: number }> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const { x, y } = v as { x?: unknown; y?: unknown };
+    if (typeof x !== "number" || typeof y !== "number") continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    out[id] = { x, y };
+  }
+  return out;
+}
+
+export function readEditorLayoutFromFiles(
+  files: Record<string, string>,
+  packId: string,
+): Record<string, { x: number; y: number }> {
+  const m = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
+  return parseEditorLayout(m.editor_layout);
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────
@@ -236,7 +260,7 @@ export function importPackFromFiles(packId: string, files: Record<string, string
     importedConnectors: [],
     i18nKeys: {},
     defaultLang,
-    canvasLayout: {},
+    canvasLayout: parseEditorLayout(manifest.editor_layout),
   };
 }
 
