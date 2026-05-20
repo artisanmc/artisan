@@ -73,4 +73,38 @@ class BundleDownloaderTest {
             assertEquals(backendHash, meta.backendHash)
         }
     }
+
+    @Test
+    fun `download removes local files not present in bundle`() {
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_sweep_test"
+            val packsDir = Files.createTempDirectory("ifz_sweep_").toFile()
+            val packDir = File(packsDir, packId).also { it.mkdirs() }
+
+            // Seed: deux menus sur disque
+            File(packDir, "menus").mkdirs()
+            File(packDir, "menus/keep.yaml").writeText("id: keep\nsize: 27\n")
+            File(packDir, "menus/stale.yaml").writeText("id: stale\nsize: 9\n")
+
+            // Bundle backend : seulement keep.yaml (stale.yaml a été supprimé dans l'éditeur)
+            val files = mapOf(
+                "plugins/Interfaze/packs/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
+            )
+            server.enqueue(
+                MockResponse()
+                    .setBody(mapper.writeValueAsString(mapOf("files" to files, "hash" to "abc")))
+                    .setHeader("Content-Type", "application/json")
+            )
+
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(
+                url = server.url("/api/bundles/$packId").toString(),
+                serverKey = "sk", packId = packId,
+            )
+
+            assertTrue(File(packDir, "menus/keep.yaml").exists(), "keep.yaml doit être conservé")
+            assertTrue(!File(packDir, "menus/stale.yaml").exists(), "stale.yaml doit être supprimé")
+        }
+    }
 }
