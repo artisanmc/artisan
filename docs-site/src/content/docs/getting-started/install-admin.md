@@ -53,6 +53,8 @@ In-game, run:
 /ifz editor
 ```
 
+The command requires the `interfaze.editor` permission, granted to ops by default. If running it as a non-op produces no response, grant the permission via your permissions plugin (LuckPerms, PermissionsEx, etc.) or run from console.
+
 A trust link appears in chat. Click it to open the editor in your browser.
 The editor is now paired with your server — any change you save is
 live-synced to your players' next menu open.
@@ -62,6 +64,8 @@ To revoke the active editor session at any time:
 ```
 /ifz editor revoke
 ```
+
+Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first pack and menu, add slots, and wire up actions.
 
 ## 4. Useful commands
 
