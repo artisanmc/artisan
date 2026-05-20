@@ -132,10 +132,13 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    const packs = await db
-      .select({ packId: packBundles.packId, hash: packBundles.hash })
+    const allPacks = await db
+      .select({ packId: packBundles.packId, hash: packBundles.hash, deletedAt: packBundles.deletedAt })
       .from(packBundles)
       .where(eq(packBundles.serverId, keyId));
+
+    const packs = allPacks.filter((p) => p.deletedAt == null);
+    const deletedPackIds = allPacks.filter((p) => p.deletedAt != null).map((p) => p.packId);
 
     const packHashesMap: Record<string, string> = {};
     for (const p of packs) packHashesMap[p.packId] = p.hash;
@@ -187,6 +190,7 @@ export async function handlePluginMessage(
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
       pack_hashes: packHashesMap,
+      deleted_pack_ids: deletedPackIds,
       resource_pack: rp,
     };
 
