@@ -5,7 +5,7 @@ import { packConflicts, serverKeys } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
 import { getPack, createPack, upsertPackContent } from "../lib/packStorage";
-import { createBinding } from "../lib/packBindingManager";
+import { createBinding, listPacksForServerKey } from "../lib/packBindingManager";
 
 const router = new Hono();
 
@@ -45,8 +45,13 @@ router.get("/:packId", async (c) => {
 
   const packId = c.req.param("packId");
 
-  // TODO(C8): replace with packs-based lookup
-  return c.json({ error: "Not implemented" }, 501);
+  const bound = await listPacksForServerKey(serverKeyId);
+  if (!bound.find((p) => p.id === packId)) return c.json({ error: "Not bound" }, 404);
+
+  const pack = await getPack(packId);
+  if (!pack || pack.deletedAt) return c.json({ error: "Not found" }, 404);
+
+  return c.json({ hash: pack.hash, files: JSON.parse(pack.filesJson) as Record<string, string> });
 });
 
 export { router as bundlesRouter };
