@@ -118,6 +118,7 @@ class ActionExecutor(
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext, is Action.PaginationPrev -> Unit
+            is Action.ShowTitle -> Unit  // TODO: implement in Task 3
         }
     }
 }
