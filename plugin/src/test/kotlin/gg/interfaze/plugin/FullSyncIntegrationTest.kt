@@ -168,8 +168,8 @@ class FullSyncIntegrationTest {
                 Thread.sleep(200) // let the client process hello_ack
 
                 assertTrue(
-                    logs.any { it.contains("manually edited") },
-                    "Expected LOCAL_ONLY warning in logs. Got: $logs",
+                    logs.any { it.contains("divergence detected") && it.contains("LOCAL_ONLY") },
+                    "Expected LOCAL_ONLY divergence log in logs. Got: $logs",
                 )
                 provider.unload()
             }
@@ -232,5 +232,44 @@ class FullSyncIntegrationTest {
         } finally {
             MockBukkit.unmock()
         }
+    }
+
+    @Test
+    fun `plugin sends pack_divergence_detected when disk diverges from synced state`() {
+        val packsDir = Files.createTempDirectory("ifz_div_").toFile()
+        val packDir = File(packsDir, "p_local").also { it.mkdirs() }
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/m.yaml").writeText("id: m\n")
+
+        // Seed SyncMetadata avec "old_synced_hash" pour que detectSyncAction == LOCAL_ONLY
+        // (disk diverges from synced; backend matches synced)
+        gg.interfaze.plugin.sync.SyncMetadata.recordSync(packDir,
+            syncedHash = "old_synced_hash", backendHash = "old_synced_hash")
+
+        val sent = mutableListOf<Map<String, Any>>()
+        val provider = gg.interfaze.plugin.provider.SyncedMenuProvider(
+            packsDir = packsDir,
+            serverKey = "",  // skip WsClient.connect
+            wsUrl = "ws://noop",
+            logger = null,
+        )
+        provider.setSendForTesting { raw ->
+            val parsed = com.fasterxml.jackson.databind.ObjectMapper().readValue(raw, Map::class.java)
+            @Suppress("UNCHECKED_CAST")
+            sent.add(parsed as Map<String, Any>)
+        }
+
+        // hello_ack: backend hash == last_synced → disk differs → LOCAL_ONLY
+        val ack = """{"type":"hello_ack","pack_hashes":{"p_local":"old_synced_hash"},"deleted_pack_ids":[],"bundle_url":"http://backend"}"""
+        provider.handleMessageForTesting(ack)
+
+        Thread.sleep(300)  // wait for httpClient.dispatcher.executorService
+
+        val divergence = sent.firstOrNull { it["type"] == "pack_divergence_detected" }
+        kotlin.test.assertNotNull(divergence, "Expected pack_divergence_detected sent")
+        kotlin.test.assertEquals("p_local", divergence!!["pack_id"])
+        @Suppress("UNCHECKED_CAST")
+        val files = divergence["disk_files"] as Map<String, String>
+        kotlin.test.assertTrue(files.containsKey("plugins/Interfaze/packs/p_local/menus/m.yaml"))
     }
 }
