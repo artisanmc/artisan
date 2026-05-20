@@ -1,19 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { app } from "../app";
+import { Hono } from "hono";
+import { conflictsRouter } from "./conflicts";
+
+// Minimal app — only mounts the conflicts router, avoids importing broken bundles/editorSession routes
+const app = new Hono();
+app.route("/api/editor-session", conflictsRouter);
 
 async function createServerWithSession(label: string) {
-  const keyRes = await app.request("/api/server-keys", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label }),
-  });
-  const { key, id: serverKeyId } = (await keyRes.json()) as { key: string; id: string };
   const { db } = await import("../db/index");
-  const { editorSessions } = await import("../db/schema");
+  const { serverKeys, editorSessions } = await import("../db/schema");
+  const { generateServerKey } = await import("../lib/auth");
+  const { createNetwork } = await import("../lib/networkManager");
+
+  const network = await createNetwork(`net-${label}`);
+  const { id, key, hash } = await generateServerKey();
+  await db.insert(serverKeys).values({
+    id, hash, label, networkId: network.id, createdAt: new Date(),
+  });
   const accessToken = `acc_${crypto.randomUUID()}`;
   await db.insert(editorSessions).values({
     token: `etok_${crypto.randomUUID()}`,
-    serverKeyId,
+    serverKeyId: id,
     createdBy: "test",
     createdAt: new Date(),
     expiresAt: new Date(Date.now() + 86400_000),
@@ -21,16 +28,34 @@ async function createServerWithSession(label: string) {
     accessToken,
     accessExpiresAt: new Date(Date.now() + 86400_000),
   });
-  return { key, serverKeyId, accessToken };
+  return { key, serverKeyId: id, accessToken, networkId: network.id };
 }
 
-async function seedConflict(serverKeyId: string, packId: string, diskFiles: Record<string, string>, backendFiles: Record<string, string>) {
+async function seedConflict(
+  serverKeyId: string,
+  networkId: string,
+  packId: string,
+  diskFiles: Record<string, string>,
+  backendFiles: Record<string, string>,
+) {
   const { db } = await import("../db/index");
-  const { packBundles, packConflicts } = await import("../db/schema");
-  await db.insert(packBundles).values({
-    id: crypto.randomUUID(), serverId: serverKeyId, packId,
-    hash: "backendH", filesJson: JSON.stringify(backendFiles),
+  const { packs, packBindings, packConflicts } = await import("../db/schema");
+  await db.insert(packs).values({
+    id: packId,
+    networkId,
+    name: packId,
+    hash: "backendH",
+    filesJson: JSON.stringify(backendFiles),
     editorJson: JSON.stringify({ id: packId, name: packId }),
+    deployedEditorJson: null,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  await db.insert(packBindings).values({
+    id: "bind_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+    serverKeyId,
+    packId,
     createdAt: new Date(),
   });
   const conflictId = crypto.randomUUID();
@@ -53,8 +78,8 @@ describe("/api/editor-session/:token/conflicts", () => {
   });
 
   test("GET conflicts — lists open conflicts with diff summary", async () => {
-    const { serverKeyId, accessToken } = await createServerWithSession("conf-list");
-    await seedConflict(serverKeyId, "p_a", { "menus/m.yaml": "new" }, { "menus/old.yaml": "old" });
+    const { serverKeyId, accessToken, networkId } = await createServerWithSession("conf-list");
+    await seedConflict(serverKeyId, networkId, "p_a", { "menus/m.yaml": "new" }, { "menus/old.yaml": "old" });
     const res = await app.request(`/api/editor-session/${accessToken}/conflicts`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { conflicts: Array<{ packId: string; diff: { addedOnDisk: string[]; removedOnDisk: string[]; modifiedOnDisk: string[] } }> };
@@ -64,9 +89,9 @@ describe("/api/editor-session/:token/conflicts", () => {
     expect(body.conflicts[0].diff.removedOnDisk).toEqual(["menus/old.yaml"]);
   });
 
-  test("POST resolve choice=editor leaves packBundles unchanged + marks resolved", async () => {
-    const { serverKeyId, accessToken } = await createServerWithSession("conf-keep");
-    const conflictId = await seedConflict(serverKeyId, "p_keep",
+  test("POST resolve choice=editor leaves packs unchanged + marks resolved", async () => {
+    const { serverKeyId, accessToken, networkId } = await createServerWithSession("conf-keep");
+    const conflictId = await seedConflict(serverKeyId, networkId, "p_keep",
       { "a": "diskver" }, { "a": "backendver" });
 
     const res = await app.request(`/api/editor-session/${accessToken}/conflicts/${conflictId}/resolve`, {
@@ -77,21 +102,18 @@ describe("/api/editor-session/:token/conflicts", () => {
     expect(res.status).toBe(200);
 
     const { db } = await import("../db/index");
-    const { packBundles, packConflicts } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
-    const pack = await db.select().from(packBundles).where(and(
-      eq(packBundles.serverId, serverKeyId),
-      eq(packBundles.packId, "p_keep"),
-    ));
+    const { packs, packConflicts } = await import("../db/schema");
+    const { eq } = await import("drizzle-orm");
+    const pack = await db.select().from(packs).where(eq(packs.id, "p_keep"));
     expect(JSON.parse(pack[0].filesJson)).toEqual({ "a": "backendver" });
     const conflict = await db.select().from(packConflicts).where(eq(packConflicts.id, conflictId));
     expect(conflict[0].resolvedAt).not.toBeNull();
     expect(conflict[0].resolution).toBe("editor");
   });
 
-  test("POST resolve choice=server replaces packBundles.filesJson + marks resolved", async () => {
-    const { serverKeyId, accessToken } = await createServerWithSession("conf-srv");
-    const conflictId = await seedConflict(serverKeyId, "p_srv",
+  test("POST resolve choice=server replaces packs.filesJson + marks resolved", async () => {
+    const { serverKeyId, accessToken, networkId } = await createServerWithSession("conf-srv");
+    const conflictId = await seedConflict(serverKeyId, networkId, "p_srv",
       { "a": "diskver" }, { "a": "backendver" });
 
     const res = await app.request(`/api/editor-session/${accessToken}/conflicts/${conflictId}/resolve`, {
@@ -102,18 +124,15 @@ describe("/api/editor-session/:token/conflicts", () => {
     expect(res.status).toBe(200);
 
     const { db } = await import("../db/index");
-    const { packBundles } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
-    const pack = await db.select().from(packBundles).where(and(
-      eq(packBundles.serverId, serverKeyId),
-      eq(packBundles.packId, "p_srv"),
-    ));
+    const { packs } = await import("../db/schema");
+    const { eq } = await import("drizzle-orm");
+    const pack = await db.select().from(packs).where(eq(packs.id, "p_srv"));
     expect(JSON.parse(pack[0].filesJson)).toEqual({ "a": "diskver" });
   });
 
   test("POST resolve on already-resolved conflict returns 409", async () => {
-    const { serverKeyId, accessToken } = await createServerWithSession("conf-409");
-    const conflictId = await seedConflict(serverKeyId, "p_409", {}, {});
+    const { serverKeyId, accessToken, networkId } = await createServerWithSession("conf-409");
+    const conflictId = await seedConflict(serverKeyId, networkId, "p_409", {}, {});
 
     await app.request(`/api/editor-session/${accessToken}/conflicts/${conflictId}/resolve`, {
       method: "POST", headers: { "Content-Type": "application/json" },

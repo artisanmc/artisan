@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { db } from "../db/index";
-import { packBundles } from "../db/schema";
+import { listPacksForServerKey } from "./packBindingManager";
 
 export async function computeBundleHash(files: Record<string, string>, packId: string): Promise<string> {
   const prefix = `plugins/Interfaze/packs/${packId}/`;
@@ -17,15 +15,12 @@ export async function computeBundleHash(files: Record<string, string>, packId: s
 }
 
 export async function computeAllPacksHash(serverId: string): Promise<string> {
-  const bundles = await db
-    .select({ packId: packBundles.packId, hash: packBundles.hash })
-    .from(packBundles)
-    .where(eq(packBundles.serverId, serverId));
+  const boundPacks = await listPacksForServerKey(serverId);
 
-  if (bundles.length === 0) return "";
+  if (boundPacks.length === 0) return "";
 
-  const sorted = [...bundles].sort((a, b) => (a.packId < b.packId ? -1 : a.packId > b.packId ? 1 : 0));
-  const data = sorted.map((b) => `${b.packId}:${b.hash}\n`).join("");
+  const sorted = [...boundPacks].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const data = sorted.map((p) => `${p.id}:${p.hash}\n`).join("");
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
