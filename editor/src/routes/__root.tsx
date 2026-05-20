@@ -4,6 +4,7 @@ import { transform } from "@/features/export/transform";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { savePack } from "@/lib/packApi";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import type { Pack } from "@/domain/types";
 
@@ -13,6 +14,10 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   usePackAutoSave();
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+    useAuthStore.getState().hydrate(apiUrl);
+  }, []);
   return (
     <div className="h-full">
       <Outlet />
