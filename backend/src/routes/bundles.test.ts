@@ -52,7 +52,7 @@ describe("bundle upload/download", () => {
     expect(res.status).toBe(401);
   });
 
-  test("POST stores bundle and returns ok", async () => {
+  test("POST + GET round-trip stores and retrieves bundle", async () => {
     const app = buildApp();
     const { key } = await seedServerKey("bundle-test");
 
@@ -64,6 +64,14 @@ describe("bundle upload/download", () => {
     expect(uploadRes.status).toBe(200);
     const uploadBody = (await uploadRes.json()) as { ok: boolean };
     expect(uploadBody.ok).toBe(true);
+
+    const downloadRes = await app.request("/api/bundles/p_test", {
+      headers: { "Authorization": `Bearer ${key}` },
+    });
+    expect(downloadRes.status).toBe(200);
+    const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
+    expect(body.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(body.files["plugins/Interfaze/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
   });
 
   test("POST returns 409 pack_locked when an open conflict exists for the pack", async () => {
@@ -86,6 +94,18 @@ describe("bundle upload/download", () => {
     const body = (await res.json()) as { error: string; conflictId?: string };
     expect(body.error).toBe("pack_locked");
     expect(body.conflictId).toBe(conflictId);
+  });
+
+  test("GET returns 404 Not bound when server key has no binding for pack", async () => {
+    const app = buildApp();
+    const { key } = await seedServerKey("no-bind-test");
+
+    const res = await app.request("/api/bundles/p_unbound", {
+      headers: { "Authorization": `Bearer ${key}` },
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Not bound");
   });
 
   test("second POST by same server key reuses existing pack (no duplicate binding)", async () => {
@@ -117,5 +137,13 @@ describe("bundle upload/download", () => {
       and(eq(packBindings.serverKeyId, serverKeyId), eq(packBindings.packId, "p_reuse"))
     );
     expect(bindings.length).toBe(1);
+
+    // GET should return updated content
+    const getRes = await app.request("/api/bundles/p_reuse", {
+      headers: { "Authorization": `Bearer ${key}` },
+    });
+    expect(getRes.status).toBe(200);
+    const getBody = (await getRes.json()) as { files: Record<string, string>; hash: string };
+    expect(getBody.files["plugins/Interfaze/packs/p_reuse/menus/shop.yaml"]).toContain("size: 54");
   });
 });
