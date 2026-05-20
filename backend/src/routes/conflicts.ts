@@ -6,7 +6,7 @@ import { validateAccessToken } from "../lib/auth";
 import { computeConflictDiff } from "../lib/conflictDiff";
 import { computeBundleHash } from "../lib/hashUtils";
 import { readEditorLayoutFromFiles, importPackFromFiles, isEmptyStub } from "../lib/packImport";
-import { pushBundleAvailable } from "../ws/hub";
+import { editorSenders, editorTokenToServer, pushBundleAvailable } from "../ws/hub";
 
 const router = new Hono();
 
@@ -130,7 +130,6 @@ router.post("/:token/conflicts/:id/resolve", async (c) => {
 
   await pushBundleAvailable(result.serverId, result.packId, result.newHash);
 
-  const { editorTokenToServer, editorSenders } = await import("../ws/hub");
   const payload = JSON.stringify({
     type: "pack_conflict_resolved",
     conflict_id: id,

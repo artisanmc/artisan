@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBundles, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBundles, packConflicts, serverKeys } from "../db/schema";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -326,20 +326,18 @@ export async function handlePluginMessage(
     const lastSyncedHash = raw.last_synced_hash as string | undefined;
     if (!packId || !diskFiles || diskHash == null || lastSyncedHash == null) return { reply: null };
 
-    const { and: aand, eq: eeq, isNull: inull } = await import("drizzle-orm");
     const existing = await db.select().from(packBundles)
-      .where(aand(eeq(packBundles.serverId, serverId), eeq(packBundles.packId, packId)));
+      .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
     if (existing.length === 0 || existing[0].deletedAt != null) return { reply: null };
     const backendHashAtDetection = existing[0].hash;
 
-    const { packConflicts } = await import("../db/schema");
     const now = new Date();
     const conflictId = crypto.randomUUID();
 
-    const open = await db.select().from(packConflicts).where(aand(
-      eeq(packConflicts.serverId, serverId),
-      eeq(packConflicts.packId, packId),
-      inull(packConflicts.resolvedAt),
+    const open = await db.select().from(packConflicts).where(and(
+      eq(packConflicts.serverId, serverId),
+      eq(packConflicts.packId, packId),
+      isNull(packConflicts.resolvedAt),
     ));
 
     let finalConflictId: string;
@@ -351,7 +349,7 @@ export async function handlePluginMessage(
           lastSyncedHash,
           backendHashAtDetection,
         })
-        .where(eeq(packConflicts.id, open[0].id));
+        .where(eq(packConflicts.id, open[0].id));
       finalConflictId = open[0].id;
     } else {
       await db.insert(packConflicts).values({
@@ -413,12 +411,10 @@ export async function pushBundleAvailable(
   hash: string,
 ): Promise<void> {
   // Freeze: skip broadcast if an open conflict exists for this (server, pack)
-  const { packConflicts } = await import("../db/schema");
-  const { and: aand, eq: eeq, isNull: inull } = await import("drizzle-orm");
-  const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(aand(
-    eeq(packConflicts.serverId, serverKeyId),
-    eeq(packConflicts.packId, packId),
-    inull(packConflicts.resolvedAt),
+  const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
+    eq(packConflicts.serverId, serverKeyId),
+    eq(packConflicts.packId, packId),
+    isNull(packConflicts.resolvedAt),
   ));
   if (open.length > 0) return;
 
