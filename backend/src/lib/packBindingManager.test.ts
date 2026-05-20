@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { packBindings, packs, serverKeys, networks } from "../db/schema";
+import { packBindings, packs, serverKeys, networks, editorSessions, linkCodes } from "../db/schema";
 import {
   createBinding, deleteBinding, listPacksForServerKey, listServerKeysForPack,
 } from "./packBindingManager";
@@ -12,6 +12,8 @@ describe("packBindingManager", () => {
   beforeEach(async () => {
     await db.delete(packBindings);
     await db.delete(packs);
+    await db.delete(editorSessions);
+    await db.delete(linkCodes);
     await db.delete(serverKeys);
     await db.delete(networks);
     networkId = (await createNetwork("N")).id;
