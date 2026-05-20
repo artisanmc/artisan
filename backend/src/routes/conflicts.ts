@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
-import { packBundles, packConflicts } from "../db/schema";
+import { packs, packBindings, packConflicts } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
 import { computeConflictDiff } from "../lib/conflictDiff";
 import { computeBundleHash } from "../lib/hashUtils";
@@ -22,8 +22,10 @@ router.get("/:token/conflicts", async (c) => {
   if (conflicts.length === 0) return c.json({ conflicts: [] });
 
   const packIds = conflicts.map((cf) => cf.packId);
-  const bundles = await db.select({ packId: packBundles.packId, filesJson: packBundles.filesJson }).from(packBundles)
-    .where(eq(packBundles.serverId, session.serverKeyId));
+  const bundles = await db.select({ packId: packs.id, filesJson: packs.filesJson })
+    .from(packs)
+    .innerJoin(packBindings, eq(packBindings.packId, packs.id))
+    .where(eq(packBindings.serverKeyId, session.serverKeyId));
   const filesByPack: Record<string, Record<string, string>> = {};
   for (const b of bundles) {
     if (packIds.includes(b.packId)) filesByPack[b.packId] = JSON.parse(b.filesJson);
@@ -59,10 +61,9 @@ router.get("/:token/conflicts/:id", async (c) => {
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   const cf = rows[0];
   const diskFiles = JSON.parse(cf.diskFilesJson) as Record<string, string>;
-  const backendRows = await db.select({ filesJson: packBundles.filesJson }).from(packBundles).where(and(
-    eq(packBundles.serverId, session.serverKeyId),
-    eq(packBundles.packId, cf.packId),
-  ));
+  const backendRows = await db.select({ filesJson: packs.filesJson })
+    .from(packs)
+    .where(eq(packs.id, cf.packId));
   const backendFiles = backendRows.length > 0 ? JSON.parse(backendRows[0].filesJson) : {};
   return c.json({
     conflict: {
@@ -104,8 +105,9 @@ router.post("/:token/conflicts/:id/resolve", async (c) => {
       const diskFiles = JSON.parse(cf.diskFilesJson) as Record<string, string>;
       newHash = await computeBundleHash(diskFiles, cf.packId);
 
-      const existing = await tx.select({ editorJson: packBundles.editorJson }).from(packBundles)
-        .where(and(eq(packBundles.serverId, cf.serverId), eq(packBundles.packId, cf.packId)));
+      const existing = await tx.select({ editorJson: packs.editorJson })
+        .from(packs)
+        .where(eq(packs.id, cf.packId));
       const incomingLayout = readEditorLayoutFromFiles(diskFiles, cf.packId);
       let editorJsonObj: Record<string, unknown>;
       if (existing.length > 0 && !isEmptyStub(existing[0].editorJson)) {
@@ -114,11 +116,12 @@ router.post("/:token/conflicts/:id/resolve", async (c) => {
         editorJsonObj = importPackFromFiles(cf.packId, diskFiles) as Record<string, unknown>;
       }
       editorJsonObj.canvasLayout = incomingLayout;
-      await tx.update(packBundles).set({
+      await tx.update(packs).set({
         filesJson: cf.diskFilesJson,
         hash: newHash,
         editorJson: JSON.stringify(editorJsonObj),
-      }).where(and(eq(packBundles.serverId, cf.serverId), eq(packBundles.packId, cf.packId)));
+        updatedAt: new Date(),
+      }).where(eq(packs.id, cf.packId));
     }
 
     await tx.update(packConflicts).set({ resolvedAt: now, resolution: body.choice })
