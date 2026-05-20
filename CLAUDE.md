@@ -291,6 +291,27 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 ---
 
+## Auth — endpoints
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `ifz_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
+| `POST /api/auth/login` | Authentifie email+password. 200 + Set-Cookie. Erreur : 401 invalid_credentials. |
+| `POST /api/auth/logout` | Détruit la session courante (si présente), clear le cookie. Toujours 204. |
+| `GET /api/auth/me` | Retourne le user courant. 200 `{ user }` ou 401 si pas de session. |
+| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `ifz_oauth_state`). 500 si Discord pas configuré. |
+| `GET /api/auth/discord/callback?code&state` | Callback OAuth : exchange code, fetch user Discord, crée/lien user + session, redirige vers `${EDITOR_URL}/account`. |
+
+Cookies utilisés :
+- `ifz_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
+- `ifz_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
+
+Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
+
+Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`ifz_user_session` et `ifz_refresh`) coexistent.
+
+---
+
 ## Variables d'environnement (backend)
 
 | Variable | Défaut | Usage |
@@ -300,6 +321,9 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
+| `DISCORD_CLIENT_ID` | (vide) | OAuth Discord — laisser vide désactive le bouton "Continue with Discord" |
+| `DISCORD_CLIENT_SECRET` | (vide) | OAuth Discord |
+| `DISCORD_REDIRECT_URI` | `http://localhost:3001/api/auth/discord/callback` | URI de callback configurée dans la Discord Developer Portal |
 
 ### Resource pack distribution modes
 
@@ -321,9 +345,9 @@ Both delegation modes own the `assets/interfaze/` subtree only — entries outsi
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, `conflictDiff.test.ts`, `conflicts.test.ts`, etc. | ~314 total (recount après merge) |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, `conflictDiff.test.ts`, `conflicts.test.ts`, `auth.test.ts`, `passwordHasher.test.ts`, `sessionManager.test.ts`, `emailNormalizer.test.ts`, `userAuth.test.ts`, `discordOauth.test.ts` (lib + routes), etc. | ~365 total après Plan 1A accounts foundation |
 | Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest` (inclus `show_title` exec via Adventure `showTitle(Title)`), `ActionParserTest` (inclus `show_title` parse + timings + i18n), `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, `ManifestYamlIgnoresEditorLayoutTest`, `PackDeleterTest`, `PackDeletionIntegrationTest`, etc. | ~365 (recount après merge) |
-| Editor unit | Vitest, tests couvrant expr DSL, canvas, export (inclus `show_title` serializer + validate), i18n (inclus `showTitleKeyAt`/`showSubtitleKeyAt` + rekey + alloc), custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, etc. | ~720 (recount après merge) |
+| Editor unit | Vitest, tests couvrant expr DSL, canvas, export (inclus `show_title` serializer + validate), i18n (inclus `showTitleKeyAt`/`showSubtitleKeyAt` + rekey + alloc), custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, `authStore.test.ts`, `LoginForm.test.tsx`, `SignupForm.test.tsx`, `LogoutButton.test.tsx`, etc. | ~720 (recount après merge) |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
