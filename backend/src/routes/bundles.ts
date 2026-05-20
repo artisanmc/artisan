@@ -1,21 +1,22 @@
 import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
-import { packBundles, packConflicts } from "../db/schema";
+import { packConflicts, serverKeys } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
-import { importPackFromFiles, isEmptyStub, readEditorLayoutFromFiles } from "../lib/packImport";
+import { getPack, createPack, upsertPackContent } from "../lib/packStorage";
+import { createBinding } from "../lib/packBindingManager";
 
 const router = new Hono();
 
 router.post("/:packId", async (c) => {
-  const serverId = await validateServerKeyHeader(c);
-  if (!serverId) return c.json({ error: "Unauthorized" }, 401);
+  const serverKeyId = await validateServerKeyHeader(c);
+  if (!serverKeyId) return c.json({ error: "Unauthorized" }, 401);
 
   const packId = c.req.param("packId");
 
   const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
-    eq(packConflicts.serverId, serverId),
+    eq(packConflicts.serverId, serverKeyId),
     eq(packConflicts.packId, packId),
     isNull(packConflicts.resolvedAt),
   ));
@@ -26,57 +27,26 @@ router.post("/:packId", async (c) => {
   const body = await c.req.json<{ files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
 
-  await db.transaction(async (tx) => {
-    const existing = await tx
-      .select({ id: packBundles.id, editorJson: packBundles.editorJson })
-      .from(packBundles)
-      .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
+  const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0];
+  if (!sk) return c.json({ error: "Server key missing" }, 500);
 
-    const incomingLayout = readEditorLayoutFromFiles(body.files, packId);
-
-    let editorJsonObj: Record<string, unknown>;
-    if (existing.length > 0 && !isEmptyStub(existing[0].editorJson)) {
-      editorJsonObj = JSON.parse(existing[0].editorJson!) as Record<string, unknown>;
-    } else {
-      editorJsonObj = importPackFromFiles(packId, body.files) as Record<string, unknown>;
-    }
-    editorJsonObj.canvasLayout = incomingLayout; // files win
-
-    const keepEditorJson = JSON.stringify(editorJsonObj);
-
-    if (existing.length > 0) {
-      await tx.update(packBundles)
-        .set({ hash, filesJson: JSON.stringify(body.files), editorJson: keepEditorJson })
-        .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
-    } else {
-      await tx.insert(packBundles).values({
-        id: crypto.randomUUID(),
-        serverId,
-        packId,
-        hash,
-        filesJson: JSON.stringify(body.files),
-        editorJson: keepEditorJson,
-        createdAt: new Date(),
-      });
-    }
-  });
-
-  return c.json({ hash }, 201);
+  let pack = await getPack(packId);
+  if (!pack) {
+    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
+    await createBinding(serverKeyId, packId);
+  }
+  await upsertPackContent(packId, { hash, filesJson: JSON.stringify(body.files) });
+  return c.json({ ok: true });
 });
 
 router.get("/:packId", async (c) => {
-  const serverId = await validateServerKeyHeader(c);
-  if (!serverId) return c.json({ error: "Unauthorized" }, 401);
+  const serverKeyId = await validateServerKeyHeader(c);
+  if (!serverKeyId) return c.json({ error: "Unauthorized" }, 401);
 
   const packId = c.req.param("packId");
-  const rows = await db
-    .select()
-    .from(packBundles)
-    .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
 
-  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
-  const row = rows[0];
-  return c.json({ files: JSON.parse(row.filesJson) as Record<string, string>, hash: row.hash });
+  // TODO(C8): replace with packs-based lookup
+  return c.json({ error: "Not implemented" }, 501);
 });
 
 export { router as bundlesRouter };

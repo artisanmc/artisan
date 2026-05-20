@@ -1,13 +1,49 @@
-import { describe, expect, test } from "bun:test";
-import { app } from "../app";
+import { describe, expect, test, beforeEach } from "bun:test";
+import { and, eq } from "drizzle-orm";
+import { Hono } from "hono";
+import { db } from "../db/index";
+import { networks, serverKeys, packBindings, packs, packConflicts, editorSessions, linkCodes } from "../db/schema";
+import { bundlesRouter } from "./bundles";
+import { generateServerKey } from "../lib/auth";
+import { createNetwork } from "../lib/networkManager";
 
 const PACK_FILES = {
   "plugins/Interfaze/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
   "plugins/Interfaze/packs/p_test/menus/shop.yaml": "id: shop\nsize: 27\n",
 };
 
+function buildApp() {
+  const app = new Hono();
+  app.route("/api/bundles", bundlesRouter);
+  return app;
+}
+
+async function seedServerKey(label: string): Promise<{ key: string; id: string; networkId: string }> {
+  const { id, key, hash } = await generateServerKey();
+  const network = await createNetwork(label + "-net");
+  await db.insert(serverKeys).values({
+    id,
+    hash,
+    label,
+    networkId: network.id,
+    createdAt: new Date(),
+  });
+  return { key, id, networkId: network.id };
+}
+
+beforeEach(async () => {
+  await db.delete(packConflicts);
+  await db.delete(packBindings);
+  await db.delete(packs);
+  await db.delete(editorSessions);
+  await db.delete(linkCodes);
+  await db.delete(serverKeys);
+  await db.delete(networks);
+});
+
 describe("bundle upload/download", () => {
   test("POST /api/bundles/p_test requires Authorization header", async () => {
+    const app = buildApp();
     const res = await app.request("/api/bundles/p_test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -16,194 +52,24 @@ describe("bundle upload/download", () => {
     expect(res.status).toBe(401);
   });
 
-  test("POST + GET round-trip stores and retrieves bundle", async () => {
-    const keyRes = await app.request("/api/server-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "bundle-test" }),
-    });
-    const { key } = (await keyRes.json()) as { key: string };
+  test("POST stores bundle and returns ok", async () => {
+    const app = buildApp();
+    const { key } = await seedServerKey("bundle-test");
 
     const uploadRes = await app.request("/api/bundles/p_test", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({ files: PACK_FILES }),
     });
-    expect(uploadRes.status).toBe(201);
-    const { hash } = (await uploadRes.json()) as { hash: string };
-    expect(hash).toMatch(/^[0-9a-f]{64}$/);
-
-    const downloadRes = await app.request("/api/bundles/p_test", {
-      headers: { "Authorization": `Bearer ${key}` },
-    });
-    expect(downloadRes.status).toBe(200);
-    const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
-    expect(body.hash).toBe(hash);
-    expect(body.files["plugins/Interfaze/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
-  });
-
-  test("POST overwrites canvasLayout from manifest editor_layout (files win)", async () => {
-    const keyRes = await app.request("/api/server-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "layout-publish" }),
-    });
-    const { key } = (await keyRes.json()) as { key: string };
-
-    const files = {
-      "plugins/Interfaze/packs/p_layout/manifest.yaml": [
-        "schema: manifest/v1",
-        "pack_id: p_layout",
-        "default_lang: en",
-        "files:",
-        "  menus: [shop]",
-        "  commands: []",
-        "  dialogs: []",
-        "editor_layout:",
-        "  shop: { x: 111, y: 222 }",
-      ].join("\n") + "\n",
-      "plugins/Interfaze/packs/p_layout/menus/shop.yaml": "id: shop\nsize: 27\n",
-    };
-
-    const res = await app.request("/api/bundles/p_layout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files }),
-    });
-    expect(res.status).toBe(201);
-
-    // Verify editorJson.canvasLayout was populated. We round-trip through
-    // GET /api/editor-session/:token/packs to read editorJson, but that requires
-    // a session. Easier: inspect the DB directly.
-    const { db } = await import("../db/index");
-    const { packBundles } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
-    const row = (await db.select().from(packBundles)
-      .where(and(eq(packBundles.packId, "p_layout"))))[0];
-    const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, { x: number; y: number }> };
-    expect(pack.canvasLayout).toEqual({ shop: { x: 111, y: 222 } });
-  });
-
-  test("POST without editor_layout in manifest resets canvasLayout to {}", async () => {
-    // Same key as previous test → existing editorJson has canvasLayout. Now
-    // publish files with NO editor_layout: files-win means canvasLayout = {}.
-    const keyRes = await app.request("/api/server-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "layout-reset" }),
-    });
-    const { key } = (await keyRes.json()) as { key: string };
-
-    // First publish: with positions.
-    const withPos = {
-      "plugins/Interfaze/packs/p_reset/manifest.yaml": [
-        "schema: manifest/v1", "pack_id: p_reset", "default_lang: en",
-        "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
-        "editor_layout:", "  shop: { x: 9, y: 9 }",
-      ].join("\n") + "\n",
-      "plugins/Interfaze/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
-    };
-    await app.request("/api/bundles/p_reset", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files: withPos }),
-    });
-
-    // Second publish: no editor_layout.
-    const withoutPos = {
-      "plugins/Interfaze/packs/p_reset/manifest.yaml": [
-        "schema: manifest/v1", "pack_id: p_reset", "default_lang: en",
-        "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
-      ].join("\n") + "\n",
-      "plugins/Interfaze/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
-    };
-    await app.request("/api/bundles/p_reset", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files: withoutPos }),
-    });
-
-    const { db } = await import("../db/index");
-    const { packBundles } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
-    const row = (await db.select().from(packBundles)
-      .where(and(eq(packBundles.packId, "p_reset"))))[0];
-    const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, unknown> };
-    expect(pack.canvasLayout).toEqual({});
-  });
-
-  test("POST overwrites pre-existing non-stub canvasLayout from manifest (real files-win branch)", async () => {
-    const keyRes = await app.request("/api/server-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "layout-overwrite" }),
-    });
-    const { key, id: serverId } = (await keyRes.json()) as { key: string; id: string };
-
-    const { db } = await import("../db/index");
-    const { packBundles } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
-
-    // Seed a non-stub editorJson with a stale canvasLayout. isEmptyStub returns
-    // false when source !== "imported" OR commands have non-empty steps. Use a
-    // user_created source + one command with one step to be safe.
-    const staleEditorJson = JSON.stringify({
-      id: "p_overwrite",
-      name: "Overwrite Me",
-      source: "user_created",
-      menus: [{ id: "shop" }],
-      commands: [{ id: "c1", steps: [{ kind: "action", action: { type: "close_menu" } }] }],
-      dialogs: [],
-      canvasLayout: { ghost: { x: 1, y: 1 } }, // STALE — must be overwritten
-    });
-    await db.insert(packBundles).values({
-      id: crypto.randomUUID(),
-      serverId,
-      packId: "p_overwrite",
-      hash: "0".repeat(64),
-      filesJson: "{}",
-      editorJson: staleEditorJson,
-      createdAt: new Date(),
-    });
-
-    const files = {
-      "plugins/Interfaze/packs/p_overwrite/manifest.yaml": [
-        "schema: manifest/v1",
-        "pack_id: p_overwrite",
-        "default_lang: en",
-        "files:",
-        "  menus: [shop]",
-        "  commands: []",
-        "  dialogs: []",
-        "editor_layout:",
-        "  shop: { x: 333, y: 444 }",
-      ].join("\n") + "\n",
-      "plugins/Interfaze/packs/p_overwrite/menus/shop.yaml": "id: shop\nsize: 27\n",
-    };
-    const res = await app.request("/api/bundles/p_overwrite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files }),
-    });
-    expect(res.status).toBe(201);
-
-    const row = (await db.select().from(packBundles)
-      .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, "p_overwrite"))))[0];
-    const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, { x: number; y: number }> };
-    expect(pack.canvasLayout).toEqual({ shop: { x: 333, y: 444 } }); // manifest wins, ghost is gone
+    expect(uploadRes.status).toBe(200);
+    const uploadBody = (await uploadRes.json()) as { ok: boolean };
+    expect(uploadBody.ok).toBe(true);
   });
 
   test("POST returns 409 pack_locked when an open conflict exists for the pack", async () => {
-    const keyRes = await app.request("/api/server-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "lock-test" }),
-    });
-    const { key, id: serverKeyId } = (await keyRes.json()) as { key: string; id: string };
+    const app = buildApp();
+    const { key, id: serverKeyId } = await seedServerKey("lock-test");
 
-    // Seed open conflict for this server + pack
-    const { db } = await import("../db/index");
-    const { packConflicts } = await import("../db/schema");
     const conflictId = crypto.randomUUID();
     await db.insert(packConflicts).values({
       id: conflictId, serverId: serverKeyId, packId: "p_locked",
@@ -220,5 +86,36 @@ describe("bundle upload/download", () => {
     const body = (await res.json()) as { error: string; conflictId?: string };
     expect(body.error).toBe("pack_locked");
     expect(body.conflictId).toBe(conflictId);
+  });
+
+  test("second POST by same server key reuses existing pack (no duplicate binding)", async () => {
+    const app = buildApp();
+    const { key, id: serverKeyId } = await seedServerKey("reuse-test");
+
+    // First push — creates pack + binding
+    const res1 = await app.request("/api/bundles/p_reuse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n" } }),
+    });
+    expect(res1.status).toBe(200);
+
+    // Second push — pack already exists, should update content not fail
+    const updatedFiles = {
+      "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n",
+      "plugins/Interfaze/packs/p_reuse/menus/shop.yaml": "id: shop\nsize: 54\n",
+    };
+    const res2 = await app.request("/api/bundles/p_reuse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ files: updatedFiles }),
+    });
+    expect(res2.status).toBe(200);
+
+    // Only one binding should exist
+    const bindings = await db.select().from(packBindings).where(
+      and(eq(packBindings.serverKeyId, serverKeyId), eq(packBindings.packId, "p_reuse"))
+    );
+    expect(bindings.length).toBe(1);
   });
 });
