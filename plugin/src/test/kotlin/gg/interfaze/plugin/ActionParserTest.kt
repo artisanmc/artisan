@@ -84,6 +84,48 @@ class ActionParserTest {
     }
 
     @Test
+    fun `parse show_title minimal`() {
+        val a = ActionParser.parse(mapOf("type" to "show_title", "title" to "<green>Hello"))
+        assertEquals(Action.ShowTitle(title = "<green>Hello"), a)
+    }
+
+    @Test
+    fun `parse show_title with subtitle and timings`() {
+        val a = ActionParser.parse(mapOf(
+            "type" to "show_title",
+            "title" to "<gold>Welcome",
+            "subtitle" to "<gray>to the shop",
+            "fade_in" to 5,
+            "stay" to 40,
+            "fade_out" to 15,
+        ))
+        assertEquals(
+            Action.ShowTitle(title = "<gold>Welcome", subtitle = "<gray>to the shop", fadeIn = 5, stay = 40, fadeOut = 15),
+            a,
+        )
+    }
+
+    @Test
+    fun `parse show_title accepts numeric ticks as Number`() {
+        // YAML deserialization can hand us Long or Int — both must work.
+        val a = ActionParser.parse(mapOf(
+            "type" to "show_title",
+            "title" to "x",
+            "fade_in" to 5L,
+            "stay" to 40L,
+            "fade_out" to 15L,
+        ))
+        assertEquals(Action.ShowTitle(title = "x", fadeIn = 5, stay = 40, fadeOut = 15), a)
+    }
+
+    @Test
+    fun `parse show_title missing title throws`() {
+        assertFailsWith<IllegalArgumentException> {
+            ActionParser.parse(mapOf("type" to "show_title"))
+        }
+    }
+
+    @Test
     fun `parse play_sound`() {
         val a = ActionParser.parse(mapOf("type" to "play_sound", "sound" to "ENTITY_PLAYER_LEVELUP", "volume" to 1.5f, "pitch" to 0.8f))
         assertEquals(Action.PlaySound("ENTITY_PLAYER_LEVELUP", 1.5f, 0.8f), a)

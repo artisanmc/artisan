@@ -31,6 +31,13 @@ object ActionParser {
             "give_level"     -> Action.GiveLevel((raw["amount"] as Number).toInt())
             "send_message"   -> Action.SendMessage(str(raw, "text"))
             "broadcast"      -> Action.Broadcast(str(raw, "text"))
+            "show_title"     -> Action.ShowTitle(
+                title    = str(raw, "title"),
+                subtitle = raw["subtitle"] as? String,
+                fadeIn   = (raw["fade_in"]  as? Number)?.toInt() ?: 10,
+                stay     = (raw["stay"]     as? Number)?.toInt() ?: 70,
+                fadeOut  = (raw["fade_out"] as? Number)?.toInt() ?: 20,
+            )
             "play_sound"     -> Action.PlaySound(
                 sound  = str(raw, "sound"),
                 volume = (raw["volume"] as? Number)?.toFloat() ?: 1f,
