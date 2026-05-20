@@ -91,3 +91,35 @@ export const packConflicts = pgTable("pack_conflicts", {
     .on(t.serverId, t.packId)
     .where(sql`resolved_at IS NULL`),
 ]);
+
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash"),       // null = Discord-only users
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("users_email_uniq").on(t.email),
+]);
+
+export const userSessions = pgTable("user_sessions", {
+  id: text("id").primaryKey(),               // session token (random 32-char)
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull(),
+  lastUsedAt: timestamp("last_used_at").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (t) => [
+  index("user_sessions_userid_idx").on(t.userId),
+]);
+
+export const discordAccounts = pgTable("discord_accounts", {
+  discordUserId: text("discord_user_id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  email: text("email"),
+  linkedAt: timestamp("linked_at").notNull(),
+}, (t) => [
+  uniqueIndex("discord_accounts_userid_uniq").on(t.userId),
+]);
