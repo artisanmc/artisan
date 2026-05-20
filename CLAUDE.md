@@ -9,11 +9,16 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/specs/` section protocole |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
-| Commandes plugin (`IfzCommand.kt`) | Ce fichier, section Plugin ci-dessous |
+| Commandes plugin (`IfzCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
 | Variables d'environnement | `.env.example` + ce fichier |
 | Endpoints API | Ce fichier, section Backend |
+| Config plugin (`config.yml`, defaults) | `docs-site/src/content/docs/getting-started/install-admin.md` (sections Config / Reference) |
+| Resource pack distribution modes (`ResourcePackDelegator.kt`) | `docs-site/src/content/docs/getting-started/install-admin.md` (section Resource pack) + ce fichier |
+| UI éditeur visible user (nouveau bouton/flow user-facing) | `docs-site/src/content/docs/editor/<feature>.md` (créer si nécessaire) |
 
 Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
+
+**Discipline same-commit vs `/sync-docs`** — Quand un commit touche du code marqué dans le tableau, la doc correspondante doit être mise à jour dans le même commit si l'update reste petit (changement ciblé d'une ou deux sections existantes, typiquement ≤30 lignes diff de doc). Si l'update doc dépasse ce volume ou nécessite des screenshots / refonte, invoquer le skill `/sync-docs` à la fin de la feature pour traiter la dette doc en un commit séparé. Ne jamais merger une PR avec dette doc non-listée. La source de vérité fine du mapping est `.claude/skills/sync-docs/doc-impact-map.yaml` ; la table ci-dessus en est un résumé humain.
 
 ---
 
