@@ -278,6 +278,40 @@ describe("PATCH /api/editor-session/:token/assets/:id", () => {
     expect(body.asset.height).toBe(16);
   });
 
+  test("PATCH height also scales width proportionally (MC advance tracking)", async () => {
+    // The test PNG is 1×1. After PATCH height=16, the MC-rendered advance
+    // is 1 × (16/1) = 16 px. Width must track this so TitleCompiler's
+    // estimateBodyWidth stays accurate when the height is changed.
+    const { token } = await seedSession();
+    const post = await app.request(`/api/editor-session/${token}/assets`, {
+      method: "POST", body: uploadForm({ type: "glyph", name: "g_w_scale", ascent: "7" }),
+    });
+    const a = (await post.json()).asset;
+    expect(a.width).toBe(1);  // initial: 1×1 PNG
+    expect(a.height).toBe(1);
+
+    const res = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 16 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.asset.height).toBe(16);
+    expect(body.asset.width).toBe(16);  // scaled: 1 × (16/1) = 16
+
+    // Second patch: height 16 → 8. Width should halve.
+    const res2 = await app.request(`/api/editor-session/${token}/assets/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ height: 8 }),
+    });
+    expect(res2.status).toBe(200);
+    const body2 = await res2.json();
+    expect(body2.asset.height).toBe(8);
+    expect(body2.asset.width).toBe(8);  // 16 × (8/16) = 8
+  });
+
   test("rejects height patch on a font asset", async () => {
     const { token } = await seedSession();
     const post = await app.request(`/api/editor-session/${token}/assets`, {

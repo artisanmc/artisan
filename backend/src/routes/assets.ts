@@ -9,7 +9,7 @@ import { validateAccessToken } from "../lib/auth";
 import { writeAssetFile, deleteAssetFile, assetPath } from "../lib/assetStorage";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { parseMcFontsZip, type ParsedMcFont } from "../lib/mcFontsParser";
-import { readPngDimensions } from "../lib/pngDimensions";
+import { readPngDimensions, readPngContentWidth } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { pushResourcePackUpdated } from "../ws/hub";
@@ -52,6 +52,7 @@ assetsRouter.post("/:token/assets", async (c) => {
   // live inside fontMeta.glyphMap[]).
   let width = 0;
   let height = 0;
+  let contentWidth: number | null = null;
   let parsedFont: ParsedMcFont | null = null;
 
   if (type === "font") {
@@ -71,6 +72,7 @@ assetsRouter.post("/:token/assets", async (c) => {
     } catch {
       return c.json({ error: "Invalid PNG" }, 400);
     }
+    contentWidth = readPngContentWidth(bytes);
   }
 
   const contentHash = createHash("sha1").update(bytes).digest("hex");
@@ -101,7 +103,10 @@ assetsRouter.post("/:token/assets", async (c) => {
   let ascent: number | null = null;
   let codepoint: number | null = null;
   if (type === "glyph") {
-    ascent = ascentRaw !== null ? parseInt(ascentRaw, 10) : height - 1;
+    // Default ascent = 8: places the glyph's bottom at the MC title baseline,
+    // matching the standard MC default-font character height. (The old default
+    // `height - 1` pushed large glyphs far above the chest container.)
+    ascent = ascentRaw !== null ? parseInt(ascentRaw, 10) : 8;
     if (!Number.isFinite(ascent)) return c.json({ error: "Invalid ascent" }, 400);
     codepoint = await allocateCodepoint(session.serverKeyId);
   }
@@ -142,6 +147,7 @@ assetsRouter.post("/:token/assets", async (c) => {
       height,
       ascent,
       codepoint,
+      contentWidth,
       fontMeta,
       contentHash,
       createdAt: now,
@@ -209,7 +215,7 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   const current = rows[0];
 
   const body = await c.req.json().catch(() => ({}));
-  const patch: { name?: string; ascent?: number; height?: number; updatedAt: Date } = { updatedAt: new Date() };
+  const patch: { name?: string; ascent?: number; height?: number; width?: number; contentWidth?: number | null; updatedAt: Date } = { updatedAt: new Date() };
 
   if (typeof body.name === "string") {
     if (!NAME_RE.test(body.name)) return c.json({ error: "Invalid name" }, 400);
@@ -233,6 +239,17 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
       return c.json({ error: "Invalid height (must be integer between 1 and 256)" }, 400);
     }
     patch.height = body.height;
+    // Scale width proportionally: the MC-rendered advance = stored_width × (height / PNG_height).
+    // When height changes, advance changes by the same ratio. We track the invariant
+    // "stored_width = initial_content_width × (current_height / initial_PNG_height)" by
+    // multiplying the current stored_width by (new_height / old_height) at each patch.
+    if (current.height > 0 && current.width > 0) {
+      patch.width = Math.max(1, Math.round(current.width * (body.height / current.height)));
+    }
+    if (typeof current.contentWidth === "number" && current.height > 0) {
+      const scaled = Math.round(current.contentWidth * (body.height / current.height));
+      patch.contentWidth = current.contentWidth > 0 ? Math.max(1, scaled) : 0;
+    }
   }
 
   try {
@@ -298,6 +315,7 @@ assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
       height: source.height,
       ascent: source.ascent,
       codepoint: newCodepoint,
+      contentWidth: source.contentWidth,
       fontMeta: source.fontMeta,
       contentHash: source.contentHash,
       createdAt: now,

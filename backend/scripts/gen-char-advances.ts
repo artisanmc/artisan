@@ -160,6 +160,99 @@ ts.push("}", "");
 writeFileSync(EDITOR_OUT, ts.join("\n"));
 console.log(`[gen-char-advances] wrote ${EDITOR_OUT} (${sorted.length} entries)`);
 
+// --- Editor cell map: codepoint -> {atlas, col, row} for each char that lives
+// in one of the three vanilla atlases. The editor's VanillaMcText uses this
+// to render text by cropping the right cell from the right atlas image.
+// Resolution: same priority order as the advance table (highest wins) — space
+// provider has no glyph so we skip it here.
+const CELLS_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charCells.ts");
+type Cell = { atlas: "ascii" | "accented" | "nonlatin_european"; col: number; row: number };
+const cells = new Map<number, Cell>();
+// Write in reverse priority order so the higher-priority atlas overwrites.
+for (let i = bitmapProviders.length - 1; i >= 0; i--) {
+  const p = bitmapProviders[i];
+  const atlasName = p.file.replace("minecraft:font/", "").replace(".png", "") as Cell["atlas"];
+  for (let r = 0; r < p.chars.length; r++) {
+    const row = p.chars[r];
+    let col = 0;
+    for (const ch of row) {
+      const cp = ch.codePointAt(0)!;
+      if (cp !== 0) cells.set(cp, { atlas: atlasName, col, row: r });
+      col++;
+    }
+  }
+}
+const cellsBmp = [...cells].filter(([cp]) => cp < 0x10000).sort((a, b) => a[0] - b[0]);
+const atlasShort: Record<Cell["atlas"], string> = {
+  ascii: "a",
+  accented: "b",
+  nonlatin_european: "n",
+};
+const cellsTs: string[] = [];
+cellsTs.push("/**");
+cellsTs.push(` * Per-codepoint cell location in the vanilla MC ${VERSION} font atlases.`);
+cellsTs.push(" * Codepoint -> { atlas: 'ascii'|'accented'|'nonlatin_european', col, row }");
+cellsTs.push(" *");
+cellsTs.push(" * Each atlas has its own cell size + ascent (see ATLAS_META below) — the");
+cellsTs.push(" * editor uses both to crop the right pixels and align baselines across atlases.");
+cellsTs.push(" *");
+cellsTs.push(" * Generated alongside CHAR_ADVANCES — do not edit by hand.");
+cellsTs.push(" *   cd backend && bun scripts/gen-char-advances.ts [version]");
+cellsTs.push(" */");
+cellsTs.push("");
+cellsTs.push("export type AtlasName = 'ascii' | 'accented' | 'nonlatin_european';");
+cellsTs.push("");
+cellsTs.push("export interface AtlasMeta {");
+cellsTs.push("  /** Cell width in source pixels. All vanilla atlases are 16 cols wide. */");
+cellsTs.push("  cellW: number;");
+cellsTs.push("  /** Cell height in source pixels. */");
+cellsTs.push("  cellH: number;");
+cellsTs.push("  /** Vanilla ascent — distance from cell top to baseline. */");
+cellsTs.push("  ascent: number;");
+cellsTs.push("}");
+cellsTs.push("");
+cellsTs.push("export const ATLAS_META: Readonly<Record<AtlasName, AtlasMeta>> = {");
+for (const name of ["ascii", "accented", "nonlatin_european"] as const) {
+  const prov = bitmapProviders.find((p) => p.file === `minecraft:font/${name}.png`)!;
+  const buf = readFileSync(join(TEXTURE_DIR, `${name}.png`));
+  const png = PNG.sync.read(buf);
+  const cellW = png.width / 16;
+  const cellH = png.height / prov.chars.length;
+  cellsTs.push(`  ${name}: { cellW: ${cellW}, cellH: ${cellH}, ascent: ${prov.ascent} },`);
+}
+cellsTs.push("};");
+cellsTs.push("");
+cellsTs.push("/** Compact char→cell map. Atlas names are 1-letter to keep the bundle small. */");
+cellsTs.push("type Packed = readonly [atlas: 'a' | 'b' | 'n', col: number, row: number];");
+cellsTs.push("const CELLS: Readonly<Record<number, Packed>> = {");
+for (const [cp, c] of cellsBmp) {
+  const cpHex = "0x" + cp.toString(16).padStart(4, "0").toUpperCase();
+  cellsTs.push(`  ${cpHex}: ['${atlasShort[c.atlas]}', ${c.col}, ${c.row}],`);
+}
+cellsTs.push("};");
+cellsTs.push("");
+cellsTs.push("const UNPACK: Readonly<Record<'a' | 'b' | 'n', AtlasName>> = {");
+cellsTs.push("  a: 'ascii', b: 'accented', n: 'nonlatin_european',");
+cellsTs.push("};");
+cellsTs.push("");
+cellsTs.push("export interface CharCell {");
+cellsTs.push("  atlas: AtlasName;");
+cellsTs.push("  col: number;");
+cellsTs.push("  row: number;");
+cellsTs.push("}");
+cellsTs.push("");
+cellsTs.push("/** Look up the atlas + cell for a single char. Returns null if unsupported. */");
+cellsTs.push("export function charCell(ch: string): CharCell | null {");
+cellsTs.push("  const cp = ch.codePointAt(0);");
+cellsTs.push("  if (cp === undefined) return null;");
+cellsTs.push("  const p = CELLS[cp];");
+cellsTs.push("  if (!p) return null;");
+cellsTs.push("  return { atlas: UNPACK[p[0]], col: p[1], row: p[2] };");
+cellsTs.push("}");
+cellsTs.push("");
+writeFileSync(CELLS_OUT, cellsTs.join("\n"));
+console.log(`[gen-char-advances] wrote ${CELLS_OUT} (${cellsBmp.length} entries)`);
+
 // --- Vanilla chars TS (for fontJsonBuilder) ---
 function emitProvider(name: string, p: BitmapProvider): string {
   const lines: string[] = [];

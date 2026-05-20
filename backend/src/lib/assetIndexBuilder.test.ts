@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildAssetIndex } from "./assetIndexBuilder";
 import { SPACE_OFFSET_ADVANCES, SPACE_OFFSET_CODEPOINT_START } from "./spaceOffsets";
 
-function row(over: Partial<{ id: string; type: string; name: string; width: number; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
+function row(over: Partial<{ id: string; type: string; name: string; width: number; contentWidth: number | null; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
   return {
     id: over.id ?? "asset_g1",
     serverKeyId: "sk",
@@ -12,6 +12,7 @@ function row(over: Partial<{ id: string; type: string; name: string; width: numb
     height: over.height ?? 9,
     ascent: over.ascent !== undefined ? over.ascent : 8,
     codepoint: over.codepoint !== undefined ? over.codepoint : 0xE000,
+    contentWidth: over.contentWidth !== undefined ? over.contentWidth : null,
     fontMeta: over.fontMeta !== undefined ? over.fontMeta : null,
     contentHash: "h",
     createdAt: new Date(),
@@ -169,5 +170,18 @@ describe("buildAssetIndex", () => {
 
   test("version is 2 (asset-index schema bump for space-font support)", () => {
     expect(buildAssetIndex([]).version).toBe(2);
+  });
+
+  test("contentWidth overrides width in asset-index for advance estimation", () => {
+    // PNG header width=256 (generic_54.png), but only 176 columns are non-transparent.
+    const g = row({ id: "asset_bg", type: "glyph", name: "generic_54", width: 256, contentWidth: 176, codepoint: 0xE010, ascent: -2, height: 256 });
+    const index = buildAssetIndex([g]);
+    expect(index.assets["asset_bg"].width).toBe(176);
+  });
+
+  test("width falls back to header width when contentWidth is null (old asset)", () => {
+    const g = row({ id: "asset_old", type: "glyph", name: "old_bg", width: 176, contentWidth: null, codepoint: 0xE020, ascent: -2, height: 256 });
+    const index = buildAssetIndex([g]);
+    expect(index.assets["asset_old"].width).toBe(176);
   });
 });
