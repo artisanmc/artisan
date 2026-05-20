@@ -44,17 +44,35 @@ class BundleDownloader(
 
         val prefix = "plugins/Interfaze/packs/$packId/"
         val packDir = File(packsDir, packId)
+        packDir.mkdirs()
 
+        // 1) Build expected rel-paths and write incoming files
+        val expectedRelPaths = mutableSetOf<String>()
         for ((path, content) in files) {
             val relPath = if (path.startsWith(prefix)) path.removePrefix(prefix) else continue
             val target = File(packDir, relPath)
             if (!target.canonicalPath.startsWith(packDir.canonicalPath + File.separator)) continue
             target.parentFile?.mkdirs()
             target.writeText(content, Charsets.UTF_8)
+            expectedRelPaths.add(relPath.replace('\\', '/'))
         }
 
-        val diskHash = BundleHasher.hash(packDir)
-        SyncMetadata.recordSync(packDir, syncedHash = diskHash, backendHash = backendHash)
-        logger?.info("Bundle synced for pack $packId (hash=$diskHash)")
+        // 2) Sweep: delete local files NOT in the bundle, preserving .interfaze* metadata
+        packDir.walkTopDown()
+            .filter { it.isFile }
+            .filter { !it.name.startsWith(".interfaze") }
+            .forEach { f ->
+                val relPath = f.relativeTo(packDir).path.replace('\\', '/')
+                if (relPath !in expectedRelPaths) f.delete()
+            }
+
+        // 3) Cleanup empty directories bottom-up (but keep packDir itself)
+        packDir.walkBottomUp()
+            .filter { it.isDirectory && it != packDir }
+            .filter { it.list()?.isEmpty() == true }
+            .forEach { it.delete() }
+
+        SyncMetadata.recordSync(packDir, syncedHash = BundleHasher.hash(packDir), backendHash = backendHash)
+        logger?.info("Bundle synced for pack $packId (${expectedRelPaths.size} files, swept)")
     }
 }
