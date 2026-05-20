@@ -10,6 +10,7 @@ const fr: typeof en = {
     undo: "Annuler ({{mod}}Z)",
     redo: "Rétablir ({{mod}}⇧Z)",
     activeLanguage: "Langue active : {{lang}}",
+    deletePack: "Supprimer le pack",
   },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
@@ -378,6 +379,7 @@ const fr: typeof en = {
     fileReadFailed: "lecture du fichier échouée",
     slotDragFailed: "drag de slot échoué",
     selectionDragOutside: "le drag de la sélection sortirait du menu",
+    deleteFailed: "suppression échouée",
   },
   dataSources: {
     title: "Sources de données",
