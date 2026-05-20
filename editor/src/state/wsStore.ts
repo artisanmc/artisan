@@ -42,7 +42,8 @@ export const useWsStore = create<WsState>((set, get) => ({
             if (!au) return;
             const { getConflict } = await import("@/lib/api/conflicts");
             const { useConflictsStore } = await import("@/state/conflictsStore");
-            const sessionToken = (window.location.search.match(/token=([^&]+)/)?.[1]) ?? "";
+            const { useSessionStore } = await import("@/state/sessionStore");
+            const sessionToken = useSessionStore.getState().accessToken;
             if (!sessionToken) return;
             const conflictId = (msg as Record<string, unknown>).conflict_id as string;
             const detail = await getConflict(au, sessionToken, conflictId).catch(() => null);
