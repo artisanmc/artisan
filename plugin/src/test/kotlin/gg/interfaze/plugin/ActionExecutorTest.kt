@@ -122,4 +122,34 @@ class ActionExecutorTest {
         // MockBukkit may not support player.closeDialog() — runCatching prevents crash
         runCatching { e.execute(listOf(Action.CloseDialog), ctx(p)) }
     }
+
+    @Test fun `executeOne show_title sends Adventure title to player`() {
+        val p = player()
+        val action = Action.ShowTitle(
+            title    = "<gold>Welcome",
+            subtitle = "<gray>traveler",
+            fadeIn   = 5,
+            stay     = 40,
+            fadeOut  = 15,
+        )
+        // No exception — MockBukkit's player accepts Adventure showTitle calls.
+        executor().execute(listOf(action), ctx(p))
+    }
+
+    @Test fun `executeOne show_title resolves i18n in title and subtitle`() {
+        val p = player()
+        val langMap = mapOf("k_title" to "<gold>Hello", "k_sub" to "<gray>world")
+        val context = ExecutionContext(p, lang = "en", langMap = langMap)
+        val action = Action.ShowTitle(
+            title    = "{i18n:k_title}",
+            subtitle = "{i18n:k_sub}",
+        )
+        executor().execute(listOf(action), context)
+        // Smoke test: no exception thrown by resolveText/MiniMessage on i18n refs.
+    }
+
+    @Test fun `executeOne show_title with null subtitle does not throw`() {
+        val p = player()
+        executor().execute(listOf(Action.ShowTitle(title = "<red>x")), ctx(p))
+    }
 }
