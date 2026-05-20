@@ -146,3 +146,20 @@ export const memberships = pgTable("memberships", {
   uniqueIndex("memberships_user_network_uniq").on(t.userId, t.networkId),
   index("memberships_network_idx").on(t.networkId),
 ]);
+
+export const packs = pgTable("packs", {
+  id: text("id").primaryKey(),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  hash: text("hash").notNull().default(""),
+  filesJson: text("files_json").notNull().default("{}"),
+  editorJson: text("editor_json"),
+  deployedEditorJson: text("deployed_editor_json"),
+  deletedAt: timestamp("deleted_at"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  index("packs_network_idx").on(t.networkId),
+  index("packs_network_deleted_idx").on(t.networkId, t.deletedAt),
+]);
