@@ -53,6 +53,14 @@ function serializeAction(action: Action): unknown {
     }
     case "send_message":
       return { type: "send_message", text: i18nRef(action.text.key) };
+    case "show_title": {
+      const out: Record<string, unknown> = { type: "show_title", title: i18nRef(action.title.key) };
+      if (action.subtitle) out.subtitle = i18nRef(action.subtitle.key);
+      if (action.fadeIn !== undefined) out.fade_in = action.fadeIn;
+      if (action.stay !== undefined) out.stay = action.stay;
+      if (action.fadeOut !== undefined) out.fade_out = action.fadeOut;
+      return out;
+    }
     case "run_command":
       return { type: "run_command", command: action.command, as: action.as };
     case "close_menu":
@@ -466,6 +474,10 @@ function collectReferencedKeys(pack: Pack): Set<string> {
               if (!handler) continue;
               for (const action of walkActions(handler.steps)) {
                 if (action.type === "send_message") keys.add(action.text.key);
+                else if (action.type === "show_title") {
+                  keys.add(action.title.key);
+                  if (action.subtitle) keys.add(action.subtitle.key);
+                }
               }
             }
           }
@@ -476,6 +488,10 @@ function collectReferencedKeys(pack: Pack): Set<string> {
   for (const cmd of pack.commands) {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "send_message") keys.add(action.text.key);
+      else if (action.type === "show_title") {
+        keys.add(action.title.key);
+        if (action.subtitle) keys.add(action.subtitle.key);
+      }
     }
   }
   for (const dialog of pack.dialogs) {
@@ -493,6 +509,10 @@ function collectReferencedKeys(pack: Pack): Set<string> {
       keys.add(btn.label.key);
       for (const action of walkActions(btn.steps)) {
         if (action.type === "send_message") keys.add(action.text.key);
+        else if (action.type === "show_title") {
+          keys.add(action.title.key);
+          if (action.subtitle) keys.add(action.subtitle.key);
+        }
       }
     }
   }

@@ -199,6 +199,121 @@ describe("transform", () => {
     expect(app.click.left.steps[0].action.text).toBe("{i18n:menus.shop.elements.btn.default.click.left.message}");
   });
 
+  it("serializes show_title action with snake_case fields including all timings", () => {
+    const pack = makePack({
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+        "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
+        "menus.shop.elements.btn.default.click.left.show_subtitle": { en: "World" },
+      } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [
+                    {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: { key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey },
+                                subtitle: { key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey },
+                                fadeIn: 5,
+                                stay: 40,
+                                fadeOut: 15,
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
+    expect(action.type).toBe("show_title");
+    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
+    expect(action.subtitle).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_subtitle}");
+    expect(action.fade_in).toBe(5);
+    expect(action.stay).toBe(40);
+    expect(action.fade_out).toBe(15);
+  });
+
+  it("serializes show_title action omitting optional subtitle and timings", () => {
+    const pack = makePack({
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+        "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
+      } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [
+                    {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: { key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Interfaze/packs/p_test/menus/shop.yaml"]!);
+    const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
+    expect(action.type).toBe("show_title");
+    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
+    expect(action).not.toHaveProperty("subtitle");
+    expect(action).not.toHaveProperty("fade_in");
+    expect(action).not.toHaveProperty("stay");
+    expect(action).not.toHaveProperty("fade_out");
+  });
+
   it("serializes open_menu action with snake_case fields", () => {
     const targetId = menuId("profile");
     const pack = makePack({
