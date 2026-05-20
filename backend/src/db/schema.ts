@@ -1,15 +1,27 @@
 import { pgTable, text, timestamp, uniqueIndex, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+export const networks = pgTable("networks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  tier: text("tier").notNull().default("free"),
+  subscriptionId: text("subscription_id"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
 export const serverKeys = pgTable("server_keys", {
   id: text("id").primaryKey(),
   hash: text("hash").notNull(),
   label: text("label"),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
   lastMcVersion: text("last_mc_version"),
   createdAt: timestamp("created_at").notNull(),
   resourcePackHash: text("resource_pack_hash"),
   resourcePackUpdatedAt: timestamp("resource_pack_updated_at"),
-});
+}, (t) => [
+  index("server_keys_network_idx").on(t.networkId),
+]);
 
 export const packBundles = pgTable("pack_bundles", {
   id: text("id").primaryKey(),
@@ -123,15 +135,6 @@ export const discordAccounts = pgTable("discord_accounts", {
 }, (t) => [
   uniqueIndex("discord_accounts_userid_uniq").on(t.userId),
 ]);
-
-export const networks = pgTable("networks", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  tier: text("tier").notNull().default("free"),
-  subscriptionId: text("subscription_id"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-});
 
 export const memberships = pgTable("memberships", {
   id: text("id").primaryKey(),
