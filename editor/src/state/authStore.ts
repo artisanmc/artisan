@@ -1,0 +1,50 @@
+import { create } from "zustand";
+import type { AuthUserDto } from "@/lib/api/auth";
+import { getMe, login as apiLogin, logout as apiLogout, signup as apiSignup } from "@/lib/api/auth";
+
+interface AuthState {
+  currentUser: AuthUserDto | null;
+  isLoading: boolean;
+  error: string | null;
+  hydrate: (apiUrl: string) => Promise<void>;
+  login: (apiUrl: string, payload: { email: string; password: string })
+    => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
+  signup: (apiUrl: string, payload: { email: string; password: string; name: string })
+    => Promise<{ ok: true } | { ok: false; error: string; status: number }>;
+  logout: (apiUrl: string) => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  currentUser: null,
+  isLoading: false,
+  error: null,
+  async hydrate(apiUrl) {
+    set({ isLoading: true });
+    const user = await getMe({ apiUrl });
+    set({ currentUser: user, isLoading: false });
+  },
+  async login(apiUrl, payload) {
+    set({ isLoading: true, error: null });
+    const result = await apiLogin({ apiUrl }, payload);
+    if (result.ok) {
+      set({ currentUser: result.data.user, isLoading: false });
+      return { ok: true };
+    }
+    set({ error: result.error, isLoading: false });
+    return { ok: false, error: result.error, status: result.status };
+  },
+  async signup(apiUrl, payload) {
+    set({ isLoading: true, error: null });
+    const result = await apiSignup({ apiUrl }, payload);
+    if (result.ok) {
+      set({ currentUser: result.data.user, isLoading: false });
+      return { ok: true };
+    }
+    set({ error: result.error, isLoading: false });
+    return { ok: false, error: result.error, status: result.status };
+  },
+  async logout(apiUrl) {
+    await apiLogout({ apiUrl });
+    set({ currentUser: null, error: null });
+  },
+}));
