@@ -3,11 +3,11 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, packBundles } from "../db/schema";
+import { editorSessions, packBundles, packConflicts } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
-import { broadcastDraftUpdate, pushBundleAvailable, getMcVersion, trackEditorIp } from "../ws/hub";
+import { broadcastDraftUpdate, pushBundleAvailable, pushPackDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { readEditorLayoutFromFiles } from "../lib/packImport";
 
@@ -223,8 +223,6 @@ router.delete("/:token/packs/:packId", async (c) => {
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
-  const { packConflicts } = await import("../db/schema");
-
   const now = new Date();
   const result = await db.transaction(async (tx) => {
     const updated = await tx.update(packBundles)
@@ -250,7 +248,6 @@ router.delete("/:token/packs/:packId", async (c) => {
 
   if (!result) return c.json({ error: "Not found" }, 404);
 
-  const { pushPackDeleted } = await import("../ws/hub");
   pushPackDeleted(session.serverKeyId, packId);
 
   return c.json({ deleted: true });

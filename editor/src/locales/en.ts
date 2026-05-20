@@ -476,6 +476,7 @@ export default {
       cancel: "Cancel",
       confirm: "Delete",
     },
+    publishDisabledTooltip: "Resolve the conflict before publishing",
   },
   patterns: {
     title: "Cheat sheet",

@@ -484,6 +484,7 @@ const fr: typeof en = {
       cancel: "Annuler",
       confirm: "Supprimer",
     },
+    publishDisabledTooltip: "Résous le conflit avant de publier",
   },
   patterns: {
     title: "Aide-mémoire",

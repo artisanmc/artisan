@@ -649,6 +649,7 @@ async function syncGlyphAscents(pack: Pack, token: string): Promise<void> {
 }
 
 function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
+  const { t } = useTranslation();
   const token = useSessionStore((s) => s.accessToken);
   const replacePack = useAccountStore((s) => s.replacePack);
   const [deploying, setDeploying] = useState(false);
@@ -714,7 +715,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
         disabled={isPublishDisabled}
         title={
           conflictForPack !== undefined
-            ? "Resolve the conflict before publishing"
+            ? t("sync.publishDisabledTooltip")
             : "Déployer — rendre les modifications visibles aux joueurs"
         }
         className="flex h-8 items-center gap-1 rounded bg-emerald-700 px-3 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
