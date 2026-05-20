@@ -440,6 +440,16 @@ const fr: typeof en = {
       },
     },
   },
+  sync: {
+    deletePackDialog: {
+      title: "Supprimer le pack «{{name}}» ?",
+      warning: "Cette action supprimera tous les menus, dialogs et traductions du pack sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.",
+      conflictWarning: "Si un conflit existe pour ce pack, il sera ignoré et l'éditeur deviendra autoritaire.",
+      typePrompt: "Pour confirmer, tape le nom du pack :",
+      cancel: "Annuler",
+      confirm: "Supprimer",
+    },
+  },
   patterns: {
     title: "Aide-mémoire",
     intro: "Clique sur copier pour réutiliser un snippet dans tes propres champs.",
