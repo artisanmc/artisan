@@ -73,7 +73,7 @@ To revoke the active editor session at any time:
 | `/ifz sync reject` | Reload menus from disk and reconnect to the backend. |
 | `/ifz editor` | Request an editor session link (requires `interfaze.editor` permission). |
 | `/ifz editor revoke` | Revoke the currently active editor session. |
-| `/ifz setup [code]` | Start the guided server-linking flow; paste the printed code into the dashboard. Optional `code` argument skips the interactive prompt if you already have one. |
+| `/ifz setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. |
 
 ## 5. Troubleshooting
 
@@ -104,8 +104,8 @@ Three modes, controlled by `resource-pack.delegate-to-dir` in `config.yml`.
 **Default — Interfaze pushes its own pack**
 
 Leave `delegate-to-dir` empty. Interfaze pushes its pack to each player
-using the 1.20.3+ multi-pack stack, coexisting with other RP plugins
-side by side. Two login prompts appear when a host plugin also pushes one.
+using the 1.20.3+ multi-pack stack, coexisting with other RP plugins.
+Two login prompts appear when a host plugin also pushes one.
 
 **Delegation to a directory** — for Oraxen / ItemsAdder
 
