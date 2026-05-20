@@ -227,6 +227,17 @@ class SyncedMenuProvider(
                     jsonMapper.convertValue(packHashesNode, object : TypeReference<Map<String, String>>() {})
                 }.getOrDefault(emptyMap())
 
+                val deletedPackIdsNode = node["deleted_pack_ids"]
+                if (deletedPackIdsNode != null && deletedPackIdsNode.isArray) {
+                    deletedPackIdsNode.forEach { idNode ->
+                        val packId = idNode.asText()
+                        if (File(packsDir, packId).exists()) {
+                            logger?.info("hello_ack: reconciling deletion of $packId")
+                            handlePackDeletion(packId)
+                        }
+                    }
+                }
+
                 packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { packDir ->
                     val packId = packDir.name
                     val backendHash = packHashes[packId] ?: run {
@@ -339,8 +350,28 @@ class SyncedMenuProvider(
                 }
             }
 
+            "pack_deleted" -> {
+                val packId = node["pack_id"]?.asText() ?: return
+                handlePackDeletion(packId)
+            }
+
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
         }
+    }
+
+    private fun handlePackDeletion(packId: String) {
+        // Atomic switch: drop the pack from the in-memory bundles BEFORE touching disk.
+        bundles = bundles.filterNot { it.packId == packId }
+        val freshMenus = ConcurrentHashMap<String, BundleMenu>()
+        val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
+        bundles.forEach { b ->
+            b.menus.forEach { freshMenus[it.id] = it }
+            b.dialogs.forEach { freshDialogs[it.id] = it }
+        }
+        menus = freshMenus
+        dialogs = freshDialogs
+        gg.interfaze.plugin.sync.PackDeleter(packsDir, logger).delete(packId)
+        onReload?.invoke()
     }
 
     /**
@@ -374,4 +405,6 @@ class SyncedMenuProvider(
             playerUrl
         }
     }
+
+    internal fun handleMessageForTesting(raw: String) = handleMessage(raw)
 }
