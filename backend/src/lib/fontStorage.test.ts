@@ -9,22 +9,22 @@ import {
   readFontGlyph,
 } from "./fontStorage";
 
-const TEST_SK = "test-sk-fontstorage";
+const TEST_PACK = "test-pack-fontstorage";
 
 beforeEach(async () => {
   // Wipe any font dirs we might have created.
-  await deleteFontAssets(TEST_SK, "font_a");
-  await deleteFontAssets(TEST_SK, "font_b");
-  await deleteFontAssets(TEST_SK, "font_c");
-  await deleteFontAssets(TEST_SK, "font_d");
-  await deleteFontAssets(TEST_SK, "font_nested");
+  await deleteFontAssets(TEST_PACK, "font_a");
+  await deleteFontAssets(TEST_PACK, "font_b");
+  await deleteFontAssets(TEST_PACK, "font_c");
+  await deleteFontAssets(TEST_PACK, "font_d");
+  await deleteFontAssets(TEST_PACK, "font_nested");
 });
 afterEach(async () => {
-  await deleteFontAssets(TEST_SK, "font_a");
-  await deleteFontAssets(TEST_SK, "font_b");
-  await deleteFontAssets(TEST_SK, "font_c");
-  await deleteFontAssets(TEST_SK, "font_d");
-  await deleteFontAssets(TEST_SK, "font_nested");
+  await deleteFontAssets(TEST_PACK, "font_a");
+  await deleteFontAssets(TEST_PACK, "font_b");
+  await deleteFontAssets(TEST_PACK, "font_c");
+  await deleteFontAssets(TEST_PACK, "font_d");
+  await deleteFontAssets(TEST_PACK, "font_nested");
 });
 
 describe("fontStorage", () => {
@@ -37,9 +37,9 @@ describe("fontStorage", () => {
       ["b.png", pngB],
     ]);
 
-    await writeFontAssets(TEST_SK, "font_a", fontJson, glyphs);
+    await writeFontAssets(TEST_PACK, "font_a", fontJson, glyphs);
 
-    const { dir, fontJson: fontJsonPath } = fontDirPaths(TEST_SK, "font_a");
+    const { dir, fontJson: fontJsonPath } = fontDirPaths(TEST_PACK, "font_a");
     expect(existsSync(fontJsonPath)).toBe(true);
     expect(existsSync(join(dir, "a.png"))).toBe(true);
     expect(existsSync(join(dir, "b.png"))).toBe(true);
@@ -52,22 +52,22 @@ describe("fontStorage", () => {
     const fontJson = new TextEncoder().encode("{}");
     const png = new Uint8Array([10, 20, 30, 40]);
     await writeFontAssets(
-      TEST_SK,
+      TEST_PACK,
       "font_a",
       fontJson,
       new Map([["x.png", png]]),
     );
 
-    const got = await readFontGlyph(TEST_SK, "font_a", "x.png");
+    const got = await readFontGlyph(TEST_PACK, "font_a", "x.png");
     expect(got).not.toBeNull();
     expect(Array.from(got!)).toEqual([10, 20, 30, 40]);
   });
 
   test("readFontGlyph returns null for an unknown path", async () => {
     const fontJson = new TextEncoder().encode("{}");
-    await writeFontAssets(TEST_SK, "font_a", fontJson, new Map());
+    await writeFontAssets(TEST_PACK, "font_a", fontJson, new Map());
 
-    const got = await readFontGlyph(TEST_SK, "font_a", "missing.png");
+    const got = await readFontGlyph(TEST_PACK, "font_a", "missing.png");
     expect(got).toBeNull();
   });
 
@@ -75,19 +75,19 @@ describe("fontStorage", () => {
     const fontJson = new TextEncoder().encode("{}");
     const png = new Uint8Array([1, 2, 3]);
     await writeFontAssets(
-      TEST_SK,
+      TEST_PACK,
       "font_b",
       fontJson,
       new Map([["glyphs/a.png", png]]),
     );
-    const { dir } = fontDirPaths(TEST_SK, "font_b");
+    const { dir } = fontDirPaths(TEST_PACK, "font_b");
     expect(existsSync(dir)).toBe(true);
 
-    await deleteFontAssets(TEST_SK, "font_b");
+    await deleteFontAssets(TEST_PACK, "font_b");
     expect(existsSync(dir)).toBe(false);
 
     // Idempotent: must not throw.
-    await deleteFontAssets(TEST_SK, "font_b");
+    await deleteFontAssets(TEST_PACK, "font_b");
     expect(existsSync(dir)).toBe(false);
   });
 
@@ -100,7 +100,7 @@ describe("fontStorage", () => {
     const badPath = process.platform === "win32" ? "C:\\evil.png" : "/evil.png";
     await expect(
       writeFontAssets(
-        TEST_SK,
+        TEST_PACK,
         "font_c",
         fontJson,
         new Map([[badPath, png]]),
@@ -113,7 +113,7 @@ describe("fontStorage", () => {
     const png = new Uint8Array([1]);
     await expect(
       writeFontAssets(
-        TEST_SK,
+        TEST_PACK,
         "font_c",
         fontJson,
         new Map([["../escape.png", png]]),
@@ -122,7 +122,7 @@ describe("fontStorage", () => {
 
     await expect(
       writeFontAssets(
-        TEST_SK,
+        TEST_PACK,
         "font_c",
         fontJson,
         new Map([["glyphs/../../escape.png", png]]),
@@ -132,17 +132,17 @@ describe("fontStorage", () => {
 
   test("readFontGlyph returns null for a path containing ..", async () => {
     const fontJson = new TextEncoder().encode("{}");
-    await writeFontAssets(TEST_SK, "font_d", fontJson, new Map());
+    await writeFontAssets(TEST_PACK, "font_d", fontJson, new Map());
 
-    const got = await readFontGlyph(TEST_SK, "font_d", "../../something.png");
+    const got = await readFontGlyph(TEST_PACK, "font_d", "../../something.png");
     expect(got).toBeNull();
 
-    const got2 = await readFontGlyph(TEST_SK, "font_d", "glyphs/../../escape.png");
+    const got2 = await readFontGlyph(TEST_PACK, "font_d", "glyphs/../../escape.png");
     expect(got2).toBeNull();
 
     // Absolute path: also silent-null
     const abs = process.platform === "win32" ? "C:\\evil.png" : "/evil.png";
-    const got3 = await readFontGlyph(TEST_SK, "font_d", abs);
+    const got3 = await readFontGlyph(TEST_PACK, "font_d", abs);
     expect(got3).toBeNull();
   });
 
@@ -150,16 +150,16 @@ describe("fontStorage", () => {
     const fontJson = new TextEncoder().encode("{}");
     const png = new Uint8Array([7, 8, 9]);
     await writeFontAssets(
-      TEST_SK,
+      TEST_PACK,
       "font_nested",
       fontJson,
       new Map([["glyphs/a.png", png]]),
     );
 
-    const { dir } = fontDirPaths(TEST_SK, "font_nested");
+    const { dir } = fontDirPaths(TEST_PACK, "font_nested");
     expect(existsSync(join(dir, "glyphs", "a.png"))).toBe(true);
 
-    const got = await readFontGlyph(TEST_SK, "font_nested", "glyphs/a.png");
+    const got = await readFontGlyph(TEST_PACK, "font_nested", "glyphs/a.png");
     expect(got).not.toBeNull();
     expect(Array.from(got!)).toEqual([7, 8, 9]);
   });

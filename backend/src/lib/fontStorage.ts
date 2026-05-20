@@ -8,8 +8,8 @@ export interface FontPaths {
   fontJson: string;
 }
 
-export function fontDirPaths(serverKeyId: string, assetId: string): FontPaths {
-  const dir = resolve("data/assets", serverKeyId, "fonts", assetId);
+export function fontDirPaths(packId: string, assetId: string): FontPaths {
+  const dir = resolve("data/assets", packId, "fonts", assetId);
   return { dir, fontJson: join(dir, "font.json") };
 }
 
@@ -32,7 +32,7 @@ function isSafeGlyphPath(relPath: string): boolean {
 
 /** Write font.json plus all glyph PNGs (keyed by relative path inside the font dir). */
 export async function writeFontAssets(
-  serverKeyId: string,
+  packId: string,
   assetId: string,
   fontJsonContent: Uint8Array,
   glyphPngs: Map<string, Uint8Array>,
@@ -44,7 +44,7 @@ export async function writeFontAssets(
     }
   }
 
-  const { dir, fontJson } = fontDirPaths(serverKeyId, assetId);
+  const { dir, fontJson } = fontDirPaths(packId, assetId);
   await mkdir(dir, { recursive: true });
   await writeFile(fontJson, fontJsonContent);
 
@@ -56,19 +56,19 @@ export async function writeFontAssets(
 }
 
 /** Recursively delete the font asset's directory. Idempotent. */
-export async function deleteFontAssets(serverKeyId: string, assetId: string): Promise<void> {
-  const { dir } = fontDirPaths(serverKeyId, assetId);
+export async function deleteFontAssets(packId: string, assetId: string): Promise<void> {
+  const { dir } = fontDirPaths(packId, assetId);
   await rm(dir, { recursive: true, force: true });
 }
 
 /** Read a single glyph PNG by its relative path inside the font dir. Returns null on miss. */
 export async function readFontGlyph(
-  serverKeyId: string,
+  packId: string,
   assetId: string,
   relPath: string,
 ): Promise<Uint8Array | null> {
   if (!isSafeGlyphPath(relPath)) return null;
-  const { dir } = fontDirPaths(serverKeyId, assetId);
+  const { dir } = fontDirPaths(packId, assetId);
   const target = join(dir, relPath);
   try {
     const buf = await readFile(target);
