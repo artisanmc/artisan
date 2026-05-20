@@ -33,4 +33,50 @@ describe("POST /api/auth/signup", () => {
 
     await cleanupByEmail(email);
   });
+
+  test("returns 409 when email already taken", async () => {
+    const email = `dup_${Date.now()}@example.com`;
+    await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw", name: "A" }),
+    }));
+    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "anotherpwwww", name: "B" }),
+    }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("email_taken");
+    await cleanupByEmail(email);
+  });
+
+  test("returns 422 on weak password (<8 chars)", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "weak@example.com", password: "short", name: "W" }),
+    }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("weak_password");
+  });
+
+  test("returns 422 on invalid email", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "noatsign", password: "longenoughpw", name: "X" }),
+    }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("invalid_email");
+  });
+
+  test("returns 400 on missing fields", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "only@example.com" }),
+    }));
+    expect(res.status).toBe(400);
+  });
 });
