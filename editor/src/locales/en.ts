@@ -8,6 +8,7 @@ export default {
     undo: "Undo ({{mod}}Z)",
     redo: "Redo ({{mod}}⇧Z)",
     activeLanguage: "Active language: {{lang}}",
+    deletePack: "Delete pack",
   },
   langSwitcher: {
     addLanguage: "+ Add language…",
@@ -370,6 +371,7 @@ export default {
     fileReadFailed: "file read failed",
     slotDragFailed: "slot drag failed",
     selectionDragOutside: "selection drag would land outside the menu",
+    deleteFailed: "delete failed",
   },
   dataSources: {
     title: "Data sources",
