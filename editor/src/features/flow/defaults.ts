@@ -21,6 +21,8 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "run_command", command: "", as: "player" };
     case "send_message":
       return { type: "send_message", text: { key: UNALLOCATED_LTEXT_KEY } };
+    case "show_title":
+      return { type: "show_title", title: { key: UNALLOCATED_LTEXT_KEY } };
     case "give_item":
       return { type: "give_item", material: "DIAMOND", count: 1 };
     case "take_money":
@@ -45,6 +47,7 @@ export const ACTION_TYPES: Action["type"][] = [
   "close_menu",
   "run_command",
   "send_message",
+  "show_title",
   "give_item",
   "take_money",
   "paginate",
