@@ -142,6 +142,56 @@ describe("validate", () => {
     expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.message"))).toBe(true);
   });
 
+  it("validates show_title title and subtitle keys in element click handlers", () => {
+    const pack = makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [
+                    {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: { key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey },
+                                subtitle: { key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+      } as Pack["i18nKeys"],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.show_title"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.show_subtitle"))).toBe(true);
+  });
+
   it("validates send_message keys in command steps", () => {
     const pack = makePack({
       commands: [
