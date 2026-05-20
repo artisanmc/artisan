@@ -3,6 +3,7 @@ import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Action, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
+import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
@@ -107,6 +108,8 @@ export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
       return <SendMessageEditor packId={packId} action={action} />;
+    case "show_title":
+      return <ShowTitleEditor packId={packId} action={action} onChange={onChange} />;
     case "give_item":
       return <GiveItemEditor action={action} onChange={onChange} />;
     case "take_money":
@@ -352,6 +355,151 @@ function SendMessageEditor({
           <MiniMessageInline source={edit.value} className="font-mono text-xs" />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ShowTitleEditor({
+  packId,
+  action,
+  onChange,
+}: {
+  packId: PackId;
+  action: Extract<Action, { type: "show_title" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const titleEdit = useTextEdit(packId, action.title);
+  const subtitleEdit = useTextEdit(packId, action.subtitle ?? { key: UNALLOCATED_LTEXT_KEY });
+  const hasSubtitle = !!action.subtitle;
+
+  const onTitleChange = (value: string) =>
+    setI18nValue({ packId, lt: action.title, lang: titleEdit.lang, value });
+  const onSubtitleChange = (value: string) => {
+    if (!action.subtitle) return;
+    setI18nValue({ packId, lt: action.subtitle, lang: subtitleEdit.lang, value });
+  };
+
+  const enableSubtitle = () => {
+    // Seed with the unallocated sentinel; the next mutator that routes
+    // through allocStepLTexts materializes a real key (Task 7 logic).
+    onChange({ ...action, subtitle: { key: UNALLOCATED_LTEXT_KEY } });
+  };
+  const removeSubtitle = () => onChange({ ...action, subtitle: undefined });
+
+  const setNumberField = (field: "fadeIn" | "stay" | "fadeOut", raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      const next = { ...action };
+      delete next[field];
+      onChange(next);
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isFinite(n) && n >= 0) onChange({ ...action, [field]: Math.floor(n) });
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <FieldLabel>
+          {titleEdit.isFallback
+            ? t("actionEditor.showTitleTitleLabelFallback", { lang: titleEdit.lang })
+            : t("actionEditor.showTitleTitleLabel", { lang: titleEdit.lang })}
+        </FieldLabel>
+        <textarea
+          className="w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
+          rows={2}
+          placeholder={t("actionEditor.showTitleTitlePlaceholder")}
+          value={titleEdit.value}
+          onChange={(e) => onTitleChange(e.target.value)}
+        />
+        <ArgInsertBar onInsert={(name) => onTitleChange(`${titleEdit.value}{${name}}`)} />
+        {looksLikeMiniMessage(titleEdit.value) ? (
+          <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+            <span className="mr-2 text-[9px] uppercase text-zinc-600">
+              {t("menuProperties.preview")}
+            </span>
+            <MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />
+          </div>
+        ) : null}
+      </div>
+
+      {hasSubtitle ? (
+        <div>
+          <FieldLabel>
+            {subtitleEdit.isFallback
+              ? t("actionEditor.showTitleSubtitleLabelFallback", { lang: subtitleEdit.lang })
+              : t("actionEditor.showTitleSubtitleLabel", { lang: subtitleEdit.lang })}
+          </FieldLabel>
+          <textarea
+            className="w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
+            rows={2}
+            placeholder={t("actionEditor.showTitleSubtitlePlaceholder")}
+            value={subtitleEdit.value}
+            onChange={(e) => onSubtitleChange(e.target.value)}
+          />
+          <ArgInsertBar onInsert={(name) => onSubtitleChange(`${subtitleEdit.value}{${name}}`)} />
+          {looksLikeMiniMessage(subtitleEdit.value) ? (
+            <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
+              <span className="mr-2 text-[9px] uppercase text-zinc-600">
+                {t("menuProperties.preview")}
+              </span>
+              <MiniMessageInline source={subtitleEdit.value} className="font-mono text-xs" />
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={removeSubtitle}
+            className="mt-1 text-[10px] text-zinc-500 hover:text-rose-400"
+          >
+            {t("actionEditor.showTitleSubtitleRemove")}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={enableSubtitle}
+          className="self-start rounded border border-dashed border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:border-emerald-500 hover:text-emerald-200"
+        >
+          {t("actionEditor.showTitleSubtitleEnable")}
+        </button>
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <FieldLabel>{t("actionEditor.showTitleFadeInLabel")}</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            placeholder="10"
+            value={action.fadeIn ?? ""}
+            onChange={(e) => setNumberField("fadeIn", e.target.value)}
+          />
+        </div>
+        <div>
+          <FieldLabel>{t("actionEditor.showTitleStayLabel")}</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            placeholder="70"
+            value={action.stay ?? ""}
+            onChange={(e) => setNumberField("stay", e.target.value)}
+          />
+        </div>
+        <div>
+          <FieldLabel>{t("actionEditor.showTitleFadeOutLabel")}</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            placeholder="20"
+            value={action.fadeOut ?? ""}
+            onChange={(e) => setNumberField("fadeOut", e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="text-[10px] text-zinc-500">{t("actionEditor.showTitleTicksHint")}</div>
     </div>
   );
 }
