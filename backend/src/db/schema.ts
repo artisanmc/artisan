@@ -63,47 +63,6 @@ export const editorSessions = pgTable("editor_sessions", {
   uniqueIndex("trust_code_uniq").on(t.trustCode).where(sql`trust_code IS NOT NULL`),
 ]);
 
-export const assets = pgTable("assets", {
-  id: text("id").primaryKey(),
-  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id),
-  type: text("type").notNull(),                 // "texture" | "glyph" | "font"
-  name: text("name").notNull(),
-  width: integer("width").notNull(),
-  height: integer("height").notNull(),
-  ascent: integer("ascent"),                    // nullable, set only for type=glyph
-  codepoint: integer("codepoint"),              // nullable, set only for type=glyph
-  // rightmost non-transparent column + 1, matching MC bitmap font advance (minus the +1 spacing).
-  // null for assets uploaded before this column was added (falls back to `width` in assetIndexBuilder).
-  contentWidth: integer("content_width"),
-  fontMeta: jsonb("font_meta"),                 // forward-compat for Sub-project 4
-  contentHash: text("content_hash").notNull(),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-}, (t) => [
-  uniqueIndex("assets_serverkey_name_type_uniq").on(t.serverKeyId, t.type, t.name),
-  uniqueIndex("assets_serverkey_codepoint_uniq")
-    .on(t.serverKeyId, t.codepoint)
-    .where(sql`codepoint IS NOT NULL`),
-  index("assets_serverkey_type_idx").on(t.serverKeyId, t.type),
-]);
-
-export const packConflicts = pgTable("pack_conflicts", {
-  id: text("id").primaryKey(),
-  serverId: text("server_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
-  packId: text("pack_id").notNull(),
-  diskFilesJson: text("disk_files_json").notNull(),
-  diskHash: text("disk_hash").notNull(),
-  lastSyncedHash: text("last_synced_hash").notNull(),
-  backendHashAtDetection: text("backend_hash_at_detection").notNull(),
-  detectedAt: timestamp("detected_at").notNull(),
-  resolvedAt: timestamp("resolved_at"),
-  resolution: text("resolution"), // NULL | "editor" | "server"
-}, (t) => [
-  uniqueIndex("pack_conflicts_open_uniq")
-    .on(t.serverId, t.packId)
-    .where(sql`resolved_at IS NULL`),
-]);
-
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
@@ -173,4 +132,43 @@ export const packBindings = pgTable("pack_bindings", {
   uniqueIndex("pack_bindings_uniq").on(t.serverKeyId, t.packId),
   index("pack_bindings_pack_idx").on(t.packId),
   index("pack_bindings_serverkey_idx").on(t.serverKeyId),
+]);
+
+export const assets = pgTable("assets", {
+  id: text("id").primaryKey(),
+  packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),                 // "texture" | "glyph" | "font"
+  name: text("name").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  ascent: integer("ascent"),
+  codepoint: integer("codepoint"),
+  contentWidth: integer("content_width"),
+  fontMeta: jsonb("font_meta"),
+  contentHash: text("content_hash").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("assets_pack_name_type_uniq").on(t.packId, t.type, t.name),
+  uniqueIndex("assets_pack_codepoint_uniq")
+    .on(t.packId, t.codepoint)
+    .where(sql`codepoint IS NOT NULL`),
+  index("assets_pack_type_idx").on(t.packId, t.type),
+]);
+
+export const packConflicts = pgTable("pack_conflicts", {
+  id: text("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
+  packId: text("pack_id").notNull(),
+  diskFilesJson: text("disk_files_json").notNull(),
+  diskHash: text("disk_hash").notNull(),
+  lastSyncedHash: text("last_synced_hash").notNull(),
+  backendHashAtDetection: text("backend_hash_at_detection").notNull(),
+  detectedAt: timestamp("detected_at").notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: text("resolution"), // NULL | "editor" | "server"
+}, (t) => [
+  uniqueIndex("pack_conflicts_open_uniq")
+    .on(t.serverId, t.packId)
+    .where(sql`resolved_at IS NULL`),
 ]);
