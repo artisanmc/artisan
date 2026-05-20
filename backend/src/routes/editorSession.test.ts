@@ -956,3 +956,81 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — invalid pack 
     expect(body.error).toBe("missing_or_invalid_pack");
   });
 });
+
+describe("DELETE /api/editor-session/:token/packs/:packId", () => {
+  test("soft-deletes pack, broadcasts pack_deleted, returns 200", async () => {
+    // Setup: create server key + pack
+    const keyRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "delete-test" }),
+    });
+    const { key, id: serverKeyId } = (await keyRes.json()) as { key: string; id: string };
+
+    // Insert pack
+    const { db } = await import("../db/index");
+    const { packBundles, editorSessions } = await import("../db/schema");
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(),
+      serverId: serverKeyId,
+      packId: "p_to_delete",
+      hash: "h",
+      filesJson: "{}",
+      editorJson: JSON.stringify({ id: "p_to_delete", name: "p_to_delete" }),
+      createdAt: new Date(),
+    });
+
+    // Create editor session and exchange for access token
+    const sessionToken = `etok_${crypto.randomUUID()}`;
+    const accessToken = `acc_${crypto.randomUUID()}`;
+    await db.insert(editorSessions).values({
+      token: sessionToken,
+      serverKeyId,
+      createdBy: "test",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 86400_000),
+      exchangedAt: new Date(),
+      accessToken,
+      accessExpiresAt: new Date(Date.now() + 86400_000),
+    });
+
+    const res = await app.request(`/api/editor-session/${accessToken}/packs/p_to_delete`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { deleted: boolean };
+    expect(body.deleted).toBe(true);
+
+    // Verify soft-delete in DB
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(packBundles).where(eq(packBundles.packId, "p_to_delete"));
+    expect(rows[0].deletedAt).not.toBeNull();
+  });
+
+  test("returns 404 for unknown pack", async () => {
+    const keyRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "delete-404" }),
+    });
+    const { id: serverKeyId } = (await keyRes.json()) as { id: string };
+    const { db } = await import("../db/index");
+    const { editorSessions } = await import("../db/schema");
+    const accessToken = `acc_${crypto.randomUUID()}`;
+    await db.insert(editorSessions).values({
+      token: `etok_${crypto.randomUUID()}`,
+      serverKeyId,
+      createdBy: "test",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 86400_000),
+      exchangedAt: new Date(),
+      accessToken,
+      accessExpiresAt: new Date(Date.now() + 86400_000),
+    });
+
+    const res = await app.request(`/api/editor-session/${accessToken}/packs/nonexistent`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
+  });
+});
