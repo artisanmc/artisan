@@ -1025,6 +1025,11 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
       return `${action.as === "console" ? "[console] " : ""}/${action.command}`;
     case "send_message":
       return `"${getText(action.text)}"`;
+    case "show_title": {
+      const title = getText(action.title);
+      const sub = action.subtitle ? getText(action.subtitle) : null;
+      return sub ? `"${title}" / "${sub}"` : `"${title}"`;
+    }
     case "give_item":
       return `${action.count}× ${action.material}`;
     case "take_money":
