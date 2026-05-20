@@ -549,6 +549,35 @@ describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
     expect(body.deployed?.name).toBe("Get Deployed");
   });
 
+  test("returns null when pack does not exist at all", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/pack_never_existed/deployed`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { deployed: null };
+    expect(body.deployed).toBeNull();
+  });
+
+  test("deployed field is independent of editorJson (draft-deploy roundtrip)", async () => {
+    const { token } = await createTrustedSession();
+    const packPayload = { pack: { id: "p_indep", name: "Indep" }, files: { "manifest.yaml": "" } };
+    // Deploy once
+    await app.request(`/api/editor-session/${token}/packs/p_indep/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(packPayload),
+    });
+    // Save a draft (PUT) with different name — should NOT touch deployedEditorJson
+    await app.request(`/api/editor-session/${token}/packs/p_indep`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" } }),
+    });
+    // Deployed still returns the original
+    const res = await app.request(`/api/editor-session/${token}/packs/p_indep/deployed`);
+    const body = await res.json() as { deployed: { name: string } };
+    expect(body.deployed?.name).toBe("Indep");
+  });
+
   test("401 for invalid token", async () => {
     const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deployed");
     expect(res.status).toBe(401);
