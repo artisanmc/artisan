@@ -21,6 +21,13 @@ sealed class Action {
     data class GiveLevel(val amount: Int) : Action()
     data class SendMessage(val text: String) : Action()
     data class Broadcast(val text: String) : Action()
+    data class ShowTitle(
+        val title:    String,
+        val subtitle: String? = null,
+        val fadeIn:   Int = 10,
+        val stay:     Int = 70,
+        val fadeOut:  Int = 20,
+    ) : Action()
     data class PlaySound(val sound: String, val volume: Float = 1f, val pitch: Float = 1f) : Action()
     data class Teleport(
         val world: String? = null,
