@@ -28,9 +28,12 @@ object BundleCompiler {
 
     private fun compileAppearance(app: AppearanceYaml, menuId: String, elementId: String, logger: Logger?): CompiledAppearance? =
         runCatching {
-            val conditions = if (app.conditions != null)
-                listOf(ConditionParser.parse(app.conditions))
-            else emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val conditions = when (val raw = app.conditions) {
+                is Map<*, *> -> listOf(ConditionParser.parse(raw as Map<String, Any>))
+                is List<*>   -> raw.map { ConditionParser.parse(it as Map<String, Any>) }
+                else         -> emptyList()
+            }
 
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null

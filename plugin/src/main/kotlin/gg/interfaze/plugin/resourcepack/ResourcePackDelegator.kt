@@ -1,32 +1,43 @@
 package gg.interfaze.plugin.resourcepack
 
 import java.io.File
+import java.io.FileOutputStream
 import java.net.URL
 import java.security.MessageDigest
 import java.util.logging.Logger
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 /**
- * Extracts the `assets/interfaze/` subtree of the Interfaze resource pack into
- * a target directory owned by a host plugin (Oraxen / Nexo / ItemsAdder / etc.).
+ * Writes the `assets/interfaze/` subtree of the Interfaze resource pack into a
+ * target owned by a host plugin (Oraxen / Nexo / ItemsAdder / etc.). Used when
+ * the admin sets `resource-pack.delegate-to-dir` in `config.yml`.
  *
- * Used when the admin sets `resource-pack.delegate-to-dir` in `config.yml`.
- * In that mode the plugin does NOT push its own RP to players — the host pack
- * plugin is expected to merge our files into its own RP at its next rebuild.
+ * Two output modes, selected by the target path's extension:
  *
- * Owns the `<targetDir>/assets/interfaze/` namespace entirely:
- *  - Wipes it recursively before each extraction (deleted/renamed files
- *    don't accumulate).
- *  - Refuses to write anything outside that subtree, even if the zip
- *    contains such entries (defense in depth).
+ *  - `*.zip` → a single zip file at that path. Inside, the layout is the
+ *    standard MC resource-pack tree (assets/interfaze/...) plus a minimal
+ *    `pack.mcmeta`. **Use this with Nexo's `pack/external_packs/`**: Nexo's
+ *    directory scanner skips `.png` files for non-vanilla namespaces, but
+ *    its zip-merger pulls every entry, so wrapping our content in a zip
+ *    sidesteps the limitation entirely.
  *
- * `pack.mcmeta` at the zip root is silently skipped — the host pack owns
- * its own metadata.
+ *  - any other path → a directory. We write under `<targetDir>/assets/interfaze/`
+ *    and own only that subtree (wipe before each extraction). Works for hosts
+ *    whose pack-build merges arbitrary directories.
+ *
+ * In both modes the host plugin still owns its own `pack.mcmeta` (in the
+ * directory case we never write at the root; in the zip case our internal
+ * pack.mcmeta is only read by the host's zip-merger, not served directly).
  */
 open class ResourcePackDelegator(
     private val targetDir: File,
     private val logger: Logger?,
 ) {
+    /** Whether [targetDir] points at a `.zip` file rather than a directory. */
+    private val emitZip: Boolean = targetDir.name.endsWith(".zip", ignoreCase = true)
+
     /**
      * Download the zip from [downloadUrl], verify its SHA-1 matches
      * [expectedHash], then extract.
@@ -49,6 +60,59 @@ open class ResourcePackDelegator(
                 "[delegate] hash mismatch: expected=$expectedHash actual=$actualHash"
             )
         }
+        if (emitZip) writeZip(zipBytes) else writeDirectory(zipBytes)
+    }
+
+    /**
+     * Zip output mode. Writes a fresh `targetDir` file containing the
+     * `assets/interfaze/` entries from the backend zip plus a minimal
+     * `pack.mcmeta` (some hosts skip zips lacking it). Atomic via a temp file
+     * + rename so a partial write never gets picked up by a host that's
+     * watching the directory.
+     */
+    private fun writeZip(zipBytes: ByteArray) {
+        targetDir.parentFile?.mkdirs()
+        val tmp = File(targetDir.parentFile, "${targetDir.name}.tmp")
+        ZipOutputStream(FileOutputStream(tmp)).use { zos ->
+            // pack.mcmeta first — required by some host pack-mergers to
+            // recognize the zip as a valid resource pack.
+            zos.putNextEntry(ZipEntry("pack.mcmeta"))
+            zos.write(PACK_MCMETA_JSON.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            ZipInputStream(zipBytes.inputStream()).use { zis ->
+                while (true) {
+                    val entry = zis.nextEntry ?: break
+                    if (!acceptEntry(entry.name)) {
+                        zis.closeEntry()
+                        continue
+                    }
+                    if (entry.isDirectory) {
+                        zis.closeEntry()
+                        continue
+                    }
+                    zos.putNextEntry(ZipEntry(entry.name))
+                    zis.copyTo(zos)
+                    zos.closeEntry()
+                    zis.closeEntry()
+                }
+            }
+        }
+        // Atomic replace: delete target if it exists, then rename. On Windows
+        // a plain rename won't overwrite, so we delete first.
+        if (targetDir.exists()) targetDir.delete()
+        if (!tmp.renameTo(targetDir)) {
+            // Fallback: try a copy + delete if rename fails (cross-device move).
+            tmp.copyTo(targetDir, overwrite = true)
+            tmp.delete()
+        }
+        logger?.info("[delegate] wrote Interfaze pack zip to ${targetDir.absolutePath}")
+    }
+
+    /**
+     * Directory output mode. Wipes `<targetDir>/assets/interfaze/` then
+     * extracts the matching entries from the backend zip.
+     */
+    private fun writeDirectory(zipBytes: ByteArray) {
         val ifzRoot = File(targetDir, "assets/interfaze")
         ifzRoot.deleteRecursively()
         ifzRoot.mkdirs()
@@ -86,4 +150,12 @@ open class ResourcePackDelegator(
     private fun sha1Hex(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-1").digest(bytes)
             .joinToString("") { "%02x".format(it) }
+
+    companion object {
+        // Minimal valid pack.mcmeta. pack_format 22 = 1.20.5+ (where the
+        // `space` font provider is supported). Host plugins that re-zip
+        // external packs need this at the root to recognize the zip.
+        private const val PACK_MCMETA_JSON =
+            "{\"pack\":{\"pack_format\":22,\"description\":\"Interfaze (delegated)\"}}"
+    }
 }

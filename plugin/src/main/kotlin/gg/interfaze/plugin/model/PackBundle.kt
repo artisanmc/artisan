@@ -67,7 +67,7 @@ data class AppearanceYaml(
     val lore: List<String> = emptyList(),
     val click: Map<String, ClickHandlerYaml> = emptyMap(),
     @JsonProperty("if")
-    val conditions: Map<String, Any>? = null,
+    val conditions: Any? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

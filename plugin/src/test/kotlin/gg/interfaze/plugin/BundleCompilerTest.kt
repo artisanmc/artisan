@@ -71,7 +71,7 @@ class BundleCompilerTest {
     }
 
     @Test fun `compile handles appearance with conditions`() {
-        val condMap = mapOf("type" to "has_permission", "permission" to "vip")
+        val condMap = mapOf("type" to "has_permission", "perm" to "vip")
         val app = AppearanceYaml(material = "GOLD_BLOCK", conditions = condMap)
         val m = menu(element("el", "0", app))
         val result = BundleCompiler.compile(m, emptyMap())
