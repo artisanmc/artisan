@@ -1033,4 +1033,53 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  test("auto-resolves any open conflict for the pack as resolution=editor", async () => {
+    const keyRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "delete-with-conflict" }),
+    });
+    const { id: serverKeyId } = (await keyRes.json()) as { id: string };
+
+    const { db } = await import("../db/index");
+    const { packBundles, packConflicts, editorSessions } = await import("../db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    // Insert pack
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(), serverId: serverKeyId, packId: "p_with_conflict",
+      hash: "h", filesJson: "{}", editorJson: "{}", createdAt: new Date(),
+    });
+
+    // Insert open conflict
+    const conflictId = crypto.randomUUID();
+    await db.insert(packConflicts).values({
+      id: conflictId, serverId: serverKeyId, packId: "p_with_conflict",
+      diskFilesJson: "{}", diskHash: "d", lastSyncedHash: "", backendHashAtDetection: "h",
+      detectedAt: new Date(),
+    });
+
+    // Create session
+    const accessToken = `acc_${crypto.randomUUID()}`;
+    await db.insert(editorSessions).values({
+      token: `etok_${crypto.randomUUID()}`,
+      serverKeyId,
+      createdBy: "test",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 86400_000),
+      exchangedAt: new Date(),
+      accessToken,
+      accessExpiresAt: new Date(Date.now() + 86400_000),
+    });
+
+    const res = await app.request(`/api/editor-session/${accessToken}/packs/p_with_conflict`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(200);
+
+    const rows = await db.select().from(packConflicts).where(eq(packConflicts.id, conflictId));
+    expect(rows[0].resolvedAt).not.toBeNull();
+    expect(rows[0].resolution).toBe("editor");
+  });
 });
