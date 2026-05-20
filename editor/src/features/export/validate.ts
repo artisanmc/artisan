@@ -27,6 +27,10 @@ export function validate(pack: Pack): ValidationResult {
               if (!handler) continue;
               for (const action of walkActions(handler.steps)) {
                 if (action.type === "send_message") referencedKeys.add(action.text.key);
+                else if (action.type === "show_title") {
+                  referencedKeys.add(action.title.key);
+                  if (action.subtitle) referencedKeys.add(action.subtitle.key);
+                }
               }
             }
           }
@@ -37,6 +41,10 @@ export function validate(pack: Pack): ValidationResult {
   for (const cmd of pack.commands) {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "send_message") referencedKeys.add(action.text.key);
+      else if (action.type === "show_title") {
+        referencedKeys.add(action.title.key);
+        if (action.subtitle) referencedKeys.add(action.subtitle.key);
+      }
     }
   }
 
