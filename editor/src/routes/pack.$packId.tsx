@@ -26,7 +26,8 @@ import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
 import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
-import { deployPack, getDeployedPack, DeployError } from "@/lib/packApi";
+import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
+import { useAssetStore } from "@/features/assets/assetStore";
 import { listConflicts } from "@/lib/api/conflicts";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -607,6 +608,46 @@ function UndoRedoButtons() {
   );
 }
 
+/**
+ * MC font rendering: glyph_top_ingame = 13 - ascent (empirically confirmed).
+ * For editor layer.y to equal glyph_top_ingame:
+ *   desiredAscent = 13 - layer.y = TITLE_LABEL_Y - layer.y.
+ * Must match the constant in LayerEditForm.tsx.
+ */
+const TITLE_LABEL_Y = 13;
+
+/**
+ * Before deploying, ensure every glyph layer's asset.ascent is in sync with
+ * its layer.y (ascent = TITLE_LABEL_Y - layer.y). This is the ONLY moment we
+ * PATCH assets and rebuild the resource pack — we deliberately skip this on
+ * every drag to avoid triggering a RP rebuild on every mouse move.
+ *
+ * If an asset is reused across multiple layers at different y positions, the
+ * last value wins (known limitation until per-layer ascent is supported).
+ */
+async function syncGlyphAscents(pack: Pack, token: string): Promise<void> {
+  const assets = useAssetStore.getState().assets;
+  const patches: Promise<void>[] = [];
+  const seen = new Set<string>();
+
+  for (const menu of pack.menus) {
+    for (const layer of menu.title) {
+      if (layer.kind !== "glyph") continue;
+      const asset = assets.find((a) => a.id === layer.assetId);
+      if (!asset) continue;
+      const desiredAscent = TITLE_LABEL_Y - layer.y;
+      if (asset.ascent === desiredAscent || seen.has(asset.id)) continue;
+      seen.add(asset.id);
+      patches.push(
+        updateAsset(token, asset.id, { ascent: desiredAscent }).then((updated) => {
+          useAssetStore.getState().upsertAsset(updated);
+        }),
+      );
+    }
+  }
+  await Promise.all(patches);
+}
+
 function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
   const token = useSessionStore((s) => s.accessToken);
   const replacePack = useAccountStore((s) => s.replacePack);
@@ -619,6 +660,8 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
     if (!token || isPublishDisabled) return;
     setDeploying(true);
     try {
+      // Sync glyph ascents first (this rebuilds the RP for correct Y positions).
+      await syncGlyphAscents(pack, token);
       const cloned = structuredClone(pack);
       for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
       for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);

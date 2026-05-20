@@ -29,7 +29,8 @@ export function MiniMessageKonvaText({
   listening = false,
 }: MiniMessageKonvaTextProps) {
   const segments = parseMiniMessage(source);
-  const charWidth = fontSize * 0.6;
+  // MC default font: ~6px advance per 8px-tall glyph → 0.75 ratio.
+  const charWidth = fontSize * 0.75;
   let cursor = 0;
 
   return (

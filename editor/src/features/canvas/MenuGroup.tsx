@@ -267,6 +267,11 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       // clicking the title-bar backdrop (handled by TitleRender) would update
       // it. Mirroring the call here covers every menu hit area.
       useUiStore.getState().setSelectedMenuId(menu.id);
+      // Clicking anywhere on the menu body (slots, backdrop, another menu)
+      // clears any active title-layer selection. The layer edit panel stays
+      // visible until the next menu change; only the interactive selection
+      // (drag/resize) is cleared.
+      useUiStore.getState().setSelectedLayerKey(null);
 
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, set, toggle } = useSelectionStore.getState();

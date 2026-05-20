@@ -23,6 +23,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@tanstack/react-router": "^1.168.26",
+    "@tanstack/react-virtual": "^3.13.24",
     "@types/three": "^0.184.1",
     "@uiw/react-codemirror": "^4.25.9",
     "class-variance-authority": "^0.7.1",

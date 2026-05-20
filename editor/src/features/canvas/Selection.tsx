@@ -36,6 +36,12 @@ export function Selection({ stageRef }: SelectionProps) {
       ref={transformerRef}
       enabledAnchors={[]}
       rotateEnabled={false}
+      // listening=false: the Transformer is purely visual — it must not
+      // intercept pointer events. Without this, the Transformer's bounding
+      // box (overlay layer, topmost) intercepts clicks intended for the
+      // underlying node and enables group-drag that moves all selected
+      // entities together, even when only one was intended to be moved.
+      listening={false}
       borderStroke="#22c55e"
       borderStrokeWidth={1}
       borderDash={[4, 4]}
