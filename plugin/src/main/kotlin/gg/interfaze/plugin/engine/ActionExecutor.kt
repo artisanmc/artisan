@@ -2,6 +2,8 @@ package gg.interfaze.plugin.engine
 
 import gg.interfaze.plugin.provider.MenuProvider
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.title.Title
+import java.time.Duration
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -118,7 +120,17 @@ class ActionExecutor(
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext, is Action.PaginationPrev -> Unit
-            is Action.ShowTitle -> Unit  // TODO: implement in Task 3
+            is Action.ShowTitle -> {
+                val titleComponent    = mm.deserialize(resolveText(action.title, ctx))
+                val subtitleComponent = action.subtitle?.let { mm.deserialize(resolveText(it, ctx)) }
+                                            ?: net.kyori.adventure.text.Component.empty()
+                val times = Title.Times.times(
+                    Duration.ofMillis(action.fadeIn  * 50L),  // 1 tick = 50ms
+                    Duration.ofMillis(action.stay    * 50L),
+                    Duration.ofMillis(action.fadeOut * 50L),
+                )
+                player.showTitle(Title.title(titleComponent, subtitleComponent, times))
+            }
         }
     }
 }
