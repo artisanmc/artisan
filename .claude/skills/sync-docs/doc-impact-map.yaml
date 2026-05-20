@@ -53,3 +53,18 @@ mappings:
       - "CLAUDE.md"
       - "docs-site/src/content/docs/contributing/"
     reason: "Stack layout (contributing guide when filled, CLAUDE.md commands section)"
+
+  - touches: "backend/src/routes/auth.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Auth endpoints (Auth section in CLAUDE.md)"
+
+  - touches: "backend/src/routes/discordOauth.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Discord OAuth endpoints (Auth section in CLAUDE.md)"
+
+  - touches: "backend/src/lib/sessionManager.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Session lifecycle / cookie semantics"
