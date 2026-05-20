@@ -40,9 +40,10 @@ export function buildAssetIndex(assets: AssetRow[]): AssetIndex {
       ascent: a.ascent,
       height: a.height,
     };
-    if (typeof a.width === "number") {
-      entry.width = a.width;
-    }
+    // Prefer contentWidth (rightmost non-transparent column + 1) over the PNG header
+    // width — it matches the advance MC's bitmap font uses (before the +1 spacing pixel),
+    // so TitleCompiler.estimateBodyWidth stays in sync with the actual MC cursor advance.
+    entry.width = a.contentWidth ?? a.width;
     if (a.type === "glyph" && a.codepoint !== null && a.codepoint !== undefined) {
       entry.codepoint = a.codepoint;
     }
