@@ -123,3 +123,12 @@ export const discordAccounts = pgTable("discord_accounts", {
 }, (t) => [
   uniqueIndex("discord_accounts_userid_uniq").on(t.userId),
 ]);
+
+export const networks = pgTable("networks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  tier: text("tier").notNull().default("free"),
+  subscriptionId: text("subscription_id"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
