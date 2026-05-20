@@ -143,3 +143,74 @@ describe("POST /api/auth/login", () => {
     await cleanupByEmail(email);
   });
 });
+
+describe("POST /api/auth/logout", () => {
+  test("destroys session and clears cookie", async () => {
+    const email = `lo_${Date.now()}@example.com`;
+    await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw", name: "Lo" }),
+    }));
+    const loginRes = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw" }),
+    }));
+    const cookieRaw = loginRes.headers.get("Set-Cookie") ?? "";
+    const sessionId = /ifz_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
+    expect(sessionId).toBeTruthy();
+
+    const res = await app.fetch(new Request("http://x/api/auth/logout", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Set-Cookie") ?? "").toMatch(/ifz_user_session=;.*Max-Age=0|ifz_user_session=;.*expires=/i);
+
+    const remain = await db.select().from(userSessions).where(eq(userSessions.id, sessionId));
+    expect(remain).toHaveLength(0);
+    await cleanupByEmail(email);
+  });
+
+  test("returns 204 even without cookie (idempotent)", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/logout", { method: "POST" }));
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("GET /api/auth/me", () => {
+  test("returns the user when cookie is valid", async () => {
+    const email = `me_${Date.now()}@example.com`;
+    await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw", name: "Me" }),
+    }));
+    const loginRes = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw" }),
+    }));
+    const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+
+    const res = await app.fetch(new Request("http://x/api/auth/me", {
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).user.email).toBe(email);
+    await cleanupByEmail(email);
+  });
+
+  test("returns 401 without cookie", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/me"));
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 401 with bogus cookie", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/me", {
+      headers: { Cookie: "ifz_user_session=does-not-exist" },
+    }));
+    expect(res.status).toBe(401);
+  });
+});
