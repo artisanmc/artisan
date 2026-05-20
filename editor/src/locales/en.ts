@@ -545,4 +545,27 @@ export default {
       },
     },
   },
+  auth: {
+    signupTitle: "Create your account",
+    loginTitle: "Sign in",
+    email: "Email",
+    password: "Password",
+    name: "Name",
+    signupSubmit: "Sign up",
+    loginSubmit: "Sign in",
+    logout: "Sign out",
+    discordButton: "Continue with Discord",
+    errors: {
+      email_taken: "An account with this email already exists.",
+      invalid_credentials: "Wrong email or password.",
+      invalid_email: "Email looks malformed.",
+      weak_password: "Password must be at least 8 characters.",
+      network: "Couldn't reach the server. Please retry.",
+      unknown: "Something went wrong. Please retry.",
+    },
+    account: {
+      title: "Your account",
+      signedInAs: "Signed in as",
+    },
+  },
 };

@@ -553,5 +553,28 @@ const fr: typeof en = {
       },
     },
   },
+  auth: {
+    signupTitle: "Créer ton compte",
+    loginTitle: "Connexion",
+    email: "Email",
+    password: "Mot de passe",
+    name: "Nom",
+    signupSubmit: "S'inscrire",
+    loginSubmit: "Se connecter",
+    logout: "Déconnexion",
+    discordButton: "Continuer avec Discord",
+    errors: {
+      email_taken: "Un compte existe déjà avec cet email.",
+      invalid_credentials: "Email ou mot de passe incorrect.",
+      invalid_email: "Email mal formé.",
+      weak_password: "Le mot de passe doit faire au moins 8 caractères.",
+      network: "Impossible de joindre le serveur, réessaie.",
+      unknown: "Une erreur est survenue, réessaie.",
+    },
+    account: {
+      title: "Ton compte",
+      signedInAs: "Connecté en tant que",
+    },
+  },
 };
 export default fr;
