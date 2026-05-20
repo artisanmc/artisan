@@ -2,6 +2,7 @@ package gg.interfaze.plugin.engine
 
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 
 class VaultProvider(private val economy: Economy) {
@@ -48,18 +49,95 @@ class WorldGuardProvider {
     }
 }
 
+// ─── Custom item stack renderers ────────────────────────────────────────────
+
+class NexoItemRenderer {
+    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
+        val nexoItems = Class.forName("com.nexomc.nexo.api.NexoItems")
+        val builder = nexoItems.getMethod("itemFromId", String::class.java).invoke(null, id)
+            ?: return@runCatching null
+        (builder.javaClass.getMethod("getFinalItemStack").invoke(builder) as ItemStack)
+            .clone().also { it.amount = count.coerceAtLeast(1) }
+    }.getOrNull()
+
+    companion object {
+        fun tryInit(): NexoItemRenderer? = runCatching {
+            Class.forName("com.nexomc.nexo.api.NexoItems")
+            NexoItemRenderer()
+        }.getOrNull()
+    }
+}
+
+class OraxenItemRenderer {
+    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
+        val oraxenItems = Class.forName("io.th0rgal.oraxen.api.OraxenItems")
+        val builder = oraxenItems.getMethod("getItemById", String::class.java).invoke(null, id)
+            ?: return@runCatching null
+        (builder.javaClass.getMethod("build").invoke(builder) as ItemStack)
+            .also { it.amount = count.coerceAtLeast(1) }
+    }.getOrNull()
+
+    companion object {
+        fun tryInit(): OraxenItemRenderer? = runCatching {
+            Class.forName("io.th0rgal.oraxen.api.OraxenItems")
+            OraxenItemRenderer()
+        }.getOrNull()
+    }
+}
+
+class ItemsAdderItemRenderer {
+    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
+        val customStack = Class.forName("dev.lone.itemsadder.api.CustomStack")
+        val instance = customStack.getMethod("getInstance", String::class.java).invoke(null, id)
+            ?: return@runCatching null
+        (instance.javaClass.getMethod("getItemStack").invoke(instance) as ItemStack)
+            .clone().also { it.amount = count.coerceAtLeast(1) }
+    }.getOrNull()
+
+    companion object {
+        fun tryInit(): ItemsAdderItemRenderer? = runCatching {
+            Class.forName("dev.lone.itemsadder.api.CustomStack")
+            ItemsAdderItemRenderer()
+        }.getOrNull()
+    }
+}
+
+// ─── Registry ────────────────────────────────────────────────────────────────
+
 class SoftDepRegistry(
     val vault: VaultProvider?,
     val papi: PapiProvider?,
     val worldGuard: WorldGuardProvider?,
+    val nexoItems: NexoItemRenderer?,
+    val oraxenItems: OraxenItemRenderer?,
+    val itemsAdderItems: ItemsAdderItemRenderer?,
 ) {
     constructor(plugin: JavaPlugin) : this(
-        vault      = VaultProvider.tryInit(plugin),
-        papi       = PapiProvider.tryInit(),
-        worldGuard = WorldGuardProvider.tryInit(),
+        vault           = VaultProvider.tryInit(plugin),
+        papi            = PapiProvider.tryInit(),
+        worldGuard      = WorldGuardProvider.tryInit(),
+        nexoItems       = NexoItemRenderer.tryInit(),
+        oraxenItems     = OraxenItemRenderer.tryInit(),
+        itemsAdderItems = ItemsAdderItemRenderer.tryInit(),
     )
 
+    fun buildCustomStack(material: String, count: Int): ItemStack? {
+        val colon = material.indexOf(':')
+        if (colon < 0) return null
+        val ns = material.substring(0, colon)
+        val id = material.substring(colon + 1)
+        return when (ns) {
+            "nexo"       -> nexoItems?.buildStack(id, count)
+            "oraxen"     -> oraxenItems?.buildStack(id, count)
+            "itemsadder" -> itemsAdderItems?.buildStack(id, count)
+            else         -> null
+        }
+    }
+
     companion object {
-        val EMPTY = SoftDepRegistry(vault = null, papi = null, worldGuard = null)
+        val EMPTY = SoftDepRegistry(
+            vault = null, papi = null, worldGuard = null,
+            nexoItems = null, oraxenItems = null, itemsAdderItems = null,
+        )
     }
 }
