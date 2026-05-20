@@ -120,6 +120,18 @@ function PackCanvasPage() {
     listConflicts(apiUrl, token).then(setConflicts).catch(() => {});
   }, [apiUrl, token, setConflicts]);
 
+  // Navigate away if the currently-viewed pack is deleted from the server.
+  useEffect(() => {
+    function onPackDeleted(e: Event) {
+      const ev = e as CustomEvent<{ packId: string }>;
+      if (ev.detail?.packId === pId) {
+        navigate({ to: "/" });
+      }
+    }
+    window.addEventListener("ifz:pack_deleted", onPackDeleted);
+    return () => window.removeEventListener("ifz:pack_deleted", onPackDeleted);
+  }, [pId, navigate]);
+
   // After a page reload the Zustand store is empty — bounce to /session so
   // the cookie-based refresh can re-establish the session silently.
   if (!token) return <Navigate to="/session" replace />;
