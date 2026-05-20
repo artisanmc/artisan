@@ -11,6 +11,8 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "cmd";
     case "send_message":
       return "msg";
+    case "show_title":
+      return "title";
     case "give_item":
       return "give";
     case "take_money":
