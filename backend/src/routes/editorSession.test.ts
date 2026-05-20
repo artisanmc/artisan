@@ -482,6 +482,33 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
     expect(typeof body.hash).toBe("string");
   });
 
+  test("201 auto-creates pack+binding when pack does not exist yet", async () => {
+    const { token } = await createTrustedSession();
+    const res = await app.request(`/api/editor-session/${token}/packs/p_new_deploy/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: { id: "p_new_deploy", name: "New" }, files: { "manifest.yaml": "" } }),
+    });
+    expect(res.status).toBe(201);
+    // Pack and binding should now exist in DB
+    const packRows = await db.select().from(packs).where(eq(packs.id, "p_new_deploy"));
+    expect(packRows.length).toBe(1);
+    const bindingRows = await db.select().from(packBindings).where(eq(packBindings.packId, "p_new_deploy"));
+    expect(bindingRows.length).toBe(1);
+  });
+
+  test("sets deployedEditorJson after deploy (not just editorJson)", async () => {
+    const { token } = await createTrustedSession();
+    await app.request(`/api/editor-session/${token}/packs/p_chk_deployed/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: { id: "p_chk_deployed", name: "Check" }, files: { "manifest.yaml": "" } }),
+    });
+    const rows = await db.select().from(packs).where(eq(packs.id, "p_chk_deployed"));
+    expect(rows[0].deployedEditorJson).not.toBeNull();
+    expect(rows[0].editorJson).not.toBeNull();
+  });
+
   test("401 for invalid token", async () => {
     const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deploy", {
       method: "POST",
