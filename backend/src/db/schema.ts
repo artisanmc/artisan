@@ -132,3 +132,14 @@ export const networks = pgTable("networks", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const memberships = pgTable("memberships", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+}, (t) => [
+  uniqueIndex("memberships_user_network_uniq").on(t.userId, t.networkId),
+  index("memberships_network_idx").on(t.networkId),
+]);
