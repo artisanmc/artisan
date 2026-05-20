@@ -3,13 +3,15 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, packBundles, packConflicts } from "../db/schema";
+import { editorSessions, packConflicts, packs, serverKeys } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, pushPackDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { readEditorLayoutFromFiles } from "../lib/packImport";
+import { listPacksForServerKey, createBinding } from "../lib/packBindingManager";
+import { getPack, upsertPackContent, createPack, softDeletePack } from "../lib/packStorage";
 
 function buildEditorJsonWithLayout(rawPack: unknown, files: Record<string, string>, packId: string): string {
   // Spread to a fresh object — mutating rawPack in place is a footgun for any
@@ -110,60 +112,56 @@ router.delete("/:token", async (c) => {
 });
 
 router.get("/:token/packs", async (c) => {
-  const token = c.req.param("token");
-  const session = await validateAccessToken(token);
+  const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-
-  const rows = await db
-    .select()
-    .from(packBundles)
-    .where(and(eq(packBundles.serverId, session.serverKeyId), isNull(packBundles.deletedAt)));
-
-  const packs = rows
-    .filter((r) => r.editorJson != null)
-    .map((r) => JSON.parse(r.editorJson!));
-
-  return c.json({ packs });
+  const packList = await listPacksForServerKey(session.serverKeyId);
+  return c.json({
+    packs: packList.map((p) => ({
+      pack_id: p.id,
+      name: p.name,
+      hash: p.hash,
+      files: JSON.parse(p.filesJson),
+      editor: p.editorJson ? JSON.parse(p.editorJson) : null,
+    })),
+  });
 });
 
 router.put("/:token/packs/:packId", async (c) => {
-  const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const session = await validateAccessToken(token);
+  const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   if (body.pack == null || typeof body.pack !== "object") {
     return c.json({ error: "missing_or_invalid_pack" }, 400);
   }
+
+  // server_key → network → pack must be in same network
+  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, session.serverKeyId));
+  if (skRows.length === 0) return c.json({ error: "Server key missing" }, 500);
+  const sk = skRows[0];
+
+  let pack = await getPack(packId);
+  if (!pack) {
+    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
+    await createBinding(session.serverKeyId, packId);
+  } else if (pack.networkId !== sk.networkId) {
+    return c.json({ error: "Cross-network pack" }, 403);
+  }
+
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
   const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
 
-  // UPSERT: prior delete+insert pattern raced under concurrent saves
-  // (autosave PUT + explicit POST /deploy). Each transaction would
-  // delete (one no-op), then both INSERTs collided on server_pack_uniq.
-  await db.insert(packBundles).values({
-    id: crypto.randomUUID(),
-    serverId: session.serverKeyId,
-    packId,
-    hash,
-    filesJson,
-    editorJson,
-    createdAt: new Date(),
-  }).onConflictDoUpdate({
-    target: [packBundles.serverId, packBundles.packId],
-    set: { hash, filesJson, editorJson, createdAt: new Date() },
-  });
+  await upsertPackContent(packId, { hash, filesJson, editorJson });
 
   return c.json({ hash }, 201);
 });
 
 router.post("/:token/packs/:packId/deploy", async (c) => {
-  const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const session = await validateAccessToken(token);
+  const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
 
   if (!session.trusted) return c.json({ error: "session_not_trusted" }, 403);
   if (session.trustedIp !== clientIp(c)) return c.json({ error: "session_not_trusted" }, 403);
@@ -172,84 +170,58 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   if (body.pack == null || typeof body.pack !== "object") {
     return c.json({ error: "missing_or_invalid_pack" }, 400);
   }
+
+  // server_key → network → pack must be in same network
+  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, session.serverKeyId));
+  if (skRows.length === 0) return c.json({ error: "Server key missing" }, 500);
+  const sk = skRows[0];
+
+  let pack = await getPack(packId);
+  if (!pack) {
+    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
+    await createBinding(session.serverKeyId, packId);
+  } else if (pack.networkId !== sk.networkId) {
+    return c.json({ error: "Cross-network pack" }, 403);
+  }
+
   const hash = await computeBundleHash(body.files, packId);
   const filesJson = JSON.stringify(body.files);
   const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
 
-  await db.insert(packBundles).values({
-    id: crypto.randomUUID(),
-    serverId: session.serverKeyId,
-    packId,
+  await upsertPackContent(packId, {
     hash,
     filesJson,
     editorJson,
     deployedEditorJson: editorJson,
-    createdAt: new Date(),
-  }).onConflictDoUpdate({
-    target: [packBundles.serverId, packBundles.packId],
-    set: {
-      hash,
-      filesJson,
-      editorJson,
-      deployedEditorJson: editorJson,
-      createdAt: new Date(),
-    },
   });
 
+  // TODO(F2): drop serverKeyId arg — pushBundleAvailable will resolve server_keys via packBindings
   await pushBundleAvailable(session.serverKeyId, packId, hash);
   return c.json({ hash }, 201);
 });
 
 router.get("/:token/packs/:packId/deployed", async (c) => {
-  const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const session = await validateAccessToken(token);
+  const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-
-  const rows = await db
-    .select()
-    .from(packBundles)
-    .where(and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId)));
-
-  if (rows.length === 0 || rows[0].deployedEditorJson == null) {
-    return c.json({ pack: null });
-  }
-  return c.json({ pack: JSON.parse(rows[0].deployedEditorJson) });
+  const pack = await getPack(c.req.param("packId"));
+  if (!pack || !pack.deployedEditorJson) return c.json({ deployed: null });
+  return c.json({ deployed: JSON.parse(pack.deployedEditorJson) });
 });
 
 router.delete("/:token/packs/:packId", async (c) => {
-  const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const session = await validateAccessToken(token);
+  const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const pack = await getPack(packId);
+  if (!pack || pack.deletedAt) return c.json({ error: "Not found" }, 404);
 
-  const now = new Date();
-  const result = await db.transaction(async (tx) => {
-    const updated = await tx.update(packBundles)
-      .set({ deletedAt: now })
-      .where(and(
-        eq(packBundles.serverId, session.serverKeyId),
-        eq(packBundles.packId, packId),
-        isNull(packBundles.deletedAt),
-      ))
-      .returning({ id: packBundles.id });
-    if (updated.length === 0) return null;
+  await softDeletePack(packId);
+  await db.update(packConflicts)
+    .set({ resolvedAt: new Date(), resolution: "editor" })
+    .where(and(eq(packConflicts.packId, packId), isNull(packConflicts.resolvedAt)));
 
-    // Auto-resolve any open conflict for this pack as "editor"
-    await tx.update(packConflicts)
-      .set({ resolvedAt: now, resolution: "editor" })
-      .where(and(
-        eq(packConflicts.serverId, session.serverKeyId),
-        eq(packConflicts.packId, packId),
-        isNull(packConflicts.resolvedAt),
-      ));
-    return updated[0];
-  });
-
-  if (!result) return c.json({ error: "Not found" }, 404);
-
+  // TODO(F2): drop serverKeyId arg — pushPackDeleted will resolve server_keys via packBindings
   pushPackDeleted(session.serverKeyId, packId);
-
   return c.json({ deleted: true });
 });
 
