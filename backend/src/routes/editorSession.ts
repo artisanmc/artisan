@@ -196,7 +196,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     },
   });
 
-  pushBundleAvailable(session.serverKeyId, packId, hash);
+  await pushBundleAvailable(session.serverKeyId, packId, hash);
   return c.json({ hash }, 201);
 });
 
