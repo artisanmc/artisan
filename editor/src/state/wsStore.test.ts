@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { useConflictsStore } from "./conflictsStore";
 
 describe("useWsStore", () => {
   it("sets connected + serverId + apiUrl when hello_ack received", () => {
@@ -29,5 +30,14 @@ describe("useWsStore", () => {
     expect(state.connected).toBe(true);
     expect(state.serverId).toBe("srv1");
     expect(state.apiUrl).toBe("http://localhost:3001");
+  });
+});
+
+describe("wsStore routing of conflict messages", () => {
+  it("removes conflict from store on remove() call", async () => {
+    useConflictsStore.setState({ conflicts: [{ id: "cx", packId: "p" } as any] });
+    const { useConflictsStore: imported } = await import("./conflictsStore");
+    imported.getState().remove("cx");
+    expect(imported.getState().conflicts.length).toBe(0);
   });
 });
