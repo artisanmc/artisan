@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { userSessions } from "../db/schema";
 
@@ -29,4 +30,22 @@ export async function createSession(userId: string): Promise<UserSessionRow> {
   };
   await db.insert(userSessions).values(row);
   return row;
+}
+
+export async function findSession(id: string): Promise<UserSessionRow | null> {
+  const rows = await db.select().from(userSessions).where(eq(userSessions.id, id));
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (row.expiresAt < new Date()) return null;
+  return row;
+}
+
+export async function touchSession(id: string): Promise<void> {
+  await db.update(userSessions)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(userSessions.id, id));
+}
+
+export async function destroySession(id: string): Promise<void> {
+  await db.delete(userSessions).where(eq(userSessions.id, id));
 }
