@@ -38,3 +38,26 @@ describe("GET /api/auth/discord/start", () => {
     }
   });
 });
+
+describe("GET /api/auth/discord/callback (invalid state)", () => {
+  test("400 when state cookie missing", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid_state");
+  });
+
+  test("400 when state mismatches", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=mismatch", {
+      headers: { Cookie: "ifz_oauth_state=actual" },
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  test("400 when code is missing", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?state=s", {
+      headers: { Cookie: "ifz_oauth_state=s" },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("missing_code");
+  });
+});
