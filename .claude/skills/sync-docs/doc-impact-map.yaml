@@ -1,0 +1,55 @@
+# doc-impact-map.yaml — source of truth for which docs to update
+# when which source files change. Used by the /sync-docs skill.
+#
+# Patterns: minimatch-style globs. ** = recursive wildcard.
+
+mappings:
+  - touches: "plugin/src/main/resources/config.yml"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "User-visible plugin config (Reference + Config sections)"
+
+  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "CLAUDE.md"
+    reason: "User-visible commands (table in install-admin + plugin section in CLAUDE.md)"
+
+  - touches: "plugin/src/main/kotlin/**/ResourcePackDelegator.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "CLAUDE.md"
+    reason: "Resource pack distribution mode (Resource pack section)"
+
+  - touches: "plugin/src/main/kotlin/**/PluginConfig.kt"
+    updates:
+      - "docs-site/src/content/docs/getting-started/install-admin.md"
+    reason: "Plugin config schema / defaults"
+
+  - touches: "backend/src/lib/hub.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "WS protocol (AI-facing only — no user-visible surface)"
+
+  - touches: "backend/src/db/schema.ts"
+    updates:
+      - "CONTEXT.md"
+      - "CLAUDE.md"
+    reason: "Domain entities — may shift glossary or AI architecture notes"
+
+  - touches: "editor/src/features/canvas/**"
+    updates:
+      - "docs-site/src/content/docs/editor/"
+      - "CLAUDE.md"
+    reason: "User-visible editor UX (editor section + CLAUDE.md ops/UI notes)"
+
+  - touches: ".env.example"
+    updates:
+      - "CLAUDE.md"
+    reason: "Environment variables table"
+
+  - touches: "docker-compose.yml"
+    updates:
+      - "CLAUDE.md"
+      - "docs-site/src/content/docs/contributing/"
+    reason: "Stack layout (contributing guide when filled, CLAUDE.md commands section)"
