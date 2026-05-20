@@ -111,7 +111,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | Message | Sens | Contenu clé |
 |---|---|---|
 | `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
-| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null` |
+| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
 | `editor_session_request` | plugin → backend | `sender` |
@@ -125,6 +125,10 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
 | `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
 | `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
+| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — émis au boot/`/ifz reload` pour les packs en LOCAL_ONLY/CONFLICT |
+| `pack_deleted` | backend → plugin | `{ pack_id }` — pack supprimé côté éditeur, le plugin move-to-trash |
+| `pack_conflict_detected` | backend → éditeur | `{ conflict_id, pack_id, detected_at }` |
+| `pack_conflict_resolved` | backend → éditeur | `{ conflict_id, pack_id, resolution }` |
 
 ---
 
@@ -139,6 +143,14 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 **OkHttp thread** — `SyncedMenuProvider.handleMessage` est appelé sur le thread WS callback d'OkHttp. Le download de bundle est dispatché sur `httpClient.dispatcher.executorService`. Ne jamais faire de I/O bloquant dans le callback WS directement.
 
 **Reload atomique** — `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` entier, puis l'assigne à `@Volatile var menus`. Ne jamais modifier le map en place.
+
+**Conflit = freeze** — tant que `pack_conflicts.resolved_at IS NULL` côté backend, aucun `bundle_available` n'est broadcast pour ce `(server_id, pack_id)`. Implémenté dans `pushBundleAvailable` (hub.ts) qui consulte la table en début de fonction. Empêche tout écrasement silencieux pendant qu'une décision est en attente.
+
+**Auto-resolution sur DELETE pack** — `DELETE /api/editor-session/:token/packs/:packId` marque tout conflit ouvert pour ce pack comme `resolution: "editor"` et envoie `pack_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
+
+**`.interfaze-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.interfaze*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
+
+**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.interfaze*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
 
 ---
 
@@ -258,6 +270,10 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `PATCH /api/editor-session/:token/assets/:id` | Renommer / changer ascent / changer height (glyph). Body JSON `{ name?, ascent?, height? }`. Validation `height` : entier, 1 ≤ height ≤ 256, applicable uniquement aux assets `type=glyph`. Après update : rebuild RP + broadcast `resource_pack_updated`. |
 | `POST /api/editor-session/:token/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
 | `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
+| `DELETE /api/editor-session/:token/packs/:packId` | Soft-delete du pack (sets `deletedAt`), auto-résolution de tout conflit ouvert en "editor", broadcast `pack_deleted` au plugin et aux autres éditeurs. 200 `{deleted: true}` ou 404. |
+| `GET /api/editor-session/:token/conflicts` | Liste les conflits ouverts pour le server_key. Retourne `{ conflicts: ConflictSummary[] }` avec diff added/modified/removed. |
+| `GET /api/editor-session/:token/conflicts/:id` | Détail d'un conflit (inclut `diskFiles` complet). 404 si autre server_key. |
+| `POST /api/editor-session/:token/conflicts/:id/resolve` | Body `{ choice: "editor" \| "server" }`. 200 si résolu, 409 si déjà résolu, 401 si token invalide. |
 | `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{server_key_id}/{asset_id}.png`. |
 | `GET /api/textures/asset-font/:asset_id/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{sk}/fonts/{asset_id}/{path}`. Lookup par asset_id (le server_key est lu en DB). 404 si pas un asset font ou path traversal. |
 | `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
@@ -299,9 +315,9 @@ Both delegation modes own the `assets/interfaze/` subtree only — entries outsi
 
 | Scope | Fichiers | Count |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, etc. | 302 pass / 1 pre-existing failure (`link_codes schema`) |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, `ManifestYamlIgnoresEditorLayoutTest`, etc. | 352 (351 pass + 1 ignored) |
-| Editor unit | Vitest, tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), etc. | 706 |
+| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, `conflictDiff.test.ts`, `conflicts.test.ts`, etc. | 308 total — 246 pass sans PostgreSQL (tests DB-dépendants échouent sans instance) |
+| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest`, `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, `ManifestYamlIgnoresEditorLayoutTest`, `PackDeleterTest`, `PackDeletionIntegrationTest`, etc. | 357 (356 pass + 1 ignored) |
+| Editor unit | Vitest, tests couvrant expr DSL, canvas, export, i18n, custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, etc. | 711 |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
