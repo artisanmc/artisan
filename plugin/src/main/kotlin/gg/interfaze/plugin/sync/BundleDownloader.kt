@@ -63,14 +63,22 @@ class BundleDownloader(
             .filter { !it.name.startsWith(".interfaze") }
             .forEach { f ->
                 val relPath = f.relativeTo(packDir).path.replace('\\', '/')
-                if (relPath !in expectedRelPaths) f.delete()
+                if (relPath !in expectedRelPaths) {
+                    if (!f.delete()) {
+                        logger?.warning("Sweep: failed to delete $f (locked or permission denied)")
+                    }
+                }
             }
 
         // 3) Cleanup empty directories bottom-up (but keep packDir itself)
         packDir.walkBottomUp()
             .filter { it.isDirectory && it != packDir }
             .filter { it.list()?.isEmpty() == true }
-            .forEach { it.delete() }
+            .forEach { dir ->
+                if (!dir.delete()) {
+                    logger?.warning("Sweep: failed to delete empty dir $dir")
+                }
+            }
 
         SyncMetadata.recordSync(packDir, syncedHash = BundleHasher.hash(packDir), backendHash = backendHash)
         logger?.info("Bundle synced for pack $packId (${expectedRelPaths.size} files, swept)")
