@@ -311,3 +311,111 @@ describe("pushResourcePackUpdated", () => {
     connToServerId.delete(connB);
   });
 });
+
+describe("pack_divergence_detected", () => {
+  test("upserts pack_conflicts row and notifies editors", async () => {
+    const { db } = await import("../db/index");
+    const { serverKeys, packBundles, packConflicts, editorSessions } = await import("../db/schema");
+    const { and, eq } = await import("drizzle-orm");
+
+    const keyId = crypto.randomUUID();
+    const rawKey = "srv-key-divergence";
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
+    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
+    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "test", createdAt: new Date() });
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(), serverId: keyId, packId: "p_div",
+      hash: "backend_hash_x", filesJson: "{}", editorJson: "{}", createdAt: new Date(),
+    });
+
+    const { handlePluginMessage, connToServerId } = await import("./hub");
+    const connId = crypto.randomUUID();
+    connToServerId.set(connId, keyId);
+
+    const msg = JSON.stringify({
+      type: "pack_divergence_detected",
+      pack_id: "p_div",
+      disk_files: { "menus/m.yaml": "id: m\n" },
+      disk_hash: "disk_hash_y",
+      last_synced_hash: "prev_hash_z",
+    });
+    await handlePluginMessage(connId, msg);
+
+    const rows = await db.select().from(packConflicts).where(and(
+      eq(packConflicts.serverId, keyId),
+      eq(packConflicts.packId, "p_div"),
+    ));
+    expect(rows.length).toBe(1);
+    expect(rows[0].diskHash).toBe("disk_hash_y");
+    expect(rows[0].lastSyncedHash).toBe("prev_hash_z");
+    expect(rows[0].resolvedAt).toBeNull();
+  });
+
+  test("re-detection updates existing open conflict (no second row)", async () => {
+    const { db } = await import("../db/index");
+    const { serverKeys, packBundles, packConflicts } = await import("../db/schema");
+    const { and, eq, isNull } = await import("drizzle-orm");
+
+    const keyId = crypto.randomUUID();
+    const rawKey = "srv-key-redetect";
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
+    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
+    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "redetect", createdAt: new Date() });
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(), serverId: keyId, packId: "p_re",
+      hash: "h", filesJson: "{}", editorJson: "{}", createdAt: new Date(),
+    });
+
+    const { handlePluginMessage, connToServerId } = await import("./hub");
+    const connId = crypto.randomUUID();
+    connToServerId.set(connId, keyId);
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "pack_divergence_detected",
+      pack_id: "p_re", disk_files: { "a": "1" }, disk_hash: "d1", last_synced_hash: "s",
+    }));
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "pack_divergence_detected",
+      pack_id: "p_re", disk_files: { "a": "2" }, disk_hash: "d2", last_synced_hash: "s",
+    }));
+
+    const open = await db.select().from(packConflicts).where(and(
+      eq(packConflicts.serverId, keyId),
+      eq(packConflicts.packId, "p_re"),
+      isNull(packConflicts.resolvedAt),
+    ));
+    expect(open.length).toBe(1);
+    expect(open[0].diskHash).toBe("d2");
+  });
+
+  test("skips upsert when pack is soft-deleted", async () => {
+    const { db } = await import("../db/index");
+    const { serverKeys, packBundles, packConflicts } = await import("../db/schema");
+    const { and, eq } = await import("drizzle-orm");
+
+    const keyId = crypto.randomUUID();
+    const rawKey = "srv-key-del";
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
+    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
+    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "deltest", createdAt: new Date() });
+    await db.insert(packBundles).values({
+      id: crypto.randomUUID(), serverId: keyId, packId: "p_del",
+      hash: "h", filesJson: "{}", editorJson: "{}", deletedAt: new Date(), createdAt: new Date(),
+    });
+
+    const { handlePluginMessage, connToServerId } = await import("./hub");
+    const connId = crypto.randomUUID();
+    connToServerId.set(connId, keyId);
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "pack_divergence_detected",
+      pack_id: "p_del", disk_files: {}, disk_hash: "h", last_synced_hash: "",
+    }));
+
+    const rows = await db.select().from(packConflicts).where(and(
+      eq(packConflicts.serverId, keyId),
+      eq(packConflicts.packId, "p_del"),
+    ));
+    expect(rows.length).toBe(0);
+  });
+});
