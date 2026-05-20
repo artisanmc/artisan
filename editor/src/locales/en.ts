@@ -432,6 +432,16 @@ export default {
       },
     },
   },
+  sync: {
+    deletePackDialog: {
+      title: "Delete pack «{{name}}»?",
+      warning: "This action will remove all menus, dialogs and translations of the pack from every connected Minecraft server. The files will be moved to `plugins/Interfaze/.interfaze-trash/` server-side in case you need to recover them.",
+      conflictWarning: "If a conflict exists for this pack, it will be ignored and the editor will become authoritative.",
+      typePrompt: "To confirm, type the pack name:",
+      cancel: "Cancel",
+      confirm: "Delete",
+    },
+  },
   patterns: {
     title: "Cheat sheet",
     intro: "Click copy on any snippet to use it in your own fields.",
