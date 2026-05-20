@@ -3,7 +3,7 @@ import { setCookie, deleteCookie } from "hono/cookie";
 import { db } from "../db/index";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { hashPassword } from "../lib/passwordHasher";
+import { hashPassword, verifyPassword } from "../lib/passwordHasher";
 import { normalizeEmail } from "../lib/emailNormalizer";
 import { createSession } from "../lib/sessionManager";
 
@@ -51,6 +51,35 @@ router.post("/signup", async (c) => {
   const session = await createSession(id);
   setSessionCookie(c, session.id, session.expiresAt);
   return c.json({ user: { id, email, name: body.name, avatarUrl: null } }, 201);
+});
+
+router.post("/login", async (c) => {
+  const body = await c.req.json().catch(() => null) as
+    | { email?: string; password?: string }
+    | null;
+  if (!body || !body.email || !body.password) {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+  const email = normalizeEmail(body.email);
+  const rows = await db.select().from(users).where(eq(users.email, email));
+  if (rows.length === 0) {
+    return c.json({ error: "invalid_credentials" }, 401);
+  }
+  const row = rows[0];
+  if (!row.passwordHash) {
+    return c.json({ error: "invalid_credentials" }, 401);
+  }
+  const ok = await verifyPassword(body.password, row.passwordHash);
+  if (!ok) {
+    return c.json({ error: "invalid_credentials" }, 401);
+  }
+  const session = await createSession(row.id);
+  setSessionCookie(c, session.id, session.expiresAt);
+  return c.json({
+    user: {
+      id: row.id, email: row.email, name: row.name, avatarUrl: row.avatarUrl,
+    },
+  });
 });
 
 export { router as authRouter };

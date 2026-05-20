@@ -80,3 +80,66 @@ describe("POST /api/auth/signup", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("POST /api/auth/login", () => {
+  async function createTestUser(email: string, password: string): Promise<void> {
+    await app.fetch(new Request("http://x/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name: "T" }),
+    }));
+  }
+
+  test("logs in with correct credentials, sets cookie", async () => {
+    const email = `login_${Date.now()}@example.com`;
+    await createTestUser(email, "longenoughpw");
+    const res = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Set-Cookie") ?? "").toContain("ifz_user_session=");
+    expect((await res.json()).user.email).toBe(email);
+    await cleanupByEmail(email);
+  });
+
+  test("returns 401 on wrong password", async () => {
+    const email = `wpw_${Date.now()}@example.com`;
+    await createTestUser(email, "longenoughpw");
+    const res = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "wrongpw1234" }),
+    }));
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toBe("invalid_credentials");
+    await cleanupByEmail(email);
+  });
+
+  test("returns 401 on unknown email", async () => {
+    const res = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "nobody@example.com", password: "whatever1234" }),
+    }));
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 401 for Discord-only user (no password)", async () => {
+    const email = `discord_only_${Date.now()}@example.com`;
+    const id = "user_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    const now = new Date();
+    await db.insert(users).values({
+      id, email, name: "DOnly", passwordHash: null,
+      avatarUrl: null, createdAt: now, updatedAt: now,
+    });
+    const res = await app.fetch(new Request("http://x/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "whatever1234" }),
+    }));
+    expect(res.status).toBe(401);
+    await cleanupByEmail(email);
+  });
+});
