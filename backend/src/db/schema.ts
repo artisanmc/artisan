@@ -23,20 +23,6 @@ export const serverKeys = pgTable("server_keys", {
   index("server_keys_network_idx").on(t.networkId),
 ]);
 
-export const packBundles = pgTable("pack_bundles", {
-  id: text("id").primaryKey(),
-  serverId: text("server_id").notNull(),
-  packId: text("pack_id").notNull(),
-  hash: text("hash").notNull(),
-  filesJson: text("files_json").notNull(),
-  editorJson: text("editor_json"),
-  deployedEditorJson: text("deployed_editor_json"),
-  deletedAt: timestamp("deleted_at"),
-  createdAt: timestamp("created_at").notNull(),
-}, (t) => [
-  uniqueIndex("server_pack_uniq").on(t.serverId, t.packId),
-]);
-
 export const linkCodes = pgTable("link_codes", {
   code: text("code").primaryKey(),
   createdAt: timestamp("created_at").notNull(),
@@ -159,7 +145,7 @@ export const assets = pgTable("assets", {
 export const packConflicts = pgTable("pack_conflicts", {
   id: text("id").primaryKey(),
   serverId: text("server_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
-  packId: text("pack_id").notNull(),
+  packId: text("pack_id").notNull(),  // no FK yet — Plan 1C will drop pack_conflicts entirely
   diskFilesJson: text("disk_files_json").notNull(),
   diskHash: text("disk_hash").notNull(),
   lastSyncedHash: text("last_synced_hash").notNull(),
