@@ -23,14 +23,29 @@ resource-pack:
   prompt: "<gold>Pack Interfaze</gold>"
   send-on-join: true
   send-delay-ticks: 20
-  # When set, Interfaze stops pushing its own RP to players and extracts its
-  # pack contents into this directory. The admin configures the host RP
-  # plugin (Oraxen / Nexo / ItemsAdder / etc.) to read from this path, then
-  # runs the host's reload command after every Interfaze update.
+  # When set, Interfaze stops pushing its own RP to players and writes its
+  # pack contents to this path. The admin configures the host RP plugin
+  # (Oraxen / Nexo / ItemsAdder / etc.) to read from it.
   #
-  # Path is filesystem-absolute or relative to the server root. Interfaze
-  # owns the `assets/interfaze/` subtree inside it and wipes it before
-  # every extraction. Other files in the dir are left untouched.
+  # Output shape depends on the path suffix:
+  #   - `<path>.zip`  → single zip file with `assets/interfaze/*` and a
+  #                     minimal pack.mcmeta. **Use this with Nexo's
+  #                     pack/external_packs/** — its directory scanner skips
+  #                     PNGs for non-vanilla namespaces, the zip-merger does
+  #                     not.
+  #   - `<path>`      → directory; Interfaze writes under
+  #                     `<path>/assets/interfaze/` (wiped before each update).
+  #
+  # Path is filesystem-absolute or relative to the server root.
+  #
+  # Nexo example:
+  #   delegate-to-dir: "plugins/Nexo/pack/external_packs/interfaze.zip"
+  #   delegate-reload-command: "n reload"
   #
   # Default: empty (legacy mode — Interfaze pushes its own RP to players).
   delegate-to-dir: ""
+  # Optional: command dispatched on the console after each pack update.
+  # Use this to auto-reload the host RP plugin so players don't see missing
+  # glyphs until they manually rejoin. Examples: "n reload" (Nexo),
+  # "oraxen reload pack" (Oraxen).
+  delegate-reload-command: ""

@@ -11,7 +11,7 @@ class ConditionParserTest {
 
     @Test fun `parse has_permission`() {
         assertEquals(Condition.HasPermission("admin.use"),
-            ConditionParser.parse(mapOf("type" to "has_permission", "permission" to "admin.use")))
+            ConditionParser.parse(mapOf("type" to "has_permission", "perm" to "admin.use")))
     }
 
     @Test fun `parse has_money`() {
@@ -81,7 +81,7 @@ class ConditionParserTest {
     @Test fun `parse not wraps inner condition`() {
         val c = ConditionParser.parse(mapOf(
             "type" to "not",
-            "of"   to mapOf("type" to "has_permission", "permission" to "foo"),
+            "of"   to mapOf("type" to "has_permission", "perm" to "foo"),
         ))
         assertEquals(Condition.Not(Condition.HasPermission("foo")), c)
     }

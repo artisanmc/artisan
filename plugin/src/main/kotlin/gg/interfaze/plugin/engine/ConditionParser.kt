@@ -7,7 +7,7 @@ object ConditionParser {
         val type = raw["type"]?.toString()
             ?: throw IllegalArgumentException("Condition missing 'type' field: $raw")
         return when (type) {
-            "has_permission"     -> Condition.HasPermission(str(raw, "permission"))
+            "has_permission"     -> Condition.HasPermission(str(raw, "perm"))
             "has_money"          -> Condition.HasMoney((raw["amount"] as Number).toDouble(), raw["currency"] as? String)
             "has_item"           -> Condition.HasItem(str(raw, "material"), (raw["count"] as? Number)?.toInt() ?: 1)
             "has_xp"             -> Condition.HasXp((raw["amount"] as Number).toInt())
