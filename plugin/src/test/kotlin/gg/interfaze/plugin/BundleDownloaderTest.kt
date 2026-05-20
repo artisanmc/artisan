@@ -107,4 +107,86 @@ class BundleDownloaderTest {
             assertTrue(!File(packDir, "menus/stale.yaml").exists(), "stale.yaml doit être supprimé")
         }
     }
+
+    @Test
+    fun `sweep preserves dotinterfaze metadata files`() {
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_meta_preserve"
+            val packsDir = Files.createTempDirectory("ifz_meta_preserve_").toFile()
+            val packDir = File(packsDir, packId).also { it.mkdirs() }
+            File(packDir, ".interfaze-sync.yaml").writeText("syncedHash: prev\nbackendHash: prev\n")
+            File(packDir, "menus").mkdirs()
+            File(packDir, "menus/old.yaml").writeText("id: old\n")
+
+            // Bundle vide (admin a tout supprimé)
+            server.enqueue(
+                MockResponse()
+                    .setBody(mapper.writeValueAsString(mapOf("files" to emptyMap<String, String>(), "hash" to "")))
+                    .setHeader("Content-Type", "application/json")
+            )
+
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+
+            assertTrue(File(packDir, ".interfaze-sync.yaml").exists(), "métadonnée préservée")
+            assertTrue(!File(packDir, "menus/old.yaml").exists(), "fichier sweepé")
+        }
+    }
+
+    @Test
+    fun `sweep removes directories that become empty`() {
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_dir_cleanup"
+            val packsDir = Files.createTempDirectory("ifz_dir_").toFile()
+            val packDir = File(packsDir, packId).also { it.mkdirs() }
+            File(packDir, "dialogs").mkdirs()
+            File(packDir, "dialogs/d1.yaml").writeText("id: d1\n")
+            File(packDir, "menus").mkdirs()
+            File(packDir, "menus/m1.yaml").writeText("id: m1\n")
+
+            // Bundle ne garde que menus/m1.yaml — dialogs/ doit disparaitre
+            val files = mapOf(
+                "plugins/Interfaze/packs/$packId/menus/m1.yaml" to "id: m1\n"
+            )
+            server.enqueue(
+                MockResponse()
+                    .setBody(mapper.writeValueAsString(mapOf("files" to files, "hash" to "x")))
+                    .setHeader("Content-Type", "application/json")
+            )
+
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+
+            assertTrue(!File(packDir, "dialogs").exists(), "dialogs/ doit être supprimé (vide après sweep)")
+            assertTrue(File(packDir, "menus/m1.yaml").exists(), "menus/m1.yaml conservé")
+            assertTrue(File(packDir, "menus").exists(), "menus/ conservé (contient m1)")
+        }
+    }
+
+    @Test
+    fun `download rejects path traversal in file keys`() {
+        MockWebServer().use { server ->
+            server.start()
+            val packId = "p_traversal"
+            val packsDir = Files.createTempDirectory("ifz_trav_").toFile()
+            // Fichier hors du packDir — ne doit JAMAIS être écrit
+            val outsideTarget = File(packsDir, "outside.txt")
+
+            val files = mapOf(
+                "plugins/Interfaze/packs/$packId/../outside.txt" to "pwned"
+            )
+            server.enqueue(
+                MockResponse()
+                    .setBody(mapper.writeValueAsString(mapOf("files" to files, "hash" to "h")))
+                    .setHeader("Content-Type", "application/json")
+            )
+
+            val downloader = BundleDownloader(OkHttpClient(), packsDir)
+            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+
+            assertTrue(!outsideTarget.exists(), "Le fichier en dehors du packDir doit être bloqué")
+        }
+    }
 }
