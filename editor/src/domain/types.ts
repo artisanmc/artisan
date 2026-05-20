@@ -213,6 +213,20 @@ export type Action =
   | { type: "close_menu" }
   | { type: "run_command"; command: string; as: "player" | "console" }
   | { type: "send_message"; text: LText }
+  /**
+   * Display a Minecraft HUD title (and optional subtitle) to the
+   * triggering player. Mirrors Adventure's `Audience.showTitle(Title)`.
+   * `title` and `subtitle` are LText refs so they translate per-player;
+   * timings are ticks (50ms each). Defaults match Adventure: 10/70/20.
+   */
+  | {
+      type: "show_title";
+      title: LText;
+      subtitle?: LText;
+      fadeIn?: number;
+      stay?: number;
+      fadeOut?: number;
+    }
   | { type: "give_item"; material: string; count: number }
   | { type: "take_money"; amount: number }
   /**
