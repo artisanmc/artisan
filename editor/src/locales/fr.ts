@@ -441,6 +441,27 @@ const fr: typeof en = {
     },
   },
   sync: {
+    banner: {
+      titleSingular: "1 conflit détecté sur le serveur Minecraft",
+      titlePlural: "{{count}} conflits détectés sur le serveur Minecraft",
+      subtitle: "Les fichiers ont été modifiés en dehors de l'éditeur.",
+      seeDetails: "Voir détails",
+    },
+    modal: {
+      title: "Résoudre les conflits",
+      modifiedAt: "Modifié sur le serveur Minecraft le {{date}}",
+      changesDetected: "Changements détectés :",
+      addedFiles: "{{count}} ajouté(s)",
+      modifiedFiles: "{{count}} modifié(s)",
+      removedFiles: "{{count}} supprimé(s)",
+      emptyDiskWarning: "⚠ Adopter la version du serveur va vider ce pack (aucun fichier détecté sur disque). Confirmer ?",
+      keepEditor: "Garder l'éditeur",
+      keepEditorDesc: "Repousser cette version vers le serveur.",
+      useServer: "Utiliser le serveur",
+      useServerDesc: "Adopter les fichiers du serveur ici.",
+      resolvedByOther: "Conflit résolu par un autre admin",
+      close: "Fermer",
+    },
     deletePackDialog: {
       title: "Supprimer le pack «{{name}}» ?",
       warning: "Cette action supprimera tous les menus, dialogs et traductions du pack sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.",
