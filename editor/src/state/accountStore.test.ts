@@ -992,6 +992,35 @@ describe("accountStore", () => {
       expect(last.action.text.key).toBe(`${expectedPrefix}.message`);
     });
 
+    it("addElementStep allocates semantic keys for show_title (title + subtitle)", () => {
+      useAccountStore.getState().addElementStep({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        elementId: PROFILE_BTN,
+        appearanceIndex: 0,
+        clickType: "left",
+        frames: [],
+        index: -1,
+        step: {
+          kind: "action",
+          action: {
+            type: "show_title",
+            title:    { key: "" as I18nKey },
+            subtitle: { key: "" as I18nKey },
+          },
+        },
+        lang: "en",
+      });
+      const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+      const el = pack.menus.find((m) => m.id === SHOP_MAIN)!.layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
+      const steps = el.appearances[0]!.click!.left!.steps;
+      const last = steps[steps.length - 1]!;
+      if (last.kind !== "action" || last.action.type !== "show_title") throw new Error();
+      const expectedPrefix = `menus.${SHOP_MAIN}.elements.${PROFILE_BTN}.default.click.left`;
+      expect(last.action.title.key).toBe(`${expectedPrefix}.show_title`);
+      expect(last.action.subtitle!.key).toBe(`${expectedPrefix}.show_subtitle`);
+    });
+
     it("addElementStep allocates distinct keys for multiple send_message steps", () => {
       const addMsg = () =>
         useAccountStore.getState().addElementStep({

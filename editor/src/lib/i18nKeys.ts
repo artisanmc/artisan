@@ -26,6 +26,12 @@ export const commandKeyPrefix = (commandId: string): string =>
 export const messageKeyAt = (prefix: string, idx: number): I18nKey =>
   (idx === 0 ? `${prefix}.message` : `${prefix}.message_${idx}`) as I18nKey;
 
+export const showTitleKeyAt = (prefix: string, idx: number): I18nKey =>
+  (idx === 0 ? `${prefix}.show_title` : `${prefix}.show_title_${idx}`) as I18nKey;
+
+export const showSubtitleKeyAt = (prefix: string, idx: number): I18nKey =>
+  (idx === 0 ? `${prefix}.show_subtitle` : `${prefix}.show_subtitle_${idx}`) as I18nKey;
+
 /**
  * Walk a menu's LText tree and assign canonical semantic keys based on the
  * menu's current id + element ids + appearance indices. Safe to call inside
@@ -57,12 +63,21 @@ export function rekeyMenuLTexts(pack: Pack, menu: Menu): void {
         if (app.click) {
           for (const [clickType, handler] of Object.entries(app.click)) {
             if (!handler) continue;
-            let idx = 0;
+            let msgIdx = 0;
+            let titleIdx = 0;
+            let subtitleIdx = 0;
             for (const action of walkActions(handler.steps)) {
+              const prefix = clickHandlerKeyPrefix(menu.id, el.id, appIdx, clickType);
               if (action.type === "send_message") {
-                const prefix = clickHandlerKeyPrefix(menu.id, el.id, appIdx, clickType);
-                moveLTextKey(pack, action.text, messageKeyAt(prefix, idx));
-                idx++;
+                moveLTextKey(pack, action.text, messageKeyAt(prefix, msgIdx));
+                msgIdx++;
+              } else if (action.type === "show_title") {
+                moveLTextKey(pack, action.title, showTitleKeyAt(prefix, titleIdx));
+                titleIdx++;
+                if (action.subtitle) {
+                  moveLTextKey(pack, action.subtitle, showSubtitleKeyAt(prefix, subtitleIdx));
+                  subtitleIdx++;
+                }
               }
             }
           }
@@ -77,11 +92,20 @@ export function rekeyMenuLTexts(pack: Pack, menu: Menu): void {
  */
 export function rekeyCommandLTexts(pack: Pack, cmd: Command): void {
   const prefix = commandKeyPrefix(cmd.id);
-  let idx = 0;
+  let msgIdx = 0;
+  let titleIdx = 0;
+  let subtitleIdx = 0;
   for (const action of walkActions(cmd.steps)) {
     if (action.type === "send_message") {
-      moveLTextKey(pack, action.text, messageKeyAt(prefix, idx));
-      idx++;
+      moveLTextKey(pack, action.text, messageKeyAt(prefix, msgIdx));
+      msgIdx++;
+    } else if (action.type === "show_title") {
+      moveLTextKey(pack, action.title, showTitleKeyAt(prefix, titleIdx));
+      titleIdx++;
+      if (action.subtitle) {
+        moveLTextKey(pack, action.subtitle, showSubtitleKeyAt(prefix, subtitleIdx));
+        subtitleIdx++;
+      }
     }
   }
 }
