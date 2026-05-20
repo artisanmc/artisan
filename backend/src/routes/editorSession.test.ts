@@ -1095,4 +1095,23 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
     expect(rows[0].resolvedAt).not.toBeNull();
     expect(rows[0].resolution).toBe("editor");
   });
+
+  test("returns 404 when pack is already soft-deleted", async () => {
+    const { token, keyId: serverKeyId } = await createSession();
+    await seedBoundPack(serverKeyId, "p_already_deleted", "h", {});
+    // Delete once — succeeds
+    await app.request(`/api/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    // Delete again — 404
+    const res = await app.request(`/api/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  test("uses softDeletePack — pack row still in DB with deletedAt set", async () => {
+    const { token, keyId: serverKeyId } = await createSession();
+    await seedBoundPack(serverKeyId, "p_soft_only", "h", {});
+    await app.request(`/api/editor-session/${token}/packs/p_soft_only`, { method: "DELETE" });
+    const rows = await db.select().from(packs).where(eq(packs.id, "p_soft_only"));
+    expect(rows.length).toBe(1);   // row still exists
+    expect(rows[0].deletedAt).not.toBeNull();   // but marked deleted
+  });
 });
