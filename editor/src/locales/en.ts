@@ -8,6 +8,7 @@ export default {
     undo: "Undo ({{mod}}Z)",
     redo: "Redo ({{mod}}⇧Z)",
     activeLanguage: "Active language: {{lang}}",
+    deletePack: "Delete pack",
   },
   langSwitcher: {
     addLanguage: "+ Add language…",
@@ -382,6 +383,7 @@ export default {
     fileReadFailed: "file read failed",
     slotDragFailed: "slot drag failed",
     selectionDragOutside: "selection drag would land outside the menu",
+    deleteFailed: "delete failed",
   },
   dataSources: {
     title: "Data sources",
@@ -442,6 +444,37 @@ export default {
         xl: "Huge (24)",
         xxl: "Giant (32)",
       },
+    },
+  },
+  sync: {
+    banner: {
+      titleSingular: "1 conflict detected on the Minecraft server",
+      titlePlural: "{{count}} conflicts detected on the Minecraft server",
+      subtitle: "Files have been modified outside the editor.",
+      seeDetails: "See details",
+    },
+    modal: {
+      title: "Resolve conflicts",
+      modifiedAt: "Modified on the Minecraft server at {{date}}",
+      changesDetected: "Changes detected:",
+      addedFiles: "{{count}} added",
+      modifiedFiles: "{{count}} modified",
+      removedFiles: "{{count}} removed",
+      emptyDiskWarning: "⚠ Adopting the server version will empty this pack (no files detected on disk). Confirm?",
+      keepEditor: "Keep editor",
+      keepEditorDesc: "Push this version to the server.",
+      useServer: "Use server",
+      useServerDesc: "Adopt the server files here.",
+      resolvedByOther: "Conflict resolved by another admin",
+      close: "Close",
+    },
+    deletePackDialog: {
+      title: "Delete pack «{{name}}»?",
+      warning: "This action will remove all menus, dialogs and translations of the pack from every connected Minecraft server. The files will be moved to `plugins/Interfaze/.interfaze-trash/` server-side in case you need to recover them.",
+      conflictWarning: "If a conflict exists for this pack, it will be ignored and the editor will become authoritative.",
+      typePrompt: "To confirm, type the pack name:",
+      cancel: "Cancel",
+      confirm: "Delete",
     },
   },
   patterns: {

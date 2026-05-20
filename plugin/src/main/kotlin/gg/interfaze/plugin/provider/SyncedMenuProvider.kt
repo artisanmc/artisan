@@ -69,6 +69,17 @@ class SyncedMenuProvider(
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
+    @Volatile private var testSendOverride: ((String) -> Unit)? = null
+
+    internal fun setSendForTesting(fn: (String) -> Unit) {
+        testSendOverride = fn
+    }
+
+    private fun send(payload: Map<String, Any>) {
+        val raw = jsonMapper.writeValueAsString(payload)
+        testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
+    }
+
     private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
     @Volatile private var lastTrustCode: String? = null
@@ -227,6 +238,17 @@ class SyncedMenuProvider(
                     jsonMapper.convertValue(packHashesNode, object : TypeReference<Map<String, String>>() {})
                 }.getOrDefault(emptyMap())
 
+                val deletedPackIdsNode = node["deleted_pack_ids"]
+                if (deletedPackIdsNode != null && deletedPackIdsNode.isArray) {
+                    deletedPackIdsNode.forEach { idNode ->
+                        val packId = idNode.asText()
+                        if (File(packsDir, packId).exists()) {
+                            logger?.info("hello_ack: reconciling deletion of $packId")
+                            handlePackDeletion(packId)
+                        }
+                    }
+                }
+
                 packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { packDir ->
                     val packId = packDir.name
                     val backendHash = packHashes[packId] ?: run {
@@ -248,18 +270,23 @@ class SyncedMenuProvider(
                     }
 
                     val meta = SyncMetadata.read(packDir)
-                    when (detectSyncAction(diskHash, meta.syncedHash, backendHash)) {
+                    val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
+                    when (action) {
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
-                        SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — sync will be applied via bundle_available")
-                        SyncAction.LOCAL_ONLY -> logger?.warning(
-                            "Pack $packId: local files were manually edited (disk differs from last sync). " +
-                            "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
-                        )
-                        SyncAction.CONFLICT   -> logger?.warning(
-                            "Pack $packId: CONFLICT — both local and backend changed since last sync. " +
-                            "Backend version will be applied if bundle_available is received. " +
-                            "Use '/ifz sync reject' before reconnecting to keep local."
-                        )
+                        SyncAction.AUTO_SYNC  -> logger?.fine("Pack $packId: backend is newer — sync will be applied via bundle_available")
+                        SyncAction.LOCAL_ONLY, SyncAction.CONFLICT -> {
+                            logger?.info("Pack $packId: divergence detected ($action) — sending pack_divergence_detected")
+                            httpClient.dispatcher.executorService.execute {
+                                val diskFiles = gg.interfaze.plugin.sync.PackFilesReader.read(packDir, packId)
+                                send(mapOf(
+                                    "type" to "pack_divergence_detected",
+                                    "pack_id" to packId,
+                                    "disk_files" to diskFiles,
+                                    "disk_hash" to diskHash,
+                                    "last_synced_hash" to meta.syncedHash,
+                                ))
+                            }
+                        }
                     }
                 }
             }
@@ -339,8 +366,28 @@ class SyncedMenuProvider(
                 }
             }
 
+            "pack_deleted" -> {
+                val packId = node["pack_id"]?.asText() ?: return
+                handlePackDeletion(packId)
+            }
+
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
         }
+    }
+
+    private fun handlePackDeletion(packId: String) {
+        // Atomic switch: drop the pack from the in-memory bundles BEFORE touching disk.
+        bundles = bundles.filterNot { it.packId == packId }
+        val freshMenus = ConcurrentHashMap<String, BundleMenu>()
+        val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
+        bundles.forEach { b ->
+            b.menus.forEach { freshMenus[it.id] = it }
+            b.dialogs.forEach { freshDialogs[it.id] = it }
+        }
+        menus = freshMenus
+        dialogs = freshDialogs
+        gg.interfaze.plugin.sync.PackDeleter(packsDir, logger).delete(packId)
+        onReload?.invoke()
     }
 
     /**
@@ -374,4 +421,6 @@ class SyncedMenuProvider(
             playerUrl
         }
     }
+
+    internal fun handleMessageForTesting(raw: String) = handleMessage(raw)
 }

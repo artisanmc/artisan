@@ -36,6 +36,26 @@ export const useWsStore = create<WsState>((set, get) => ({
             apiUrl:    msg.api_url   as string,
             serverKey,
           });
+        } else if (msg.type === "pack_conflict_detected") {
+          const { apiUrl: au } = get();
+          void (async () => {
+            if (!au) return;
+            const { getConflict } = await import("@/lib/api/conflicts");
+            const { useConflictsStore } = await import("@/state/conflictsStore");
+            const { useSessionStore } = await import("@/state/sessionStore");
+            const sessionToken = useSessionStore.getState().accessToken;
+            if (!sessionToken) return;
+            const conflictId = (msg as Record<string, unknown>).conflict_id as string;
+            const detail = await getConflict(au, sessionToken, conflictId).catch(() => null);
+            if (detail) useConflictsStore.getState().upsert(detail);
+          })();
+        } else if (msg.type === "pack_conflict_resolved") {
+          void (async () => {
+            const { useConflictsStore } = await import("@/state/conflictsStore");
+            useConflictsStore.getState().remove((msg as Record<string, unknown>).conflict_id as string);
+          })();
+        } else if (msg.type === "pack_deleted") {
+          window.dispatchEvent(new CustomEvent("ifz:pack_deleted", { detail: { packId: msg.pack_id } }));
         }
       } catch { /* ignore malformed */ }
     });
