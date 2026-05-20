@@ -78,8 +78,11 @@ describe("/api/editor-session/:token/conflicts", () => {
 
     const { db } = await import("../db/index");
     const { packBundles, packConflicts } = await import("../db/schema");
-    const { eq } = await import("drizzle-orm");
-    const pack = await db.select().from(packBundles).where(eq(packBundles.packId, "p_keep"));
+    const { and, eq } = await import("drizzle-orm");
+    const pack = await db.select().from(packBundles).where(and(
+      eq(packBundles.serverId, serverKeyId),
+      eq(packBundles.packId, "p_keep"),
+    ));
     expect(JSON.parse(pack[0].filesJson)).toEqual({ "a": "backendver" });
     const conflict = await db.select().from(packConflicts).where(eq(packConflicts.id, conflictId));
     expect(conflict[0].resolvedAt).not.toBeNull();
@@ -100,8 +103,11 @@ describe("/api/editor-session/:token/conflicts", () => {
 
     const { db } = await import("../db/index");
     const { packBundles } = await import("../db/schema");
-    const { eq } = await import("drizzle-orm");
-    const pack = await db.select().from(packBundles).where(eq(packBundles.packId, "p_srv"));
+    const { and, eq } = await import("drizzle-orm");
+    const pack = await db.select().from(packBundles).where(and(
+      eq(packBundles.serverId, serverKeyId),
+      eq(packBundles.packId, "p_srv"),
+    ));
     expect(JSON.parse(pack[0].filesJson)).toEqual({ "a": "diskver" });
   });
 
