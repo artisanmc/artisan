@@ -204,6 +204,18 @@ const fr: typeof en = {
     setArgCycleListPlaceholder: "categories",
     setArgCycleListHint:
       "Expression qui évalue à une liste — typiquement un nom d'input de contexte comme categories ou quest.tags.",
+    showTitleTitleLabel: "titre (MiniMessage) [{{lang}}]",
+    showTitleTitleLabelFallback: "titre (MiniMessage) [{{lang}} — fallback]",
+    showTitleTitlePlaceholder: "<gold>Bienvenue !</gold>",
+    showTitleSubtitleLabel: "sous-titre (MiniMessage) [{{lang}}]",
+    showTitleSubtitleLabelFallback: "sous-titre (MiniMessage) [{{lang}} — fallback]",
+    showTitleSubtitlePlaceholder: "<gray>dans la boutique",
+    showTitleSubtitleEnable: "+ Ajouter un sous-titre",
+    showTitleSubtitleRemove: "Supprimer le sous-titre",
+    showTitleFadeInLabel: "fade in (ticks)",
+    showTitleStayLabel: "durée (ticks)",
+    showTitleFadeOutLabel: "fade out (ticks)",
+    showTitleTicksHint: "20 ticks = 1 seconde. Laissez vide pour utiliser les valeurs par défaut (10/70/20).",
   },
   flow: {
     headerStateOne: "{{count}} état",

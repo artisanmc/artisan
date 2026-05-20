@@ -198,6 +198,18 @@ export default {
     setArgCycleListPlaceholder: "categories",
     setArgCycleListHint:
       "Expression evaluating to a list — typically a context input name like categories or quest.tags.",
+    showTitleTitleLabel: "title (MiniMessage) [{{lang}}]",
+    showTitleTitleLabelFallback: "title (MiniMessage) [{{lang}} — fallback]",
+    showTitleTitlePlaceholder: "<gold>Welcome!</gold>",
+    showTitleSubtitleLabel: "subtitle (MiniMessage) [{{lang}}]",
+    showTitleSubtitleLabelFallback: "subtitle (MiniMessage) [{{lang}} — fallback]",
+    showTitleSubtitlePlaceholder: "<gray>to the shop",
+    showTitleSubtitleEnable: "+ Add subtitle",
+    showTitleSubtitleRemove: "Remove subtitle",
+    showTitleFadeInLabel: "fade in (ticks)",
+    showTitleStayLabel: "stay (ticks)",
+    showTitleFadeOutLabel: "fade out (ticks)",
+    showTitleTicksHint: "20 ticks = 1 second. Leave empty to use vanilla defaults (10/70/20).",
   },
   flow: {
     headerStateOne: "{{count}} state",
