@@ -13,6 +13,7 @@ import { readPngDimensions, readPngContentWidth } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { pushResourcePackUpdated } from "../ws/hub";
+import { listPacksForServerKey } from "../lib/packBindingManager";
 
 export const assetsRouter = new Hono();
 
@@ -20,10 +21,34 @@ const NAME_RE = /^[a-z0-9_-]+$/;
 const MAX_RAW_BYTES = 2 * 1024 * 1024;       // 2 MB (texture/glyph PNG)
 const MAX_FONT_BYTES = 5 * 1024 * 1024;      // 5 MB (font zip)
 
-assetsRouter.post("/:token/assets", async (c) => {
-  const token = c.req.param("token");
+// ─── Binding helper ──────────────────────────────────────────────────────────
+
+type BoundResult =
+  | { ok: true; session: { serverKeyId: string; sessionId: string } }
+  | { ok: false; response: Response };
+
+async function assertBound(
+  token: string,
+  packId: string,
+  c: { json: (body: unknown, status: number) => Response },
+): Promise<BoundResult> {
   const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  if (!session) return { ok: false, response: c.json({ error: "Unauthorized" }, 401) };
+  const bound = await listPacksForServerKey(session.serverKeyId);
+  if (!bound.find((p) => p.id === packId)) {
+    return { ok: false, response: c.json({ error: "Pack not bound" }, 403) };
+  }
+  return { ok: true, session };
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
+assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
+  const token = c.req.param("token");
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
+  const session = check.session;
 
   const form = await c.req.parseBody();
   const type = String(form.type ?? "");
@@ -77,10 +102,10 @@ assetsRouter.post("/:token/assets", async (c) => {
 
   const contentHash = createHash("sha1").update(bytes).digest("hex");
 
-  // Dedup: same (serverKeyId, type, contentHash) → return existing row.
+  // Dedup: same (packId, type, contentHash) → return existing row.
   // Scoped by type so the same bytes can be uploaded as both a texture and a glyph.
   const existing = await db.select().from(assets).where(and(
-    eq(assets.serverKeyId, session.serverKeyId),
+    eq(assets.packId, packId),
     eq(assets.type, type),
     eq(assets.contentHash, contentHash),
   ));
@@ -94,7 +119,7 @@ assetsRouter.post("/:token/assets", async (c) => {
 
   // Name uniqueness within type — detect early for a clean error message
   const nameClash = await db.select().from(assets).where(
-    and(eq(assets.serverKeyId, session.serverKeyId), eq(assets.type, type), eq(assets.name, name)),
+    and(eq(assets.packId, packId), eq(assets.type, type), eq(assets.name, name)),
   );
   if (nameClash.length > 0) {
     return c.json({ error: "Asset name already exists" }, 409);
@@ -108,7 +133,7 @@ assetsRouter.post("/:token/assets", async (c) => {
     // `height - 1` pushed large glyphs far above the chest container.)
     ascent = ascentRaw !== null ? parseInt(ascentRaw, 10) : 8;
     if (!Number.isFinite(ascent)) return c.json({ error: "Invalid ascent" }, 400);
-    codepoint = await allocateCodepoint(session.serverKeyId);
+    codepoint = await allocateCodepoint(packId);
   }
 
   const id = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -134,13 +159,13 @@ assetsRouter.post("/:token/assets", async (c) => {
         chars: [g.char],
       }));
       const fontJsonContent = strToU8(JSON.stringify({ providers }, null, 2));
-      await writeFontAssets(session.serverKeyId, id, fontJsonContent, parsedFont.glyphPngs);
+      await writeFontAssets(packId, id, fontJsonContent, parsedFont.glyphPngs);
     } else {
-      await writeAssetFile(session.serverKeyId, id, bytes);
+      await writeAssetFile(packId, id, bytes);
     }
     await db.insert(assets).values({
       id,
-      serverKeyId: session.serverKeyId,
+      packId,
       type,
       name,
       width,
@@ -171,15 +196,16 @@ assetsRouter.post("/:token/assets", async (c) => {
   return c.json(body, 201);
 });
 
-assetsRouter.get("/:token/assets", async (c) => {
+assetsRouter.get("/:token/packs/:packId/assets", async (c) => {
   const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
 
   const typeParam = c.req.query("type");
   const searchParam = c.req.query("search");
 
-  const conditions = [eq(assets.serverKeyId, session.serverKeyId)];
+  const conditions = [eq(assets.packId, packId)];
   if (typeParam && ["texture", "glyph", "font"].includes(typeParam)) {
     conditions.push(eq(assets.type, typeParam));
   }
@@ -191,26 +217,29 @@ assetsRouter.get("/:token/assets", async (c) => {
   return c.json({ assets: rows.map(serialize) });
 });
 
-assetsRouter.get("/:token/assets/:id", async (c) => {
+assetsRouter.get("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ asset: serialize(rows[0]) });
 });
 
-assetsRouter.patch("/:token/assets/:id", async (c) => {
+assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
+  const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   const current = rows[0];
 
@@ -221,7 +250,7 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
     if (!NAME_RE.test(body.name)) return c.json({ error: "Invalid name" }, 400);
     if (body.name !== current.name) {
       const clash = await db.select().from(assets).where(and(
-        eq(assets.serverKeyId, session.serverKeyId),
+        eq(assets.packId, packId),
         eq(assets.type, current.type),
         eq(assets.name, body.name),
       ));
@@ -269,14 +298,16 @@ assetsRouter.patch("/:token/assets/:id", async (c) => {
   return c.json({ asset: serialize(updated) });
 });
 
-assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
+assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
   const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
+  const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   const source = rows[0];
 
@@ -285,17 +316,17 @@ assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
   }
 
   // Pick a free name: "<name>_copy", "<name>_copy2", "<name>_copy3", ...
-  const newName = await findFreeCopyName(session.serverKeyId, source.type, source.name);
+  const newName = await findFreeCopyName(packId, source.type, source.name);
 
   // New unique id
   const newId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const newCodepoint = await allocateCodepoint(session.serverKeyId);
+  const newCodepoint = await allocateCodepoint(packId);
   const now = new Date();
 
   // Copy the source PNG to the new asset path
   let bytes: Uint8Array;
   try {
-    const buf = await readFile(assetPath(session.serverKeyId, source.id));
+    const buf = await readFile(assetPath(packId, source.id));
     bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
@@ -305,10 +336,10 @@ assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
   }
 
   try {
-    await writeAssetFile(session.serverKeyId, newId, bytes);
+    await writeAssetFile(packId, newId, bytes);
     await db.insert(assets).values({
       id: newId,
-      serverKeyId: session.serverKeyId,
+      packId,
       type: source.type,
       name: newName,
       width: source.width,
@@ -336,7 +367,7 @@ assetsRouter.post("/:token/assets/:id/duplicate", async (c) => {
 });
 
 async function findFreeCopyName(
-  serverKeyId: string,
+  packId: string,
   type: string,
   baseName: string,
 ): Promise<string> {
@@ -345,7 +376,7 @@ async function findFreeCopyName(
     const candidate = i === 1 ? `${baseName}_copy` : `${baseName}_copy${i}`;
     const clash = await db.select().from(assets).where(
       and(
-        eq(assets.serverKeyId, serverKeyId),
+        eq(assets.packId, packId),
         eq(assets.type, type),
         eq(assets.name, candidate),
       ),
@@ -355,22 +386,24 @@ async function findFreeCopyName(
   throw new Error("Could not find a free copy name after 1000 attempts");
 }
 
-assetsRouter.delete("/:token/assets/:id", async (c) => {
+assetsRouter.delete("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const packId = c.req.param("packId");
+  const check = await assertBound(token, packId, c);
+  if (!check.ok) return check.response;
+  const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.serverKeyId, session.serverKeyId)));
+    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
 
   const target = rows[0];
   await db.delete(assets).where(eq(assets.id, id));
   if (target.type === "font") {
-    await deleteFontAssets(session.serverKeyId, id);
+    await deleteFontAssets(packId, id);
   } else {
-    await deleteAssetFile(session.serverKeyId, id);
+    await deleteAssetFile(packId, id);
   }
   const _packInfo = await rebuildResourcePack(session.serverKeyId);
   pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
@@ -380,7 +413,7 @@ assetsRouter.delete("/:token/assets/:id", async (c) => {
 function serialize(row: typeof assets.$inferSelect) {
   return {
     id: row.id,
-    serverKeyId: row.serverKeyId,
+    packId: row.packId,
     type: row.type as "texture" | "glyph" | "font",
     name: row.name,
     width: row.width,
