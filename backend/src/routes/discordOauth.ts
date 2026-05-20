@@ -32,4 +32,19 @@ router.get("/start", (c) => {
   return c.redirect(url);
 });
 
+router.get("/callback", async (c) => {
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  const stateCookie = getCookie(c, "ifz_oauth_state");
+
+  if (!stateCookie || !state || stateCookie !== state) {
+    return c.json({ error: "invalid_state" }, 400);
+  }
+  if (!code) {
+    return c.json({ error: "missing_code" }, 400);
+  }
+  // Le reste (échange + création user/session) arrive dans Task 15.
+  return c.json({ ok: true, debug: "stub" });
+});
+
 export { router as discordOauthRouter };
