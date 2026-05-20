@@ -39,7 +39,7 @@ const codeToConn = new Map<string, string>();
 // Editor WS connections: sessionId → sendFn
 export const editorSenders = new Map<string, (msg: string) => void>();
 // sessionId → serverKeyId (for grouping editors by server)
-const editorTokenToServer = new Map<string, string>();
+export const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
 export const connToServerId = new Map<string, string>();
 // sessionId → editor IP address (set when editor WS connects)
@@ -132,10 +132,13 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    const packs = await db
-      .select({ packId: packBundles.packId, hash: packBundles.hash })
+    const allPacks = await db
+      .select({ packId: packBundles.packId, hash: packBundles.hash, deletedAt: packBundles.deletedAt })
       .from(packBundles)
       .where(eq(packBundles.serverId, keyId));
+
+    const packs = allPacks.filter((p) => p.deletedAt == null);
+    const deletedPackIds = allPacks.filter((p) => p.deletedAt != null).map((p) => p.packId);
 
     const packHashesMap: Record<string, string> = {};
     for (const p of packs) packHashesMap[p.packId] = p.hash;
@@ -187,6 +190,7 @@ export async function handlePluginMessage(
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
       pack_hashes: packHashesMap,
+      deleted_pack_ids: deletedPackIds,
       resource_pack: rp,
     };
 
@@ -311,6 +315,72 @@ export async function handlePluginMessage(
 
   if (msg.type === "pong") return { reply: null };
 
+  // ── pack_divergence_detected: plugin signals disk/backend mismatch ─────────
+  if (msg.type === "pack_divergence_detected") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const raw = msg as Record<string, unknown>;
+    const packId = raw.pack_id as string | undefined;
+    const diskFiles = raw.disk_files as Record<string, string> | undefined;
+    const diskHash = raw.disk_hash as string | undefined;
+    const lastSyncedHash = raw.last_synced_hash as string | undefined;
+    if (!packId || !diskFiles || diskHash == null || lastSyncedHash == null) return { reply: null };
+
+    const { and: aand, eq: eeq, isNull: inull } = await import("drizzle-orm");
+    const existing = await db.select().from(packBundles)
+      .where(aand(eeq(packBundles.serverId, serverId), eeq(packBundles.packId, packId)));
+    if (existing.length === 0 || existing[0].deletedAt != null) return { reply: null };
+    const backendHashAtDetection = existing[0].hash;
+
+    const { packConflicts } = await import("../db/schema");
+    const now = new Date();
+    const conflictId = crypto.randomUUID();
+
+    const open = await db.select().from(packConflicts).where(aand(
+      eeq(packConflicts.serverId, serverId),
+      eeq(packConflicts.packId, packId),
+      inull(packConflicts.resolvedAt),
+    ));
+
+    let finalConflictId: string;
+    if (open.length > 0) {
+      await db.update(packConflicts)
+        .set({
+          diskFilesJson: JSON.stringify(diskFiles),
+          diskHash,
+          lastSyncedHash,
+          backendHashAtDetection,
+        })
+        .where(eeq(packConflicts.id, open[0].id));
+      finalConflictId = open[0].id;
+    } else {
+      await db.insert(packConflicts).values({
+        id: conflictId,
+        serverId,
+        packId,
+        diskFilesJson: JSON.stringify(diskFiles),
+        diskHash,
+        lastSyncedHash,
+        backendHashAtDetection,
+        detectedAt: now,
+      });
+      finalConflictId = conflictId;
+    }
+
+    const payload = JSON.stringify({
+      type: "pack_conflict_detected",
+      conflict_id: finalConflictId,
+      pack_id: packId,
+      detected_at: now.toISOString(),
+    });
+    for (const [sessionId, sId] of editorTokenToServer) {
+      if (sId !== serverId) continue;
+      const send = editorSenders.get(sessionId);
+      if (send) send(payload);
+    }
+    return { reply: null };
+  }
+
   // ── custom_items_changed: plugin hot-reload triggered a hash change ───────
   if (msg.type === "custom_items_changed") {
     const serverId = connToServerId.get(connId);
@@ -337,11 +407,21 @@ export async function handlePluginMessage(
   return { reply: null };
 }
 
-export function pushBundleAvailable(
+export async function pushBundleAvailable(
   serverKeyId: string,
   packId: string,
   hash: string,
-): void {
+): Promise<void> {
+  // Freeze: skip broadcast if an open conflict exists for this (server, pack)
+  const { packConflicts } = await import("../db/schema");
+  const { and: aand, eq: eeq, isNull: inull } = await import("drizzle-orm");
+  const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(aand(
+    eeq(packConflicts.serverId, serverKeyId),
+    eeq(packConflicts.packId, packId),
+    inull(packConflicts.resolvedAt),
+  ));
+  if (open.length > 0) return;
+
   const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}`;
   const payload = JSON.stringify({
     type: "bundle_available",
@@ -413,6 +493,22 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
   for (const [connId, sId] of connToServerId) {
     if (sId !== serverKeyId) continue;
     const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
+}
+
+export function pushPackDeleted(serverKeyId: string, packId: string): void {
+  const payload = JSON.stringify({ type: "pack_deleted", pack_id: packId });
+  // Push to plugin connections
+  for (const [connId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
+  // Push to editor connections (so other open tabs close the pack view)
+  for (const [sessionId, sId] of editorTokenToServer) {
+    if (sId !== serverKeyId) continue;
+    const send = editorSenders.get(sessionId);
     if (send) send(payload);
   }
 }

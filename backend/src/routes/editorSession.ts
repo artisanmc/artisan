@@ -117,7 +117,7 @@ router.get("/:token/packs", async (c) => {
   const rows = await db
     .select()
     .from(packBundles)
-    .where(eq(packBundles.serverId, session.serverKeyId));
+    .where(and(eq(packBundles.serverId, session.serverKeyId), isNull(packBundles.deletedAt)));
 
   const packs = rows
     .filter((r) => r.editorJson != null)
@@ -196,7 +196,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     },
   });
 
-  pushBundleAvailable(session.serverKeyId, packId, hash);
+  await pushBundleAvailable(session.serverKeyId, packId, hash);
   return c.json({ hash }, 201);
 });
 
@@ -223,10 +223,37 @@ router.delete("/:token/packs/:packId", async (c) => {
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
 
-  await db.delete(packBundles).where(
-    and(eq(packBundles.serverId, session.serverKeyId), eq(packBundles.packId, packId))
-  );
-  return c.json({ ok: true });
+  const { packConflicts } = await import("../db/schema");
+
+  const now = new Date();
+  const result = await db.transaction(async (tx) => {
+    const updated = await tx.update(packBundles)
+      .set({ deletedAt: now })
+      .where(and(
+        eq(packBundles.serverId, session.serverKeyId),
+        eq(packBundles.packId, packId),
+        isNull(packBundles.deletedAt),
+      ))
+      .returning({ id: packBundles.id });
+    if (updated.length === 0) return null;
+
+    // Auto-resolve any open conflict for this pack as "editor"
+    await tx.update(packConflicts)
+      .set({ resolvedAt: now, resolution: "editor" })
+      .where(and(
+        eq(packConflicts.serverId, session.serverKeyId),
+        eq(packConflicts.packId, packId),
+        isNull(packConflicts.resolvedAt),
+      ));
+    return updated[0];
+  });
+
+  if (!result) return c.json({ error: "Not found" }, 404);
+
+  const { pushPackDeleted } = await import("../ws/hub");
+  pushPackDeleted(session.serverKeyId, packId);
+
+  return c.json({ deleted: true });
 });
 
 router.post("/:token/draft", async (c) => {

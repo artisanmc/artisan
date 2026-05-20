@@ -10,6 +10,7 @@ const fr: typeof en = {
     undo: "Annuler ({{mod}}Z)",
     redo: "Rétablir ({{mod}}⇧Z)",
     activeLanguage: "Langue active : {{lang}}",
+    deletePack: "Supprimer le pack",
   },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
@@ -390,6 +391,7 @@ const fr: typeof en = {
     fileReadFailed: "lecture du fichier échouée",
     slotDragFailed: "drag de slot échoué",
     selectionDragOutside: "le drag de la sélection sortirait du menu",
+    deleteFailed: "suppression échouée",
   },
   dataSources: {
     title: "Sources de données",
@@ -450,6 +452,37 @@ const fr: typeof en = {
         xl: "Énorme (24)",
         xxl: "Géant (32)",
       },
+    },
+  },
+  sync: {
+    banner: {
+      titleSingular: "1 conflit détecté sur le serveur Minecraft",
+      titlePlural: "{{count}} conflits détectés sur le serveur Minecraft",
+      subtitle: "Les fichiers ont été modifiés en dehors de l'éditeur.",
+      seeDetails: "Voir détails",
+    },
+    modal: {
+      title: "Résoudre les conflits",
+      modifiedAt: "Modifié sur le serveur Minecraft le {{date}}",
+      changesDetected: "Changements détectés :",
+      addedFiles: "{{count}} ajouté(s)",
+      modifiedFiles: "{{count}} modifié(s)",
+      removedFiles: "{{count}} supprimé(s)",
+      emptyDiskWarning: "⚠ Adopter la version du serveur va vider ce pack (aucun fichier détecté sur disque). Confirmer ?",
+      keepEditor: "Garder l'éditeur",
+      keepEditorDesc: "Repousser cette version vers le serveur.",
+      useServer: "Utiliser le serveur",
+      useServerDesc: "Adopter les fichiers du serveur ici.",
+      resolvedByOther: "Conflit résolu par un autre admin",
+      close: "Fermer",
+    },
+    deletePackDialog: {
+      title: "Supprimer le pack «{{name}}» ?",
+      warning: "Cette action supprimera tous les menus, dialogs et traductions du pack sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.",
+      conflictWarning: "Si un conflit existe pour ce pack, il sera ignoré et l'éditeur deviendra autoritaire.",
+      typePrompt: "Pour confirmer, tape le nom du pack :",
+      cancel: "Annuler",
+      confirm: "Supprimer",
     },
   },
   patterns: {

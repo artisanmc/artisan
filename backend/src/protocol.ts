@@ -18,6 +18,7 @@ export interface HelloAckMessage {
   api_url: string;
   bundle_url: string;  // plugin-internal URL for bundle downloads/uploads (may differ from api_url in Docker)
   pack_hashes: Record<string, string>;  // packId → latest stored hash on backend
+  deleted_pack_ids: string[];
   resource_pack: { url: string; hash: string } | null;
 }
 
@@ -105,6 +106,37 @@ export interface EditorDraftUpdateMessage {
   updated_by: string;
 }
 
+// Plugin → backend : divergence disque ↔ backend détectée au boot ou /ifz reload
+export interface PackDivergenceDetectedMessage {
+  type: "pack_divergence_detected";
+  pack_id: string;
+  disk_files: Record<string, string>;
+  disk_hash: string;
+  last_synced_hash: string;
+}
+
+// Backend → plugin : pack supprimé côté éditeur
+export interface PackDeletedMessage {
+  type: "pack_deleted";
+  pack_id: string;
+}
+
+// Backend → éditeur : conflit ouvert/refresh
+export interface PackConflictDetectedEditorMessage {
+  type: "pack_conflict_detected";
+  conflict_id: string;
+  pack_id: string;
+  detected_at: string;
+}
+
+// Backend → éditeur : conflit résolu (multi-onglets)
+export interface PackConflictResolvedEditorMessage {
+  type: "pack_conflict_resolved";
+  conflict_id: string;
+  pack_id: string;
+  resolution: "editor" | "server";
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -114,7 +146,8 @@ export type PluginToServerMessage =
   | EditorSessionRevokeMessage
   | EditorTrustRequestMessage
   | CustomItemsChangedMessage
-  | CustomItemsBundleMessage;
+  | CustomItemsBundleMessage
+  | PackDivergenceDetectedMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";
@@ -131,4 +164,5 @@ export type ServerToPluginMessage =
   | LinkConfirmedMessage
   | EditorSessionReadyMessage
   | CustomItemsRequestMessage
-  | ResourcePackUpdatedMessage;
+  | ResourcePackUpdatedMessage
+  | PackDeletedMessage;
