@@ -192,4 +192,33 @@ describe("bundle upload/download", () => {
     const pack = JSON.parse(row.editorJson!) as { canvasLayout: Record<string, { x: number; y: number }> };
     expect(pack.canvasLayout).toEqual({ shop: { x: 333, y: 444 } }); // manifest wins, ghost is gone
   });
+
+  test("POST returns 409 pack_locked when an open conflict exists for the pack", async () => {
+    const keyRes = await app.request("/api/server-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "lock-test" }),
+    });
+    const { key, id: serverKeyId } = (await keyRes.json()) as { key: string; id: string };
+
+    // Seed open conflict for this server + pack
+    const { db } = await import("../db/index");
+    const { packConflicts } = await import("../db/schema");
+    const conflictId = crypto.randomUUID();
+    await db.insert(packConflicts).values({
+      id: conflictId, serverId: serverKeyId, packId: "p_locked",
+      diskFilesJson: "{}", diskHash: "d", lastSyncedHash: "", backendHashAtDetection: "",
+      detectedAt: new Date(),
+    });
+
+    const res = await app.request("/api/bundles/p_locked", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_locked/m.yaml": "x" } }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; conflictId?: string };
+    expect(body.error).toBe("pack_locked");
+    expect(body.conflictId).toBe(conflictId);
+  });
 });

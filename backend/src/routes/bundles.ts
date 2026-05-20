@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
-import { packBundles } from "../db/schema";
+import { packBundles, packConflicts } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
 import { importPackFromFiles, isEmptyStub, readEditorLayoutFromFiles } from "../lib/packImport";
@@ -13,6 +13,16 @@ router.post("/:packId", async (c) => {
   if (!serverId) return c.json({ error: "Unauthorized" }, 401);
 
   const packId = c.req.param("packId");
+
+  const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
+    eq(packConflicts.serverId, serverId),
+    eq(packConflicts.packId, packId),
+    isNull(packConflicts.resolvedAt),
+  ));
+  if (open.length > 0) {
+    return c.json({ error: "pack_locked", conflictId: open[0].id }, 409);
+  }
+
   const body = await c.req.json<{ files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, packId);
 
