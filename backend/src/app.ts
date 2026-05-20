@@ -12,6 +12,7 @@ import { assetsRouter } from "./routes/assets";
 import { resourcePackPublicRouter, resourcePackAdminRouter } from "./routes/resourcePack";
 import { conflictsRouter } from "./routes/conflicts";
 import { authRouter } from "./routes/auth";
+import { discordOauthRouter } from "./routes/discordOauth";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 
@@ -35,6 +36,7 @@ app.route("/api/resource-pack", resourcePackPublicRouter);
 app.route("/api/editor-session", resourcePackAdminRouter);
 app.route("/api/editor-session", conflictsRouter);
 app.route("/api/auth", authRouter);
+app.route("/api/auth/discord", discordOauthRouter);
 
 app.get(
   "/ws/plugin",
