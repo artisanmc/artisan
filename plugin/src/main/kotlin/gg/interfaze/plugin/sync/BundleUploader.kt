@@ -8,6 +8,24 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.logging.Logger
 
+object PackFilesReader {
+    /**
+     * Walk packDir and produce the canonical files map keyed by
+     * "plugins/Interfaze/packs/<packId>/<relPath>", excluding `.interfaze*` metadata.
+     */
+    fun read(packDir: File, packId: String): Map<String, String> {
+        val prefix = "plugins/Interfaze/packs/$packId/"
+        val out = mutableMapOf<String, String>()
+        packDir.walkTopDown()
+            .filter { it.isFile && !it.name.startsWith(".interfaze") }
+            .forEach { file ->
+                val rel = file.relativeTo(packDir).path.replace('\\', '/')
+                out["$prefix$rel"] = file.readText(Charsets.UTF_8)
+            }
+        return out
+    }
+}
+
 class BundleUploader(
     private val httpClient: OkHttpClient,
     private val apiUrl: String,
@@ -17,21 +35,8 @@ class BundleUploader(
     private val mapper = ObjectMapper()
     private val json = "application/json; charset=utf-8".toMediaType()
 
-    /**
-     * Upload all YAML files from [packDir] to the backend.
-     * Files are keyed as "plugins/Interfaze/packs/<packId>/<relative>".
-     */
     fun upload(packDir: File, packId: String) {
-        val prefix = "plugins/Interfaze/packs/$packId/"
-        val files = mutableMapOf<String, String>()
-
-        packDir.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".interfaze") }
-            .forEach { file ->
-                val rel = file.relativeTo(packDir).path.replace('\\', '/')
-                files["$prefix$rel"] = file.readText(Charsets.UTF_8)
-            }
-
+        val files = PackFilesReader.read(packDir, packId)
         if (files.isEmpty()) {
             logger?.fine("BundleUploader: no files in $packId, skipping upload")
             return
