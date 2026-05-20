@@ -85,6 +85,7 @@ backend/         Bun + Hono + PostgreSQL (Drizzle)
 plugin/          Kotlin 2.0 + Paper 1.21.4 + OkHttp
 docker/          Config serveur Minecraft (itzg/minecraft-server, Paper géré par l'image)
 docker-compose.yml
+docs-site/       Astro Starlight — public user docs (EN)
 docs/
   decisions/             ← ADRs (stack, state model)
   specs/                 ← specs produit et éditeur (web-editor.md, main-spec.md)
