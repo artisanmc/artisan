@@ -7,6 +7,8 @@ export const serverKeys = pgTable("server_keys", {
   label: text("label"),
   lastMcVersion: text("last_mc_version"),
   createdAt: timestamp("created_at").notNull(),
+  resourcePackHash: text("resource_pack_hash"),
+  resourcePackUpdatedAt: timestamp("resource_pack_updated_at"),
 });
 
 export const packBundles = pgTable("pack_bundles", {
@@ -58,6 +60,9 @@ export const assets = pgTable("assets", {
   height: integer("height").notNull(),
   ascent: integer("ascent"),                    // nullable, set only for type=glyph
   codepoint: integer("codepoint"),              // nullable, set only for type=glyph
+  // rightmost non-transparent column + 1, matching MC bitmap font advance (minus the +1 spacing).
+  // null for assets uploaded before this column was added (falls back to `width` in assetIndexBuilder).
+  contentWidth: integer("content_width"),
   fontMeta: jsonb("font_meta"),                 // forward-compat for Sub-project 4
   contentHash: text("content_hash").notNull(),
   createdAt: timestamp("created_at").notNull(),

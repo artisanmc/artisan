@@ -3,8 +3,8 @@
  * assets/minecraft/font/include/default.json. Used by fontJsonBuilder to
  * emit text_y{Y}.json with shifted ascent so glyphs land at any chest-y.
  *
- * Regenerate by re-running backend/scripts/gen-char-advances.ts (writes both
- * this file and the Kotlin/TS advance tables in one pass).
+ * Regenerate alongside the char-advance tables via:
+ *   cd backend && bun scripts/gen-char-advances.ts [version]
  */
 
 export const VANILLA_ASCII: { height: number; ascent: number; chars: string[] } = {
