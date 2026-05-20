@@ -79,10 +79,14 @@ function migrateStepsI18n(
 ): void {
   for (const step of steps) {
     if (!step || typeof step !== "object") continue;
-    const s = step as { kind?: string; action?: { type?: string; text?: unknown }; cases?: unknown[]; else?: unknown[] };
+    const s = step as { kind?: string; action?: { type?: string; text?: unknown; title?: unknown; subtitle?: unknown }; cases?: unknown[]; else?: unknown[] };
     if (s.kind === "action" && s.action) {
-      if (s.action.type === "send_message" && typeof s.action.text === "string") {
-        s.action.text = lift(s.action.text);
+      const a = s.action as { type?: string; text?: unknown; title?: unknown; subtitle?: unknown };
+      if (a.type === "send_message" && typeof a.text === "string") {
+        a.text = lift(a.text);
+      } else if (a.type === "show_title") {
+        if (typeof a.title === "string") a.title = lift(a.title);
+        if (typeof a.subtitle === "string") a.subtitle = lift(a.subtitle);
       }
     } else if (s.kind === "if") {
       for (const c of s.cases ?? []) {

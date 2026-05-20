@@ -51,6 +51,8 @@ import {
   messageKeyAt,
   rekeyCommandLTexts,
   rekeyMenuLTexts,
+  showSubtitleKeyAt,
+  showTitleKeyAt,
 } from "@/lib/i18nKeys";
 import { migratePackToI18n } from "@/lib/i18nMigration";
 import { migrateTitle } from "@/domain/migrateTitle";
@@ -597,19 +599,37 @@ function touch(draft: AccountState, packId: PackId) {
  * pack's lang map doesn't leak orphaned entries.
  */
 function allocStepLTexts(pack: Pack, steps: Step[], lang: string, keyPrefix: string): void {
-  let counter = 0;
+  let msgCounter = 0;
+  let titleCounter = 0;
+  let subtitleCounter = 0;
   for (const action of walkActions(steps)) {
     if (action.type === "send_message") {
       if (action.text.key === "") {
-        action.text = createLTextAt(pack, messageKeyAt(keyPrefix, counter), "", lang);
+        action.text = createLTextAt(pack, messageKeyAt(keyPrefix, msgCounter), "", lang);
       }
-      counter++;
+      msgCounter++;
+    } else if (action.type === "show_title") {
+      if (action.title.key === "") {
+        action.title = createLTextAt(pack, showTitleKeyAt(keyPrefix, titleCounter), "", lang);
+      }
+      titleCounter++;
+      if (action.subtitle && action.subtitle.key === "") {
+        action.subtitle = createLTextAt(pack, showSubtitleKeyAt(keyPrefix, subtitleCounter), "", lang);
+        subtitleCounter++;
+      } else if (action.subtitle) {
+        subtitleCounter++;
+      }
     }
   }
 }
 function gcStepLTexts(pack: Pack, steps: Step[]): void {
   for (const action of walkActions(steps)) {
-    if (action.type === "send_message") deleteLText(pack, action.text);
+    if (action.type === "send_message") {
+      deleteLText(pack, action.text);
+    } else if (action.type === "show_title") {
+      deleteLText(pack, action.title);
+      if (action.subtitle) deleteLText(pack, action.subtitle);
+    }
   }
 }
 
@@ -657,6 +677,10 @@ function gcDialogLTexts(pack: Pack, dialog: Dialog): void {
     keys.add(btn.label.key);
     for (const action of walkActions(btn.steps)) {
       if (action.type === "send_message") keys.add(action.text.key);
+      else if (action.type === "show_title") {
+        keys.add(action.title.key);
+        if (action.subtitle) keys.add(action.subtitle.key);
+      }
     }
   }
   for (const key of keys) delete pack.i18nKeys[key as I18nKey];
@@ -696,6 +720,16 @@ function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey):
       if (action.type === "send_message" && action.text.key === oldKey) {
         action.text.key = newKey;
         return;
+      }
+      if (action.type === "show_title") {
+        if (action.title.key === oldKey) {
+          action.title.key = newKey;
+          return;
+        }
+        if (action.subtitle?.key === oldKey) {
+          action.subtitle.key = newKey;
+          return;
+        }
       }
     }
   }
@@ -1128,6 +1162,10 @@ export const useAccountStore = create<AccountState>()(
                 delete pack!.i18nKeys[btn.label.key];
                 for (const action of walkActions(btn.steps)) {
                   if (action.type === "send_message") delete pack!.i18nKeys[action.text.key];
+                  else if (action.type === "show_title") {
+                    delete pack!.i18nKeys[action.title.key];
+                    if (action.subtitle) delete pack!.i18nKeys[action.subtitle.key];
+                  }
                 }
                 dialog.buttons.splice(buttonIndex, 1);
               }
@@ -2604,6 +2642,15 @@ export const useAccountStore = create<AccountState>()(
                           const src = pack.i18nKeys[action.text.key];
                           action.text = createLText(pack, "", pack.defaultLang);
                           if (src) pack.i18nKeys[action.text.key] = { ...src };
+                        } else if (action.type === "show_title") {
+                          const srcT = pack.i18nKeys[action.title.key];
+                          action.title = createLText(pack, "", pack.defaultLang);
+                          if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                          if (action.subtitle) {
+                            const srcS = pack.i18nKeys[action.subtitle.key];
+                            action.subtitle = createLText(pack, "", pack.defaultLang);
+                            if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                          }
                         }
                       }
                     }
@@ -2751,6 +2798,15 @@ export const useAccountStore = create<AccountState>()(
                       const src = pack.i18nKeys[action.text.key];
                       action.text = createLText(pack, "", pack.defaultLang);
                       if (src) pack.i18nKeys[action.text.key] = { ...src };
+                    } else if (action.type === "show_title") {
+                      const srcT = pack.i18nKeys[action.title.key];
+                      action.title = createLText(pack, "", pack.defaultLang);
+                      if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                      if (action.subtitle) {
+                        const srcS = pack.i18nKeys[action.subtitle.key];
+                        action.subtitle = createLText(pack, "", pack.defaultLang);
+                        if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                      }
                     }
                   }
                 }
@@ -2788,6 +2844,15 @@ export const useAccountStore = create<AccountState>()(
                   const src = pack.i18nKeys[action.text.key];
                   action.text = createLText(pack, "", pack.defaultLang);
                   if (src) pack.i18nKeys[action.text.key] = { ...src };
+                } else if (action.type === "show_title") {
+                  const srcT = pack.i18nKeys[action.title.key];
+                  action.title = createLText(pack, "", pack.defaultLang);
+                  if (srcT) pack.i18nKeys[action.title.key] = { ...srcT };
+                  if (action.subtitle) {
+                    const srcS = pack.i18nKeys[action.subtitle.key];
+                    action.subtitle = createLText(pack, "", pack.defaultLang);
+                    if (srcS) pack.i18nKeys[action.subtitle.key] = { ...srcS };
+                  }
                 }
               }
               pack.commands.push(stamped);
