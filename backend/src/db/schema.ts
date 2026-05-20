@@ -163,3 +163,14 @@ export const packs = pgTable("packs", {
   index("packs_network_idx").on(t.networkId),
   index("packs_network_deleted_idx").on(t.networkId, t.deletedAt),
 ]);
+
+export const packBindings = pgTable("pack_bindings", {
+  id: text("id").primaryKey(),
+  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
+  packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull(),
+}, (t) => [
+  uniqueIndex("pack_bindings_uniq").on(t.serverKeyId, t.packId),
+  index("pack_bindings_pack_idx").on(t.packId),
+  index("pack_bindings_serverkey_idx").on(t.serverKeyId),
+]);
