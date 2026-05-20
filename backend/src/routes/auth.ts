@@ -1,11 +1,12 @@
 import { Hono } from "hono";
-import { setCookie, deleteCookie } from "hono/cookie";
+import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { db } from "../db/index";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../lib/passwordHasher";
 import { normalizeEmail } from "../lib/emailNormalizer";
-import { createSession } from "../lib/sessionManager";
+import { createSession, destroySession } from "../lib/sessionManager";
+import { userAuth } from "../middleware/userAuth";
 
 const router = new Hono();
 
@@ -80,6 +81,19 @@ router.post("/login", async (c) => {
       id: row.id, email: row.email, name: row.name, avatarUrl: row.avatarUrl,
     },
   });
+});
+
+router.post("/logout", async (c) => {
+  const sessionId = getCookie(c, "ifz_user_session");
+  if (sessionId) await destroySession(sessionId);
+  deleteCookie(c, "ifz_user_session", { path: "/" });
+  return c.body(null, 204);
+});
+
+router.get("/me", userAuth(), (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  return c.json({ user });
 });
 
 export { router as authRouter };
