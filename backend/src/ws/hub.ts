@@ -39,7 +39,7 @@ const codeToConn = new Map<string, string>();
 // Editor WS connections: sessionId → sendFn
 export const editorSenders = new Map<string, (msg: string) => void>();
 // sessionId → serverKeyId (for grouping editors by server)
-const editorTokenToServer = new Map<string, string>();
+export const editorTokenToServer = new Map<string, string>();
 // connId → serverKeyId (set after successful hello)
 export const connToServerId = new Map<string, string>();
 // sessionId → editor IP address (set when editor WS connects)
@@ -417,6 +417,22 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
   for (const [connId, sId] of connToServerId) {
     if (sId !== serverKeyId) continue;
     const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
+}
+
+export function pushPackDeleted(serverKeyId: string, packId: string): void {
+  const payload = JSON.stringify({ type: "pack_deleted", pack_id: packId });
+  // Push to plugin connections
+  for (const [connId, sId] of connToServerId) {
+    if (sId !== serverKeyId) continue;
+    const send = connSenders.get(connId);
+    if (send) send(payload);
+  }
+  // Push to editor connections (so other open tabs close the pack view)
+  for (const [sessionId, sId] of editorTokenToServer) {
+    if (sId !== serverKeyId) continue;
+    const send = editorSenders.get(sessionId);
     if (send) send(payload);
   }
 }
