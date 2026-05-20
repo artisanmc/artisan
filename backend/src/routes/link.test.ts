@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { linkCodes } from "../db/schema";
+import { linkCodes, serverKeys, networks } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { app } from "../app";
 
@@ -87,5 +87,27 @@ describe("POST /api/link/:code/claim", () => {
 
   test("404 for unknown code", async () => {
     expect((await app.request("/api/link/UNKNOWN1/claim", { method: "POST" })).status).toBe(404);
+  });
+});
+
+describe("POST /api/link/:code/claim — Network auto-creation", () => {
+  beforeEach(async () => {
+    // Delete in dependency order: linkCodes refs serverKeys, serverKeys refs networks
+    await db.delete(linkCodes);
+    await db.delete(serverKeys);
+    await db.delete(networks);
+  });
+
+  test("auto-creates a Network when claiming and links the server_key to it", async () => {
+    const create = await app.request("/api/link/", { method: "POST" });
+    const { code } = (await create.json()) as { code: string };
+    const claim = await app.request(`/api/link/${code}/claim`, { method: "POST" });
+    const { server_key_id } = (await claim.json()) as { server_key_id: string };
+
+    const sk = await db.select().from(serverKeys).where(eq(serverKeys.id, server_key_id));
+    expect(sk[0].networkId).toBeTruthy();
+    const nets = await db.select().from(networks).where(eq(networks.id, sk[0].networkId as string));
+    expect(nets).toHaveLength(1);
+    expect(nets[0].name).toMatch(/Network/);
   });
 });

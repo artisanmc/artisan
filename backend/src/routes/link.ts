@@ -4,6 +4,7 @@ import { db } from "../db/index";
 import { linkCodes, serverKeys } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { pushLinkConfirmed } from "../ws/hub";
+import { createNetwork } from "../lib/networkManager";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
@@ -36,8 +37,9 @@ router.post("/:code/claim", async (c) => {
   if (row.expiresAt < new Date()) return c.json({ error: "Expired" }, 410);
 
   const { id, key, hash } = await generateServerKey();
+  const network = await createNetwork(`Network ${id.slice(0, 6)}`);
   await db.transaction(async (tx) => {
-    await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
+    await tx.insert(serverKeys).values({ id, hash, label: null, networkId: network.id, createdAt: new Date() });
     await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id }).where(eq(linkCodes.code, code));
   });
 

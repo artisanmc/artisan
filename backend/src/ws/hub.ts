@@ -1,7 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBundles, packConflicts, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packConflicts, serverKeys } from "../db/schema";
+// TODO(F1): packBundles removed from schema in A8 — replace usages below with packBindings
+import { createNetwork } from "../lib/networkManager";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -132,51 +134,16 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    const allPacks = await db
-      .select({ packId: packBundles.packId, hash: packBundles.hash, deletedAt: packBundles.deletedAt })
-      .from(packBundles)
-      .where(eq(packBundles.serverId, keyId));
-
+    // TODO(F1): replace with packBindings query — packBundles removed from schema in A8
+    const allPacks: { packId: string; hash: string; deletedAt: Date | null }[] = [];
     const packs = allPacks.filter((p) => p.deletedAt == null);
     const deletedPackIds = allPacks.filter((p) => p.deletedAt != null).map((p) => p.packId);
 
     const packHashesMap: Record<string, string> = {};
     for (const p of packs) packHashesMap[p.packId] = p.hash;
 
-    // Create minimal editor stubs for packs the plugin has on disk but the backend doesn't know about
-    const knownPackIds = new Set(packs.map((p) => p.packId));
-    const localPackIds = hello.local_pack_ids ?? [];
-    const missingPackIds = localPackIds.filter((id) => !knownPackIds.has(id));
-    if (missingPackIds.length > 0) {
-      const now = new Date().toISOString();
-      await db.insert(packBundles).values(
-        missingPackIds.map((packId) => ({
-          id: crypto.randomUUID(),
-          serverId: keyId,
-          packId,
-          hash: "",
-          filesJson: "{}",
-          editorJson: JSON.stringify({
-            id: packId,
-            name: packId,
-            source: "user_created",
-            createdAt: now,
-            updatedAt: now,
-            menus: [],
-            commands: [],
-            templates: [],
-            assets: [],
-            dataSources: [],
-            dialogs: [],
-            importedConnectors: [],
-            i18nKeys: {},
-            defaultLang: "en",
-            canvasLayout: {},
-          }),
-          createdAt: new Date(),
-        })),
-      ).onConflictDoNothing();
-    }
+    // TODO(F1): create packBindings stubs for local packs not yet in backend
+    void hello.local_pack_ids; // suppress unused-var until F1
 
     const rp = await currentPackInfo(keyId);
 
@@ -236,10 +203,11 @@ export async function handlePluginMessage(
     const { code } = raw as SetupClaimMessage;
 
     const { id, key, hash } = await generateServerKey();
+    const networkForSetup = await createNetwork(`Network ${id.slice(0, 6)}`);
     const claimed = await db.transaction(async (tx) => {
       const rows = await tx.select().from(linkCodes).where(eq(linkCodes.code, code));
       if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) return false;
-      await tx.insert(serverKeys).values({ id, hash, label: null, createdAt: new Date() });
+      await tx.insert(serverKeys).values({ id, hash, label: null, networkId: networkForSetup.id, createdAt: new Date() });
       await tx.update(linkCodes)
         .set({ claimedAt: new Date(), serverKeyId: id })
         .where(eq(linkCodes.code, code));
@@ -326,8 +294,8 @@ export async function handlePluginMessage(
     const lastSyncedHash = raw.last_synced_hash as string | undefined;
     if (!packId || !diskFiles || diskHash == null || lastSyncedHash == null) return { reply: null };
 
-    const existing = await db.select().from(packBundles)
-      .where(and(eq(packBundles.serverId, serverId), eq(packBundles.packId, packId)));
+    // TODO(F1): replace with packBindings/packs lookup — packBundles removed from schema in A8
+    const existing: { hash: string; deletedAt: Date | null }[] = [];
     if (existing.length === 0 || existing[0].deletedAt != null) return { reply: null };
     const backendHashAtDetection = existing[0].hash;
 
