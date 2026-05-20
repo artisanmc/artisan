@@ -16,6 +16,10 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(dialog.id));
 
+  const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    e.target.moveToTop();
+  }, []);
+
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       setCanvasPosition({ packId, nodeId: dialog.id, x: e.target.x(), y: e.target.y() });
@@ -39,6 +43,7 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
       x={position.x}
       y={position.y}
       draggable
+      onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}

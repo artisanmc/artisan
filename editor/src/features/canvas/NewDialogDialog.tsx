@@ -23,9 +23,24 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
   const [id, setId] = useState("");
   const { t } = useTranslation();
 
+  const existingIdsStr = useAccountStore((s) => {
+    const pack = s.account.packs.find((p) => p.id === packId);
+    if (!pack) return "";
+    return [
+      ...pack.dialogs.map((d) => d.id),
+      ...pack.menus.map((m) => m.id),
+      ...pack.commands.map((c) => c.id),
+    ].join(",");
+  });
+  const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
+
+  const trimmed = id.trim();
+  const prefixedId = trimmed ? `dialog_${trimmed}` : "";
+  const conflict = prefixedId !== "" && existingIds.has(prefixedId);
+
   const submit = () => {
-    if (!id.trim()) return;
-    const dialogId = useAccountStore.getState().createDialog({ packId, id: id.trim(), position });
+    if (!trimmed || conflict) return;
+    const dialogId = useAccountStore.getState().createDialog({ packId, id: prefixedId, position });
     useSelectionStore.getState().set([dialogId]);
     setId("");
     onOpenChange(false);
@@ -38,16 +53,26 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
           <DialogTitle>{t("canvas.newDialogDialogTitle")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <Input
-            placeholder="d_confirm_buy"
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-            autoFocus
-          />
+          <div className="flex flex-col gap-1">
+            <Input
+              placeholder="confirm_buy"
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              autoFocus
+            />
+            {prefixedId && !conflict && (
+              <span className="font-mono text-xs text-zinc-400">
+                {t("canvas.idPreviewLabel")} <span className="text-zinc-300">{prefixedId}</span>
+              </span>
+            )}
+            {conflict && (
+              <span className="text-xs text-red-400">{t("canvas.idConflict")}</span>
+            )}
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
-            <Button onClick={submit}>{t("canvas.create")}</Button>
+            <Button onClick={submit} disabled={!trimmed || conflict}>{t("canvas.create")}</Button>
           </div>
         </div>
       </DialogContent>

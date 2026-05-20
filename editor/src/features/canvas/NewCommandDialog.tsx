@@ -10,6 +10,7 @@ import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface NewCommandDialogProps {
   packId: PackId;
@@ -23,7 +24,7 @@ function slugify(name: string): string {
 }
 
 function deriveUniqueId(name: string, existingIds: Set<string>): string {
-  const base = slugify(name) || "cmd";
+  const base = "cmd_" + (slugify(name) || "cmd");
   if (!existingIds.has(base)) return base;
   let n = 1;
   while (existingIds.has(`${base}_${n}`)) n++;
@@ -32,10 +33,16 @@ function deriveUniqueId(name: string, existingIds: Set<string>): string {
 
 export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCommandDialogProps) {
   const [name, setName] = useState("");
+  const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
     const pack = s.account.packs.find((p) => p.id === packId);
-    return (pack?.commands.map((c) => c.id) ?? []).join(",");
+    if (!pack) return "";
+    return [
+      ...pack.commands.map((c) => c.id),
+      ...pack.menus.map((m) => m.id),
+      ...pack.dialogs.map((d) => d.id),
+    ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
 
@@ -58,7 +65,7 @@ export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvelle commande</DialogTitle>
+          <DialogTitle>{t("canvas.newCommandDialogTitle")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
@@ -71,13 +78,13 @@ export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCo
             />
             {derivedId && (
               <span className="font-mono text-xs text-zinc-400">
-                id : <span className="text-zinc-300">{derivedId}</span>
+                {t("canvas.idPreviewLabel")} <span className="text-zinc-300">{derivedId}</span>
               </span>
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
-            <Button onClick={submit} disabled={!name.trim()}>Créer</Button>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
+            <Button onClick={submit} disabled={!name.trim()}>{t("canvas.create")}</Button>
           </div>
         </div>
       </DialogContent>

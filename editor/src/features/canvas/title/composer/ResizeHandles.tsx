@@ -106,7 +106,11 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
     [x, y, width, height],
   );
 
-  const beginDrag = useCallback(() => {
+  const beginDrag = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    // Stop the anchor drag from bubbling to the parent LayerNode Group — if
+    // it bubbles, the Group's onDragEnd reads the anchor's final position as
+    // the layer's new x/y, teleporting the layer to wherever the cursor went.
+    e.cancelBubble = true;
     dragStartRef.current = {
       origWidth: width,
       origHeight: height,
@@ -117,6 +121,7 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
 
   const handleDragMove = useCallback(
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {
+      e.cancelBubble = true;
       // TODO P3+: shift-drag = stretch (requires PNG resample on backend)
       // For now shift is a no-op — drag stays aspect-locked.
       //
@@ -136,6 +141,7 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
 
   const handleDragEnd = useCallback(
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {
+      e.cancelBubble = true;
       // TODO P3+: shift-drag = stretch (requires PNG resample on backend)
       const node = e.target;
       const dims = computeDims(corner, node.x(), node.y());

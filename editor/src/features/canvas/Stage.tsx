@@ -110,6 +110,7 @@ export function Stage({ packId }: StageProps) {
       }
       if (e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
+        useUiStore.getState().setSelectedLayerKey(null);
       }
     },
     [pack, layout, viewport, packId],
@@ -378,6 +379,10 @@ export function Stage({ packId }: StageProps) {
               layout={layout}
             />
           ))}
+        </Layer>
+        {/* Commands and dialogs render above the menus layer so they always
+            take click priority, even after a menu calls moveToTop() during drag. */}
+        <Layer name="commands" imageSmoothingEnabled={false}>
           {pack.commands.map((command) => (
             <CommandGroup
               key={command.id}
