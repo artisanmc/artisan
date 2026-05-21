@@ -1,0 +1,48 @@
+import { useEffect, useState } from "react";
+import { useSessionStore } from "@/state/sessionStore";
+import { useAuthStore } from "@/state/authStore";
+import { loadPacks } from "@/lib/packApi";
+import { loadUserPack } from "@/lib/api/userPacks";
+import type { Pack } from "@/domain/types";
+
+export type PackLoadMode = "session" | "user";
+
+export interface PackLoadResult {
+  pack: Pack | null;
+  error: string | null;
+  mode: PackLoadMode | null;
+}
+
+export function usePackLoader(packId: string): PackLoadResult {
+  const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
+  const [pack, setPack] = useState<Pack | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<PackLoadMode | null>(null);
+
+  useEffect(() => {
+    setError(null);
+    if (token) {
+      setMode("session");
+      loadPacks(token)
+        .then((packs) => {
+          const found = packs.find((p) => p.id === packId);
+          if (found) setPack(found);
+          else setError("Pack not bound to this session");
+        })
+        .catch((e) => setError((e as Error).message));
+    } else if (user) {
+      setMode("user");
+      loadUserPack(packId)
+        .then((res) => {
+          // loadUserPack returns { pack, files, editor }; editor is the full Pack JSON
+          setPack(res.editor as Pack);
+        })
+        .catch((e) => setError((e as Error).message));
+    } else {
+      setError("Not authenticated");
+    }
+  }, [packId, token, user]);
+
+  return { pack, error, mode };
+}
