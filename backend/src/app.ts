@@ -13,6 +13,8 @@ import { resourcePackPublicRouter, resourcePackAdminRouter } from "./routes/reso
 import { conflictsRouter } from "./routes/conflicts";
 import { authRouter } from "./routes/auth";
 import { discordOauthRouter } from "./routes/discordOauth";
+import { userNetworksRouter } from "./routes/userNetworks";
+import { userAuth } from "./middleware/userAuth";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 
@@ -37,6 +39,8 @@ app.route("/api/editor-session", resourcePackAdminRouter);
 app.route("/api/editor-session", conflictsRouter);
 app.route("/api/auth", authRouter);
 app.route("/api/auth/discord", discordOauthRouter);
+app.use("/api/networks/*", userAuth());
+app.route("/api/networks", userNetworksRouter);
 
 app.get(
   "/ws/plugin",
