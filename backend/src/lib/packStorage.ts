@@ -1,6 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { packs } from "../db/schema";
+import { createCommit } from "./commitStorage";
+import { createBranch } from "./branchStorage";
 
 export type Pack = typeof packs.$inferSelect;
 
@@ -25,6 +27,16 @@ export async function createPack(input: {
     createdAt: now,
     updatedAt: now,
   });
+  // Phase 2: auto-create main branch with an initial empty commit.
+  const root = await createCommit({
+    packId: id,
+    parentId: null,
+    files: {},
+    editor: null,
+    authorUserId: null,
+    message: "Initial commit",
+  });
+  await createBranch(id, "main", root.id);
   return (await getPack(id))!;
 }
 

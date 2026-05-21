@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { packCommits, packs, networks, users } from "../db/schema";
+import { packCommits, packBranches, packs, networks, users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import {
   createCommit, getCommit, listCommitsByPack, computeContentHash,
@@ -9,6 +9,7 @@ import { createNetwork } from "./networkManager";
 import { createPack } from "./packStorage";
 
 async function seedSetup() {
+  await db.delete(packBranches);
   await db.delete(packCommits);
   await db.delete(packs);
   await db.delete(networks);
@@ -51,8 +52,10 @@ describe("commitStorage", () => {
     const c1 = await createCommit({ packId, parentId: null, files, editor, authorUserId: null, message: "first" });
     const c2 = await createCommit({ packId, parentId: c1.id, files, editor, authorUserId: null, message: "second" });
     expect(c2.id).toBe(c1.id);  // same id = same commit (dedup)
+    // Note: createPack now auto-creates an initial empty commit, so there are 2 total:
+    // the initial commit (empty files) and the commit created by this test (with files).
     const rows = await db.select().from(packCommits).where(eq(packCommits.packId, packId));
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
   });
 
   it("getCommit returns the row or null", async () => {
@@ -68,6 +71,11 @@ describe("commitStorage", () => {
     await new Promise((r) => setTimeout(r, 10));
     const b = await createCommit({ packId, parentId: a.id, files: { "f": "2" }, editor: null, authorUserId: null, message: "b" });
     const list = await listCommitsByPack(packId, 10);
-    expect(list.map((c) => c.id)).toEqual([b.id, a.id]);
+    // Note: createPack now auto-creates an initial empty commit, so expect it in the list.
+    // Order should be: b (newest), a, then the auto-created initial commit (oldest).
+    const ids = list.map((c) => c.id);
+    expect(ids[0]).toBe(b.id);
+    expect(ids[1]).toBe(a.id);
+    expect(ids).toHaveLength(3);  // b, a, and the auto-created initial commit
   });
 });
