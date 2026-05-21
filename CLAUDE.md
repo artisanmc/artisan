@@ -122,7 +122,7 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | Message | Sens | Contenu clé |
 |---|---|---|
 | `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
-| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants |
+| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants. **Phase 2** : `pack_hashes[packId]` = `branch.head_commit.contentHash` (le binding détermine la branche). |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
 | `editor_session_request` | plugin → backend | `sender` |
@@ -286,8 +286,13 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
 | `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key (only once). |
 | `POST /api/networks/:id/packs` | Crée un pack. Body `{name, description?}`. |
-| `POST /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Bind pack ↔ server_key. 201. |
+| `POST /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Bind pack ↔ server_key. Body `{branch_name?}` (default `"main"`). 201 ou 404 `branch_not_found` si la branche cible n'existe pas. |
 | `DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Unbind. 204. |
+| `GET /api/networks/:id/packs/:packId/branches` | Liste les branches du pack. |
+| `POST /api/networks/:id/packs/:packId/branches` | Body `{name, from}`. 201 / 409 `branch_exists` / 404 `source_branch_not_found` / 422 `invalid_name`. Le name doit matcher `/^[a-zA-Z0-9_\-./]+$/`. |
+| `GET /api/networks/:id/packs/:packId/commits?branch=&limit=` | Liste les commits récents (desc createdAt). `limit` clampé à 200, défaut 50. Le `branch` query param est accepté mais pas filtré pour MVP. |
+| `POST /api/networks/:id/packs/:packId/commits` | Body `{branch, message}`. Crée un commit depuis le WIP courant (`packs.filesJson` + `editorJson`) + avance la branche + broadcast `bundle_available`. Dedup par `(packId, contentHash)`. 404 si branche n'existe pas. |
+| `POST /api/networks/:id/packs/:packId/branches/:src/promote/:dst` | Fast-forward only. 200 `{ok, advanced}` ou 409 `not_fast_forward` si la cible a divergé. 400 `same_branch` si src===dst. |
 | `GET /api/user/packs/:packId` | Lecture pack (user-auth, membership check). |
 | `PUT /api/user/packs/:packId` | Écriture pack (user-auth). Broadcast `bundle_available`. |
 | `GET /api/textures/asset/:packId/:assetId` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{packId}/{assetId}.png`. |
@@ -301,7 +306,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 ---
 
-## Modèle d'entités (Plan 1B)
+## Modèle d'entités (Plan 1B + Phase 2)
 
 ```
 User (Plan 1A) ── Membership ──┐
@@ -313,12 +318,17 @@ User (Plan 1A) ── Membership ──┐
               ServerKey (N)            Pack (N, first-class)
                   │                       │
                   └── PackBinding ────────┘
-                       (server_key_id, pack_id)
+                       (server_key_id, pack_id, branchName="main")
                        many-to-many
+                  
+                                         Pack → PackBranch ← PackCommit
+                                         (branches + commits)
 ```
 
+### Plan 1B — Multi-server networks
+
 - **Pack** : entité first-class avec `id`, `networkId`, `name`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. Plus de scope par `server_key`.
-- **PackBinding** : table `pack_bindings(server_key_id, pack_id)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC).
+- **PackBinding** : table `pack_bindings(server_key_id, pack_id, branchName)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC). Chaque binding vise une branche spécifique (default `"main"`).
 - **Assets per-pack** : `assets.packId` (au lieu de `assets.serverKeyId`). Codepoint allocator scopé au pack. Chemins disque `data/assets/{packId}/...`.
 - **Resource pack build multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs bindés au server_key et merge les codepoints à la volée (premier pack arrivé garde son codepoint, collisions ré-allouées). Voir `lib/rpCodepointMerger.ts`.
 - **Server keys belongs to Network** : `server_keys.networkId` NOT NULL. À la création (`/api/link/claim` ou `/api/server-keys` ou WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
@@ -326,6 +336,16 @@ User (Plan 1A) ── Membership ──┐
 - **Plugin protocole inchangé** : aucun changement de code plugin nécessaire ; seule la source des données côté backend bouge.
 
 Tables Drizzle ajoutées en Plan 1B : `networks`, `memberships`, `packs`, `pack_bindings`. Table supprimée : `pack_bundles` (son contenu fusionne dans `packs`).
+
+### Phase 2 — branches + commits
+
+- **pack_commits** : `(id, packId, parentId, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(packId, contentHash)`. `parentId` est nullable pour le commit racine (auto-créé à `createPack`).
+- **pack_branches** : `(packId, name, headCommitId, createdAt, updatedAt)`. Pointeur vers un commit. Unique par `(packId, name)`.
+- **pack_bindings.branchName** (default `"main"`) : un binding cible une branche spécifique. Unique par `(serverKeyId, packId, branchName)` — un même server_key peut binder le même pack sur des branches différentes (cas rare mais possible).
+- **WIP vs commit** : `packs.filesJson` / `packs.editorJson` / `packs.hash` reste le buffer éditeur live (Plan 1B/1C). Les plugins lisent UNIQUEMENT les commits via le `branchName` du binding → `pack_branches.headCommitId` → `pack_commits.filesJson`.
+- **Promotion** : fast-forward only. Le backend refuse en 409 `not_fast_forward` si la cible a divergé. Merge sémantique = Phase 3.
+
+Tables Drizzle ajoutées en Phase 2 : `pack_commits`, `pack_branches`. Column ajoutée : `pack_bindings.branchName`.
 
 ---
 
