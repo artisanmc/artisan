@@ -195,8 +195,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     deployedEditorJson: editorJson,
   });
 
-  // TODO(F2): drop serverKeyId arg — pushBundleAvailable will resolve server_keys via packBindings
-  await pushBundleAvailable(session.serverKeyId, packId, hash);
+  await pushBundleAvailable(packId, hash);
   return c.json({ hash }, 201);
 });
 
@@ -220,8 +219,7 @@ router.delete("/:token/packs/:packId", async (c) => {
     .set({ resolvedAt: new Date(), resolution: "editor" })
     .where(and(eq(packConflicts.packId, packId), isNull(packConflicts.resolvedAt)));
 
-  // TODO(F2): drop serverKeyId arg — pushPackDeleted will resolve server_keys via packBindings
-  pushPackDeleted(session.serverKeyId, packId);
+  await pushPackDeleted(packId);
   return c.json({ deleted: true });
 });
 

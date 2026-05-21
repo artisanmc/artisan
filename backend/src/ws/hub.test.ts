@@ -1,12 +1,75 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { app } from "../app";
-import { handlePluginMessage, registerConn, registerEditorConn, cleanupEditorConn, broadcastDraftUpdate, getMcVersion, trackEditorIp, pushResourcePackUpdated, connToServerId, connSenders } from "./hub";
+import {
+  handlePluginMessage,
+  registerConn,
+  registerEditorConn,
+  broadcastDraftUpdate,
+  getMcVersion,
+  trackEditorIp,
+  pushResourcePackUpdated,
+  connToServerId,
+  connSenders,
+} from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
 import { db } from "../db/index";
-import { editorSessions, serverKeys } from "../db/schema";
+import {
+  editorSessions,
+  serverKeys,
+  packs,
+  packBindings,
+  packConflicts,
+  networks,
+  linkCodes,
+  assets,
+} from "../db/schema";
 import { generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
-import { eq } from "drizzle-orm";
+import { createNetwork } from "../lib/networkManager";
+import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
+import { createBinding } from "../lib/packBindingManager";
+import { and, eq } from "drizzle-orm";
+
+async function clearAll() {
+  await db.delete(packConflicts);
+  await db.delete(packBindings);
+  await db.delete(assets);
+  await db.delete(packs);
+  await db.delete(editorSessions);
+  await db.delete(linkCodes);
+  await db.delete(serverKeys);
+  await db.delete(networks);
+}
+
+async function seedServerKey(): Promise<{ id: string; key: string; hash: string; networkId: string }> {
+  const net = await createNetwork("N");
+  const { id, key, hash } = await generateServerKey();
+  await db.insert(serverKeys).values({
+    id, hash, label: null, networkId: net.id, createdAt: new Date(),
+  });
+  return { id, key, hash, networkId: net.id };
+}
+
+async function seedBoundPack(
+  networkId: string,
+  serverKeyId: string,
+  packId: string,
+  hash: string,
+  files: Record<string, string> = {},
+  editor: Record<string, unknown> = {},
+  deleted = false,
+): Promise<void> {
+  await createPack({ networkId, name: packId, id: packId });
+  await createBinding(serverKeyId, packId);
+  await upsertPackContent(packId, {
+    hash,
+    filesJson: JSON.stringify(files),
+    editorJson: JSON.stringify(editor),
+  });
+  if (deleted) await softDeletePack(packId);
+}
+
+beforeEach(clearAll);
 
 describe("handlePluginMessage", () => {
   test("hello with unknown key returns null", async () => {
@@ -22,7 +85,6 @@ describe("handlePluginMessage", () => {
   });
 
   test("hello with valid key returns hello_ack", async () => {
-    // First create a key via the API
     const createRes = await app.request("/api/server-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -45,6 +107,45 @@ describe("handlePluginMessage", () => {
     expect(ack.tier).toBe("free");
     expect(ack.api_url).toBeDefined();
   });
+
+  test("hello_ack contains pack_hashes from packBindings ⨝ packs", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "pa", "ha");
+    await seedBoundPack(networkId, keyId, "pb", "hb");
+
+    const connId = "conn-hashes";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.pack_hashes).toEqual({ pa: "ha", pb: "hb" });
+  });
+
+  test("hello_ack includes soft-deleted pack ids", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "alive", "ha");
+    await seedBoundPack(networkId, keyId, "dead", "hd", {}, {}, true);
+
+    const connId = "conn-deleted";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.pack_hashes).toEqual({ alive: "ha" });
+    expect(ack.deleted_pack_ids).toEqual(["dead"]);
+  });
 });
 
 describe("setup_request", () => {
@@ -63,7 +164,6 @@ describe("setup_request", () => {
 
 describe("setup_claim", () => {
   test("valid code returns link_confirmed and pushes it to the registered conn", async () => {
-    // Create a code via REST
     const createRes = await app.request("/api/link", { method: "POST" });
     const { code } = (await createRes.json()) as { code: string };
 
@@ -91,9 +191,7 @@ describe("editor_session_request", () => {
     const connId = "conn-editor-req";
     registerConn(connId, () => {});
 
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
-
+    const { key } = await seedServerKey();
     const hello = { type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "" };
     await handlePluginMessage(connId, JSON.stringify(hello));
 
@@ -105,7 +203,7 @@ describe("editor_session_request", () => {
     const body = msg as { type: string; url: string; expires_at: string; trust_code: string };
     expect(typeof body.trust_code).toBe("string");
     expect(body.trust_code.length).toBe(6);
-    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000); // > 6 days
+    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
 
   test("returns null when connection not authenticated", async () => {
@@ -121,14 +219,12 @@ describe("editor_session_revoke", () => {
     const connId = "conn-editor-revoke";
     registerConn(connId, () => {});
 
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const { id: keyId, key } = await seedServerKey();
     await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "" }));
 
     const token = generateEditorToken();
     await db.insert(editorSessions).values({ token, serverKeyId: keyId, createdBy: "CONSOLE", createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
     const editorReceived: string[] = [];
-    // Maps are now keyed by sessionId (urlToken = stable session PK)
     registerEditorConn(token, keyId, (msg) => editorReceived.push(msg));
 
     await handlePluginMessage(connId, JSON.stringify({ type: "editor_session_revoke" }));
@@ -143,8 +239,7 @@ describe("editor_trust_request", () => {
     const connId = "conn-trust-test";
     registerConn(connId, () => {});
 
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const { id: keyId, key } = await seedServerKey();
     await handlePluginMessage(connId, JSON.stringify({
       type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
     }));
@@ -160,7 +255,6 @@ describe("editor_trust_request", () => {
     });
 
     const editorReceived: string[] = [];
-    // Maps are keyed by urlToken (stable session PK), not accessToken (rotates)
     registerEditorConn(urlToken, keyId, (msg) => editorReceived.push(msg));
     trackEditorIp(urlToken, "10.0.0.1");
 
@@ -177,8 +271,7 @@ describe("editor_trust_request", () => {
   test("ignores trust request with unknown code", async () => {
     const connId = "conn-trust-unknown";
     registerConn(connId, () => {});
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const { key } = await seedServerKey();
     await handlePluginMessage(connId, JSON.stringify({
       type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
     }));
@@ -189,8 +282,7 @@ describe("editor_trust_request", () => {
 
 describe("broadcastDraftUpdate", () => {
   test("pushes draft_update to other editor connections for the same server", async () => {
-    const keyId = crypto.randomUUID();
-    await db.insert(serverKeys).values({ id: keyId, hash: "bdu" + keyId.slice(0, 8), createdAt: new Date() });
+    const { id: keyId } = await seedServerKey();
 
     const tokenA = generateEditorToken();
     const tokenB = generateEditorToken();
@@ -235,8 +327,7 @@ describe("getMcVersion", () => {
 
 describe("resource_pack in hello_ack", () => {
   test("hello_ack includes resource_pack: null when no pack has been built", async () => {
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const { key } = await seedServerKey();
 
     const connId = "conn-rp-null";
     registerConn(connId, () => {});
@@ -255,8 +346,7 @@ describe("resource_pack in hello_ack", () => {
   });
 
   test("hello_ack includes { url, hash } after a pack was built", async () => {
-    const { id: keyId, key, hash } = await generateServerKey();
-    await db.insert(serverKeys).values({ id: keyId, hash, createdAt: new Date() });
+    const { id: keyId, key } = await seedServerKey();
 
     const packInfo = await rebuildResourcePack(keyId);
 
@@ -304,7 +394,6 @@ describe("pushResourcePackUpdated", () => {
 
     expect(receivedB.length).toBe(0);
 
-    // cleanup
     connSenders.delete(connA);
     connSenders.delete(connB);
     connToServerId.delete(connA);
@@ -314,21 +403,9 @@ describe("pushResourcePackUpdated", () => {
 
 describe("pack_divergence_detected", () => {
   test("upserts pack_conflicts row and notifies editors", async () => {
-    const { db } = await import("../db/index");
-    const { serverKeys, packBundles, packConflicts, editorSessions } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
+    const { id: keyId, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "p_div", "backend_hash_x", {}, {});
 
-    const keyId = crypto.randomUUID();
-    const rawKey = "srv-key-divergence";
-    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
-    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
-    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "test", createdAt: new Date() });
-    await db.insert(packBundles).values({
-      id: crypto.randomUUID(), serverId: keyId, packId: "p_div",
-      hash: "backend_hash_x", filesJson: "{}", editorJson: "{}", createdAt: new Date(),
-    });
-
-    const { handlePluginMessage, connToServerId } = await import("./hub");
     const connId = crypto.randomUUID();
     connToServerId.set(connId, keyId);
 
@@ -352,21 +429,9 @@ describe("pack_divergence_detected", () => {
   });
 
   test("re-detection updates existing open conflict (no second row)", async () => {
-    const { db } = await import("../db/index");
-    const { serverKeys, packBundles, packConflicts } = await import("../db/schema");
-    const { and, eq, isNull } = await import("drizzle-orm");
+    const { id: keyId, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "p_re", "h", {}, {});
 
-    const keyId = crypto.randomUUID();
-    const rawKey = "srv-key-redetect";
-    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
-    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
-    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "redetect", createdAt: new Date() });
-    await db.insert(packBundles).values({
-      id: crypto.randomUUID(), serverId: keyId, packId: "p_re",
-      hash: "h", filesJson: "{}", editorJson: "{}", createdAt: new Date(),
-    });
-
-    const { handlePluginMessage, connToServerId } = await import("./hub");
     const connId = crypto.randomUUID();
     connToServerId.set(connId, keyId);
 
@@ -382,28 +447,15 @@ describe("pack_divergence_detected", () => {
     const open = await db.select().from(packConflicts).where(and(
       eq(packConflicts.serverId, keyId),
       eq(packConflicts.packId, "p_re"),
-      isNull(packConflicts.resolvedAt),
     ));
     expect(open.length).toBe(1);
     expect(open[0].diskHash).toBe("d2");
   });
 
   test("skips upsert when pack is soft-deleted", async () => {
-    const { db } = await import("../db/index");
-    const { serverKeys, packBundles, packConflicts } = await import("../db/schema");
-    const { and, eq } = await import("drizzle-orm");
+    const { id: keyId, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "p_del", "h", {}, {}, true);
 
-    const keyId = crypto.randomUUID();
-    const rawKey = "srv-key-del";
-    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
-    const keyHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
-    await db.insert(serverKeys).values({ id: keyId, hash: keyHash, label: "deltest", createdAt: new Date() });
-    await db.insert(packBundles).values({
-      id: crypto.randomUUID(), serverId: keyId, packId: "p_del",
-      hash: "h", filesJson: "{}", editorJson: "{}", deletedAt: new Date(), createdAt: new Date(),
-    });
-
-    const { handlePluginMessage, connToServerId } = await import("./hub");
     const connId = crypto.randomUUID();
     connToServerId.set(connId, keyId);
 
