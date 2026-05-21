@@ -32,6 +32,11 @@ cd plugin
 ./gradlew shadowJar     # → build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
+**Commandes plugin** — `/ifz` subcommands:
+- `/ifz menu <packId> <menuId>` — open menu editor session
+- `/ifz reload` — reload all packs from disk
+- `/ifz pushLocal <packId>` — push local pack changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
+
 ### Backend (Bun + Hono + PostgreSQL)
 
 ```bash
@@ -131,10 +136,9 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 | `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
 | `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
 | `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
-| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — émis au boot/`/ifz reload` pour les packs en LOCAL_ONLY/CONFLICT |
+| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — **Plan 1C: handler is now a no-op for backward compat; new plugins log WARN instead** |
 | `pack_deleted` | backend → plugin | `{ pack_id }` — pack supprimé côté éditeur, le plugin move-to-trash |
-| `pack_conflict_detected` | backend → éditeur | `{ conflict_id, pack_id, detected_at }` |
-| `pack_conflict_resolved` | backend → éditeur | `{ conflict_id, pack_id, resolution }` |
+| `local_push` | plugin → backend | `{ pack_id, files, hash }` — used by `/ifz pushLocal`. Backend creates pack + binding if missing, upserts content, broadcasts `bundle_available`. |
 
 ---
 
@@ -277,9 +281,15 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
 | `DELETE /api/editor-session/:token/packs/:packId/assets/:id` | Supprime (DB + fichier disque). 204. |
 | `DELETE /api/editor-session/:token/packs/:packId` | Soft-delete du pack (sets `deletedAt`), auto-résolution de tout conflit ouvert en "editor", broadcast `pack_deleted` au plugin et aux autres éditeurs. 200 `{deleted: true}` ou 404. |
-| `GET /api/editor-session/:token/conflicts` | Liste les conflits ouverts pour le server_key. Retourne `{ conflicts: ConflictSummary[] }` avec diff added/modified/removed. |
-| `GET /api/editor-session/:token/conflicts/:id` | Détail d'un conflit (inclut `diskFiles` complet). 404 si autre server_key. |
-| `POST /api/editor-session/:token/conflicts/:id/resolve` | Body `{ choice: "editor" \| "server" }`. 200 si résolu, 409 si déjà résolu, 401 si token invalide. |
+| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Cookie `ifz_user_session` requis. |
+| `POST /api/networks` | Crée un Network + Membership owner. Body `{name}`. 201 / 422 invalid_name. |
+| `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
+| `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key (only once). |
+| `POST /api/networks/:id/packs` | Crée un pack. Body `{name, description?}`. |
+| `POST /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Bind pack ↔ server_key. 201. |
+| `DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Unbind. 204. |
+| `GET /api/user/packs/:packId` | Lecture pack (user-auth, membership check). |
+| `PUT /api/user/packs/:packId` | Écriture pack (user-auth). Broadcast `bundle_available`. |
 | `GET /api/textures/asset/:packId/:assetId` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{packId}/{assetId}.png`. |
 | `GET /api/textures/asset-font/:assetId/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{packId}/fonts/{assetId}/{path}`. Lookup par assetId (le packId est lu en DB). 404 si pas un asset font ou path traversal. |
 | `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
