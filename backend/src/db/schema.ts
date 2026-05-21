@@ -125,6 +125,7 @@ export const packCommits = pgTable("pack_commits", {
   id: text("id").primaryKey(),
   packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
   parentId: text("parent_id"),
+  parentId2: text("parent_id_2"),
   contentHash: text("content_hash").notNull(),
   filesJson: text("files_json").notNull(),
   editorJson: text("editor_json"),
