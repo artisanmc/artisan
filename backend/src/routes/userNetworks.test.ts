@@ -116,4 +116,62 @@ describe("userNetworksRouter", () => {
     expect(list.networks).toHaveLength(2);
     expect(list.networks.map((n: { name: string }) => n.name).sort()).toEqual(["N1", "N2"]);
   });
+
+  // A3 tests
+  test("GET /api/networks/:id returns detail with packs + serverKeys", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+
+    // Create network
+    const create = await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N1" }),
+    });
+    const { network } = await create.json();
+
+    // Seed a pack and a server_key in this network directly via DB
+    const { createPack } = await import("../lib/packStorage");
+    await createPack({ networkId: network.id, name: "p1" });
+    await db.insert(serverKeys).values({
+      id: "sk_test_a3",
+      hash: "hash_a3",
+      networkId: network.id,
+      createdAt: new Date(),
+      label: null,
+    });
+
+    const res = await app.request(`/api/networks/${network.id}`, {
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.network.id).toBe(network.id);
+    expect(body.packs).toHaveLength(1);
+    expect(body.packs[0].name).toBe("p1");
+    expect(body.serverKeys).toHaveLength(1);
+    expect(body.serverKeys[0].id).toBe("sk_test_a3");
+  });
+
+  test("GET /api/networks/:id 403 when not member", async () => {
+    const { sessionId: sessA } = await seedUser("uA");
+    await seedUser("uB");
+    const app = makeApp();
+
+    // uA creates a network
+    const create = await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+
+    // uB tries to read it
+    const { createSession: cs } = await import("../lib/sessionManager");
+    const sessB = (await cs("uB")).id;
+    const res = await app.request(`/api/networks/${network.id}`, {
+      headers: { Cookie: `ifz_user_session=${sessB}` },
+    });
+    expect(res.status).toBe(403);
+  });
 });
