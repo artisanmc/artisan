@@ -113,11 +113,39 @@ export const packBindings = pgTable("pack_bindings", {
   id: text("id").primaryKey(),
   serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
   packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
+  branchName: text("branch_name").notNull().default("main"),
   createdAt: timestamp("created_at").notNull(),
 }, (t) => [
-  uniqueIndex("pack_bindings_uniq").on(t.serverKeyId, t.packId),
+  uniqueIndex("pack_bindings_uniq").on(t.serverKeyId, t.packId, t.branchName),
   index("pack_bindings_pack_idx").on(t.packId),
   index("pack_bindings_serverkey_idx").on(t.serverKeyId),
+]);
+
+export const packCommits = pgTable("pack_commits", {
+  id: text("id").primaryKey(),
+  packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
+  parentId: text("parent_id"),
+  contentHash: text("content_hash").notNull(),
+  filesJson: text("files_json").notNull(),
+  editorJson: text("editor_json"),
+  authorUserId: text("author_user_id"),
+  message: text("message").notNull().default(""),
+  createdAt: timestamp("created_at").notNull(),
+}, (t) => [
+  index("pack_commits_pack_idx").on(t.packId),
+  index("pack_commits_pack_created_idx").on(t.packId, t.createdAt),
+  uniqueIndex("pack_commits_pack_content_uniq").on(t.packId, t.contentHash),
+]);
+
+export const packBranches = pgTable("pack_branches", {
+  packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  headCommitId: text("head_commit_id").notNull().references(() => packCommits.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("pack_branches_uniq").on(t.packId, t.name),
+  index("pack_branches_head_idx").on(t.headCommitId),
 ]);
 
 export const assets = pgTable("assets", {
