@@ -31,6 +31,7 @@ import { BranchSwitcher } from "@/features/branches/BranchSwitcher";
 import { CommitDialog } from "@/features/branches/CommitDialog";
 import { HistoryPanel } from "@/features/branches/HistoryPanel";
 import { PromoteButton } from "@/features/branches/PromoteButton";
+import { MergeButton } from "@/features/branches/MergeButton";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -279,6 +280,7 @@ function PackCanvasPage() {
                   Commit
                 </button>
                 <PromoteButton networkId={networkId} packId={pId} sourceBranch={currentBranch} allBranches={branchNames} />
+                <MergeButton networkId={networkId} packId={pId} sourceBranch={currentBranch} allBranches={branchNames} />
               </div>
               <HistoryPanel networkId={networkId} packId={pId} branch={currentBranch} />
             </div>
