@@ -112,6 +112,14 @@ export interface PackDeletedMessage {
   pack_id: string;
 }
 
+// Plugin → backend: push local pack files to backend (/ifz pushLocal flow)
+export interface LocalPushMessage {
+  type: "local_push";
+  pack_id: string;
+  files: Record<string, string>;
+  hash: string;
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -121,7 +129,8 @@ export type PluginToServerMessage =
   | EditorSessionRevokeMessage
   | EditorTrustRequestMessage
   | CustomItemsChangedMessage
-  | CustomItemsBundleMessage;
+  | CustomItemsBundleMessage
+  | LocalPushMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";

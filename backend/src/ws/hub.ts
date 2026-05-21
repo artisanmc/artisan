@@ -3,7 +3,7 @@ import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { editorSessions, linkCodes, packBindings, packs, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
-import { createPack } from "../lib/packStorage";
+import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
 import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
@@ -301,6 +301,32 @@ export async function handlePluginMessage(
 
   // ── pack_divergence_detected: no-op (Plan 1C: backend-as-truth) ──────────
   if (msg.type === "pack_divergence_detected") {
+    return { reply: null };
+  }
+
+  // ── local_push: plugin pushes local pack files to backend (/ifz pushLocal) ─
+  if (msg.type === "local_push") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const raw = msg as Record<string, unknown>;
+    const packId = raw.pack_id as string | undefined;
+    const files = raw.files as Record<string, string> | undefined;
+    const hash = raw.hash as string | undefined;
+    if (!packId || !files || !hash) return { reply: null };
+
+    const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverId)))[0];
+    if (!sk) return { reply: null };
+
+    let pack = await getPack(packId);
+    if (!pack) {
+      pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
+    }
+    const bound = await listPacksForServerKey(serverId);
+    if (!bound.find((p) => p.id === packId)) {
+      await createBinding(serverId, packId);
+    }
+    await upsertPackContent(packId, { hash, filesJson: JSON.stringify(files) });
+    await pushBundleAvailable(packId, hash);
     return { reply: null };
   }
 
