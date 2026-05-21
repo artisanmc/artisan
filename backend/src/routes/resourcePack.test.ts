@@ -3,10 +3,14 @@ import { app } from "../app";
 import { db } from "../db/index";
 import { editorSessions, serverKeys } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { createNetwork } from "../lib/networkManager";
 
 async function seedSession(): Promise<{ token: string; serverKeyId: string }> {
+  const net = await createNetwork("N");
   const serverKeyId = crypto.randomUUID();
-  await db.insert(serverKeys).values({ id: serverKeyId, hash: "h" + serverKeyId.slice(0, 8), createdAt: new Date() });
+  await db.insert(serverKeys).values({
+    id: serverKeyId, hash: "h" + serverKeyId.slice(0, 8), networkId: net.id, createdAt: new Date(),
+  });
   const token = crypto.randomUUID();
   const now = new Date();
   await db.insert(editorSessions).values({

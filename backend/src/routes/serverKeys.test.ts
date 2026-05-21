@@ -1,7 +1,24 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { app } from "../app";
+import { db } from "../db/index";
+import {
+  editorSessions, linkCodes, serverKeys, networks,
+  packBindings, packs, assets, packConflicts,
+} from "../db/schema";
+
+async function clearAll() {
+  await db.delete(packConflicts);
+  await db.delete(packBindings);
+  await db.delete(assets);
+  await db.delete(packs);
+  await db.delete(editorSessions);
+  await db.delete(linkCodes);
+  await db.delete(serverKeys);
+  await db.delete(networks);
+}
 
 describe("server keys API", () => {
+  beforeEach(clearAll);
   test("POST /api/server-keys returns a sk_ key", async () => {
     const res = await app.request("/api/server-keys", {
       method: "POST",
