@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, packConflicts, packs, serverKeys } from "../db/schema";
+import { editorSessions, packs, serverKeys } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
@@ -215,10 +215,6 @@ router.delete("/:token/packs/:packId", async (c) => {
   if (!pack || pack.deletedAt) return c.json({ error: "Not found" }, 404);
 
   await softDeletePack(packId);
-  await db.update(packConflicts)
-    .set({ resolvedAt: new Date(), resolution: "editor" })
-    .where(and(eq(packConflicts.packId, packId), isNull(packConflicts.resolvedAt)));
-
   await pushPackDeleted(packId);
   return c.json({ deleted: true });
 });

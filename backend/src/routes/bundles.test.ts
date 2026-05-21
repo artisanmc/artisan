@@ -1,8 +1,7 @@
 import { describe, expect, test, beforeEach } from "bun:test";
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { networks, serverKeys, packBindings, packs, packConflicts, editorSessions, linkCodes } from "../db/schema";
+import { networks, serverKeys, packBindings, packs, editorSessions, linkCodes } from "../db/schema";
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
@@ -32,7 +31,6 @@ async function seedServerKey(label: string): Promise<{ key: string; id: string; 
 }
 
 beforeEach(async () => {
-  await db.delete(packConflicts);
   await db.delete(packBindings);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -72,28 +70,6 @@ describe("bundle upload/download", () => {
     const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
     expect(body.hash).toMatch(/^[0-9a-f]{64}$/);
     expect(body.files["plugins/Interfaze/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
-  });
-
-  test("POST returns 409 pack_locked when an open conflict exists for the pack", async () => {
-    const app = buildApp();
-    const { key, id: serverKeyId } = await seedServerKey("lock-test");
-
-    const conflictId = crypto.randomUUID();
-    await db.insert(packConflicts).values({
-      id: conflictId, serverId: serverKeyId, packId: "p_locked",
-      diskFilesJson: "{}", diskHash: "d", lastSyncedHash: "", backendHashAtDetection: "",
-      detectedAt: new Date(),
-    });
-
-    const res = await app.request("/api/bundles/p_locked", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_locked/m.yaml": "x" } }),
-    });
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as { error: string; conflictId?: string };
-    expect(body.error).toBe("pack_locked");
-    expect(body.conflictId).toBe(conflictId);
   });
 
   test("GET returns 404 Not bound when server key has no binding for pack", async () => {

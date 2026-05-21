@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, packs, packBindings, linkCodes, packConflicts } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, packs, packBindings, linkCodes } from "../db/schema";
 import { readFontGlyph, fontDirPaths } from "../lib/fontStorage";
 import { existsSync } from "fs";
 import { assetsRouter } from "./assets";
@@ -31,7 +31,6 @@ app.route("/api/editor-session", assetsRouter);
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
-  await db.delete(packConflicts);
   await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);

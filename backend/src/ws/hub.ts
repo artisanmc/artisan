@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBindings, packConflicts, packs, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBindings, packs, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createPack } from "../lib/packStorage";
 import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
@@ -299,69 +299,8 @@ export async function handlePluginMessage(
 
   if (msg.type === "pong") return { reply: null };
 
-  // ── pack_divergence_detected: plugin signals disk/backend mismatch ─────────
+  // ── pack_divergence_detected: no-op (Plan 1C: backend-as-truth) ──────────
   if (msg.type === "pack_divergence_detected") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    const raw = msg as Record<string, unknown>;
-    const packId = raw.pack_id as string | undefined;
-    const diskFiles = raw.disk_files as Record<string, string> | undefined;
-    const diskHash = raw.disk_hash as string | undefined;
-    const lastSyncedHash = raw.last_synced_hash as string | undefined;
-    if (!packId || !diskFiles || diskHash == null || lastSyncedHash == null) return { reply: null };
-
-    // Backend pack lookup: only fire a conflict if (a) the pack exists, (b) it isn't deleted,
-    // and (c) it's bound to this server_key.
-    const bound = await listPacksForServerKey(serverId);
-    const existing = bound.find((p) => p.id === packId);
-    if (!existing) return { reply: null };
-    const backendHashAtDetection = existing.hash;
-
-    const now = new Date();
-    const conflictId = crypto.randomUUID();
-
-    const open = await db.select().from(packConflicts).where(and(
-      eq(packConflicts.serverId, serverId),
-      eq(packConflicts.packId, packId),
-      isNull(packConflicts.resolvedAt),
-    ));
-
-    let finalConflictId: string;
-    if (open.length > 0) {
-      await db.update(packConflicts)
-        .set({
-          diskFilesJson: JSON.stringify(diskFiles),
-          diskHash,
-          lastSyncedHash,
-          backendHashAtDetection,
-        })
-        .where(eq(packConflicts.id, open[0].id));
-      finalConflictId = open[0].id;
-    } else {
-      await db.insert(packConflicts).values({
-        id: conflictId,
-        serverId,
-        packId,
-        diskFilesJson: JSON.stringify(diskFiles),
-        diskHash,
-        lastSyncedHash,
-        backendHashAtDetection,
-        detectedAt: now,
-      });
-      finalConflictId = conflictId;
-    }
-
-    const payload = JSON.stringify({
-      type: "pack_conflict_detected",
-      conflict_id: finalConflictId,
-      pack_id: packId,
-      detected_at: now.toISOString(),
-    });
-    for (const [sessionId, sId] of editorTokenToServer) {
-      if (sId !== serverId) continue;
-      const send = editorSenders.get(sessionId);
-      if (send) send(payload);
-    }
     return { reply: null };
   }
 
@@ -408,14 +347,6 @@ export async function pushBundleAvailable(
   } satisfies BundleAvailableMessage);
 
   for (const serverKeyId of targets) {
-    // Freeze: per-target skip if an open conflict exists for (server, pack).
-    const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
-      eq(packConflicts.serverId, serverKeyId),
-      eq(packConflicts.packId, packId),
-      isNull(packConflicts.resolvedAt),
-    ));
-    if (open.length > 0) continue;
-
     for (const [connId, sId] of connToServerId) {
       if (sId !== serverKeyId) continue;
       const send = connSenders.get(connId);
