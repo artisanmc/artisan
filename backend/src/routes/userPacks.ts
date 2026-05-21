@@ -39,3 +39,32 @@ userPacksRouter.get("/:packId", async (c: Context<{ Variables: Vars }>) => {
     editor: pack.editorJson ? JSON.parse(pack.editorJson) : null,
   });
 });
+
+// PUT /api/user/packs/:packId — write pack content + broadcast (member only)
+userPacksRouter.put("/:packId", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const packId = c.req.param("packId");
+
+  const networkId = await getNetworkOfPack(packId);
+  if (networkId === null) return c.json({ error: "not_found" }, 404);
+
+  try {
+    await requireMember(userId, networkId);
+  } catch {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
+  const body = await c.req.json<{ hash: string; files: Record<string, string>; editor: unknown }>();
+
+  await upsertPackContent(packId, {
+    hash: body.hash,
+    filesJson: JSON.stringify(body.files),
+    editorJson: body.editor ? JSON.stringify(body.editor) : null,
+  });
+
+  await pushBundleAvailable(packId, body.hash);
+
+  return c.json({ ok: true });
+});
