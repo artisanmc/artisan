@@ -2,10 +2,14 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { networks, serverKeys, packBindings, packs, editorSessions, linkCodes } from "../db/schema";
+import { networks, serverKeys, packBindings, packs, editorSessions, linkCodes, packCommits, packBranches } from "../db/schema";
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
+import { createBinding } from "../lib/packBindingManager";
+import { createPack } from "../lib/packStorage";
+import { createCommit, computeContentHash } from "../lib/commitStorage";
+import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
 const PACK_FILES = {
   "plugins/Interfaze/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
@@ -51,10 +55,11 @@ describe("bundle upload/download", () => {
     expect(res.status).toBe(401);
   });
 
-  test("POST + GET round-trip stores and retrieves bundle", async () => {
+  test("POST writes WIP; GET serves main branch head (initial empty commit)", async () => {
     const app = buildApp();
     const { key } = await seedServerKey("bundle-test");
 
+    // POST writes WIP content
     const uploadRes = await app.request("/api/bundles/p_test", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
@@ -64,13 +69,46 @@ describe("bundle upload/download", () => {
     const uploadBody = (await uploadRes.json()) as { ok: boolean };
     expect(uploadBody.ok).toBe(true);
 
+    // GET serves branch head commit — createPack auto-creates main with empty initial commit.
     const downloadRes = await app.request("/api/bundles/p_test", {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(downloadRes.status).toBe(200);
     const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
     expect(body.hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(body.files["plugins/Interfaze/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
+    // Initial commit has empty files — POST WIP is NOT reflected until a commit is created.
+    expect(body.files).toEqual({});
+  });
+
+  test("GET /api/bundles/:packId serves the bound branch's head commit content", async () => {
+    const app = buildApp();
+    const { key, id: skId, networkId } = await seedServerKey("c3-test");
+
+    // Create pack + binding via DB helpers (simulating Phase 2 flow)
+    const pack = await createPack({ networkId, name: "c3-pack", id: "p_c3" });
+    await createBinding(skId, pack.id);
+
+    // Add a second commit with concrete files and advance main head
+    const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
+    const branch = await getBranch(pack.id, "main");
+    const commit2 = await createCommit({
+      packId: pack.id,
+      parentId: branch!.headCommitId,
+      files,
+      editor: null,
+      authorUserId: null,
+      message: "C3 test commit",
+    });
+    await advanceBranchHead(pack.id, "main", commit2.id);
+
+    const res = await app.request(`/api/bundles/${pack.id}`, {
+      headers: { "Authorization": `Bearer ${key}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { files: Record<string, string>; hash: string };
+    // Should serve commit2's content, not initial empty commit or WIP
+    expect(body.hash).toBe(commit2.contentHash);
+    expect(body.files).toEqual(files);
   });
 
   test("GET returns 404 Not bound when server key has no binding for pack", async () => {
@@ -115,12 +153,13 @@ describe("bundle upload/download", () => {
     );
     expect(bindings.length).toBe(1);
 
-    // GET should return updated content
+    // GET serves branch head commit (initial empty commit) — NOT the WIP files from POST.
     const getRes = await app.request("/api/bundles/p_reuse", {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(getRes.status).toBe(200);
     const getBody = (await getRes.json()) as { files: Record<string, string>; hash: string };
-    expect(getBody.files["plugins/Interfaze/packs/p_reuse/menus/shop.yaml"]).toContain("size: 54");
+    // Branch head is still the initial empty commit
+    expect(getBody.files).toEqual({});
   });
 });
