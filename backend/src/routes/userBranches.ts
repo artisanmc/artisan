@@ -109,8 +109,8 @@ userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
   });
   await advanceBranchHead(packId, branchName, commit.id);
 
-  // Broadcast bundle_available to all server_keys bound to this pack.
-  await pushBundleAvailable(packId, commit.contentHash); // TODO(C1): pass branchName when signature is updated
+  // Broadcast bundle_available to all server_keys bound to (packId, branchName).
+  await pushBundleAvailable(packId, branchName, commit.contentHash);
 
   return c.json({ commit }, 201);
 });
@@ -137,9 +137,9 @@ userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (
   }
 
   await advanceBranchHead(packId, dstName, src.headCommitId);
-  // Broadcast bundle_available to all server_keys bound to this pack.
+  // Broadcast bundle_available to all server_keys bound to (packId, dstName).
   const newHead = await getCommit(src.headCommitId);
-  if (newHead) await pushBundleAvailable(packId, newHead.contentHash); // TODO(C1): pass dstName when signature is updated
+  if (newHead) await pushBundleAvailable(packId, dstName, newHead.contentHash);
 
   return c.json({ ok: true, advanced: true });
 });

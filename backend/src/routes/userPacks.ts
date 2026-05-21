@@ -3,7 +3,6 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { getPack, upsertPackContent } from "../lib/packStorage";
 import { getNetworkOfPack, requireMember } from "../lib/membershipGuard";
-import { pushBundleAvailable } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -63,8 +62,6 @@ userPacksRouter.put("/:packId", async (c: Context<{ Variables: Vars }>) => {
     filesJson: JSON.stringify(body.files),
     editorJson: body.editor ? JSON.stringify(body.editor) : null,
   });
-
-  await pushBundleAvailable(packId, body.hash);
 
   return c.json({ ok: true });
 });
