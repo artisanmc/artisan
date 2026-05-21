@@ -68,3 +68,23 @@ mappings:
     updates:
       - "CLAUDE.md"
     reason: "Session lifecycle / cookie semantics"
+
+  - touches: "backend/src/routes/userNetworks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network endpoints (section Modèle d'entités + Custom Items — endpoints et cache)"
+
+  - touches: "backend/src/routes/userPacks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Pack endpoints (Custom Items — endpoints et cache section)"
+
+  - touches: "backend/src/lib/membershipGuard.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Reference for membership checks in network endpoints"
+
+  - touches: "plugin/src/main/kotlin/**/LocalPushSender.kt"
+    updates:
+      - "CLAUDE.md"
+    reason: "Local push command (Plugin commands section)"
