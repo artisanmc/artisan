@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBindings, packs, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBindings, packBranches, packCommits, packs, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
 import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
@@ -326,7 +326,7 @@ export async function handlePluginMessage(
       await createBinding(serverId, packId);
     }
     await upsertPackContent(packId, { hash, filesJson: JSON.stringify(files) });
-    await pushBundleAvailable(packId, hash);
+    await pushBundleAvailable(packId, "main", hash);
     return { reply: null };
   }
 
@@ -358,26 +358,30 @@ export async function handlePluginMessage(
 
 export async function pushBundleAvailable(
   packId: string,
-  hash: string,
+  branchName: string,
+  contentHash: string,
 ): Promise<void> {
-  const targets = await listServerKeysForPack(packId);
+  // Find all server_keys bound to (packId, branchName).
+  const targets = await db
+    .select({ serverKeyId: packBindings.serverKeyId })
+    .from(packBindings)
+    .where(and(eq(packBindings.packId, packId), eq(packBindings.branchName, branchName)));
   if (targets.length === 0) return;
 
-  const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}`;
+  const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}?branch=${encodeURIComponent(branchName)}`;
   const payload = JSON.stringify({
     type: "bundle_available",
     pack_id: packId,
     url,
-    hash,
+    hash: contentHash,
     signature: "",
   } satisfies BundleAvailableMessage);
 
-  for (const serverKeyId of targets) {
-    for (const [connId, sId] of connToServerId) {
-      if (sId !== serverKeyId) continue;
-      const send = connSenders.get(connId);
-      if (send) send(payload);
-    }
+  const targetSet = new Set(targets.map((t) => t.serverKeyId));
+  for (const [connId, sId] of connToServerId) {
+    if (!targetSet.has(sId)) continue;
+    const send = connSenders.get(connId);
+    if (send) send(payload);
   }
 }
 

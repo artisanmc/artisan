@@ -195,7 +195,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     deployedEditorJson: editorJson,
   });
 
-  await pushBundleAvailable(packId, hash);
+  await pushBundleAvailable(packId, "main", hash);
   return c.json({ hash }, 201);
 });
 
