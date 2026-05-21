@@ -1,0 +1,76 @@
+import { describe, it, expect, beforeEach } from "bun:test";
+import { db } from "../db/index";
+import { networks, memberships, packs, users } from "../db/schema";
+import { isMember, requireMember, getNetworkOfPack } from "./membershipGuard";
+import { createNetwork } from "./networkManager";
+import { addMembership } from "./membershipManager";
+import { createPack } from "./packStorage";
+
+async function seedUser(id = "u1") {
+  await db.insert(users).values({
+    id, email: `${id}@a.b`, name: id, passwordHash: null, avatarUrl: null,
+    createdAt: new Date(), updatedAt: new Date(),
+  });
+}
+
+describe("membershipGuard", () => {
+  beforeEach(async () => {
+    // FK-safe cleanup order: memberships (refs users+networks), packs (refs networks), networks, users
+    await db.delete(memberships).catch(() => {});
+    await db.delete(packs).catch(() => {});
+    await db.delete(networks).catch(() => {});
+    await db.delete(users).catch(() => {});
+  });
+
+  it("isMember returns true when user has membership", async () => {
+    await seedUser("u1");
+    const net = await createNetwork("N");
+    await addMembership("u1", net.id, "owner");
+    expect(await isMember("u1", net.id)).toBe(true);
+  });
+
+  it("isMember returns false when user has no membership", async () => {
+    await seedUser("u1");
+    const net = await createNetwork("N");
+    expect(await isMember("u1", net.id)).toBe(false);
+  });
+
+  it("requireMember throws 'forbidden' when not member", async () => {
+    await seedUser("u1");
+    const net = await createNetwork("N");
+    try {
+      await requireMember("u1", net.id);
+      expect.unreachable("should have thrown");
+    } catch (e) {
+      expect((e as Error).message).toMatch(/forbidden/i);
+    }
+  });
+
+  it("requireMember enforces role when role argument given", async () => {
+    await seedUser("u1");
+    const net = await createNetwork("N");
+    await addMembership("u1", net.id, "admin");
+
+    // Should throw when role doesn't match
+    try {
+      await requireMember("u1", net.id, "owner");
+      expect.unreachable("should have thrown");
+    } catch (e) {
+      expect((e as Error).message).toMatch(/forbidden/i);
+    }
+
+    // Should succeed when role matches
+    await requireMember("u1", net.id, "admin");
+  });
+
+  it("getNetworkOfPack returns the pack's network", async () => {
+    await seedUser("u1");
+    const net = await createNetwork("N");
+    const p = await createPack({ networkId: net.id, name: "main" });
+    expect(await getNetworkOfPack(p.id)).toBe(net.id);
+  });
+
+  it("getNetworkOfPack returns null when pack not found", async () => {
+    expect(await getNetworkOfPack("pack_nope")).toBeNull();
+  });
+});
