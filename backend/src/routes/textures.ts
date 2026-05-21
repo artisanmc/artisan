@@ -29,13 +29,13 @@ router.get("/custom/:serverKeyId/*", async (c) => {
   });
 });
 
-router.get("/asset/:serverKeyId/:assetId", async (c) => {
-  const serverKeyId = c.req.param("serverKeyId");
+router.get("/asset/:packId/:assetId", async (c) => {
+  const packId = c.req.param("packId");
   const assetId = c.req.param("assetId");
-  if (!/^[a-zA-Z0-9_-]+$/.test(serverKeyId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(packId) || !/^asset_[a-zA-Z0-9]+$/.test(assetId)) {
     return c.newResponse(null, 400);
   }
-  const filePath = assetPath(serverKeyId, assetId);
+  const filePath = assetPath(packId, assetId);
   if (!existsSync(filePath)) return c.newResponse(null, 404);
   return new Response(Bun.file(filePath), {
     headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
@@ -54,7 +54,7 @@ router.get("/asset-font/:assetId/*", async (c) => {
   const row = rows[0];
   if (!row || row.type !== "font") return c.newResponse(null, 404);
 
-  const bytes = await readFontGlyph(row.serverKeyId, assetId, rest);
+  const bytes = await readFontGlyph(row.packId, assetId, rest);
   if (!bytes) return c.newResponse(null, 404);
 
   return new Response(bytes, {
