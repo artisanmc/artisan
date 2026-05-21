@@ -96,13 +96,14 @@ export async function fetchCustomItems(token: string): Promise<CustomItemsData> 
 
 export async function listAssets(
   token: string,
+  packId: string,
   filters: { type?: AssetType; search?: string } = {},
 ): Promise<Asset[]> {
   const params = new URLSearchParams();
   if (filters.type) params.set("type", filters.type);
   if (filters.search) params.set("search", filters.search);
   const qs = params.toString();
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets${qs ? "?" + qs : ""}`);
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to load assets");
   const data = (await res.json()) as { assets: Asset[] };
   return data.assets;
@@ -110,6 +111,7 @@ export async function listAssets(
 
 export async function uploadAsset(
   token: string,
+  packId: string,
   input: { file: File; type: AssetType; name: string; ascent?: number },
 ): Promise<Asset> {
   const fd = new FormData();
@@ -117,7 +119,7 @@ export async function uploadAsset(
   fd.set("name", input.name);
   if (input.ascent !== undefined) fd.set("ascent", String(input.ascent));
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets`, {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -131,13 +133,14 @@ export async function uploadAsset(
 
 export async function uploadFontAsset(
   token: string,
+  packId: string,
   input: { name: string; file: File },
 ): Promise<{ asset: Asset; warnings?: string[] }> {
   const fd = new FormData();
   fd.set("type", "font");
   fd.set("name", input.name);
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets`, {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -151,6 +154,7 @@ export async function uploadFontAsset(
 
 export async function updateAsset(
   token: string,
+  packId: string,
   id: string,
   // `height` is persisted server-side and re-bakes the resource pack so the
   // generated `font.json` reflects the new dimensions (see backend PATCH
@@ -159,7 +163,7 @@ export async function updateAsset(
   // optimistic-only in `assetStore` and never sent here.
   patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -172,26 +176,24 @@ export async function updateAsset(
   return data.asset;
 }
 
-export async function deleteAsset(token: string, id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}`, {
+export async function deleteAsset(token: string, packId: string, id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Delete failed");
 }
 
 /**
- * Duplicate an existing asset (typically a glyph) into a new asset row. The
- * backend endpoint is added in P2.14 — until it ships, this client call will
- * 404. Tests mock the network. The planned signature:
+ * Duplicate an existing asset (typically a glyph) into a new asset row.
  *
- *   POST /api/editor-session/:token/assets/:id/duplicate
+ *   POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate
  *   → 200 { asset: Asset }
  *
  * Caller is responsible for upserting the returned asset into `assetStore`
  * and (optionally) re-pointing any referencing layer to the new id.
  */
-export async function duplicateAsset(token: string, id: string): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/assets/${id}/duplicate`, {
+export async function duplicateAsset(token: string, packId: string, id: string): Promise<Asset> {
+  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}/duplicate`, {
     method: "POST",
   });
   if (!res.ok) {

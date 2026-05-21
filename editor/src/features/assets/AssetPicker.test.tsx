@@ -5,12 +5,12 @@ import { useAssetStore } from "./assetStore";
 import type { Asset } from "@/domain/asset";
 
 const TEX: Asset = {
-  id: "asset_t1", serverKeyId: "sk", type: "texture", name: "shop_bg",
+  id: "asset_t1", packId: "p1", type: "texture", name: "shop_bg",
   width: 256, height: 64, ascent: null, codepoint: null, fontMeta: null,
   contentHash: "h1", createdAt: "", updatedAt: "",
 };
 const GLYPH: Asset = {
-  id: "asset_g1", serverKeyId: "sk", type: "glyph", name: "coin",
+  id: "asset_g1", packId: "p1", type: "glyph", name: "coin",
   width: 8, height: 9, ascent: 8, codepoint: 0xE000, fontMeta: null,
   contentHash: "h2", createdAt: "", updatedAt: "",
 };

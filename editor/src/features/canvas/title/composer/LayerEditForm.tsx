@@ -161,7 +161,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
     }
     setDuplicating(true);
     try {
-      const dup = await duplicateAsset(token, layer.assetId);
+      const dup = await duplicateAsset(token, packId, layer.assetId);
       upsertAsset(dup);
       updateLayer({
         packId,
@@ -182,7 +182,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
     if (!token || !asset) return;
     setPatchingAscent(true);
     try {
-      const updated = await updateAsset(token, asset.id, { ascent: value });
+      const updated = await updateAsset(token, packId, asset.id, { ascent: value });
       upsertAsset(updated);
       // Keep layer.y in sync with the new ascent so the canvas reflects the
       // change immediately (layer.y = titleLabelY - ascent).

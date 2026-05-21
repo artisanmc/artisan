@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AssetType } from "@/domain/asset";
+import type { PackId } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { useState } from "react";
 import { AssetDetailPanel } from "./AssetDetailPanel";
@@ -11,7 +12,7 @@ import { useAssetStore } from "./assetStore";
 
 const TYPES: (AssetType | "all")[] = ["all", "texture", "glyph", "font"];
 
-export function AssetsTab() {
+export function AssetsTab({ packId }: { packId: PackId }) {
   // Assets are loaded by `useAssetInit` mounted in EditorPane — title-layer
   // rendering needs them before the user ever opens this tab, so we
   // can't gate the fetch on AssetsTab being visible.
@@ -64,11 +65,11 @@ export function AssetsTab() {
       </div>
       {selectedId && (
         <div className="w-72 shrink-0">
-          <AssetDetailPanel />
+          <AssetDetailPanel packId={packId} />
         </div>
       )}
-      <AssetUploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
-      <AssetImportFontDialog open={importFontOpen} onClose={() => setImportFontOpen(false)} />
+      <AssetUploadDialog packId={packId} open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      <AssetImportFontDialog packId={packId} open={importFontOpen} onClose={() => setImportFontOpen(false)} />
     </div>
   );
 }
