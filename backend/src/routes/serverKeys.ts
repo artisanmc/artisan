@@ -2,16 +2,19 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import { serverKeys } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
+import { createNetwork } from "../lib/networkManager";
 
 const router = new Hono();
 
 router.post("/", async (c) => {
   const body = await c.req.json<{ label?: string }>();
   const { id, key, hash } = await generateServerKey();
+  const network = await createNetwork(`Network ${id.slice(0, 6)}`);
   await db.insert(serverKeys).values({
     id,
     hash,
     label: body.label ?? null,
+    networkId: network.id,
     createdAt: new Date(),
   });
 
