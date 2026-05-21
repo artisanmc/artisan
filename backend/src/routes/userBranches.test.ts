@@ -445,3 +445,217 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ─── C2: POST /branches/:src/merge-into/:dst/resolve ─────────────────────────
+
+describe("POST /merge-into/.../resolve", () => {
+  beforeEach(clearAll);
+
+  test("resolve auto-merge (empty conflicts) creates merge commit + advances dst", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    // Set up an auto-merge scenario (different items on each branch)
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_dev.yaml": "id: m_dev" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_dev", name: "d" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "d" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_main.yaml": "id: m_main" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_main", name: "m" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "m" }),
+    });
+
+    // Get the merge plan
+    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const plan = await planRes.json();
+
+    // Client would derive filesJson from plan.mergedEditorJson here; we use a stub.
+    const mergedFiles = { "merged.yaml": "x" };
+
+    const resolveRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resolutions: {},  // empty for auto-merge
+        lcaCommitId: plan.lcaCommitId,
+        srcCommitId: plan.srcCommitId,
+        dstCommitId: plan.dstCommitId,
+        mergedFilesJson: mergedFiles,
+        mergedEditorJson: plan.mergedEditorJson,
+      }),
+    });
+    expect(resolveRes.status).toBe(201);
+    const body = await resolveRes.json();
+    expect(body.commit.id).toMatch(/^cmt_/);
+
+    // Verify merge commit has parentId2 set
+    const { getCommit } = await import("../lib/commitStorage");
+    const cmt = await getCommit(body.commit.id);
+    expect(cmt!.parentId).toBe(plan.dstCommitId);
+    expect(cmt!.parentId2).toBe(plan.srcCommitId);
+
+    // main.head advanced
+    const { getBranch } = await import("../lib/branchStorage");
+    const main = await getBranch(packId, "main");
+    expect(main!.headCommitId).toBe(body.commit.id);
+  });
+
+  test("resolve with conflict choices applies them correctly", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    // Same id, different name → conflict
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: src-x" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "src-x" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "d" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: dst-x" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "dst-x" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "m" }),
+    });
+
+    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const plan = await planRes.json();
+    expect(plan.conflicts).toHaveLength(1);
+
+    const resolveRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resolutions: { "menus:m_x": "src" },
+        lcaCommitId: plan.lcaCommitId,
+        srcCommitId: plan.srcCommitId,
+        dstCommitId: plan.dstCommitId,
+        mergedFilesJson: { "menus/m_x.yaml": "id: m_x\nname: src-x" },
+        mergedEditorJson: { menus: [{ id: "m_x", name: "src-x" }] },
+      }),
+    });
+    expect(resolveRes.status).toBe(201);
+    const body = await resolveRes.json();
+    const { getCommit } = await import("../lib/commitStorage");
+    const cmt = await getCommit(body.commit.id);
+    const editor = JSON.parse(cmt!.editorJson!);
+    expect(editor.menus.find((m: { id: string; name: string }) => m.id === "m_x").name).toBe("src-x");
+  });
+
+  test("resolve with stale heads returns 409 stale_merge", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_a.yaml": "id: m_a\nname: v1" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_a", name: "v1" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "d" }),
+    });
+
+    // POST resolve with random ids that don't match
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resolutions: {},
+        lcaCommitId: "cmt_stale1",
+        srcCommitId: "cmt_stale2",
+        dstCommitId: "cmt_stale3",
+        mergedFilesJson: {},
+        mergedEditorJson: {},
+      }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("stale_merge");
+  });
+
+  test("resolve with missing resolution for a conflict returns 400", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_y.yaml": "id: m_y\nname: s" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_y", name: "s" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "d" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_y.yaml": "id: m_y\nname: d" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_y", name: "d" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "m" }),
+    });
+
+    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const plan = await planRes.json();
+
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resolutions: {},  // empty but there's 1 conflict
+        lcaCommitId: plan.lcaCommitId,
+        srcCommitId: plan.srcCommitId,
+        dstCommitId: plan.dstCommitId,
+        mergedFilesJson: {},
+        mergedEditorJson: plan.mergedEditorJson,
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("missing_resolutions");
+  });
+});
