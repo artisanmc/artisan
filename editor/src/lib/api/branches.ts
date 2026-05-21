@@ -49,3 +49,84 @@ export async function promoteBranch(networkId: string, packId: string, src: stri
   if (!res.ok) throw new Error(`promoteBranch failed: ${res.status}`);
   return res.json();
 }
+
+export type ConflictResolutionKind = "modify-modify" | "delete-modify";
+
+export interface Conflict {
+  conflictKey: string;
+  collection: string;
+  resolution: ConflictResolutionKind;
+  srcValue: unknown | null;
+  dstValue: unknown | null;
+  baseValue: unknown | null;
+}
+
+export type MergePlan =
+  | { kind: "already_merged"; advanced: false }
+  | { kind: "fast_forward"; advanced: true; head_commit_id: string }
+  | {
+      kind: "auto" | "conflicts";
+      conflicts: Conflict[];
+      mergedEditorJson: unknown;
+      lcaCommitId: string;
+      srcCommitId: string;
+      dstCommitId: string;
+    };
+
+export async function mergeBranches(
+  networkId: string,
+  packId: string,
+  src: string,
+  dst: string,
+  message?: string,
+): Promise<MergePlan> {
+  const res = await fetch(
+    `${API_URL}/api/networks/${networkId}/packs/${packId}/branches/${src}/merge-into/${dst}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message !== undefined ? { message } : {}),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `mergeBranches failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function resolveMerge(
+  networkId: string,
+  packId: string,
+  src: string,
+  dst: string,
+  args: {
+    resolutions: Record<string, "src" | "dst">;
+    lcaCommitId: string;
+    srcCommitId: string;
+    dstCommitId: string;
+    mergedFilesJson: Record<string, string>;
+    mergedEditorJson: unknown;
+    message?: string;
+  },
+): Promise<{ commit: Commit; head_commit_id: string }> {
+  const res = await fetch(
+    `${API_URL}/api/networks/${networkId}/packs/${packId}/branches/${src}/merge-into/${dst}/resolve`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(args),
+    },
+  );
+  if (res.status === 409) {
+    const body = await res.json();
+    throw new Error(body.error ?? "stale_merge");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `resolveMerge failed: ${res.status}`);
+  }
+  return res.json();
+}
