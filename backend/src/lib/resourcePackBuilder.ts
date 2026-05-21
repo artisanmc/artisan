@@ -48,17 +48,24 @@ export function buildResourcePackZip(
   assets: AssetRow[],
   glyphPngs: Map<string, Uint8Array>,
   fontGlyphPngs: Map<string, Map<string, Uint8Array>>,
+  mergeResult: { finalCodepoints: Map<string, number> } = { finalCodepoints: new Map() },
 ): BuildResult {
+  const remapped = assets.map((a) => {
+    if (a.type !== "glyph" || a.codepoint === null) return a;
+    const remappedCp = mergeResult.finalCodepoints.get(a.id);
+    return remappedCp !== undefined ? { ...a, codepoint: remappedCp } : a;
+  });
+
   const files: Record<string, Uint8Array> = {};
 
   files["pack.mcmeta"] = strToU8(JSON.stringify(PACK_MCMETA, null, 2));
   files["pack.png"] = PACK_PNG_FALLBACK;
 
-  const fontJson = buildDefaultFontJson(assets);
+  const fontJson = buildDefaultFontJson(remapped);
   files["assets/interfaze/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
 
   files["assets/interfaze/asset-index.json"] =
-    strToU8(JSON.stringify(buildAssetIndex(assets), null, 2));
+    strToU8(JSON.stringify(buildAssetIndex(remapped), null, 2));
 
   // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
   // TitleCompiler wraps plain text layers in <font:interfaze:text_y{Y}> to
@@ -88,7 +95,7 @@ export function buildResourcePackZip(
     }
   }
 
-  const glyphs = assets
+  const glyphs = remapped
     .filter((a) => a.type === "glyph" && a.codepoint !== null)
     .sort((a, b) => (a.codepoint ?? 0) - (b.codepoint ?? 0));
   for (const g of glyphs) {

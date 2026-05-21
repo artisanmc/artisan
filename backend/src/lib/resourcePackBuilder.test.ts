@@ -17,7 +17,7 @@ const PNG_1x1 = new Uint8Array([
 function row(over: Partial<{ id: string; type: string; name: string; codepoint: number | null; ascent: number | null; height: number; fontMeta: unknown }>) {
   return {
     id: over.id ?? "asset_g1",
-    serverKeyId: "sk",
+    packId: "pack_test",
     type: over.type ?? "glyph",
     name: over.name ?? "coin",
     width: 8,
@@ -322,6 +322,31 @@ describe("buildResourcePackZip", () => {
     const a = buildResourcePackZip([], new Map(), new Map()).hash;
     const b = buildResourcePackZip([f], new Map(), fontPngs).hash;
     expect(a).not.toBe(b);
+  });
+
+  test("respects mergeResult.finalCodepoints to remap glyph codepoints", () => {
+    const g = row({ id: "asset_g1", codepoint: 0xE000, name: "alpha" });
+    const pngs = new Map([[g.id, PNG_1x1]]);
+    const { zipBytes } = buildResourcePackZip(
+      [g],
+      pngs,
+      new Map(),
+      { finalCodepoints: new Map([["asset_g1", 0xE042]]) },
+    );
+    const entries = unzipSync(zipBytes);
+
+    // The default font.json bitmap provider for "alpha" must reference U+E042.
+    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const bitmapProvider = json.providers.find(
+      (p: { type: string; file?: string }) => p.type === "bitmap" && p.file === "interfaze:font/alpha.png",
+    );
+    expect(bitmapProvider).toBeDefined();
+    // The codepoint is encoded as the character in `chars[0]` (U+E042 = code 57410).
+    expect(bitmapProvider.chars[0].codePointAt(0)).toBe(0xE042);
+
+    // The asset-index.json also reflects the final codepoint.
+    const index = JSON.parse(strFromU8(entries["assets/interfaze/asset-index.json"]));
+    expect(index.assets["asset_g1"].codepoint).toBe(0xE042);
   });
 });
 
