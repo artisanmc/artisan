@@ -2,9 +2,13 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { packBindings, packs } from "../db/schema";
 
-export async function createBinding(serverKeyId: string, packId: string): Promise<void> {
+export async function createBinding(
+  serverKeyId: string,
+  packId: string,
+  branchName: string = "main",
+): Promise<void> {
   const id = "bind_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  await db.insert(packBindings).values({ id, serverKeyId, packId, createdAt: new Date() });
+  await db.insert(packBindings).values({ id, serverKeyId, packId, branchName, createdAt: new Date() });
 }
 
 export async function deleteBinding(serverKeyId: string, packId: string): Promise<void> {

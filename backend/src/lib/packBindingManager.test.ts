@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
 import { packBindings, packs, serverKeys, networks, editorSessions, linkCodes } from "../db/schema";
+import { eq } from "drizzle-orm";
 import {
   createBinding, deleteBinding, listPacksForServerKey, listServerKeysForPack,
 } from "./packBindingManager";
@@ -51,5 +52,23 @@ describe("packBindingManager", () => {
     await createBinding(skId, pack.id);
     await deleteBinding(skId, pack.id);
     expect(await db.select().from(packBindings)).toHaveLength(0);
+  });
+
+  it("createBinding accepts a custom branchName (default main)", async () => {
+    const pack = await createPack({ networkId, name: "p-branch" });
+
+    // Default branchName = "main"
+    await createBinding(skId, pack.id);
+    const rows = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].branchName).toBe("main");
+
+    await deleteBinding(skId, pack.id);
+
+    // Custom branchName = "dev"
+    await createBinding(skId, pack.id, "dev");
+    const rows2 = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
+    expect(rows2).toHaveLength(1);
+    expect(rows2[0].branchName).toBe("dev");
   });
 });
