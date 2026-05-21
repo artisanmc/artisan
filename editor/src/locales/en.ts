@@ -447,27 +447,6 @@ export default {
     },
   },
   sync: {
-    banner: {
-      titleSingular: "1 conflict detected on the Minecraft server",
-      titlePlural: "{{count}} conflicts detected on the Minecraft server",
-      subtitle: "Files have been modified outside the editor.",
-      seeDetails: "See details",
-    },
-    modal: {
-      title: "Resolve conflicts",
-      modifiedAt: "Modified on the Minecraft server at {{date}}",
-      changesDetected: "Changes detected:",
-      addedFiles: "{{count}} added",
-      modifiedFiles: "{{count}} modified",
-      removedFiles: "{{count}} removed",
-      emptyDiskWarning: "⚠ Adopting the server version will empty this pack (no files detected on disk). Confirm?",
-      keepEditor: "Keep editor",
-      keepEditorDesc: "Push this version to the server.",
-      useServer: "Use server",
-      useServerDesc: "Adopt the server files here.",
-      resolvedByOther: "Conflict resolved by another admin",
-      close: "Close",
-    },
     deletePackDialog: {
       title: "Delete pack «{{name}}»?",
       warning: "This action will remove all menus, dialogs and translations of the pack from every connected Minecraft server. The files will be moved to `plugins/Interfaze/.interfaze-trash/` server-side in case you need to recover them.",
@@ -476,7 +455,6 @@ export default {
       cancel: "Cancel",
       confirm: "Delete",
     },
-    publishDisabledTooltip: "Resolve the conflict before publishing",
   },
   patterns: {
     title: "Cheat sheet",
