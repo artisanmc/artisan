@@ -132,4 +132,32 @@ describe("rebuildResourcePack", () => {
     expect(info!.hash).toBe(hash);
     expect(info!.url.endsWith(`/api/resource-pack/${serverKeyId}/${hash}.zip`)).toBe(true);
   });
+
+  test("multi-pack: server_key bound to 2 packs with colliding codepoints → asset-index has distinct final codepoints", async () => {
+    // The seedSetup fixture already created `packId` (pack A) for serverKeyId.
+    // Add a second bound pack B with a glyph that collides at the same codepoint.
+    const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0]!;
+    const packB = await createPack({ networkId: skRow.networkId, name: "pb" });
+    await createBinding(serverKeyId, packB.id);
+
+    const glyphAId = await seedGlyph(packId, "alpha", 0xE000);
+    const glyphBId = await seedGlyph(packB.id, "beta", 0xE000);
+
+    const { hash } = await rebuildResourcePack(serverKeyId);
+    expect(hash).toMatch(/^[0-9a-f]{40}$/);
+
+    // Inspect the produced zip to read asset-index.json.
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const { readFile } = await import("fs/promises");
+    const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
+    const entries = unzipSync(new Uint8Array(zipBytes));
+    const indexBytes = entries["assets/interfaze/asset-index.json"]!;
+    const index = JSON.parse(strFromU8(indexBytes)) as {
+      assets: Record<string, { codepoint?: number }>;
+    };
+
+    // First pack (oldest createdAt) keeps 0xE000; second pack gets remapped to 0xE001.
+    expect(index.assets[glyphAId].codepoint).toBe(0xE000);
+    expect(index.assets[glyphBId].codepoint).toBe(0xE001);
+  });
 });
