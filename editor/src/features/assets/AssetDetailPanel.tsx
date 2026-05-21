@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { assetPreviewUrl } from "@/domain/asset";
+import type { PackId } from "@/domain/types";
 import { deleteAsset, updateAsset } from "@/lib/packApi";
 import { useSessionStore } from "@/state/sessionStore";
 import { useEffect, useState } from "react";
 import { useAssetStore } from "./assetStore";
 
-export function AssetDetailPanel() {
+export function AssetDetailPanel({ packId }: { packId: PackId }) {
   const token = useSessionStore((s) => s.accessToken);
   const selectedId = useAssetStore((s) => s.selectedId);
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === selectedId) ?? null);
@@ -40,7 +41,7 @@ export function AssetDetailPanel() {
         patch.ascent = n;
       }
       if (Object.keys(patch).length === 0) return;
-      const next = await updateAsset(token, asset.id, patch);
+      const next = await updateAsset(token, packId, asset.id, patch);
       upsertAsset(next);
     } catch (e) {
       setError((e as Error).message);
@@ -51,7 +52,7 @@ export function AssetDetailPanel() {
     if (!token) return;
     if (!window.confirm(`Delete "${asset.name}"?`)) return;
     try {
-      await deleteAsset(token, asset.id);
+      await deleteAsset(token, packId, asset.id);
       removeAsset(asset.id);
     } catch (e) {
       setError((e as Error).message);

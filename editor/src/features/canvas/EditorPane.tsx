@@ -27,10 +27,10 @@ const tabClass =
  */
 export function EditorPane({ packId }: EditorPaneProps) {
   useTextureInit();
-  // Load the server-key's assets eagerly so title-layer rendering (which
+  // Load the active pack's assets eagerly so title-layer rendering (which
   // happens before the user ever opens the Assets tab) can find the
   // referenced PNGs. Mirrors useTextureInit above.
-  useAssetInit();
+  useAssetInit(packId);
   const tab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
   const { t } = useTranslation();
@@ -60,7 +60,7 @@ export function EditorPane({ packId }: EditorPaneProps) {
           <Library />
         </TabsContent>
         <TabsContent value="assets" className="h-full m-0 p-0">
-          <AssetsTab />
+          <AssetsTab packId={packId} />
         </TabsContent>
       </Tabs>
     </div>

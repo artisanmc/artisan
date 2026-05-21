@@ -252,7 +252,7 @@ const I18N_KEY = "lt_title" as I18nKey;
 
 const FONT_ASSET: Asset = {
   id: ASSET_FONT,
-  serverKeyId: "sk",
+  packId: "p1",
   type: "font",
   name: "default",
   width: 0,
@@ -272,7 +272,7 @@ const FONT_ASSET: Asset = {
 
 const GLYPH_ASSET: Asset = {
   id: ASSET_GLYPH,
-  serverKeyId: "sk",
+  packId: "p1",
   type: "glyph",
   name: "ico",
   width: 12,
