@@ -10,6 +10,7 @@ import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
 import { createBinding, deleteBinding } from "../lib/packBindingManager";
+import { getBranch } from "../lib/branchStorage";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -127,7 +128,15 @@ userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Co
     return c.json({ error: "server_key_not_in_network" }, 404);
   }
 
-  await createBinding(skId, packId);
+  let body: { branch_name?: unknown } = {};
+  try { body = await c.req.json(); } catch { /* empty body ok */ }
+  const branchName = typeof body.branch_name === "string" ? body.branch_name : "main";
+
+  if (!(await getBranch(packId, branchName))) {
+    return c.json({ error: "branch_not_found" }, 404);
+  }
+
+  await createBinding(skId, packId, branchName);
   return c.json({ ok: true }, 201);
 });
 
