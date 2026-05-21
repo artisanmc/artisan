@@ -1,9 +1,42 @@
-import { describe, expect, test, afterEach } from "bun:test";
-import { app } from "../app";
+// Module mocks MUST be declared before any import of the mocked modules.
+import { mock } from "bun:test";
+mock.module("../lib/resourcePack", () => ({
+  rebuildResourcePack: async () => ({ url: "stub://rp", hash: "stubbedHash" }),
+  currentPackInfo: async () => null,
+}));
+mock.module("../ws/hub", () => ({
+  pushResourcePackUpdated: () => {},
+  handlePluginMessage: () => {},
+  connSenders: new Map(),
+  connToServerId: new Map(),
+}));
+
+import { describe, expect, test, afterEach, beforeEach } from "bun:test";
+import { Hono } from "hono";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, packs, packBindings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
+import { texturesRouter } from "./textures";
+import { assetsRouter } from "./assets";
+import { createBinding } from "../lib/packBindingManager";
+
+// ─── Local app (avoids importing hub/bundles) ────────────────────────────────
+
+const app = new Hono();
+app.route("/api/textures", texturesRouter);
+app.route("/api/editor-session", assetsRouter);
+
+// ─── Cleanup ─────────────────────────────────────────────────────────────────
+
+beforeEach(async () => {
+  await db.delete(packBindings);
+  await db.delete(assets);
+  await db.delete(packs);
+  await db.delete(editorSessions);
+  await db.delete(serverKeys);
+  await db.delete(networks);
+});
 
 const PNG_1x1 = new Uint8Array([
   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -17,30 +50,73 @@ const PNG_1x1 = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-async function seedSession(): Promise<{ token: string; serverKeyId: string }> {
-  const serverKeyId = crypto.randomUUID();
-  await db.insert(serverKeys).values({ id: serverKeyId, hash: "h" + serverKeyId.slice(0, 8), createdAt: new Date() });
-  const token = crypto.randomUUID();
+async function seedSession(): Promise<{ token: string; packId: string }> {
+  const networkId = crypto.randomUUID();
+  await db.insert(networks).values({
+    id: networkId,
+    name: "test-network",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const now = new Date();
+  await db.insert(packs).values({
+    id: packId,
+    networkId,
+    name: "test-pack",
+    hash: "",
+    filesJson: "{}",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const serverKeyId = crypto.randomUUID();
+  await db.insert(serverKeys).values({
+    id: serverKeyId,
+    networkId,
+    hash: "h" + serverKeyId.slice(0, 8),
+    createdAt: new Date(),
+  });
+
+  const token = crypto.randomUUID();
   await db.insert(editorSessions).values({
     token, serverKeyId, createdBy: "test", createdAt: now,
     expiresAt: new Date(now.getTime() + 3600_000),
     accessToken: token, accessExpiresAt: new Date(now.getTime() + 3600_000),
   });
-  return { token, serverKeyId };
+
+  // Create binding between serverKey and pack
+  await createBinding(serverKeyId, packId);
+
+  return { token, packId };
 }
 
-describe("GET /api/textures/asset/:serverKeyId/:assetId", () => {
+describe("GET /api/textures/asset/:packId/:assetId", () => {
   test("serves the PNG by id", async () => {
-    const { token, serverKeyId } = await seedSession();
-    const fd = new FormData();
-    fd.set("type", "texture");
-    fd.set("name", "tex_serve");
-    fd.set("file", new Blob([PNG_1x1], { type: "image/png" }), "x.png");
-    const post = await app.request(`/api/editor-session/${token}/assets`, { method: "POST", body: fd });
-    const asset = (await post.json()).asset;
+    const { packId } = await seedSession();
+    // Directly insert an asset to avoid going through POST
+    const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const now = new Date();
+    await db.insert(assets).values({
+      id: assetId,
+      packId,
+      type: "texture",
+      name: "tex_serve",
+      width: 1,
+      height: 1,
+      ascent: null,
+      codepoint: null,
+      fontMeta: null,
+      contentHash: "0".repeat(40),
+      createdAt: now,
+      updatedAt: now,
+    });
+    // Write the PNG to disk
+    const { writeAssetFile } = await import("../lib/assetStorage");
+    await writeAssetFile(packId, assetId, PNG_1x1);
 
-    const res = await app.request(`/api/textures/asset/${serverKeyId}/${asset.id}`);
+    const res = await app.request(`/api/textures/asset/${packId}/${assetId}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     const bytes = new Uint8Array(await res.arrayBuffer());
@@ -48,22 +124,22 @@ describe("GET /api/textures/asset/:serverKeyId/:assetId", () => {
   });
 
   test("404 for unknown id", async () => {
-    const res = await app.request(`/api/textures/asset/some-server-key/asset_no`);
+    const res = await app.request(`/api/textures/asset/pack_no/asset_no`);
     expect(res.status).toBe(404);
   });
 
   test("rejects path traversal attempts", async () => {
-    const res = await app.request(`/api/textures/asset/sk/..%2F..%2Fetc%2Fpasswd`);
+    const res = await app.request(`/api/textures/asset/pack/..%2F..%2Fetc%2Fpasswd`);
     expect([400, 404]).toContain(res.status);
   });
 });
 
 describe("GET /api/textures/asset-font/:assetId/*", () => {
-  const createdAssetIds: Array<{ serverKeyId: string; assetId: string }> = [];
+  const createdAssetIds: Array<{ packId: string; assetId: string }> = [];
 
   afterEach(async () => {
-    for (const { serverKeyId, assetId } of createdAssetIds) {
-      await deleteFontAssets(serverKeyId, assetId);
+    for (const { packId, assetId } of createdAssetIds) {
+      await deleteFontAssets(packId, assetId);
       await db.delete(assets).where(eq(assets.id, assetId));
     }
     createdAssetIds.length = 0;
@@ -72,15 +148,15 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
   async function seedFontAsset(opts: {
     glyphs: Map<string, Uint8Array>;
     type?: string;
-  }): Promise<{ serverKeyId: string; assetId: string }> {
-    const { serverKeyId } = await seedSession();
+  }): Promise<{ packId: string; assetId: string }> {
+    const { packId } = await seedSession();
     const assetId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const fontJson = new TextEncoder().encode('{"providers":[]}');
-    await writeFontAssets(serverKeyId, assetId, fontJson, opts.glyphs);
+    await writeFontAssets(packId, assetId, fontJson, opts.glyphs);
     const now = new Date();
     await db.insert(assets).values({
       id: assetId,
-      serverKeyId,
+      packId,
       type: opts.type ?? "font",
       name: "font_" + assetId.slice(6, 12),
       width: 8,
@@ -94,8 +170,8 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
       createdAt: now,
       updatedAt: now,
     });
-    createdAssetIds.push({ serverKeyId, assetId });
-    return { serverKeyId, assetId };
+    createdAssetIds.push({ packId, assetId });
+    return { packId, assetId };
   }
 
   test("serves a font glyph PNG by asset id + relative path", async () => {
