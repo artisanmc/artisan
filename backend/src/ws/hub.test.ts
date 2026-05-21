@@ -26,7 +26,8 @@ import { generateEditorToken, generateServerKey, generateTrustCode } from "../li
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
-import { createBinding } from "../lib/packBindingManager";
+import { createBinding, listPacksForServerKey } from "../lib/packBindingManager";
+import { getPack } from "../lib/packStorage";
 import { eq } from "drizzle-orm";
 
 async function clearAll() {
@@ -396,6 +397,49 @@ describe("pushResourcePackUpdated", () => {
     connSenders.delete(connB);
     connToServerId.delete(connA);
     connToServerId.delete(connB);
+  });
+});
+
+describe("local_push", () => {
+  test("creates pack + binding if missing, upserts content, broadcasts bundle_available", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    const connId = "conn-local-push";
+    const received: string[] = [];
+    registerConn(connId, (msg) => received.push(msg));
+
+    // Authenticate via hello first
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push",
+      pack_id: "p_pushed",
+      files: { "menus/m.yaml": "id: m" },
+      hash: "abc123",
+    }));
+    expect(result.reply).toBeNull();
+
+    const pack = await getPack("p_pushed");
+    expect(pack).not.toBeNull();
+    expect(pack!.networkId).toBe(networkId);
+    expect(pack!.hash).toBe("abc123");
+
+    const bound = await listPacksForServerKey(keyId);
+    expect(bound.map((p) => p.id)).toContain("p_pushed");
+
+    // bundle_available should have been broadcast (received after the hello_ack push)
+    const bundleMsg = received.map((m) => JSON.parse(m) as { type: string }).find((m) => m.type === "bundle_available");
+    expect(bundleMsg).toBeDefined();
+  });
+
+  test("local_push unauthenticated → ignored", async () => {
+    const connId = "conn-local-push-unauth";
+    registerConn(connId, () => {});
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push", pack_id: "p", files: {}, hash: "h",
+    }));
+    expect(result.reply).toBeNull();
   });
 });
 
