@@ -293,6 +293,8 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `GET /api/networks/:id/packs/:packId/commits?branch=&limit=` | Liste les commits récents (desc createdAt). `limit` clampé à 200, défaut 50. Le `branch` query param est accepté mais pas filtré pour MVP. |
 | `POST /api/networks/:id/packs/:packId/commits` | Body `{branch, message}`. Crée un commit depuis le WIP courant (`packs.filesJson` + `editorJson`) + avance la branche + broadcast `bundle_available`. Dedup par `(packId, contentHash)`. 404 si branche n'existe pas. |
 | `POST /api/networks/:id/packs/:packId/branches/:src/promote/:dst` | Fast-forward only. 200 `{ok, advanced}` ou 409 `not_fast_forward` si la cible a divergé. 400 `same_branch` si src===dst. |
+| `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst` | Tente un merge sémantique de `src` dans `dst`. Body `{message?}`. Returns `{kind: "already_merged" | "fast_forward" | "auto" | "conflicts", ...}`. Le cas `fast_forward` avance `dst.head` directement et broadcast `bundle_available`. Les cas `auto` / `conflicts` ne créent pas de commit — le client doit poster vers `/resolve` ensuite (en passant le `mergedFilesJson` / `mergedEditorJson` qu'il a calculé côté éditeur). 400 `same_branch` si src===dst. 404 si branche inconnue. |
+| `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst/resolve` | Body `{resolutions, lcaCommitId, srcCommitId, dstCommitId, mergedFilesJson, mergedEditorJson, message?}`. Crée le merge commit avec `parentId = dst.head` et `parentId2 = src.head`, avance la branche `dst`, broadcast `bundle_available`. 409 `stale_merge` si les heads ont bougé depuis le `/merge-into`. 400 `missing_resolutions` / `extra_resolutions` / `invalid_resolution_value` si le mapping conflit→choix est inconsistant. |
 | `GET /api/user/packs/:packId` | Lecture pack (user-auth, membership check). |
 | `PUT /api/user/packs/:packId` | Écriture pack (user-auth). Broadcast `bundle_available`. |
 | `GET /api/textures/asset/:packId/:assetId` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{packId}/{assetId}.png`. |
@@ -306,7 +308,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 ---
 
-## Modèle d'entités (Plan 1B + Phase 2)
+## Modèle d'entités (Plan 1B + Phase 2 + Phase 3)
 
 ```
 User (Plan 1A) ── Membership ──┐
@@ -346,6 +348,18 @@ Tables Drizzle ajoutées en Plan 1B : `networks`, `memberships`, `packs`, `pack_
 - **Promotion** : fast-forward only. Le backend refuse en 409 `not_fast_forward` si la cible a divergé. Merge sémantique = Phase 3.
 
 Tables Drizzle ajoutées en Phase 2 : `pack_commits`, `pack_branches`. Column ajoutée : `pack_bindings.branchName`.
+
+### Phase 3 — merge sémantique par item
+
+- **pack_commits.parentId2** (nullable) : 2ᵉ parent sur les merge commits, `null` sur les commits linéaires. Le DAG résultant supporte LCA via `branchStorage.findLCA(a, b)` — BFS bidirectionnel borné à 10 000 steps qui walk `parentId` + `parentId2`.
+- **Granularité du merge** : par item top-level uniquement (`menus`, `commands`, `dialogs`, `templates`, `dataSources` indexés par `id` ; `i18nKeys`, `canvasLayout` en map ; scalaires `defaultLang` / `name` / `description`). Pas de merge field-level intra-item — un menu/dialog/etc. conflictuel est résolu en entier ("use src" ou "use dst").
+- **Auto-merge** : changements non-collisionnels (un seul côté a touché l'item depuis le LCA) → la valeur de ce côté entre dans `mergedState`, pas de conflit émis.
+- **Conflit** : item modifié des 2 côtés différemment (modify-modify) OU supprimé d'un côté et modifié de l'autre (delete-modify). Clés conflit : `"<collection>:<id>"` ou `"scalar:<field>"`. User choisit `src` ou `dst` par conflit via `MergeConflictModal`.
+- **mergeEngine.merge** est pur (pas de DB) — opère sur `EditorState` désérialisé. Retourne `{ mergedState, conflicts[] }`. Sur conflit, `mergedState` garde la valeur `dst` par défaut (état renderable même avant résolution).
+- **`assets[]` et `importedConnectors[]`** sont SKIP du merge (gérés via leurs propres APIs, scope per-pack). Le merge commit hérite des valeurs de `dst` pour ces champs.
+- **contentHash collision** : 2 merges avec exactement les mêmes fichiers résolus violeraient `pack_commits_pack_content_uniq`. Workaround : la route `/resolve` ajoute un marker `merge-meta` (lcaCommitId + srcCommitId + dstCommitId) au contentHash pour différencier.
+
+Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 
 ---
 

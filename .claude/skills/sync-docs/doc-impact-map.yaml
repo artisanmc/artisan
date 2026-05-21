@@ -97,9 +97,14 @@ mappings:
   - touches: "backend/src/lib/branchStorage.ts"
     updates:
       - "CLAUDE.md"
-    reason: "Phase 2 branches storage (Modèle d'entités — Phase 2 section)"
+    reason: "Phase 2 branches storage + Phase 3 findLCA (Modèle d'entités — Phase 2 / Phase 3 sections)"
 
   - touches: "backend/src/routes/userBranches.ts"
     updates:
       - "CLAUDE.md"
-    reason: "Phase 2 branches endpoints (section endpoints — branches + commits)"
+    reason: "Phase 2 branches endpoints + Phase 3 merge-into / resolve (section endpoints)"
+
+  - touches: "backend/src/lib/mergeEngine.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 3 merge engine (Modèle d'entités — Phase 3 section)"
