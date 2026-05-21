@@ -22,6 +22,7 @@ import gg.interfaze.plugin.resourcepack.AssetEntry
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
 import gg.interfaze.plugin.sync.BundleUploader
+import gg.interfaze.plugin.sync.LocalPushSender
 import gg.interfaze.plugin.sync.SyncMetadata
 import gg.interfaze.plugin.ws.WsClient
 import gg.interfaze.plugin.yaml.PackReader
@@ -190,6 +191,12 @@ class SyncedMenuProvider(
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
         customItemsManager = manager
+    }
+
+    override fun pushLocalPack(packId: String, packDir: java.io.File): String? {
+        val msg = LocalPushSender.buildPushMessage(packId, packDir)
+        send(msg)
+        return msg["hash"] as? String
     }
 
     private fun reloadFromDisk() {
