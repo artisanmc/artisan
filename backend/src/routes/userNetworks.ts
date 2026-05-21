@@ -8,6 +8,7 @@ import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork } from "../lib/packStorage";
+import { generateServerKey } from "../lib/auth";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -64,4 +65,23 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
   const packsList = await listPacksForNetwork(networkId);
   const skList = await db.select().from(serverKeys).where(eq(serverKeys.networkId, networkId));
   return c.json({ network: netRows[0], packs: packsList, serverKeys: skList });
+});
+
+// POST /api/networks/:id/server-keys — create server_key in network
+userNetworksRouter.post("/:id/server-keys", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const networkId = c.req.param("id");
+  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  let body: { label?: unknown } = {};
+  try { body = await c.req.json(); } catch { /* empty body ok */ }
+  const label = typeof body.label === "string" ? body.label : null;
+
+  const { id, key, hash } = await generateServerKey();
+  await db.insert(serverKeys).values({
+    id, hash, label, networkId, createdAt: new Date(),
+  });
+  return c.json({ id, key, label }, 201);
 });
