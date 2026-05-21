@@ -19,8 +19,6 @@ import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
 import { ExportButton } from "@/features/export/ExportButton";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanel } from "@/features/translations/TranslationPanel";
-import { ConflictBanner } from "@/features/sync/ConflictBanner";
-import { ConflictResolutionModal } from "@/features/sync/ConflictResolutionModal";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
 import { totalMissing } from "@/lib/i18nUsages";
@@ -28,11 +26,9 @@ import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { listConflicts } from "@/lib/api/conflicts";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
-import { useConflictsStore } from "@/state/conflictsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useWsStore } from "@/state/wsStore";
@@ -95,9 +91,7 @@ function PackCanvasPage() {
   const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
-  const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const setConflicts = useConflictsStore((s) => s.setConflicts);
   const apiUrl = useWsStore((s) => s.apiUrl);
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
   const sensors = useSensors(
@@ -120,12 +114,6 @@ function PackCanvasPage() {
     }, 4 * 60 * 1000);
     return () => clearInterval(id);
   }, [token, setAccessToken, clearSession, navigate]);
-
-  // Hydrate conflicts from backend at mount (and whenever apiUrl or token changes).
-  useEffect(() => {
-    if (!apiUrl || !token) return;
-    listConflicts(apiUrl, token).then(setConflicts).catch(() => {});
-  }, [apiUrl, token, setConflicts]);
 
   // Navigate away if the currently-viewed pack is deleted from the server.
   useEffect(() => {
@@ -204,9 +192,6 @@ function PackCanvasPage() {
         <PackMiniSidebar activePackId={pId} />
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Conflict banner — shown when out-of-sync conflicts exist. */}
-          <ConflictBanner onSeeDetails={() => setConflictModalOpen(true)} />
-
           {/* Top bar — pack name + Packs trigger (mobile only). */}
           <div className="flex h-12 shrink-0 items-center gap-2 border-zinc-800 border-b bg-zinc-950 px-2">
             <button
@@ -326,15 +311,6 @@ function PackCanvasPage() {
       {/* Floating ghost while dragging a Library item. Isolated component so
           only the ghost re-renders on drag start, not the entire route tree. */}
       <LibraryDragOverlay />
-
-      {/* Conflict resolution modal. */}
-      {conflictModalOpen && apiUrl && token && (
-        <ConflictResolutionModal
-          apiUrl={apiUrl}
-          token={token}
-          onClose={() => setConflictModalOpen(false)}
-        />
-      )}
 
       {/* Delete pack confirmation dialog. */}
       {showDeleteDialog && pack && (
@@ -664,8 +640,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
   const replacePack = useAccountStore((s) => s.replacePack);
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
-  const conflictForPack = useConflictsStore((s) => s.getByPackId(packId));
-  const isPublishDisabled = deploying || conflictForPack !== undefined;
+  const isPublishDisabled = deploying;
 
   const handleDeploy = async () => {
     if (!token || isPublishDisabled) return;
@@ -723,11 +698,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
         type="button"
         onClick={handleDeploy}
         disabled={isPublishDisabled}
-        title={
-          conflictForPack !== undefined
-            ? t("sync.publishDisabledTooltip")
-            : "Déployer — rendre les modifications visibles aux joueurs"
-        }
+        title="Déployer — rendre les modifications visibles aux joueurs"
         className="flex h-8 items-center gap-1 rounded bg-emerald-700 px-3 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {deploying ? "Déploiement…" : "Déployer"}
