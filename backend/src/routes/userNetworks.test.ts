@@ -241,6 +241,82 @@ describe("userNetworksRouter", () => {
     expect(body.pack.networkId).toBe(network.id);
   });
 
+  // C4 tests
+  test("POST binding with {branch_name: 'dev'} creates binding pointing to dev", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "p" }),
+    });
+    const { pack } = await packRes.json();
+
+    // Create dev branch via the branches router
+    const { createBranch } = await import("../lib/branchStorage");
+    const { getBranch } = await import("../lib/branchStorage");
+    const mainBranch = await getBranch(pack.id, "main");
+    await createBranch(pack.id, "dev", mainBranch!.headCommitId);
+
+    // Bind with branch_name: "dev"
+    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch_name: "dev" }),
+    });
+    expect(bind.status).toBe(201);
+
+    const bindings = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].branchName).toBe("dev");
+  });
+
+  test("POST binding 404 when branch_name does not exist", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "p" }),
+    });
+    const { pack } = await packRes.json();
+
+    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch_name: "ghost" }),
+    });
+    expect(bind.status).toBe(404);
+    const body = await bind.json();
+    expect(body.error).toBe("branch_not_found");
+  });
+
   // A6 test
   test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () => {
     const { sessionId } = await seedUser();
