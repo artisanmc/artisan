@@ -168,8 +168,8 @@ class FullSyncIntegrationTest {
                 Thread.sleep(200) // let the client process hello_ack
 
                 assertTrue(
-                    logs.any { it.contains("divergence detected") && it.contains("LOCAL_ONLY") },
-                    "Expected LOCAL_ONLY divergence log in logs. Got: $logs",
+                    logs.any { it.contains("differs from backend") && it.contains("LOCAL_ONLY") },
+                    "Expected LOCAL_ONLY divergence WARN log. Got: $logs",
                 )
                 provider.unload()
             }
@@ -235,7 +235,7 @@ class FullSyncIntegrationTest {
     }
 
     @Test
-    fun `plugin sends pack_divergence_detected when disk diverges from synced state`() {
+    fun `plugin logs WARN on divergence and never sends pack_divergence_detected (Plan 1C)`() {
         val packsDir = Files.createTempDirectory("ifz_div_").toFile()
         val packDir = File(packsDir, "p_local").also { it.mkdirs() }
         File(packDir, "menus").mkdirs()
@@ -246,12 +246,13 @@ class FullSyncIntegrationTest {
         gg.interfaze.plugin.sync.SyncMetadata.recordSync(packDir,
             syncedHash = "old_synced_hash", backendHash = "old_synced_hash")
 
+        val logs = Collections.synchronizedList(mutableListOf<String>())
         val sent = mutableListOf<Map<String, Any>>()
         val provider = gg.interfaze.plugin.provider.SyncedMenuProvider(
             packsDir = packsDir,
             serverKey = "",  // skip WsClient.connect
             wsUrl = "ws://noop",
-            logger = null,
+            logger = makeLogger(logs),
         )
         provider.setSendForTesting { raw ->
             val parsed = com.fasterxml.jackson.databind.ObjectMapper().readValue(raw, Map::class.java)
@@ -263,13 +264,16 @@ class FullSyncIntegrationTest {
         val ack = """{"type":"hello_ack","pack_hashes":{"p_local":"old_synced_hash"},"deleted_pack_ids":[],"bundle_url":"http://backend"}"""
         provider.handleMessageForTesting(ack)
 
-        Thread.sleep(300)  // wait for httpClient.dispatcher.executorService
+        Thread.sleep(300)  // settle any background dispatcher
 
-        val divergence = sent.firstOrNull { it["type"] == "pack_divergence_detected" }
-        kotlin.test.assertNotNull(divergence, "Expected pack_divergence_detected sent")
-        kotlin.test.assertEquals("p_local", divergence!!["pack_id"])
-        @Suppress("UNCHECKED_CAST")
-        val files = divergence["disk_files"] as Map<String, String>
-        kotlin.test.assertTrue(files.containsKey("plugins/Interfaze/packs/p_local/menus/m.yaml"))
+        // Plan 1C: no WS emission anymore — only a WARN log.
+        kotlin.test.assertNull(
+            sent.firstOrNull { it["type"] == "pack_divergence_detected" },
+            "Plan 1C plugin must NOT send pack_divergence_detected",
+        )
+        kotlin.test.assertTrue(
+            logs.any { it.contains("p_local") && it.contains("differs from backend") },
+            "Expected WARN log mentioning the divergence. Got: $logs",
+        )
     }
 }
