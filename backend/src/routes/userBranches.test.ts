@@ -265,3 +265,183 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     expect(body.error).toMatch(/not_fast_forward/);
   });
 });
+
+// ─── C1: POST /branches/:src/merge-into/:dst ─────────────────────────────────
+
+describe("POST /merge-into — FF + already-merged + 3-way", () => {
+  beforeEach(clearAll);
+
+  test("FF case (src is descendant of dst) advances dst.head + broadcasts", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+
+    // Create dev branch
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+
+    // Commit on dev only
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "x": "1" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_a", name: "alpha" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "dev1" }),
+    });
+
+    // Merge dev → main : should be a fast-forward (main hasn't advanced)
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("fast_forward");
+    expect(body.advanced).toBe(true);
+
+    // main.head now equals dev.head
+    const { getBranch } = await import("../lib/branchStorage");
+    const main = await getBranch(packId, "main");
+    const dev = await getBranch(packId, "dev");
+    expect(main!.headCommitId).toBe(dev!.headCommitId);
+  });
+
+  test("already-merged (src is ancestor of dst) returns 200 already_merged", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    // dev branched from main, no new commits
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("already_merged");
+  });
+
+  test("3-way auto-merge returns kind=auto with empty conflicts + mergedEditorJson", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    // Create dev with a different commit content from main.
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+
+    // Commit on dev: add menu m_dev
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_dev.yaml": "id: m_dev" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_dev", name: "dev_menu" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "dev1" }),
+    });
+
+    // Commit on main: add menu m_main (different id, no conflict)
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_main.yaml": "id: m_main" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_main", name: "main_menu" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "main1" }),
+    });
+
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("auto");
+    expect(body.conflicts).toEqual([]);
+    // mergedEditorJson should contain BOTH menus
+    const ids = (body.mergedEditorJson.menus as Array<{ id: string }>).map((m) => m.id).sort();
+    expect(ids).toEqual(["m_dev", "m_main"]);
+    expect(body.lcaCommitId).toBeDefined();
+    expect(body.srcCommitId).toBeDefined();
+    expect(body.dstCommitId).toBeDefined();
+  });
+
+  test("3-way conflict returns kind=conflicts with the conflict list", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "dev", from: "main" }),
+    });
+    // Same id on both, different names → conflict
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: src-x" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "src-x" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "dev", message: "d" }),
+    });
+    await db.update(packs).set({
+      filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: dst-x" }),
+      editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "dst-x" }] }),
+    }).where(eq(packs.id, packId));
+    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ branch: "main", message: "m" }),
+    });
+
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("conflicts");
+    expect(body.conflicts).toHaveLength(1);
+    expect(body.conflicts[0].conflictKey).toBe("menus:m_x");
+    expect(body.lcaCommitId).toBeDefined();
+    expect(body.srcCommitId).toBeDefined();
+    expect(body.dstCommitId).toBeDefined();
+  });
+
+  test("same src and dst returns 400 same_branch", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/main/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("same_branch");
+  });
+
+  test("unknown branch returns 404", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/ghost/merge-into/main`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(404);
+  });
+});
