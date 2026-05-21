@@ -11,7 +11,6 @@ import {
   networks,
   editorSessions,
   linkCodes,
-  packConflicts,
 } from "../db/schema";
 import { writeAssetFile, assetRoot } from "./assetStorage";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
@@ -63,7 +62,6 @@ let packId: string;
 
 beforeEach(async () => {
   // FK-safe cleanup
-  await db.delete(packConflicts);
   await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);

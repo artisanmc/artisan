@@ -1,8 +1,8 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, packBindings, packConflicts, packs, serverKeys, networks } from "../db/schema";
+import { editorSessions, packBindings, packs, serverKeys, networks } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
 import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
@@ -16,7 +16,6 @@ app.route("/api/editor-session", editorSessionRouter);
 // ─── Cleanup ───────────────────────────────────────────────────────────────
 // FK-safe cleanup order for each test
 beforeEach(async () => {
-  await db.delete(packConflicts);
   await db.delete(packBindings);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -1070,30 +1069,6 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
-  });
-
-  test("auto-resolves any open conflict for the pack as resolution=editor", async () => {
-    const { token, keyId: serverKeyId } = await createSession();
-
-    // Seed a bound pack
-    await seedBoundPack(serverKeyId, "p_with_conflict", "h", {});
-
-    // Insert open conflict
-    const conflictId = crypto.randomUUID();
-    await db.insert(packConflicts).values({
-      id: conflictId, serverId: serverKeyId, packId: "p_with_conflict",
-      diskFilesJson: "{}", diskHash: "d", lastSyncedHash: "", backendHashAtDetection: "h",
-      detectedAt: new Date(),
-    });
-
-    const res = await app.request(`/api/editor-session/${token}/packs/p_with_conflict`, {
-      method: "DELETE",
-    });
-    expect(res.status).toBe(200);
-
-    const rows = await db.select().from(packConflicts).where(eq(packConflicts.id, conflictId));
-    expect(rows[0].resolvedAt).not.toBeNull();
-    expect(rows[0].resolution).toBe("editor");
   });
 
   test("returns 404 when pack is already soft-deleted", async () => {

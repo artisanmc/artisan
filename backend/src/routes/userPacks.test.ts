@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
   memberships, networks, packs, packBindings, serverKeys,
-  editorSessions, linkCodes, packConflicts, assets, users, userSessions,
+  editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userPacksRouter } from "./userPacks";
 import { userAuth } from "../middleware/userAuth";
@@ -14,7 +14,6 @@ import { addMembership } from "../lib/membershipManager";
 import { createPack, upsertPackContent } from "../lib/packStorage";
 
 async function clearAll() {
-  await db.delete(packConflicts).catch(() => {});
   await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);

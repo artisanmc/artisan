@@ -18,7 +18,6 @@ import {
   serverKeys,
   packs,
   packBindings,
-  packConflicts,
   networks,
   linkCodes,
   assets,
@@ -28,10 +27,9 @@ import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
 import { createBinding } from "../lib/packBindingManager";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(packConflicts);
   await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
@@ -401,73 +399,3 @@ describe("pushResourcePackUpdated", () => {
   });
 });
 
-describe("pack_divergence_detected", () => {
-  test("upserts pack_conflicts row and notifies editors", async () => {
-    const { id: keyId, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "p_div", "backend_hash_x", {}, {});
-
-    const connId = crypto.randomUUID();
-    connToServerId.set(connId, keyId);
-
-    const msg = JSON.stringify({
-      type: "pack_divergence_detected",
-      pack_id: "p_div",
-      disk_files: { "menus/m.yaml": "id: m\n" },
-      disk_hash: "disk_hash_y",
-      last_synced_hash: "prev_hash_z",
-    });
-    await handlePluginMessage(connId, msg);
-
-    const rows = await db.select().from(packConflicts).where(and(
-      eq(packConflicts.serverId, keyId),
-      eq(packConflicts.packId, "p_div"),
-    ));
-    expect(rows.length).toBe(1);
-    expect(rows[0].diskHash).toBe("disk_hash_y");
-    expect(rows[0].lastSyncedHash).toBe("prev_hash_z");
-    expect(rows[0].resolvedAt).toBeNull();
-  });
-
-  test("re-detection updates existing open conflict (no second row)", async () => {
-    const { id: keyId, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "p_re", "h", {}, {});
-
-    const connId = crypto.randomUUID();
-    connToServerId.set(connId, keyId);
-
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "pack_divergence_detected",
-      pack_id: "p_re", disk_files: { "a": "1" }, disk_hash: "d1", last_synced_hash: "s",
-    }));
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "pack_divergence_detected",
-      pack_id: "p_re", disk_files: { "a": "2" }, disk_hash: "d2", last_synced_hash: "s",
-    }));
-
-    const open = await db.select().from(packConflicts).where(and(
-      eq(packConflicts.serverId, keyId),
-      eq(packConflicts.packId, "p_re"),
-    ));
-    expect(open.length).toBe(1);
-    expect(open[0].diskHash).toBe("d2");
-  });
-
-  test("skips upsert when pack is soft-deleted", async () => {
-    const { id: keyId, networkId } = await seedServerKey();
-    await seedBoundPack(networkId, keyId, "p_del", "h", {}, {}, true);
-
-    const connId = crypto.randomUUID();
-    connToServerId.set(connId, keyId);
-
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "pack_divergence_detected",
-      pack_id: "p_del", disk_files: {}, disk_hash: "h", last_synced_hash: "",
-    }));
-
-    const rows = await db.select().from(packConflicts).where(and(
-      eq(packConflicts.serverId, keyId),
-      eq(packConflicts.packId, "p_del"),
-    ));
-    expect(rows.length).toBe(0);
-  });
-});

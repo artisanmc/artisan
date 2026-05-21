@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
   memberships, networks, packs, packBindings, serverKeys,
-  editorSessions, linkCodes, packConflicts, assets, users, userSessions,
+  editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
@@ -12,7 +12,6 @@ import { createSession } from "../lib/sessionManager";
 import { eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(packConflicts).catch(() => {});  // may not exist after Plan 1C
   await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
