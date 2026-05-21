@@ -2,13 +2,14 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { networks, memberships, serverKeys } from "../db/schema";
+import { networks, memberships, serverKeys, packs } from "../db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
+import { createBinding, deleteBinding } from "../lib/packBindingManager";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -104,4 +105,42 @@ userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) =>
     description: body.description ?? null,
   });
   return c.json({ pack }, 201);
+});
+
+// POST /api/networks/:id/packs/:packId/bindings/:serverKeyId — bind
+userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const networkId = c.req.param("id");
+  const packId = c.req.param("packId");
+  const skId = c.req.param("serverKeyId");
+  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  // Verify pack and server_key both belong to this network
+  const packRows = await db.select().from(packs).where(eq(packs.id, packId));
+  if (packRows.length === 0 || packRows[0].networkId !== networkId) {
+    return c.json({ error: "pack_not_in_network" }, 404);
+  }
+  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
+  if (skRows.length === 0 || skRows[0].networkId !== networkId) {
+    return c.json({ error: "server_key_not_in_network" }, 404);
+  }
+
+  await createBinding(skId, packId);
+  return c.json({ ok: true }, 201);
+});
+
+// DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId — unbind
+userNetworksRouter.delete("/:id/packs/:packId/bindings/:serverKeyId", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const networkId = c.req.param("id");
+  const packId = c.req.param("packId");
+  const skId = c.req.param("serverKeyId");
+  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  await deleteBinding(skId, packId);
+  return c.body(null, 204);
 });
