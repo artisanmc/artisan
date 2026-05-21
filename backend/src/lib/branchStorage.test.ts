@@ -25,15 +25,16 @@ async function seedSetup() {
 describe("branchStorage", () => {
   it("createBranch + getBranch", async () => {
     const { packId, rootCommitId } = await seedSetup();
-    await createBranch(packId, "main", rootCommitId);
-    const branch = await getBranch(packId, "main");
-    expect(branch?.name).toBe("main");
+    // createPack now auto-creates "main", so use a different name for this test
+    await createBranch(packId, "dev", rootCommitId);
+    const branch = await getBranch(packId, "dev");
+    expect(branch?.name).toBe("dev");
     expect(branch?.headCommitId).toBe(rootCommitId);
   });
 
   it("createBranch errors on duplicate (packId, name)", async () => {
     const { packId, rootCommitId } = await seedSetup();
-    await createBranch(packId, "main", rootCommitId);
+    // createPack now auto-creates "main", so test duplicate with "main"
     let errorThrown = false;
     try {
       await createBranch(packId, "main", rootCommitId);
@@ -45,7 +46,7 @@ describe("branchStorage", () => {
 
   it("advanceBranchHead updates head + updatedAt", async () => {
     const { packId, rootCommitId } = await seedSetup();
-    await createBranch(packId, "main", rootCommitId);
+    // createPack now auto-creates "main", so we can directly use it
     const second = await createCommit({
       packId, parentId: rootCommitId, files: { "init": "x" }, editor: null,
       authorUserId: null, message: "second",
@@ -57,7 +58,7 @@ describe("branchStorage", () => {
 
   it("listBranchesForPack returns all branches", async () => {
     const { packId, rootCommitId } = await seedSetup();
-    await createBranch(packId, "main", rootCommitId);
+    // createPack now auto-creates "main", so just add "dev"
     await createBranch(packId, "dev", rootCommitId);
     const list = await listBranchesForPack(packId);
     expect(list.map((b) => b.name).sort()).toEqual(["dev", "main"]);

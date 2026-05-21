@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { packs, networks } from "../db/schema";
+import { packs, networks, packBranches, packCommits } from "../db/schema";
+import { eq } from "drizzle-orm";
 import { createPack, getPack, upsertPackContent, softDeletePack, listPacksForNetwork } from "./packStorage";
 import { createNetwork } from "./networkManager";
+import { getBranch } from "./branchStorage";
 
 describe("packStorage", () => {
   let networkId: string;
   beforeEach(async () => {
+    await db.delete(packBranches);
+    await db.delete(packCommits);
     await db.delete(packs);
     await db.delete(networks);
     networkId = (await createNetwork("N")).id;
@@ -46,5 +50,15 @@ describe("packStorage", () => {
     await softDeletePack(p2.id);
     const list = await listPacksForNetwork(networkId);
     expect(list.map((p) => p.id)).toEqual([p1.id]);
+  });
+
+  it("createPack auto-creates main branch with initial commit", async () => {
+    const pack = await createPack({ networkId, name: "auto-branch" });
+    const main = await getBranch(pack.id, "main");
+    expect(main).not.toBeNull();
+    expect(main!.headCommitId).toMatch(/^cmt_/);
+    const cmt = (await db.select().from(packCommits).where(eq(packCommits.id, main!.headCommitId)))[0];
+    expect(cmt.parentId).toBeNull();
+    expect(cmt.message).toBe("Initial commit");
   });
 });
