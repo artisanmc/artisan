@@ -88,3 +88,18 @@ mappings:
     updates:
       - "CLAUDE.md"
     reason: "Local push command (Plugin commands section)"
+
+  - touches: "backend/src/lib/commitStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 commits storage (Modèle d'entités — Phase 2 section)"
+
+  - touches: "backend/src/lib/branchStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 branches storage (Modèle d'entités — Phase 2 section)"
+
+  - touches: "backend/src/routes/userBranches.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Phase 2 branches endpoints (section endpoints — branches + commits)"
