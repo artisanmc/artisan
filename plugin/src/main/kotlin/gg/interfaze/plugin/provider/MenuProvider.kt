@@ -23,4 +23,10 @@ interface MenuProvider {
     fun requestEditorSession(sender: String, onReady: (url: String, expiresAt: String) -> Unit) {}
     fun revokeEditorSessions() {}
     fun sendTrustRequest(code: String) {}
+    /**
+     * Sends a `local_push` WS message for the given pack dir so the backend can
+     * ingest locally-edited files (FTP scenario). No-op when not connected.
+     * Returns the hash included in the message, or null if the pack dir was not found.
+     */
+    fun pushLocalPack(packId: String, packDir: java.io.File): String? = null
 }

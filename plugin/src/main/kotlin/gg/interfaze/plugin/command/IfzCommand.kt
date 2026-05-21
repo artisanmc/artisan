@@ -34,7 +34,7 @@ class IfzCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor", "dump-title")
+            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor", "dump-title", "pushLocal")
                 .filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -44,6 +44,12 @@ class IfzCommand(
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
                 listOf("revoke").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
+                val packsDir = java.io.File(plugin.dataFolder, "packs")
+                val packIds = packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
+                    ?.map { it.name } ?: emptyList()
+                (packIds + "--all").filter { it.startsWith(args[1]) }
+            }
             else -> emptyList()
         }
     }
@@ -98,6 +104,7 @@ class IfzCommand(
                 }
                 dumpTitle(sender, menuId, args.getOrNull(2))
             }
+            "pushlocal" -> handlePushLocal(sender, args.drop(1))
             else -> sender.sendMessage(lang.get("ifz.usage_main", sender))
         }
         return true
@@ -184,6 +191,41 @@ class IfzCommand(
         // Last so chat doesn't truncate the cursor walk.
         plugin.logger.info("[dump-title] full Component.toString (length=${raw.length}):")
         plugin.logger.info("[dump-title] $raw")
+    }
+
+    private fun handlePushLocal(sender: CommandSender, args: List<String>) {
+        val target = args.getOrNull(0) ?: run {
+            sender.sendMessage("Usage: /ifz pushLocal <pack_id|--all>")
+            return
+        }
+        val packsDir = java.io.File(plugin.dataFolder, "packs")
+        if (!packsDir.exists()) {
+            sender.sendMessage("No packs directory found.")
+            return
+        }
+        val packIds = if (target == "--all") {
+            packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
+                ?.map { it.name } ?: emptyList()
+        } else {
+            listOf(target)
+        }
+        if (packIds.isEmpty()) {
+            sender.sendMessage("No packs found to push.")
+            return
+        }
+        for (packId in packIds) {
+            val dir = java.io.File(packsDir, packId)
+            if (!dir.isDirectory) {
+                sender.sendMessage("Pack '$packId' not found on disk; skipping.")
+                continue
+            }
+            val hash = plugin.menuProvider.pushLocalPack(packId, dir)
+            if (hash != null) {
+                sender.sendMessage("Pushed pack '$packId' to backend (hash=${hash.take(8)}…).")
+            } else {
+                sender.sendMessage("Pack '$packId': not connected to backend — push skipped.")
+            }
+        }
     }
 
     private fun editor(sender: CommandSender) {
