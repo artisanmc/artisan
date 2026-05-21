@@ -6,12 +6,14 @@ import { db } from "../db/index";
 import { assets, serverKeys } from "../db/schema";
 import { assetPath } from "./assetStorage";
 import { fontDirPaths } from "./fontStorage";
+import { listPacksForServerKey } from "./packBindingManager";
 import { buildResourcePackZip, type FontMeta } from "./resourcePackBuilder";
 import {
   pruneOldResourcePacks,
   resourcePackPath,
   writeResourcePack,
 } from "./resourcePackStorage";
+import { mergeCodepoints, type GlyphContribution } from "./rpCodepointMerger";
 
 /**
  * URL base used to build the resource-pack download URL handed to players via
@@ -35,23 +37,42 @@ export interface PackInfo {
 }
 
 export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
-  const rows = await db.select().from(assets).where(eq(assets.serverKeyId, serverKeyId));
+  // Stable order: oldest pack first → its codepoints win in case of collisions.
+  const boundPacks = await listPacksForServerKey(serverKeyId);
+  boundPacks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
+  // Aggregate assets across all bound packs, capturing per-pack glyph contributions
+  // for the codepoint merger.
+  const allAssets: (typeof assets.$inferSelect)[] = [];
+  const contribs: GlyphContribution[] = [];
+  for (const p of boundPacks) {
+    const rows = await db.select().from(assets).where(eq(assets.packId, p.id));
+    contribs.push({
+      packId: p.id,
+      glyphs: rows
+        .filter((a) => a.type === "glyph" && a.codepoint !== null)
+        .map((a) => ({ assetId: a.id, codepoint: a.codepoint! })),
+    });
+    allAssets.push(...rows);
+  }
+  const { finalCodepoints } = mergeCodepoints(contribs);
+
+  // Read PNGs from disk (each asset lives under its pack's subdir).
   const glyphPngs = new Map<string, Uint8Array>();
-  for (const a of rows) {
+  for (const a of allAssets) {
     if (a.type !== "glyph" || a.codepoint === null) continue;
-    const p = assetPath(serverKeyId, a.id);
+    const p = assetPath(a.packId, a.id);
     if (!existsSync(p)) continue;
     glyphPngs.set(a.id, new Uint8Array(await readFile(p)));
   }
 
   const fontGlyphPngs = new Map<string, Map<string, Uint8Array>>();
-  for (const a of rows) {
+  for (const a of allAssets) {
     if (a.type !== "font" || !a.fontMeta) continue;
     const meta = a.fontMeta as FontMeta | null;
     const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
     const fontMap = new Map<string, Uint8Array>();
-    const { dir } = fontDirPaths(serverKeyId, a.id);
+    const { dir } = fontDirPaths(a.packId, a.id);
     for (const g of glyphMap) {
       const filePath = join(dir, g.texture);
       if (!existsSync(filePath)) continue;
@@ -60,7 +81,12 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
     fontGlyphPngs.set(a.id, fontMap);
   }
 
-  const { zipBytes, hash } = buildResourcePackZip(rows, glyphPngs, fontGlyphPngs);
+  const { zipBytes, hash } = buildResourcePackZip(
+    allAssets,
+    glyphPngs,
+    fontGlyphPngs,
+    { finalCodepoints },
+  );
   await writeResourcePack(serverKeyId, hash, zipBytes);
 
   await db.update(serverKeys)
