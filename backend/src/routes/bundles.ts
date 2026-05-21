@@ -33,10 +33,16 @@ router.post("/:packId", async (c) => {
   let pack = await getPack(packId);
   if (!pack) {
     pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
+  }
+  // Ensure THIS server_key has a binding to the pack. The pack may have been
+  // created by a different server_key (e.g. multi-server-sync scenario); we
+  // still need the binding for `listPacksForServerKey` to surface it.
+  const bound = await listPacksForServerKey(serverKeyId);
+  if (!bound.find((p) => p.id === packId)) {
     await createBinding(serverKeyId, packId);
   }
   await upsertPackContent(packId, { hash, filesJson: JSON.stringify(body.files) });
-  return c.json({ ok: true });
+  return c.json({ ok: true, hash });
 });
 
 router.get("/:packId", async (c) => {

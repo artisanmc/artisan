@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { linkCodes, serverKeys, networks } from "../db/schema";
+import { editorSessions, linkCodes, serverKeys, networks } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { app } from "../app";
 
@@ -92,14 +92,15 @@ describe("POST /api/link/:code/claim", () => {
 
 describe("POST /api/link/:code/claim — Network auto-creation", () => {
   beforeEach(async () => {
-    // Delete in dependency order: linkCodes refs serverKeys, serverKeys refs networks
+    // Delete in dependency order: editorSessions + linkCodes ref serverKeys (no cascade), then serverKeys (refs networks).
+    await db.delete(editorSessions);
     await db.delete(linkCodes);
     await db.delete(serverKeys);
     await db.delete(networks);
   });
 
   test("auto-creates a Network when claiming and links the server_key to it", async () => {
-    const create = await app.request("/api/link/", { method: "POST" });
+    const create = await app.request("/api/link", { method: "POST" });
     const { code } = (await create.json()) as { code: string };
     const claim = await app.request(`/api/link/${code}/claim`, { method: "POST" });
     const { server_key_id } = (await claim.json()) as { server_key_id: string };
