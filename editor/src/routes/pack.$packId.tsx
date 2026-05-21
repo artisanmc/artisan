@@ -25,6 +25,12 @@ import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
+import { getNetworkOfPack } from "@/lib/api/userPacks";
+import { useBranchesStore } from "@/state/branchesStore";
+import { BranchSwitcher } from "@/features/branches/BranchSwitcher";
+import { CommitDialog } from "@/features/branches/CommitDialog";
+import { HistoryPanel } from "@/features/branches/HistoryPanel";
+import { PromoteButton } from "@/features/branches/PromoteButton";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -81,11 +87,25 @@ function PackCanvasPage() {
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const packs = useAccountStore((s) => s.account.packs);
   // In user-auth mode (no session token), load the pack directly from the user API.
-  const { pack: userPack } = usePackLoader(pId);
+  const { pack: userPack, networkId: userPackNetworkId } = usePackLoader(pId);
   const sessionPack = packs.find((p) => p.id === pId);
   const pack = token ? sessionPack : userPack;
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
+
+  // Network ID for branch API calls. In user-auth mode, comes from usePackLoader.
+  // In session mode, fetched lazily via getNetworkOfPack.
+  const [sessionNetworkId, setSessionNetworkId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token) return; // user mode: handled by usePackLoader
+    getNetworkOfPack(pId).then(setSessionNetworkId).catch(() => setSessionNetworkId(null));
+  }, [pId, token]);
+  const networkId = token ? sessionNetworkId : userPackNetworkId;
+
+  const currentBranch = useBranchesStore((s) => s.currentBranch);
+  const branches = useBranchesStore((s) => s.branches);
+  const branchNames = branches.map((b) => b.name);
+  const [commitOpen, setCommitOpen] = useState(false);
 
   const [packsOpen, setPacksOpen] = useState(false);
   const [translationsOpen, setTranslationsOpen] = useState(false);
@@ -245,6 +265,31 @@ function PackCanvasPage() {
             ) : null}
             {pack ? <DeployButtons pack={pack} packId={pId} /> : null}
           </div>
+
+          {/* Branch toolbar — only shown when a networkId is resolved (user-auth mode or session mode). */}
+          {currentBranch && networkId && (
+            <div className="flex flex-col gap-2 border-b border-zinc-800 p-3">
+              <div className="flex items-center gap-2">
+                <BranchSwitcher networkId={networkId} packId={pId} />
+                <button
+                  type="button"
+                  onClick={() => setCommitOpen(true)}
+                  className="flex h-7 items-center gap-1 rounded bg-zinc-700 px-2 text-xs font-medium text-zinc-100 hover:bg-zinc-600"
+                >
+                  Commit
+                </button>
+                <PromoteButton networkId={networkId} packId={pId} sourceBranch={currentBranch} allBranches={branchNames} />
+              </div>
+              <HistoryPanel networkId={networkId} packId={pId} branch={currentBranch} />
+            </div>
+          )}
+          <CommitDialog
+            networkId={networkId ?? ""}
+            packId={pId}
+            branch={currentBranch ?? "main"}
+            open={commitOpen}
+            onClose={() => setCommitOpen(false)}
+          />
 
           {/* Editor layout: vertical split (Stage on top, EditorPane bottom)
               on mobile/tablet, horizontal split (Stage left, EditorPane as

@@ -9,6 +9,7 @@ export type PackLoadMode = "session" | "user";
 
 export interface PackLoadResult {
   pack: Pack | null;
+  networkId: string | null;
   error: string | null;
   mode: PackLoadMode | null;
 }
@@ -17,6 +18,7 @@ export function usePackLoader(packId: string): PackLoadResult {
   const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const [pack, setPack] = useState<Pack | null>(null);
+  const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<PackLoadMode | null>(null);
 
@@ -35,8 +37,9 @@ export function usePackLoader(packId: string): PackLoadResult {
       setMode("user");
       loadUserPack(packId)
         .then((res) => {
-          // loadUserPack returns { pack, files, editor }; editor is the full Pack JSON
+          // loadUserPack returns { pack, files, editor, networkId }; editor is the full Pack JSON
           setPack(res.editor as Pack);
+          setNetworkId(res.networkId);
         })
         .catch((e) => setError((e as Error).message));
     } else {
@@ -44,5 +47,5 @@ export function usePackLoader(packId: string): PackLoadResult {
     }
   }, [packId, token, user]);
 
-  return { pack, error, mode };
+  return { pack, networkId, error, mode };
 }
