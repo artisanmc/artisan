@@ -1,12 +1,14 @@
-// backend/src/routes/userBranches.ts — B1 + B2
+// backend/src/routes/userBranches.ts — B1 + B2 + B3
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { packs } from "../db/schema";
-import { listBranchesForPack, getBranch, createBranch } from "../lib/branchStorage";
-import { listCommitsByPack } from "../lib/commitStorage";
+import { listBranchesForPack, getBranch, createBranch, advanceBranchHead } from "../lib/branchStorage";
+import { listCommitsByPack, createCommit } from "../lib/commitStorage";
 import { requireMember } from "../lib/membershipGuard";
+import { getPack } from "../lib/packStorage";
+import { pushBundleAvailable } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -75,4 +77,40 @@ userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
   await createBranch(packId, name, source.headCommitId);
   const created = await getBranch(packId, name);
   return c.json({ branch: created }, 201);
+});
+
+// POST /:id/packs/:packId/commits — commit current WIP onto a branch
+userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+  if (!access.ok) return c.json({ error: "denied" }, access.status);
+  const packId = c.req.param("packId");
+
+  let body: { branch?: unknown; message?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
+  const branchName = typeof body.branch === "string" ? body.branch : "main";
+  const message = typeof body.message === "string" ? body.message : "";
+
+  const branch = await getBranch(packId, branchName);
+  if (!branch) return c.json({ error: "branch_not_found" }, 404);
+
+  const pack = await getPack(packId);
+  if (!pack) return c.json({ error: "pack_not_found" }, 404);
+
+  const files = JSON.parse(pack.filesJson) as Record<string, string>;
+  const editor = pack.editorJson ? JSON.parse(pack.editorJson) : null;
+
+  const commit = await createCommit({
+    packId,
+    parentId: branch.headCommitId,
+    files,
+    editor,
+    authorUserId: getUserId(c),
+    message,
+  });
+  await advanceBranchHead(packId, branchName, commit.id);
+
+  // Broadcast bundle_available to all server_keys bound to this pack.
+  await pushBundleAvailable(packId, commit.contentHash); // TODO(C1): pass branchName when signature is updated
+
+  return c.json({ commit }, 201);
 });
