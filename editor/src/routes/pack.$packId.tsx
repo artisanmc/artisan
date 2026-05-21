@@ -49,6 +49,8 @@ import {
 import { Navigate, createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { useSessionStore } from "@/state/sessionStore";
+import { useAuthStore } from "@/state/authStore";
+import { usePackLoader } from "@/features/pack/usePackLoader";
 import {
   BookOpen,
   Boxes,
@@ -75,13 +77,17 @@ function PackCanvasPage() {
   const token = useSessionStore((s) => s.accessToken);
   const setAccessToken = useSessionStore((s) => s.setAccessToken);
   const clearSession = useSessionStore((s) => s.clearSession);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const navigate = useNavigate();
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const packs = useAccountStore((s) => s.account.packs);
-  const pack = packs.find((p) => p.id === pId);
+  // In user-auth mode (no session token), load the pack directly from the user API.
+  const { pack: userPack } = usePackLoader(pId);
+  const sessionPack = packs.find((p) => p.id === pId);
+  const pack = token ? sessionPack : userPack;
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
 
@@ -133,12 +139,16 @@ function PackCanvasPage() {
     return () => window.removeEventListener("ifz:pack_deleted", onPackDeleted);
   }, [pId, navigate]);
 
-  // After a page reload the Zustand store is empty — bounce to /session so
-  // the cookie-based refresh can re-establish the session silently.
-  if (!token) return <Navigate to="/session" replace />;
-  // accountStore is not persisted — empty after a page refresh, bounce to /session to reload.
-  if (packs.length === 0) return <Navigate to="/session" replace />;
-  if (!pack) return <Navigate to={`/pack/${packs[0]!.id}`} replace />;
+  // Require at least one auth mode: session token OR logged-in user.
+  // Session mode: bounce to /session so the cookie-based refresh can re-establish.
+  // User mode: bounce to /login so the user can authenticate.
+  if (!token && !currentUser) return <Navigate to="/session" replace />;
+  // Session mode only: accountStore is not persisted — empty after a page refresh.
+  if (token && packs.length === 0) return <Navigate to="/session" replace />;
+  // Session mode only: if the specific pack isn't in this session, pick the first available.
+  if (token && !sessionPack) return <Navigate to={`/pack/${packs[0]!.id}`} replace />;
+  // User mode only: still loading the pack — render nothing while fetch is in flight.
+  if (!token && !pack) return null;
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
