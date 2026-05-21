@@ -1,11 +1,11 @@
-// backend/src/routes/userBranches.ts — B1 + B2 + B3
+// backend/src/routes/userBranches.ts — B1 + B2 + B3 + B4
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { packs } from "../db/schema";
-import { listBranchesForPack, getBranch, createBranch, advanceBranchHead } from "../lib/branchStorage";
-import { listCommitsByPack, createCommit } from "../lib/commitStorage";
+import { listBranchesForPack, getBranch, createBranch, advanceBranchHead, isAncestor } from "../lib/branchStorage";
+import { listCommitsByPack, createCommit, getCommit } from "../lib/commitStorage";
 import { requireMember } from "../lib/membershipGuard";
 import { getPack } from "../lib/packStorage";
 import { pushBundleAvailable } from "../ws/hub";
@@ -113,4 +113,33 @@ userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
   await pushBundleAvailable(packId, commit.contentHash); // TODO(C1): pass branchName when signature is updated
 
   return c.json({ commit }, 201);
+});
+
+// POST /:id/packs/:packId/branches/:src/promote/:dst — fast-forward only promotion
+userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+  if (!access.ok) return c.json({ error: "denied" }, access.status);
+  const packId = c.req.param("packId");
+  const srcName = c.req.param("src");
+  const dstName = c.req.param("dst");
+  if (srcName === dstName) return c.json({ error: "same_branch" }, 400);
+
+  const src = await getBranch(packId, srcName);
+  const dst = await getBranch(packId, dstName);
+  if (!src || !dst) return c.json({ error: "branch_not_found" }, 404);
+
+  // Fast-forward check: dst.head must be an ancestor of src.head.
+  if (!(await isAncestor(dst.headCommitId, src.headCommitId))) {
+    return c.json({ error: "not_fast_forward" }, 409);
+  }
+  if (src.headCommitId === dst.headCommitId) {
+    return c.json({ ok: true, advanced: false });
+  }
+
+  await advanceBranchHead(packId, dstName, src.headCommitId);
+  // Broadcast bundle_available to all server_keys bound to this pack.
+  const newHead = await getCommit(src.headCommitId);
+  if (newHead) await pushBundleAvailable(packId, newHead.contentHash); // TODO(C1): pass dstName when signature is updated
+
+  return c.json({ ok: true, advanced: true });
 });
