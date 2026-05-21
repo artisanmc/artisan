@@ -1,10 +1,10 @@
-// backend/src/routes/userBranches.ts — B1: GET branches + GET commits
+// backend/src/routes/userBranches.ts — B1 + B2
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { packs } from "../db/schema";
-import { listBranchesForPack } from "../lib/branchStorage";
+import { listBranchesForPack, getBranch, createBranch } from "../lib/branchStorage";
 import { listCommitsByPack } from "../lib/commitStorage";
 import { requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
@@ -29,6 +29,8 @@ async function checkAccess(
   return { ok: true };
 }
 
+const BRANCH_NAME_RE = /^[a-zA-Z0-9_\-./]+$/;
+
 export const userBranchesRouter = new Hono<{ Variables: Vars }>();
 
 // GET /:id/packs/:packId/branches — list branches for a pack
@@ -48,4 +50,29 @@ userBranchesRouter.get("/:id/packs/:packId/commits", async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
   const list = await listCommitsByPack(c.req.param("packId"), limit);
   return c.json({ commits: list });
+});
+
+// POST /:id/packs/:packId/branches — create a new branch from an existing one
+userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+  if (!access.ok) return c.json({ error: "denied" }, access.status);
+  const packId = c.req.param("packId");
+
+  let body: { name?: unknown; from?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const from = typeof body.from === "string" ? body.from.trim() : "main";
+  if (name.length === 0 || !BRANCH_NAME_RE.test(name)) {
+    return c.json({ error: "invalid_name" }, 422);
+  }
+
+  if (await getBranch(packId, name)) {
+    return c.json({ error: "branch_exists" }, 409);
+  }
+  const source = await getBranch(packId, from);
+  if (!source) return c.json({ error: "source_branch_not_found" }, 404);
+
+  await createBranch(packId, name, source.headCommitId);
+  const created = await getBranch(packId, name);
+  return c.json({ branch: created }, 201);
 });
