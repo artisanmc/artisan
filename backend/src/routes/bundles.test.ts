@@ -1,4 +1,5 @@
 import { describe, expect, test, beforeEach } from "bun:test";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import { networks, serverKeys, packBindings, packs, editorSessions, linkCodes } from "../db/schema";
