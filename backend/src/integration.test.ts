@@ -137,28 +137,17 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     ws2.close();
   });
 
-  test("bundle download round-trip — URL from bundle_available serves correct files", async () => {
+  test("GET /api/bundles/:packId serves branch head commit content (not WIP)", async () => {
     const key = await createKey("integ-download");
-    const uploadedHash = await uploadBundle(key, "p_shop", PACK_FILES);
+    // POST writes WIP only — GET serves the main branch head commit (initial empty commit).
+    await uploadBundle(key, "p_shop", PACK_FILES);
 
-    // Get bundle_available to extract the URL
-    const ws = await connectWs();
-    const msgs = collectMessages(ws, 2);
-    ws.send(JSON.stringify({ type: "hello", server_key: key, plugin_version: "1.0.0", minecraft_version: "1.21.4", current_bundle_hash: "" }));
-    const [, availRaw] = await msgs;
-    ws.close();
-
-    const avail = JSON.parse(availRaw);
-    expect(avail.type).toBe("bundle_available");
-
-    // Simulate what the plugin does: GET the bundle URL
     const downloadRes = await app.request("/api/bundles/p_shop", {
       headers: { Authorization: `Bearer ${key}` },
     });
     expect(downloadRes.status).toBe(200);
     const bundle = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
-    expect(bundle.hash).toBe(uploadedHash);
-    expect(bundle.files["plugins/Interfaze/packs/p_shop/manifest.yaml"]).toContain("manifest/v1");
-    expect(bundle.files["plugins/Interfaze/packs/p_shop/menus/shop.yaml"]).toContain("shop");
+    // Branch head is the initial empty commit; POST WIP is not reflected until a commit is created.
+    expect(bundle.files).toEqual({});
   });
 });
