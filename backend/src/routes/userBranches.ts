@@ -269,7 +269,14 @@ userBranchesRouter.post("/:id/packs/:packId/branches/:src/merge-into/:dst/resolv
 
   // Create merge commit with both parents.
   // Direct insert (not createCommit) because createCommit doesn't accept parentId2.
-  const contentHash = computeContentHash(finalFiles);
+  // contentHash for merge commits includes the parent IDs as a discriminator so that
+  // a merge producing the same filesJson as an existing commit does not violate the
+  // unique (packId, contentHash) constraint.  The plugin treats contentHash as an
+  // opaque "have I downloaded this version?" token — it just re-downloads when it differs.
+  const contentHash = computeContentHash({
+    ...finalFiles,
+    "\x00merge-meta": `${dst.headCommitId}|${src.headCommitId}`,
+  });
   const id = "cmt_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(packCommits).values({
     id,
