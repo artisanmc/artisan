@@ -270,24 +270,52 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG custom depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
 | `GET /api/models/:version/:path*` | Sert les JSON de modèles vanilla depuis `data/mc-assets/{version}/models/{path}.json`. |
 | `GET /api/models/custom/:serverKeyId/:path*` | Sert les JSON de modèles custom depuis `data/custom-items/{serverKeyId}/models/{path}.json`. |
-| `POST /api/editor-session/:token/assets` | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + serverKey, alloc codepoint pour glyph. |
-| `GET /api/editor-session/:token/assets` | Liste les assets du server_key. Query `type=&search=`. |
-| `GET /api/editor-session/:token/assets/:id` | Détail d'un asset. 404 si autre server_key. |
-| `PATCH /api/editor-session/:token/assets/:id` | Renommer / changer ascent / changer height (glyph). Body JSON `{ name?, ascent?, height? }`. Validation `height` : entier, 1 ≤ height ≤ 256, applicable uniquement aux assets `type=glyph`. Après update : rebuild RP + broadcast `resource_pack_updated`. |
-| `POST /api/editor-session/:token/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
-| `DELETE /api/editor-session/:token/assets/:id` | Supprime (DB + fichier disque). 204. |
+| `POST /api/editor-session/:token/packs/:packId/assets` | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + packId, alloc codepoint pour glyph. 403 si le pack n'est pas bindé au server_key de la session. |
+| `GET /api/editor-session/:token/packs/:packId/assets` | Liste les assets du pack. Query `type=&search=`. |
+| `GET /api/editor-session/:token/packs/:packId/assets/:id` | Détail d'un asset. 404 si autre pack. |
+| `PATCH /api/editor-session/:token/packs/:packId/assets/:id` | Renommer / changer ascent / changer height (glyph). Body JSON `{ name?, ascent?, height? }`. Validation `height` : entier, 1 ≤ height ≤ 256, applicable uniquement aux assets `type=glyph`. Après update : rebuild RP + broadcast `resource_pack_updated`. |
+| `POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
+| `DELETE /api/editor-session/:token/packs/:packId/assets/:id` | Supprime (DB + fichier disque). 204. |
 | `DELETE /api/editor-session/:token/packs/:packId` | Soft-delete du pack (sets `deletedAt`), auto-résolution de tout conflit ouvert en "editor", broadcast `pack_deleted` au plugin et aux autres éditeurs. 200 `{deleted: true}` ou 404. |
 | `GET /api/editor-session/:token/conflicts` | Liste les conflits ouverts pour le server_key. Retourne `{ conflicts: ConflictSummary[] }` avec diff added/modified/removed. |
 | `GET /api/editor-session/:token/conflicts/:id` | Détail d'un conflit (inclut `diskFiles` complet). 404 si autre server_key. |
 | `POST /api/editor-session/:token/conflicts/:id/resolve` | Body `{ choice: "editor" \| "server" }`. 200 si résolu, 409 si déjà résolu, 401 si token invalide. |
-| `GET /api/textures/asset/:server_key_id/:asset_id` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{server_key_id}/{asset_id}.png`. |
-| `GET /api/textures/asset-font/:asset_id/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{sk}/fonts/{asset_id}/{path}`. Lookup par asset_id (le server_key est lu en DB). 404 si pas un asset font ou path traversal. |
+| `GET /api/textures/asset/:packId/:assetId` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{packId}/{assetId}.png`. |
+| `GET /api/textures/asset-font/:assetId/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{packId}/fonts/{assetId}/{path}`. Lookup par assetId (le packId est lu en DB). 404 si pas un asset font ou path traversal. |
 | `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
 | `POST /api/editor-session/:token/resource-pack/rebuild` | Force la régénération du resource pack pour le server_key de la session. Returns `{ url, hash }` et broadcast `resource_pack_updated`. |
 
 Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
 
 **Invariant custom items hash** — `CustomItemsManager.buildBundle()` calcule le hash en inline à partir des items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) pour garantir la cohérence hash ↔ data.
+
+---
+
+## Modèle d'entités (Plan 1B)
+
+```
+User (Plan 1A) ── Membership ──┐
+                                ▼
+                            Network (id, name, tier="free")
+                              │ owns
+                  ┌───────────┼───────────┐
+                  ▼                       ▼
+              ServerKey (N)            Pack (N, first-class)
+                  │                       │
+                  └── PackBinding ────────┘
+                       (server_key_id, pack_id)
+                       many-to-many
+```
+
+- **Pack** : entité first-class avec `id`, `networkId`, `name`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. Plus de scope par `server_key`.
+- **PackBinding** : table `pack_bindings(server_key_id, pack_id)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC).
+- **Assets per-pack** : `assets.packId` (au lieu de `assets.serverKeyId`). Codepoint allocator scopé au pack. Chemins disque `data/assets/{packId}/...`.
+- **Resource pack build multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs bindés au server_key et merge les codepoints à la volée (premier pack arrivé garde son codepoint, collisions ré-allouées). Voir `lib/rpCodepointMerger.ts`.
+- **Server keys belongs to Network** : `server_keys.networkId` NOT NULL. À la création (`/api/link/claim` ou `/api/server-keys` ou WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
+- **WS hub** : `hello_ack.pack_hashes` et `pushBundleAvailable(packId, hash)` résolvent les targets via `packBindings`. `pushPackDeleted(packId)` idem.
+- **Plugin protocole inchangé** : aucun changement de code plugin nécessaire ; seule la source des données côté backend bouge.
+
+Tables Drizzle ajoutées en Plan 1B : `networks`, `memberships`, `packs`, `pack_bindings`. Table supprimée : `pack_bundles` (son contenu fusionne dans `packs`).
 
 ---
 
