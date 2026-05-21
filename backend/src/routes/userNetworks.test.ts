@@ -174,4 +174,49 @@ describe("userNetworksRouter", () => {
     });
     expect(res.status).toBe(403);
   });
+
+  // A4 tests
+  test("POST /api/networks/:id/server-keys creates server_key and returns plaintext", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const res = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "test-server" }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.key).toMatch(/^sk_[0-9a-f]{64}$/);
+    expect(body.id).toBeDefined();
+
+    const sk = await db.select().from(serverKeys).where(eq(serverKeys.id, body.id));
+    expect(sk[0].networkId).toBe(network.id);
+    expect(sk[0].label).toBe("test-server");
+  });
+
+  test("POST /api/networks/:id/server-keys 403 when not member", async () => {
+    const { sessionId: sessA } = await seedUser("uA");
+    await seedUser("uB");
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const { createSession: cs } = await import("../lib/sessionManager");
+    const sessB = (await cs("uB")).id;
+    const res = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "x" }),
+    });
+    expect(res.status).toBe(403);
+  });
 });
