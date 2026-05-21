@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { serverKeys } from "../db/schema";
+import { serverKeys, packBindings, packBranches, packCommits } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
 import { getPack, createPack, upsertPackContent } from "../lib/packStorage";
@@ -42,13 +42,24 @@ router.get("/:packId", async (c) => {
 
   const packId = c.req.param("packId");
 
-  const bound = await listPacksForServerKey(serverKeyId);
-  if (!bound.find((p) => p.id === packId)) return c.json({ error: "Not bound" }, 404);
+  const binding = (await db.select().from(packBindings).where(and(
+    eq(packBindings.serverKeyId, serverKeyId),
+    eq(packBindings.packId, packId),
+  )))[0];
+  if (!binding) return c.json({ error: "Not bound" }, 404);
 
-  const pack = await getPack(packId);
-  if (!pack || pack.deletedAt) return c.json({ error: "Not found" }, 404);
+  const branch = (await db.select().from(packBranches).where(and(
+    eq(packBranches.packId, packId), eq(packBranches.name, binding.branchName),
+  )))[0];
+  if (!branch) return c.json({ error: "Branch not found" }, 404);
 
-  return c.json({ hash: pack.hash, files: JSON.parse(pack.filesJson) as Record<string, string> });
+  const commit = (await db.select().from(packCommits).where(eq(packCommits.id, branch.headCommitId)))[0];
+  if (!commit) return c.json({ error: "Commit not found" }, 500);
+
+  return c.json({
+    hash: commit.contentHash,
+    files: JSON.parse(commit.filesJson) as Record<string, string>,
+  });
 });
 
 export { router as bundlesRouter };
