@@ -219,4 +219,26 @@ describe("userNetworksRouter", () => {
     });
     expect(res.status).toBe(403);
   });
+
+  // A5 test
+  test("POST /api/networks/:id/packs creates pack in network", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const res = await app.request(`/api/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "my-pack", description: "desc" }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.pack.name).toBe("my-pack");
+    expect(body.pack.description).toBe("desc");
+    expect(body.pack.networkId).toBe(network.id);
+  });
 });

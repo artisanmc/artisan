@@ -7,7 +7,7 @@ import { eq, inArray } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
-import { listPacksForNetwork } from "../lib/packStorage";
+import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -84,4 +84,24 @@ userNetworksRouter.post("/:id/server-keys", async (c: Context<{ Variables: Vars 
     id, hash, label, networkId, createdAt: new Date(),
   });
   return c.json({ id, key, label }, 201);
+});
+
+// POST /api/networks/:id/packs — create pack in network
+userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const networkId = c.req.param("id");
+  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  const body = await c.req.json<{ name?: string; description?: string }>();
+  if (typeof body.name !== "string" || body.name.trim().length === 0) {
+    return c.json({ error: "invalid_name" }, 422);
+  }
+  const pack = await createPack({
+    networkId,
+    name: body.name.trim(),
+    description: body.description ?? null,
+  });
+  return c.json({ pack }, 201);
 });
