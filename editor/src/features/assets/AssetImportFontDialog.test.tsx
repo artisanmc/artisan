@@ -11,7 +11,7 @@ vi.mock("@/state/sessionStore", () => ({
 
 const fakeAsset = {
   id: "asset_font_1",
-  serverKeyId: "sk",
+  packId: "p1",
   type: "font" as const,
   name: "my_font",
   width: 0,
@@ -34,14 +34,14 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("renders the dialog when open=true", () => {
-    render(<AssetImportFontDialog open onClose={() => {}} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
     expect(screen.getByText(/import mcfonts zip/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /import/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
   });
 
   it("defaults the name from the filename, stripping the extension and normalizing", () => {
-    render(<AssetImportFontDialog open onClose={() => {}} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
     // Spaces and dots are illegal under [a-z0-9_-]+ and must be replaced with _.
     // Hyphens and underscores are allowed and preserved as-is.
     const file = new File([new Uint8Array([1, 2, 3])], "My Font.v2.zip", { type: "application/zip" });
@@ -52,7 +52,7 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("preserves hyphens and digits in the normalized name", () => {
-    render(<AssetImportFontDialog open onClose={() => {}} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
     const file = new File([new Uint8Array([1])], "My-Font-2.ZIP", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
@@ -63,7 +63,7 @@ describe("AssetImportFontDialog", () => {
     const spy = vi
       .spyOn(packApi, "uploadFontAsset")
       .mockResolvedValue({ asset: fakeAsset });
-    render(<AssetImportFontDialog open onClose={() => {}} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
 
     const file = new File([new Uint8Array([1, 2, 3])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -71,14 +71,15 @@ describe("AssetImportFontDialog", () => {
 
     await waitFor(() => expect(spy).toHaveBeenCalled());
     expect(spy.mock.calls[0]?.[0]).toBe("tok_test");
-    expect(spy.mock.calls[0]?.[1].name).toBe("my_font");
-    expect(spy.mock.calls[0]?.[1].file).toBe(file);
+    expect(spy.mock.calls[0]?.[1]).toBe("p1");
+    expect(spy.mock.calls[0]?.[2].name).toBe("my_font");
+    expect(spy.mock.calls[0]?.[2].file).toBe(file);
   });
 
   it("adds the asset to the store and closes on success", async () => {
     vi.spyOn(packApi, "uploadFontAsset").mockResolvedValue({ asset: fakeAsset });
     const onClose = vi.fn();
-    render(<AssetImportFontDialog open onClose={onClose} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -91,7 +92,7 @@ describe("AssetImportFontDialog", () => {
   it("displays the error and stays open if the upload fails", async () => {
     vi.spyOn(packApi, "uploadFontAsset").mockRejectedValue(new Error("Bad zip"));
     const onClose = vi.fn();
-    render(<AssetImportFontDialog open onClose={onClose} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "broken.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -108,7 +109,7 @@ describe("AssetImportFontDialog", () => {
       warnings: ["skipped malformed glyph X"],
     });
     const onClose = vi.fn();
-    render(<AssetImportFontDialog open onClose={onClose} />);
+    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });

@@ -625,7 +625,7 @@ const TITLE_LABEL_Y = 13;
  * If an asset is reused across multiple layers at different y positions, the
  * last value wins (known limitation until per-layer ascent is supported).
  */
-async function syncGlyphAscents(pack: Pack, token: string): Promise<void> {
+async function syncGlyphAscents(pack: Pack, token: string, packId: string): Promise<void> {
   const assets = useAssetStore.getState().assets;
   const patches: Promise<void>[] = [];
   const seen = new Set<string>();
@@ -639,7 +639,7 @@ async function syncGlyphAscents(pack: Pack, token: string): Promise<void> {
       if (asset.ascent === desiredAscent || seen.has(asset.id)) continue;
       seen.add(asset.id);
       patches.push(
-        updateAsset(token, asset.id, { ascent: desiredAscent }).then((updated) => {
+        updateAsset(token, packId, asset.id, { ascent: desiredAscent }).then((updated) => {
           useAssetStore.getState().upsertAsset(updated);
         }),
       );
@@ -662,7 +662,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
     setDeploying(true);
     try {
       // Sync glyph ascents first (this rebuilds the RP for correct Y positions).
-      await syncGlyphAscents(pack, token);
+      await syncGlyphAscents(pack, token, packId);
       const cloned = structuredClone(pack);
       for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
       for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);

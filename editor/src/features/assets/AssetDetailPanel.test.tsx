@@ -11,7 +11,7 @@ vi.mock("@/state/sessionStore", () => ({
 }));
 
 const A: Asset = {
-  id: "asset_a", serverKeyId: "sk", type: "glyph", name: "icon",
+  id: "asset_a", packId: "p1", type: "glyph", name: "icon",
   width: 8, height: 9, ascent: 7, codepoint: 0xE000, fontMeta: null,
   contentHash: "h", createdAt: "", updatedAt: "",
 };
@@ -24,7 +24,7 @@ describe("AssetDetailPanel", () => {
   });
 
   it("shows the asset details", () => {
-    render(<AssetDetailPanel />);
+    render(<AssetDetailPanel packId={"p1" as never} />);
     expect((screen.getByLabelText(/name/i) as HTMLInputElement).value).toBe("icon");
     expect(screen.getByText(/codepoint/i)).toBeTruthy();
     expect(screen.getByText(/U\+E000/)).toBeTruthy();
@@ -32,7 +32,7 @@ describe("AssetDetailPanel", () => {
 
   it("renames the asset", async () => {
     vi.spyOn(packApi, "updateAsset").mockResolvedValue({ ...A, name: "icon2" });
-    render(<AssetDetailPanel />);
+    render(<AssetDetailPanel packId={"p1" as never} />);
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "icon2" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => expect(useAssetStore.getState().assets[0].name).toBe("icon2"));
@@ -41,15 +41,15 @@ describe("AssetDetailPanel", () => {
   it("deletes the asset with confirmation", async () => {
     const spy = vi.spyOn(packApi, "deleteAsset").mockResolvedValue();
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<AssetDetailPanel />);
+    render(<AssetDetailPanel packId={"p1" as never} />);
     fireEvent.click(screen.getByRole("button", { name: /delete/i }));
-    await waitFor(() => expect(spy).toHaveBeenCalledWith("tok_test", "asset_a"));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("tok_test", "p1", "asset_a"));
     expect(useAssetStore.getState().assets).toHaveLength(0);
   });
 
   it("renders nothing when no asset is selected", () => {
     useAssetStore.getState().setSelectedId(null);
-    const { container } = render(<AssetDetailPanel />);
+    const { container } = render(<AssetDetailPanel packId={"p1" as never} />);
     expect(container.firstChild).toBeNull();
   });
 });

@@ -11,7 +11,7 @@ const PERSONAL = "p_personal" as PackId;
 const M_ID = "m_shop_main" as MenuId;
 const ASSET_BG: Asset = {
   id: "asset_bg" as AssetId,
-  serverKeyId: "sk",
+  packId: "p1",
   type: "texture",
   name: "bg",
   width: 200,
@@ -25,7 +25,7 @@ const ASSET_BG: Asset = {
 };
 const ASSET_GLYPH: Asset = {
   id: "asset_glyph" as AssetId,
-  serverKeyId: "sk",
+  packId: "p1",
   type: "glyph",
   name: "ico",
   width: 8,

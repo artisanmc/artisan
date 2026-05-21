@@ -205,7 +205,7 @@ describe("LayerEditForm — image layer (glyph)", () => {
     // Wait for the async chain to flush.
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(duplicateAsset).toHaveBeenCalledWith("tok-123", "g1");
+    expect(duplicateAsset).toHaveBeenCalledWith("tok-123", "p1", "g1");
     expect(useAssetStore.getState().assets.find((a) => a.id === "g2")).toBeTruthy();
     const layer = useAccountStore.getState().account.packs[0]!.menus[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g2");

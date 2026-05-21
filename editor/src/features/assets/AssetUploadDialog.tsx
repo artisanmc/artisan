@@ -1,12 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import type { PackId } from "@/domain/types";
 import { uploadAsset } from "@/lib/packApi";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
 
 interface AssetUploadDialogProps {
+  packId: PackId;
   open: boolean;
   onClose: () => void;
 }
@@ -20,7 +22,7 @@ interface AssetUploadDialogProps {
  * keep working unchanged. Font uploads have their own dedicated dialog
  * (`AssetImportFontDialog`) — that concept stays distinct in the UI.
  */
-export function AssetUploadDialog({ open, onClose }: AssetUploadDialogProps) {
+export function AssetUploadDialog({ packId, open, onClose }: AssetUploadDialogProps) {
   const token = useSessionStore((s) => s.accessToken);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
@@ -40,7 +42,7 @@ export function AssetUploadDialog({ open, onClose }: AssetUploadDialogProps) {
     setBusy(true);
     setError(null);
     try {
-      const asset = await uploadAsset(token, {
+      const asset = await uploadAsset(token, packId, {
         file,
         // Always `glyph` — see the component docblock for the rationale.
         // The backend allocates a font codepoint for glyph uploads, which
