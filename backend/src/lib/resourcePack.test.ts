@@ -3,10 +3,22 @@ import { eq } from "drizzle-orm";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import { db } from "../db/index";
-import { assets, serverKeys } from "../db/schema";
+import {
+  assets,
+  serverKeys,
+  packs,
+  packBindings,
+  networks,
+  editorSessions,
+  linkCodes,
+  packConflicts,
+} from "../db/schema";
 import { writeAssetFile, assetRoot } from "./assetStorage";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
+import { createNetwork } from "./networkManager";
+import { createPack } from "./packStorage";
+import { createBinding } from "./packBindingManager";
 import { join } from "path";
 
 const PNG_1x1 = new Uint8Array([
@@ -21,34 +33,55 @@ const PNG_1x1 = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-async function seedServerKey(): Promise<string> {
-  const id = crypto.randomUUID();
-  await db.insert(serverKeys).values({ id, hash: "h" + id.slice(0, 8), createdAt: new Date() });
-  return id;
+async function seedSetup(): Promise<{ serverKeyId: string; packId: string }> {
+  const net = await createNetwork("N");
+  const serverKeyId = crypto.randomUUID();
+  await db.insert(serverKeys).values({
+    id: serverKeyId,
+    hash: "h" + serverKeyId.slice(0, 8),
+    networkId: net.id,
+    createdAt: new Date(),
+  });
+  const pack = await createPack({ networkId: net.id, name: "p" });
+  await createBinding(serverKeyId, pack.id);
+  return { serverKeyId, packId: pack.id };
 }
 
-async function seedGlyph(sk: string, name: string, codepoint: number): Promise<string> {
+async function seedGlyph(packId: string, name: string, codepoint: number): Promise<string> {
   const id = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(assets).values({
-    id, serverKeyId: sk, type: "glyph", name,
+    id, packId, type: "glyph", name,
     width: 1, height: 1, ascent: 0, codepoint, fontMeta: null,
     contentHash: "h" + name, createdAt: new Date(), updatedAt: new Date(),
   });
-  await writeAssetFile(sk, id, PNG_1x1);
+  await writeAssetFile(packId, id, PNG_1x1);
   return id;
 }
 
 let serverKeyId: string;
+let packId: string;
 
-beforeEach(async () => { serverKeyId = await seedServerKey(); });
+beforeEach(async () => {
+  // FK-safe cleanup
+  await db.delete(packConflicts);
+  await db.delete(packBindings);
+  await db.delete(assets);
+  await db.delete(packs);
+  await db.delete(editorSessions);
+  await db.delete(linkCodes);
+  await db.delete(serverKeys);
+  await db.delete(networks);
+  ({ serverKeyId, packId } = await seedSetup());
+});
+
 afterEach(async () => {
   await rm(join(resourcePackRoot(), serverKeyId), { recursive: true, force: true });
-  await rm(join(assetRoot(), serverKeyId), { recursive: true, force: true });
+  await rm(join(assetRoot(), packId), { recursive: true, force: true });
 });
 
 describe("rebuildResourcePack", () => {
   test("writes a zip and updates server_keys columns", async () => {
-    await seedGlyph(serverKeyId, "coin", 0xE000);
+    await seedGlyph(packId, "coin", 0xE000);
     const { hash, url } = await rebuildResourcePack(serverKeyId);
     expect(hash).toMatch(/^[0-9a-f]{40}$/);
     expect(url).toMatch(new RegExp(`/api/resource-pack/${serverKeyId}/${hash}\\.zip$`));
@@ -60,7 +93,7 @@ describe("rebuildResourcePack", () => {
   });
 
   test("two consecutive rebuilds with same assets produce the same hash", async () => {
-    await seedGlyph(serverKeyId, "coin", 0xE000);
+    await seedGlyph(packId, "coin", 0xE000);
     const r1 = await rebuildResourcePack(serverKeyId);
     const r2 = await rebuildResourcePack(serverKeyId);
     expect(r1.hash).toBe(r2.hash);
@@ -68,14 +101,14 @@ describe("rebuildResourcePack", () => {
 
   test("adding a glyph changes the hash", async () => {
     const r1 = await rebuildResourcePack(serverKeyId);
-    await seedGlyph(serverKeyId, "coin", 0xE000);
+    await seedGlyph(packId, "coin", 0xE000);
     const r2 = await rebuildResourcePack(serverKeyId);
     expect(r2.hash).not.toBe(r1.hash);
   });
 
   test("keeps at most 3 packs on disk plus the current one", async () => {
     for (let i = 0; i < 5; i++) {
-      await seedGlyph(serverKeyId, `g${i}`, 0xE000 + i);
+      await seedGlyph(packId, `g${i}`, 0xE000 + i);
       await rebuildResourcePack(serverKeyId);
       await new Promise((r) => setTimeout(r, 15));
     }
@@ -92,7 +125,7 @@ describe("rebuildResourcePack", () => {
   });
 
   test("currentPackInfo returns { url, hash } after a build", async () => {
-    await seedGlyph(serverKeyId, "coin", 0xE000);
+    await seedGlyph(packId, "coin", 0xE000);
     const { hash } = await rebuildResourcePack(serverKeyId);
     const info = await currentPackInfo(serverKeyId);
     expect(info).not.toBeNull();
