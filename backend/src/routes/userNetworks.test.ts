@@ -241,4 +241,50 @@ describe("userNetworksRouter", () => {
     expect(body.pack.description).toBe("desc");
     expect(body.pack.networkId).toBe(network.id);
   });
+
+  // A6 test
+  test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+
+    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "p" }),
+    });
+    const { pack } = await packRes.json();
+
+    // Bind
+    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    });
+    expect(bind.status).toBe(201);
+
+    const bindings = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].serverKeyId).toBe(skId);
+
+    // Unbind
+    const unbind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "DELETE",
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    });
+    expect(unbind.status).toBe(204);
+
+    const after = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
+    expect(after).toHaveLength(0);
+  });
 });
