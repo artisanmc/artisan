@@ -275,17 +275,14 @@ class SyncedMenuProvider(
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
                         SyncAction.AUTO_SYNC  -> logger?.fine("Pack $packId: backend is newer — sync will be applied via bundle_available")
                         SyncAction.LOCAL_ONLY, SyncAction.CONFLICT -> {
-                            logger?.info("Pack $packId: divergence detected ($action) — sending pack_divergence_detected")
-                            httpClient.dispatcher.executorService.execute {
-                                val diskFiles = gg.interfaze.plugin.sync.PackFilesReader.read(packDir, packId)
-                                send(mapOf(
-                                    "type" to "pack_divergence_detected",
-                                    "pack_id" to packId,
-                                    "disk_files" to diskFiles,
-                                    "disk_hash" to diskHash,
-                                    "last_synced_hash" to meta.syncedHash,
-                                ))
-                            }
+                            // Plan 1C: backend = source of truth. Local divergence will be overwritten
+                            // by the next bundle_available. We log a single WARN line for post-mortem
+                            // tracing — no UI, no prompt, no delay. Admins who edited via FTP must use
+                            // `/ifz pushLocal <pack_id>` to upload local changes before reconnecting.
+                            logger?.warning(
+                                "[Interfaze] Local pack '$packId' differs from backend (action=$action). " +
+                                "Backend version will overwrite local. Use /ifz pushLocal $packId if local edits were intentional."
+                            )
                         }
                     }
                 }
