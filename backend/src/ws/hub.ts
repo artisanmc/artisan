@@ -1,9 +1,10 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packConflicts, serverKeys } from "../db/schema";
-// TODO(F1): packBundles removed from schema in A8 — replace usages below with packBindings
+import { editorSessions, linkCodes, packBindings, packConflicts, packs, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
+import { createPack } from "../lib/packStorage";
+import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -134,16 +135,31 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    // TODO(F1): replace with packBindings query — packBundles removed from schema in A8
-    const allPacks: { packId: string; hash: string; deletedAt: Date | null }[] = [];
-    const packs = allPacks.filter((p) => p.deletedAt == null);
-    const deletedPackIds = allPacks.filter((p) => p.deletedAt != null).map((p) => p.packId);
+    const boundPacks = await listPacksForServerKey(keyId);   // already excludes deletedAt
+    const deletedRows = await db
+      .select({ id: packs.id })
+      .from(packs)
+      .innerJoin(packBindings, eq(packBindings.packId, packs.id))
+      .where(and(eq(packBindings.serverKeyId, keyId), isNotNull(packs.deletedAt)));
+    const deletedPackIds = deletedRows.map((r) => r.id);
 
     const packHashesMap: Record<string, string> = {};
-    for (const p of packs) packHashesMap[p.packId] = p.hash;
+    for (const p of boundPacks) packHashesMap[p.id] = p.hash;
 
-    // TODO(F1): create packBindings stubs for local packs not yet in backend
-    void hello.local_pack_ids; // suppress unused-var until F1
+    // Create minimal stubs for packs the plugin has on disk but the backend doesn't know about.
+    const knownPackIds = new Set(boundPacks.map((p) => p.id));
+    const localPackIds = hello.local_pack_ids ?? [];
+    const missingPackIds = localPackIds.filter((id) => !knownPackIds.has(id));
+    if (missingPackIds.length > 0) {
+      const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, keyId));
+      const sk = skRows[0];
+      if (sk) {
+        for (const pid of missingPackIds) {
+          await createPack({ networkId: sk.networkId, name: pid, id: pid });
+          await createBinding(keyId, pid);
+        }
+      }
+    }
 
     const rp = await currentPackInfo(keyId);
 
@@ -163,11 +179,11 @@ export async function handlePluginMessage(
 
     const push: string[] = [];
     if (needsSync) {
-      for (const pack of packs) {
+      for (const pack of boundPacks) {
         const available: BundleAvailableMessage = {
           type: "bundle_available",
-          pack_id: pack.packId,
-          url: `${BUNDLE_BASE_URL}/api/bundles/${pack.packId}`,
+          pack_id: pack.id,
+          url: `${BUNDLE_BASE_URL}/api/bundles/${pack.id}`,
           hash: pack.hash,
           signature: "",
         };
@@ -294,10 +310,12 @@ export async function handlePluginMessage(
     const lastSyncedHash = raw.last_synced_hash as string | undefined;
     if (!packId || !diskFiles || diskHash == null || lastSyncedHash == null) return { reply: null };
 
-    // TODO(F1): replace with packBindings/packs lookup — packBundles removed from schema in A8
-    const existing: { hash: string; deletedAt: Date | null }[] = [];
-    if (existing.length === 0 || existing[0].deletedAt != null) return { reply: null };
-    const backendHashAtDetection = existing[0].hash;
+    // Backend pack lookup: only fire a conflict if (a) the pack exists, (b) it isn't deleted,
+    // and (c) it's bound to this server_key.
+    const bound = await listPacksForServerKey(serverId);
+    const existing = bound.find((p) => p.id === packId);
+    if (!existing) return { reply: null };
+    const backendHashAtDetection = existing.hash;
 
     const now = new Date();
     const conflictId = crypto.randomUUID();
@@ -374,17 +392,11 @@ export async function handlePluginMessage(
 }
 
 export async function pushBundleAvailable(
-  serverKeyId: string,
   packId: string,
   hash: string,
 ): Promise<void> {
-  // Freeze: skip broadcast if an open conflict exists for this (server, pack)
-  const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
-    eq(packConflicts.serverId, serverKeyId),
-    eq(packConflicts.packId, packId),
-    isNull(packConflicts.resolvedAt),
-  ));
-  if (open.length > 0) return;
+  const targets = await listServerKeysForPack(packId);
+  if (targets.length === 0) return;
 
   const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}`;
   const payload = JSON.stringify({
@@ -395,10 +407,20 @@ export async function pushBundleAvailable(
     signature: "",
   } satisfies BundleAvailableMessage);
 
-  for (const [connId, sId] of connToServerId) {
-    if (sId !== serverKeyId) continue;
-    const send = connSenders.get(connId);
-    if (send) send(payload);
+  for (const serverKeyId of targets) {
+    // Freeze: per-target skip if an open conflict exists for (server, pack).
+    const open = await db.select({ id: packConflicts.id }).from(packConflicts).where(and(
+      eq(packConflicts.serverId, serverKeyId),
+      eq(packConflicts.packId, packId),
+      isNull(packConflicts.resolvedAt),
+    ));
+    if (open.length > 0) continue;
+
+    for (const [connId, sId] of connToServerId) {
+      if (sId !== serverKeyId) continue;
+      const send = connSenders.get(connId);
+      if (send) send(payload);
+    }
   }
 }
 
@@ -461,17 +483,20 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
   }
 }
 
-export function pushPackDeleted(serverKeyId: string, packId: string): void {
+export async function pushPackDeleted(packId: string): Promise<void> {
+  const targets = await listServerKeysForPack(packId);
+  if (targets.length === 0) return;
   const payload = JSON.stringify({ type: "pack_deleted", pack_id: packId });
-  // Push to plugin connections
+  const targetSet = new Set(targets);
+  // Push to plugin connections for each server_key bound to this pack.
   for (const [connId, sId] of connToServerId) {
-    if (sId !== serverKeyId) continue;
+    if (!targetSet.has(sId)) continue;
     const send = connSenders.get(connId);
     if (send) send(payload);
   }
-  // Push to editor connections (so other open tabs close the pack view)
+  // Push to editor connections (so other open tabs close the pack view).
   for (const [sessionId, sId] of editorTokenToServer) {
-    if (sId !== serverKeyId) continue;
+    if (!targetSet.has(sId)) continue;
     const send = editorSenders.get(sessionId);
     if (send) send(payload);
   }
