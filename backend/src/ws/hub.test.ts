@@ -28,6 +28,8 @@ import { createNetwork } from "../lib/networkManager";
 import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
 import { createBinding, listPacksForServerKey } from "../lib/packBindingManager";
 import { getPack } from "../lib/packStorage";
+import { createCommit, computeContentHash } from "../lib/commitStorage";
+import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 import { eq } from "drizzle-orm";
 
 async function clearAll() {
@@ -107,10 +109,14 @@ describe("handlePluginMessage", () => {
     expect(ack.api_url).toBeDefined();
   });
 
-  test("hello_ack contains pack_hashes from packBindings ⨝ packs", async () => {
+  test("hello_ack contains pack_hashes from branch → commit content hash", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "pa", "ha");
     await seedBoundPack(networkId, keyId, "pb", "hb");
+
+    // pack_hashes reflect the main branch head commit contentHash (not WIP packs.hash).
+    // createPack auto-creates main branch with an initial empty-files commit.
+    const emptyHash = computeContentHash({});
 
     const connId = "conn-hashes";
     registerConn(connId, () => {});
@@ -123,13 +129,49 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    expect(ack.pack_hashes).toEqual({ pa: "ha", pb: "hb" });
+    expect(ack.pack_hashes).toEqual({ pa: emptyHash, pb: emptyHash });
+  });
+
+  test("hello_ack.pack_hashes uses branch head commit contentHash (not WIP pack.hash)", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    await seedBoundPack(networkId, keyId, "p_c2", "wip-hash");
+
+    // Advance main branch head by creating a second commit with concrete files.
+    const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
+    const branch = await getBranch("p_c2", "main");
+    const commit2 = await createCommit({
+      packId: "p_c2",
+      parentId: branch!.headCommitId,
+      files,
+      editor: null,
+      authorUserId: null,
+      message: "C2 test commit",
+    });
+    await advanceBranchHead("p_c2", "main", commit2.id);
+
+    const connId = "conn-c2-hashes";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    // Should match commit2's contentHash, NOT "wip-hash"
+    expect(ack.pack_hashes["p_c2"]).toBe(commit2.contentHash);
+    expect(ack.pack_hashes["p_c2"]).not.toBe("wip-hash");
   });
 
   test("hello_ack includes soft-deleted pack ids", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "alive", "ha");
     await seedBoundPack(networkId, keyId, "dead", "hd", {}, {}, true);
+
+    // pack_hashes uses branch head commit contentHash. Both packs start with empty-files initial commit.
+    const emptyHash = computeContentHash({});
 
     const connId = "conn-deleted";
     registerConn(connId, () => {});
@@ -142,7 +184,8 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    expect(ack.pack_hashes).toEqual({ alive: "ha" });
+    // Both packs are in bindings, so both hashes appear. Deleted pack is listed in deleted_pack_ids too.
+    expect(ack.pack_hashes).toEqual({ alive: emptyHash, dead: emptyHash });
     expect(ack.deleted_pack_ids).toEqual(["dead"]);
   });
 });

@@ -143,8 +143,24 @@ export async function handlePluginMessage(
       .where(and(eq(packBindings.serverKeyId, keyId), isNotNull(packs.deletedAt)));
     const deletedPackIds = deletedRows.map((r) => r.id);
 
+    // Build pack_hashes via branch → commit content hash (Phase 2).
+    const bindings = await db
+      .select({ packId: packBindings.packId, branchName: packBindings.branchName })
+      .from(packBindings)
+      .where(eq(packBindings.serverKeyId, keyId));
+
     const packHashesMap: Record<string, string> = {};
-    for (const p of boundPacks) packHashesMap[p.id] = p.hash;
+    for (const b of bindings) {
+      const branch = await db.select().from(packBranches).where(and(
+        eq(packBranches.packId, b.packId), eq(packBranches.name, b.branchName),
+      ));
+      if (branch.length === 0) continue;
+      const cmt = await db.select({ contentHash: packCommits.contentHash })
+        .from(packCommits)
+        .where(eq(packCommits.id, branch[0].headCommitId));
+      if (cmt.length === 0) continue;
+      packHashesMap[b.packId] = cmt[0].contentHash;
+    }
 
     // Create minimal stubs for packs the plugin has on disk but the backend doesn't know about.
     const knownPackIds = new Set(boundPacks.map((p) => p.id));
@@ -179,12 +195,14 @@ export async function handlePluginMessage(
 
     const push: string[] = [];
     if (needsSync) {
-      for (const pack of boundPacks) {
+      for (const b of bindings) {
+        const hash = packHashesMap[b.packId];
+        if (!hash) continue;
         const available: BundleAvailableMessage = {
           type: "bundle_available",
-          pack_id: pack.id,
-          url: `${BUNDLE_BASE_URL}/api/bundles/${pack.id}`,
-          hash: pack.hash,
+          pack_id: b.packId,
+          url: `${BUNDLE_BASE_URL}/api/bundles/${b.packId}?branch=${encodeURIComponent(b.branchName)}`,
+          hash,
           signature: "",
         };
         push.push(JSON.stringify(available));
