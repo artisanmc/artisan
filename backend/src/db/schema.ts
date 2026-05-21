@@ -141,20 +141,3 @@ export const assets = pgTable("assets", {
     .where(sql`codepoint IS NOT NULL`),
   index("assets_pack_type_idx").on(t.packId, t.type),
 ]);
-
-export const packConflicts = pgTable("pack_conflicts", {
-  id: text("id").primaryKey(),
-  serverId: text("server_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
-  packId: text("pack_id").notNull(),  // no FK yet — Plan 1C will drop pack_conflicts entirely
-  diskFilesJson: text("disk_files_json").notNull(),
-  diskHash: text("disk_hash").notNull(),
-  lastSyncedHash: text("last_synced_hash").notNull(),
-  backendHashAtDetection: text("backend_hash_at_detection").notNull(),
-  detectedAt: timestamp("detected_at").notNull(),
-  resolvedAt: timestamp("resolved_at"),
-  resolution: text("resolution"), // NULL | "editor" | "server"
-}, (t) => [
-  uniqueIndex("pack_conflicts_open_uniq")
-    .on(t.serverId, t.packId)
-    .where(sql`resolved_at IS NULL`),
-]);
