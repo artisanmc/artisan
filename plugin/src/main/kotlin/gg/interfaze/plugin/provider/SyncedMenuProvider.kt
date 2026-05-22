@@ -21,7 +21,6 @@ import gg.interfaze.plugin.render.MenuRenderer
 import gg.interfaze.plugin.resourcepack.AssetEntry
 import gg.interfaze.plugin.sync.BundleDownloader
 import gg.interfaze.plugin.sync.BundleHasher
-import gg.interfaze.plugin.sync.BundleUploader
 import gg.interfaze.plugin.sync.LocalPushSender
 import gg.interfaze.plugin.sync.SyncMetadata
 import gg.interfaze.plugin.ws.WsClient
@@ -264,14 +263,11 @@ class SyncedMenuProvider(
                         }
                     val diskHash = BundleHasher.hash(packDir)
 
-                    // Backend has an empty stub — upload local files regardless of sync state
+                    // Backend has an empty stub — auto-push local files via WS local_push
                     if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
-                        val url = apiUrl
-                        if (url != null) {
-                            logger?.info("Pack $packId: backend stub is empty, uploading local files")
-                            httpClient.dispatcher.executorService.execute {
-                                BundleUploader(httpClient, url, serverKey, logger).upload(packDir, packId)
-                            }
+                        logger?.info("Pack $packId: backend reports empty — auto-pushing local content")
+                        httpClient.dispatcher.executorService.execute {
+                            pushLocalPack(packId, packDir)
                         }
                         return@forEach
                     }
