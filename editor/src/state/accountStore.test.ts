@@ -899,7 +899,7 @@ describe("accountStore", () => {
   });
 
   describe("semantic i18n keys", () => {
-    it("createMenu initializes title as empty layer array", () => {
+    it("createMenu initializes title with a default vanilla (plain) layer", () => {
       const mId = useAccountStore.getState().createMenu({
         packId: PERSONAL,
         id: "my_menu",
@@ -907,20 +907,24 @@ describe("accountStore", () => {
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === mId)!;
       expect(Array.isArray(menu.title)).toBe(true);
-      expect(menu.title).toHaveLength(0);
+      expect(menu.title).toHaveLength(1);
+      expect(menu.title[0]!.kind).toBe("plain");
+      if (menu.title[0]!.kind === "plain") {
+        // Empty key is the sentinel — rekeyed at deploy time or when setMenuTitle
+        // is called.
+        expect(menu.title[0]!.value.key).toBe("");
+      }
     });
 
-    it("setMenuTitle prepends a text layer when title array is empty", () => {
-      // createMenu initializes title: [] — call setMenuTitle to exercise the
-      // "prepend new text layer" path.
+    it("setMenuTitle writes into the default plain layer (no extra layer prepended)", () => {
       const mId = useAccountStore.getState().createMenu({ packId: PERSONAL, id: "lazy_test_menu" });
       useAccountStore.getState().setMenuTitle({ packId: PERSONAL, menuId: mId, lang: "en", value: "Lazy" });
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const menu = pack.menus.find((m) => m.id === mId)!;
       expect(menu.title).toHaveLength(1);
       const first = menu.title[0]!;
-      expect(first.kind).toBe("text");
-      if (first.kind === "text") {
+      expect(first.kind).toBe("plain");
+      if (first.kind === "plain") {
         expect(first.value.key).toBe(`menus.${mId}.title`);
         expect(pack.i18nKeys[first.value.key]?.["en"]).toBe("Lazy");
       }
@@ -1053,6 +1057,9 @@ describe("accountStore", () => {
   describe("title layer actions", () => {
     const setupMenu = () => {
       const mId = useAccountStore.getState().createMenu({ packId: PERSONAL, id: "tl_test_menu" });
+      // createMenu seeds a default Plain (vanilla) layer; reset to empty so each
+      // test starts from a clean slate.
+      useAccountStore.getState().setMenuTitleLayers({ packId: PERSONAL, menuId: mId, layers: [] });
       return mId;
     };
 

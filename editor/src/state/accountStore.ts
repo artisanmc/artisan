@@ -899,7 +899,11 @@ export const useAccountStore = create<AccountState>()(
               pack.menus.push({
                 id,
                 packId: pId,
-                title: [],
+                // Default to a single Plain (vanilla) title layer. Vanilla mode
+                // works without a resource pack and matches what new users expect
+                // ("type a title, see a title"). The empty `key` is rekeyed to
+                // `menus.{id}.title` at deploy time by rekeyMenuLTexts.
+                title: [{ kind: "plain", value: { key: "" as I18nKey } }],
                 rows: rows ?? 3,
                 layers: [{ id: newLayerId(), name: "default", elements: [] }],
               });
@@ -1484,11 +1488,19 @@ export const useAccountStore = create<AccountState>()(
               if (!pack) return;
               const menu = pack.menus.find((m) => m.id === mId);
               if (!menu) return;
-              // menu.title is MenuTitleLayer[]. Write into the first text
-              // layer if present; otherwise prepend a new one.
+              // menu.title is MenuTitleLayer[]. Write into the first text-bearing
+              // layer (plain, text, or textarea) if present; otherwise prepend a
+              // new text layer. Plain is the createMenu default (vanilla mode),
+              // so the most common path is "write into the plain layer's LText".
               const first = menu.title[0];
-              if (first && first.kind === "text") {
-                setLText(pack, first.value, lang, value);
+              if (first && (first.kind === "plain" || first.kind === "text" || first.kind === "textarea")) {
+                // Empty-key sentinel from createMenu default: allocate a canonical key.
+                if (first.value.key === "") {
+                  const newLText = createLTextAt(pack, menuTitleKey(mId), value, lang);
+                  first.value = newLText;
+                } else {
+                  setLText(pack, first.value, lang, value);
+                }
               } else {
                 const newLText = createLTextAt(pack, menuTitleKey(mId), value, lang);
                 menu.title.unshift({ kind: "text", value: newLText, x: 8, y: 5 });
