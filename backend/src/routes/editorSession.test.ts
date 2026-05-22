@@ -315,8 +315,10 @@ describe("GET /api/editor-session/:token", () => {
     const { token, keyId } = await createSession();
     const res = await app.request(`/api/editor-session/${token}`);
     expect(res.status).toBe(200);
-    const body = await res.json() as { server_key_id: string; trusted: boolean; trust_code: string };
+    const body = await res.json() as { server_key_id: string; network_id: string; trusted: boolean; trust_code: string };
     expect(body.server_key_id).toBe(keyId);
+    expect(body.network_id).toBeDefined();
+    expect(typeof body.network_id).toBe("string");
     expect(body.trusted).toBe(false);
     expect(typeof body.trust_code).toBe("string");
     expect(body.trust_code.length).toBe(6);
@@ -326,9 +328,28 @@ describe("GET /api/editor-session/:token", () => {
     const { token, keyId } = await createTrustedSession();
     const res = await app.request(`/api/editor-session/${token}`);
     expect(res.status).toBe(200);
-    const body = await res.json() as { server_key_id: string; trusted: boolean; trust_code: string };
+    const body = await res.json() as { server_key_id: string; network_id: string; trusted: boolean; trust_code: string };
     expect(body.server_key_id).toBe(keyId);
+    expect(body.network_id).toBeDefined();
     expect(body.trusted).toBe(true);
+  });
+
+  test("200 returns network_id of the server_key", async () => {
+    const { networkId, keyId } = await createNetworkAndServerKey("test-network-id");
+    const urlToken = "url_" + generateEditorToken();
+    const trustCode = generateTrustCode();
+    await db.insert(editorSessions).values({
+      token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      trustCode,
+    });
+    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const { access_token } = await exchangeRes.json() as { access_token: string };
+
+    const res = await app.request(`/api/editor-session/${access_token}`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { server_key_id: string; network_id: string };
+    expect(body.network_id).toBe(networkId);
   });
 
   test("401 for unknown token", async () => {

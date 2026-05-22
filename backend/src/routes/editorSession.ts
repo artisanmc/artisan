@@ -101,7 +101,14 @@ router.get("/:token", async (c) => {
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
   trackEditorIp(session.sessionId, clientIp(c));
-  return c.json({ server_key_id: session.serverKeyId, trusted: session.trusted, trust_code: session.trustCode });
+  const [sk] = await db.select({ networkId: serverKeys.networkId })
+    .from(serverKeys).where(eq(serverKeys.id, session.serverKeyId));
+  return c.json({
+    server_key_id: session.serverKeyId,
+    network_id: sk?.networkId ?? null,
+    trusted: session.trusted,
+    trust_code: session.trustCode,
+  });
 });
 
 router.delete("/:token", async (c) => {
