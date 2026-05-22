@@ -13,6 +13,7 @@ import { resourcePackPublicRouter, resourcePackAdminRouter } from "./routes/reso
 import { authRouter } from "./routes/auth";
 import { discordOauthRouter } from "./routes/discordOauth";
 import { userNetworksRouter } from "./routes/userNetworks";
+import { networkTransfersRouter } from "./routes/networkTransfers";
 import { userPacksRouter } from "./routes/userPacks";
 import { userBranchesRouter } from "./routes/userBranches";
 import { userAuth } from "./middleware/userAuth";
@@ -40,6 +41,7 @@ app.route("/api/editor-session", resourcePackAdminRouter);
 app.route("/api/auth", authRouter);
 app.route("/api/auth/discord", discordOauthRouter);
 app.use("/api/networks/*", userAuth());
+app.route("/api/networks", networkTransfersRouter);
 app.route("/api/networks", userNetworksRouter);
 app.route("/api/networks", userBranchesRouter);
 app.use("/api/user/packs/*", userAuth());
