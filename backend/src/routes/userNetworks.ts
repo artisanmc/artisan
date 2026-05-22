@@ -2,8 +2,8 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { networks, memberships, serverKeys, packs } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { networks, memberships, serverKeys, packs, packBindings } from "../db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
@@ -138,6 +138,22 @@ userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Co
 
   await createBinding(skId, packId, branchName);
   return c.json({ ok: true }, 201);
+});
+
+// DELETE /api/networks/:id/server-keys/:keyId — owner only
+userNetworksRouter.delete("/:id/server-keys/:keyId", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
+  // Explicit cascade: delete bindings first (FK also cascades, but be explicit)
+  await db.delete(packBindings).where(eq(packBindings.serverKeyId, keyId));
+  await db.delete(serverKeys).where(and(
+    eq(serverKeys.id, keyId),
+    eq(serverKeys.networkId, networkId),
+  ));
+  return c.body(null, 204);
 });
 
 // DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId — unbind
