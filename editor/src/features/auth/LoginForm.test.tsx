@@ -39,3 +39,48 @@ describe("LoginForm", () => {
     expect(onSuccess).toHaveBeenCalled();
   });
 });
+
+// Tests for next= parameter redirect logic (used in route component)
+describe("next= parameter handling", () => {
+  test("extracts safe /next= path", () => {
+    const params = new URLSearchParams("?next=/pack/123");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/pack/123");
+  });
+
+  test("ignores protocol-relative URLs (//)", () => {
+    const params = new URLSearchParams("?next=//evil.com/path");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("ignores absolute URLs", () => {
+    const params = new URLSearchParams("?next=https://evil.com");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("defaults to /account when next= missing", () => {
+    const params = new URLSearchParams("");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("defaults to /account when next= is empty string", () => {
+    const params = new URLSearchParams("?next=");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("preserves query params in next= path", () => {
+    const params = new URLSearchParams("?next=/pack/123?tab=settings");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/pack/123?tab=settings");
+  });
+});
