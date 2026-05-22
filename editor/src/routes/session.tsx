@@ -17,6 +17,7 @@ function SessionPage() {
   const tokenRef = useRef<string | null>(null);
   const [state, setState] = useState<"loading" | "invalid" | "expired" | "already_used" | "empty" | "trust_gate">("loading");
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const [networkId, setNetworkId] = useState<string | null>(null);
   const wsRef = useRef<EditorWs | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
@@ -64,6 +65,7 @@ function SessionPage() {
         const info = await validateEditorSession(accessToken);
         if (!mountedRef.current) return;
         const trustCode = info.trust_code;
+        setNetworkId(info.network_id);
 
         const packs = await loadPacks(accessToken);
         if (!mountedRef.current) return;
@@ -74,7 +76,7 @@ function SessionPage() {
           packOrder: packs.map((p) => p.id as PackId),
         });
 
-        setSession(accessToken, info.server_key_id, trustCode, info.trusted);
+        setSession(accessToken, info.server_key_id, info.network_id, trustCode, info.trusted);
 
         wsRef.current = new EditorWs(
           accessToken,
@@ -105,7 +107,7 @@ function SessionPage() {
           const newToken = await refreshEditorSession();
           if (!newToken) { clearSession(); setState("expired"); return; }
           tokenRef.current = newToken;
-          setSession(newToken, info.server_key_id, trustCode, useSessionStore.getState().trusted);
+          setSession(newToken, info.server_key_id, info.network_id, trustCode, useSessionStore.getState().trusted);
         }, 4 * 60 * 1000);
 
         const firstPack = packs[0];

@@ -2,6 +2,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface EditorSessionInfo {
   server_key_id: string;
+  network_id: string | null;
   trusted: boolean;
   trust_code: string;
 }

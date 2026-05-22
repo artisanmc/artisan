@@ -12,20 +12,28 @@ export const Route = createRootRoute({
   component: RootLayout,
 });
 
-function RootLayout() {
+export function RootLayout() {
   usePackAutoSave();
+  const networkId = useSessionStore((s) => s.networkId);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   return (
-    <div className="h-full">
-      <Outlet />
+    <div className="h-full flex flex-col">
+      {networkId && (
+        <div className="bg-zinc-800 px-4 py-1.5 text-xs text-zinc-400 border-b border-zinc-700">
+          Network: <code className="text-zinc-300">{networkId}</code>
+        </div>
+      )}
+      <div className="flex-1">
+        <Outlet />
+      </div>
     </div>
   );
 }
 
-function usePackAutoSave() {
+export function usePackAutoSave() {
   const token = useSessionStore((s) => s.accessToken);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track which packs need saving: packId → Pack snapshot
