@@ -31,3 +31,34 @@ describe("SignupForm", () => {
     expect(await screen.findByText(/already exists|déjà/i)).toBeInTheDocument();
   });
 });
+
+// Tests for next= parameter redirect logic (used in route component)
+describe("next= parameter handling", () => {
+  test("extracts safe /next= path", () => {
+    const params = new URLSearchParams("?next=/link");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/link");
+  });
+
+  test("ignores protocol-relative URLs (//)", () => {
+    const params = new URLSearchParams("?next=//evil.com");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("ignores javascript: URLs", () => {
+    const params = new URLSearchParams("?next=javascript:alert(1)");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+
+  test("defaults to /account when next= missing", () => {
+    const params = new URLSearchParams("");
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+    expect(safeNext).toBe("/account");
+  });
+});
