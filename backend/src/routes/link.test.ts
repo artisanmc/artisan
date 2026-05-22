@@ -1,13 +1,57 @@
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, it, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, linkCodes, serverKeys, networks } from "../db/schema";
+import { editorSessions, linkCodes, serverKeys, networks, users, userSessions, memberships } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { app } from "../app";
+
+// ---------------------------------------------------------------------------
+// Shared test helpers
+// ---------------------------------------------------------------------------
+
+async function seedUserAndSession(): Promise<{ userId: string; sessionId: string }> {
+  const suffix = Math.random().toString(36).slice(2, 10);
+  const userId = `user_${suffix}`;
+  const sessionId = `sess_${Math.random().toString(36).slice(2, 18)}`;
+  await db.insert(users).values({
+    id: userId,
+    email: `${suffix}@test.dev`,
+    name: "Test",
+    passwordHash: null,
+    avatarUrl: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  await db.insert(userSessions).values({
+    id: sessionId,
+    userId,
+    createdAt: new Date(),
+    lastUsedAt: new Date(),
+    expiresAt: new Date(Date.now() + 30 * 86400 * 1000),
+  });
+  return { userId, sessionId };
+}
+
+async function makeClaim(sessionId: string, body: object): Promise<Response> {
+  const created = await app.request("/api/link", { method: "POST" });
+  const { code } = (await created.json()) as { code: string };
+  return app.request(`/api/link/${code}/claim`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Cookie": `ifz_user_session=${sessionId}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+// ---------------------------------------------------------------------------
 
 describe("link_codes schema", () => {
   test("insert and read a link code", async () => {
     const code = "TEST0001";
+    // Clean up any leftover row from a previous run
+    await db.delete(linkCodes).where(eq(linkCodes.code, code));
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
     await db.insert(linkCodes).values({ code, createdAt: now, expiresAt });
@@ -68,47 +112,94 @@ describe("GET /api/link/:code", () => {
 });
 
 describe("POST /api/link/:code/claim", () => {
-  test("claims valid code and returns server_key_id", async () => {
+  test("401 when no ifz_user_session cookie is present (claim without auth)", async () => {
     const { code } = (await (await app.request("/api/link", { method: "POST" })).json()) as { code: string };
     const claimRes = await app.request(`/api/link/${code}/claim`, { method: "POST" });
-    expect(claimRes.status).toBe(200);
-    const { server_key_id } = (await claimRes.json()) as { server_key_id: string };
-    expect(server_key_id).toMatch(/^[0-9a-f-]{36}$/);
-    // Status is now claimed
-    const status = (await (await app.request(`/api/link/${code}`)).json()) as { status: string };
-    expect(status.status).toBe("claimed");
+    expect(claimRes.status).toBe(401);
+    expect(((await claimRes.json()) as { error: string }).error).toBe("unauthorized");
   });
 
-  test("409 when claiming already-claimed code", async () => {
+  test("409 when claiming already-claimed code (with auth)", async () => {
+    const { userId, sessionId } = await seedUserAndSession();
     const { code } = (await (await app.request("/api/link", { method: "POST" })).json()) as { code: string };
-    await app.request(`/api/link/${code}/claim`, { method: "POST" });
-    expect((await app.request(`/api/link/${code}/claim`, { method: "POST" })).status).toBe(409);
+    await app.request(`/api/link/${code}/claim`, {
+      method: "POST",
+      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+    });
+    expect((await app.request(`/api/link/${code}/claim`, {
+      method: "POST",
+      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+    })).status).toBe(409);
+    void userId;
   });
 
   test("404 for unknown code", async () => {
-    expect((await app.request("/api/link/UNKNOWN1/claim", { method: "POST" })).status).toBe(404);
+    const { sessionId } = await seedUserAndSession();
+    expect((await app.request("/api/link/UNKNOWN1/claim", {
+      method: "POST",
+      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+    })).status).toBe(404);
   });
 });
 
-describe("POST /api/link/:code/claim — Network auto-creation", () => {
-  beforeEach(async () => {
-    // Delete in dependency order: editorSessions + linkCodes ref serverKeys (no cascade), then serverKeys (refs networks).
-    await db.delete(editorSessions);
-    await db.delete(linkCodes);
-    await db.delete(serverKeys);
-    await db.delete(networks);
+describe("POST /api/link/:code/claim — hard break (Plan accounts × networks)", () => {
+  it("returns 401 when no ifz_user_session cookie is present", async () => {
+    const created = await app.request("/api/link", { method: "POST" });
+    const { code } = (await created.json()) as { code: string };
+
+    const res = await app.request(`/api/link/${code}/claim`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("unauthorized");
+  });
+});
+
+describe("POST /api/link/:code/claim — smart-count network selection", () => {
+  it("auto-creates 'Mon Network' when user has 0 networks", async () => {
+    const { sessionId } = await seedUserAndSession();
+    const res = await makeClaim(sessionId, {});
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { network_id: string };
+    expect(body.network_id).toBeTruthy();
+    const [created] = await db.select().from(networks).where(eq(networks.id, body.network_id));
+    expect(created.name).toBe("Mon Network");
   });
 
-  test("auto-creates a Network when claiming and links the server_key to it", async () => {
-    const create = await app.request("/api/link", { method: "POST" });
-    const { code } = (await create.json()) as { code: string };
-    const claim = await app.request(`/api/link/${code}/claim`, { method: "POST" });
-    const { server_key_id } = (await claim.json()) as { server_key_id: string };
+  it("uses the single network when user has exactly 1", async () => {
+    const { sessionId } = await seedUserAndSession();
+    // First claim creates "Mon Network"
+    const first = await makeClaim(sessionId, {});
+    const firstBody = (await first.json()) as { network_id: string };
+    // Second claim should re-use it
+    const second = await makeClaim(sessionId, {});
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as { network_id: string };
+    expect(secondBody.network_id).toBe(firstBody.network_id);
+  });
 
-    const sk = await db.select().from(serverKeys).where(eq(serverKeys.id, server_key_id));
-    expect(sk[0].networkId).toBeTruthy();
-    const nets = await db.select().from(networks).where(eq(networks.id, sk[0].networkId as string));
-    expect(nets).toHaveLength(1);
-    expect(nets[0].name).toMatch(/Network/);
+  it("returns 400 must_choose_network when user has 2+ networks and body omits network_id", async () => {
+    const { userId, sessionId } = await seedUserAndSession();
+    const { createNetwork } = await import("../lib/networkManager");
+    const { addMembership } = await import("../lib/membershipManager");
+    const n1 = await createNetwork("A");
+    const n2 = await createNetwork("B");
+    await addMembership(userId, n1.id, "owner");
+    await addMembership(userId, n2.id, "owner");
+    const res = await makeClaim(sessionId, {});
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("must_choose_network");
+  });
+
+  it("returns 403 when user is not a member of the requested network_id", async () => {
+    const { sessionId } = await seedUserAndSession();
+    const { createNetwork } = await import("../lib/networkManager");
+    const foreign = await createNetwork("foreign");
+    const res = await makeClaim(sessionId, { network_id: foreign.id });
+    expect(res.status).toBe(403);
   });
 });
