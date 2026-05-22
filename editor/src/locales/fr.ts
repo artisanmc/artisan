@@ -542,6 +542,10 @@ const fr: typeof en = {
     loginSubmit: "Se connecter",
     logout: "Déconnexion",
     discordButton: "Continuer avec Discord",
+    noAccount: "Pas encore de compte ?",
+    signupLink: "Créer un compte",
+    haveAccount: "Déjà un compte ?",
+    loginLink: "Se connecter",
     errors: {
       email_taken: "Un compte existe déjà avec cet email.",
       invalid_credentials: "Email ou mot de passe incorrect.",

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/state/authStore";
 import { DiscordLoginButton } from "./DiscordLoginButton";
 
@@ -49,6 +50,12 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
         {t("auth.loginSubmit")}
       </button>
       <DiscordLoginButton apiUrl={apiUrl} />
+      <p className="text-sm text-center text-zinc-500">
+        {t("auth.noAccount")}{" "}
+        <Link to="/signup" search={(prev: Record<string, unknown>) => prev} className="underline text-zinc-300 hover:text-zinc-100">
+          {t("auth.signupLink")}
+        </Link>
+      </p>
     </form>
   );
 }
