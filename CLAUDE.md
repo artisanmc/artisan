@@ -361,6 +361,14 @@ Tables Drizzle ajoutées en Phase 2 : `pack_commits`, `pack_branches`. Column aj
 
 Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 
+### Plan accounts × networks UX — flow setup logged-in
+
+- **Claim link auth** : `/ifz setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `ifz_user_session` et choisit le network destination via smart count (auto-crée "Mon Réseau" si 0, utilise si 1, picker modale si 2+).
+- **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Tokens partageables 24h pour transférer la propriété d'un Network entier. Memberships swap clean break — ancien owner perd accès.
+- **Server key deletion** : `/api/networks/:id/server-keys/:keyId` (owner-only) suppress la clé + cascade pack_bindings. Le plugin perd la connexion au prochain hello.
+- **Bootstrap plugin auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push`. Plus de `/ifz pushLocal` manuel pour le first-time setup.
+- **Désaffectation d'un serveur sans transfert** : delete la server_key dans `/networks/:id`, puis re-setup côté plugin → l'auto-push recharge les packs dans le nouveau network. Pas de mutation cross-account.
+
 ---
 
 ## Auth — endpoints
@@ -381,6 +389,17 @@ Cookies utilisés :
 Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
 
 Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`ifz_user_session` et `ifz_refresh`) coexistent.
+
+### Plan accounts × networks UX — endpoints signup/login → network
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/link/:code/claim` | **Login required** (cookie `ifz_user_session`). Body `{network_id?}`. Smart count : 0 networks chez l'user → auto-crée "Mon Réseau", 1 → use it, 2+ → 400 `must_choose_network`. 401 sans cookie, 403 si pas membre du network demandé. Réécrit le legacy claim anonyme. |
+| `POST /api/networks/:id/transfer/init` | Owner-only. Crée un transfer token (TTL 24h). Returns `{url, expiresAt}`. |
+| `GET /api/networks/transfer/:token` | Returns `{networkId, networkName, packCount, serverKeyCount, expiresAt}`. 410 `expired` / `consumed`, 404 `not_found`. |
+| `POST /api/networks/transfer/:token/accept` | Login required. Swap memberships (clean break — ancien owner perd accès). 410 expired/consumed. |
+| `DELETE /api/networks/:id/server-keys/:keyId` | Owner-only. Delete server_key + cascade pack_bindings. Plugin perd la connexion au prochain hello. |
+| `GET /api/editor-session/:token` | Étendu : retourne aussi `network_id` (le network du server_key behind la session). |
 
 ---
 

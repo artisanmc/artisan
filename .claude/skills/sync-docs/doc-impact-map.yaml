@@ -108,3 +108,23 @@ mappings:
     updates:
       - "CLAUDE.md"
     reason: "Phase 3 merge engine (Modèle d'entités — Phase 3 section)"
+
+  - touches: "backend/src/routes/link.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Claim endpoint auth + smart-count (Plan accounts × networks UX — endpoints + entities)"
+
+  - touches: "backend/src/routes/networkTransfers.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network transfer init/get/accept endpoints (Plan accounts × networks UX)"
+
+  - touches: "backend/src/lib/networkTransferStorage.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Network transfer storage helpers + table (Plan accounts × networks UX — entities)"
+
+  - touches: "backend/src/routes/userNetworks.ts"
+    updates:
+      - "CLAUDE.md"
+    reason: "Delete server-key endpoint (Plan accounts × networks UX — endpoints)"
