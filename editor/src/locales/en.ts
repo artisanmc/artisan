@@ -534,6 +534,10 @@ export default {
     loginSubmit: "Sign in",
     logout: "Sign out",
     discordButton: "Continue with Discord",
+    noAccount: "No account yet?",
+    signupLink: "Sign up",
+    haveAccount: "Already have an account?",
+    loginLink: "Sign in",
     errors: {
       email_taken: "An account with this email already exists.",
       invalid_credentials: "Wrong email or password.",

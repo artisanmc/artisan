@@ -22,6 +22,12 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     return v && v.length > 0 ? v : null;
   }
 
+  router.get("/configured", (c) => {
+    const clientId = envOrNull("DISCORD_CLIENT_ID");
+    const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
+    return c.json({ configured: Boolean(clientId && redirectUri) });
+  });
+
   router.get("/start", (c) => {
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const redirectUri = envOrNull("DISCORD_REDIRECT_URI");
