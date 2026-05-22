@@ -12,6 +12,8 @@ import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { readEditorLayoutFromFiles } from "../lib/packImport";
 import { listPacksForServerKey, createBinding } from "../lib/packBindingManager";
 import { getPack, upsertPackContent, createPack, softDeletePack } from "../lib/packStorage";
+import { getBranch, advanceBranchHead } from "../lib/branchStorage";
+import { createCommit } from "../lib/commitStorage";
 
 function buildEditorJsonWithLayout(rawPack: unknown, files: Record<string, string>, packId: string): string {
   // Spread to a fresh object — mutating rawPack in place is a footgun for any
@@ -195,7 +197,24 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     deployedEditorJson: editorJson,
   });
 
-  await pushBundleAvailable(packId, "main", hash);
+  // Phase 2: deploy = commit on main + advance branch head, so the plugin
+  // (which reads via branch → commit) actually receives the new files.
+  const branch = await getBranch(packId, "main");
+  if (branch) {
+    const editor = JSON.parse(editorJson);
+    const commit = await createCommit({
+      packId,
+      parentId: branch.headCommitId,
+      files: body.files,
+      editor,
+      authorUserId: null,
+      message: "deploy",
+    });
+    await advanceBranchHead(packId, "main", commit.id);
+    await pushBundleAvailable(packId, "main", commit.contentHash);
+  } else {
+    await pushBundleAvailable(packId, "main", hash);
+  }
   return c.json({ hash }, 201);
 });
 
