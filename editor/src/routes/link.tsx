@@ -1,165 +1,136 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { claimLinkCode, createLinkCode, getLinkStatus, type LinkCodeResponse } from "@/lib/linkApi";
-import { Button } from "@/components/ui/button";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@/state/authStore";
+import {
+  listNetworks,
+  claimLinkCode,
+  ClaimError,
+  type NetworkSummary,
+} from "@/lib/api/networks";
 
-export const Route = createFileRoute("/link")({
-  component: LinkPage,
-});
+export const Route = createFileRoute("/link")({ component: LinkRoute });
 
-function LinkPage() {
-  const search = new URLSearchParams(window.location.search);
-  const codeFromUrl = search.get("code")?.toUpperCase() ?? null;
-  return codeFromUrl ? <ClaimFlow code={codeFromUrl} /> : <GenerateFlow />;
-}
+type Status = "loading" | "ready" | "claiming" | "done" | "error";
 
-// ── B1: browser claims the plugin's code ────────────────────────────────────
-
-function ClaimFlow({ code }: { code: string }) {
-  const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [error, setError] = useState("");
-
-  async function claim() {
-    setState("loading");
-    try {
-      await claimLinkCode(code);
-      setState("success");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-      setState("error");
-    }
-  }
-
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Lier un serveur Minecraft</h1>
-
-      {state === "idle" && (
-        <>
-          <p className="text-muted-foreground max-w-sm text-center">
-            Code de liaison : <span className="font-mono font-bold">{code}</span>
-          </p>
-          <p className="text-muted-foreground max-w-sm text-center text-sm">
-            Ce code a été généré sur votre serveur via <code>/ifz setup</code>. Cliquez pour valider
-            le lien.
-          </p>
-          <Button onClick={claim}>Lier ce serveur</Button>
-        </>
-      )}
-
-      {state === "loading" && <p className="text-muted-foreground">Liaison en cours…</p>}
-
-      {state === "success" && (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-medium text-green-600">Serveur lié ✓</p>
-          <p className="text-muted-foreground text-sm">
-            Votre plugin a reçu sa clé et se reconnecte automatiquement.
-          </p>
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-destructive">{error}</p>
-          <Button variant="outline" onClick={() => setState("idle")}>
-            Réessayer
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── B2: browser generates the code, admin enters it on the server ────────────
-
-function GenerateFlow() {
-  const [linkCode, setLinkCode] = useState<LinkCodeResponse | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "pending" | "claimed" | "expired">("idle");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mountedRef = useRef(true);
-
-  async function generate() {
-    setStatus("loading");
-    try {
-      const data = await createLinkCode();
-      if (!mountedRef.current) return;
-      setLinkCode(data);
-      setStatus("pending");
-      pollRef.current = setInterval(async () => {
-        try {
-          const s = await getLinkStatus(data.code);
-          if (!mountedRef.current) return;
-          if (s.status === "claimed") {
-            setStatus("claimed");
-            clearInterval(pollRef.current!);
-          } else if (s.status === "expired") {
-            setStatus("expired");
-            clearInterval(pollRef.current!);
-          }
-        } catch {
-          if (mountedRef.current) {
-            setStatus("idle");
-            clearInterval(pollRef.current!);
-          }
-        }
-      }, 2_000);
-    } catch {
-      setStatus("idle");
-    }
-  }
+function LinkRoute() {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const navigate = useNavigate();
+  const code = new URLSearchParams(window.location.search).get("code")?.toUpperCase() ?? null;
+  const [networks, setNetworks] = useState<NetworkSummary[] | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>("loading");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
+    if (!currentUser) {
+      navigate({ to: "/login", search: { next: `/link?code=${code}` } });
+      return;
+    }
+    if (!code) {
+      setStatus("error");
+      setErrorMessage("Code manquant dans l'URL.");
+      return;
+    }
+    listNetworks()
+      .then(async (nets) => {
+        setNetworks(nets);
+        if (nets.length === 0) {
+          // Auto-create + claim (backend creates "Mon Network" automatically)
+          try {
+            await claimLinkCode(code);
+            setStatus("done");
+          } catch (e) {
+            setStatus("error");
+            setErrorMessage(e instanceof ClaimError ? e.code : "Erreur inconnue");
+          }
+        } else if (nets.length === 1) {
+          setSelectedId(nets[0].id);
+          setStatus("ready");
+        } else {
+          setStatus("ready");
+        }
+      })
+      .catch(() => {
+        setStatus("error");
+        setErrorMessage("Impossible de charger les networks.");
+      });
+  }, [currentUser, code, navigate]);
+
+  const handleConfirm = async () => {
+    if (!selectedId || !code) return;
+    setStatus("claiming");
+    try {
+      await claimLinkCode(code, selectedId);
+      setStatus("done");
+    } catch (e) {
+      setStatus("error");
+      setErrorMessage(e instanceof ClaimError ? e.code : "Erreur inconnue");
+    }
+  };
+
+  if (status === "loading") return <div className="p-8">Chargement…</div>;
+  if (status === "claiming") return <div className="p-8">Liaison en cours…</div>;
+  if (status === "done")
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl mb-2">Setup terminé !</h1>
+        <p>Retourne sur ton serveur Minecraft — il est maintenant lié.</p>
+      </div>
+    );
+  if (status === "error")
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl mb-2">Échec du setup</h1>
+        <p>{errorMessage ?? "Erreur inconnue."}</p>
+        <p>
+          Retape <code>/ifz setup</code> sur ton serveur Minecraft pour obtenir un nouveau lien.
+        </p>
+      </div>
+    );
+
+  // status === "ready"
+  if (!networks || networks.length === 0) return null;
+
+  if (networks.length === 1) {
+    return (
+      <div className="p-8 max-w-md mx-auto">
+        <h1 className="text-2xl mb-4">Lier ce serveur</h1>
+        <p className="mb-4">
+          Lier ce serveur à <strong>{networks[0].name}</strong> ?
+        </p>
+        <button onClick={handleConfirm} className="px-4 py-2 bg-blue-600 text-white rounded">
+          Confirmer
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Ajouter un serveur Minecraft</h1>
-
-      {status === "idle" && (
-        <>
-          <p className="text-muted-foreground max-w-sm text-center text-sm">
-            Générez un code de liaison, puis tapez la commande affichée sur votre serveur Minecraft.
-          </p>
-          <Button onClick={generate}>Générer un code</Button>
-        </>
-      )}
-
-      {status === "loading" && <p className="text-muted-foreground">Génération…</p>}
-
-      {status === "pending" && linkCode && (
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-muted-foreground text-sm">
-            Tapez cette commande sur votre serveur Minecraft :
-          </p>
-          <code className="rounded bg-muted px-4 py-3 text-lg font-bold tracking-wider">
-            /ifz setup {linkCode.code}
-          </code>
-          <p className="text-muted-foreground text-xs animate-pulse">En attente de connexion…</p>
-        </div>
-      )}
-
-      {status === "claimed" && (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-medium text-green-600">Serveur lié ✓</p>
-          <p className="text-muted-foreground text-sm">
-            Le plugin a reçu sa clé et se reconnecte automatiquement.
-          </p>
-        </div>
-      )}
-
-      {status === "expired" && (
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-muted-foreground">Le code a expiré (10 minutes).</p>
-          <Button onClick={() => { setStatus("idle"); setLinkCode(null); }}>
-            Générer un nouveau code
-          </Button>
-        </div>
-      )}
+    <div className="p-8 max-w-md mx-auto">
+      <h1 className="text-2xl mb-4">Choisis le Network destination</h1>
+      <ul className="grid gap-2 mb-4">
+        {networks.map((n) => (
+          <li key={n.id}>
+            <button
+              onClick={() => setSelectedId(n.id)}
+              className={`w-full text-left p-3 border rounded ${
+                selectedId === n.id ? "border-blue-500 bg-blue-50" : "border-zinc-700"
+              }`}
+            >
+              {n.name} {selectedId === n.id && "✓"}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={handleConfirm}
+        disabled={!selectedId}
+        className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+      >
+        Confirmer
+      </button>
     </div>
   );
 }
+
+export default LinkRoute;
