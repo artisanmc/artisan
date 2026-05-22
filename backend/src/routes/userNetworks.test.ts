@@ -9,7 +9,7 @@ import {
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
   await db.delete(packBindings);
@@ -361,5 +361,88 @@ describe("userNetworksRouter", () => {
 
     const after = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
     expect(after).toHaveLength(0);
+  });
+});
+
+// C4 tests
+describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
+  test("owner can delete a server_key and cascade pack_bindings", async () => {
+    const { sessionId } = await seedUser(`u_c4_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+
+    // Create network
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "C4Net" }),
+    })).json();
+
+    // Create server_key via API
+    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "c4-key" }),
+    });
+    const { id: skId } = await skRes.json();
+
+    // Create a pack and bind it
+    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "c4-pack" }),
+    });
+    const { pack } = await packRes.json();
+
+    await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    });
+
+    // Verify binding exists
+    const bindingsBefore = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
+    expect(bindingsBefore).toHaveLength(1);
+
+    // Delete server_key
+    const res = await app.request(`/api/networks/${network.id}/server-keys/${skId}`, {
+      method: "DELETE",
+      headers: { Cookie: `ifz_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(204);
+
+    // Server_key gone
+    const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
+    expect(skRows).toHaveLength(0);
+
+    // Bindings gone (cascaded)
+    const bindingsAfter = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
+    expect(bindingsAfter).toHaveLength(0);
+  });
+
+  test("non-owner returns 403", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const { sessionId: sessA } = await seedUser(`uA_c4_${suffix}`);
+    const { sessionId: sessB } = await seedUser(`uB_c4_${suffix}`);
+    const app = makeApp();
+
+    // uA creates network + server_key
+    const { network } = await (await app.request("/api/networks", {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "C4ForbidNet" }),
+    })).json();
+
+    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    // uB tries to delete
+    const res = await app.request(`/api/networks/${network.id}/server-keys/${skId}`, {
+      method: "DELETE",
+      headers: { Cookie: `ifz_user_session=${sessB}` },
+    });
+    expect(res.status).toBe(403);
   });
 });
