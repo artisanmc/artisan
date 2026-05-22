@@ -66,15 +66,23 @@ open class InterfazePlugin : JavaPlugin() {
         syncedProvider?.setCustomItemsManager(customItemsManager)
         val delegator: gg.interfaze.plugin.resourcepack.ResourcePackDelegator? =
             cfg.resourcePack.delegateToDir?.let { path ->
-                val dir = File(path)
-                if (!dir.exists()) dir.mkdirs()
-                if (!dir.isDirectory || !dir.canWrite()) {
+                val target = File(path)
+                // `.zip` paths target a single file; everything else targets a directory.
+                // Validate the right thing in each mode — for zip mode the *parent*
+                // directory must be writable (we write/atomic-replace the zip there),
+                // not the zip itself.
+                val isZipTarget = target.name.endsWith(".zip", ignoreCase = true)
+                val checkDir = if (isZipTarget) target.parentFile ?: target else target
+                if (!checkDir.exists()) checkDir.mkdirs()
+                if (!checkDir.isDirectory || !checkDir.canWrite()) {
                     logger.warning(
-                        "[delegate] delegate-to-dir ${dir.absolutePath} is not a writable directory — " +
+                        "[delegate] delegate-to-dir ${target.absolutePath} parent " +
+                        "(${checkDir.absolutePath}) is not a writable directory — " +
                         "falling back to legacy push mode"
                     )
                     null
                 } else {
+                    val dir = target
                     logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
                     gg.interfaze.plugin.resourcepack.ResourcePackDelegator(dir, logger)
                 }
@@ -204,15 +212,23 @@ open class InterfazePlugin : JavaPlugin() {
         syncedProviderReinit?.setCustomItemsManager(customItemsManagerReinit)
         val delegatorReinit: gg.interfaze.plugin.resourcepack.ResourcePackDelegator? =
             cfg.resourcePack.delegateToDir?.let { path ->
-                val dir = File(path)
-                if (!dir.exists()) dir.mkdirs()
-                if (!dir.isDirectory || !dir.canWrite()) {
+                val target = File(path)
+                // `.zip` paths target a single file; everything else targets a directory.
+                // Validate the right thing in each mode — for zip mode the *parent*
+                // directory must be writable (we write/atomic-replace the zip there),
+                // not the zip itself.
+                val isZipTarget = target.name.endsWith(".zip", ignoreCase = true)
+                val checkDir = if (isZipTarget) target.parentFile ?: target else target
+                if (!checkDir.exists()) checkDir.mkdirs()
+                if (!checkDir.isDirectory || !checkDir.canWrite()) {
                     logger.warning(
-                        "[delegate] delegate-to-dir ${dir.absolutePath} is not a writable directory — " +
+                        "[delegate] delegate-to-dir ${target.absolutePath} parent " +
+                        "(${checkDir.absolutePath}) is not a writable directory — " +
                         "falling back to legacy push mode"
                     )
                     null
                 } else {
+                    val dir = target
                     logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
                     gg.interfaze.plugin.resourcepack.ResourcePackDelegator(dir, logger)
                 }

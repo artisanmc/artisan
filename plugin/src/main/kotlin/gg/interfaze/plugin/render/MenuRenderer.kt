@@ -35,17 +35,28 @@ object MenuRenderer {
         lookupAsset: (String) -> AssetEntry? = { null },
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
     ): MenuSession {
-        val langMap = menu.langMaps[lang] ?: emptyMap()
-        // NOTE: Per-title `{arg}` and PlaceholderAPI interpolation are intentionally
-        // not applied here. The title-composer spec (Tasks 16–19) routes titles through
-        // TitleCompiler, which resolves layers + i18n only. If a future sub-project needs
-        // arg/PAPI in titles, plumb an ExecutionContext into TitleCompiler.compileLayerBody.
+        // Fallback chain: requested lang → any lang declared in the pack → empty.
+        // The pack's manifest may declare only a subset of MC client locales; without
+        // this fallback, players whose `sender.locale().language` is not in the manifest
+        // would see raw i18n keys instead of any translation at all.
+        val langMap = menu.langMaps[lang] ?: menu.langMaps.values.firstOrNull() ?: emptyMap()
+        // Per-title placeholder interpolation: `{argName}` from the ExecutionContext
+        // args, then `%papi%` via PlaceholderAPI. Same chain as resolveText() applies
+        // to item title/lore.
+        val papi = evaluator.deps.papi
+        val interpolate: (String) -> String = { raw ->
+            var text = raw
+            ctx.args.forEach { (k, v) -> text = text.replace("{$k}", v.toString()) }
+            if (papi != null) text = papi.resolve(player, text)
+            text
+        }
         val title = TitleCompiler.compileTitle(
             layers = menu.title,
             lang = lang,
             langMap = langMap,
             lookupAsset = lookupAsset,
             offsetEncoder = offsetEncoder,
+            interpolate = interpolate,
         )
         val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
