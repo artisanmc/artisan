@@ -81,6 +81,18 @@ export const discordAccounts = pgTable("discord_accounts", {
   uniqueIndex("discord_accounts_userid_uniq").on(t.userId),
 ]);
 
+export const networkTransfers = pgTable("network_transfers", {
+  token: text("token").primaryKey(),
+  networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  initiatedByUserId: text("initiated_by_user_id").notNull().references(() => users.id),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"),
+  consumedByUserId: text("consumed_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull(),
+}, (t) => [
+  index("network_transfers_network_idx").on(t.networkId),
+]);
+
 export const memberships = pgTable("memberships", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
