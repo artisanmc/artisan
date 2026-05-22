@@ -1,7 +1,37 @@
-import type { Pack } from "@/domain/types";
+import type { Pack, PackId } from "@/domain/types";
 import type { Asset, AssetType } from "@/domain/asset";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
+interface PackListRow {
+  pack_id: string;
+  name: string;
+  hash: string;
+  files: Record<string, string>;
+  editor: Pack | null;
+}
+
+function rowToPack(row: PackListRow): Pack {
+  if (row.editor) return { ...row.editor, id: row.pack_id as PackId, name: row.name };
+  const now = new Date().toISOString();
+  return {
+    id: row.pack_id as PackId,
+    name: row.name,
+    source: "user_created",
+    createdAt: now,
+    updatedAt: now,
+    menus: [],
+    commands: [],
+    templates: [],
+    assets: [],
+    dataSources: [],
+    dialogs: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    canvasLayout: {},
+  } as Pack;
+}
 
 export interface LibraryItem {
   id: string;
@@ -20,8 +50,8 @@ export interface LibraryData {
 export async function loadPacks(token: string): Promise<Pack[]> {
   const res = await fetch(`${API_URL}/api/editor-session/${token}/packs`);
   if (!res.ok) throw new Error("Failed to load packs");
-  const data = (await res.json()) as { packs: Pack[] };
-  return data.packs;
+  const data = (await res.json()) as { packs: PackListRow[] };
+  return data.packs.map(rowToPack);
 }
 
 export async function savePack(
