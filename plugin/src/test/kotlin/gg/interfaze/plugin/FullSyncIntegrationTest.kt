@@ -235,6 +235,69 @@ class FullSyncIntegrationTest {
     }
 
     @Test
+    fun `auto-push at hello when disk pack non-empty and backend reports empty hash`() {
+        MockBukkit.mock()
+        try {
+            val packId = "p_auto_push"
+            val packsDir = Files.createTempDirectory("ifz_auto_").toFile()
+            val packDir = File(packsDir, packId).apply { mkdirs() }
+            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: $packId\n")
+            File(packDir, "menus").mkdirs()
+            File(packDir, "menus/m.yaml").writeText("id: m\nsize: 27\n")
+
+            val received = Collections.synchronizedList(mutableListOf<Map<String, Any>>())
+            val helloLatch = CountDownLatch(1)
+
+            MockWebServer().use { server ->
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                    override fun onMessage(ws: WebSocket, text: String) {
+                        val node = mapper.readTree(text)
+                        val type = node["type"]?.asText()
+                        when (type) {
+                            "hello" -> {
+                                // Reply with hello_ack reporting empty backend hash for the local pack
+                                ws.send(mapper.writeValueAsString(mapOf(
+                                    "type" to "hello_ack",
+                                    "session_id" to "sess_test",
+                                    "needs_sync" to false,
+                                    "pack_hashes" to mapOf(packId to ""),
+                                    "deleted_pack_ids" to emptyList<String>(),
+                                )))
+                                helloLatch.countDown()
+                            }
+                            "local_push" -> {
+                                @Suppress("UNCHECKED_CAST")
+                                received.add(mapper.readValue(text, Map::class.java) as Map<String, Any>)
+                            }
+                        }
+                    }
+                }))
+                server.start()
+
+                val provider = SyncedMenuProvider(
+                    packsDir = packsDir,
+                    serverKey = "sk_auto_test",
+                    wsUrl = server.url("/ws/plugin").toString(),
+                    logger = null,
+                )
+                provider.load()
+
+                assertTrue(helloLatch.await(5, TimeUnit.SECONDS), "hello not received within 5s")
+                // Give the auto-push dispatcher a moment to fire
+                Thread.sleep(500)
+
+                val push = received.firstOrNull { it["type"] == "local_push" }
+                assertNotNull(push, "Expected an auto-pushed local_push message. Received: $received")
+                assertEquals(packId, push!!["pack_id"])
+
+                provider.unload()
+            }
+        } finally {
+            MockBukkit.unmock()
+        }
+    }
+
+    @Test
     fun `plugin logs WARN on divergence and never sends pack_divergence_detected (Plan 1C)`() {
         val packsDir = Files.createTempDirectory("ifz_div_").toFile()
         val packDir = File(packsDir, "p_local").also { it.mkdirs() }
