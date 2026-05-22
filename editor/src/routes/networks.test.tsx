@@ -36,6 +36,6 @@ describe("NetworksPage", () => {
   it("shows empty state with 'Create your first network' CTA", async () => {
     vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
     render(<NetworksPage />);
-    await waitFor(() => expect(screen.getByText(/no networks yet/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Aucun Network/i)).toBeTruthy());
   });
 });
