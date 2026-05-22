@@ -183,6 +183,11 @@ object TitleCompiler {
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
+        // Post-i18n interpolation: applied to every text-bearing layer's resolved
+        // string. Used by MenuRenderer to expand `{arg}` placeholders from the
+        // ExecutionContext and `%papi%` placeholders via PlaceholderAPI. Default
+        // is identity for callers (tests, dump-title) that don't need it.
+        interpolate: (String) -> String = { it },
     ): Component {
         if (layers.isEmpty()) return Component.empty()
         // Plain (vanilla) mode: no resource pack, no font wrapper, no shadow suppression.
@@ -191,7 +196,7 @@ object TitleCompiler {
             val sb = StringBuilder()
             for (layer in layers) {
                 layer as MenuTitleLayer.Plain
-                val text = resolveLText(layer.value, langMap)
+                val text = interpolate(resolveLText(layer.value, langMap))
                 sb.append(layer.color?.let { "<color:$it>$text</color>" } ?: text)
             }
             return MiniMessage.miniMessage().deserialize(sb.toString())
@@ -228,7 +233,7 @@ object TitleCompiler {
                 if (targetX != currentX) sb.append(offsetEncoder.encode(targetX - currentX))
                 targetX
             }
-            val (frag, newX) = compileLayerBody(layer, startX, langMap, lookupAsset, offsetEncoder)
+            val (frag, newX) = compileLayerBody(layer, startX, langMap, lookupAsset, offsetEncoder, interpolate)
             sb.append(frag)
             currentX = newX
         }
@@ -258,6 +263,7 @@ object TitleCompiler {
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
         offsetEncoder: OffsetEncoder,
+        interpolate: (String) -> String = { it },
     ): Pair<String, Int> {
         val body: String = when (layer) {
             is MenuTitleLayer.Background -> {
@@ -274,14 +280,14 @@ object TitleCompiler {
                 "<white>$ch</white>"
             }
             is MenuTitleLayer.Text -> {
-                val text = resolveLText(layer.value, langMap)
+                val text = interpolate(resolveLText(layer.value, langMap))
                 val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
                 // Custom font asset: use its namespace directly (user-imported font).
                 if (layer.fontAssetId != null) {
                     val ns = lookupAsset(layer.fontAssetId)?.takeIf { it.type == "font" }?.namespace
                     if (ns != null) return Pair(
                         "<font:$ns>$colored</font>",
-                        startX + estimateBodyWidth(layer, langMap, lookupAsset),
+                        startX + estimateBodyWidth(layer, langMap, lookupAsset, interpolate),
                     )
                 }
                 // Y-specific font: resource pack includes text_y{Y}.json for Y in
@@ -297,7 +303,7 @@ object TitleCompiler {
                 "<font:interfaze:text_y${clampedY}_h${layer.size}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
-                val text = resolveLText(layer.value, langMap)
+                val text = interpolate(resolveLText(layer.value, langMap))
                 layer.color?.let { "<color:$it>$text</color>" } ?: text
             }
             is MenuTitleLayer.ExternalGlyph -> {
@@ -306,7 +312,7 @@ object TitleCompiler {
                 "□"
             }
             is MenuTitleLayer.Textarea -> {
-                val raw = resolveLText(layer.value, langMap)
+                val raw = interpolate(resolveLText(layer.value, langMap))
                 // Trim leading whitespace from the ENTIRE content (drops accidental
                 // leading spaces / newlines at the start of the textarea). Internal
                 // indentation after a hard `\n` is preserved — the user's intent on
@@ -350,7 +356,7 @@ object TitleCompiler {
                 return Pair(sb2.toString(), localX)
             }
         }
-        return Pair(body, startX + estimateBodyWidth(layer, langMap, lookupAsset))
+        return Pair(body, startX + estimateBodyWidth(layer, langMap, lookupAsset, interpolate))
     }
 
     /**
@@ -375,6 +381,7 @@ object TitleCompiler {
         layer: MenuTitleLayer,
         langMap: Map<String, String>,
         lookupAsset: (String) -> AssetEntry?,
+        interpolate: (String) -> String = { it },
     ): Int = when (layer) {
         is MenuTitleLayer.Background -> {
             // MC bitmap font advance = measured_width + 1 (BitmapFont.Glyph.getAdvance()).
@@ -386,18 +393,18 @@ object TitleCompiler {
             (if (w > 0) w else FALLBACK_IMAGE_WIDTH) + 1
         }
         is MenuTitleLayer.Text -> {
-            val text = resolveLText(layer.value, langMap)
+            val text = interpolate(resolveLText(layer.value, langMap))
             // Bitmap font scales advance proportionally with height: a width of
             // N px at size 8 becomes N × (size/8) at any other size.
             (measureLineWidth(text) * layer.size) / 8
         }
         is MenuTitleLayer.Plain -> {
-            val text = resolveLText(layer.value, langMap)
+            val text = interpolate(resolveLText(layer.value, langMap))
             measureLineWidth(text)
         }
         is MenuTitleLayer.ExternalGlyph -> EXTERNAL_GLYPH_WIDTH
         is MenuTitleLayer.Textarea -> {
-            val text = resolveLText(layer.value, langMap)
+            val text = interpolate(resolveLText(layer.value, langMap))
             val hardLines = text.split("\n")
             val effectiveWidth = (layer.width * 8) / layer.size
             val lines = hardLines.flatMap { wrapLine(it, effectiveWidth) }
