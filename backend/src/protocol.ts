@@ -1,11 +1,13 @@
 export interface HelloMessage {
   type: "hello";
+  protocol_version?: string;   // NEW — "1" for current protocol
+  core_version?: string;       // NEW — plugin's own version string; mirrors plugin_version
   server_key: string;
   plugin_version: string;
-  minecraft_version: string;
+  minecraft_version?: string;
   current_bundle_hash: string;
   local_pack_ids?: string[];
-  custom_items_hash?: string;   // null/absent means no custom item plugin detected
+  custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
 }
 
 export interface HelloAckMessage {

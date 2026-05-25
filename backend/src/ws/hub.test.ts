@@ -486,3 +486,33 @@ describe("local_push", () => {
   });
 });
 
+describe("protocol_version + unknown message types", () => {
+  test("handlePluginMessage logs and ignores unknown message types", async () => {
+    const connId = "conn-unknown-type";
+    registerConn(connId, () => {});
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "future_message_type_v99",
+      foo: "bar",
+    }));
+    expect(result.reply).toBeNull();
+  });
+
+  test("hello with protocol_version 1 + core_version is accepted", async () => {
+    const connId = "conn-protocol-v1";
+    registerConn(connId, () => {});
+    const { key } = await seedServerKey();
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "hello",
+      protocol_version: "1",
+      core_version: "1.0.0",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    }));
+    expect(result.reply).not.toBeNull();
+    const reply = JSON.parse(result.reply!);
+    expect(reply.type).toBe("hello_ack");
+  });
+});
+
