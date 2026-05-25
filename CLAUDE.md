@@ -100,6 +100,47 @@ docs/
 CONTEXT.md               ← glossaire domaine (source de vérité pour les termes)
 ```
 
+### Pattern modulaire (depuis 2026-05-25)
+
+Interfaze suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
+
+- Plugin : `plugin/src/main/kotlin/gg/interfaze/modules/{id}/` — implements `InterfazeModule`
+- Backend : `backend/src/modules/{id}/` — exports `BackendModule`
+- Éditeur : `editor/src/modules/{id}/` — exports `FrontendModule`
+
+Communication cross-module via deux registries plugin-side : `DataSourceRegistry` (`namespace:source_id`) et `CommandRegistry` (`namespace:command`). Aucune dépendance directe entre modules. Hot-reload propagé via `ModuleEventBus` (plugin) + WS `module_event` → `editor/src/modules/api/eventBus.ts`.
+
+V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `gg.interfaze.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé jusqu'au 3ᵉ module (voir `docs/architecture/modules.md` §13).
+
+**Quand ajouter un module :**
+1. Spec dans `docs/architecture/modules.md` (ajouter section "Module {id}")
+2. Layer plugin : nouvelle classe sous `gg.interfaze.modules.{id}/` impl `InterfazeModule`, register dans `InterfazePlugin.defaultModules()`
+3. Layer backend : nouveau dir `modules/{id}/index.ts` exporte un `BackendModule`, register dans `app.ts` (`mountModules` array)
+4. Layer éditeur : `editor/src/modules/{id}/index.ts` exporte `FrontendModule`, `registerModule(...)` dans `main.tsx`
+5. Schema JSON dans `modules/{id}/schemas/` si form-based — utiliser `<SchemaForm>`
+
+### `<SchemaForm>` — générateur de formulaires depuis JSON Schema
+
+`editor/src/components/SchemaForm/` génère des formulaires React depuis un JSON Schema. Couvre `string` (texte / textarea via `format: "long"` / select via `enum`), `number`/`integer`, `boolean`, `object` (nesting), `array` (avec + / −).
+
+**Pour ajouter un widget custom** (color picker, asset picker, MiniMessage editor, etc.) :
+
+```ts
+import { SchemaForm } from "@/components/SchemaForm/SchemaForm";
+import { ColorPicker } from "@/components/widgets/ColorPicker";
+
+<SchemaForm
+  schema={schema}
+  value={value}
+  onChange={setValue}
+  widgets={{ color: ColorPicker }}
+/>
+```
+
+Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", format: "color" }`).
+
+**Hors scope V1 :** `oneOf` / `anyOf` / `if/then/else` / `$ref` resolution. À ajouter quand un module en a besoin.
+
 ### Flux de données
 
 ```
