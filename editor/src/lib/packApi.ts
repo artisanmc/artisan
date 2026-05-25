@@ -48,7 +48,7 @@ export interface LibraryData {
 }
 
 export async function loadPacks(token: string): Promise<Pack[]> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs`);
   if (!res.ok) throw new Error("Failed to load packs");
   const data = (await res.json()) as { packs: PackListRow[] };
   return data.packs.map(rowToPack);
@@ -59,7 +59,7 @@ export async function savePack(
   pack: Pack,
   files: Record<string, string>,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${pack.id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${pack.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
@@ -68,7 +68,7 @@ export async function savePack(
 }
 
 export async function deletePack(token: string, packId: string): Promise<void> {
-  await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}`, {
+  await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}`, {
     method: "DELETE",
   });
 }
@@ -84,7 +84,7 @@ export async function deployPack(
   pack: Pack,
   files: Record<string, string>,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${pack.id}/deploy`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${pack.id}/deploy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
@@ -97,14 +97,14 @@ export async function deployPack(
 }
 
 export async function getDeployedPack(token: string, packId: string): Promise<Pack | null> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/deployed`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/deployed`);
   if (!res.ok) throw new Error("Impossible de récupérer la version déployée");
   const data = (await res.json()) as { pack: Pack | null };
   return data.pack;
 }
 
 export async function fetchItems(token: string): Promise<LibraryData> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/items`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/items`);
   if (!res.ok) throw new Error(`fetchItems failed: ${res.status}`);
   return res.json() as Promise<LibraryData>;
 }
@@ -116,7 +116,7 @@ export interface CustomItemsData {
 
 export async function fetchCustomItems(token: string): Promise<CustomItemsData> {
   try {
-    const res = await fetch(`${API_URL}/api/editor-session/${token}/custom-items`);
+    const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/custom-items`);
     if (!res.ok) return { serverKeyId: "", items: [] };
     return res.json() as Promise<CustomItemsData>;
   } catch {
@@ -133,7 +133,7 @@ export async function listAssets(
   if (filters.type) params.set("type", filters.type);
   if (filters.search) params.set("search", filters.search);
   const qs = params.toString();
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets${qs ? "?" + qs : ""}`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to load assets");
   const data = (await res.json()) as { assets: Asset[] };
   return data.assets;
@@ -149,7 +149,7 @@ export async function uploadAsset(
   fd.set("name", input.name);
   if (input.ascent !== undefined) fd.set("ascent", String(input.ascent));
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -170,7 +170,7 @@ export async function uploadFontAsset(
   fd.set("type", "font");
   fd.set("name", input.name);
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -193,7 +193,7 @@ export async function updateAsset(
   // optimistic-only in `assetStore` and never sent here.
   patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -207,7 +207,7 @@ export async function updateAsset(
 }
 
 export async function deleteAsset(token: string, packId: string, id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Delete failed");
@@ -216,14 +216,14 @@ export async function deleteAsset(token: string, packId: string, id: string): Pr
 /**
  * Duplicate an existing asset (typically a glyph) into a new asset row.
  *
- *   POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate
+ *   POST /api/v1/editor-session/:token/packs/:packId/assets/:id/duplicate
  *   → 200 { asset: Asset }
  *
  * Caller is responsible for upserting the returned asset into `assetStore`
  * and (optionally) re-pointing any referencing layer to the new id.
  */
 export async function duplicateAsset(token: string, packId: string, id: string): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/editor-session/${token}/packs/${packId}/assets/${id}/duplicate`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${packId}/assets/${id}/duplicate`, {
     method: "POST",
   });
   if (!res.ok) {

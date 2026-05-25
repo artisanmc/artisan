@@ -10,7 +10,7 @@ export interface PublishResult {
 }
 
 export async function publishBundle(opts: PublishOptions): Promise<PublishResult> {
-  const res = await fetch(`${opts.apiUrl}/api/bundles/${opts.packId}`, {
+  const res = await fetch(`${opts.apiUrl}/api/v1/bundles/${opts.packId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

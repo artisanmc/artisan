@@ -207,8 +207,8 @@ export function Library() {
               {(rows[virtualRow.index] ?? []).map((item) => {
                 const isCustom = customData.items.some((c) => c.id === item.id);
                 const textureBase = isCustom
-                  ? `${API_URL}/api/textures/custom/${customData.serverKeyId}`
-                  : `${API_URL}/api/textures/${version}`;
+                  ? `${API_URL}/api/v1/textures/custom/${customData.serverKeyId}`
+                  : `${API_URL}/api/v1/textures/${version}`;
                 return (
                   <ItemTile
                     key={item.id}

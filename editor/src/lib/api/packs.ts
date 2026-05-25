@@ -5,7 +5,7 @@ export interface DeletePackOptions {
 }
 
 export async function deletePack({ apiUrl, token, packId }: DeletePackOptions): Promise<void> {
-  const res = await fetch(`${apiUrl}/api/editor-session/${token}/packs/${packId}`, {
+  const res = await fetch(`${apiUrl}/api/v1/editor-session/${token}/packs/${packId}`, {
     method: "DELETE",
   });
   if (!res.ok) {

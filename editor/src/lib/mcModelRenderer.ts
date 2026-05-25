@@ -61,7 +61,7 @@ function getCamera(): THREE.OrthographicCamera {
 
 const renderCache = new Map<string, Promise<string | null>>();
 
-// Pre-resolved models loaded in one shot from /api/model-bundle — eliminates
+// Pre-resolved models loaded in one shot from /api/v1/model-bundle — eliminates
 // per-item HTTP round-trips for model JSON + parent chain resolution.
 const resolvedModelCache = new Map<string, ResolvedModel>();
 
@@ -77,8 +77,8 @@ export async function preloadModels(
   serverKeyId?: string,
 ): Promise<void> {
   const url = isCustom && serverKeyId
-    ? `${API_URL}/api/model-bundle/custom/${serverKeyId}?version=${version}`
-    : `${API_URL}/api/model-bundle/${version}`;
+    ? `${API_URL}/api/v1/model-bundle/custom/${serverKeyId}?version=${version}`
+    : `${API_URL}/api/v1/model-bundle/${version}`;
   try {
     const res = await fetch(url);
     if (!res.ok) return;
@@ -99,8 +99,8 @@ function fetchModel(
   modelPath: string, version: string, isCustom: boolean, serverKeyId?: string,
 ): Promise<Record<string, unknown> | null> {
   const url = isCustom
-    ? `${API_URL}/api/models/custom/${serverKeyId}/${modelPath}`
-    : `${API_URL}/api/models/${version}/${modelPath}`;
+    ? `${API_URL}/api/v1/models/custom/${serverKeyId}/${modelPath}`
+    : `${API_URL}/api/v1/models/${version}/${modelPath}`;
   if (modelJsonCache.has(url)) return modelJsonCache.get(url)!;
   const promise = fetch(url)
     .then(res => res.ok ? res.json() as Promise<Record<string, unknown>> : null)
@@ -180,8 +180,8 @@ async function renderFlat(
     const texPath = resolveVar(model.textures, `layer${i}`);
     if (!texPath) break;
     const url = isCustom && serverKeyId
-      ? `${API_URL}/api/textures/custom/${serverKeyId}/${texPath}`
-      : `${API_URL}/api/textures/${version}/${texPath}`;
+      ? `${API_URL}/api/v1/textures/custom/${serverKeyId}/${texPath}`
+      : `${API_URL}/api/v1/textures/${version}/${texPath}`;
     layers.push({ url, tint: tints?.[i] });
   }
   if (layers.length === 0) return null;
@@ -267,7 +267,7 @@ const ENTITY_FLAT_MAP: Record<string, EntityFlatDef> = {
 async function renderEntityFlat(itemId: string, version: string): Promise<string | null> {
   const def = ENTITY_FLAT_MAP[itemId];
   if (!def) return null;
-  const url = `${API_URL}/api/textures/${version}/${def.texturePath}`;
+  const url = `${API_URL}/api/v1/textures/${version}/${def.texturePath}`;
   const img = await loadImage(url);
   if (!img) return null;
   const canvas = document.createElement("canvas");
@@ -374,7 +374,7 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   const def = ENTITY_RENDER_MAP[itemId];
   if (!def) return null;
 
-  const texUrl = `${API_URL}/api/textures/${version}/${def.texturePath}`;
+  const texUrl = `${API_URL}/api/v1/textures/${version}/${def.texturePath}`;
   const texture = await loadTex(texUrl);
   if (!texture) return null;
 
@@ -457,8 +457,8 @@ async function loadModelTextures(
   const out = new Map<string, THREE.Texture>();
   await Promise.all([...resolved.entries()].map(async ([key, path]) => {
     const url = isCustom
-      ? `${API_URL}/api/textures/custom/${serverKeyId}/${path}`
-      : `${API_URL}/api/textures/${version}/${path}`;
+      ? `${API_URL}/api/v1/textures/custom/${serverKeyId}/${path}`
+      : `${API_URL}/api/v1/textures/${version}/${path}`;
     const tex = await loadTex(url);
     if (tex) out.set(key, tex);
   }));
