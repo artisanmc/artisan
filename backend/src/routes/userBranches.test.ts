@@ -44,8 +44,8 @@ async function seedUserWithPack(userId = "u1") {
 
 function makeApp() {
   const app = new Hono();
-  app.use("/api/networks/*", userAuth());
-  app.route("/api/networks", userBranchesRouter);
+  app.use("/api/v1/networks/*", userAuth());
+  app.route("/api/v1/networks", userBranchesRouter);
   return app;
 }
 
@@ -57,7 +57,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
   test("GET /:netId/packs/:packId/branches returns main after createPack", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -69,7 +69,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
   test("GET /:netId/packs/:packId/commits?branch=main returns the initial commit", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits?branch=main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits?branch=main`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -86,7 +86,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     });
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       headers: { Cookie: `ifz_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
@@ -101,7 +101,7 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches creates a new branch from an existing branch", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -110,7 +110,7 @@ describe("userBranchesRouter — POST /branches", () => {
     const body = await res.json();
     expect(body.branch.name).toBe("dev");
     // dev should point to the same head commit as main initially
-    const branchesRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const branchesRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     const { branches } = await branchesRes.json();
@@ -122,7 +122,7 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches 422 when name missing or invalid", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "", from: "main" }),
@@ -133,12 +133,12 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches 409 when name already exists", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -161,7 +161,7 @@ describe("userBranchesRouter — POST /commits", () => {
     }).where(eq(packs.id, packId));
 
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "first real commit" }),
@@ -181,7 +181,7 @@ describe("userBranchesRouter — POST /commits", () => {
   test("POST /commits 404 when branch does not exist", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "ghost", message: "x" }),
@@ -200,7 +200,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     const app = makeApp();
 
     // Create dev branch (= main head)
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -210,14 +210,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     await db.update(packs).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m\n" }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev work" }),
     });
 
     // Promote dev → main
-    const promoteRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
+    const promoteRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -233,7 +233,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
   test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward)", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -241,7 +241,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
 
     // Commit on dev
     await db.update(packs).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
@@ -249,14 +249,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
 
     // Commit on main (separately)
     await db.update(packs).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
     // Now promote dev → main : not FF
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -276,7 +276,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const app = makeApp();
 
     // Create dev branch
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -287,14 +287,14 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
       filesJson: JSON.stringify({ "x": "1" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_a", name: "alpha" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
     });
 
     // Merge dev → main : should be a fast-forward (main hasn't advanced)
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -315,12 +315,12 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     // dev branched from main, no new commits
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -334,7 +334,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     // Create dev with a different commit content from main.
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -345,7 +345,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
       filesJson: JSON.stringify({ "menus/m_dev.yaml": "id: m_dev" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_dev", name: "dev_menu" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
@@ -356,13 +356,13 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
       filesJson: JSON.stringify({ "menus/m_main.yaml": "id: m_main" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_main", name: "main_menu" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -382,7 +382,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
   test("3-way conflict returns kind=conflicts with the conflict list", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -392,7 +392,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
       filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: src-x" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "src-x" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
@@ -401,13 +401,13 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
       filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: dst-x" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "dst-x" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -425,7 +425,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
   test("same src and dst returns 400 same_branch", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/main/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/main/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -437,7 +437,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
   test("unknown branch returns 404", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/ghost/merge-into/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/ghost/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -455,7 +455,7 @@ describe("POST /merge-into/.../resolve", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     // Set up an auto-merge scenario (different items on each branch)
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -464,7 +464,7 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_dev.yaml": "id: m_dev" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_dev", name: "d" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
@@ -473,14 +473,14 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_main.yaml": "id: m_main" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_main", name: "m" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
     // Get the merge plan
-    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -490,7 +490,7 @@ describe("POST /merge-into/.../resolve", () => {
     // Client would derive filesJson from plan.mergedEditorJson here; we use a stub.
     const mergedFiles = { "merged.yaml": "x" };
 
-    const resolveRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+    const resolveRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -521,7 +521,7 @@ describe("POST /merge-into/.../resolve", () => {
   test("resolve with conflict choices applies them correctly", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -531,7 +531,7 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: src-x" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "src-x" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
@@ -540,13 +540,13 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_x.yaml": "id: m_x\nname: dst-x" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_x", name: "dst-x" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
-    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -554,7 +554,7 @@ describe("POST /merge-into/.../resolve", () => {
     const plan = await planRes.json();
     expect(plan.conflicts).toHaveLength(1);
 
-    const resolveRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+    const resolveRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -577,7 +577,7 @@ describe("POST /merge-into/.../resolve", () => {
   test("resolve with stale heads returns 409 stale_merge", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -586,14 +586,14 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_a.yaml": "id: m_a\nname: v1" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_a", name: "v1" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
 
     // POST resolve with random ids that don't match
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -612,7 +612,7 @@ describe("POST /merge-into/.../resolve", () => {
   test("resolve with missing resolution for a conflict returns 400", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -621,7 +621,7 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_y.yaml": "id: m_y\nname: s" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_y", name: "s" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
@@ -630,20 +630,20 @@ describe("POST /merge-into/.../resolve", () => {
       filesJson: JSON.stringify({ "menus/m_y.yaml": "id: m_y\nname: d" }),
       editorJson: JSON.stringify({ menus: [{ id: "m_y", name: "d" }] }),
     }).where(eq(packs.id, packId));
-    await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
-    const planRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
+    const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const plan = await planRes.json();
 
-    const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({

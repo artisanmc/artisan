@@ -4,7 +4,7 @@ import { join } from "path";
 import { app } from "../app";
 import * as mcAssets from "../lib/mcAssets";
 
-describe("GET /api/textures/:version/*", () => {
+describe("GET /api/v1/textures/:version/*", () => {
   beforeEach(() => {
     mock.module("../lib/mcAssets", () => ({
       assetsDone: () => true,
@@ -26,17 +26,17 @@ describe("GET /api/textures/:version/*", () => {
       ensureAssets: () => Promise.resolve(),
       textureFilePath: () => null,
     }));
-    const res = await app.request("/api/textures/1.21.4/item/diamond_sword");
+    const res = await app.request("/api/v1/textures/1.21.4/item/diamond_sword");
     expect(res.status).toBe(404);
   });
 
   test("returns 404 when texture file does not exist", async () => {
-    const res = await app.request("/api/textures/1.21.4/item/does_not_exist");
+    const res = await app.request("/api/v1/textures/1.21.4/item/does_not_exist");
     expect(res.status).toBe(404);
   });
 });
 
-describe("GET /api/textures/custom/:serverKeyId/*", () => {
+describe("GET /api/v1/textures/custom/:serverKeyId/*", () => {
   const TEST_SERVER_ID = "srv_tex_test_" + Date.now();
   const cacheDir = join(import.meta.dir, "../../data/custom-items", TEST_SERVER_ID, "textures");
 
@@ -51,18 +51,18 @@ describe("GET /api/textures/custom/:serverKeyId/*", () => {
   });
 
   test("serves cached PNG by serverKeyId and path", async () => {
-    const res = await app.request(`/api/textures/custom/${TEST_SERVER_ID}/nexo/coin`);
+    const res = await app.request(`/api/v1/textures/custom/${TEST_SERVER_ID}/nexo/coin`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
   });
 
   test("returns 404 for missing texture", async () => {
-    const res = await app.request(`/api/textures/custom/${TEST_SERVER_ID}/nexo/doesnt_exist`);
+    const res = await app.request(`/api/v1/textures/custom/${TEST_SERVER_ID}/nexo/doesnt_exist`);
     expect(res.status).toBe(404);
   });
 
   test("returns 404 for path traversal attempt", async () => {
-    const res = await app.request(`/api/textures/custom/${TEST_SERVER_ID}/../../evil`);
+    const res = await app.request(`/api/v1/textures/custom/${TEST_SERVER_ID}/../../evil`);
     expect(res.status).toBe(404);
   });
 });

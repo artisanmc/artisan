@@ -50,8 +50,8 @@ async function seedUserWithPack(userId: string) {
 
 function makeApp() {
   const app = new Hono();
-  app.use("/api/user/packs/*", userAuth());
-  app.route("/api/user/packs", userPacksRouter);
+  app.use("/api/v1/user/packs/*", userAuth());
+  app.route("/api/v1/user/packs", userPacksRouter);
   return app;
 }
 
@@ -61,7 +61,7 @@ describe("userPacksRouter — GET", () => {
   test("GET /:packId 200 — member gets pack content", async () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request(`/api/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/packs/${packId}`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -80,7 +80,7 @@ describe("userPacksRouter — GET", () => {
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/packs/${packId}`, {
       headers: { Cookie: `ifz_user_session=${sess2.id}` },
     });
     expect(res.status).toBe(403);
@@ -89,7 +89,7 @@ describe("userPacksRouter — GET", () => {
   test("GET /:packId 404 — pack does not exist", async () => {
     const { sessionId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request("/api/user/packs/pack_nonexistent", {
+    const res = await app.request("/api/v1/user/packs/pack_nonexistent", {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(404);
@@ -102,7 +102,7 @@ describe("userPacksRouter — PUT", () => {
   test("PUT /:packId 200 — member updates pack content", async () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request(`/api/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/packs/${packId}`, {
       method: "PUT",
       headers: {
         Cookie: `ifz_user_session=${sessionId}`,
@@ -133,7 +133,7 @@ describe("userPacksRouter — PUT", () => {
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/packs/${packId}`, {
       method: "PUT",
       headers: {
         Cookie: `ifz_user_session=${sess2.id}`,

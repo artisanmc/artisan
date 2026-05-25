@@ -11,15 +11,15 @@ describe("GET /health", () => {
 });
 
 describe("module registry", () => {
-  test("mounts /api/modules/menus/health", async () => {
-    const res = await app.request("/api/modules/menus/health");
+  test("mounts /api/v1/modules/menus/health", async () => {
+    const res = await app.request("/api/v1/modules/menus/health");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { module: string };
     expect(body.module).toBe("menus");
   });
 
-  test("mounts /api/modules/commands/health", async () => {
-    const res = await app.request("/api/modules/commands/health");
+  test("mounts /api/v1/modules/commands/health", async () => {
+    const res = await app.request("/api/v1/modules/commands/health");
     expect(res.status).toBe(200);
   });
 });

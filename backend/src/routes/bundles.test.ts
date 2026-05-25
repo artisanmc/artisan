@@ -18,7 +18,7 @@ const PACK_FILES = {
 
 function buildApp() {
   const app = new Hono();
-  app.route("/api/bundles", bundlesRouter);
+  app.route("/api/v1/bundles", bundlesRouter);
   return app;
 }
 
@@ -45,9 +45,9 @@ beforeEach(async () => {
 });
 
 describe("bundle upload/download", () => {
-  test("POST /api/bundles/p_test requires Authorization header", async () => {
+  test("POST /api/v1/bundles/p_test requires Authorization header", async () => {
     const app = buildApp();
-    const res = await app.request("/api/bundles/p_test", {
+    const res = await app.request("/api/v1/bundles/p_test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ files: PACK_FILES }),
@@ -60,7 +60,7 @@ describe("bundle upload/download", () => {
     const { key } = await seedServerKey("bundle-test");
 
     // POST writes WIP content
-    const uploadRes = await app.request("/api/bundles/p_test", {
+    const uploadRes = await app.request("/api/v1/bundles/p_test", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({ files: PACK_FILES }),
@@ -70,7 +70,7 @@ describe("bundle upload/download", () => {
     expect(uploadBody.ok).toBe(true);
 
     // GET serves branch head commit — createPack auto-creates main with empty initial commit.
-    const downloadRes = await app.request("/api/bundles/p_test", {
+    const downloadRes = await app.request("/api/v1/bundles/p_test", {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(downloadRes.status).toBe(200);
@@ -80,7 +80,7 @@ describe("bundle upload/download", () => {
     expect(body.files).toEqual({});
   });
 
-  test("GET /api/bundles/:packId serves the bound branch's head commit content", async () => {
+  test("GET /api/v1/bundles/:packId serves the bound branch's head commit content", async () => {
     const app = buildApp();
     const { key, id: skId, networkId } = await seedServerKey("c3-test");
 
@@ -101,7 +101,7 @@ describe("bundle upload/download", () => {
     });
     await advanceBranchHead(pack.id, "main", commit2.id);
 
-    const res = await app.request(`/api/bundles/${pack.id}`, {
+    const res = await app.request(`/api/v1/bundles/${pack.id}`, {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(res.status).toBe(200);
@@ -115,7 +115,7 @@ describe("bundle upload/download", () => {
     const app = buildApp();
     const { key } = await seedServerKey("no-bind-test");
 
-    const res = await app.request("/api/bundles/p_unbound", {
+    const res = await app.request("/api/v1/bundles/p_unbound", {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(res.status).toBe(404);
@@ -128,7 +128,7 @@ describe("bundle upload/download", () => {
     const { key, id: serverKeyId } = await seedServerKey("reuse-test");
 
     // First push — creates pack + binding
-    const res1 = await app.request("/api/bundles/p_reuse", {
+    const res1 = await app.request("/api/v1/bundles/p_reuse", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n" } }),
@@ -140,7 +140,7 @@ describe("bundle upload/download", () => {
       "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n",
       "plugins/Interfaze/packs/p_reuse/menus/shop.yaml": "id: shop\nsize: 54\n",
     };
-    const res2 = await app.request("/api/bundles/p_reuse", {
+    const res2 = await app.request("/api/v1/bundles/p_reuse", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({ files: updatedFiles }),
@@ -154,7 +154,7 @@ describe("bundle upload/download", () => {
     expect(bindings.length).toBe(1);
 
     // GET serves branch head commit (initial empty commit) — NOT the WIP files from POST.
-    const getRes = await app.request("/api/bundles/p_reuse", {
+    const getRes = await app.request("/api/v1/bundles/p_reuse", {
       headers: { "Authorization": `Bearer ${key}` },
     });
     expect(getRes.status).toBe(200);
