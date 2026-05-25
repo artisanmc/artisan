@@ -42,10 +42,19 @@ cd plugin
 ```bash
 cd backend
 bun install
-bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis)
+bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_URL requis) — dev/test only
+bun run db:generate     # Génère un fichier de migration dans drizzle/ depuis schema.ts (à committer)
+bun run db:migrate      # Applique les fichiers drizzle/ en ordre — utilisé en prod et dans Docker compose
 bun run dev             # Dev avec --watch sur port 3001
 bun test                # ~175 tests (unit + intégration WS réel)
 ```
+
+**Workflow migrations** :
+- `bun run db:push` — dev/test uniquement. Auto-sync `schema.ts` → DB. Pas de fichier migration produit.
+- `bun run db:generate` — quand un changement de schéma est prêt à shipper. Génère `backend/drizzle/NNNN_<name>.sql`. **Commit le fichier**.
+- `bun run db:migrate` — applique les fichiers de migrations en ordre (idempotent). Utilisé en prod et dans Docker compose (le backend tourne `db:migrate` au boot, plus `db:push`).
+
+Règle : tout merge dans `main` qui modifie `schema.ts` DOIT inclure la migration générée. Pas de push live de schema en prod.
 
 ```bash
 # Générer les données items (à faire avant gen-icons.ts)
