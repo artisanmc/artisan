@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { publishBundle } from "@/lib/ws/bundlePublisher";
 import { createPluginBridge, type PluginBridge } from "@/lib/ws/pluginBridge";
+import { emitModuleEvent, type ModuleEvent } from "@/modules/api/eventBus";
 
 let _unsubMessage: (() => void) | null = null;
 
@@ -38,6 +39,8 @@ export const useWsStore = create<WsState>((set, get) => ({
           });
         } else if (msg.type === "pack_deleted") {
           window.dispatchEvent(new CustomEvent("ifz:pack_deleted", { detail: { packId: msg.pack_id } }));
+        } else if (msg.type === "module_event") {
+          emitModuleEvent(msg.payload as ModuleEvent);
         }
       } catch { /* ignore malformed */ }
     });
