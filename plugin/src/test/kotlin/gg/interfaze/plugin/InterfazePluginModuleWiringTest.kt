@@ -19,6 +19,7 @@ class InterfazePluginModuleWiringTest {
         assertNotNull(api.dataSources)
         assertNotNull(api.commands)
         assertNotNull(api.events)
+        assertNotNull(api.schemas)
     }
 
     @Test

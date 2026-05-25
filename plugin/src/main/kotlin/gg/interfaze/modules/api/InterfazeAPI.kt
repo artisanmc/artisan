@@ -1,6 +1,7 @@
 package gg.interfaze.modules.api
 
 import gg.interfaze.modules.api.annotations.Stable
+import gg.interfaze.modules.api.schemas.SchemaRegistry
 import gg.interfaze.plugin.InterfazePlugin
 
 /**
@@ -8,6 +9,7 @@ import gg.interfaze.plugin.InterfazePlugin
  * - the [plugin] handle (for Bukkit scheduler, server, dataFolder)
  * - the cross-module registries ([dataSources], [commands])
  * - the [events] bus for hot-reload propagation
+ * - the [schemas] registry for versioned data migrations
  *
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
@@ -18,4 +20,5 @@ class InterfazeAPI(
     @Stable val dataSources: DataSourceRegistry,
     @Stable val commands: CommandRegistry,
     @Stable val events: ModuleEventBus,
+    @Stable val schemas: SchemaRegistry<MutableMap<String, Any?>>,
 )
