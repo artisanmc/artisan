@@ -25,6 +25,7 @@ function setUrl(search: string) {
 function mockUser(user: { id: string; email: string } | null) {
   useAuthStore.setState({
     currentUser: user ? { id: user.id, email: user.email, name: "", avatarUrl: null } : null,
+    isLoading: false,
   });
 }
 

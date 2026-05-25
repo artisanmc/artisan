@@ -16,7 +16,11 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: null,
-  isLoading: false,
+  // Start true: hydrate() has not yet run on first render. Routes that gate on
+  // auth state must wait for isLoading to flip to false before deciding to
+  // redirect, otherwise they race the hydration fetch and incorrectly send
+  // logged-in users to /login.
+  isLoading: true,
   error: null,
   async hydrate(apiUrl) {
     set({ isLoading: true });
