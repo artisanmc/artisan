@@ -5,6 +5,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
+import { registerModule, listModules } from "./modules/api/registry";
+import { menusModule } from "./modules/menus";
+import { commandsModule } from "./modules/commands";
+
+if (listModules().length === 0) {
+  registerModule(menusModule);
+  registerModule(commandsModule);
+}
 
 const router = createRouter({ routeTree });
 
