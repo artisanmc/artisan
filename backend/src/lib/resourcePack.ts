@@ -110,5 +110,5 @@ export async function currentPackInfo(serverKeyId: string): Promise<PackInfo | n
 }
 
 function buildPackUrl(serverKeyId: string, hash: string): string {
-  return `${RESOURCE_PACK_BASE_URL}/api/resource-pack/${serverKeyId}/${hash}.zip`;
+  return `${RESOURCE_PACK_BASE_URL}/api/v1/resource-pack/${serverKeyId}/${hash}.zip`;
 }

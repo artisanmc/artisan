@@ -24,8 +24,8 @@ import { createBinding } from "../lib/packBindingManager";
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
 
 const app = new Hono();
-app.route("/api/textures", texturesRouter);
-app.route("/api/editor-session", assetsRouter);
+app.route("/api/v1/textures", texturesRouter);
+app.route("/api/v1/editor-session", assetsRouter);
 
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ async function seedSession(): Promise<{ token: string; packId: string }> {
   return { token, packId };
 }
 
-describe("GET /api/textures/asset/:packId/:assetId", () => {
+describe("GET /api/v1/textures/asset/:packId/:assetId", () => {
   test("serves the PNG by id", async () => {
     const { packId } = await seedSession();
     // Directly insert an asset to avoid going through POST
@@ -116,7 +116,7 @@ describe("GET /api/textures/asset/:packId/:assetId", () => {
     const { writeAssetFile } = await import("../lib/assetStorage");
     await writeAssetFile(packId, assetId, PNG_1x1);
 
-    const res = await app.request(`/api/textures/asset/${packId}/${assetId}`);
+    const res = await app.request(`/api/v1/textures/asset/${packId}/${assetId}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     const bytes = new Uint8Array(await res.arrayBuffer());
@@ -124,17 +124,17 @@ describe("GET /api/textures/asset/:packId/:assetId", () => {
   });
 
   test("404 for unknown id", async () => {
-    const res = await app.request(`/api/textures/asset/pack_no/asset_no`);
+    const res = await app.request(`/api/v1/textures/asset/pack_no/asset_no`);
     expect(res.status).toBe(404);
   });
 
   test("rejects path traversal attempts", async () => {
-    const res = await app.request(`/api/textures/asset/pack/..%2F..%2Fetc%2Fpasswd`);
+    const res = await app.request(`/api/v1/textures/asset/pack/..%2F..%2Fetc%2Fpasswd`);
     expect([400, 404]).toContain(res.status);
   });
 });
 
-describe("GET /api/textures/asset-font/:assetId/*", () => {
+describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
   const createdAssetIds: Array<{ packId: string; assetId: string }> = [];
 
   afterEach(async () => {
@@ -179,7 +179,7 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
       glyphs: new Map([["glyphs/a.png", PNG_1x1]]),
     });
 
-    const res = await app.request(`/api/textures/asset-font/${assetId}/glyphs/a.png`);
+    const res = await app.request(`/api/v1/textures/asset-font/${assetId}/glyphs/a.png`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     expect(res.headers.get("Cache-Control")).toBe(
@@ -197,13 +197,13 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
       type: "glyph",
     });
 
-    const res = await app.request(`/api/textures/asset-font/${assetId}/glyphs/a.png`);
+    const res = await app.request(`/api/v1/textures/asset-font/${assetId}/glyphs/a.png`);
     expect(res.status).toBe(404);
   });
 
   test("404 for an unknown asset id", async () => {
     const res = await app.request(
-      `/api/textures/asset-font/asset_doesnotexist/glyphs/a.png`,
+      `/api/v1/textures/asset-font/asset_doesnotexist/glyphs/a.png`,
     );
     expect(res.status).toBe(404);
   });
@@ -214,7 +214,7 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
     });
 
     const res = await app.request(
-      `/api/textures/asset-font/${assetId}/../escape.png`,
+      `/api/v1/textures/asset-font/${assetId}/../escape.png`,
     );
     expect(res.status).toBe(404);
   });
@@ -225,7 +225,7 @@ describe("GET /api/textures/asset-font/:assetId/*", () => {
     });
 
     const res = await app.request(
-      `/api/textures/asset-font/${assetId}/glyphs/missing.png`,
+      `/api/v1/textures/asset-font/${assetId}/glyphs/missing.png`,
     );
     expect(res.status).toBe(404);
   });

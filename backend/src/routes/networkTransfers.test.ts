@@ -45,12 +45,12 @@ async function seedUserWithNetwork(name = "Net A") {
   return { userId, sessionId, networkId };
 }
 
-describe("POST /api/networks/:id/transfer/init", () => {
+describe("POST /api/v1/networks/:id/transfer/init", () => {
   beforeEach(clearAll);
 
   it("owner can init a transfer and receives a token + URL", async () => {
     const { sessionId, networkId } = await seedUserWithNetwork();
-    const res = await app.request(`/api/networks/${networkId}/transfer/init`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/transfer/init`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -63,7 +63,7 @@ describe("POST /api/networks/:id/transfer/init", () => {
   it("non-owner returns 403", async () => {
     const { sessionId } = await seedUserWithNetwork();  // owns network A
     const foreign = await seedUserWithNetwork("Other");  // owns network B
-    const res = await app.request(`/api/networks/${foreign.networkId}/transfer/init`, {
+    const res = await app.request(`/api/v1/networks/${foreign.networkId}/transfer/init`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -72,23 +72,23 @@ describe("POST /api/networks/:id/transfer/init", () => {
 
   it("returns 401 without auth cookie", async () => {
     const { networkId } = await seedUserWithNetwork();
-    const res = await app.request(`/api/networks/${networkId}/transfer/init`, { method: "POST" });
+    const res = await app.request(`/api/v1/networks/${networkId}/transfer/init`, { method: "POST" });
     expect(res.status).toBe(401);
   });
 });
 
-describe("GET /api/networks/transfer/:token", () => {
+describe("GET /api/v1/networks/transfer/:token", () => {
   beforeEach(clearAll);
 
   it("returns transfer info for a valid token", async () => {
     const { sessionId, networkId } = await seedUserWithNetwork("Source");
-    const init = await app.request(`/api/networks/${networkId}/transfer/init`, {
+    const init = await app.request(`/api/v1/networks/${networkId}/transfer/init`, {
       method: "POST", headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     const initBody = await init.json();
     const token = new URL(initBody.url).searchParams.get("token");
 
-    const res = await app.request(`/api/networks/transfer/${token}`, {
+    const res = await app.request(`/api/v1/networks/transfer/${token}`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -108,7 +108,7 @@ describe("GET /api/networks/transfer/:token", () => {
       expiresAt: new Date(Date.now() - 1000),
       consumedAt: null, consumedByUserId: null, createdAt: new Date(),
     });
-    const res = await app.request("/api/networks/transfer/expired_tok");
+    const res = await app.request("/api/v1/networks/transfer/expired_tok");
     expect(res.status).toBe(410);
   });
 
@@ -121,24 +121,24 @@ describe("GET /api/networks/transfer/:token", () => {
       expiresAt: new Date(Date.now() + 1e9),
       consumedAt: new Date(), consumedByUserId: userId, createdAt: new Date(),
     });
-    const res = await app.request("/api/networks/transfer/used_tok");
+    const res = await app.request("/api/v1/networks/transfer/used_tok");
     expect(res.status).toBe(410);
   });
 });
 
-describe("POST /api/networks/transfer/:token/accept", () => {
+describe("POST /api/v1/networks/transfer/:token/accept", () => {
   beforeEach(clearAll);
 
   it("swaps ownership: old owner loses access, new owner gets it", async () => {
     const source = await seedUserWithNetwork("Source");
     const dest = await seedUserWithNetwork("Other");
-    const init = await app.request(`/api/networks/${source.networkId}/transfer/init`, {
+    const init = await app.request(`/api/v1/networks/${source.networkId}/transfer/init`, {
       method: "POST", headers: { Cookie: `ifz_user_session=${source.sessionId}` },
     });
     const initBody = await init.json();
     const token = new URL(initBody.url).searchParams.get("token");
 
-    const res = await app.request(`/api/networks/transfer/${token}/accept`, {
+    const res = await app.request(`/api/v1/networks/transfer/${token}/accept`, {
       method: "POST", headers: { Cookie: `ifz_user_session=${dest.sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -170,7 +170,7 @@ describe("POST /api/networks/transfer/:token/accept", () => {
       consumedAt: null, consumedByUserId: null, createdAt: new Date(),
     });
     const dest = await seedUserWithNetwork();
-    const res = await app.request("/api/networks/transfer/exp2/accept", {
+    const res = await app.request("/api/v1/networks/transfer/exp2/accept", {
       method: "POST", headers: { Cookie: `ifz_user_session=${dest.sessionId}` },
     });
     expect(res.status).toBe(410);

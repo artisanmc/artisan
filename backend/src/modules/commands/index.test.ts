@@ -8,10 +8,10 @@ describe("commandsModule", () => {
     expect(commandsModule.schemaVersion).toBe("command/v1");
   });
 
-  it("registers /api/modules/commands/health on the app", async () => {
+  it("registers /api/v1/modules/commands/health on the app", async () => {
     const app = new Hono();
     commandsModule.registerRoutes(app);
-    const res = await app.request("/api/modules/commands/health");
+    const res = await app.request("/api/v1/modules/commands/health");
     expect(res.status).toBe(200);
   });
 });

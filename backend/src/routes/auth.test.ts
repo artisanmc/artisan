@@ -8,10 +8,10 @@ async function cleanupByEmail(email: string) {
   await db.delete(users).where(eq(users.email, email));
 }
 
-describe("POST /api/auth/signup", () => {
+describe("POST /api/v1/auth/signup", () => {
   test("creates a user and sets the session cookie", async () => {
     const email = `signup_${Date.now()}@example.com`;
-    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "correct horse battery staple", name: "Alice" }),
@@ -36,12 +36,12 @@ describe("POST /api/auth/signup", () => {
 
   test("returns 409 when email already taken", async () => {
     const email = `dup_${Date.now()}@example.com`;
-    await app.fetch(new Request("http://x/api/auth/signup", {
+    await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw", name: "A" }),
     }));
-    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "anotherpwwww", name: "B" }),
@@ -52,7 +52,7 @@ describe("POST /api/auth/signup", () => {
   });
 
   test("returns 422 on weak password (<8 chars)", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "weak@example.com", password: "short", name: "W" }),
@@ -62,7 +62,7 @@ describe("POST /api/auth/signup", () => {
   });
 
   test("returns 422 on invalid email", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "noatsign", password: "longenoughpw", name: "X" }),
@@ -72,7 +72,7 @@ describe("POST /api/auth/signup", () => {
   });
 
   test("returns 400 on missing fields", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/signup", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "only@example.com" }),
@@ -81,9 +81,9 @@ describe("POST /api/auth/signup", () => {
   });
 });
 
-describe("POST /api/auth/login", () => {
+describe("POST /api/v1/auth/login", () => {
   async function createTestUser(email: string, password: string): Promise<void> {
-    await app.fetch(new Request("http://x/api/auth/signup", {
+    await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, name: "T" }),
@@ -93,7 +93,7 @@ describe("POST /api/auth/login", () => {
   test("logs in with correct credentials, sets cookie", async () => {
     const email = `login_${Date.now()}@example.com`;
     await createTestUser(email, "longenoughpw");
-    const res = await app.fetch(new Request("http://x/api/auth/login", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
@@ -107,7 +107,7 @@ describe("POST /api/auth/login", () => {
   test("returns 401 on wrong password", async () => {
     const email = `wpw_${Date.now()}@example.com`;
     await createTestUser(email, "longenoughpw");
-    const res = await app.fetch(new Request("http://x/api/auth/login", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "wrongpw1234" }),
@@ -118,7 +118,7 @@ describe("POST /api/auth/login", () => {
   });
 
   test("returns 401 on unknown email", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/login", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "nobody@example.com", password: "whatever1234" }),
@@ -134,7 +134,7 @@ describe("POST /api/auth/login", () => {
       id, email, name: "DOnly", passwordHash: null,
       avatarUrl: null, createdAt: now, updatedAt: now,
     });
-    const res = await app.fetch(new Request("http://x/api/auth/login", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "whatever1234" }),
@@ -144,15 +144,15 @@ describe("POST /api/auth/login", () => {
   });
 });
 
-describe("POST /api/auth/logout", () => {
+describe("POST /api/v1/auth/logout", () => {
   test("destroys session and clears cookie", async () => {
     const email = `lo_${Date.now()}@example.com`;
-    await app.fetch(new Request("http://x/api/auth/signup", {
+    await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw", name: "Lo" }),
     }));
-    const loginRes = await app.fetch(new Request("http://x/api/auth/login", {
+    const loginRes = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
@@ -161,7 +161,7 @@ describe("POST /api/auth/logout", () => {
     const sessionId = /ifz_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
     expect(sessionId).toBeTruthy();
 
-    const res = await app.fetch(new Request("http://x/api/auth/logout", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/logout", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     }));
@@ -174,27 +174,27 @@ describe("POST /api/auth/logout", () => {
   });
 
   test("returns 204 even without cookie (idempotent)", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/logout", { method: "POST" }));
+    const res = await app.fetch(new Request("http://x/api/v1/auth/logout", { method: "POST" }));
     expect(res.status).toBe(204);
   });
 });
 
-describe("GET /api/auth/me", () => {
+describe("GET /api/v1/auth/me", () => {
   test("returns the user when cookie is valid", async () => {
     const email = `me_${Date.now()}@example.com`;
-    await app.fetch(new Request("http://x/api/auth/signup", {
+    await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw", name: "Me" }),
     }));
-    const loginRes = await app.fetch(new Request("http://x/api/auth/login", {
+    const loginRes = await app.fetch(new Request("http://x/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
     const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
 
-    const res = await app.fetch(new Request("http://x/api/auth/me", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(200);
@@ -203,12 +203,12 @@ describe("GET /api/auth/me", () => {
   });
 
   test("returns 401 without cookie", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/me"));
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me"));
     expect(res.status).toBe(401);
   });
 
   test("returns 401 with bogus cookie", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/me", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
       headers: { Cookie: "ifz_user_session=does-not-exist" },
     }));
     expect(res.status).toBe(401);

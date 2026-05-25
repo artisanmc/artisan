@@ -18,8 +18,8 @@ async function clearAll() {
 
 describe("server keys API", () => {
   beforeEach(clearAll);
-  test("POST /api/server-keys returns a sk_ key", async () => {
-    const res = await app.request("/api/server-keys", {
+  test("POST /api/v1/server-keys returns a sk_ key", async () => {
+    const res = await app.request("/api/v1/server-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "my-server" }),
@@ -30,13 +30,13 @@ describe("server keys API", () => {
     expect(body.id).toBeDefined();
   });
 
-  test("GET /api/server-keys lists keys with masked prefix", async () => {
-    await app.request("/api/server-keys", {
+  test("GET /api/v1/server-keys lists keys with masked prefix", async () => {
+    await app.request("/api/v1/server-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "list-test" }),
     });
-    const res = await app.request("/api/server-keys");
+    const res = await app.request("/api/v1/server-keys");
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ id: string; keyPrefix: string }>;
     expect(body.length).toBeGreaterThan(0);

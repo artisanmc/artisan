@@ -5,7 +5,7 @@ import { app } from "../app";
 
 const VER = "test_models_" + Date.now();
 
-describe("GET /api/models/:version/*", () => {
+describe("GET /api/v1/models/:version/*", () => {
   const tmpDir = join(import.meta.dir, `../../data/mc-assets/${VER}`);
 
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe("GET /api/models/:version/*", () => {
   });
 
   test("serves model JSON by version and path", async () => {
-    const res = await app.request(`/api/models/${VER}/block/stone`);
+    const res = await app.request(`/api/v1/models/${VER}/block/stone`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("application/json");
     const body = (await res.json()) as { parent: string };
@@ -36,12 +36,12 @@ describe("GET /api/models/:version/*", () => {
   });
 
   test("returns 404 for missing model", async () => {
-    const res = await app.request(`/api/models/${VER}/block/doesnt_exist`);
+    const res = await app.request(`/api/v1/models/${VER}/block/doesnt_exist`);
     expect(res.status).toBe(404);
   });
 
   test("returns 404 for path traversal", async () => {
-    const res = await app.request(`/api/models/${VER}/../../evil`);
+    const res = await app.request(`/api/v1/models/${VER}/../../evil`);
     expect(res.status).toBe(404);
   });
 
@@ -52,12 +52,12 @@ describe("GET /api/models/:version/*", () => {
       textureFilePath: () => null,
       assetsRoot: () => tmpDir,
     }));
-    const res = await app.request(`/api/models/${VER}/block/stone`);
+    const res = await app.request(`/api/v1/models/${VER}/block/stone`);
     expect(res.status).toBe(404);
   });
 });
 
-describe("GET /api/models/custom/:serverKeyId/*", () => {
+describe("GET /api/v1/models/custom/:serverKeyId/*", () => {
   const SRV = "srv_model_test_" + Date.now();
   const cacheDir = join(import.meta.dir, `../../data/custom-items/${SRV}`);
 
@@ -74,7 +74,7 @@ describe("GET /api/models/custom/:serverKeyId/*", () => {
   });
 
   test("serves custom model JSON", async () => {
-    const res = await app.request(`/api/models/custom/${SRV}/nexo/forest_sword`);
+    const res = await app.request(`/api/v1/models/custom/${SRV}/nexo/forest_sword`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("application/json");
     const body = (await res.json()) as { parent: string };
@@ -82,12 +82,12 @@ describe("GET /api/models/custom/:serverKeyId/*", () => {
   });
 
   test("returns 404 for missing custom model", async () => {
-    const res = await app.request(`/api/models/custom/${SRV}/nexo/doesnt_exist`);
+    const res = await app.request(`/api/v1/models/custom/${SRV}/nexo/doesnt_exist`);
     expect(res.status).toBe(404);
   });
 
   test("returns 404 for path traversal on custom route", async () => {
-    const res = await app.request(`/api/models/custom/${SRV}/../../evil`);
+    const res = await app.request(`/api/v1/models/custom/${SRV}/../../evil`);
     expect(res.status).toBe(404);
   });
 });

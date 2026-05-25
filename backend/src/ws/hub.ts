@@ -201,7 +201,7 @@ export async function handlePluginMessage(
         const available: BundleAvailableMessage = {
           type: "bundle_available",
           pack_id: b.packId,
-          url: `${BUNDLE_BASE_URL}/api/bundles/${b.packId}?branch=${encodeURIComponent(b.branchName)}`,
+          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.packId}?branch=${encodeURIComponent(b.branchName)}`,
           hash,
           signature: "",
         };
@@ -391,7 +391,7 @@ export async function pushBundleAvailable(
     .where(and(eq(packBindings.packId, packId), eq(packBindings.branchName, branchName)));
   if (targets.length === 0) return;
 
-  const url = `${BUNDLE_BASE_URL}/api/bundles/${packId}?branch=${encodeURIComponent(branchName)}`;
+  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${packId}?branch=${encodeURIComponent(branchName)}`;
   const payload = JSON.stringify({
     type: "bundle_available",
     pack_id: packId,
