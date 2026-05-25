@@ -19,6 +19,9 @@ import { userBranchesRouter } from "./routes/userBranches";
 import { userAuth } from "./middleware/userAuth";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
+import { mountModules } from "./modules/api/moduleRegistry";
+import { menusModule } from "./modules/menus";
+import { commandsModule } from "./modules/commands";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
@@ -46,6 +49,8 @@ app.route("/api/networks", userNetworksRouter);
 app.route("/api/networks", userBranchesRouter);
 app.use("/api/user/packs/*", userAuth());
 app.route("/api/user/packs", userPacksRouter);
+
+mountModules(app, [menusModule, commandsModule]);
 
 app.get(
   "/ws/plugin",
