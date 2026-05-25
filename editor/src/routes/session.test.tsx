@@ -14,11 +14,14 @@ vi.mock("@/state/accountStore", () => ({
   },
 }));
 
-vi.mock("@/state/authStore", () => ({
-  useAuthStore: {
-    getState: () => ({ hydrate: vi.fn() }),
-  },
-}));
+vi.mock("@/state/authStore", () => {
+  const store = Object.assign(
+    (selector: (s: { currentUser: null; hydrate: () => void }) => unknown) =>
+      selector({ currentUser: null, hydrate: () => {} }),
+    { getState: () => ({ hydrate: () => {} }) },
+  );
+  return { useAuthStore: store };
+});
 
 vi.mock("@/lib/packApi");
 vi.mock("@/lib/i18nKeys");

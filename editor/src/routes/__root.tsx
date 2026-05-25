@@ -7,6 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import type { Pack } from "@/domain/types";
+import { ModuleSidebar } from "@/components/ModuleSidebar";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -15,6 +16,7 @@ export const Route = createRootRoute({
 export function RootLayout() {
   usePackAutoSave();
   const networkId = useSessionStore((s) => s.networkId);
+  const user = useAuthStore((s) => s.currentUser);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
@@ -26,8 +28,15 @@ export function RootLayout() {
           Network: <code className="text-zinc-300">{networkId}</code>
         </div>
       )}
-      <div className="flex-1">
-        <Outlet />
+      <div className="flex-1 flex overflow-hidden">
+        {user && (
+          <aside className="w-48 border-r border-zinc-800 bg-zinc-950 shrink-0">
+            <ModuleSidebar />
+          </aside>
+        )}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
