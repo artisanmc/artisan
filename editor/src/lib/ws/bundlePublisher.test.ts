@@ -6,7 +6,7 @@ describe("publishBundle", () => {
     vi.unstubAllGlobals();
   });
 
-  it("POSTs files to /api/bundles/:packId with Bearer auth", async () => {
+  it("POSTs files to /api/v1/bundles/:packId with Bearer auth", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ hash: "abc123" }),
@@ -22,7 +22,7 @@ describe("publishBundle", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/bundles/p_test",
+      "http://localhost:3001/api/v1/bundles/p_test",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

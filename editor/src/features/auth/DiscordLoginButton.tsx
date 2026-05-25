@@ -12,7 +12,7 @@ export function DiscordLoginButton({ apiUrl }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${apiUrl}/api/auth/discord/configured`)
+    fetch(`${apiUrl}/api/v1/auth/discord/configured`)
       .then((r) => r.ok ? r.json() as Promise<{ configured: boolean }> : { configured: false })
       .then((d) => { if (!cancelled) setConfigured(d.configured); })
       .catch(() => { if (!cancelled) setConfigured(false); });
@@ -22,7 +22,7 @@ export function DiscordLoginButton({ apiUrl }: Props) {
   if (configured !== true) return null;
 
   function onClick() {
-    window.location.href = `${apiUrl}/api/auth/discord/start`;
+    window.location.href = `${apiUrl}/api/v1/auth/discord/start`;
   }
   return (
     <button

@@ -20,7 +20,7 @@ describe("networks API client", () => {
     vi.restoreAllMocks();
   });
 
-  it("listNetworks GET /api/networks returns list", async () => {
+  it("listNetworks GET /api/v1/networks returns list", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -35,12 +35,12 @@ describe("networks API client", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("n1");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks$/),
+      expect.stringMatching(/\/api\/v1\/networks$/),
       expect.objectContaining({ credentials: "include" })
     );
   });
 
-  it("createNetwork POST /api/networks returns new network", async () => {
+  it("createNetwork POST /api/v1/networks returns new network", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -52,7 +52,7 @@ describe("networks API client", () => {
     const result = await createNetwork("Test Network");
     expect(result.name).toBe("Test Network");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks$/),
+      expect.stringMatching(/\/api\/v1\/networks$/),
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -61,7 +61,7 @@ describe("networks API client", () => {
     );
   });
 
-  it("getNetwork GET /api/networks/:id returns detail", async () => {
+  it("getNetwork GET /api/v1/networks/:id returns detail", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -78,7 +78,7 @@ describe("networks API client", () => {
     expect(result.serverKeys).toHaveLength(1);
   });
 
-  it("createServerKey POST /api/networks/:id/server-keys returns key", async () => {
+  it("createServerKey POST /api/v1/networks/:id/server-keys returns key", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -93,12 +93,12 @@ describe("networks API client", () => {
     expect(result.id).toBe("sk_new");
     expect(result.key).toBe("sk_abc123");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/n1\/server-keys$/),
+      expect.stringMatching(/\/api\/v1\/networks\/n1\/server-keys$/),
       expect.objectContaining({ method: "POST" })
     );
   });
 
-  it("createPack POST /api/networks/:id/packs returns pack", async () => {
+  it("createPack POST /api/v1/networks/:id/packs returns pack", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -110,7 +110,7 @@ describe("networks API client", () => {
     const result = await createPack("n1", "new-pack");
     expect(result.name).toBe("new-pack");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/n1\/packs$/),
+      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs$/),
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -119,7 +119,7 @@ describe("networks API client", () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 201 }));
     await bindPackToServerKey("n1", "p1", "sk_1");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
+      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -128,7 +128,7 @@ describe("networks API client", () => {
     global.fetch = vi.fn(async () => new Response(null, { status: 204 }));
     await unbindPack("n1", "p1", "sk_1");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
+      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
       expect.objectContaining({ method: "DELETE" })
     );
   });
@@ -145,7 +145,7 @@ describe("network transfer API clients", () => {
     );
     expect(await initNetworkTransfer("net_x")).toEqual({ url: "/transfer?token=t1", expiresAt: "x" });
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/net_x\/transfer\/init$/),
+      expect.stringMatching(/\/api\/v1\/networks\/net_x\/transfer\/init$/),
       expect.objectContaining({ method: "POST", credentials: "include" })
     );
   });
@@ -183,7 +183,7 @@ describe("network transfer API clients", () => {
     );
     expect(await acceptNetworkTransfer("tok")).toEqual({ networkId: "n1" });
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/transfer\/tok\/accept$/),
+      expect.stringMatching(/\/api\/v1\/networks\/transfer\/tok\/accept$/),
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -192,7 +192,7 @@ describe("network transfer API clients", () => {
     global.fetch = vi.fn(async () => new Response(null, { status: 204 }));
     await expect(deleteServerKey("net_x", "sk_y")).resolves.toBeUndefined();
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/networks\/net_x\/server-keys\/sk_y$/),
+      expect.stringMatching(/\/api\/v1\/networks\/net_x\/server-keys\/sk_y$/),
       expect.objectContaining({ method: "DELETE" })
     );
   });
@@ -215,7 +215,7 @@ describe("claimLinkCode", () => {
     );
     expect(await claimLinkCode("ABC")).toEqual(body);
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/link\/ABC\/claim$/),
+      expect.stringMatching(/\/api\/v1\/link\/ABC\/claim$/),
       expect.objectContaining({ method: "POST" })
     );
   });

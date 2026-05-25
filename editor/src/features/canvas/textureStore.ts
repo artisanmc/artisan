@@ -44,7 +44,7 @@ export const useTextureStore = create<TextureState>()((set) => ({
     for (const item of items) {
       if (!item.texture) continue;
       customByMaterial[item.id.toLowerCase()] =
-        `${API_URL}/api/textures/custom/${serverKeyId}/${item.texture}`;
+        `${API_URL}/api/v1/textures/custom/${serverKeyId}/${item.texture}`;
     }
     set({ customByMaterial });
   },
@@ -69,7 +69,7 @@ export function useTextureUrl(material: string): string | undefined {
   if (renderedByMaterial[key]) return renderedByMaterial[key];
   if (customByMaterial[key]) return customByMaterial[key];
   const tex = byMaterial[key];
-  if (version && tex) return `${API_URL}/api/textures/${version}/${tex}`;
+  if (version && tex) return `${API_URL}/api/v1/textures/${version}/${tex}`;
   return undefined;
 }
 
@@ -83,6 +83,6 @@ export function getTextureUrl(material: string): string | undefined {
   if (renderedByMaterial[key]) return renderedByMaterial[key];
   if (customByMaterial[key]) return customByMaterial[key];
   const tex = byMaterial[key];
-  if (version && tex) return `${API_URL}/api/textures/${version}/${tex}`;
+  if (version && tex) return `${API_URL}/api/v1/textures/${version}/${tex}`;
   return undefined;
 }

@@ -37,5 +37,5 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {
-  return `${API_URL}/api/textures/asset/${asset.packId}/${asset.id}?h=${asset.contentHash}`;
+  return `${API_URL}/api/v1/textures/asset/${asset.packId}/${asset.id}?h=${asset.contentHash}`;
 }

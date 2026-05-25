@@ -29,22 +29,22 @@ export async function signup(
   { apiUrl }: ApiOptions,
   payload: { email: string; password: string; name: string },
 ) {
-  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/auth/signup`, payload);
+  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/signup`, payload);
 }
 
 export async function login(
   { apiUrl }: ApiOptions,
   payload: { email: string; password: string },
 ) {
-  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/auth/login`, payload);
+  return postJson<{ user: AuthUserDto }>(`${apiUrl}/api/v1/auth/login`, payload);
 }
 
 export async function logout({ apiUrl }: ApiOptions) {
-  await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", credentials: "include" });
+  await fetch(`${apiUrl}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
 }
 
 export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null> {
-  const res = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+  const res = await fetch(`${apiUrl}/api/v1/auth/me`, { credentials: "include" });
   if (res.status === 401) return null;
   if (!res.ok) return null;
   const data = (await res.json()) as { user: AuthUserDto };
