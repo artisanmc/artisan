@@ -55,7 +55,7 @@ describe("fontGlyphUrl", () => {
   it("returns URL with contentHash query param and texture path for known char", () => {
     const asset = makeFontAsset();
     expect(fontGlyphUrl(asset, "a")).toBe(
-      `${API_URL}/api/textures/asset-font/font-1/glyphs/a.png?h=abc123`,
+      `${API_URL}/api/v1/textures/asset-font/font-1/glyphs/a.png?h=abc123`,
     );
   });
 
@@ -74,7 +74,7 @@ describe("fontGlyphUrl", () => {
       },
     });
     expect(fontGlyphUrl(asset, "x")).toBe(
-      `${API_URL}/api/textures/asset-font/font-1/glyphs/sub-dir/x_1.png?h=abc123`,
+      `${API_URL}/api/v1/textures/asset-font/font-1/glyphs/sub-dir/x_1.png?h=abc123`,
     );
   });
 
@@ -93,7 +93,7 @@ describe("fontGlyphUrl", () => {
     // `-`, `_`, alphanumerics — so `../escape.png` becomes `../escape.png`
     // (backend enforces path-traversal guard); `$foo.png` becomes `foo.png`.
     expect(fontGlyphUrl(asset, "d")).toBe(
-      `${API_URL}/api/textures/asset-font/font-1/foo.png?h=abc123`,
+      `${API_URL}/api/v1/textures/asset-font/font-1/foo.png?h=abc123`,
     );
     // Verify `$` was actually stripped.
     expect(fontGlyphUrl(asset, "d")).not.toContain("$");

@@ -49,7 +49,7 @@ describe("resolveModel", () => {
     vi.mocked(fetch).mockResolvedValue({ ok: false } as Response);
     await resolveModel("nexo/forest_sword", "1.21.4", true, "srv_abc");
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      expect.stringContaining("/api/models/custom/srv_abc/nexo/forest_sword"),
+      expect.stringContaining("/api/v1/models/custom/srv_abc/nexo/forest_sword"),
     );
   });
 });

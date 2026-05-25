@@ -8,7 +8,7 @@ export interface UserPackLoadResult {
 }
 
 export async function loadUserPack(packId: string): Promise<UserPackLoadResult> {
-  const res = await fetch(`${API_URL}/api/user/packs/${packId}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/user/packs/${packId}`, { credentials: "include" });
   if (!res.ok) throw new Error(`loadUserPack failed: ${res.status}`);
   return res.json();
 }
@@ -26,7 +26,7 @@ export async function saveUserPack(
   packId: string,
   body: { hash: string; files: Record<string, string>; editor: unknown },
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/user/packs/${packId}`, {
+  const res = await fetch(`${API_URL}/api/v1/user/packs/${packId}`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

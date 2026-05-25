@@ -6,7 +6,7 @@ describe("userPacks API client", () => {
     vi.restoreAllMocks();
   });
 
-  it("loadUserPack GET /api/user/packs/:packId returns content", async () => {
+  it("loadUserPack GET /api/v1/user/packs/:packId returns content", async () => {
     global.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -22,7 +22,7 @@ describe("userPacks API client", () => {
     expect(res.files["a.yaml"]).toBe("x");
   });
 
-  it("saveUserPack PUT /api/user/packs/:packId sends body", async () => {
+  it("saveUserPack PUT /api/v1/user/packs/:packId sends body", async () => {
     global.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ ok: true }), { status: 200 })
     );
@@ -32,7 +32,7 @@ describe("userPacks API client", () => {
       editor: { id: "p1", menus: [] },
     });
     const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(call[0]).toContain("/api/user/packs/p1");
+    expect(call[0]).toContain("/api/v1/user/packs/p1");
     expect(call[1].method).toBe("PUT");
     expect(JSON.parse(call[1].body as string).hash).toBe("h2");
   });

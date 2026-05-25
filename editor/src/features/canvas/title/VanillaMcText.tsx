@@ -20,9 +20,9 @@ function advance(ch: string): number {
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 const ATLAS_URLS: Record<AtlasName, string> = {
-  ascii: `${API_URL}/api/textures/1.21.4/font/ascii`,
-  accented: `${API_URL}/api/textures/1.21.4/font/accented`,
-  nonlatin_european: `${API_URL}/api/textures/1.21.4/font/nonlatin_european`,
+  ascii: `${API_URL}/api/v1/textures/1.21.4/font/ascii`,
+  accented: `${API_URL}/api/v1/textures/1.21.4/font/accented`,
+  nonlatin_european: `${API_URL}/api/v1/textures/1.21.4/font/nonlatin_european`,
 };
 
 // All atlases share the same ascent reference: the canvas's top-of-line is

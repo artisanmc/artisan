@@ -18,13 +18,13 @@ export interface PackSummary {
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {
-  const res = await fetch(`${API_URL}/api/networks`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks`, { credentials: "include" });
   if (!res.ok) throw new Error(`listNetworks failed: ${res.status}`);
   return ((await res.json()) as { networks: NetworkSummary[] }).networks;
 }
 
 export async function createNetwork(name: string): Promise<NetworkSummary> {
-  const res = await fetch(`${API_URL}/api/networks`, {
+  const res = await fetch(`${API_URL}/api/v1/networks`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -39,7 +39,7 @@ export async function getNetwork(id: string): Promise<{
   packs: PackSummary[];
   serverKeys: ServerKeySummary[];
 }> {
-  const res = await fetch(`${API_URL}/api/networks/${id}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks/${id}`, { credentials: "include" });
   if (!res.ok) throw new Error(`getNetwork failed: ${res.status}`);
   return res.json();
 }
@@ -48,7 +48,7 @@ export async function createServerKey(
   networkId: string,
   label?: string,
 ): Promise<{ id: string; key: string; label: string | null }> {
-  const res = await fetch(`${API_URL}/api/networks/${networkId}/server-keys`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -63,7 +63,7 @@ export async function createPack(
   name: string,
   description?: string,
 ): Promise<PackSummary> {
-  const res = await fetch(`${API_URL}/api/networks/${networkId}/packs`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -79,7 +79,7 @@ export async function bindPackToServerKey(
   serverKeyId: string,
 ): Promise<void> {
   const res = await fetch(
-    `${API_URL}/api/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
     { method: "POST", credentials: "include" },
   );
   if (!res.ok) throw new Error(`bind failed: ${res.status}`);
@@ -91,7 +91,7 @@ export async function unbindPack(
   serverKeyId: string,
 ): Promise<void> {
   const res = await fetch(
-    `${API_URL}/api/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
     { method: "DELETE", credentials: "include" },
   );
   if (!res.ok) throw new Error(`unbind failed: ${res.status}`);
@@ -115,7 +115,7 @@ export interface TransferInfo {
 export type TransferState = TransferInfo | "expired" | "consumed" | "not_found";
 
 export async function initNetworkTransfer(networkId: string): Promise<TransferInitResponse> {
-  const res = await fetch(`${API_URL}/api/networks/${networkId}/transfer/init`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/transfer/init`, {
     method: "POST",
     credentials: "include",
   });
@@ -124,7 +124,7 @@ export async function initNetworkTransfer(networkId: string): Promise<TransferIn
 }
 
 export async function getNetworkTransfer(token: string): Promise<TransferState> {
-  const res = await fetch(`${API_URL}/api/networks/transfer/${token}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks/transfer/${token}`, { credentials: "include" });
   if (res.status === 404) return "not_found";
   if (res.status === 410) {
     const body = await res.json().catch(() => ({})) as { error?: string };
@@ -135,7 +135,7 @@ export async function getNetworkTransfer(token: string): Promise<TransferState> 
 }
 
 export async function acceptNetworkTransfer(token: string): Promise<{ networkId: string }> {
-  const res = await fetch(`${API_URL}/api/networks/transfer/${token}/accept`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/transfer/${token}/accept`, {
     method: "POST",
     credentials: "include",
   });
@@ -145,7 +145,7 @@ export async function acceptNetworkTransfer(token: string): Promise<{ networkId:
 }
 
 export async function deleteServerKey(networkId: string, keyId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/networks/${networkId}/server-keys/${keyId}`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -172,7 +172,7 @@ export async function claimLinkCode(
   code: string,
   networkId?: string,
 ): Promise<{ server_key_id: string; network_id: string }> {
-  const res = await fetch(`${API_URL}/api/link/${code}/claim`, {
+  const res = await fetch(`${API_URL}/api/v1/link/${code}/claim`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

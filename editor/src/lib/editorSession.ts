@@ -14,7 +14,7 @@ export interface ExchangeResult {
 }
 
 export async function exchangeEditorSession(urlToken: string): Promise<ExchangeResult> {
-  const res = await fetch(`${API_URL}/api/editor-session/${urlToken}/exchange`, { method: "POST", credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${urlToken}/exchange`, { method: "POST", credentials: "include" });
   if (!res.ok) {
     const body = await res.json() as { error?: string };
     throw new Error(body.error === "already_used" ? "already_used" : "Session invalide ou expirée");
@@ -23,7 +23,7 @@ export async function exchangeEditorSession(urlToken: string): Promise<ExchangeR
 }
 
 export async function refreshEditorSession(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/api/editor-session/refresh`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/refresh`, {
     method: "POST",
     credentials: "include",
   });
@@ -33,13 +33,13 @@ export async function refreshEditorSession(): Promise<string | null> {
 }
 
 export async function validateEditorSession(accessToken: string): Promise<EditorSessionInfo> {
-  const res = await fetch(`${API_URL}/api/editor-session/${accessToken}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${accessToken}`, { credentials: "include" });
   if (!res.ok) throw new Error("Session invalide ou expirée");
   return res.json() as Promise<EditorSessionInfo>;
 }
 
 export async function revokeEditorSession(accessToken: string): Promise<void> {
-  await fetch(`${API_URL}/api/editor-session/${accessToken}`, {
+  await fetch(`${API_URL}/api/v1/editor-session/${accessToken}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -51,7 +51,7 @@ export async function saveDraft(
   menuId: string,
   menuYaml: string,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/editor-session/${accessToken}/draft`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${accessToken}/draft`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack_id: packId, menu_id: menuId, menu_yaml: menuYaml }),
