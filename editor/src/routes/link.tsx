@@ -14,6 +14,7 @@ type Status = "loading" | "ready" | "claiming" | "done" | "error";
 
 function LinkRoute() {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const code = new URLSearchParams(window.location.search).get("code")?.toUpperCase() ?? null;
   const [networks, setNetworks] = useState<NetworkSummary[] | null>(null);
@@ -22,6 +23,7 @@ function LinkRoute() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!currentUser) {
       navigate({ to: "/login", search: { next: `/link?code=${code}` } });
       return;
@@ -54,7 +56,7 @@ function LinkRoute() {
         setStatus("error");
         setErrorMessage("Impossible de charger les networks.");
       });
-  }, [currentUser, code, navigate]);
+  }, [currentUser, isAuthLoading, code, navigate]);
 
   const handleConfirm = async () => {
     if (!selectedId || !code) return;

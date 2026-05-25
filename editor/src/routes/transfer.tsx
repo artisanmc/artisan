@@ -14,11 +14,13 @@ type ViewState = "loading" | TransferInfo | "expired" | "consumed" | "not_found"
 
 function TransferRoute() {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const token = new URLSearchParams(window.location.search).get("token");
   const [state, setState] = useState<ViewState>("loading");
 
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!currentUser) {
       navigate({ to: "/login", search: { next: `/transfer?token=${token}` } });
       return;
@@ -30,7 +32,7 @@ function TransferRoute() {
     getNetworkTransfer(token)
       .then((r: TransferState) => setState(r))
       .catch(() => setState("error"));
-  }, [currentUser, token, navigate]);
+  }, [currentUser, isAuthLoading, token, navigate]);
 
   if (state === "loading") {
     return <div className="p-8">Chargement…</div>;
