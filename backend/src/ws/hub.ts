@@ -436,6 +436,17 @@ export function broadcastDraftUpdate(
   }
 }
 
+export function pushModuleEvent(
+  serverKeyId: string,
+  event: { kind: "config_reload"; module_id: string } | { kind: "data_reload"; data_source_ref: string },
+): void {
+  const payload = JSON.stringify({ type: "module_event", payload: event });
+  for (const [sessionId, send] of editorSenders) {
+    if (editorTokenToServer.get(sessionId) !== serverKeyId) continue;
+    send(payload);
+  }
+}
+
 export function trackEditorIp(sessionId: string, ip: string): void {
   editorTokenToIp.set(sessionId, ip);
 }
