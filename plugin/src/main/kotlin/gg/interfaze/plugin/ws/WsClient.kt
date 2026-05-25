@@ -48,6 +48,8 @@ class WsClient(
             retryDelay = 1
             val hello = mapOf(
                 "type" to "hello",
+                "protocol_version" to "1",
+                "core_version" to "1.0.0",   // Mirrors plugin_version (kept for backward compat).
                 "server_key" to serverKey,
                 "plugin_version" to "1.0.0",
                 "minecraft_version" to mcVersion,
