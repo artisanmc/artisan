@@ -35,18 +35,18 @@ async function seedUser(id = "u1") {
 
 function makeApp() {
   const app = new Hono();
-  app.use("/api/networks/*", userAuth());
-  app.route("/api/networks", userNetworksRouter);
+  app.use("/api/v1/networks/*", userAuth());
+  app.route("/api/v1/networks", userNetworksRouter);
   return app;
 }
 
 describe("userNetworksRouter", () => {
   beforeEach(clearAll);
 
-  test("GET /api/networks returns empty array for new user", async () => {
+  test("GET /api/v1/networks returns empty array for new user", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const res = await app.request("/api/networks", {
+    const res = await app.request("/api/v1/networks", {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -54,16 +54,16 @@ describe("userNetworksRouter", () => {
     expect(body.networks).toEqual([]);
   });
 
-  test("GET /api/networks 401 without cookie", async () => {
+  test("GET /api/v1/networks 401 without cookie", async () => {
     const app = makeApp();
-    const res = await app.request("/api/networks");
+    const res = await app.request("/api/v1/networks");
     expect(res.status).toBe(401);
   });
 
-  test("POST /api/networks creates Network and owner Membership", async () => {
+  test("POST /api/v1/networks creates Network and owner Membership", async () => {
     const { userId, sessionId } = await seedUser();
     const app = makeApp();
-    const res = await app.request("/api/networks", {
+    const res = await app.request("/api/v1/networks", {
       method: "POST",
       headers: {
         Cookie: `ifz_user_session=${sessionId}`,
@@ -81,10 +81,10 @@ describe("userNetworksRouter", () => {
     expect(memb[0].networkId).toBe(body.network.id);
   });
 
-  test("POST /api/networks 422 when name missing", async () => {
+  test("POST /api/v1/networks 422 when name missing", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const res = await app.request("/api/networks", {
+    const res = await app.request("/api/v1/networks", {
       method: "POST",
       headers: {
         Cookie: `ifz_user_session=${sessionId}`,
@@ -95,21 +95,21 @@ describe("userNetworksRouter", () => {
     expect(res.status).toBe(422);
   });
 
-  test("GET /api/networks returns user's networks", async () => {
+  test("GET /api/v1/networks returns user's networks", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    await app.request("/api/networks", {
+    await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N1" }),
     });
-    await app.request("/api/networks", {
+    await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N2" }),
     });
 
-    const list = await (await app.request("/api/networks", {
+    const list = await (await app.request("/api/v1/networks", {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     })).json();
     expect(list.networks).toHaveLength(2);
@@ -117,12 +117,12 @@ describe("userNetworksRouter", () => {
   });
 
   // A3 tests
-  test("GET /api/networks/:id returns detail with packs + serverKeys", async () => {
+  test("GET /api/v1/networks/:id returns detail with packs + serverKeys", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
 
     // Create network
-    const create = await app.request("/api/networks", {
+    const create = await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N1" }),
@@ -140,7 +140,7 @@ describe("userNetworksRouter", () => {
       label: null,
     });
 
-    const res = await app.request(`/api/networks/${network.id}`, {
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -152,13 +152,13 @@ describe("userNetworksRouter", () => {
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
   });
 
-  test("GET /api/networks/:id 403 when not member", async () => {
+  test("GET /api/v1/networks/:id 403 when not member", async () => {
     const { sessionId: sessA } = await seedUser("uA");
     await seedUser("uB");
     const app = makeApp();
 
     // uA creates a network
-    const create = await app.request("/api/networks", {
+    const create = await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
@@ -168,23 +168,23 @@ describe("userNetworksRouter", () => {
     // uB tries to read it
     const { createSession: cs } = await import("../lib/sessionManager");
     const sessB = (await cs("uB")).id;
-    const res = await app.request(`/api/networks/${network.id}`, {
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
       headers: { Cookie: `ifz_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
 
   // A4 tests
-  test("POST /api/networks/:id/server-keys creates server_key and returns plaintext", async () => {
+  test("POST /api/v1/networks/:id/server-keys creates server_key and returns plaintext", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const res = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "test-server" }),
@@ -199,11 +199,11 @@ describe("userNetworksRouter", () => {
     expect(sk[0].label).toBe("test-server");
   });
 
-  test("POST /api/networks/:id/server-keys 403 when not member", async () => {
+  test("POST /api/v1/networks/:id/server-keys 403 when not member", async () => {
     const { sessionId: sessA } = await seedUser("uA");
     await seedUser("uB");
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
@@ -211,7 +211,7 @@ describe("userNetworksRouter", () => {
 
     const { createSession: cs } = await import("../lib/sessionManager");
     const sessB = (await cs("uB")).id;
-    const res = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessB}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "x" }),
@@ -220,16 +220,16 @@ describe("userNetworksRouter", () => {
   });
 
   // A5 test
-  test("POST /api/networks/:id/packs creates pack in network", async () => {
+  test("POST /api/v1/networks/:id/packs creates pack in network", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const res = await app.request(`/api/networks/${network.id}/packs`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "my-pack", description: "desc" }),
@@ -245,20 +245,20 @@ describe("userNetworksRouter", () => {
   test("POST binding with {branch_name: 'dev'} creates binding pointing to dev", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
-    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
@@ -272,7 +272,7 @@ describe("userNetworksRouter", () => {
     await createBranch(pack.id, "dev", mainBranch!.headCommitId);
 
     // Bind with branch_name: "dev"
-    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch_name: "dev" }),
@@ -287,27 +287,27 @@ describe("userNetworksRouter", () => {
   test("POST binding 404 when branch_name does not exist", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
-    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
     });
     const { pack } = await packRes.json();
 
-    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch_name: "ghost" }),
@@ -321,20 +321,20 @@ describe("userNetworksRouter", () => {
   test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
-    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
@@ -342,7 +342,7 @@ describe("userNetworksRouter", () => {
     const { pack } = await packRes.json();
 
     // Bind
-    const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -353,7 +353,7 @@ describe("userNetworksRouter", () => {
     expect(bindings[0].serverKeyId).toBe(skId);
 
     // Unbind
-    const unbind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+    const unbind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "DELETE",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -365,20 +365,20 @@ describe("userNetworksRouter", () => {
 });
 
 // C4 tests
-describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
+describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
   test("owner can delete a server_key and cascade pack_bindings", async () => {
     const { sessionId } = await seedUser(`u_c4_${Math.random().toString(36).slice(2, 8)}`);
     const app = makeApp();
 
     // Create network
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "C4Net" }),
     })).json();
 
     // Create server_key via API
-    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "c4-key" }),
@@ -386,14 +386,14 @@ describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
     const { id: skId } = await skRes.json();
 
     // Create a pack and bind it
-    const packRes = await app.request(`/api/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "c4-pack" }),
     });
     const { pack } = await packRes.json();
 
-    await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+    await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -403,7 +403,7 @@ describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
     expect(bindingsBefore).toHaveLength(1);
 
     // Delete server_key
-    const res = await app.request(`/api/networks/${network.id}/server-keys/${skId}`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}`, {
       method: "DELETE",
       headers: { Cookie: `ifz_user_session=${sessionId}` },
     });
@@ -425,13 +425,13 @@ describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
     const app = makeApp();
 
     // uA creates network + server_key
-    const { network } = await (await app.request("/api/networks", {
+    const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "C4ForbidNet" }),
     })).json();
 
-    const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
       headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -439,7 +439,7 @@ describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
     const { id: skId } = await skRes.json();
 
     // uB tries to delete
-    const res = await app.request(`/api/networks/${network.id}/server-keys/${skId}`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}`, {
       method: "DELETE",
       headers: { Cookie: `ifz_user_session=${sessB}` },
     });

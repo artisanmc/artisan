@@ -82,7 +82,7 @@ describe("rebuildResourcePack", () => {
     await seedGlyph(packId, "coin", 0xE000);
     const { hash, url } = await rebuildResourcePack(serverKeyId);
     expect(hash).toMatch(/^[0-9a-f]{40}$/);
-    expect(url).toMatch(new RegExp(`/api/resource-pack/${serverKeyId}/${hash}\\.zip$`));
+    expect(url).toMatch(new RegExp(`/api/v1/resource-pack/${serverKeyId}/${hash}\\.zip$`));
     expect(existsSync(resourcePackPath(serverKeyId, hash))).toBe(true);
 
     const rows = await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId));
@@ -128,7 +128,7 @@ describe("rebuildResourcePack", () => {
     const info = await currentPackInfo(serverKeyId);
     expect(info).not.toBeNull();
     expect(info!.hash).toBe(hash);
-    expect(info!.url.endsWith(`/api/resource-pack/${serverKeyId}/${hash}.zip`)).toBe(true);
+    expect(info!.url.endsWith(`/api/v1/resource-pack/${serverKeyId}/${hash}.zip`)).toBe(true);
   });
 
   test("multi-pack: server_key bound to 2 packs with colliding codepoints → asset-index has distinct final codepoints", async () => {

@@ -86,7 +86,7 @@ describe("handlePluginMessage", () => {
   });
 
   test("hello with valid key returns hello_ack", async () => {
-    const createRes = await app.request("/api/server-keys", {
+    const createRes = await app.request("/api/v1/server-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "hub-test" }),
@@ -206,7 +206,7 @@ describe("setup_request", () => {
 
 describe("setup_claim", () => {
   test("valid code returns link_confirmed and pushes it to the registered conn", async () => {
-    const createRes = await app.request("/api/link", { method: "POST" });
+    const createRes = await app.request("/api/v1/link", { method: "POST" });
     const { code } = (await createRes.json()) as { code: string };
 
     const received: string[] = [];
@@ -346,7 +346,7 @@ describe("broadcastDraftUpdate", () => {
 
 describe("getMcVersion", () => {
   test("hello stores minecraft_version, getMcVersion returns it", async () => {
-    const createRes = await app.request("/api/server-keys", {
+    const createRes = await app.request("/api/v1/server-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "mc-version-test" }),

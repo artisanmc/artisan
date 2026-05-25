@@ -11,7 +11,7 @@ import { editorSessionRouter } from "./editorSession";
 
 // Minimal local app — avoids importing broken bundles router
 const app = new Hono();
-app.route("/api/editor-session", editorSessionRouter);
+app.route("/api/v1/editor-session", editorSessionRouter);
 
 // ─── Cleanup ───────────────────────────────────────────────────────────────
 // FK-safe cleanup order for each test
@@ -86,7 +86,7 @@ async function createSession(serverId?: string): Promise<{ token: string; keyId:
     createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     trustCode,
   });
-  const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+  const res = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
   const { access_token } = await res.json() as { access_token: string };
   return { token: access_token, keyId };
 }
@@ -202,10 +202,10 @@ describe("validateEditorToken", () => {
   });
 });
 
-describe("POST /api/editor-session/:urlToken/exchange", () => {
+describe("POST /api/v1/editor-session/:urlToken/exchange", () => {
   test("200 returns access_token + trust_code, sets cookie", async () => {
     const { urlToken } = await createRawSession();
-    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const res = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     expect(res.status).toBe(200);
     const body = await res.json() as { access_token: string; expires_in: number; trust_code: string };
     expect(typeof body.access_token).toBe("string");
@@ -220,15 +220,15 @@ describe("POST /api/editor-session/:urlToken/exchange", () => {
 
   test("401 already_used on second call", async () => {
     const { urlToken } = await createRawSession();
-    await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
-    const res2 = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const res2 = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     expect(res2.status).toBe(401);
     const body = await res2.json() as { error: string };
     expect(body.error).toBe("already_used");
   });
 
   test("401 for unknown url token", async () => {
-    const res = await app.request("/api/editor-session/unknowntoken000000000000000000/exchange", { method: "POST" });
+    const res = await app.request("/api/v1/editor-session/unknowntoken000000000000000000/exchange", { method: "POST" });
     expect(res.status).toBe(401);
   });
 
@@ -241,7 +241,7 @@ describe("POST /api/editor-session/:urlToken/exchange", () => {
       trustCode: generateTrustCode(),
       revokedAt: new Date(),
     });
-    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const res = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     expect(res.status).toBe(401);
   });
 
@@ -254,20 +254,20 @@ describe("POST /api/editor-session/:urlToken/exchange", () => {
       expiresAt: new Date(Date.now() - 1),
       trustCode: generateTrustCode(),
     });
-    const res = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const res = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     expect(res.status).toBe(401);
   });
 });
 
-describe("POST /api/editor-session/refresh", () => {
+describe("POST /api/v1/editor-session/refresh", () => {
   test("200 returns new access_token and rotates cookie", async () => {
     const { urlToken } = await createRawSession();
-    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const exchangeRes = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
     const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
     expect(refreshToken).not.toBe("");
 
-    const res = await app.request("/api/editor-session/refresh", {
+    const res = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
       headers: { "Cookie": `ifz_refresh=${refreshToken}` },
     });
@@ -279,7 +279,7 @@ describe("POST /api/editor-session/refresh", () => {
   });
 
   test("401 for unknown refresh token", async () => {
-    const res = await app.request("/api/editor-session/refresh", {
+    const res = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
       headers: { "Cookie": "ifz_refresh=unknowntoken000000000000000" },
     });
@@ -287,22 +287,22 @@ describe("POST /api/editor-session/refresh", () => {
   });
 
   test("401 when no cookie", async () => {
-    const res = await app.request("/api/editor-session/refresh", { method: "POST" });
+    const res = await app.request("/api/v1/editor-session/refresh", { method: "POST" });
     expect(res.status).toBe(401);
   });
 
   test("old refresh token rejected after rotation", async () => {
     const { urlToken } = await createRawSession();
-    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const exchangeRes = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
     const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
 
-    await app.request("/api/editor-session/refresh", {
+    await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
       headers: { "Cookie": `ifz_refresh=${refreshToken}` },
     });
 
-    const res2 = await app.request("/api/editor-session/refresh", {
+    const res2 = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
       headers: { "Cookie": `ifz_refresh=${refreshToken}` },
     });
@@ -310,10 +310,10 @@ describe("POST /api/editor-session/refresh", () => {
   });
 });
 
-describe("GET /api/editor-session/:token", () => {
+describe("GET /api/v1/editor-session/:token", () => {
   test("200 with server_key_id, trusted, trust_code for valid token", async () => {
     const { token, keyId } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}`);
+    const res = await app.request(`/api/v1/editor-session/${token}`);
     expect(res.status).toBe(200);
     const body = await res.json() as { server_key_id: string; network_id: string; trusted: boolean; trust_code: string };
     expect(body.server_key_id).toBe(keyId);
@@ -326,7 +326,7 @@ describe("GET /api/editor-session/:token", () => {
 
   test("200 with trusted=true for trusted session", async () => {
     const { token, keyId } = await createTrustedSession();
-    const res = await app.request(`/api/editor-session/${token}`);
+    const res = await app.request(`/api/v1/editor-session/${token}`);
     expect(res.status).toBe(200);
     const body = await res.json() as { server_key_id: string; network_id: string; trusted: boolean; trust_code: string };
     expect(body.server_key_id).toBe(keyId);
@@ -343,35 +343,35 @@ describe("GET /api/editor-session/:token", () => {
       createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       trustCode,
     });
-    const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
+    const exchangeRes = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     const { access_token } = await exchangeRes.json() as { access_token: string };
 
-    const res = await app.request(`/api/editor-session/${access_token}`);
+    const res = await app.request(`/api/v1/editor-session/${access_token}`);
     expect(res.status).toBe(200);
     const body = await res.json() as { server_key_id: string; network_id: string };
     expect(body.network_id).toBe(networkId);
   });
 
   test("401 for unknown token", async () => {
-    const res = await app.request("/api/editor-session/notavalidtoken0000000000000000");
+    const res = await app.request("/api/v1/editor-session/notavalidtoken0000000000000000");
     expect(res.status).toBe(401);
   });
 });
 
-describe("DELETE /api/editor-session/:token", () => {
+describe("DELETE /api/v1/editor-session/:token", () => {
   test("200 and revokes token", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/editor-session/${token}`, { method: "DELETE" });
     expect(res.status).toBe(200);
-    const check = await app.request(`/api/editor-session/${token}`);
+    const check = await app.request(`/api/v1/editor-session/${token}`);
     expect(check.status).toBe(401);
   });
 });
 
-describe("GET /api/editor-session/:token/packs", () => {
+describe("GET /api/v1/editor-session/:token/packs", () => {
   test("200 returns empty array when no packs", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/packs`);
+    const res = await app.request(`/api/v1/editor-session/${token}/packs`);
     expect(res.status).toBe(200);
     const body = await res.json() as { packs: unknown[] };
     expect(Array.isArray(body.packs)).toBe(true);
@@ -379,17 +379,17 @@ describe("GET /api/editor-session/:token/packs", () => {
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs");
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs");
     expect(res.status).toBe(401);
   });
 });
 
-describe("PUT /api/editor-session/:token/packs/:packId", () => {
+describe("PUT /api/v1/editor-session/:token/packs/:packId", () => {
   test("201 upserts pack and returns hash", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_test", name: "Test Pack", menus: [] };
     const fakeFiles = { "plugins/Interfaze/packs/p_test/manifest.yaml": "pack_id: p_test\n" };
-    const res = await app.request(`/api/editor-session/${token}/packs/p_test`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_test`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
@@ -404,18 +404,18 @@ describe("PUT /api/editor-session/:token/packs/:packId", () => {
     const { token } = await createSession();
     const fakePack = { id: "p_roundtrip", name: "Round Trip", menus: [] };
     const fakeFiles = { "plugins/Interfaze/packs/p_roundtrip/manifest.yaml": "pack_id: p_roundtrip\n" };
-    await app.request(`/api/editor-session/${token}/packs/p_roundtrip`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_roundtrip`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
     });
-    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
     const body = await getRes.json() as { packs: { pack_id: string; editor: { id: string; name: string } | null }[] };
     expect(body.packs.some((p) => p.pack_id === "p_roundtrip")).toBe(true);
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_test", {
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_test", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: {}, files: {} }),
@@ -424,24 +424,24 @@ describe("PUT /api/editor-session/:token/packs/:packId", () => {
   });
 });
 
-describe("DELETE /api/editor-session/:token/packs/:packId", () => {
+describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
   test("200 deletes pack and it no longer appears in GET", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_delete", name: "To Delete", menus: [] };
-    await app.request(`/api/editor-session/${token}/packs/p_delete`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: { "plugins/Interfaze/packs/p_delete/manifest.yaml": "" } }),
     });
-    const delRes = await app.request(`/api/editor-session/${token}/packs/p_delete`, { method: "DELETE" });
+    const delRes = await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, { method: "DELETE" });
     expect(delRes.status).toBe(200);
-    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
     const body = await getRes.json() as { packs: { pack_id: string }[] };
     expect(body.packs.some((p) => p.pack_id === "p_delete")).toBe(false);
   });
 });
 
-describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", () => {
+describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — trust gate", () => {
   const fakePayload = {
     pack: { id: "p_trust", name: "Trust Test", menus: [] },
     files: { "manifest.yaml": "pack_id: p_trust\n" },
@@ -449,7 +449,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", 
 
   test("403 session_not_trusted when not trusted", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/p_trust/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fakePayload),
@@ -466,7 +466,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", 
       .set({ trustedAt: new Date(), trustedIp: "5.5.5.5" })
       .where(eq(editorSessions.token, rows[0].token));
 
-    const res = await app.request(`/api/editor-session/${token}/packs/p_trust/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fakePayload),
@@ -477,7 +477,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", 
 
   test("201 when session is trusted with matching IP", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/p_trust_ok/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust_ok/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_trust_ok", name: "ok" }, files: { "manifest.yaml": "" } }),
@@ -486,13 +486,13 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — trust gate", 
   });
 });
 
-describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
+describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
   test("201 deploys pack, sets deployed_editor_json, pushes bundle", async () => {
     const { token } = await createTrustedSession();
     const fakePack = { id: "p_deploy", name: "Deploy Me", menus: [] };
     const fakeFiles = { "manifest.yaml": "pack_id: p_deploy\n" };
 
-    const res = await app.request(`/api/editor-session/${token}/packs/p_deploy/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_deploy/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
@@ -504,7 +504,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
 
   test("201 auto-creates pack+binding when pack does not exist yet", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/p_new_deploy/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_new_deploy/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_new_deploy", name: "New" }, files: { "manifest.yaml": "" } }),
@@ -519,7 +519,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
 
   test("sets deployedEditorJson after deploy (not just editorJson)", async () => {
     const { token } = await createTrustedSession();
-    await app.request(`/api/editor-session/${token}/packs/p_chk_deployed/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_chk_deployed/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_chk_deployed", name: "Check" }, files: { "manifest.yaml": "" } }),
@@ -530,7 +530,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deploy", {
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_x/deploy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: {}, files: {} }),
@@ -539,16 +539,16 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy", () => {
   });
 });
 
-describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
+describe("GET /api/v1/editor-session/:token/packs/:packId/deployed", () => {
   test("returns null when pack never deployed", async () => {
     const { token } = await createSession();
     // Save a draft but never deploy
-    await app.request(`/api/editor-session/${token}/packs/p_nodeploy`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_nodeploy`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_nodeploy" }, files: { "manifest.yaml": "" } }),
     });
-    const res = await app.request(`/api/editor-session/${token}/packs/p_nodeploy/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_nodeploy/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: null };
     expect(body.deployed).toBeNull();
@@ -558,12 +558,12 @@ describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
     const { token } = await createTrustedSession();
     const fakePack = { id: "p_getdeployed", name: "Get Deployed", menus: [] };
     // Deploy it
-    await app.request(`/api/editor-session/${token}/packs/p_getdeployed/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_getdeployed/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: { "manifest.yaml": "" } }),
     });
-    const res = await app.request(`/api/editor-session/${token}/packs/p_getdeployed/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_getdeployed/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: { id: string; name: string } };
     expect(body.deployed?.name).toBe("Get Deployed");
@@ -571,7 +571,7 @@ describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
 
   test("returns null when pack does not exist at all", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/pack_never_existed/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/pack_never_existed/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: null };
     expect(body.deployed).toBeNull();
@@ -581,33 +581,33 @@ describe("GET /api/editor-session/:token/packs/:packId/deployed", () => {
     const { token } = await createTrustedSession();
     const packPayload = { pack: { id: "p_indep", name: "Indep" }, files: { "manifest.yaml": "" } };
     // Deploy once
-    await app.request(`/api/editor-session/${token}/packs/p_indep/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_indep/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(packPayload),
     });
     // Save a draft (PUT) with different name — should NOT touch deployedEditorJson
-    await app.request(`/api/editor-session/${token}/packs/p_indep`, {
+    await app.request(`/api/v1/editor-session/${token}/packs/p_indep`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" } }),
     });
     // Deployed still returns the original
-    const res = await app.request(`/api/editor-session/${token}/packs/p_indep/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_indep/deployed`);
     const body = await res.json() as { deployed: { name: string } };
     expect(body.deployed?.name).toBe("Indep");
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/packs/p_x/deployed");
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_x/deployed");
     expect(res.status).toBe(401);
   });
 });
 
-describe("POST /api/editor-session/:token/draft", () => {
+describe("POST /api/v1/editor-session/:token/draft", () => {
   test("200 for valid token and valid body", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/draft`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/draft`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack_id: "pack1", menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
@@ -616,7 +616,7 @@ describe("POST /api/editor-session/:token/draft", () => {
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/editor-session/badtoken00000000000000000000000/draft", {
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack_id: "p", menu_id: "m", menu_yaml: "" }),
@@ -778,10 +778,10 @@ async function createServerKeyForHub(label: string): Promise<{ keyId: string; ra
   return { keyId, rawKey };
 }
 
-describe("GET /api/editor-session/:token/items", () => {
+describe("GET /api/v1/editor-session/:token/items", () => {
   test("returns 503 when server is offline (no mc_version registered)", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/items`);
+    const res = await app.request(`/api/v1/editor-session/${token}/items`);
     expect(res.status).toBe(503);
     const body = await res.json() as { error: string };
     expect(body.error).toBe("server_offline");
@@ -801,7 +801,7 @@ describe("GET /api/editor-session/:token/items", () => {
 
     const { token } = await createSession(keyId);
 
-    const res = await app.request(`/api/editor-session/${token}/items`);
+    const res = await app.request(`/api/v1/editor-session/${token}/items`);
     expect(res.status).toBe(404);
   });
 
@@ -819,7 +819,7 @@ describe("GET /api/editor-session/:token/items", () => {
 
     const { token } = await createSession(keyId);
 
-    const res = await app.request(`/api/editor-session/${token}/items`);
+    const res = await app.request(`/api/v1/editor-session/${token}/items`);
     expect(res.status).toBe(200);
     const body = await res.json() as { version: string; items: { id: string; label: string; category: string; texture: string }[] };
     expect(body.version).toBe("1.21.4");
@@ -833,13 +833,13 @@ describe("GET /api/editor-session/:token/items", () => {
 });
 
 describe("CORS credentials", () => {
-  test("GET /api/editor-session/:token returns Access-Control-Allow-Credentials: true with browser Origin", async () => {
+  test("GET /api/v1/editor-session/:token returns Access-Control-Allow-Credentials: true with browser Origin", async () => {
     // CORS is set up on the global app, not the local test app — skip this test
     // by testing with a global app that has CORS configured
     const corsApp = new Hono();
     const { cors } = await import("hono/cors");
-    corsApp.use("/api/*", cors({ origin: "http://localhost:5173", credentials: true }));
-    corsApp.route("/api/editor-session", editorSessionRouter);
+    corsApp.use("/api/v1/*", cors({ origin: "http://localhost:5173", credentials: true }));
+    corsApp.route("/api/v1/editor-session", editorSessionRouter);
 
     const { keyId } = await createNetworkAndServerKey();
     const urlToken = "cors_cred_" + crypto.randomUUID().slice(0, 8);
@@ -853,7 +853,7 @@ describe("CORS credentials", () => {
       accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000), refreshToken: "dummy",
     }).where(eq(editorSessions.token, urlToken));
 
-    const res = await corsApp.request(`/api/editor-session/${accessToken}`, {
+    const res = await corsApp.request(`/api/v1/editor-session/${accessToken}`, {
       headers: { "Origin": "http://localhost:5173" },
     });
     expect(res.status).toBe(200);
@@ -871,10 +871,10 @@ describe("GET /:token/custom-items", () => {
       createdAt: new Date(), expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     });
     // Exchange for access token
-    const exchangeRes = await app.request(`/api/editor-session/${token}/exchange`, { method: "POST" });
+    const exchangeRes = await app.request(`/api/v1/editor-session/${token}/exchange`, { method: "POST" });
     const { access_token } = await exchangeRes.json() as { access_token: string };
 
-    const res = await app.request(`/api/editor-session/${access_token}/custom-items`);
+    const res = await app.request(`/api/v1/editor-session/${access_token}/custom-items`);
     expect(res.status).toBe(200);
     const body = await res.json() as { serverKeyId: string; items: unknown[] };
     expect(body.serverKeyId).toBe(keyId);
@@ -974,7 +974,7 @@ describe("custom_items_changed edge cases", () => {
   });
 });
 
-describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files win)", () => {
+describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasLayout (files win)", () => {
   test("manifest editor_layout overrides pack.canvasLayout in stored editorJson", async () => {
     const { token } = await createSession();
     const fakePack = {
@@ -990,14 +990,14 @@ describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files w
         "editor_layout:", "  shop: { x: 77, y: 88 }",
       ].join("\n") + "\n",
     };
-    const res = await app.request(`/api/editor-session/${token}/packs/p_files_win`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_files_win`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
 
-    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
     const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
     const p = body.packs.find((x) => x.pack_id === "p_files_win")!;
     expect(p.editor?.canvasLayout).toEqual({ shop: { x: 77, y: 88 } });
@@ -1005,7 +1005,7 @@ describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files w
   });
 });
 
-describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout (files win)", () => {
+describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — canvasLayout (files win)", () => {
   test("deploy applies manifest editor_layout to stored editorJson", async () => {
     const { token } = await createTrustedSession();
     const fakePack = {
@@ -1021,14 +1021,14 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout 
         "editor_layout:", "  bar: { x: 200, y: 300 }",
       ].join("\n") + "\n",
     };
-    const res = await app.request(`/api/editor-session/${token}/packs/p_deploy_layout/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_deploy_layout/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
 
-    const getRes = await app.request(`/api/editor-session/${token}/packs`);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
     const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
     const p = body.packs.find((x) => x.pack_id === "p_deploy_layout")!;
     expect(p.editor?.canvasLayout).toEqual({ bar: { x: 200, y: 300 } });
@@ -1036,10 +1036,10 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout 
   });
 });
 
-describe("PUT /api/editor-session/:token/packs/:packId — invalid pack rejection", () => {
+describe("PUT /api/v1/editor-session/:token/packs/:packId — invalid pack rejection", () => {
   test("400 when body.pack is null", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/p_null`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_null`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
@@ -1050,10 +1050,10 @@ describe("PUT /api/editor-session/:token/packs/:packId — invalid pack rejectio
   });
 });
 
-describe("POST /api/editor-session/:token/packs/:packId/deploy — invalid pack rejection", () => {
+describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — invalid pack rejection", () => {
   test("400 when body.pack is null", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/editor-session/${token}/packs/p_null/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_null/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
@@ -1064,14 +1064,14 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — invalid pack 
   });
 });
 
-describe("DELETE /api/editor-session/:token/packs/:packId", () => {
+describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
   test("soft-deletes pack, broadcasts pack_deleted, returns 200", async () => {
     const { token, keyId: serverKeyId } = await createSession();
 
     // Seed a bound pack using the new approach
     await seedBoundPack(serverKeyId, "p_to_delete", "h", {});
 
-    const res = await app.request(`/api/editor-session/${token}/packs/p_to_delete`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_to_delete`, {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
@@ -1086,7 +1086,7 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
   test("returns 404 for unknown pack", async () => {
     const { token } = await createSession();
 
-    const res = await app.request(`/api/editor-session/${token}/packs/nonexistent`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/nonexistent`, {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
@@ -1096,16 +1096,16 @@ describe("DELETE /api/editor-session/:token/packs/:packId", () => {
     const { token, keyId: serverKeyId } = await createSession();
     await seedBoundPack(serverKeyId, "p_already_deleted", "h", {});
     // Delete once — succeeds
-    await app.request(`/api/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    await app.request(`/api/v1/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
     // Delete again — 404
-    const res = await app.request(`/api/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
     expect(res.status).toBe(404);
   });
 
   test("uses softDeletePack — pack row still in DB with deletedAt set", async () => {
     const { token, keyId: serverKeyId } = await createSession();
     await seedBoundPack(serverKeyId, "p_soft_only", "h", {});
-    await app.request(`/api/editor-session/${token}/packs/p_soft_only`, { method: "DELETE" });
+    await app.request(`/api/v1/editor-session/${token}/packs/p_soft_only`, { method: "DELETE" });
     const rows = await db.select().from(packs).where(eq(packs.id, "p_soft_only"));
     expect(rows.length).toBe(1);   // row still exists
     expect(rows[0].deletedAt).not.toBeNull();   // but marked deleted

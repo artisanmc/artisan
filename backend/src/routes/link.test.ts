@@ -33,9 +33,9 @@ async function seedUserAndSession(): Promise<{ userId: string; sessionId: string
 }
 
 async function makeClaim(sessionId: string, body: object): Promise<Response> {
-  const created = await app.request("/api/link", { method: "POST" });
+  const created = await app.request("/api/v1/link", { method: "POST" });
   const { code } = (await created.json()) as { code: string };
-  return app.request(`/api/link/${code}/claim`, {
+  return app.request(`/api/v1/link/${code}/claim`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -86,9 +86,9 @@ describe("generateServerKey", () => {
   });
 });
 
-describe("POST /api/link", () => {
+describe("POST /api/v1/link", () => {
   test("returns 201 with 8-char code, url, and expires_at", async () => {
-    const res = await app.request("/api/link", { method: "POST" });
+    const res = await app.request("/api/v1/link", { method: "POST" });
     expect(res.status).toBe(201);
     const body = (await res.json()) as { code: string; url: string; expires_at: string };
     expect(body.code).toMatch(/^[A-Z2-9]{8}$/);
@@ -97,36 +97,36 @@ describe("POST /api/link", () => {
   });
 });
 
-describe("GET /api/link/:code", () => {
+describe("GET /api/v1/link/:code", () => {
   test("pending for a freshly created code", async () => {
-    const createRes = await app.request("/api/link", { method: "POST" });
+    const createRes = await app.request("/api/v1/link", { method: "POST" });
     const { code } = (await createRes.json()) as { code: string };
-    const res = await app.request(`/api/link/${code}`);
+    const res = await app.request(`/api/v1/link/${code}`);
     expect(res.status).toBe(200);
     expect(((await res.json()) as { status: string }).status).toBe("pending");
   });
 
   test("404 for unknown code", async () => {
-    expect((await app.request("/api/link/NOTEXIST")).status).toBe(404);
+    expect((await app.request("/api/v1/link/NOTEXIST")).status).toBe(404);
   });
 });
 
-describe("POST /api/link/:code/claim", () => {
+describe("POST /api/v1/link/:code/claim", () => {
   test("401 when no ifz_user_session cookie is present (claim without auth)", async () => {
-    const { code } = (await (await app.request("/api/link", { method: "POST" })).json()) as { code: string };
-    const claimRes = await app.request(`/api/link/${code}/claim`, { method: "POST" });
+    const { code } = (await (await app.request("/api/v1/link", { method: "POST" })).json()) as { code: string };
+    const claimRes = await app.request(`/api/v1/link/${code}/claim`, { method: "POST" });
     expect(claimRes.status).toBe(401);
     expect(((await claimRes.json()) as { error: string }).error).toBe("unauthorized");
   });
 
   test("409 when claiming already-claimed code (with auth)", async () => {
     const { userId, sessionId } = await seedUserAndSession();
-    const { code } = (await (await app.request("/api/link", { method: "POST" })).json()) as { code: string };
-    await app.request(`/api/link/${code}/claim`, {
+    const { code } = (await (await app.request("/api/v1/link", { method: "POST" })).json()) as { code: string };
+    await app.request(`/api/v1/link/${code}/claim`, {
       method: "POST",
       headers: { "Cookie": `ifz_user_session=${sessionId}` },
     });
-    expect((await app.request(`/api/link/${code}/claim`, {
+    expect((await app.request(`/api/v1/link/${code}/claim`, {
       method: "POST",
       headers: { "Cookie": `ifz_user_session=${sessionId}` },
     })).status).toBe(409);
@@ -135,19 +135,19 @@ describe("POST /api/link/:code/claim", () => {
 
   test("404 for unknown code", async () => {
     const { sessionId } = await seedUserAndSession();
-    expect((await app.request("/api/link/UNKNOWN1/claim", {
+    expect((await app.request("/api/v1/link/UNKNOWN1/claim", {
       method: "POST",
       headers: { "Cookie": `ifz_user_session=${sessionId}` },
     })).status).toBe(404);
   });
 });
 
-describe("POST /api/link/:code/claim — hard break (Plan accounts × networks)", () => {
+describe("POST /api/v1/link/:code/claim — hard break (Plan accounts × networks)", () => {
   it("returns 401 when no ifz_user_session cookie is present", async () => {
-    const created = await app.request("/api/link", { method: "POST" });
+    const created = await app.request("/api/v1/link", { method: "POST" });
     const { code } = (await created.json()) as { code: string };
 
-    const res = await app.request(`/api/link/${code}/claim`, {
+    const res = await app.request(`/api/v1/link/${code}/claim`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -159,7 +159,7 @@ describe("POST /api/link/:code/claim — hard break (Plan accounts × networks)"
   });
 });
 
-describe("POST /api/link/:code/claim — smart-count network selection", () => {
+describe("POST /api/v1/link/:code/claim — smart-count network selection", () => {
   it("auto-creates 'Mon Network' when user has 0 networks", async () => {
     const { sessionId } = await seedUserAndSession();
     const res = await makeClaim(sessionId, {});

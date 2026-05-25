@@ -37,7 +37,7 @@ function collectMessages(ws: WebSocket, count: number, timeoutMs = 3_000): Promi
 }
 
 async function createKey(label: string): Promise<string> {
-  const res = await app.request("/api/server-keys", {
+  const res = await app.request("/api/v1/server-keys", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ label }),
@@ -46,7 +46,7 @@ async function createKey(label: string): Promise<string> {
 }
 
 async function uploadBundle(key: string, packId: string, files: Record<string, string>): Promise<string> {
-  const res = await app.request(`/api/bundles/${packId}`, {
+  const res = await app.request(`/api/v1/bundles/${packId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({ files }),
@@ -107,7 +107,7 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     const avail = JSON.parse(availRaw);
     expect(avail.type).toBe("bundle_available");
     expect(avail.pack_id).toBe("p_shop");
-    expect(avail.url).toContain("/api/bundles/p_shop");
+    expect(avail.url).toContain("/api/v1/bundles/p_shop");
     expect(avail.hash).toMatch(/^[0-9a-f]{64}$/);
     ws.close();
   });
@@ -137,12 +137,12 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     ws2.close();
   });
 
-  test("GET /api/bundles/:packId serves branch head commit content (not WIP)", async () => {
+  test("GET /api/v1/bundles/:packId serves branch head commit content (not WIP)", async () => {
     const key = await createKey("integ-download");
     // POST writes WIP only — GET serves the main branch head commit (initial empty commit).
     await uploadBundle(key, "p_shop", PACK_FILES);
 
-    const downloadRes = await app.request("/api/bundles/p_shop", {
+    const downloadRes = await app.request("/api/v1/bundles/p_shop", {
       headers: { Authorization: `Bearer ${key}` },
     });
     expect(downloadRes.status).toBe(200);

@@ -13,7 +13,7 @@ beforeAll(() => {
   savedEnv.REDIR = process.env.DISCORD_REDIRECT_URI;
   process.env.DISCORD_CLIENT_ID = "test_cid";
   process.env.DISCORD_CLIENT_SECRET = "test_csec";
-  process.env.DISCORD_REDIRECT_URI = "http://x/api/auth/discord/callback";
+  process.env.DISCORD_REDIRECT_URI = "http://x/api/v1/auth/discord/callback";
 });
 afterAll(() => {
   process.env.DISCORD_CLIENT_ID = savedEnv.CID;
@@ -21,9 +21,9 @@ afterAll(() => {
   process.env.DISCORD_REDIRECT_URI = savedEnv.REDIR;
 });
 
-describe("GET /api/auth/discord/start", () => {
+describe("GET /api/v1/auth/discord/start", () => {
   test("redirects to Discord with state cookie set", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/discord/start"), { redirect: "manual" } as RequestInit);
+    const res = await app.fetch(new Request("http://x/api/v1/auth/discord/start"), { redirect: "manual" } as RequestInit);
     expect(res.status).toBe(302);
     const location = res.headers.get("Location") ?? "";
     expect(location).toContain("https://discord.com/api/oauth2/authorize");
@@ -36,7 +36,7 @@ describe("GET /api/auth/discord/start", () => {
   test("returns 500 when DISCORD_CLIENT_ID is not configured", async () => {
     delete process.env.DISCORD_CLIENT_ID;
     try {
-      const res = await app.fetch(new Request("http://x/api/auth/discord/start"));
+      const res = await app.fetch(new Request("http://x/api/v1/auth/discord/start"));
       expect(res.status).toBe(500);
     } finally {
       process.env.DISCORD_CLIENT_ID = "test_cid";
@@ -44,22 +44,22 @@ describe("GET /api/auth/discord/start", () => {
   });
 });
 
-describe("GET /api/auth/discord/callback (invalid state)", () => {
+describe("GET /api/v1/auth/discord/callback (invalid state)", () => {
   test("400 when state cookie missing", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s"));
+    const res = await app.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s"));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("invalid_state");
   });
 
   test("400 when state mismatches", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=mismatch", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=mismatch", {
       headers: { Cookie: "ifz_oauth_state=actual" },
     }));
     expect(res.status).toBe(400);
   });
 
   test("400 when code is missing", async () => {
-    const res = await app.fetch(new Request("http://x/api/auth/discord/callback?state=s", {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/discord/callback?state=s", {
       headers: { Cookie: "ifz_oauth_state=s" },
     }));
     expect(res.status).toBe(400);
@@ -69,11 +69,11 @@ describe("GET /api/auth/discord/callback (invalid state)", () => {
 
 function buildAppWith(fetchImpl: typeof fetch) {
   const a = new Hono();
-  a.route("/api/auth/discord", createDiscordOauthRouter(fetchImpl));
+  a.route("/api/v1/auth/discord", createDiscordOauthRouter(fetchImpl));
   return a;
 }
 
-describe("GET /api/auth/discord/callback (happy path)", () => {
+describe("GET /api/v1/auth/discord/callback (happy path)", () => {
   test("creates user, links Discord account, sets session cookie", async () => {
     const discordUserId = `discord_${Date.now()}`;
     const email = `oa_${Date.now()}@example.com`;
@@ -93,7 +93,7 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
     };
 
     const testApp = buildAppWith(mockFetch);
-    const res = await testApp.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
+    const res = await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
       headers: { Cookie: "ifz_oauth_state=s" },
     }));
     expect(res.status).toBe(302);
@@ -125,10 +125,10 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
     };
 
     const testApp = buildAppWith(mockFetch);
-    await testApp.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
+    await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
       headers: { Cookie: "ifz_oauth_state=s" },
     }));
-    await testApp.fetch(new Request("http://x/api/auth/discord/callback?code=c2&state=s", {
+    await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c2&state=s", {
       headers: { Cookie: "ifz_oauth_state=s" },
     }));
 
@@ -144,7 +144,7 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
 
   test("links Discord to existing email-only user", async () => {
     const email = `link_${Date.now()}@example.com`;
-    await app.fetch(new Request("http://x/api/auth/signup", {
+    await app.fetch(new Request("http://x/api/v1/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw", name: "Carol" }),
@@ -160,7 +160,7 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
     };
 
     const tmpApp = buildAppWith(mockFetch);
-    await tmpApp.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
+    await tmpApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
       headers: { Cookie: "ifz_oauth_state=s" },
     }));
 

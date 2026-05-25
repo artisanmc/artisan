@@ -56,7 +56,7 @@ router.post("/refresh", async (c) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
     maxAge: 7 * 24 * 60 * 60,
-    path: "/api/editor-session/refresh",
+    path: "/api/v1/editor-session/refresh",
   });
 
   return c.json({ access_token: newAccessToken, expires_in: 300 });
@@ -89,7 +89,7 @@ router.post("/:urlToken/exchange", async (c) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
     maxAge: 7 * 24 * 60 * 60,
-    path: "/api/editor-session/refresh",
+    path: "/api/v1/editor-session/refresh",
   });
 
   return c.json({ access_token: accessToken, expires_in: 300, trust_code: trustCode });
