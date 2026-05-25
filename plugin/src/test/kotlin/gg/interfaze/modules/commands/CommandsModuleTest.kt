@@ -2,6 +2,7 @@ package gg.interfaze.modules.commands
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.modules.api.*
+import gg.interfaze.modules.api.schemas.SchemaRegistry
 import gg.interfaze.plugin.InterfazePlugin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
@@ -34,6 +35,7 @@ class CommandsModuleTest {
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
             events = ModuleEventBus(),
+            schemas = SchemaRegistry(),
         )
         module.onEnable(api)
     }

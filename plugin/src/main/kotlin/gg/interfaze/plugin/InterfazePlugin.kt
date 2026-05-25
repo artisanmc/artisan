@@ -1,6 +1,7 @@
 package gg.interfaze.plugin
 
 import gg.interfaze.modules.api.*
+import gg.interfaze.modules.api.schemas.SchemaRegistry
 import gg.interfaze.modules.commands.CommandsModule
 import gg.interfaze.modules.menus.MenusModule
 import gg.interfaze.plugin.command.CommandRegistrar
@@ -42,6 +43,7 @@ open class InterfazePlugin : JavaPlugin() {
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
             events = ModuleEventBus(),
+            schemas = SchemaRegistry(),
         )
     }
 
