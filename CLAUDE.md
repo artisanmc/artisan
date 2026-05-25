@@ -165,20 +165,39 @@ Le package `gg.interfaze.modules.api.*` est annoté avec `@Stable` (depuis `gg.i
 
 Cf. `docs/architecture/versioning.md` section 3.
 
+### Versioning (depuis 2026-05-25)
+
+Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `docs/architecture/api-surface.md`.
+
+**Les 4 disciplines à respecter** :
+
+1. **CHANGELOG** : tout commit qui touche `gg.interfaze.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
+2. **Nouveau schema version = nouveau dossier** : on ne modifie jamais un `menu/v1` après ship. On crée `menu/v2` séparé et on écrit `MenuV1ToV2 : SchemaMigration` qu'on register via `api.schemas.register(...)`.
+3. **DB forward-only** : tout changement de `schema.ts` génère via `bun run db:generate` un fichier dans `backend/drizzle/` qui doit être committé. Pas de `db:push` en prod (Docker tourne `db:migrate`).
+4. **REST URL versionné** : tout endpoint est sous `/api/v1/`. Pour breaking change inévitable, créer `/api/v2/<name>` à côté et garder v1 6-12 mois.
+
+**Annotations de stabilité** (cf. `api-surface.md`) :
+- `@Stable` couvert par SemVer
+- `@Beta` peut bouger en minor
+- `@Internal` ne pas utiliser depuis un module
+- `@Sunset(reason, removeInVersion, replacement)` planifié pour retrait
+
+**Protocol WS** : `hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat).
+
 ### Flux de données
 
 ```
 [Editor browser]
    │ WS ws://backend:3001/ws/plugin  (pluginBridge.ts)
-   │ POST /api/bundles/:packId       (bundlePublisher.ts)
+   │ POST /api/v1/bundles/:packId    (bundlePublisher.ts)
    ▼
 [Backend Bun/Hono]
    │ WS /ws/plugin                   (hub.ts)
-   │ REST /api/bundles, /api/server-keys
+   │ REST /api/v1/bundles, /api/v1/server-keys, ...
    ▼
 [Plugin Kotlin]
    │ hello → hello_ack + bundle_available
-   │ GET /api/bundles/:packId        (BundleDownloader.kt)
+   │ GET /api/v1/bundles/:packId     (BundleDownloader.kt)
    └ écrit sur disque → hot-reload menus
 ```
 
