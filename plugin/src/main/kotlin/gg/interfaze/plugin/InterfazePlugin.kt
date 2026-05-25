@@ -1,5 +1,8 @@
 package gg.interfaze.plugin
 
+import gg.interfaze.modules.api.*
+import gg.interfaze.modules.commands.CommandsModule
+import gg.interfaze.modules.menus.MenusModule
 import gg.interfaze.plugin.command.CommandRegistrar
 import gg.interfaze.plugin.command.IfzCommand
 import gg.interfaze.plugin.config.PluginConfig
@@ -24,9 +27,28 @@ open class InterfazePlugin : JavaPlugin() {
         private set
     lateinit var langManager: LangManager
         private set
+    lateinit var api: InterfazeAPI
+        private set
+    private val modules: List<InterfazeModule> = defaultModules()
+
+    companion object {
+        fun defaultModules(): List<InterfazeModule> = listOf(
+            MenusModule(),
+            CommandsModule(),
+        )
+
+        fun buildApi(plugin: InterfazePlugin): InterfazeAPI = InterfazeAPI(
+            plugin = plugin,
+            dataSources = DataSourceRegistry(),
+            commands = CommandRegistry(),
+            events = ModuleEventBus(),
+        )
+    }
 
     override fun onEnable() {
         saveDefaultConfig()
+        api = buildApi(this)
+        modules.forEach { it.onEnable(api) }
         val cfg = PluginConfig.from(config)
         val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
 
@@ -46,7 +68,11 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
-            onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            onReload         = {
+                commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+                modules.forEach { runCatching { it.onReload() } }
+                api.events.publish(ConfigReloadEvent(moduleId = "menus"))
+            },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
@@ -110,6 +136,7 @@ open class InterfazePlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        modules.forEach { runCatching { it.onDisable() } }
         ifzCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
@@ -195,7 +222,11 @@ open class InterfazePlugin : JavaPlugin() {
             logger           = logger,
             evaluator        = evaluator,
             sessions         = sessions,
-            onReload         = { commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator) },
+            onReload         = {
+                commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+                modules.forEach { runCatching { it.onReload() } }
+                api.events.publish(ConfigReloadEvent(moduleId = "menus"))
+            },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
