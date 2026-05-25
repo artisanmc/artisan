@@ -1,5 +1,6 @@
 package gg.interfaze.modules.api
 
+import gg.interfaze.modules.api.annotations.Stable
 import gg.interfaze.plugin.InterfazePlugin
 
 /**
@@ -11,9 +12,10 @@ import gg.interfaze.plugin.InterfazePlugin
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
  */
+@Stable
 class InterfazeAPI(
-    val plugin: InterfazePlugin,
-    val dataSources: DataSourceRegistry,
-    val commands: CommandRegistry,
-    val events: ModuleEventBus,
+    @Stable val plugin: InterfazePlugin,
+    @Stable val dataSources: DataSourceRegistry,
+    @Stable val commands: CommandRegistry,
+    @Stable val events: ModuleEventBus,
 )
