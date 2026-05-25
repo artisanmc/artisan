@@ -1,5 +1,6 @@
 package gg.interfaze.modules.api
 
+import org.bukkit.entity.Player
 import java.util.concurrent.ConcurrentHashMap
 
 class UnknownDataSourceException(ref: String) :
@@ -17,7 +18,7 @@ class DataSourceRegistry {
         }
     }
 
-    fun fetch(ref: String, player: Any, params: Map<String, Any?>): List<Map<String, Any?>> {
+    fun fetch(ref: String, player: Player, params: Map<String, Any?>): List<Map<String, Any?>> {
         val decl = sources[ref] ?: throw UnknownDataSourceException(ref)
         return decl.fetcher(player, params)
     }
