@@ -258,7 +258,7 @@ class ResourcePackManagerTest {
         )
         mgr.applyFromBackend(
             playerUrl = "http://player-only.example/pack.zip",
-            downloadUrl = "http://backend:3001/api/resource-pack/aa.zip",
+            downloadUrl = "http://backend:3001/api/v1/resource-pack/aa.zip",
             hash = SAMPLE_HASH,
         )
         val info = mgr.currentPackInfo
@@ -266,7 +266,7 @@ class ResourcePackManagerTest {
         // The download URL is what AssetCatalog.update is called with (see
         // ResourcePackManager.updateCatalogAsync). The player URL is what
         // pushToPlayer sends via addResourcePack.
-        assertEquals("http://backend:3001/api/resource-pack/aa.zip", info.downloadUrl)
+        assertEquals("http://backend:3001/api/v1/resource-pack/aa.zip", info.downloadUrl)
         assertEquals("http://player-only.example/pack.zip", info.url)
     }
 
