@@ -298,6 +298,59 @@ class FullSyncIntegrationTest {
     }
 
     @Test
+    fun `hello payload contains protocol_version 1 and core_version`() {
+        MockBukkit.mock()
+        try {
+            val packsDir = Files.createTempDirectory("ifz_proto_").toFile()
+            val helloFrames = Collections.synchronizedList(mutableListOf<String>())
+            val helloLatch = CountDownLatch(1)
+
+            MockWebServer().use { server ->
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                    override fun onMessage(ws: WebSocket, text: String) {
+                        val node = mapper.readTree(text)
+                        if (node["type"]?.asText() == "hello") {
+                            helloFrames.add(text)
+                            helloLatch.countDown()
+                            ws.send(mapper.writeValueAsString(mapOf(
+                                "type" to "hello_ack",
+                                "session_id" to "sess_proto",
+                                "needs_sync" to false,
+                                "pack_hashes" to emptyMap<String, String>(),
+                                "deleted_pack_ids" to emptyList<String>(),
+                            )))
+                        }
+                    }
+                }))
+                server.start()
+
+                val provider = SyncedMenuProvider(
+                    packsDir = packsDir,
+                    serverKey = "sk_proto_test",
+                    wsUrl = server.url("/ws/plugin").toString(),
+                    logger = null,
+                )
+                provider.load()
+
+                assertTrue(helloLatch.await(5, TimeUnit.SECONDS), "hello not received within 5s")
+
+                val frame = helloFrames.firstOrNull()
+                assertNotNull(frame, "Expected a hello frame")
+                assertTrue(frame!!.contains("\"protocol_version\":\"1\""),
+                    "hello payload must contain protocol_version:1, got: $frame")
+                assertTrue(frame.contains("\"core_version\":\"1.0.0\""),
+                    "hello payload must contain core_version:1.0.0, got: $frame")
+                assertTrue(frame.contains("\"plugin_version\":\"1.0.0\""),
+                    "hello payload must still contain plugin_version for backward compat, got: $frame")
+
+                provider.unload()
+            }
+        } finally {
+            MockBukkit.unmock()
+        }
+    }
+
+    @Test
     fun `plugin logs WARN on divergence and never sends pack_divergence_detected (Plan 1C)`() {
         val packsDir = Files.createTempDirectory("ifz_div_").toFile()
         val packDir = File(packsDir, "p_local").also { it.mkdirs() }
