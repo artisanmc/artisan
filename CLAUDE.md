@@ -141,6 +141,21 @@ Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", fo
 
 **Hors scope V1 :** `oneOf` / `anyOf` / `if/then/else` / `$ref` resolution. À ajouter quand un module en a besoin.
 
+### Stability annotations (depuis 2026-05-25)
+
+Le package `gg.interfaze.modules.api.*` est annoté avec `@Stable` (depuis `gg.interfaze.modules.api.annotations`). Convention :
+
+| Annotation | Signification | Quand |
+|---|---|---|
+| `@Stable` | Couvert par SemVer. Pas de breaking change dans un même major. | Tout `modules/api/*` après stabilisation. |
+| `@Beta` | Expérimental, peut changer en minor. | API nouvelle avant ship public. |
+| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `gg.interfaze.plugin.*` (implicite par convention de package). |
+| `@Sunset(reason, removeInVersion, replacement)` | Sera retiré au prochain major. | À l'annonce de dépréciation. |
+
+**Règle d'import pour les modules** : un `InterfazeModule` n'importe **que** depuis `gg.interfaze.modules.api.*`. Jamais depuis `gg.interfaze.plugin.*` (qui est implicitement `@Internal`).
+
+Cf. `docs/architecture/versioning.md` section 3.
+
 ### Flux de données
 
 ```
