@@ -133,7 +133,9 @@ mappings:
     updates:
       - "CLAUDE.md"
       - "docs/architecture/modules.md"
-    reason: "Plugin module API surface (interfaces, registries) — changes here affect every module"
+      - "docs/architecture/api-surface.md"
+      - "CHANGELOG.md"
+    reason: "Plugin module API surface (interfaces, registries) — changes here affect every module + must be reflected in CHANGELOG + api-surface doc"
 
   - touches: "backend/src/modules/api/"
     updates:
@@ -151,3 +153,20 @@ mappings:
     updates:
       - "CLAUDE.md"
     reason: "SchemaForm is the module form multiplier — any new feature documented in CLAUDE.md form-gen section"
+
+  - touches: "backend/src/db/schema.ts"
+    updates:
+      - "backend/drizzle/"
+      - "CHANGELOG.md"
+    reason: "Schema change requires drizzle-kit generate + CHANGELOG entry"
+
+  - touches: "backend/src/app.ts"
+    updates:
+      - "CHANGELOG.md"
+    reason: "Route mount changes are part of the REST API surface (versioned)"
+
+  - touches: "backend/src/protocol.ts"
+    updates:
+      - "CHANGELOG.md"
+      - "docs/architecture/versioning.md"
+    reason: "WS protocol changes need version bump consideration"
