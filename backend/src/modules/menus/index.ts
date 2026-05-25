@@ -19,6 +19,6 @@ export const menusModule: BackendModule = {
   id: "menus",
   schemaVersion: "menu/v1",
   registerRoutes: (app) => {
-    app.route("/api/modules/menus", buildMenusSubrouter());
+    app.route("/api/v1/modules/menus", buildMenusSubrouter());
   },
 };
