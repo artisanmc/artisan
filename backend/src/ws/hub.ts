@@ -371,6 +371,11 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
+  // ── unknown message type: log and ignore ──────────────────────────────────
+  console.debug(
+    `[hub] unknown message type '${(msg as any).type}' from conn ${connId} ` +
+    `(protocol_version=${(msg as any).protocol_version ?? "?"}). Ignoring.`,
+  );
   return { reply: null };
 }
 
