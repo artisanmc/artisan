@@ -62,7 +62,7 @@ class FullSyncIntegrationTest {
         mapper.writeValueAsString(mapOf(
             "type"      to "bundle_available",
             "pack_id"   to packId,
-            "url"       to server.url("/api/bundles/$packId").toString(),
+            "url"       to server.url("/api/v1/bundles/$packId").toString(),
             "hash"      to backendHash,
             "signature" to "",
         ))

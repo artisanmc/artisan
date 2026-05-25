@@ -44,7 +44,7 @@ class BundleUploader(
 
         val body = mapper.writeValueAsString(mapOf("files" to files))
         val request = Request.Builder()
-            .url("$apiUrl/api/bundles/$packId")
+            .url("$apiUrl/api/v1/bundles/$packId")
             .header("Authorization", "Bearer $serverKey")
             .post(body.toRequestBody(json))
             .build()

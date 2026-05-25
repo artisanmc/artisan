@@ -34,7 +34,7 @@ class BundleDownloaderTest {
             val packsDir = Files.createTempDirectory("ifz_dl_").toFile()
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url       = server.url("/api/bundles/$packId").toString(),
+                url       = server.url("/api/v1/bundles/$packId").toString(),
                 serverKey = "sk_test",
                 packId    = packId,
             )
@@ -62,7 +62,7 @@ class BundleDownloaderTest {
             val packsDir = Files.createTempDirectory("ifz_meta_").toFile()
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url       = server.url("/api/bundles/$packId").toString(),
+                url       = server.url("/api/v1/bundles/$packId").toString(),
                 serverKey = "sk_test",
                 packId    = packId,
             )
@@ -99,7 +99,7 @@ class BundleDownloaderTest {
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
-                url = server.url("/api/bundles/$packId").toString(),
+                url = server.url("/api/v1/bundles/$packId").toString(),
                 serverKey = "sk", packId = packId,
             )
 
@@ -127,7 +127,7 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
 
             assertTrue(File(packDir, ".interfaze-sync.yaml").exists(), "métadonnée préservée")
             assertTrue(!File(packDir, "menus/old.yaml").exists(), "fichier sweepé")
@@ -157,7 +157,7 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
 
             assertTrue(!File(packDir, "dialogs").exists(), "dialogs/ doit être supprimé (vide après sweep)")
             assertTrue(File(packDir, "menus/m1.yaml").exists(), "menus/m1.yaml conservé")
@@ -184,7 +184,7 @@ class BundleDownloaderTest {
             )
 
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
-            downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
+            downloader.download(server.url("/api/v1/bundles/$packId").toString(), "sk", packId)
 
             assertTrue(!outsideTarget.exists(), "Le fichier en dehors du packDir doit être bloqué")
         }

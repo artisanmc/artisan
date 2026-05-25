@@ -158,14 +158,14 @@ class SyncedMenuProviderTest {
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
-        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
+        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)
         val info = mgr.currentPackInfo
         assertNotNull(info)
-        assertEquals("http://localhost:3001/api/resource-pack/sk/${hash}.zip", info.url)
-        assertEquals("http://backend:3001/api/resource-pack/sk/${hash}.zip", info.downloadUrl)
+        assertEquals("http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip", info.url)
+        assertEquals("http://backend:3001/api/v1/resource-pack/sk/${hash}.zip", info.downloadUrl)
     }
 
     @Test
@@ -176,18 +176,18 @@ class SyncedMenuProviderTest {
         provider.load()
         // First seed apiUrl via a hello_ack.
         val helloHash = "a".repeat(40)
-        val hello = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
+        val hello = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, hello)
         // Now send a resource_pack_updated — should reuse the cached apiUrl.
         val newHash = "b".repeat(40)
-        val updated = """{"type":"resource_pack_updated","url":"http://localhost:3001/api/resource-pack/sk/${newHash}.zip","hash":"$newHash"}"""
+        val updated = """{"type":"resource_pack_updated","url":"http://localhost:3001/api/v1/resource-pack/sk/${newHash}.zip","hash":"$newHash"}"""
         handle.invoke(provider, updated)
         val info = mgr.currentPackInfo
         assertNotNull(info)
         assertEquals(newHash, info.hash)
-        assertEquals("http://backend:3001/api/resource-pack/sk/${newHash}.zip", info.downloadUrl)
+        assertEquals("http://backend:3001/api/v1/resource-pack/sk/${newHash}.zip", info.downloadUrl)
     }
 
     @Test
@@ -196,8 +196,8 @@ class SyncedMenuProviderTest {
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
         // No hello_ack received → apiUrl is null → resolve returns input untouched.
-        val resolved = provider.resolvePluginDownloadUrl("http://localhost:3001/api/resource-pack/x.zip")
-        assertEquals("http://localhost:3001/api/resource-pack/x.zip", resolved)
+        val resolved = provider.resolvePluginDownloadUrl("http://localhost:3001/api/v1/resource-pack/x.zip")
+        assertEquals("http://localhost:3001/api/v1/resource-pack/x.zip", resolved)
     }
 
     @Test
