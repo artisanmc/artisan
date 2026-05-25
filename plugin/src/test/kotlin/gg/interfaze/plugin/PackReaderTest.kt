@@ -5,6 +5,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import org.junit.jupiter.api.assertThrows
 
 class PackReaderTest {
 
@@ -112,6 +113,90 @@ class PackReaderTest {
         assertEquals(1, bundle.dialogs.size)
         assertEquals("d_test", bundle.dialogs.first().id)
         assertEquals("Test Dialog", bundle.dialogs.first().yaml.title)
+    }
+
+    @Test
+    fun `accepts menu YAML with explicit schema field menu_v1`() {
+        val root = java.nio.file.Files.createTempDirectory("ifz_schema_ok_").toFile()
+        val packDir = File(root, "test_pack").apply { mkdirs() }
+        File(packDir, "manifest.yaml").writeText("""
+            schema: "manifest/v1"
+            pack_id: test_pack
+            default_lang: en
+            languages: ["en"]
+            files:
+              menus: ["test"]
+              commands: []
+              dialogs: []
+        """.trimIndent())
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/test.yaml").writeText("""
+            schema: "menu/v1"
+            id: test
+            size: 27
+            layers: []
+        """.trimIndent())
+        File(packDir, "lang").mkdirs()
+        File(packDir, "lang/en.yaml").writeText("{}")
+
+        val packs = PackReader(root).readAll()
+        assertEquals(1, packs.size)
+        assertEquals("test_pack", packs[0].packId)
+    }
+
+    @Test
+    fun `accepts menu YAML without schema field for backward compat`() {
+        val root = java.nio.file.Files.createTempDirectory("ifz_schema_legacy_").toFile()
+        val packDir = File(root, "legacy_pack").apply { mkdirs() }
+        File(packDir, "manifest.yaml").writeText("""
+            pack_id: legacy_pack
+            default_lang: en
+            languages: ["en"]
+            files:
+              menus: ["legacy"]
+              commands: []
+              dialogs: []
+        """.trimIndent())
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/legacy.yaml").writeText("""
+            id: legacy
+            size: 27
+            layers: []
+        """.trimIndent())
+        File(packDir, "lang").mkdirs()
+        File(packDir, "lang/en.yaml").writeText("{}")
+
+        val packs = PackReader(root).readAll()
+        assertEquals(1, packs.size)
+        assertEquals("legacy_pack", packs[0].packId)
+    }
+
+    @Test
+    fun `rejects menu YAML with unsupported schema version`() {
+        val root = java.nio.file.Files.createTempDirectory("ifz_schema_bad_").toFile()
+        val packDir = File(root, "future_pack").apply { mkdirs() }
+        File(packDir, "manifest.yaml").writeText("""
+            pack_id: future_pack
+            default_lang: en
+            languages: ["en"]
+            files:
+              menus: ["future"]
+              commands: []
+              dialogs: []
+        """.trimIndent())
+        File(packDir, "menus").mkdirs()
+        File(packDir, "menus/future.yaml").writeText("""
+            schema: "menu/v99"
+            id: future
+            size: 27
+            layers: []
+        """.trimIndent())
+        File(packDir, "lang").mkdirs()
+        File(packDir, "lang/en.yaml").writeText("{}")
+
+        assertThrows<IllegalArgumentException> {
+            PackReader(root).readAll()
+        }
     }
 
     @Test
