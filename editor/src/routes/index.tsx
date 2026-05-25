@@ -8,13 +8,15 @@ export const Route = createFileRoute("/")({
 
 export function HomeRoute() {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (isAuthLoading) return;
     navigate({
       to: currentUser ? "/networks" : "/login",
     });
-  }, [currentUser, navigate]);
+  }, [currentUser, isAuthLoading, navigate]);
 
   return null;
 }
