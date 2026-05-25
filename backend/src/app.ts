@@ -28,27 +28,27 @@ export const app = new Hono();
 export { websocket };
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
-app.use("/api/*", cors({ origin: EDITOR_URL, credentials: true }));
+app.use("/api/v1/*", cors({ origin: EDITOR_URL, credentials: true }));
 
 app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
-app.route("/api/server-keys", serverKeysRouter);
-app.route("/api/bundles", bundlesRouter);
-app.route("/api/link", linkRouter);
-app.route("/api/editor-session", editorSessionRouter);
-app.route("/api/textures", texturesRouter);
-app.route("/api/models", modelsRouter);
-app.route("/api/model-bundle", modelBundleRouter);
-app.route("/api/editor-session", assetsRouter);
-app.route("/api/resource-pack", resourcePackPublicRouter);
-app.route("/api/editor-session", resourcePackAdminRouter);
-app.route("/api/auth", authRouter);
-app.route("/api/auth/discord", discordOauthRouter);
-app.use("/api/networks/*", userAuth());
-app.route("/api/networks", networkTransfersRouter);
-app.route("/api/networks", userNetworksRouter);
-app.route("/api/networks", userBranchesRouter);
-app.use("/api/user/packs/*", userAuth());
-app.route("/api/user/packs", userPacksRouter);
+app.route("/api/v1/server-keys", serverKeysRouter);
+app.route("/api/v1/bundles", bundlesRouter);
+app.route("/api/v1/link", linkRouter);
+app.route("/api/v1/editor-session", editorSessionRouter);
+app.route("/api/v1/textures", texturesRouter);
+app.route("/api/v1/models", modelsRouter);
+app.route("/api/v1/model-bundle", modelBundleRouter);
+app.route("/api/v1/editor-session", assetsRouter);
+app.route("/api/v1/resource-pack", resourcePackPublicRouter);
+app.route("/api/v1/editor-session", resourcePackAdminRouter);
+app.route("/api/v1/auth", authRouter);
+app.route("/api/v1/auth/discord", discordOauthRouter);
+app.use("/api/v1/networks/*", userAuth());
+app.route("/api/v1/networks", networkTransfersRouter);
+app.route("/api/v1/networks", userNetworksRouter);
+app.route("/api/v1/networks", userBranchesRouter);
+app.use("/api/v1/user/packs/*", userAuth());
+app.route("/api/v1/user/packs", userPacksRouter);
 
 mountModules(app, [menusModule, commandsModule]);
 

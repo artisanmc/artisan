@@ -11,6 +11,6 @@ export const commandsModule: BackendModule = {
   id: "commands",
   schemaVersion: "command/v1",
   registerRoutes: (app) => {
-    app.route("/api/modules/commands", buildCommandsSubrouter());
+    app.route("/api/v1/modules/commands", buildCommandsSubrouter());
   },
 };
