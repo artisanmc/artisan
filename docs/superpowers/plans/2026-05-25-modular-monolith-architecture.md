@@ -134,17 +134,27 @@ git commit -m "feat(plugin): add InterfazeModule interface"
 ```kotlin
 package gg.interfaze.modules.api
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import org.bukkit.entity.Player
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.mock
 
 class DataSourceRegistryTest {
+
+    private lateinit var player: Player
+
+    @BeforeEach fun setup() {
+        MockBukkit.mock()
+        player = MockBukkit.getMock()!!.addPlayer()
+    }
+
+    @AfterEach fun teardown() { MockBukkit.unmock() }
 
     @Test
     fun `register and fetch returns the declared data`() {
         val registry = DataSourceRegistry()
-        val player = mock<Player>()
         registry.register(DataSourceDeclaration(
             ref = "shop:items",
             fetcher = { _, _ -> listOf(mapOf("id" to "diamond", "price" to 100)) }
@@ -159,7 +169,6 @@ class DataSourceRegistryTest {
     @Test
     fun `fetch on unknown ref throws UnknownDataSourceException`() {
         val registry = DataSourceRegistry()
-        val player = mock<Player>()
 
         assertThrows(UnknownDataSourceException::class.java) {
             registry.fetch("ghost:items", player, emptyMap())
@@ -177,6 +186,8 @@ class DataSourceRegistryTest {
     }
 }
 ```
+
+**Note** — the plugin uses MockBukkit for Player mocking (not Mockito-Kotlin, which is not on the classpath). Other tests in this plan that use `Player` follow the same setup.
 
 - [ ] **Step 2: Run test to verify it fails (file does not exist)**
 
@@ -274,17 +285,27 @@ git commit -m "feat(plugin): add DataSourceRegistry with register + fetch"
 ```kotlin
 package gg.interfaze.modules.api
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import org.bukkit.entity.Player
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
 
 class CommandRegistryTest {
+
+    private lateinit var player: Player
+
+    @BeforeEach fun setup() {
+        MockBukkit.mock()
+        player = MockBukkit.getMock()!!.addPlayer()
+    }
+
+    @AfterEach fun teardown() { MockBukkit.unmock() }
+
     @Test
     fun `dispatch routes to the registered handler`() {
         val registry = CommandRegistry()
-        val player = mock<Player>()
         var calledWith: Map<String, Any?>? = null
         registry.register(CommandDeclaration(
             name = "shop:buy",
@@ -300,7 +321,7 @@ class CommandRegistryTest {
     fun `dispatch on unknown command throws UnknownCommandException`() {
         val registry = CommandRegistry()
         assertThrows(UnknownCommandException::class.java) {
-            registry.dispatch("ghost:cmd", mock(), emptyMap())
+            registry.dispatch("ghost:cmd", player, emptyMap())
         }
     }
 
@@ -525,13 +546,25 @@ git commit -m "feat(plugin): add InterfazeAPI facade for modules"
 ```kotlin
 package gg.interfaze.modules.menus
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.modules.api.*
 import gg.interfaze.plugin.InterfazePlugin
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.mock
 
 class MenusModuleTest {
+
+    private lateinit var plugin: InterfazePlugin
+
+    @BeforeEach fun setup() {
+        MockBukkit.mock()
+        plugin = MockBukkit.load(InterfazePlugin::class.java)
+    }
+
+    @AfterEach fun teardown() { MockBukkit.unmock() }
+
     @Test
     fun `module id is 'menus' and schema is 'menu_v1'`() {
         val module = MenusModule()
@@ -540,10 +573,10 @@ class MenusModuleTest {
     }
 
     @Test
-    fun `onEnable does not throw with a stub API`() {
+    fun `onEnable does not throw with a real plugin API`() {
         val module = MenusModule()
         val api = InterfazeAPI(
-            plugin = mock<InterfazePlugin>(),
+            plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
             events = ModuleEventBus(),
@@ -626,13 +659,25 @@ git commit -m "feat(plugin): add MenusModule skeleton"
 ```kotlin
 package gg.interfaze.modules.commands
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.modules.api.*
 import gg.interfaze.plugin.InterfazePlugin
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.mock
 
 class CommandsModuleTest {
+
+    private lateinit var plugin: InterfazePlugin
+
+    @BeforeEach fun setup() {
+        MockBukkit.mock()
+        plugin = MockBukkit.load(InterfazePlugin::class.java)
+    }
+
+    @AfterEach fun teardown() { MockBukkit.unmock() }
+
     @Test
     fun `module id is 'commands' and schema is 'command_v1'`() {
         val module = CommandsModule()
@@ -641,10 +686,10 @@ class CommandsModuleTest {
     }
 
     @Test
-    fun `onEnable does not throw with a stub API`() {
+    fun `onEnable does not throw with a real plugin API`() {
         val module = CommandsModule()
         val api = InterfazeAPI(
-            plugin = mock<InterfazePlugin>(),
+            plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
             events = ModuleEventBus(),
@@ -705,16 +750,22 @@ git commit -m "feat(plugin): add CommandsModule skeleton"
 ```kotlin
 package gg.interfaze.plugin
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import gg.interfaze.modules.api.InterfazeAPI
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class InterfazePluginModuleWiringTest {
+
+    @BeforeEach fun setup() { MockBukkit.mock() }
+    @AfterEach fun teardown() { MockBukkit.unmock() }
+
     @Test
     fun `plugin exposes an InterfazeAPI after enable`() {
-        // We can't easily boot the whole plugin in a unit test — assert the
-        // builder helper returns a non-null API with both registries set.
-        val api = InterfazePlugin.buildApi(mockPlugin())
+        val plugin = MockBukkit.load(InterfazePlugin::class.java)
+        val api = InterfazePlugin.buildApi(plugin)
         assertNotNull(api.dataSources)
         assertNotNull(api.commands)
         assertNotNull(api.events)
@@ -726,8 +777,6 @@ class InterfazePluginModuleWiringTest {
         assertTrue("menus" in ids)
         assertTrue("commands" in ids)
     }
-
-    private fun mockPlugin(): InterfazePlugin = org.mockito.kotlin.mock()
 }
 ```
 
