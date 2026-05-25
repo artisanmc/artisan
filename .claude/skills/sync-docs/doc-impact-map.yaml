@@ -128,3 +128,26 @@ mappings:
     updates:
       - "CLAUDE.md"
     reason: "Delete server-key endpoint (Plan accounts × networks UX — endpoints)"
+
+  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+    reason: "Plugin module API surface (interfaces, registries) — changes here affect every module"
+
+  - touches: "backend/src/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+    reason: "Backend module API surface"
+
+  - touches: "editor/src/modules/api/"
+    updates:
+      - "CLAUDE.md"
+      - "docs/architecture/modules.md"
+    reason: "Frontend module API surface"
+
+  - touches: "editor/src/components/SchemaForm/"
+    updates:
+      - "CLAUDE.md"
+    reason: "SchemaForm is the module form multiplier — any new feature documented in CLAUDE.md form-gen section"
