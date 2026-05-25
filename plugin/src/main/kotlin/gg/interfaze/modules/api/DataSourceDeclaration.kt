@@ -1,5 +1,6 @@
 package gg.interfaze.modules.api
 
+import gg.interfaze.modules.api.annotations.Stable
 import org.bukkit.entity.Player
 
 /**
@@ -11,6 +12,7 @@ import org.bukkit.entity.Player
  *                consumers (e.g. menus rendering `data_source.ref`) iterate generically.
  * @param schemaHint Optional human-readable schema description for tooling (web editor).
  */
+@Stable
 data class DataSourceDeclaration(
     val ref: String,
     val fetcher: (player: Player, params: Map<String, Any?>) -> List<Map<String, Any?>>,
