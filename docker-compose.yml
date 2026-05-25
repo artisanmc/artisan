@@ -34,7 +34,7 @@ services:
       # API_BASE_URL fallback chain. Override for remote/public servers.
       RESOURCE_PACK_BASE_URL: ${RESOURCE_PACK_BASE_URL:-}
     command: >
-      sh -c "bun install && bun run db:push && bun run start"
+      sh -c "bun install && bun run db:migrate && bun run start"
     depends_on:
       postgres:
         condition: service_healthy
