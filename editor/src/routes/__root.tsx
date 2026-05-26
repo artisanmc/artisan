@@ -7,7 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import type { Pack } from "@/domain/types";
-import { ModuleSidebar } from "@/components/ModuleSidebar";
+import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -31,7 +31,7 @@ export function RootLayout() {
       <div className="flex-1 flex overflow-hidden">
         {user && (
           <aside className="w-48 border-r border-zinc-800 bg-zinc-950 shrink-0">
-            <ModuleSidebar />
+            <WorkspaceSidebar />
           </aside>
         )}
         <main className="flex-1 overflow-auto">
