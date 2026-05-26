@@ -15,6 +15,7 @@ export interface PackSummary {
   id: string;
   name: string;
   hash: string;
+  updatedAt?: string;
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {
