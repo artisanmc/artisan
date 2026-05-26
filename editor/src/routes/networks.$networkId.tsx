@@ -48,8 +48,8 @@ export function NetworkDetailPage() {
             {detail.packs.map((p) => (
               <li key={p.id}>
                 <Link
-                  to="/pack/$packId"
-                  params={{ packId: p.id }}
+                  to="/workspace/$workspaceId"
+                  params={{ workspaceId: p.id }}
                   className="block p-3 border border-zinc-700 rounded hover:border-zinc-500 transition"
                 >
                   {p.name}

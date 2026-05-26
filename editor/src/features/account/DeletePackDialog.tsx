@@ -40,7 +40,7 @@ export function DeletePackDialog({ packId, packName, open, onOpenChange }: Delet
       removePack(packId);
       const remaining = packOrder.filter((id) => id !== packId);
       if (remaining.length > 0) {
-        navigate({ to: "/pack/$packId", params: { packId: remaining[0]! } });
+        navigate({ to: "/workspace/$workspaceId", params: { workspaceId: remaining[0]! } });
       } else {
         navigate({ to: "/" });
       }

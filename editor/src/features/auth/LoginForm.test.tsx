@@ -43,10 +43,10 @@ describe("LoginForm", () => {
 // Tests for next= parameter redirect logic (used in route component)
 describe("next= parameter handling", () => {
   test("extracts safe /next= path", () => {
-    const params = new URLSearchParams("?next=/pack/123");
+    const params = new URLSearchParams("?next=/workspace/123");
     const next = params.get("next");
     const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
-    expect(safeNext).toBe("/pack/123");
+    expect(safeNext).toBe("/workspace/123");
   });
 
   test("ignores protocol-relative URLs (//)", () => {
@@ -78,9 +78,9 @@ describe("next= parameter handling", () => {
   });
 
   test("preserves query params in next= path", () => {
-    const params = new URLSearchParams("?next=/pack/123?tab=settings");
+    const params = new URLSearchParams("?next=/workspace/123?tab=settings");
     const next = params.get("next");
     const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
-    expect(safeNext).toBe("/pack/123?tab=settings");
+    expect(safeNext).toBe("/workspace/123?tab=settings");
   });
 });
