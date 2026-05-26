@@ -47,8 +47,8 @@ export function PackMini({ pack, active }: PackMiniProps) {
       )}
     >
       <Link
-        to="/pack/$packId"
-        params={{ packId: pack.id as PackId }}
+        to="/workspace/$workspaceId"
+        params={{ workspaceId: pack.id as PackId }}
         className="flex flex-col gap-1.5"
       >
         <div className="flex items-center justify-between gap-2">

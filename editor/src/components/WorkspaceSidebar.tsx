@@ -41,10 +41,9 @@ export function WorkspaceSidebar() {
         <ul className="flex flex-col gap-0.5">
           {sorted.map((w) => (
             <li key={w.id}>
-              {/* @ts-expect-error route /pack/$packId exists; will update to /workspace/$workspaceId at Task C3 */}
               <Link
-                to="/pack/$packId"
-                params={{ packId: w.id }}
+                to="/workspace/$workspaceId"
+                params={{ workspaceId: w.id }}
                 className="block rounded px-2 py-1 text-sm text-zinc-200 hover:bg-zinc-800"
                 activeProps={{ className: "block rounded bg-zinc-800 px-2 py-1 text-sm text-zinc-100" }}
               >
