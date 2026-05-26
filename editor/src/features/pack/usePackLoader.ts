@@ -30,7 +30,7 @@ export function usePackLoader(packId: string): PackLoadResult {
         .then((packs) => {
           const found = packs.find((p) => p.id === packId);
           if (found) setPack(found);
-          else setError("Pack not bound to this session");
+          else setError("Workspace not bound to this session");
         })
         .catch((e) => setError((e as Error).message));
     } else if (user) {

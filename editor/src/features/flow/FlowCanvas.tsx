@@ -73,6 +73,7 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
  * specific state card.
  */
 export function FlowCanvas({ packId }: FlowCanvasProps) {
+  const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const setSub = useFlowSelectionStore((s) => s.set);
@@ -82,7 +83,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
     setSub(null);
   }, [setSub, [...ids].sort().join(",")]);
 
-  if (!pack) return <EmptyHint label="Pack not found." />;
+  if (!pack) return <EmptyHint label={t("packNotFound")} />;
   if (ids.size > 1) {
     return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
   }
