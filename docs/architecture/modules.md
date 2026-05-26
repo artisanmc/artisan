@@ -126,22 +126,108 @@ export interface BackendModule {
 }
 ```
 
-### 3.3 Plugin module (Paper)
+### 3.3 Plugin Paper : architecture multi-plugins
+
+**Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par module business**. Côté serveur l'admin install ce dont il a besoin :
+
+- `interfaze` (core) — **obligatoire**, gratuit, contient les modules indissociables du runtime (menus, commands, i18n, asset management, WebSocket sync, registries publics).
+- `interfaze-shop` (V1.5+) — premium, dépend du core, ajoute le module shop.
+- `interfaze-quests` (V2) — premium, dépend du core.
+- `interfaze-kits` (V2) — premium, dépend du core.
+- etc.
+
+C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté du marché MC.
+
+#### 3.3.1 Plugin core
 
 ```
-/plugin/src/main/kotlin/gg/interfaze/modules/{module_id}/
-  {ModuleId}Module.kt      ← Module class implementing InterfazeModule
-  providers/               ← Loaders, parsers (config from disk/cloud)
-  executors/               ← Runtime behavior (handle commands, etc.)
-  registries/              ← Registrations dans le runtime
+interfaze-core/
+  src/main/kotlin/gg/interfaze/core/
+    InterfazeCorePlugin.kt              ← Main plugin class
+    api/
+      InterfazeAPI.kt                    ← Public API surface (versioned)
+      InterfazeModule.kt                 ← Interface modules
+      DataSourceDeclaration.kt
+      CommandDeclaration.kt
+    engine/
+      MenuRenderer
+      CommandExecutor
+      MiniMessageEngine
+      I18nResolver
+    registries/
+      DataSourceRegistry                  ← Public, lookup "namespace:source"
+      CommandRegistry
+      SchemaRegistry
+      ModuleRegistry
+    sync/
+      WebSocketClient                     ← Connection à interfaze.gg backend
+    storage/
+      FilesystemMenuProvider
+      CloudMenuProvider
+    modules/
+      menus/                               ← Module menus interne au core
+      commands/                            ← Module commands interne au core
+      i18n/                                ← Module i18n interne au core
+      dialogs/                             ← Module dialogs interne au core (Paper 1.21+ Dialog API)
 ```
 
-**Interface Kotlin** :
+Les **modules indissociables du runtime** (menus, commands, i18n, dialogs) **vivent dans le core**. Un admin qui install seulement le core a déjà tout pour designer des menus et commandes.
+
+#### 3.3.2 Plugin module business (ex: shop)
+
+```
+interfaze-shop/
+  plugin.yml
+    name: InterfazeShop
+    depend: [Interfaze]                    ← Bukkit force le chargement du core d'abord
+    api-version: 1.21
+    main: gg.interfaze.shop.ShopPlugin
+  src/main/kotlin/gg/interfaze/shop/
+    ShopPlugin.kt                          ← extends JavaPlugin
+    ShopModule.kt                          ← implements InterfazeModule
+    ShopExecutor.kt                        ← Handles /buy command
+    ShopRepo.kt                            ← Items storage
+    bootstrap/                              ← Ressources bundle (cf. section 5)
+      manifest.json
+      menus/, commands/, dialogs/, translations/, assets/
+```
+
+L'`onEnable()` :
+
+```kotlin
+class ShopPlugin : JavaPlugin() {
+    companion object {
+        const val MIN_CORE_API_VERSION = "1.0.0"
+    }
+    
+    override fun onEnable() {
+        val core = server.pluginManager.getPlugin("Interfaze") as? InterfazeCorePlugin
+            ?: return disableWithError("Interfaze core not found. Install from interfaze.gg.")
+        
+        if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
+            return disableWithError(
+                "Interfaze Shop ${description.version} requires Interfaze core $MIN_CORE_API_VERSION+. " +
+                "Current core: ${core.description.version}."
+            )
+        }
+        
+        val module = ShopModule(this, core.api)
+        core.api.modules.register(module)
+        
+        // Bootstrap si première install sur ce serveur
+        if (!core.api.workspace.hasContent("shop")) {
+            core.api.bootstrap.unpack("shop", loadBootstrapBundle())
+        }
+    }
+}
+```
+
+#### 3.3.3 Interface module
 
 ```kotlin
 interface InterfazeModule {
     val id: String                          // "menus", "shop", "quests"
-    val schemaVersion: String                // "menu/v1", "shop/v1"
+    val schemaVersion: String                // "shop/v1", "quest/v1"
     
     fun onEnable(api: InterfazeAPI)         // Register data sources, commands, listeners
     fun onDisable()                         // Cleanup
@@ -149,20 +235,32 @@ interface InterfazeModule {
 }
 ```
 
-Le plugin core charge tous les modules au boot via `ServiceLoader` ou registry explicite :
+#### 3.3.4 Avantages du split plugins
 
-```kotlin
-class InterfazePlugin : JavaPlugin() {
-    override fun onEnable() {
-        val modules = listOf(
-            MenusModule(),
-            CommandsModule(),
-            // ShopModule() en V1.5
-        )
-        modules.forEach { it.onEnable(api) }
-    }
+1. **Admin onboarding léger** : install seulement ce dont tu as besoin. Le core gratuit fait beaucoup tout seul.
+2. **Monétisation clean** : chaque module business = son propre .jar = sa propre vente (SpigotMC Premium, BBV, Polymart). Pas de license key gating.
+3. **Discoverability** : recherche *"shop plugin"* sur SpigotMC → ton plugin shop apparaît. Pas caché derrière un parent.
+4. **Versioning indépendant** : ship shop 1.5 sans toucher au core.
+5. **Pattern familier** au marché MC (Vault, PlaceholderAPI, WorldGuard).
+
+#### 3.3.5 Backend reste monolithique
+
+Le backend (Fastify) et l'éditeur web restent **un seul deployment chacun**. Au WebSocket handshake, le plugin core déclare les modules installés sur le serveur :
+
+```json
+{
+  "type": "hello",
+  "server_key": "...",
+  "core_version": "1.5.2",
+  "installed_modules": [
+    { "id": "menus", "version": "1.5.2" },
+    { "id": "commands", "version": "1.5.2" },
+    { "id": "shop", "version": "1.0.3" }
+  ]
 }
 ```
+
+L'éditeur filtre son UI selon ces modules. Les modules non installés sont **affichés en grisé avec un *"Install Interfaze Shop to use this module"*** + link vers SpigotMC Premium / BBV.
 
 ## 4. Composition : data sources + commands
 
@@ -513,25 +611,183 @@ Ces features arrivent **incrémentalement** quand le besoin émerge.
 
 - **Over-engineering** : ajouter le pattern modulaire pour 2 modules au launch (`menus`, `commands`) peut sembler overkill. Réponse : c'est ~1 semaine d'effort qui en économise 4+ par module futur. Investment rentable dès le 2ᵉ module ajouté.
 - **Coupling subtil** : malgré la séparation, des modules peuvent finir par dépendre implicitement de la shape des data sources d'autres modules. Mitigation : `DataSourceDeclaration` inclut un JSON Schema typé, et le frontend valide la shape côté éditeur.
-- **Hot-reload cross-module** : si le module shop est rechargé, les menus qui consomment `shop:items` doivent re-fetch. Pattern observer / event bus côté plugin Paper à implémenter (~1 jour V1).
+- **Hot-reload cross-module** : si le module shop est rechargé, les menus qui consomment `shop:items` doivent re-fetch. Pattern observer / event bus côté plugin core à implémenter (~1 jour V1).
+- **Plugin version mismatch** : split en plusieurs plugins introduit le risque qu'un admin install core 1.0 + shop 2.0 incompatibles. Mitigation : SemVer strict, graceful failure, communication. Cf. section 13.
+
+---
+
+## 13. Compatibility et versioning multi-plugins
+
+Avec le split core + plugins modules, la **compatibility entre versions** devient une discipline critique. Pattern à respecter :
+
+### 13.1 SemVer strict sur l'API publique
+
+L'API publique du core (`InterfazeAPI`, `InterfazeModule`, `DataSourceRegistry`, etc.) suit **SemVer strict** :
+
+- **Patch (1.0.0 → 1.0.1)** : bug fixes uniquement. Aucun changement d'API. Modules existants continuent à marcher.
+- **Minor (1.0.0 → 1.1.0)** : nouvelles features de l'API, **backward compatible**. Modules existants continuent à marcher.
+- **Major (1.0.0 → 2.0.0)** : breaking changes. Modules peuvent ne plus marcher, doivent être updates.
+
+**Règle d'or** : éviter les majors. Une par an max, idéalement aucune. Quand inévitable : annonce 3-6 mois à l'avance, modules updates ship en parallèle de la major core.
+
+### 13.2 Module déclare sa compatibilité
+
+Chaque plugin module déclare sa contrainte de version du core dans le code :
+
+```kotlin
+class ShopPlugin : JavaPlugin() {
+    companion object {
+        const val MIN_CORE_API_VERSION = "1.0.0"
+        // Tout 1.x.y compatible (semver minor/patch backward compat)
+    }
+    
+    override fun onEnable() {
+        val core = pluginManager.getPlugin("Interfaze") as? InterfazeCorePlugin
+            ?: return disableWithError("Interfaze core not found. Install from interfaze.gg.")
+        
+        if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
+            return disableWithError(
+                "Interfaze Shop ${description.version} requires Interfaze core $MIN_CORE_API_VERSION or higher. " +
+                "Current core: ${core.description.version}. " +
+                "Update: https://www.spigotmc.org/resources/interfaze/"
+            )
+        }
+    }
+    
+    private fun disableWithError(msg: String) {
+        logger.severe(msg)
+        server.pluginManager.disablePlugin(this)
+    }
+}
+```
+
+### 13.3 Comportement en cas de mismatch
+
+**Aucune force update automatique.** Le module fail gracefully avec un message explicite :
+
+```
+[Interfaze Shop] ERROR: Interfaze Shop 2.0.0 requires Interfaze core 2.0.0+.
+[Interfaze Shop] Current Interfaze core: 1.5.2.
+[Interfaze Shop] Update Interfaze core: https://www.spigotmc.org/resources/interfaze/
+[Interfaze Shop] Shop is disabled. Other plugins are not affected.
+```
+
+L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update core, downgrade module, désactiver). Ses autres plugins ne sont pas affectés. C'est **le même pattern que Bukkit/Spigot** pour les plugins incompatibles avec une version serveur.
+
+### 13.4 API publique vs internals
+
+**Stable (covered by SemVer)** :
+- Interface `InterfazeAPI`
+- Interface `InterfazeModule`
+- Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
+- Classes `DataSourceDeclaration`, `CommandDeclaration`
+- Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
+- Events publics (`MenuOpenedEvent`, `CommandExecutedEvent`, etc.)
+
+**Internals (les modules NE doivent PAS en dépendre)** :
+- Implémentation interne du WebSocket client
+- Parser MiniMessage interne
+- Stratégies de storage
+- Threading internals
+- Classes marquées `@Internal` ou dans des packages `internal`
+
+Documentation claire dans `docs/architecture/api-surface.md` (à créer V1) qui liste explicitement ce qui est public stable vs interne.
+
+### 13.5 Communication aux admins
+
+**Sur SpigotMC / Modrinth** :
+- Page Interfaze Core : changelog clair, breaking changes signalés en gras rouge.
+- Pages des modules premium : *"Compatible avec Interfaze core 1.x"* indiqué visiblement.
+
+**Discord** :
+- Channel `#announcements` pour les updates majeures.
+- Notification quand une major est planifiée 3+ mois à l'avance.
+- Beta access aux modules updates avant la release de la core major.
+
+**Backend (interfaze.gg)** :
+- Détecte les versions installées via WebSocket handshake.
+- Affiche un warning dans l'éditeur web : *"Interfaze Shop 1.0.0 is incompatible with Interfaze core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
+- Email automatique aux Pro users quand un module qu'ils ont a une update disponible.
+
+### 13.6 Stratégie pour les majors
+
+Quand une major core est nécessaire (refactor architecture, breaking change Adventure, etc.) :
+
+1. **3 mois avant** : annonce Discord + SpigotMC + roadmap publique. Spec des breaking changes.
+2. **2 mois avant** : beta des nouvelles versions des modules premium aux Pro users.
+3. **1 mois avant** : RC (release candidate) du core + tous les modules.
+4. **Release day** : core 2.0.0 + tous les modules premium 2.0.0 lancés ensemble. Les admins update tout en bloc.
+5. **3 mois après** : core 1.x reste disponible en téléchargement. Pas de nouveaux bug fixes 1.x sauf critical security.
+6. **6 mois après** : core 1.x archived (téléchargement encore possible mais pas supporté).
+
+Tu peux maintenir 2 majors en parallèle pendant 3-6 mois (1.x + 2.x cohabitent), puis sunset 1.x.
+
+### 13.7 Practical reality pour V1-V2
+
+En pratique pour ton stade de projet :
+
+- **V1 launch** : `interfaze-core 1.0.0`. Pas de modules premium encore.
+- **V1.5** : `interfaze-core 1.x.y` + `interfaze-shop 1.0.0`. Core continue à evolver en minor/patch, shop continue à marcher tant que tu respectes SemVer.
+- **V2** : `interfaze-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Toujours sur major 1 du core.
+- **Année 2-3** : peut-être une major 2.0 si tu as accumulé de la dette API. Sinon tu restes en 1.x indéfiniment.
+
+**Idéalement, tu ne fais jamais de major 2.0.** Tu accumules en mineurs (`1.5`, `1.10`, `1.20`) en gardant le backward compat. C'est ce qu'a fait Bukkit pendant 15 ans.
+
+### 13.8 Auto-update et marketplace (V3+)
+
+À terme, interfaze.gg peut offrir un **auto-update système** :
+
+- Backend détecte les updates compatibles des modules installés.
+- Notification dans l'éditeur web : *"Interfaze Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
+- Click → backend triggere un download du .jar dans le `plugins/` du serveur via SFTP/RCON.
+
+Feature V3+, pas critique pour V1.
+
+### 13.9 Build layout : monorepo Gradle multi-module
+
+**Décision** : chaque module premium ship comme un JAR séparé, mais tout vit dans le **même repo** via un setup Gradle multi-module.
+
+**V1** (un seul JAR — état actuel) :
+```
+plugin/
+  build.gradle.kts        ← shadowJar → interfaze-plugin-X.Y.Z-all.jar
+  src/main/kotlin/gg/interfaze/
+    plugin/...            (internals)
+    modules/api/...       (@Stable surface, dépendance de tous les modules)
+    modules/menus/...     (statiquement linké)
+    modules/commands/...  (statiquement linké)
+```
+
+**V1.5+** (multi-module) :
+```
+plugin/
+  settings.gradle.kts     ← include("core", "shop", "quests", …)
+  core/
+    build.gradle.kts      ← shadowJar → Interfaze.jar
+    src/main/kotlin/gg/interfaze/
+      plugin/...
+      modules/api/...     (exposé en `api(…)` aux subprojects)
+      modules/menus/...
+      modules/commands/...
+  shop/
+    build.gradle.kts      ← shadowJar → InterfazeShop.jar
+    src/main/kotlin/gg/interfaze/modules/shop/...
+    dependencies {
+        compileOnly(project(":core"))  // résolu depuis modules/api uniquement
+    }
+  quests/...
+```
+
+**Avantages** :
+- Un seul `./gradlew test` qui run toute la batterie.
+- API breaking change → impossible de compiler les modules → ça pète en CI direct (pas besoin de `japicmp` initialement).
+- Refactor cross-module trivial (renomme un type, IDE update les call sites partout).
+- Pas de friction de release : `./gradlew :shop:shadowJar` produit le JAR, `:core:shadowJar` produit l'autre, on push les deux sur SpigotMC.
+
+**Quand bouger** : au moment d'ajouter `shop` en V1.5. Le coût du split à ce moment-là est faible (~1 jour) parce que `modules/menus/` et `modules/commands/` ont déjà la structure attendue.
+
+**Ce qu'on ne fait PAS** : monorepo séparé par-repo (`interfaze-core` + `interfaze-shop` repos distincts). Trop de friction pour développer une feature qui touche les 2 (PR croisées, version bumps coordonnés). Le monorepo Gradle gère ça naturellement.
 
 ---
 
 **Cette architecture est l'étoile polaire d'Interfaze.** Tu peux y revenir à chaque décision pour vérifier que ce que tu shipes va dans la bonne direction. Mais tu ne shipes pas tout d'un coup — tu shipes module par module, en respectant le pattern.
-
-## 13. Physical layout — V1 vs target
-
-The target layout in section 3.3 places module-specific code under
-`gg.interfaze.modules.{id}/`. V1 keeps the existing physical structure
-(`gg.interfaze.plugin.engine`, `gg.interfaze.plugin.command`, etc.) and only adds
-the module wrapper classes under `gg.interfaze.modules.{id}/`.
-
-**Why defer the move:**
-- The wrapper interface (`InterfazeModule`) is what other code depends on.
-- Moving ~50 files just to change package names is a high-risk, zero-behavior change.
-- Move opportunistically when adding the 3rd module (shop V1.5), which makes the
-  pattern more visible and amortises the rename cost.
-
-**When to do the physical move:** when introducing `shop` module in V1.5 — by then
-the pattern is established and the rename is justified by symmetry.
-
