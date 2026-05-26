@@ -95,7 +95,7 @@ function SessionPage() {
             setTrusted(true);
             const packId = pendingPackIdRef.current;
             if (packId) {
-              navigate({ to: "/pack/$packId", params: { packId } });
+              navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
             } else {
               setState("empty");
             }
@@ -115,7 +115,7 @@ function SessionPage() {
           pendingPackIdRef.current = firstPack?.id ?? null;
           setState("trust_gate");
         } else if (firstPack) {
-          await navigate({ to: "/pack/$packId", params: { packId: firstPack.id } });
+          await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: firstPack.id } });
         } else {
           setState("empty");
         }
@@ -207,7 +207,7 @@ function EmptyState({
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId)!;
       const files = transform(pack);
       await savePack(tokenRef.current!, pack, files);
-      await navigate({ to: "/pack/$packId", params: { packId } });
+      await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
     } finally {
       setBusy(false);
     }
