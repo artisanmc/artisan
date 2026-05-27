@@ -3,6 +3,7 @@ export interface AuthUserDto {
   email: string;
   name: string;
   avatarUrl: string | null;
+  editorLanguage?: string | null;
 }
 
 export interface ApiOptions {
@@ -49,4 +50,18 @@ export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null>
   if (!res.ok) return null;
   const data = (await res.json()) as { user: AuthUserDto };
   return data.user;
+}
+
+export async function patchMe(
+  { apiUrl }: ApiOptions,
+  payload: { editor_language?: string | null },
+): Promise<{ user: AuthUserDto } | { error: string }> {
+  const res = await fetch(`${apiUrl}/api/v1/auth/me`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return { error: `patch_me_failed_${res.status}` };
+  return res.json();
 }
