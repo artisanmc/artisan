@@ -170,3 +170,23 @@ mappings:
       - "CHANGELOG.md"
       - "docs/architecture/versioning.md"
     reason: "WS protocol changes need version bump consideration"
+
+  - touches: "editor/src/routes/settings.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "/settings is user-facing — section list + Apparence flow documented in CLAUDE.md UI shell section"
+
+  - touches: "editor/src/components/WorkspaceTabs.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Workspace tab structure (Overview / Translations / Data Sources) — UI shell mapping in CLAUDE.md"
+
+  - touches: "editor/src/components/WorkspaceSidebar.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Sidebar structure (Network dropdown + Workspaces + Modules + Settings button)"
+
+  - touches: "editor/src/routes/workspace.$workspaceId.tsx"
+    updates:
+      - "CLAUDE.md"
+    reason: "Workspace shell layout (top bar + tab strip + content per ?tab=) — UI shell mapping"

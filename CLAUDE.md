@@ -462,7 +462,8 @@ Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 | `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `ifz_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
 | `POST /api/auth/login` | Authentifie email+password. 200 + Set-Cookie. Erreur : 401 invalid_credentials. |
 | `POST /api/auth/logout` | Détruit la session courante (si présente), clear le cookie. Toujours 204. |
-| `GET /api/auth/me` | Retourne le user courant. 200 `{ user }` ou 401 si pas de session. |
+| `GET /api/auth/me` | Retourne le user courant (`{ user: { id, email, name, avatarUrl, editorLanguage } }`) ou 401 si pas de session. |
+| `PATCH /api/auth/me` | Body `{ editor_language?: string \| null }`. Update les préférences utilisateur. Retourne `{ user }`. 401 sans session. |
 | `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `ifz_oauth_state`). 500 si Discord pas configuré. |
 | `GET /api/auth/discord/callback?code&state` | Callback OAuth : exchange code, fetch user Discord, crée/lien user + session, redirige vers `${EDITOR_URL}/account`. |
 
@@ -473,6 +474,26 @@ Cookies utilisés :
 Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
 
 Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`ifz_user_session` et `ifz_refresh`) coexistent.
+
+### Préférences utilisateur (depuis 2026-05-27)
+
+`users.editor_language` (TEXT nullable) stocke la langue UI préférée de l'utilisateur connecté. Source de vérité côté client = `localStorage["i18nextLng"]`. Si logged-in, sync avec backend :
+- **Au boot** : `authStore.hydrate()` lit `editor_language` depuis `GET /me`, appelle `i18n.changeLanguage()` si présent.
+- **Au changement** (via `EditorLangSwitcher` dans `/settings`) : `uiStore.setEditorLang()` PATCH `editor_language` en fire-and-forget si `useAuthStore.currentUser` existe.
+
+Anonymous → localStorage uniquement. Backend wins au boot (écrase localStorage si différent).
+
+### UI shell — Workspace + Settings (depuis 2026-05-27)
+
+Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`) :
+
+- **`WorkspaceSidebar`** (sticky `editor/src/routes/__root.tsx`) — Network dropdown en haut + section Workspaces (drag-and-drop reorder via `account.packOrder`) + section Modules (empty state V1) + bouton ⚙ Settings sticky bottom.
+- **`/workspace/$workspaceId`** — shell à onglets via `?tab=` query param :
+  - `overview` (default) = canvas Konva
+  - `translations` = `TranslationPanelContent` inline (extraite du modal historique)
+  - `data-sources` = `DataSourcesPanelContent` inline (idem)
+- **Top bar** simplifié : pack name, `LangSwitcher` (contenu du pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
+- **`/settings`** — sidebar de sections (V1 = Apparence) + main content. La section Apparence héberge `EditorLangSwitcher`.
 
 ### Plan accounts × networks UX — endpoints signup/login → network
 
