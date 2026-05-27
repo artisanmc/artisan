@@ -538,6 +538,13 @@ const fr: typeof en = {
       editorLanguage: "Langue de l'éditeur",
     },
   },
+  workspace: {
+    tabs: {
+      overview: "Vue d'ensemble",
+      translations: "Traductions",
+      dataSources: "Sources de données",
+    },
+  },
   sidebar: {
     settings: "Paramètres",
   },

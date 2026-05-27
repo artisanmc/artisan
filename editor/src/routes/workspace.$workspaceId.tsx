@@ -47,6 +47,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { WorkspaceTabs } from "@/components/WorkspaceTabs";
 import { Navigate, createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { useSessionStore } from "@/state/sessionStore";
@@ -66,8 +67,15 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
 
+type WorkspaceSearch = { tab?: "overview" | "translations" | "data-sources" };
+
 export const Route = createFileRoute("/workspace/$workspaceId")({
   component: PackCanvasPage,
+  validateSearch: (search: Record<string, unknown>): WorkspaceSearch => {
+    const t = search.tab;
+    if (t === "translations" || t === "data-sources") return { tab: t };
+    return { tab: "overview" };
+  },
 });
 
 function PackCanvasPage() {
@@ -78,6 +86,10 @@ function PackCanvasPage() {
   const clearSession = useSessionStore((s) => s.clearSession);
   const currentUser = useAuthStore((s) => s.currentUser);
   const navigate = useNavigate();
+  const { tab } = Route.useSearch();
+  const setTab = (next: "overview" | "translations" | "data-sources") => {
+    navigate({ search: { tab: next } });
+  };
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
@@ -251,6 +263,23 @@ function PackCanvasPage() {
             {pack ? <DeployButtons pack={pack} packId={pId} /> : null}
           </div>
 
+          {/* Workspace tab strip */}
+          {pack && (
+            <WorkspaceTabs
+              tabs={[
+                { id: "overview", label: t("workspace.tabs.overview") },
+                {
+                  id: "translations",
+                  label: t("workspace.tabs.translations"),
+                  badge: totalMissing(pack) > 0 ? totalMissing(pack) : undefined,
+                },
+                { id: "data-sources", label: t("workspace.tabs.dataSources") },
+              ]}
+              activeTab={tab ?? "overview"}
+              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources")}
+            />
+          )}
+
           {/* Branch toolbar — only shown when a networkId is resolved (user-auth mode or session mode). */}
           {currentBranch && networkId && (
             <div className="flex flex-col gap-2 border-b border-zinc-800 p-3">
@@ -280,29 +309,41 @@ function PackCanvasPage() {
           {/* Editor layout: vertical split (Stage on top, EditorPane bottom)
               on mobile/tablet, horizontal split (Stage left, EditorPane as
               sidebar right) on desktop. Sizes persist independently. */}
-          <div className="min-h-0 flex-1">
-            {isDesktop ? (
-              <SplitPane
-                orientation="horizontal"
-                primary={<Stage packId={pId} />}
-                secondary={<EditorPane packId={pId} />}
-                secondarySize={editorPaneWidth}
-                onSecondarySizeChange={setEditorPaneWidth}
-                minSecondary={280}
-                minPrimary={400}
-              />
-            ) : (
-              <SplitPane
-                orientation="vertical"
-                primary={<Stage packId={pId} />}
-                secondary={<EditorPane packId={pId} />}
-                secondarySize={flowCanvasHeight}
-                onSecondarySizeChange={setFlowCanvasHeight}
-                minSecondary={120}
-                minPrimary={200}
-              />
-            )}
-          </div>
+          {tab === "overview" && (
+            <div className="min-h-0 flex-1">
+              {isDesktop ? (
+                <SplitPane
+                  orientation="horizontal"
+                  primary={<Stage packId={pId} />}
+                  secondary={<EditorPane packId={pId} />}
+                  secondarySize={editorPaneWidth}
+                  onSecondarySizeChange={setEditorPaneWidth}
+                  minSecondary={280}
+                  minPrimary={400}
+                />
+              ) : (
+                <SplitPane
+                  orientation="vertical"
+                  primary={<Stage packId={pId} />}
+                  secondary={<EditorPane packId={pId} />}
+                  secondarySize={flowCanvasHeight}
+                  onSecondarySizeChange={setFlowCanvasHeight}
+                  minSecondary={120}
+                  minPrimary={200}
+                />
+              )}
+            </div>
+          )}
+          {tab === "translations" && (
+            <div className="min-h-0 flex-1 p-6 text-zinc-500">
+              (Translations content — wired in next task)
+            </div>
+          )}
+          {tab === "data-sources" && (
+            <div className="min-h-0 flex-1 p-6 text-zinc-500">
+              (Data Sources content — wired in next task)
+            </div>
+          )}
         </main>
 
         {/* Translations panel (right-side sheet). */}
