@@ -339,9 +339,13 @@ function PackCanvasPage() {
           packName={pack.name}
           onCancel={() => setShowDeleteDialog(false)}
           onConfirm={async () => {
-            if (!apiUrl || !token) return;
+            if (!token) {
+              toast.error(t("toast.deleteFailed"));
+              return;
+            }
+            const baseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
             try {
-              await deletePack({ apiUrl, token, packId: pId });
+              await deletePack({ apiUrl: baseUrl, token, packId: pId });
               setShowDeleteDialog(false);
               navigate({ to: "/" });
             } catch (e) {
