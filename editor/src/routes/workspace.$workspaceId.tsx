@@ -6,9 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { ElementId, MenuId, Pack, PackId } from "@/domain/types";
-import { PackMiniSidebar } from "@/features/account/PackMiniSidebar";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
@@ -56,7 +54,6 @@ import { useAuthStore } from "@/state/authStore";
 import { usePackLoader } from "@/features/pack/usePackLoader";
 import {
   BookOpen,
-  Boxes,
   Database,
   Download,
   Globe,
@@ -108,7 +105,6 @@ function PackCanvasPage() {
   const branchNames = branches.map((b) => b.name);
   const [commitOpen, setCommitOpen] = useState(false);
 
-  const [packsOpen, setPacksOpen] = useState(false);
   const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
@@ -155,7 +151,7 @@ function PackCanvasPage() {
   // Session mode only: accountStore is not persisted — empty after a page refresh.
   if (token && packs.length === 0) return <Navigate to="/session" replace />;
   // Session mode only: if the specific pack isn't in this session, pick the first available.
-  if (token && !sessionPack) return <Navigate to={`/workspace/${packs[0]!.id}`} replace />;
+  if (token && !sessionPack) return <Navigate to="/workspace/$workspaceId" params={{ workspaceId: packs[0]!.id }} replace />;
   // User mode only: still loading the pack — render nothing while fetch is in flight.
   if (!token && !pack) return null;
 
@@ -209,20 +205,9 @@ function PackCanvasPage() {
       onDragCancel={onDragCancel}
     >
       <div className="flex h-[100dvh] overflow-hidden">
-        {/* Desktop pack sidebar — hidden on mobile (drawer-triggered). */}
-        <PackMiniSidebar activePackId={pId} />
-
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Top bar — pack name + Packs trigger (mobile only). */}
+          {/* Top bar — pack name. */}
           <div className="flex h-12 shrink-0 items-center gap-2 border-zinc-800 border-b bg-zinc-950 px-2">
-            <button
-              type="button"
-              title={t("topbar.packs")}
-              onClick={() => setPacksOpen(true)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 lg:hidden"
-            >
-              <Boxes className="h-5 w-5" />
-            </button>
             <div className="min-w-0 flex-1 truncate px-1 font-mono text-sm text-zinc-200">
               {pack?.name ?? "—"}
             </div>
@@ -342,17 +327,6 @@ function PackCanvasPage() {
           />
         ) : null}
 
-        {/* Mobile pack drawer. */}
-        <Sheet open={packsOpen} onOpenChange={setPacksOpen}>
-          <SheetContent side="left" className="w-72 max-w-[85%] p-0">
-            <SheetHeader>
-              <SheetTitle>Packs</SheetTitle>
-            </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <PackMiniSidebar activePackId={pId} embedded />
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
 
       {/* Floating ghost while dragging a Library item. Isolated component so
