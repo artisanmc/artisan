@@ -1,33 +1,53 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { NetworkDropdown } from "./NetworkDropdown";
-import { NewPackDialog } from "@/features/account/NewPackDialog";
+import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
-import { getNetwork, type PackSummary } from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
+import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
 
 export function WorkspaceSidebar() {
   const { t } = useTranslation();
-  const networkId = useSessionStore((s) => s.networkId);
+  const sessionNetworkId = useSessionStore((s) => s.networkId);
+  const networks = useNetworksStore((s) => s.networks);
+  const setNetworks = useNetworksStore((s) => s.setNetworks);
   const localPacks = useAccountStore((s) => s.account.packs);
   const packOrder = useAccountStore((s) => s.account.packOrder);
   const reorderPacks = useAccountStore((s) => s.reorderPacks);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
+  const [refetchToken, setRefetchToken] = useState(0);
+
+  // Load networks once on mount if not already populated (covers user-mode
+  // visiting a workspace deeplink without going through /account first).
+  useEffect(() => {
+    if (networks.length === 0) {
+      listNetworks().then(setNetworks).catch(() => {});
+    }
+  }, []);
+
+  // Active network = session network (set after /ifz setup), otherwise first
+  // network in the user's membership list. Null when the user has no networks
+  // at all (fresh signup before any setup).
+  const activeNetworkId = useMemo(
+    () => sessionNetworkId ?? networks[0]?.id ?? null,
+    [sessionNetworkId, networks],
+  );
 
   useEffect(() => {
-    if (!networkId) {
+    if (!activeNetworkId) {
       setServerPacks([]);
       return;
     }
     let cancelled = false;
     const refetch = () => {
-      getNetwork(networkId)
+      getNetwork(activeNetworkId)
         .then((d) => {
           if (!cancelled) setServerPacks(d.packs);
         })
@@ -36,23 +56,14 @@ export function WorkspaceSidebar() {
         });
     };
     refetch();
-
-    let prevLen = useAccountStore.getState().account.packs.length;
-    const unsub = useAccountStore.subscribe((state) => {
-      const newLen = state.account.packs.length;
-      if (newLen !== prevLen) {
-        prevLen = newLen;
-        setTimeout(refetch, 2500);
-      }
-    });
-
     return () => {
       cancelled = true;
-      unsub();
     };
-  }, [networkId]);
+  }, [activeNetworkId, refetchToken]);
 
-  // Server packs + local-only optimistic packs (just-created, not yet synced).
+  // Server packs + local-only optimistic packs (just-created via session mode
+  // autosave, not yet flushed). User-mode pack creation goes through
+  // NewWorkspaceDialog → backend API → setRefetchToken bumps the effect.
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
     .filter((p) => !serverIds.has(p.id))
@@ -102,16 +113,24 @@ export function WorkspaceSidebar() {
               </ul>
             </SortableContext>
           </DndContext>
-          <NewPackDialog
-            trigger={
-              <button
-                type="button"
-                className="mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200"
-              >
-                + Nouveau workspace
-              </button>
-            }
-          />
+          {activeNetworkId ? (
+            <NewWorkspaceDialog
+              networkId={activeNetworkId}
+              onCreated={() => setRefetchToken((n) => n + 1)}
+              trigger={
+                <button
+                  type="button"
+                  className="mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200"
+                >
+                  + Nouveau workspace
+                </button>
+              }
+            />
+          ) : (
+            <div className="mt-1 px-2 py-1 text-[11px] text-zinc-500">
+              Crée un Network ou lance <code>/ifz setup</code> sur ton serveur pour commencer.
+            </div>
+          )}
         </div>
 
         <div className="mt-3">
