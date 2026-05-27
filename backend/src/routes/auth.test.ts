@@ -214,3 +214,83 @@ describe("GET /api/v1/auth/me", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("PATCH /api/v1/auth/me — editor_language sync", () => {
+  async function seedAuthedUser(): Promise<{ sessionId: string; userId: string; email: string }> {
+    const email = `patch_me_${Date.now()}_${Math.random().toString(36).slice(2)}@example.com`;
+    const signupRes = await app.fetch(new Request("http://x/api/v1/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw", name: "PatchMe" }),
+    }));
+    const signupBody = await signupRes.json() as { user: { id: string } };
+    const userId = signupBody.user.id;
+    const loginRes = await app.fetch(new Request("http://x/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "longenoughpw" }),
+    }));
+    const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+    return { sessionId, userId, email };
+  }
+
+  test("updates the user's editor_language", async () => {
+    const { sessionId, userId, email } = await seedAuthedUser();
+
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": `ifz_user_session=${sessionId}`,
+      },
+      body: JSON.stringify({ editor_language: "fr" }),
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: { editorLanguage: string | null } };
+    expect(body.user.editorLanguage).toBe("fr");
+
+    const [row] = await db.select().from(users).where(eq(users.id, userId));
+    expect(row.editorLanguage).toBe("fr");
+
+    await cleanupByEmail(email);
+  });
+
+  test("returns 401 without a session cookie", async () => {
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ editor_language: "fr" }),
+    }));
+    expect(res.status).toBe(401);
+  });
+
+  test("accepts null to clear the preference", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+
+    // First set a language
+    await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": `ifz_user_session=${sessionId}`,
+      },
+      body: JSON.stringify({ editor_language: "en" }),
+    }));
+
+    // Then clear it
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": `ifz_user_session=${sessionId}`,
+      },
+      body: JSON.stringify({ editor_language: null }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: { editorLanguage: string | null } };
+    expect(body.user.editorLanguage).toBe(null);
+
+    await cleanupByEmail(email);
+  });
+});
