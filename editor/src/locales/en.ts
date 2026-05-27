@@ -530,6 +530,13 @@ export default {
       editorLanguage: "Editor language",
     },
   },
+  workspace: {
+    tabs: {
+      overview: "Overview",
+      translations: "Translations",
+      dataSources: "Data Sources",
+    },
+  },
   sidebar: {
     settings: "Settings",
   },
