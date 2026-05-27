@@ -3,31 +3,59 @@ import { Link } from "@tanstack/react-router";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { NewPackDialog } from "@/features/account/NewPackDialog";
 import { useSessionStore } from "@/state/sessionStore";
+import { useAccountStore } from "@/state/accountStore";
 import { getNetwork, type PackSummary } from "@/lib/api/networks";
 
 export function WorkspaceSidebar() {
   const networkId = useSessionStore((s) => s.networkId);
-  const [packs, setPacks] = useState<PackSummary[]>([]);
+  const localPacks = useAccountStore((s) => s.account.packs);
+  const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
 
   useEffect(() => {
     if (!networkId) {
-      setPacks([]);
+      setServerPacks([]);
       return;
     }
     let cancelled = false;
-    getNetwork(networkId)
-      .then((d) => {
-        if (!cancelled) setPacks(d.packs);
-      })
-      .catch(() => {
-        if (!cancelled) setPacks([]);
-      });
+    const refetch = () => {
+      getNetwork(networkId)
+        .then((d) => {
+          if (!cancelled) setServerPacks(d.packs);
+        })
+        .catch(() => {
+          if (!cancelled) setServerPacks([]);
+        });
+    };
+    refetch();
+
+    // When a workspace is created locally, account.packs grows. Autosave debounces
+    // 2s before pushing to backend — refetch shortly after to pick up the new
+    // server-side row and reconcile with the optimistic local entry.
+    let prevLen = useAccountStore.getState().account.packs.length;
+    const unsub = useAccountStore.subscribe((state) => {
+      const newLen = state.account.packs.length;
+      if (newLen !== prevLen) {
+        prevLen = newLen;
+        setTimeout(refetch, 2500);
+      }
+    });
+
     return () => {
       cancelled = true;
+      unsub();
     };
   }, [networkId]);
 
-  const sorted = [...packs].sort((a, b) =>
+  // Optimistic merge: include local packs that aren't on the server yet
+  // (the user just created them, autosave hasn't flushed). After the deferred
+  // refetch, they consolidate with their server counterparts by id.
+  const serverIds = new Set(serverPacks.map((p) => p.id));
+  const optimisticEntries: PackSummary[] = localPacks
+    .filter((p) => !serverIds.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }));
+  const allPacks = [...serverPacks, ...optimisticEntries];
+
+  const sorted = [...allPacks].sort((a, b) =>
     (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
   );
 
