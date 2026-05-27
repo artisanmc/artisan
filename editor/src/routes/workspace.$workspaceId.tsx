@@ -18,7 +18,7 @@ import { ExportButton } from "@/features/export/ExportButton";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanel } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
-import { SUPPORTED_LANGS, type SupportedLang } from "@/i18n";
+import { EditorLangSwitcher } from "@/components/EditorLangSwitcher";
 import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
@@ -56,7 +56,6 @@ import {
   BookOpen,
   Database,
   Download,
-  Globe,
   Languages,
   Redo2,
   Undo2,
@@ -556,43 +555,6 @@ function LangSwitcher({ pack }: { pack: Pack }) {
  * their pack into a third language keeps their editor in their own
  * tongue.
  */
-function EditorLangSwitcher() {
-  const editorLang = useUiStore((s) => s.editorLang);
-  const setEditorLang = useUiStore((s) => s.setEditorLang);
-  const { t } = useTranslation();
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          title={t("editorLangSwitcher.title")}
-          className="flex h-9 w-9 items-center justify-center rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-        >
-          <Globe className="h-4 w-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="border-zinc-700 bg-zinc-900 text-xs text-zinc-200"
-      >
-        {SUPPORTED_LANGS.map((lang) => (
-          <DropdownMenuItem
-            key={lang}
-            onSelect={() => setEditorLang(lang as SupportedLang)}
-            className="flex cursor-pointer items-center gap-2 focus:bg-zinc-800"
-          >
-            <span
-              className={`font-mono uppercase ${lang === editorLang ? "text-emerald-300" : ""}`}
-            >
-              {lang}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 /**
  * Top-bar undo/redo. Subscribes to zundo's temporal store so the buttons
  * disable when there's nothing to undo/redo. Keyboard shortcuts (⌘Z /
