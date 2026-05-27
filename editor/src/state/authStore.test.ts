@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useAuthStore } from "./authStore";
+import i18n from "@/i18n";
 
 const API = "http://x";
 
@@ -55,5 +56,32 @@ describe("authStore.logout", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
     await useAuthStore.getState().logout(API);
     expect(useAuthStore.getState().currentUser).toBeNull();
+  });
+});
+
+describe("authStore.hydrate — editor_language sync", () => {
+  test("hydrate syncs editor_language to i18n.changeLanguage when present", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "A", avatarUrl: null, editorLanguage: "fr" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    const changeLang = vi.spyOn(i18n, "changeLanguage").mockResolvedValue(undefined as never);
+
+    await useAuthStore.getState().hydrate(API);
+
+    expect(useAuthStore.getState().currentUser?.editorLanguage).toBe("fr");
+    expect(changeLang).toHaveBeenCalledWith("fr");
+  });
+
+  test("hydrate does NOT call changeLanguage if editorLanguage is null", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ user: { id: "u1", email: "a@e.com", name: "A", avatarUrl: null, editorLanguage: null } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    const changeLang = vi.spyOn(i18n, "changeLanguage").mockResolvedValue(undefined as never);
+
+    await useAuthStore.getState().hydrate(API);
+
+    expect(changeLang).not.toHaveBeenCalled();
   });
 });
