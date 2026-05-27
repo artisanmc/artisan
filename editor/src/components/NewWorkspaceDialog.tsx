@@ -1,0 +1,88 @@
+import { type ReactElement, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { createPack } from "@/lib/api/networks";
+
+interface NewWorkspaceDialogProps {
+  /** Network the new workspace will be created in. When null, the trigger is disabled. */
+  networkId: string | null;
+  /** Called with the new workspace id after a successful create. */
+  onCreated?: (id: string) => void;
+  trigger?: ReactElement;
+}
+
+/**
+ * Creates a workspace on the backend (`POST /api/v1/networks/:id/packs`), not just
+ * in local state. Unlike the legacy NewPackDialog, the new workspace persists
+ * across reloads and is bound to a real network.
+ */
+export function NewWorkspaceDialog({ networkId, onCreated, trigger }: NewWorkspaceDialogProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!networkId) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const pack = await createPack(networkId, trimmed);
+      setName("");
+      setOpen(false);
+      onCreated?.(pack.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "create_failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const defaultTrigger = (
+    <Button variant="outline" disabled={!networkId}>
+      + {t("packMini.newPack")}
+    </Button>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setError(null); }}>
+      <DialogTrigger asChild>{trigger ?? defaultTrigger}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("newPackDialog.title")}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <Input
+            placeholder="my_workspace"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            autoFocus
+          />
+          {error && (
+            <div className="text-xs text-red-400">{error}</div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
+              {t("newPackDialog.cancel")}
+            </Button>
+            <Button onClick={submit} disabled={!name.trim() || !networkId || submitting}>
+              {submitting ? "…" : t("newPackDialog.create")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
