@@ -9,6 +9,9 @@ export default {
     redo: "Redo ({{mod}}⇧Z)",
     activeLanguage: "Active language: {{lang}}",
     deletePack: "Delete workspace",
+    more: "More actions",
+    import: "Import a pack",
+    export: "Export pack",
   },
   langSwitcher: {
     addLanguage: "+ Add language…",
