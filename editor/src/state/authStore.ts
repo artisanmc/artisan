@@ -26,6 +26,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     const user = await getMe({ apiUrl });
     set({ currentUser: user, isLoading: false });
+    if (user?.editorLanguage) {
+      const { default: i18n } = await import("@/i18n");
+      await i18n.changeLanguage(user.editorLanguage);
+    }
   },
   async login(apiUrl, payload) {
     set({ isLoading: true, error: null });
