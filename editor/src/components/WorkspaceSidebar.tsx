@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { NewPackDialog } from "@/features/account/NewPackDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { getNetwork, type PackSummary } from "@/lib/api/networks";
+import type { PackId } from "@/domain/types";
 
 export function WorkspaceSidebar() {
   const networkId = useSessionStore((s) => s.networkId);
   const localPacks = useAccountStore((s) => s.account.packs);
+  const packOrder = useAccountStore((s) => s.account.packOrder);
+  const reorderPacks = useAccountStore((s) => s.reorderPacks);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
 
   useEffect(() => {
@@ -28,9 +35,6 @@ export function WorkspaceSidebar() {
     };
     refetch();
 
-    // When a workspace is created locally, account.packs grows. Autosave debounces
-    // 2s before pushing to backend — refetch shortly after to pick up the new
-    // server-side row and reconcile with the optimistic local entry.
     let prevLen = useAccountStore.getState().account.packs.length;
     const unsub = useAccountStore.subscribe((state) => {
       const newLen = state.account.packs.length;
@@ -46,18 +50,37 @@ export function WorkspaceSidebar() {
     };
   }, [networkId]);
 
-  // Optimistic merge: include local packs that aren't on the server yet
-  // (the user just created them, autosave hasn't flushed). After the deferred
-  // refetch, they consolidate with their server counterparts by id.
+  // Server packs + local-only optimistic packs (just-created, not yet synced).
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
     .filter((p) => !serverIds.has(p.id))
     .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
-  const sorted = [...allPacks].sort((a, b) =>
+  // Ordering: follow account.packOrder where possible, append remaining by updatedAt desc.
+  const idToPack = new Map(allPacks.map((p) => [p.id, p]));
+  const ordered: PackSummary[] = [];
+  for (const id of packOrder) {
+    const p = idToPack.get(id);
+    if (p) {
+      ordered.push(p);
+      idToPack.delete(id);
+    }
+  }
+  const remaining = [...idToPack.values()].sort((a, b) =>
     (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
   );
+  const finalList = [...ordered, ...remaining];
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = finalList.map((p) => p.id);
+    const oldIndex = ids.indexOf(active.id as string);
+    const newIndex = ids.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    reorderPacks(arrayMove(ids, oldIndex, newIndex) as PackId[]);
+  };
 
   return (
     <nav className="flex h-full flex-col gap-3 p-2">
@@ -67,20 +90,15 @@ export function WorkspaceSidebar() {
         <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-zinc-500">
           Mes Workspaces
         </div>
-        <ul className="flex flex-col gap-0.5">
-          {sorted.map((w) => (
-            <li key={w.id}>
-              <Link
-                to="/workspace/$workspaceId"
-                params={{ workspaceId: w.id }}
-                className="block rounded px-2 py-1 text-sm text-zinc-200 hover:bg-zinc-800"
-                activeProps={{ className: "block rounded bg-zinc-800 px-2 py-1 text-sm text-zinc-100" }}
-              >
-                {w.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+          <SortableContext items={finalList.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            <ul className="flex flex-col gap-0.5">
+              {finalList.map((w) => (
+                <SortableWorkspaceItem key={w.id} id={w.id} name={w.name} />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
         <NewPackDialog
           trigger={
             <button
@@ -102,5 +120,35 @@ export function WorkspaceSidebar() {
         </div>
       </div>
     </nav>
+  );
+}
+
+function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <li ref={setNodeRef} style={style} className="group relative">
+      <Link
+        to="/workspace/$workspaceId"
+        params={{ workspaceId: id }}
+        className="block rounded px-2 py-1 pr-7 text-sm text-zinc-200 hover:bg-zinc-800"
+        activeProps={{ className: "block rounded bg-zinc-800 px-2 py-1 pr-7 text-sm text-zinc-100" }}
+      >
+        {name}
+      </Link>
+      <button
+        type="button"
+        aria-label="Reorder workspace"
+        {...attributes}
+        {...listeners}
+        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 cursor-grab items-center justify-center rounded text-[10px] text-zinc-500 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
+      >
+        ⠿
+      </button>
+    </li>
   );
 }
