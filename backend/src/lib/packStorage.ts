@@ -6,6 +6,34 @@ import { createBranch } from "./branchStorage";
 
 export type Pack = typeof packs.$inferSelect;
 
+/**
+ * Initial editor JSON shape for a freshly created pack. Mirrors the editor's
+ * `Pack` TypeScript type — every collection field is empty so the editor can
+ * render an empty workspace without crashing. Without this default, the
+ * editor used to get `editor: null` from GET /api/v1/user/packs/:packId and
+ * render a black screen.
+ */
+function defaultEditorJson(id: string, name: string, now: Date): string {
+  const iso = now.toISOString();
+  return JSON.stringify({
+    id,
+    name,
+    source: "user_created",
+    createdAt: iso,
+    updatedAt: iso,
+    menus: [],
+    commands: [],
+    templates: [],
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    dialogs: [],
+    canvasLayout: {},
+  });
+}
+
 export async function createPack(input: {
   networkId: string;
   name: string;
@@ -14,6 +42,7 @@ export async function createPack(input: {
 }): Promise<Pack> {
   const id = input.id ?? "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const now = new Date();
+  const initialEditor = defaultEditorJson(id, input.name, now);
   await db.insert(packs).values({
     id,
     networkId: input.networkId,
@@ -21,18 +50,20 @@ export async function createPack(input: {
     description: input.description ?? null,
     hash: "",
     filesJson: "{}",
-    editorJson: null,
+    editorJson: initialEditor,
     deployedEditorJson: null,
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
   });
-  // Phase 2: auto-create main branch with an initial empty commit.
+  // Phase 2: auto-create main branch with an initial empty commit carrying
+  // the same default editor shape, so any plugin downloading the bundle gets
+  // valid JSON instead of null.
   const root = await createCommit({
     packId: id,
     parentId: null,
     files: {},
-    editor: null,
+    editor: JSON.parse(initialEditor),
     authorUserId: null,
     message: "Initial commit",
   });
