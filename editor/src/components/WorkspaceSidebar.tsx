@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { NetworkDropdown } from "./NetworkDropdown";
+import { NewPackDialog } from "@/features/account/NewPackDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { getNetwork, type PackSummary } from "@/lib/api/networks";
 
@@ -52,15 +53,16 @@ export function WorkspaceSidebar() {
             </li>
           ))}
         </ul>
-        {networkId && (
-          <Link
-            to="/networks/$networkId"
-            params={{ networkId }}
-            className="mt-1 block px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200"
-          >
-            + Nouveau workspace
-          </Link>
-        )}
+        <NewPackDialog
+          trigger={
+            <button
+              type="button"
+              className="mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              + Nouveau workspace
+            </button>
+          }
+        />
       </div>
 
       <div>
@@ -68,7 +70,7 @@ export function WorkspaceSidebar() {
           Modules installés
         </div>
         <div className="rounded border border-dashed border-zinc-800 px-2 py-2 text-[11px] text-zinc-500">
-          Aucun module installé. Les plugins compatibles Interfaze (Shop, Quests, etc.) apparaîtront ici quand tu les ajouteras à ton serveur.
+          Aucun module installé.
         </div>
       </div>
     </nav>
