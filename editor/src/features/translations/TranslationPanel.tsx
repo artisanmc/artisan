@@ -48,18 +48,10 @@ const CM_THEME = EditorView.theme({
 });
 
 /**
- * Bulk translation editor with two views:
- *
- *   - Visual: per-row UI with MiniMessage preview, missing entries
- *     highlighted, edits saved on every keystroke (`setI18nValue`).
- *   - YAML: a single textarea matching the runtime plugin's
- *     `lang/<code>.yml` shape — copy/paste roundtrip for AI / external
- *     translator workflows.
- *
- * Visual is the default because it's the discoverable / "what's still
- * missing" view; YAML is for the bulk / copy-paste use case.
+ * Inner content of the Translation panel — all hooks + UI, no Sheet chrome.
+ * Used both by the modal wrapper (`TranslationPanel`) and the inline workspace tab.
  */
-export function TranslationPanel({ packId, open, onOpenChange }: TranslationPanelProps) {
+export function TranslationPanelContent({ packId }: { packId: PackId }) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
@@ -102,128 +94,149 @@ export function TranslationPanel({ packId, open, onOpenChange }: TranslationPane
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-[640px] p-0 sm:max-w-[640px]">
-        <div className="flex h-full flex-col">
-          <SheetHeader className="border-zinc-800 border-b px-4 py-3">
-            <SheetTitle className="flex items-center gap-2 font-mono text-sm">
-              {t("translations.title")}
-            </SheetTitle>
-            <div className="flex items-center gap-3 text-[11px] text-zinc-400">
-              <span>
-                {t("translations.statTranslated", {
-                  translated: stats.translated,
-                  total: stats.total,
-                  lang: activeLang.toUpperCase(),
-                })}
-              </span>
-              {missing > 0 ? (
-                <span className="text-amber-400">
-                  · {t("translations.statMissing", { count: missing })}
-                </span>
-              ) : (
-                <span className="text-emerald-400">· {t("translations.statComplete")}</span>
-              )}
-            </div>
-          </SheetHeader>
-
-          {/* Per-language tabs — one click switches both the panel view
-              and the global active language, so the canvas/editor below
-              stay in sync with what the user is translating. */}
-          <div className="flex items-center gap-1 overflow-x-auto border-zinc-800 border-b bg-zinc-950 px-2 py-1.5">
-            {langs.map((lang) => {
-              const isActive = lang === activeLang;
-              const isDefault = lang === pack.defaultLang;
-              const count = missingByLang[lang] ?? 0;
-              return (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => setActiveLang(lang)}
-                  className={
-                    isActive
-                      ? "flex shrink-0 items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2.5 py-1 font-mono text-[11px] text-emerald-100"
-                      : "flex shrink-0 items-center gap-1.5 rounded border border-transparent px-2.5 py-1 font-mono text-[11px] text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
-                  }
-                >
-                  <span className="uppercase">{lang}</span>
-                  {isDefault ? (
-                    <span className="rounded bg-zinc-800 px-1 py-0.5 text-[8px] uppercase tracking-wide text-zinc-400">
-                      src
-                    </span>
-                  ) : count > 0 ? (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[9px] text-zinc-950">
-                      {count}
-                    </span>
-                  ) : (
-                    <span className="text-emerald-400">✓</span>
-                  )}
-                </button>
-              );
+    <div className="flex h-full flex-col">
+      <div className="border-zinc-800 border-b px-4 py-3">
+        <div className="flex items-center gap-2 font-mono text-sm text-zinc-100">
+          {t("translations.title")}
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+          <span>
+            {t("translations.statTranslated", {
+              translated: stats.translated,
+              total: stats.total,
+              lang: activeLang.toUpperCase(),
             })}
-            <button
-              type="button"
-              onClick={onAddLang}
-              title={t("translations.addLanguage")}
-              className="flex shrink-0 items-center gap-1 rounded border border-zinc-800 border-dashed px-2 py-1 text-[11px] text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-
-          {isOnDefault ? (
-            <div className="border-amber-600/40 border-b bg-amber-600/5 px-4 py-2 text-[11px] text-amber-200">
-              {t("translations.onDefaultWarning", { lang: activeLang })}
-            </div>
-          ) : null}
-
-          {/* Mode switcher (segmented control). */}
-          <div className="flex items-center gap-2 border-zinc-800 border-b bg-zinc-950/40 px-4 py-2">
-            <div className="flex overflow-hidden rounded border border-zinc-700">
-              <ModeTab active={mode === "visual"} onClick={() => setMode("visual")}>
-                {t("translations.modeVisual")}
-              </ModeTab>
-              <ModeTab active={mode === "yaml"} onClick={() => setMode("yaml")}>
-                {t("translations.modeYaml")}
-              </ModeTab>
-            </div>
-            {mode === "visual" ? (
-              <div className="ml-auto flex items-center gap-1">
-                <FilterTab active={filter === "missing"} onClick={() => setFilter("missing")}>
-                  {t("translations.filterMissing")}
-                  {missing > 0 ? ` (${missing})` : ""}
-                </FilterTab>
-                <FilterTab active={filter === "translated"} onClick={() => setFilter("translated")}>
-                  {t("translations.filterTranslated", { count: stats.translated })}
-                </FilterTab>
-                <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
-                  {t("translations.filterAll", { count: stats.total })}
-                </FilterTab>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Body */}
-          {mode === "visual" ? (
-            <VisualBody
-              activeLang={activeLang}
-              defaultLang={pack.defaultLang}
-              allRows={rows}
-              filter={filter}
-              onChange={(key, value) =>
-                setI18nValue({ packId, lt: { key }, lang: activeLang, value })
-              }
-            />
+          </span>
+          {missing > 0 ? (
+            <span className="text-amber-400">
+              · {t("translations.statMissing", { count: missing })}
+            </span>
           ) : (
-            <YamlBody
-              packId={packId}
-              activeLang={activeLang}
-              pack={pack}
-              rows={rows}
-              modeKey={mode}
-            />
+            <span className="text-emerald-400">· {t("translations.statComplete")}</span>
           )}
         </div>
+      </div>
+
+      {/* Per-language tabs — one click switches both the panel view
+          and the global active language, so the canvas/editor below
+          stay in sync with what the user is translating. */}
+      <div className="flex items-center gap-1 overflow-x-auto border-zinc-800 border-b bg-zinc-950 px-2 py-1.5">
+        {langs.map((lang) => {
+          const isActive = lang === activeLang;
+          const isDefault = lang === pack.defaultLang;
+          const count = missingByLang[lang] ?? 0;
+          return (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => setActiveLang(lang)}
+              className={
+                isActive
+                  ? "flex shrink-0 items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2.5 py-1 font-mono text-[11px] text-emerald-100"
+                  : "flex shrink-0 items-center gap-1.5 rounded border border-transparent px-2.5 py-1 font-mono text-[11px] text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+              }
+            >
+              <span className="uppercase">{lang}</span>
+              {isDefault ? (
+                <span className="rounded bg-zinc-800 px-1 py-0.5 text-[8px] uppercase tracking-wide text-zinc-400">
+                  src
+                </span>
+              ) : count > 0 ? (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[9px] text-zinc-950">
+                  {count}
+                </span>
+              ) : (
+                <span className="text-emerald-400">✓</span>
+              )}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onAddLang}
+          title={t("translations.addLanguage")}
+          className="flex shrink-0 items-center gap-1 rounded border border-zinc-800 border-dashed px-2 py-1 text-[11px] text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      </div>
+
+      {isOnDefault ? (
+        <div className="border-amber-600/40 border-b bg-amber-600/5 px-4 py-2 text-[11px] text-amber-200">
+          {t("translations.onDefaultWarning", { lang: activeLang })}
+        </div>
+      ) : null}
+
+      {/* Mode switcher (segmented control). */}
+      <div className="flex items-center gap-2 border-zinc-800 border-b bg-zinc-950/40 px-4 py-2">
+        <div className="flex overflow-hidden rounded border border-zinc-700">
+          <ModeTab active={mode === "visual"} onClick={() => setMode("visual")}>
+            {t("translations.modeVisual")}
+          </ModeTab>
+          <ModeTab active={mode === "yaml"} onClick={() => setMode("yaml")}>
+            {t("translations.modeYaml")}
+          </ModeTab>
+        </div>
+        {mode === "visual" ? (
+          <div className="ml-auto flex items-center gap-1">
+            <FilterTab active={filter === "missing"} onClick={() => setFilter("missing")}>
+              {t("translations.filterMissing")}
+              {missing > 0 ? ` (${missing})` : ""}
+            </FilterTab>
+            <FilterTab active={filter === "translated"} onClick={() => setFilter("translated")}>
+              {t("translations.filterTranslated", { count: stats.translated })}
+            </FilterTab>
+            <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
+              {t("translations.filterAll", { count: stats.total })}
+            </FilterTab>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Body */}
+      {mode === "visual" ? (
+        <VisualBody
+          activeLang={activeLang}
+          defaultLang={pack.defaultLang}
+          allRows={rows}
+          filter={filter}
+          onChange={(key, value) =>
+            setI18nValue({ packId, lt: { key }, lang: activeLang, value })
+          }
+        />
+      ) : (
+        <YamlBody
+          packId={packId}
+          activeLang={activeLang}
+          pack={pack}
+          rows={rows}
+          modeKey={mode}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bulk translation editor with two views:
+ *
+ *   - Visual: per-row UI with MiniMessage preview, missing entries
+ *     highlighted, edits saved on every keystroke (`setI18nValue`).
+ *   - YAML: a single textarea matching the runtime plugin's
+ *     `lang/<code>.yml` shape — copy/paste roundtrip for AI / external
+ *     translator workflows.
+ *
+ * Visual is the default because it's the discoverable / "what's still
+ * missing" view; YAML is for the bulk / copy-paste use case.
+ *
+ * @deprecated Use `TranslationPanelContent` for inline rendering.
+ * This wrapper kept for backward compat — no callers after workspace migration.
+ */
+export function TranslationPanel({ packId, open, onOpenChange }: TranslationPanelProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-[640px] p-0 sm:max-w-[640px]">
+        <TranslationPanelContent packId={packId} />
       </SheetContent>
     </Sheet>
   );

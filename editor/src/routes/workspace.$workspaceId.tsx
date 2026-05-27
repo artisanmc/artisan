@@ -13,10 +13,10 @@ import { Stage } from "@/features/canvas/Stage";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
-import { DataSourcesPanel } from "@/features/data/DataSourcesPanel";
+import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { ExportButton } from "@/features/export/ExportButton";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
-import { TranslationPanel } from "@/features/translations/TranslationPanel";
+import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { EditorLangSwitcher } from "@/components/EditorLangSwitcher";
 import { totalMissing } from "@/lib/i18nUsages";
@@ -55,9 +55,7 @@ import { useAuthStore } from "@/state/authStore";
 import { usePackLoader } from "@/features/pack/usePackLoader";
 import {
   BookOpen,
-  Database,
   Download,
-  Languages,
   Redo2,
   Undo2,
   Upload,
@@ -116,9 +114,7 @@ function PackCanvasPage() {
   const branchNames = branches.map((b) => b.name);
   const [commitOpen, setCommitOpen] = useState(false);
 
-  const [translationsOpen, setTranslationsOpen] = useState(false);
   const [patternsOpen, setPatternsOpen] = useState(false);
-  const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const apiUrl = useWsStore((s) => s.apiUrl);
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
@@ -224,30 +220,9 @@ function PackCanvasPage() {
             </div>
             {pack ? <PackIOButtons pack={pack} /> : null}
             {pack ? <LangSwitcher pack={pack} /> : null}
-            {pack ? (
-              <TopBarIconButton
-                title={
-                  totalMissing(pack) > 0
-                    ? t("topbar.translationsMissing", { count: totalMissing(pack) })
-                    : t("topbar.translations")
-                }
-                onClick={() => setTranslationsOpen(true)}
-                badge={totalMissing(pack) > 0 ? totalMissing(pack) : undefined}
-              >
-                <Languages className="h-4 w-4" />
-              </TopBarIconButton>
-            ) : null}
             <TopBarIconButton title={t("patterns.title")} onClick={() => setPatternsOpen(true)}>
               <BookOpen className="h-4 w-4" />
             </TopBarIconButton>
-            <button
-              type="button"
-              onClick={() => setDataSourcesOpen(true)}
-              title={t("dataSources.title")}
-              className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-            >
-              <Database className="h-4 w-4" />
-            </button>
             <EditorLangSwitcher />
             <UndoRedoButtons />
             {pack ? (
@@ -334,38 +309,20 @@ function PackCanvasPage() {
               )}
             </div>
           )}
-          {tab === "translations" && (
-            <div className="min-h-0 flex-1 p-6 text-zinc-500">
-              (Translations content — wired in next task)
+          {tab === "translations" && pack && (
+            <div className="min-h-0 flex-1 overflow-auto">
+              <TranslationPanelContent packId={pId} />
             </div>
           )}
-          {tab === "data-sources" && (
-            <div className="min-h-0 flex-1 p-6 text-zinc-500">
-              (Data Sources content — wired in next task)
+          {tab === "data-sources" && pack && (
+            <div className="min-h-0 flex-1 overflow-auto">
+              <DataSourcesPanelContent packId={pId} />
             </div>
           )}
         </main>
 
-        {/* Translations panel (right-side sheet). */}
-        {pack ? (
-          <TranslationPanel
-            packId={pId}
-            open={translationsOpen}
-            onOpenChange={setTranslationsOpen}
-          />
-        ) : null}
-
         {/* Patterns Gallery cheat sheet (right-side sheet). */}
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
-
-        {/* Data sources panel (right-side sheet). */}
-        {pack ? (
-          <DataSourcesPanel
-            packId={pId}
-            open={dataSourcesOpen}
-            onOpenChange={setDataSourcesOpen}
-          />
-        ) : null}
 
       </div>
 
