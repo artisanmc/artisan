@@ -96,4 +96,37 @@ router.get("/me", userAuth(), (c) => {
   return c.json({ user });
 });
 
+router.patch("/me", userAuth(), async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+
+  let body: { editor_language?: string | null };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_body" }, 400);
+  }
+
+  const updates: Record<string, unknown> = {};
+  if ("editor_language" in body) {
+    updates.editorLanguage = body.editor_language ?? null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return c.json({ user });
+  }
+
+  await db.update(users).set(updates).where(eq(users.id, user.id));
+  const [row] = await db.select().from(users).where(eq(users.id, user.id));
+  return c.json({
+    user: {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      avatarUrl: row.avatarUrl,
+      editorLanguage: row.editorLanguage,
+    },
+  });
+});
+
 export { router as authRouter };
