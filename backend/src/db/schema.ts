@@ -55,6 +55,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   passwordHash: text("password_hash"),       // null = Discord-only users
   avatarUrl: text("avatar_url"),
+  editorLanguage: text("editor_language"),   // null = no preference set
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (t) => [
