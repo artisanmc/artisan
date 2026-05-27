@@ -138,6 +138,18 @@ export const useUiStore = create<UiState>()(
         // Sync the i18next instance lazily — importing here keeps the
         // store free of a hard dep on the i18n module at module load.
         import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(lang));
+        // Sync to backend if logged-in. Fire-and-forget — UI doesn't block.
+        // Dynamic imports avoid module-load-time circular deps with authStore.
+        import("./authStore").then(({ useAuthStore }) => {
+          const user = useAuthStore.getState().currentUser;
+          if (!user) return;
+          const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+          import("@/lib/api/auth").then(({ patchMe }) =>
+            patchMe({ apiUrl }, { editor_language: lang }).catch(() => {
+              console.warn("editor_language sync to backend failed (offline?)");
+            })
+          );
+        });
       },
       flowCanvasHeight: 280,
       setFlowCanvasHeight: (h) => set({ flowCanvasHeight: h }),
