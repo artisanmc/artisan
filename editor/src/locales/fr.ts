@@ -11,6 +11,9 @@ const fr: typeof en = {
     redo: "Rétablir ({{mod}}⇧Z)",
     activeLanguage: "Langue active : {{lang}}",
     deletePack: "Supprimer le workspace",
+    more: "Plus d'actions",
+    import: "Importer un pack",
+    export: "Exporter le pack",
   },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
