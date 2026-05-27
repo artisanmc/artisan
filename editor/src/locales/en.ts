@@ -524,6 +524,15 @@ export default {
       },
     },
   },
+  settings: {
+    appearance: {
+      title: "Appearance",
+      editorLanguage: "Editor language",
+    },
+  },
+  sidebar: {
+    settings: "Settings",
+  },
   auth: {
     signupTitle: "Create your account",
     loginTitle: "Sign in",

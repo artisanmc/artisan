@@ -532,6 +532,15 @@ const fr: typeof en = {
       },
     },
   },
+  settings: {
+    appearance: {
+      title: "Apparence",
+      editorLanguage: "Langue de l'éditeur",
+    },
+  },
+  sidebar: {
+    settings: "Paramètres",
+  },
   auth: {
     signupTitle: "Créer ton compte",
     loginTitle: "Connexion",
