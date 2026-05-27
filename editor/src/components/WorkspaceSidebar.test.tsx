@@ -73,6 +73,17 @@ describe("WorkspaceSidebar", () => {
     expect(await screen.findByText(/Nouveau workspace/i)).toBeInTheDocument();
   });
 
+  it("renders a Settings link to /settings", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [],
+      serverKeys: [],
+    });
+    render(<WorkspaceSidebar />);
+    const link = await screen.findByRole("link", { name: /Settings|Paramètres/i });
+    expect(link).toHaveAttribute("href", "/settings");
+  });
+
   it("refetches when networkId changes", async () => {
     const getNetwork = vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
