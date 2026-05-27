@@ -46,7 +46,7 @@ bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_U
 bun run db:generate     # Génère un fichier de migration dans drizzle/ depuis schema.ts (à committer)
 bun run db:migrate      # Applique les fichiers drizzle/ en ordre — utilisé en prod et dans Docker compose
 bun run dev             # Dev avec --watch sur port 3001
-bun test                # ~175 tests (unit + intégration WS réel)
+bun run test            # ~175 tests, isolés dans la DB `interfaze_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `interfaze`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
 ```
 
 **Workflow migrations** :
