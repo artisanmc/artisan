@@ -15,29 +15,21 @@ export const Route = createRootRoute({
 
 export function RootLayout() {
   usePackAutoSave();
-  const networkId = useSessionStore((s) => s.networkId);
   const user = useAuthStore((s) => s.currentUser);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   return (
-    <div className="h-full flex flex-col">
-      {networkId && (
-        <div className="bg-zinc-800 px-4 py-1.5 text-xs text-zinc-400 border-b border-zinc-700">
-          Network: <code className="text-zinc-300">{networkId}</code>
-        </div>
+    <div className="h-full flex">
+      {user && (
+        <aside className="w-48 border-r border-zinc-800 bg-zinc-950 shrink-0">
+          <WorkspaceSidebar />
+        </aside>
       )}
-      <div className="flex-1 flex overflow-hidden">
-        {user && (
-          <aside className="w-48 border-r border-zinc-800 bg-zinc-950 shrink-0">
-            <WorkspaceSidebar />
-          </aside>
-        )}
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
+      <main className="flex-1 overflow-auto">
+        <Outlet />
+      </main>
     </div>
   );
 }
