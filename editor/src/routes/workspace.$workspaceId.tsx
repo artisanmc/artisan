@@ -18,7 +18,6 @@ import { ExportButton } from "@/features/export/ExportButton";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
-import { EditorLangSwitcher } from "@/components/EditorLangSwitcher";
 import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
@@ -37,6 +36,12 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useWsStore } from "@/state/wsStore";
+import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
+import {
+  exportPackToFile,
+  importPackFromFile,
+  pickPackFileForImport,
+} from "@/features/account/packFileIo";
 import {
   DndContext,
   type DragEndEvent,
@@ -54,13 +59,10 @@ import { useSessionStore } from "@/state/sessionStore";
 import { useAuthStore } from "@/state/authStore";
 import { usePackLoader } from "@/features/pack/usePackLoader";
 import {
-  BookOpen,
-  Download,
   Redo2,
   Undo2,
-  Upload,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -117,6 +119,23 @@ function PackCanvasPage() {
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const apiUrl = useWsStore((s) => s.apiUrl);
+
+  const importPackAction = useAccountStore((s) => s.importPack);
+  const setSelection = useSelectionStore((s) => s.set);
+  const handleImport = () => {
+    pickPackFileForImport((file) => {
+      importPackFromFile(file, importPackAction)
+        .then(({ newId, name }) => {
+          setSelection([newId as ElementId]);
+          toast.success(t("toast.importedPack", { name }));
+        })
+        .catch((e: Error) => {
+          toast.error(
+            e.message === "file_read_failed" ? t("toast.fileReadFailed") : t("toast.importFailed"),
+          );
+        });
+    });
+  };
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -218,24 +237,18 @@ function PackCanvasPage() {
             <div className="min-w-0 flex-1 truncate px-1 font-mono text-sm text-zinc-200">
               {pack?.name ?? "—"}
             </div>
-            {pack ? <PackIOButtons pack={pack} /> : null}
             {pack ? <LangSwitcher pack={pack} /> : null}
-            <TopBarIconButton title={t("patterns.title")} onClick={() => setPatternsOpen(true)}>
-              <BookOpen className="h-4 w-4" />
-            </TopBarIconButton>
-            <EditorLangSwitcher />
             <UndoRedoButtons />
-            {pack ? (
-              <button
-                type="button"
-                onClick={() => setShowDeleteDialog(true)}
-                title={t("topbar.deletePack")}
-                className="flex h-8 items-center gap-1 rounded px-2 text-xs text-red-400 hover:bg-zinc-800 hover:text-red-300"
-              >
-                {t("topbar.deletePack")}
-              </button>
-            ) : null}
+            {pack ? <ExportButton pack={pack} /> : null}
             {pack ? <DeployButtons pack={pack} packId={pId} /> : null}
+            {pack ? (
+              <TopBarKebabMenu
+                onImport={handleImport}
+                onExport={() => exportPackToFile(pack)}
+                onOpenPatterns={() => setPatternsOpen(true)}
+                onDelete={() => setShowDeleteDialog(true)}
+              />
+            ) : null}
           </div>
 
           {/* Workspace tab strip */}
@@ -352,77 +365,6 @@ function PackCanvasPage() {
         />
       )}
     </DndContext>
-  );
-}
-
-/**
- * Top-bar export/import. Always operates on the currently-loaded pack
- * (export) or always adds a new pack (import). Backup/share affordance
- * — not the plugin format.
- */
-function PackIOButtons({ pack }: { pack: Pack }) {
-  const importPack = useAccountStore((s) => s.importPack);
-  const setSelection = useSelectionStore((s) => s.set);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { t } = useTranslation();
-
-  const onExport = () => {
-    const json = JSON.stringify(pack, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const safeName = pack.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    a.download = `${safeName || "pack"}.interfaze.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const onImportFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result ?? ""));
-        const newId = importPack({ pack: parsed });
-        setSelection([newId]);
-        toast.success(t("toast.importedPack", { name: parsed.name ?? "pack" }));
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : t("toast.importFailed"));
-      }
-    };
-    reader.onerror = () => toast.error(t("toast.fileReadFailed"));
-    reader.readAsText(file);
-  };
-
-  return (
-    <div className="flex items-center gap-1">
-      <ExportButton pack={pack} />
-      <TopBarIconButton title={t("topbar.exportPack")} onClick={onExport}>
-        <Download className="h-4 w-4" />
-      </TopBarIconButton>
-      <TopBarIconButton
-        title={t("topbar.importPack")}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <Upload className="h-4 w-4" />
-      </TopBarIconButton>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onImportFile(file);
-          e.currentTarget.value = "";
-        }}
-      />
-    </div>
   );
 }
 
