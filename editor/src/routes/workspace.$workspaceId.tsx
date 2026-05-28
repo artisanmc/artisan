@@ -14,7 +14,7 @@ import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
-import { ExportButton } from "@/features/export/ExportButton";
+import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
@@ -118,6 +118,8 @@ function PackCanvasPage() {
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [exportErrorsOpen, setExportErrorsOpen] = useState(false);
+  const [exportErrors, setExportErrors] = useState<string[]>([]);
   const apiUrl = useWsStore((s) => s.apiUrl);
 
   const importPackAction = useAccountStore((s) => s.importPack);
@@ -239,12 +241,21 @@ function PackCanvasPage() {
             </div>
             {pack ? <LangSwitcher pack={pack} /> : null}
             <UndoRedoButtons />
-            {pack ? <ExportButton pack={pack} /> : null}
             {pack ? <DeployButtons pack={pack} packId={pId} /> : null}
             {pack ? (
               <TopBarKebabMenu
                 onImport={handleImport}
                 onExport={() => exportPackToFile(pack)}
+                onExportZip={async () => {
+                  const res = await runExportZip(pack);
+                  if (!res.ok) {
+                    setExportErrors(res.errors);
+                    setExportErrorsOpen(true);
+                    return;
+                  }
+                  for (const w of res.warnings) toast.warning(w);
+                  toast.success(t("export.success"));
+                }}
                 onOpenPatterns={() => setPatternsOpen(true)}
                 onDelete={() => setShowDeleteDialog(true)}
               />
@@ -336,6 +347,26 @@ function PackCanvasPage() {
 
         {/* Patterns Gallery cheat sheet (right-side sheet). */}
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
+
+        {/* Export-to-zip validation errors. */}
+        <Dialog open={exportErrorsOpen} onOpenChange={setExportErrorsOpen}>
+          <DialogContent className="max-w-md border-zinc-800 bg-zinc-950 text-zinc-200">
+            <DialogHeader>
+              <DialogTitle>{t("export.errorTitle")}</DialogTitle>
+            </DialogHeader>
+            <p className="mb-3 text-sm text-zinc-400">{t("export.errorSubtitle")}</p>
+            <ul className="space-y-1 text-sm text-red-400">
+              {exportErrors.map((err, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable within a render
+                <li key={i} className="flex gap-2">
+                  <span className="shrink-0">•</span>
+                  <span>{err}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-zinc-500">{t("export.overwriteWarning")}</p>
+          </DialogContent>
+        </Dialog>
 
       </div>
 

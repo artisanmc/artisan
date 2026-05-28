@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAuthStore } from "@/state/authStore";
+import { useAccountStore } from "@/state/accountStore";
 import { loadPacks } from "@/lib/packApi";
 import { loadUserPack } from "@/lib/api/userPacks";
-import type { Pack, PackId } from "@/domain/types";
+import type { Account, Pack, PackId } from "@/domain/types";
 
 /**
  * A fresh pack created via POST /api/v1/networks/:id/packs has editorJson=null
@@ -69,6 +70,16 @@ export function usePackLoader(packId: string): PackLoadResult {
           const loaded = (res.editor as Pack | null) ?? emptyPack(res.pack.id, res.pack.name);
           setPack(loaded);
           setNetworkId(res.networkId);
+          // Mirror into accountStore so descendants (FlowCanvas, EditorPane,
+          // PackProperties, …) that read from useAccountStore.account.packs
+          // can find it. In user-mode we only edit one workspace at a time
+          // so replacing the array is fine; the autosave hook in __root.tsx
+          // is a no-op without a session token, so no spurious saves fire.
+          useAccountStore.getState().setAccount({
+            id: res.networkId as Account["id"],
+            packs: [loaded],
+            packOrder: [loaded.id as PackId],
+          });
         })
         .catch((e) => setError((e as Error).message));
     } else {

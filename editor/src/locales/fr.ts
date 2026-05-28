@@ -14,6 +14,7 @@ const fr: typeof en = {
     more: "Plus d'actions",
     import: "Importer un pack",
     export: "Exporter le pack",
+    exportZip: "Exporter vers le serveur (.zip)",
   },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",

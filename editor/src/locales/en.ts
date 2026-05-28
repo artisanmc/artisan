@@ -12,6 +12,7 @@ export default {
     more: "More actions",
     import: "Import a pack",
     export: "Export pack",
+    exportZip: "Export to server (.zip)",
   },
   langSwitcher: {
     addLanguage: "+ Add language…",
