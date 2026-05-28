@@ -18,6 +18,7 @@ import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { totalMissing } from "@/lib/i18nUsages";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
