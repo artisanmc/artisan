@@ -23,7 +23,7 @@ describe("userAuth middleware", () => {
     app.get("/x", (c) => c.json({ userId: c.var.user?.id ?? null }));
 
     const res = await app.fetch(new Request("http://x/x", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -46,7 +46,7 @@ describe("userAuth middleware", () => {
     app.get("/x", (c) => c.json({ userId: c.var.user?.id ?? null }));
 
     const res = await app.fetch(new Request("http://x/x", {
-      headers: { Cookie: "ifz_user_session=does-not-exist" },
+      headers: { Cookie: "artisan_user_session=does-not-exist" },
     }));
     const body = await res.json();
     expect(body.userId).toBeNull();

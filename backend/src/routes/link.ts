@@ -32,8 +32,8 @@ router.get("/:code", async (c) => {
 });
 
 router.post("/:code/claim", async (c) => {
-  // Auth gate — requires valid ifz_user_session cookie
-  const userSessionId = getCookie(c, "ifz_user_session");
+  // Auth gate — requires valid artisan_user_session cookie
+  const userSessionId = getCookie(c, "artisan_user_session");
   if (!userSessionId) return c.json({ error: "unauthorized" }, 401);
   const session = await findSession(userSessionId);
   if (!session) return c.json({ error: "unauthorized" }, 401);

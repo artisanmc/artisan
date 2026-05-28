@@ -47,7 +47,7 @@ describe("userNetworksRouter", () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
     const res = await app.request("/api/v1/networks", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -66,7 +66,7 @@ describe("userNetworksRouter", () => {
     const res = await app.request("/api/v1/networks", {
       method: "POST",
       headers: {
-        Cookie: `ifz_user_session=${sessionId}`,
+        Cookie: `artisan_user_session=${sessionId}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: "My Network" }),
@@ -87,7 +87,7 @@ describe("userNetworksRouter", () => {
     const res = await app.request("/api/v1/networks", {
       method: "POST",
       headers: {
-        Cookie: `ifz_user_session=${sessionId}`,
+        Cookie: `artisan_user_session=${sessionId}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({}),
@@ -100,17 +100,17 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N1" }),
     });
     await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N2" }),
     });
 
     const list = await (await app.request("/api/v1/networks", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     })).json();
     expect(list.networks).toHaveLength(2);
     expect(list.networks.map((n: { name: string }) => n.name).sort()).toEqual(["N1", "N2"]);
@@ -124,7 +124,7 @@ describe("userNetworksRouter", () => {
     // Create network
     const create = await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N1" }),
     });
     const { network } = await create.json();
@@ -141,7 +141,7 @@ describe("userNetworksRouter", () => {
     });
 
     const res = await app.request(`/api/v1/networks/${network.id}`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -160,7 +160,7 @@ describe("userNetworksRouter", () => {
     // uA creates a network
     const create = await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     });
     const { network } = await create.json();
@@ -169,7 +169,7 @@ describe("userNetworksRouter", () => {
     const { createSession: cs } = await import("../lib/sessionManager");
     const sessB = (await cs("uB")).id;
     const res = await app.request(`/api/v1/networks/${network.id}`, {
-      headers: { Cookie: `ifz_user_session=${sessB}` },
+      headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
@@ -180,13 +180,13 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "test-server" }),
     });
     expect(res.status).toBe(201);
@@ -205,7 +205,7 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
@@ -213,7 +213,7 @@ describe("userNetworksRouter", () => {
     const sessB = (await cs("uB")).id;
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessB}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "x" }),
     });
     expect(res.status).toBe(403);
@@ -225,13 +225,13 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
     const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "my-pack", description: "desc" }),
     });
     expect(res.status).toBe(201);
@@ -247,20 +247,20 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
     });
     const { pack } = await packRes.json();
@@ -274,7 +274,7 @@ describe("userNetworksRouter", () => {
     // Bind with branch_name: "dev"
     const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch_name: "dev" }),
     });
     expect(bind.status).toBe(201);
@@ -289,27 +289,27 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
     });
     const { pack } = await packRes.json();
 
     const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch_name: "ghost" }),
     });
     expect(bind.status).toBe(404);
@@ -323,20 +323,20 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N" }),
     })).json();
 
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
 
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p" }),
     });
     const { pack } = await packRes.json();
@@ -344,7 +344,7 @@ describe("userNetworksRouter", () => {
     // Bind
     const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(bind.status).toBe(201);
 
@@ -355,7 +355,7 @@ describe("userNetworksRouter", () => {
     // Unbind
     const unbind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "DELETE",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(unbind.status).toBe(204);
 
@@ -373,14 +373,14 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     // Create network
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "C4Net" }),
     })).json();
 
     // Create server_key via API
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ label: "c4-key" }),
     });
     const { id: skId } = await skRes.json();
@@ -388,14 +388,14 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     // Create a pack and bind it
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "c4-pack" }),
     });
     const { pack } = await packRes.json();
 
     await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
 
     // Verify binding exists
@@ -405,7 +405,7 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     // Delete server_key
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}`, {
       method: "DELETE",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(204);
 
@@ -427,13 +427,13 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     // uA creates network + server_key
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "C4ForbidNet" }),
     })).json();
 
     const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const { id: skId } = await skRes.json();
@@ -441,7 +441,7 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     // uB tries to delete
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}`, {
       method: "DELETE",
-      headers: { Cookie: `ifz_user_session=${sessB}` },
+      headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });

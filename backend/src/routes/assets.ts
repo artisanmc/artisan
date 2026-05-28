@@ -142,7 +142,7 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
   let fontMeta: { namespace: string; glyphMap: ParsedMcFont["glyphMap"] } | null = null;
   if (type === "font" && parsedFont) {
     fontMeta = {
-      namespace: `interfaze:${name}`,
+      namespace: `artisan:${name}`,
       glyphMap: parsedFont.glyphMap,
     };
   }
@@ -150,10 +150,10 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
   try {
     if (type === "font" && parsedFont) {
       // Re-serialize font.json with canonical pack-namespaced file paths so the
-      // resource pack zip emits valid references: interfaze:font/<name>/<basename>.
+      // resource pack zip emits valid references: artisan:font/<name>/<basename>.
       const providers = parsedFont.glyphMap.map((g) => ({
         type: "bitmap",
-        file: `interfaze:font/${name}/${g.texture}`,
+        file: `artisan:font/${name}/${g.texture}`,
         ascent: g.ascent,
         height: g.height,
         chars: [g.char],

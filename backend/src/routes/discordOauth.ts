@@ -35,7 +35,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
       return c.json({ error: "discord_not_configured" }, 500);
     }
     const state = newOauthState();
-    setCookie(c, "ifz_oauth_state", state, {
+    setCookie(c, "artisan_oauth_state", state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
@@ -48,14 +48,14 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
   router.get("/callback", async (c) => {
     const code = c.req.query("code");
     const state = c.req.query("state");
-    const stateCookie = getCookie(c, "ifz_oauth_state");
+    const stateCookie = getCookie(c, "artisan_oauth_state");
     if (!stateCookie || !state || stateCookie !== state) {
       return c.json({ error: "invalid_state" }, 400);
     }
     if (!code) {
       return c.json({ error: "missing_code" }, 400);
     }
-    deleteCookie(c, "ifz_oauth_state", { path: "/" });
+    deleteCookie(c, "artisan_oauth_state", { path: "/" });
 
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const clientSecret = envOrNull("DISCORD_CLIENT_SECRET");
@@ -105,7 +105,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     }
 
     const session = await createSession(userId);
-    setCookie(c, "ifz_user_session", session.id, {
+    setCookie(c, "artisan_user_session", session.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",

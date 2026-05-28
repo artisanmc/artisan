@@ -6,7 +6,7 @@
  * and overlaying the `space` provider's hard-coded advances on top.
  *
  * Output:
- *  - plugin/src/main/kotlin/gg/interfaze/plugin/render/CharAdvances.kt
+ *  - plugin/src/main/kotlin/gg/artisan/plugin/render/CharAdvances.kt
  *  - editor/src/features/canvas/title/charAdvances.ts
  *
  * The MC vanilla logic is: try each provider in order; the first to claim a
@@ -31,7 +31,7 @@ import { PNG } from "pngjs";
 const VERSION = process.argv[2] ?? "1.21.4";
 const FONT_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "font");
 const TEXTURE_DIR = join(import.meta.dir, "../data/mc-assets", VERSION, "textures/font");
-const PLUGIN_OUT = join(import.meta.dir, "../../plugin/src/main/kotlin/gg/interfaze/plugin/render/CharAdvances.kt");
+const PLUGIN_OUT = join(import.meta.dir, "../../plugin/src/main/kotlin/gg/artisan/plugin/render/CharAdvances.kt");
 const EDITOR_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charAdvances.ts");
 
 interface BitmapProvider {
@@ -114,7 +114,7 @@ const sorted = [...bmp.entries()].sort((a, b) => a[0] - b[0]);
 
 // --- Kotlin output ---
 const kt: string[] = [];
-kt.push("package gg.interfaze.plugin.render", "");
+kt.push("package net.artisanmc.plugin.render", "");
 kt.push("/**");
 kt.push(" * Per-codepoint advance (MC pixels) for chars in vanilla MC " + VERSION + " default font.");
 kt.push(" *");

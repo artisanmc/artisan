@@ -39,7 +39,7 @@ async function makeClaim(sessionId: string, body: object): Promise<Response> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Cookie": `ifz_user_session=${sessionId}`,
+      "Cookie": `artisan_user_session=${sessionId}`,
     },
     body: JSON.stringify(body),
   });
@@ -112,7 +112,7 @@ describe("GET /api/v1/link/:code", () => {
 });
 
 describe("POST /api/v1/link/:code/claim", () => {
-  test("401 when no ifz_user_session cookie is present (claim without auth)", async () => {
+  test("401 when no artisan_user_session cookie is present (claim without auth)", async () => {
     const { code } = (await (await app.request("/api/v1/link", { method: "POST" })).json()) as { code: string };
     const claimRes = await app.request(`/api/v1/link/${code}/claim`, { method: "POST" });
     expect(claimRes.status).toBe(401);
@@ -124,11 +124,11 @@ describe("POST /api/v1/link/:code/claim", () => {
     const { code } = (await (await app.request("/api/v1/link", { method: "POST" })).json()) as { code: string };
     await app.request(`/api/v1/link/${code}/claim`, {
       method: "POST",
-      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+      headers: { "Cookie": `artisan_user_session=${sessionId}` },
     });
     expect((await app.request(`/api/v1/link/${code}/claim`, {
       method: "POST",
-      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+      headers: { "Cookie": `artisan_user_session=${sessionId}` },
     })).status).toBe(409);
     void userId;
   });
@@ -137,13 +137,13 @@ describe("POST /api/v1/link/:code/claim", () => {
     const { sessionId } = await seedUserAndSession();
     expect((await app.request("/api/v1/link/UNKNOWN1/claim", {
       method: "POST",
-      headers: { "Cookie": `ifz_user_session=${sessionId}` },
+      headers: { "Cookie": `artisan_user_session=${sessionId}` },
     })).status).toBe(404);
   });
 });
 
 describe("POST /api/v1/link/:code/claim — hard break (Plan accounts × networks)", () => {
-  it("returns 401 when no ifz_user_session cookie is present", async () => {
+  it("returns 401 when no artisan_user_session cookie is present", async () => {
     const created = await app.request("/api/v1/link", { method: "POST" });
     const { code } = (await created.json()) as { code: string };
 

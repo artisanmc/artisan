@@ -214,7 +214,7 @@ describe("POST /api/v1/editor-session/:urlToken/exchange", () => {
     expect(typeof body.trust_code).toBe("string");
     expect(body.trust_code.length).toBe(6);
     const cookie = res.headers.get("set-cookie");
-    expect(cookie).toContain("ifz_refresh=");
+    expect(cookie).toContain("artisan_refresh=");
     expect(cookie).toContain("HttpOnly");
   });
 
@@ -264,24 +264,24 @@ describe("POST /api/v1/editor-session/refresh", () => {
     const { urlToken } = await createRawSession();
     const exchangeRes = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
-    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+    const refreshToken = cookie.match(/artisan_refresh=([^;]+)/)?.[1] ?? "";
     expect(refreshToken).not.toBe("");
 
     const res = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json() as { access_token: string; expires_in: number };
     expect(typeof body.access_token).toBe("string");
     expect(body.expires_in).toBe(300);
-    expect(res.headers.get("set-cookie")).toContain("ifz_refresh=");
+    expect(res.headers.get("set-cookie")).toContain("artisan_refresh=");
   });
 
   test("401 for unknown refresh token", async () => {
     const res = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": "ifz_refresh=unknowntoken000000000000000" },
+      headers: { "Cookie": "artisan_refresh=unknowntoken000000000000000" },
     });
     expect(res.status).toBe(401);
   });
@@ -295,16 +295,16 @@ describe("POST /api/v1/editor-session/refresh", () => {
     const { urlToken } = await createRawSession();
     const exchangeRes = await app.request(`/api/v1/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
-    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+    const refreshToken = cookie.match(/artisan_refresh=([^;]+)/)?.[1] ?? "";
 
     await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
 
     const res2 = await app.request("/api/v1/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
     expect(res2.status).toBe(401);
   });
@@ -388,7 +388,7 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId", () => {
   test("201 upserts pack and returns hash", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_test", name: "Test Pack", menus: [] };
-    const fakeFiles = { "plugins/Interfaze/packs/p_test/manifest.yaml": "pack_id: p_test\n" };
+    const fakeFiles = { "plugins/Artisan/packs/p_test/manifest.yaml": "pack_id: p_test\n" };
     const res = await app.request(`/api/v1/editor-session/${token}/packs/p_test`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -403,7 +403,7 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId", () => {
   test("GET after PUT returns the saved pack", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_roundtrip", name: "Round Trip", menus: [] };
-    const fakeFiles = { "plugins/Interfaze/packs/p_roundtrip/manifest.yaml": "pack_id: p_roundtrip\n" };
+    const fakeFiles = { "plugins/Artisan/packs/p_roundtrip/manifest.yaml": "pack_id: p_roundtrip\n" };
     await app.request(`/api/v1/editor-session/${token}/packs/p_roundtrip`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -431,7 +431,7 @@ describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
     await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: { "plugins/Interfaze/packs/p_delete/manifest.yaml": "" } }),
+      body: JSON.stringify({ pack: fakePack, files: { "plugins/Artisan/packs/p_delete/manifest.yaml": "" } }),
     });
     const delRes = await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, { method: "DELETE" });
     expect(delRes.status).toBe(200);
@@ -984,7 +984,7 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasLayout (file
       canvasLayout: { shop: { x: 1, y: 1 } }, // STALE — files should win
     };
     const fakeFiles = {
-      "plugins/Interfaze/packs/p_files_win/manifest.yaml": [
+      "plugins/Artisan/packs/p_files_win/manifest.yaml": [
         "schema: manifest/v1", "pack_id: p_files_win", "default_lang: en",
         "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
         "editor_layout:", "  shop: { x: 77, y: 88 }",
@@ -1015,7 +1015,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — canvasLayo
       canvasLayout: { foo: { x: 0, y: 0 } }, // stale
     };
     const fakeFiles = {
-      "plugins/Interfaze/packs/p_deploy_layout/manifest.yaml": [
+      "plugins/Artisan/packs/p_deploy_layout/manifest.yaml": [
         "schema: manifest/v1", "pack_id: p_deploy_layout", "default_lang: en",
         "files:", "  menus: []", "  commands: []", "  dialogs: []",
         "editor_layout:", "  bar: { x: 200, y: 300 }",

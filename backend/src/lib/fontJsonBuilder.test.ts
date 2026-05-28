@@ -34,14 +34,14 @@ describe("buildDefaultFontJson", () => {
     expect(json.providers).toHaveLength(4);
     expect(json.providers[1]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/coin.png",
+      file: "artisan:font/coin.png",
       ascent: 8,
       height: 9,
       chars: [String.fromCodePoint(0xE000)],
     });
     expect(json.providers[2]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/gem.png",
+      file: "artisan:font/gem.png",
       ascent: 7,
       height: 8,
       chars: [String.fromCodePoint(0xE001)],
@@ -70,8 +70,8 @@ describe("buildDefaultFontJson", () => {
       glyph({ id: "g_b", name: "b", codepoint: 0xE002 }),
       glyph({ id: "g_a", name: "a", codepoint: 0xE001 }),
     ]);
-    expect((json.providers[1] as { file: string }).file).toBe("interfaze:font/a.png");
-    expect((json.providers[2] as { file: string }).file).toBe("interfaze:font/b.png");
+    expect((json.providers[1] as { file: string }).file).toBe("artisan:font/a.png");
+    expect((json.providers[2] as { file: string }).file).toBe("artisan:font/b.png");
   });
 
   test("appends a space provider with all offsets after bitmaps", () => {

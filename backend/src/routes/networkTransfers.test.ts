@@ -52,7 +52,7 @@ describe("POST /api/v1/networks/:id/transfer/init", () => {
     const { sessionId, networkId } = await seedUserWithNetwork();
     const res = await app.request(`/api/v1/networks/${networkId}/transfer/init`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -65,7 +65,7 @@ describe("POST /api/v1/networks/:id/transfer/init", () => {
     const foreign = await seedUserWithNetwork("Other");  // owns network B
     const res = await app.request(`/api/v1/networks/${foreign.networkId}/transfer/init`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(403);
   });
@@ -83,13 +83,13 @@ describe("GET /api/v1/networks/transfer/:token", () => {
   it("returns transfer info for a valid token", async () => {
     const { sessionId, networkId } = await seedUserWithNetwork("Source");
     const init = await app.request(`/api/v1/networks/${networkId}/transfer/init`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const initBody = await init.json();
     const token = new URL(initBody.url).searchParams.get("token");
 
     const res = await app.request(`/api/v1/networks/transfer/${token}`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -133,13 +133,13 @@ describe("POST /api/v1/networks/transfer/:token/accept", () => {
     const source = await seedUserWithNetwork("Source");
     const dest = await seedUserWithNetwork("Other");
     const init = await app.request(`/api/v1/networks/${source.networkId}/transfer/init`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${source.sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${source.sessionId}` },
     });
     const initBody = await init.json();
     const token = new URL(initBody.url).searchParams.get("token");
 
     const res = await app.request(`/api/v1/networks/transfer/${token}/accept`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${dest.sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${dest.sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -171,7 +171,7 @@ describe("POST /api/v1/networks/transfer/:token/accept", () => {
     });
     const dest = await seedUserWithNetwork();
     const res = await app.request("/api/v1/networks/transfer/exp2/accept", {
-      method: "POST", headers: { Cookie: `ifz_user_session=${dest.sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${dest.sessionId}` },
     });
     expect(res.status).toBe(410);
   });

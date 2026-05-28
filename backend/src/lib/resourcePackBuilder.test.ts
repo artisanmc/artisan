@@ -44,7 +44,7 @@ function fontRow(over: Partial<{
     codepoint: null,
     ascent: null,
     fontMeta: {
-      namespace: `interfaze:${name}`,
+      namespace: `artisan:${name}`,
       glyphMap: over.glyphMap ?? [
         { char: "a", texture: "glyphs/a.png", ascent: 7, height: 8, width: 5 },
       ],
@@ -68,18 +68,18 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
     expect(json.providers[0].id).toBe("minecraft:default");
-    expect(json.providers[1].file).toBe("interfaze:font/coin.png");
+    expect(json.providers[1].file).toBe("artisan:font/coin.png");
   });
 
-  test("places glyph PNGs under assets/interfaze/textures/font/<name>.png", () => {
+  test("places glyph PNGs under assets/artisan/textures/font/<name>.png", () => {
     const g = row({ codepoint: 0xE000, name: "coin" });
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/textures/font/coin.png"]).toBeDefined();
-    expect(entries["assets/interfaze/textures/font/coin.png"].length).toBe(PNG_1x1.length);
+    expect(entries["assets/artisan/textures/font/coin.png"]).toBeDefined();
+    expect(entries["assets/artisan/textures/font/coin.png"].length).toBe(PNG_1x1.length);
   });
 
   test("returns a stable SHA1 hex hash", () => {
@@ -94,12 +94,12 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[t.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([t], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
     // reference + space (no bitmap for texture without codepoint)
     expect(json.providers).toHaveLength(2);
     expect(json.providers[0].type).toBe("reference");
     expect(json.providers[1].type).toBe("space");
-    expect(entries["assets/interfaze/textures/font/bg_one.png"]).toBeUndefined();
+    expect(entries["assets/artisan/textures/font/bg_one.png"]).toBeUndefined();
   });
 
   test("hash changes when an asset is added", () => {
@@ -110,10 +110,10 @@ describe("buildResourcePackZip", () => {
     expect(a).not.toBe(b);
   });
 
-  test("includes assets/interfaze/asset-index.json", () => {
+  test("includes assets/artisan/asset-index.json", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/asset-index.json"]).toBeDefined();
+    expect(entries["assets/artisan/asset-index.json"]).toBeDefined();
   });
 
   test("asset-index.json parses to expected { version, assets, offsets } shape", () => {
@@ -122,7 +122,7 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g, t], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const index = JSON.parse(strFromU8(entries["assets/interfaze/asset-index.json"]));
+    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]));
     expect(index.version).toBe(2);
     expect(index.assets["asset_g1"]).toEqual({
       name: "coin",
@@ -147,7 +147,7 @@ describe("buildResourcePackZip", () => {
     expect(Object.keys(index.offsets)).toHaveLength(18);
   });
 
-  test("emits assets/interfaze/font/<name>.json for each font asset", () => {
+  test("emits assets/artisan/font/<name>.json for each font asset", () => {
     const f = fontRow({
       name: "myfont",
       glyphMap: [
@@ -163,7 +163,7 @@ describe("buildResourcePackZip", () => {
     ]);
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/font/myfont.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/myfont.json"]).toBeDefined();
   });
 
   test("font.json providers array is shaped correctly with rewritten file paths", () => {
@@ -182,25 +182,25 @@ describe("buildResourcePackZip", () => {
     ]);
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/myfont.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]));
     expect(json.providers).toHaveLength(2);
     expect(json.providers[0]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/myfont/glyphs/a.png",
+      file: "artisan:font/myfont/glyphs/a.png",
       ascent: 7,
       height: 8,
       chars: ["a"],
     });
     expect(json.providers[1]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/myfont/nested/dir/z.png",
+      file: "artisan:font/myfont/nested/dir/z.png",
       ascent: 9,
       height: 10,
       chars: ["z"],
     });
   });
 
-  test("places font glyph PNGs under assets/interfaze/textures/font/<name>/<basename>", () => {
+  test("places font glyph PNGs under assets/artisan/textures/font/<name>/<basename>", () => {
     const f = fontRow({
       name: "myfont",
       glyphMap: [
@@ -212,8 +212,8 @@ describe("buildResourcePackZip", () => {
     ]);
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/textures/font/myfont/glyphs/a.png"]).toBeDefined();
-    expect(entries["assets/interfaze/textures/font/myfont/glyphs/a.png"].length).toBe(PNG_1x1.length);
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]).toBeDefined();
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"].length).toBe(PNG_1x1.length);
   });
 
   test("missing PNG in fontGlyphPngs map skips the file without crashing", () => {
@@ -231,11 +231,11 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
     // json still includes both providers (font.json reflects metadata, not file presence)
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/myfont.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]));
     expect(json.providers).toHaveLength(2);
     // present PNG written, missing one skipped
-    expect(entries["assets/interfaze/textures/font/myfont/glyphs/a.png"]).toBeDefined();
-    expect(entries["assets/interfaze/textures/font/myfont/glyphs/b.png"]).toBeUndefined();
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]).toBeDefined();
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/b.png"]).toBeUndefined();
   });
 
   test("missing fontGlyphPngs entry for an asset still emits the JSON", () => {
@@ -248,8 +248,8 @@ describe("buildResourcePackZip", () => {
     // No entry at all for f.id
     const { zipBytes } = buildResourcePackZip([f], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/font/myfont.json"]).toBeDefined();
-    expect(entries["assets/interfaze/textures/font/myfont/glyphs/a.png"]).toBeUndefined();
+    expect(entries["assets/artisan/font/myfont.json"]).toBeDefined();
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]).toBeUndefined();
   });
 
   test("font asset with null fontMeta is skipped", () => {
@@ -263,29 +263,29 @@ describe("buildResourcePackZip", () => {
     });
     const { zipBytes } = buildResourcePackZip([f], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/font/broken.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/broken.json"]).toBeUndefined();
   });
 
   test("includes Y-specific text fonts up to Y=172 for h=8 (ascent<=height filter applied)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     // For h=8, minYForSize=5 (ASCII ascent 7 + shift 1 = 8 = height). Spot-check.
-    expect(entries["assets/interfaze/font/text_y5_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y20_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y140_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y172_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y5_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y6_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y20_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y140_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y172_h8.json"]).toBeDefined();
     // Below the floor and above the cap: not emitted.
-    expect(entries["assets/interfaze/font/text_y4_h8.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y0_h8.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y-32_h8.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y173_h8.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y4_h8.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y0_h8.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y-32_h8.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y173_h8.json"]).toBeUndefined();
   });
 
   test("text_y6_h8.json has space + ascii + accented + nonlatin providers in vanilla order", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y6_h8.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y6_h8.json"]));
     expect(json.providers[0].type).toBe("space");
     expect(json.providers[0].advances[" "]).toBe(4);
     // Y=6 is the vanilla title position → bitmap ascents match vanilla unchanged.
@@ -302,7 +302,7 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
     // y=0 with h=8 would need ascent=13 > height=8 (invalid, skipped). h=16 is
     // the smallest valid size for y=0: ASCII ascent 13 <= height 16.
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/text_y0_h16.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y0_h16.json"]));
     // shift = 6 - 0 = 6. Vanilla ascents +6, independent of h.
     expect(json.providers[1].ascent).toBe(7 + 6);
     expect(json.providers[2].ascent).toBe(10 + 6);
@@ -336,16 +336,16 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
 
     // The default font.json bitmap provider for "alpha" must reference U+E042.
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
     const bitmapProvider = json.providers.find(
-      (p: { type: string; file?: string }) => p.type === "bitmap" && p.file === "interfaze:font/alpha.png",
+      (p: { type: string; file?: string }) => p.type === "bitmap" && p.file === "artisan:font/alpha.png",
     );
     expect(bitmapProvider).toBeDefined();
     // The codepoint is encoded as the character in `chars[0]` (U+E042 = code 57410).
     expect(bitmapProvider.chars[0].codePointAt(0)).toBe(0xE042);
 
     // The asset-index.json also reflects the final codepoint.
-    const index = JSON.parse(strFromU8(entries["assets/interfaze/asset-index.json"]));
+    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]));
     expect(index.assets["asset_g1"].codepoint).toBe(0xE042);
   });
 });
@@ -354,30 +354,30 @@ describe("resource pack — text_y matrix with size dimension", () => {
   test("emits text_y{Y}_h{H}.json only for Y >= minYForSize(H) (skips invalid ascent>height combos)", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const textYKeys = Object.keys(entries).filter((k) => k.startsWith("assets/interfaze/font/text_y"));
+    const textYKeys = Object.keys(entries).filter((k) => k.startsWith("assets/artisan/font/text_y"));
     // Per-h Y count = 172 - minY + 1. Min Ys: h=8→5, h=12→1, h=16→-3,
     // h=20→-7, h=24→-11, h=32→-19. Total = 168+172+176+180+184+192 = 1072.
     expect(textYKeys).toHaveLength(1072);
     // Valid combos present:
-    expect(entries["assets/interfaze/font/text_y6_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y20_h16.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y172_h32.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y6_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y20_h16.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y172_h32.json"]).toBeDefined();
     // Boundary: y exactly at the min for each h.
-    expect(entries["assets/interfaze/font/text_y5_h8.json"]).toBeDefined();
-    expect(entries["assets/interfaze/font/text_y-19_h32.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y5_h8.json"]).toBeDefined();
+    expect(entries["assets/artisan/font/text_y-19_h32.json"]).toBeDefined();
     // Invalid combos (ascent>height): not emitted.
-    expect(entries["assets/interfaze/font/text_y4_h8.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y-20_h32.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y4_h8.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y-20_h32.json"]).toBeUndefined();
     // h=4 is no longer in the bake set at all.
-    expect(entries["assets/interfaze/font/text_y10_h4.json"]).toBeUndefined();
-    expect(entries["assets/interfaze/font/text_y50_h4.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y10_h4.json"]).toBeUndefined();
+    expect(entries["assets/artisan/font/text_y50_h4.json"]).toBeUndefined();
   });
 
   test("does NOT emit the old text_y{Y}.json filenames", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     // Old format had no _h suffix; assert that shape is fully gone.
-    const oldFormat = Object.keys(entries).filter((k) => /assets\/interfaze\/font\/text_y-?\d+\.json$/.test(k));
+    const oldFormat = Object.keys(entries).filter((k) => /assets\/artisan\/font\/text_y-?\d+\.json$/.test(k));
     expect(oldFormat).toHaveLength(0);
   });
 });

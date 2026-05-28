@@ -1,10 +1,10 @@
 /**
- * Test runner — isolates tests in a separate `interfaze_test` DB so they
- * never wipe the developer's `interfaze` dev DB.
+ * Test runner — isolates tests in a separate `artisan_test` DB so they
+ * never wipe the developer's `artisan` dev DB.
  *
  * Flow :
  *   1. Connect to the default `postgres` database as admin.
- *   2. CREATE DATABASE "interfaze_test" if it doesn't already exist.
+ *   2. CREATE DATABASE "artisan_test" if it doesn't already exist.
  *   3. Run Drizzle migrations against it.
  *   4. Spawn `bun test --isolate` with DATABASE_URL pointing at the test DB.
  *
@@ -16,7 +16,7 @@ import { spawnSync } from "child_process";
 
 const ADMIN_URL =
   process.env.ADMIN_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/postgres";
-const TEST_DB = process.env.TEST_DATABASE_NAME ?? "interfaze_test";
+const TEST_DB = process.env.TEST_DATABASE_NAME ?? "artisan_test";
 const HOST = new URL(ADMIN_URL).host;
 const USER = new URL(ADMIN_URL).username;
 const PWD = new URL(ADMIN_URL).password;

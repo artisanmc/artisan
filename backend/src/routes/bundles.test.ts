@@ -12,8 +12,8 @@ import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
 const PACK_FILES = {
-  "plugins/Interfaze/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
-  "plugins/Interfaze/packs/p_test/menus/shop.yaml": "id: shop\nsize: 27\n",
+  "plugins/Artisan/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
+  "plugins/Artisan/packs/p_test/menus/shop.yaml": "id: shop\nsize: 27\n",
 };
 
 function buildApp() {
@@ -131,14 +131,14 @@ describe("bundle upload/download", () => {
     const res1 = await app.request("/api/v1/bundles/p_reuse", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n" } }),
+      body: JSON.stringify({ files: { "plugins/Artisan/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n" } }),
     });
     expect(res1.status).toBe(200);
 
     // Second push — pack already exists, should update content not fail
     const updatedFiles = {
-      "plugins/Interfaze/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n",
-      "plugins/Interfaze/packs/p_reuse/menus/shop.yaml": "id: shop\nsize: 54\n",
+      "plugins/Artisan/packs/p_reuse/manifest.yaml": "schema: manifest/v1\npack_id: p_reuse\n",
+      "plugins/Artisan/packs/p_reuse/menus/shop.yaml": "id: shop\nsize: 54\n",
     };
     const res2 = await app.request("/api/v1/bundles/p_reuse", {
       method: "POST",

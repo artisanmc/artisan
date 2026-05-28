@@ -15,7 +15,7 @@ function newUserId(): string {
 }
 
 function setSessionCookie(c: Parameters<typeof setCookie>[0], sessionId: string, expires: Date) {
-  setCookie(c, "ifz_user_session", sessionId, {
+  setCookie(c, "artisan_user_session", sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
@@ -84,9 +84,9 @@ router.post("/login", async (c) => {
 });
 
 router.post("/logout", async (c) => {
-  const sessionId = getCookie(c, "ifz_user_session");
+  const sessionId = getCookie(c, "artisan_user_session");
   if (sessionId) await destroySession(sessionId);
-  deleteCookie(c, "ifz_user_session", { path: "/" });
+  deleteCookie(c, "artisan_user_session", { path: "/" });
   return c.body(null, 204);
 });
 

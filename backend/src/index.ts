@@ -9,7 +9,7 @@ export default {
   websocket,
 };
 
-console.log(`Interfaze backend on http://localhost:${port}`);
+console.log(`Artisan backend on http://localhost:${port}`);
 
 // One-time migration: compute contentWidth for assets uploaded before the column existed.
 backfillContentWidths().catch((err) => console.error("[backfill] contentWidth failed:", err));
