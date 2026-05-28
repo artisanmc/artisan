@@ -6,7 +6,7 @@
 
 **Goal:** Wire the engine layer into the rendering pipeline — condition-aware appearance selection, MenuSession creation, and click routing to ActionExecutor.
 
-**Architecture:** `MenuRenderer.open()` gains `ctx + evaluator` params and returns a `MenuSession`. `MenuListener` routes clicks to `ActionExecutor` via the session store. `SyncedMenuProvider` gains `evaluator + sessions` constructor params. `InterfazePlugin` assembles all components.
+**Architecture:** `MenuRenderer.open()` gains `ctx + evaluator` params and returns a `MenuSession`. `MenuListener` routes clicks to `ActionExecutor` via the session store. `SyncedMenuProvider` gains `evaluator + sessions` constructor params. `ArtisanPlugin` assembles all components.
 
 **Tech Stack:** Kotlin 2.0, Paper API 1.21.4, MockBukkit 3.133.2
 
@@ -15,18 +15,18 @@
 ### Task 1: Update MenuRenderer — condition-aware rendering
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`
 
 The `open()` method gains `ctx: ExecutionContext` and `evaluator: ConditionEvaluator`, selects the first matching `CompiledAppearance` per element, and returns a `MenuSession`.
 
 - [ ] **Step 1: Rewrite MenuRenderer.kt**
 
 ```kotlin
-package gg.interfaze.plugin.render
+package net.artisanmc.plugin.render
 
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.AppearanceYaml
-import gg.interfaze.plugin.model.BundleMenu
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.model.BundleMenu
 import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -37,7 +37,7 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 
-class InterfazeMenuHolder : InventoryHolder {
+class ArtisanMenuHolder : InventoryHolder {
     override fun getInventory(): Inventory = error("not used")
 }
 
@@ -56,7 +56,7 @@ object MenuRenderer {
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     ): MenuSession {
         val title = mm.deserialize(menu.resolveTitle(lang))
-        val inv = Bukkit.createInventory(InterfazeMenuHolder(), menu.yaml.size, title)
+        val inv = Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title)
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val langMap = menu.langMaps[lang] ?: emptyMap()
 
@@ -132,7 +132,7 @@ Expected: All tests pass
 - [ ] **Step 4: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt
 rtk git commit -m "feat(plugin): MenuRenderer — condition-aware appearance selection, returns MenuSession"
 ```
 
@@ -141,14 +141,14 @@ rtk git commit -m "feat(plugin): MenuRenderer — condition-aware appearance sel
 ### Task 2: Rewrite MenuListener — click routing
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuListener.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuListener.kt`
 
 - [ ] **Step 1: Rewrite MenuListener.kt**
 
 ```kotlin
-package gg.interfaze.plugin.render
+package net.artisanmc.plugin.render
 
-import gg.interfaze.plugin.engine.*
+import net.artisanmc.plugin.engine.*
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -163,7 +163,7 @@ class MenuListener(
 
     @EventHandler
     fun onClick(event: InventoryClickEvent) {
-        if (event.inventory.holder !is InterfazeMenuHolder) return
+        if (event.inventory.holder !is ArtisanMenuHolder) return
         event.isCancelled = true
         val player = event.whoClicked as? Player ?: return
         val session = sessions.get(player) ?: return
@@ -174,12 +174,12 @@ class MenuListener(
 
     @EventHandler
     fun onDrag(event: InventoryDragEvent) {
-        if (event.inventory.holder is InterfazeMenuHolder) event.isCancelled = true
+        if (event.inventory.holder is ArtisanMenuHolder) event.isCancelled = true
     }
 
     @EventHandler
     fun onClose(event: InventoryCloseEvent) {
-        if (event.inventory.holder is InterfazeMenuHolder) {
+        if (event.inventory.holder is ArtisanMenuHolder) {
             sessions.remove(event.player as? Player ?: return)
         }
     }
@@ -205,7 +205,7 @@ Expected: `BUILD SUCCESSFUL`
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuListener.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuListener.kt
 rtk git commit -m "feat(plugin): MenuListener — route clicks to ActionExecutor via MenuSession"
 ```
 
@@ -214,29 +214,29 @@ rtk git commit -m "feat(plugin): MenuListener — route clicks to ActionExecutor
 ### Task 3: Update SyncedMenuProvider
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
 
 Add `evaluator` and `sessions` constructor params. Implement `openMenu(player, menuId, lang, ctx)`. Implement `allBundles()`. Update `draft_update` handler to use `BundleCompiler`.
 
 - [ ] **Step 1: Update SyncedMenuProvider.kt**
 
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
-import gg.interfaze.plugin.model.PackBundle
-import gg.interfaze.plugin.render.MenuRenderer
-import gg.interfaze.plugin.sync.BundleDownloader
-import gg.interfaze.plugin.sync.BundleHasher
-import gg.interfaze.plugin.sync.SyncMetadata
-import gg.interfaze.plugin.ws.WsClient
-import gg.interfaze.plugin.yaml.PackReader
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.sync.BundleDownloader
+import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.sync.SyncMetadata
+import net.artisanmc.plugin.ws.WsClient
+import net.artisanmc.plugin.yaml.PackReader
 import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
@@ -334,7 +334,7 @@ class SyncedMenuProvider(
         when (node["type"]?.asText()) {
             "hello_ack" -> {
                 val sessionId = node["session_id"]?.asText()
-                logger?.info("Connected to Interfaze backend (session=$sessionId)")
+                logger?.info("Connected to Artisan backend (session=$sessionId)")
 
                 val packHashesNode = node["pack_hashes"] ?: run {
                     logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
@@ -357,7 +357,7 @@ class SyncedMenuProvider(
                         SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
                         SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — sync will be applied via bundle_available")
                         SyncAction.LOCAL_ONLY -> logger?.warning(
-                            "Pack $packId: local files were manually edited. Use '/ifz sync accept' or '/ifz sync reject'."
+                            "Pack $packId: local files were manually edited. Use '/artisan sync accept' or '/artisan sync reject'."
                         )
                         SyncAction.CONFLICT   -> logger?.warning(
                             "Pack $packId: CONFLICT — both local and backend changed since last sync."
@@ -425,35 +425,35 @@ Expected: All tests pass
 - [ ] **Step 4: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt
 rtk git commit -m "feat(plugin): SyncedMenuProvider — evaluator+sessions params, allBundles(), condition-aware openMenu"
 ```
 
 ---
 
-### Task 4: Wire everything in InterfazePlugin
+### Task 4: Wire everything in ArtisanPlugin
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
-- [ ] **Step 1: Update InterfazePlugin.kt**
+- [ ] **Step 1: Update ArtisanPlugin.kt**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.provider.MenuProvider
-import gg.interfaze.plugin.provider.SyncedMenuProvider
-import gg.interfaze.plugin.render.MenuListener
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.render.MenuListener
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-open class InterfazePlugin : JavaPlugin() {
+open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
-    private lateinit var ifzCommand: IfzCommand
+    private lateinit var ifzCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
@@ -481,17 +481,17 @@ open class InterfazePlugin : JavaPlugin() {
 
         executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
 
-        ifzCommand = IfzCommand(this)
+        ifzCommand = ArtisanCommand(this)
         getCommand("ifz")?.setExecutor(ifzCommand)
         getCommand("ifz")?.tabCompleter = ifzCommand
         server.pluginManager.registerEvents(MenuListener(sessions, executor), this)
-        logger.info("Interfaze ${description.version} enabled")
+        logger.info("Artisan ${description.version} enabled")
     }
 
     override fun onDisable() {
         ifzCommand.shutdown()
         menuProvider.unload()
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 
     fun reinit(cfg: PluginConfig) {
@@ -534,11 +534,11 @@ Expected: All tests pass
 ```bash
 cd plugin && ./gradlew shadowJar
 ```
-Expected: `BUILD SUCCESSFUL`, JAR at `build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar`
+Expected: `BUILD SUCCESSFUL`, JAR at `build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt
-rtk git commit -m "feat(plugin): wire SoftDepRegistry, ConditionEvaluator, ActionExecutor, MenuListener into InterfazePlugin"
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt
+rtk git commit -m "feat(plugin): wire SoftDepRegistry, ConditionEvaluator, ActionExecutor, MenuListener into ArtisanPlugin"
 ```

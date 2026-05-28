@@ -1,6 +1,6 @@
-# Interfaze — Menu schema v1
+# Artisan — Menu schema v1
 
-Format intermédiaire d'un menu Interfaze. C'est le **contrat** entre l'éditeur web (`editor.interfaze.gg`) et le plugin Minecraft : tant que les deux côtés respectent ce schéma, ils sont découplés.
+Format intermédiaire d'un menu Artisan. C'est le **contrat** entre l'éditeur web (`editor.artisanmc.net`) et le plugin Minecraft : tant que les deux côtés respectent ce schéma, ils sont découplés.
 
 ## Fichiers
 
@@ -20,7 +20,7 @@ Format intermédiaire d'un menu Interfaze. C'est le **contrat** entre l'éditeur
 Pour éviter la confusion :
 
 - **Position** (Minecraft) : un emplacement dans l'inventaire, indexé de 0 à 53. Ce que le jeu appelle "slot".
-- **Element** (Interfaze) : l'objet manipulé par l'admin (bouton, décoration, liste paginée...). Un Element occupe une ou plusieurs positions et a une ou plusieurs apparences.
+- **Element** (Artisan) : l'objet manipulé par l'admin (bouton, décoration, liste paginée...). Un Element occupe une ou plusieurs positions et a une ou plusieurs apparences.
 - **Layer** : conteneur qui groupe des Elements liés thématiquement (décoration, items, navigation...). Les layers sont ordonnés bottom→top et permettent du chevauchement contrôlé entre couches.
 - **Appearance** : variante visuelle d'un Element. Évaluée dans l'ordre, première dont la condition matche gagne.
 - **Bundle** (séparé du Pack) : artefact runtime signé que le plugin télécharge depuis le CDN. Concept distinct du pack.

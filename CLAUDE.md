@@ -1,4 +1,4 @@
-# Interfaze — Instructions Claude
+# Artisan — Instructions Claude
 
 ## Règles de mise à jour des docs
 
@@ -9,7 +9,7 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/specs/` section protocole |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
-| Commandes plugin (`IfzCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
+| Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
 | Variables d'environnement | `.env.example` + ce fichier |
 | Endpoints API | Ce fichier, section Backend |
 | Config plugin (`config.yml`, defaults) | `docs-site/src/content/docs/getting-started/install-admin.md` (sections Config / Reference) |
@@ -29,13 +29,13 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 ```bash
 cd plugin
 ./gradlew test          # ~206 tests (unit + intégration MockWebServer)
-./gradlew shadowJar     # → build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar
+./gradlew shadowJar     # → build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
-**Commandes plugin** — `/ifz` subcommands:
-- `/ifz menu <packId> <menuId>` — open menu editor session
-- `/ifz reload` — reload all packs from disk
-- `/ifz pushLocal <packId>` — push local pack changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
+**Commandes plugin** — `/artisan` subcommands:
+- `/artisan menu <packId> <menuId>` — open menu editor session
+- `/artisan reload` — reload all packs from disk
+- `/artisan pushLocal <packId>` — push local pack changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
 
 ### Backend (Bun + Hono + PostgreSQL)
 
@@ -46,7 +46,7 @@ bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_U
 bun run db:generate     # Génère un fichier de migration dans drizzle/ depuis schema.ts (à committer)
 bun run db:migrate      # Applique les fichiers drizzle/ en ordre — utilisé en prod et dans Docker compose
 bun run dev             # Dev avec --watch sur port 3001
-bun run test            # ~175 tests, isolés dans la DB `interfaze_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `interfaze`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
+bun run test            # ~175 tests, isolés dans la DB `artisan_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `artisan`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
 ```
 
 **Workflow migrations** :
@@ -79,7 +79,7 @@ npm run build           # Build production
 ### Stack complète (Docker)
 
 ```bash
-cp .env.example .env    # puis renseigner INTERFAZE_SERVER_KEY
+cp .env.example .env    # puis renseigner ARTISAN_SERVER_KEY
 docker compose up       # backend:3001 + editor:5173 + minecraft:25565
 ```
 
@@ -111,19 +111,19 @@ CONTEXT.md               ← glossaire domaine (source de vérité pour les term
 
 ### Pattern modulaire (depuis 2026-05-25)
 
-Interfaze suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
+Artisan suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
 
-- Plugin : `plugin/src/main/kotlin/gg/interfaze/modules/{id}/` — implements `InterfazeModule`
+- Plugin : `plugin/src/main/kotlin/net/artisanmc/modules/{id}/` — implements `ArtisanModule`
 - Backend : `backend/src/modules/{id}/` — exports `BackendModule`
 - Éditeur : `editor/src/modules/{id}/` — exports `FrontendModule`
 
 Communication cross-module via deux registries plugin-side : `DataSourceRegistry` (`namespace:source_id`) et `CommandRegistry` (`namespace:command`). Aucune dépendance directe entre modules. Hot-reload propagé via `ModuleEventBus` (plugin) + WS `module_event` → `editor/src/modules/api/eventBus.ts`.
 
-V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `gg.interfaze.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé jusqu'au 3ᵉ module (voir `docs/architecture/modules.md` §13).
+V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `net.artisanmc.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé jusqu'au 3ᵉ module (voir `docs/architecture/modules.md` §13).
 
 **Quand ajouter un module :**
 1. Spec dans `docs/architecture/modules.md` (ajouter section "Module {id}")
-2. Layer plugin : nouvelle classe sous `gg.interfaze.modules.{id}/` impl `InterfazeModule`, register dans `InterfazePlugin.defaultModules()`
+2. Layer plugin : nouvelle classe sous `net.artisanmc.modules.{id}/` impl `ArtisanModule`, register dans `ArtisanPlugin.defaultModules()`
 3. Layer backend : nouveau dir `modules/{id}/index.ts` exporte un `BackendModule`, register dans `app.ts` (`mountModules` array)
 4. Layer éditeur : `editor/src/modules/{id}/index.ts` exporte `FrontendModule`, `registerModule(...)` dans `main.tsx`
 5. Schema JSON dans `modules/{id}/schemas/` si form-based — utiliser `<SchemaForm>`
@@ -152,16 +152,16 @@ Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", fo
 
 ### Stability annotations (depuis 2026-05-25)
 
-Le package `gg.interfaze.modules.api.*` est annoté avec `@Stable` (depuis `gg.interfaze.modules.api.annotations`). Convention :
+Le package `net.artisanmc.modules.api.*` est annoté avec `@Stable` (depuis `net.artisanmc.modules.api.annotations`). Convention :
 
 | Annotation | Signification | Quand |
 |---|---|---|
 | `@Stable` | Couvert par SemVer. Pas de breaking change dans un même major. | Tout `modules/api/*` après stabilisation. |
 | `@Beta` | Expérimental, peut changer en minor. | API nouvelle avant ship public. |
-| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `gg.interfaze.plugin.*` (implicite par convention de package). |
+| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `net.artisanmc.plugin.*` (implicite par convention de package). |
 | `@Sunset(reason, removeInVersion, replacement)` | Sera retiré au prochain major. | À l'annonce de dépréciation. |
 
-**Règle d'import pour les modules** : un `InterfazeModule` n'importe **que** depuis `gg.interfaze.modules.api.*`. Jamais depuis `gg.interfaze.plugin.*` (qui est implicitement `@Internal`).
+**Règle d'import pour les modules** : un `ArtisanModule` n'importe **que** depuis `net.artisanmc.modules.api.*`. Jamais depuis `net.artisanmc.plugin.*` (qui est implicitement `@Internal`).
 
 Cf. `docs/architecture/versioning.md` section 3.
 
@@ -171,7 +171,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 
 **Les 4 disciplines à respecter** :
 
-1. **CHANGELOG** : tout commit qui touche `gg.interfaze.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
+1. **CHANGELOG** : tout commit qui touche `net.artisanmc.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
 2. **Nouveau schema version = nouveau dossier** : on ne modifie jamais un `menu/v1` après ship. On crée `menu/v2` séparé et on écrit `MenuV1ToV2 : SchemaMigration` qu'on register via `api.schemas.register(...)`.
 3. **DB forward-only** : tout changement de `schema.ts` génère via `bun run db:generate` un fichier dans `backend/drizzle/` qui doit être committé. Pas de `db:push` en prod (Docker tourne `db:migrate`).
 4. **REST URL versionné** : tout endpoint est sous `/api/v1/`. Pour breaking change inévitable, créer `/api/v2/<name>` à côté et garder v1 6-12 mois.
@@ -222,7 +222,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 | `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
 | `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — **Plan 1C: handler is now a no-op for backward compat; new plugins log WARN instead** |
 | `pack_deleted` | backend → plugin | `{ pack_id }` — pack supprimé côté éditeur, le plugin move-to-trash |
-| `local_push` | plugin → backend | `{ pack_id, files, hash }` — used by `/ifz pushLocal`. Backend creates pack + binding if missing, upserts content, broadcasts `bundle_available`. |
+| `local_push` | plugin → backend | `{ pack_id, files, hash }` — used by `/artisan pushLocal`. Backend creates pack + binding if missing, upserts content, broadcasts `bundle_available`. |
 
 ---
 
@@ -242,25 +242,25 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 
 **Auto-resolution sur DELETE pack** — `DELETE /api/editor-session/:token/packs/:packId` marque tout conflit ouvert pour ce pack comme `resolution: "editor"` et envoie `pack_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
 
-**`.interfaze-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.interfaze*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
+**`.artisan-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.artisan*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
 
-**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.interfaze*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
+**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.artisan*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
 
 ---
 
 ## Structure des packs sur disque
 
 ```
-plugins/Interfaze/packs/
+plugins/Artisan/packs/
   <pack_id>/
     manifest.yaml
     menus/<menu_id>.yaml
     dialogs/<dialog_id>.yaml
     lang/<lang>.yaml
-    .interfaze-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
+    .artisan-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
 ```
 
-`.interfaze-sync.yaml` est exclu du hash (préfixe `.interfaze` filtré dans `BundleHasher`).
+`.artisan-sync.yaml` est exclu du hash (préfixe `.artisan` filtré dans `BundleHasher`).
 
 ### Format menu YAML — champ `title`
 
@@ -299,16 +299,16 @@ title:
 
 Le kind `textarea` (SP5) est un bloc de texte multi-ligne. La string i18n est split sur `\n` au runtime, puis chaque ligne est word-wrappée pour tenir dans `width` (px). Chaque sous-ligne est rendue à `(x, y + i * line_height)` avec l'`alignment` (`left`/`center`/`right`) partagé. La police optionnelle `font_asset_id` s'applique à toutes les lignes. Mots plus larges que `width` débordent (soft constraint).
 
-Le plugin embarque un `assets/interfaze/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:interfaze:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
+Le plugin embarque un `assets/artisan/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:artisan:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
 
 ### Title Composer — pixel offsets (spaces font)
 
-Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/interfaze/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes (caractères chinois) qui empêcheraient le `space` provider de s'appliquer.
+Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/artisan/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes (caractères chinois) qui empêcheraient le `space` provider de s'appliquer.
 
 Pipeline :
 
 1. **Backend** — `backend/src/lib/spaceOffsets.ts` est la source de vérité de la table. `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet aussi le champ `offsets` (codepoint hex uppercase → advance) + un `width` par entrée pour permettre au plugin de mesurer la largeur rendue d'une layer image.
-2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update du resource pack et construit un `OffsetEncoder` (`gg.interfaze.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, et avance `currentX = targetX + estimateBodyWidth(layer)`.
+2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update du resource pack et construit un `OffsetEncoder` (`net.artisanmc.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, et avance `currentX = targetX + estimateBodyWidth(layer)`.
 3. **Estimation de largeur** — best-effort : Image (background/glyph) → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique du width par défaut MC, imprécis pour les caractères très étroits/larges) ; ExternalGlyph → 8 px.
 
 **Système de coordonnées x** : `layer.x` est exprimé en pixels depuis le bord gauche du coffre (`chest-x 0`). Le titre MC est dessiné à `titleLabelX = 8` (bord gauche du coffre + 8 px). `TitleCompiler` initialise `currentX = TITLE_LABEL_X = 8` pour absorber ce décalage : une layer à `x=8` produit un offset nul (position naturelle du titre), une layer à `x=0` produit un offset `-8` (bord gauche du coffre).
@@ -317,7 +317,7 @@ L'encoder du plugin est lenient : il ne lève **jamais** d'exception, retourne `
 
 ### Custom fonts (SP4)
 
-Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/interfaze/font/<name>.json` + `assets/interfaze/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/artisan/font/<name>.json` + `assets/artisan/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
 Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est calibré pour couvrir la zone souhaitée. Le `LayerEditForm` pour les layers Background expose un bouton "Calibrer pour coffre" qui set `ascent = -11` (couvre la zone des slots, en-dessous de la barre de titre). Pour couvrir depuis le haut du coffre (y=0), utiliser `ascent = 6`. Formule : `ascent = titleLabelY(6) - targetY`. Le pack canvas affiche les menus en forme finale (toutes layers + items dessus) en édition directe — `MenuGroup` rend `TitleRender` interactif (drag layers, resize handles, sélection).
 
@@ -365,7 +365,7 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 | `POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
 | `DELETE /api/editor-session/:token/packs/:packId/assets/:id` | Supprime (DB + fichier disque). 204. |
 | `DELETE /api/editor-session/:token/packs/:packId` | Soft-delete du pack (sets `deletedAt`), auto-résolution de tout conflit ouvert en "editor", broadcast `pack_deleted` au plugin et aux autres éditeurs. 200 `{deleted: true}` ou 404. |
-| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Cookie `ifz_user_session` requis. |
+| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Cookie `artisan_user_session` requis. |
 | `POST /api/networks` | Crée un Network + Membership owner. Body `{name}`. 201 / 422 invalid_name. |
 | `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
 | `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key (only once). |
@@ -447,10 +447,10 @@ Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 
 ### Plan accounts × networks UX — flow setup logged-in
 
-- **Claim link auth** : `/ifz setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `ifz_user_session` et choisit le network destination via smart count (auto-crée "Mon Réseau" si 0, utilise si 1, picker modale si 2+).
+- **Claim link auth** : `/artisan setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `artisan_user_session` et choisit le network destination via smart count (auto-crée "Mon Réseau" si 0, utilise si 1, picker modale si 2+).
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Tokens partageables 24h pour transférer la propriété d'un Network entier. Memberships swap clean break — ancien owner perd accès.
 - **Server key deletion** : `/api/networks/:id/server-keys/:keyId` (owner-only) suppress la clé + cascade pack_bindings. Le plugin perd la connexion au prochain hello.
-- **Bootstrap plugin auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push`. Plus de `/ifz pushLocal` manuel pour le first-time setup.
+- **Bootstrap plugin auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push`. Plus de `/artisan pushLocal` manuel pour le first-time setup.
 - **Désaffectation d'un serveur sans transfert** : delete la server_key dans `/networks/:id`, puis re-setup côté plugin → l'auto-push recharge les packs dans le nouveau network. Pas de mutation cross-account.
 
 ---
@@ -459,21 +459,21 @@ Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 
 | Endpoint | Description |
 |---|---|
-| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `ifz_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
+| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `artisan_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
 | `POST /api/auth/login` | Authentifie email+password. 200 + Set-Cookie. Erreur : 401 invalid_credentials. |
 | `POST /api/auth/logout` | Détruit la session courante (si présente), clear le cookie. Toujours 204. |
 | `GET /api/auth/me` | Retourne le user courant (`{ user: { id, email, name, avatarUrl, editorLanguage } }`) ou 401 si pas de session. |
 | `PATCH /api/auth/me` | Body `{ editor_language?: string \| null }`. Update les préférences utilisateur. Retourne `{ user }`. 401 sans session. |
-| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `ifz_oauth_state`). 500 si Discord pas configuré. |
+| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `artisan_oauth_state`). 500 si Discord pas configuré. |
 | `GET /api/auth/discord/callback?code&state` | Callback OAuth : exchange code, fetch user Discord, crée/lien user + session, redirige vers `${EDITOR_URL}/account`. |
 
 Cookies utilisés :
-- `ifz_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
-- `ifz_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
+- `artisan_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
+- `artisan_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
 
 Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
 
-Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`ifz_user_session` et `ifz_refresh`) coexistent.
+Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`artisan_user_session` et `artisan_refresh`) coexistent.
 
 ### Préférences utilisateur (depuis 2026-05-27)
 
@@ -499,7 +499,7 @@ Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-a
 
 | Endpoint | Description |
 |---|---|
-| `POST /api/link/:code/claim` | **Login required** (cookie `ifz_user_session`). Body `{network_id?}`. Smart count : 0 networks chez l'user → auto-crée "Mon Réseau", 1 → use it, 2+ → 400 `must_choose_network`. 401 sans cookie, 403 si pas membre du network demandé. Réécrit le legacy claim anonyme. |
+| `POST /api/link/:code/claim` | **Login required** (cookie `artisan_user_session`). Body `{network_id?}`. Smart count : 0 networks chez l'user → auto-crée "Mon Réseau", 1 → use it, 2+ → 400 `must_choose_network`. 401 sans cookie, 403 si pas membre du network demandé. Réécrit le legacy claim anonyme. |
 | `POST /api/networks/:id/transfer/init` | Owner-only. Crée un transfer token (TTL 24h). Returns `{url, expiresAt}`. |
 | `GET /api/networks/transfer/:token` | Returns `{networkId, networkName, packCount, serverKeyCount, expiresAt}`. 410 `expired` / `consumed`, 404 `not_found`. |
 | `POST /api/networks/transfer/:token/accept` | Login required. Swap memberships (clean break — ancien owner perd accès). 410 expired/consumed. |
@@ -513,7 +513,7 @@ Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-a
 | Variable | Défaut | Usage |
 |---|---|---|
 | `PORT` | `3001` | Port HTTP/WS du backend |
-| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/interfaze` | URL de connexion PostgreSQL |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/artisan` | URL de connexion PostgreSQL |
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
@@ -528,12 +528,12 @@ Switched by the plugin config `resource-pack.delegate-to-dir` — empty = legacy
 | Mode | When | Behavior |
 |---|---|---|
 | Legacy (default) | `delegate-to-dir` empty | Plugin pushes its own RP via `addResourcePack` on join + on every update. Coexists with other RP plugins via the multi-pack stack (each pack has its own UUID). Two prompts at login when a host plugin also pushes. |
-| Delegation (directory) | `delegate-to-dir: <path>` (no `.zip`) | Plugin extracts `assets/interfaze/*` into `<path>/assets/interfaze/` on every update. Skips player push. |
-| Delegation (zip) | `delegate-to-dir: <path>.zip` | Plugin writes a single `<path>.zip` containing `assets/interfaze/*` + minimal `pack.mcmeta` (atomic via `.tmp` + rename). Use this with **Nexo's `pack/external_packs/`** — Nexo's directory scanner skips PNG files for non-vanilla namespaces, but its zip-merger pulls every entry. |
+| Delegation (directory) | `delegate-to-dir: <path>` (no `.zip`) | Plugin extracts `assets/artisan/*` into `<path>/assets/artisan/` on every update. Skips player push. |
+| Delegation (zip) | `delegate-to-dir: <path>.zip` | Plugin writes a single `<path>.zip` containing `assets/artisan/*` + minimal `pack.mcmeta` (atomic via `.tmp` + rename). Use this with **Nexo's `pack/external_packs/`** — Nexo's directory scanner skips PNG files for non-vanilla namespaces, but its zip-merger pulls every entry. |
 
-Both delegation modes own the `assets/interfaze/` subtree only — entries outside that namespace (and the source pack.mcmeta) are skipped. Set `resource-pack.delegate-reload-command` (e.g. `n reload`, `oraxen reload pack`) to auto-dispatch the host's reload after each rebuild; otherwise admin reloads manually.
+Both delegation modes own the `assets/artisan/` subtree only — entries outside that namespace (and the source pack.mcmeta) are skipped. Set `resource-pack.delegate-reload-command` (e.g. `n reload`, `oraxen reload pack`) to auto-dispatch the host's reload after each rebuild; otherwise admin reloads manually.
 
-**Nexo recipe:** `delegate-to-dir: "plugins/Nexo/pack/external_packs/interfaze.zip"` + `delegate-reload-command: "n reload"`.
+**Nexo recipe:** `delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"` + `delegate-reload-command: "n reload"`.
 
 ---
 

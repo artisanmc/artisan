@@ -114,7 +114,7 @@ export interface PackDeletedMessage {
   pack_id: string;
 }
 
-// Plugin → backend: push local pack files to backend (/ifz pushLocal flow)
+// Plugin → backend: push local pack files to backend (/artisan pushLocal flow)
 export interface LocalPushMessage {
   type: "local_push";
   pack_id: string;

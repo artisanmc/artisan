@@ -8,7 +8,7 @@
   "license": "MIT",
   "homepage": "https://github.com/iban/fancy-shop",
   "tags": ["shop", "economy", "ranks"],
-  "interfaze_min_version": "1.0.0",
+  "artisan_min_version": "1.0.0",
   "preview_image": "preview.png",
   "menus": ["shop_main", "shop_premium"],
   "templates": ["bouton_acheter"],

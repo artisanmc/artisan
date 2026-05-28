@@ -1,6 +1,6 @@
-# Interfaze — Pack schema v1
+# Artisan — Pack schema v1
 
-Format d'un **pack** Interfaze : unité d'organisation dans le workspace de l'admin, et format d'export/import partageable. Une archive `.itfz` (zip) avec un manifeste à la racine + menus + templates + commandes + translations + assets référencés.
+Format d'un **pack** Artisan : unité d'organisation dans le workspace de l'admin, et format d'export/import partageable. Une archive `.itfz` (zip) avec un manifeste à la racine + menus + templates + commandes + translations + assets référencés.
 
 ## Vocabulaire à ne pas confondre
 
@@ -9,7 +9,7 @@ Format d'un **pack** Interfaze : unité d'organisation dans le workspace de l'ad
 | **Pack** | Unité d'organisation dans le workspace (ex. "mon Shop System", "Daily Quests acheté"). Aussi : format d'export partageable .itfz. |
 | **Bundle** | Artefact runtime signé (config + resource pack) que le plugin télécharge depuis le CDN. Opaque pour l'admin. |
 | **Menu** | Une entité ouvrable via `/menu open`. Vit à l'intérieur d'un pack. |
-| **Command** | Une commande custom enregistrée par Interfaze. Vit à l'intérieur d'un pack, au même niveau qu'un menu. |
+| **Command** | Une commande custom enregistrée par Artisan. Vit à l'intérieur d'un pack, au même niveau qu'un menu. |
 | **Template** | Composant nommé réutilisable (façon Symbol Figma). Peut vivre dans un pack ou globalement. |
 | **Asset** | Image custom uploadée. Peut vivre dans un pack ou globalement. |
 | **Translation** | Clé i18n + valeurs par langue. Scoped au workspace mais embarquable dans un pack à l'export (sous-set des clés référencées). |
@@ -41,7 +41,7 @@ preview.png            ← optionnel, si manifest.preview_image est présent
 README.md              ← optionnel, pour les humains qui ouvrent le zip
 ```
 
-L'archive est un .zip standard avec extension renommée en .itfz pour reconnaissance (mime-type `application/x-interfaze-pack`).
+L'archive est un .zip standard avec extension renommée en .itfz pour reconnaissance (mime-type `application/x-artisan-pack`).
 
 ## Workspace : comment les packs vivent côté admin
 
@@ -75,7 +75,7 @@ Quand on importe, on détecte cinq classes de conflits :
 **2. Conflit d'id de menu.** Un menu avec un id du pack importé existe déjà ailleurs (rappel : les menus ont un namespace global au sein d'un serveur, pour permettre `/menu open shop_main`) :
 - Dialog : "Le pack contient un menu `shop_main` qui existe déjà dans ton pack X. Renommer en `shop_main_2` ? Skip ce menu ?"
 
-**3. Conflit de nom de commande.** Une commande importée a un `name` ou un `alias` qui existe déjà sur le serveur cible (autre commande Interfaze, vanilla, ou plugin tiers) :
+**3. Conflit de nom de commande.** Une commande importée a un `name` ou un `alias` qui existe déjà sur le serveur cible (autre commande Artisan, vanilla, ou plugin tiers) :
 - Warning visible mais pas bloquant à l'import. Au publish, l'admin doit renommer ou désactiver la commande conflictuelle.
 
 **4. Conflit de clés i18n.** Une clé du pack existe déjà dans le workspace cible mais avec une valeur différente :

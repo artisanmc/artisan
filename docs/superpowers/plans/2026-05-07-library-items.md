@@ -14,8 +14,8 @@
 
 | Action | File | What changes |
 |--------|------|--------------|
-| Modify | `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` | Add `mcVersion: String` param; use in hello |
-| Modify | `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` | Pass `Bukkit.getServer().minecraftVersion` |
+| Modify | `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` | Add `mcVersion: String` param; use in hello |
+| Modify | `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` | Pass `Bukkit.getServer().minecraftVersion` |
 | Modify | `backend/src/ws/hub.ts` | Add `serverIdToMcVersion` map; export `getMcVersion()` |
 | Modify | `backend/src/ws/hub.test.ts` | Add test: hello stores mc_version |
 | Create | `backend/scripts/gen-items.ts` | One-shot script to generate items JSON from mcmeta |
@@ -34,8 +34,8 @@
 The WsClient currently hardcodes `"minecraft_version" to "1.21.4"`. Make it use the actual running server version.
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
 
 - [ ] **Step 1: Add `mcVersion` parameter to WsClient**
 
@@ -81,7 +81,7 @@ val client = WsClient(
 
 - [ ] **Step 3: Update WsClientTest to pass the new parameter**
 
-In `plugin/src/test/kotlin/gg/interfaze/plugin/WsClientTest.kt`, find the WsClient constructor call and add `mcVersion = "1.21.4"`.
+In `plugin/src/test/kotlin/net/artisanmc/plugin/WsClientTest.kt`, find the WsClient constructor call and add `mcVersion = "1.21.4"`.
 
 - [ ] **Step 4: Run plugin tests**
 
@@ -94,9 +94,9 @@ Expected: all tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt
-git add plugin/src/test/kotlin/gg/interfaze/plugin/WsClientTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt
+git add plugin/src/test/kotlin/net/artisanmc/plugin/WsClientTest.kt
 git commit -m "feat(plugin): send dynamic minecraft_version in hello message"
 ```
 

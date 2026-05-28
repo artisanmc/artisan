@@ -30,7 +30,7 @@ backend-url: "${WS_URL}"`}
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">3. Reload the plugin</h3>
-        <pre className="bg-muted rounded px-4 py-2 text-sm font-mono">/ifz reload</pre>
+        <pre className="bg-muted rounded px-4 py-2 text-sm font-mono">/artisan reload</pre>
         <p className="text-xs text-muted-foreground">
           Run this command in-game or from console. The plugin will connect to the backend and
           download your pack automatically.

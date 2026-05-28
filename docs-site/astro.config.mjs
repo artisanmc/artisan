@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
   integrations: [
     starlight({
-      title: 'Interfaze',
+      title: 'Artisan',
       description: 'Build beautiful Minecraft inventory menus with a visual editor.',
       sidebar: [
         {

@@ -1,12 +1,12 @@
 /**
- * Interfaze — Menu schema v1 — TypeScript types
+ * Artisan — Menu schema v1 — TypeScript types
  *
  * Source de vérité pour le format intermédiaire d'un menu.
  * Maintenu à la main, en miroir de schema.json. Les deux DOIVENT rester synchrones.
  *
  * Vocabulaire :
  *   - "position"     : position Minecraft dans l'inventaire (0-53). Ce que le jeu appelle "slot".
- *   - "Element"      : objet Interfaze (bouton, décoration, liste paginée, grid de data...) qui occupe une ou plusieurs positions.
+ *   - "Element"      : objet Artisan (bouton, décoration, liste paginée, grid de data...) qui occupe une ou plusieurs positions.
  *   - "Layer"        : conteneur qui groupe des Elements liés thématiquement.
  *                      Ordonnés bottom→top dans Menu.layers ; render walk top→bottom avec fall-through naturel.
  *   - "Appearance"   : variante visuelle d'un Element. Évaluée dans l'ordre, première dont `if` matche gagne.
@@ -14,7 +14,7 @@
  *   - "ContextInput" : slot nommée et typée que le menu déclare via Menu.contextInputs. Peuplée à l'ouverture
  *                      par auto-binding par nom (depuis l'appelant) ou via un ConnectorBinding attaché.
  *                      Exposée comme {name} dans les champs du menu. Cf. main-spec §14, §15.4.
- *   - "ConnectorBinding" : référence vers un connecteur (homemade Interfaze ou registered par plugin tier en V2)
+ *   - "ConnectorBinding" : référence vers un connecteur (homemade Artisan ou registered par plugin tier en V2)
  *                          qui expose une liste/objet typé. Attaché à un ContextInput via `source`. Les Elements
  *                          itèrent via `iterates: { source: <input_name>, alias }` et accèdent aux champs
  *                          de l'item courant via {alias.field}.

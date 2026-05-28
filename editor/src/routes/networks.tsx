@@ -18,7 +18,7 @@ export function NetworksPage() {
       <h1 className="text-2xl font-semibold mb-4">Mes Networks</h1>
       {networks.length === 0 ? (
         <div className="text-muted-foreground">
-          <p className="mb-3">Aucun Network. Lance <code className="bg-zinc-800 px-1 rounded text-sm">/ifz setup</code> sur ton serveur Minecraft pour commencer.</p>
+          <p className="mb-3">Aucun Network. Lance <code className="bg-zinc-800 px-1 rounded text-sm">/artisan setup</code> sur ton serveur Minecraft pour commencer.</p>
           <Link to="/setup" className="underline">Créer un Network</Link>
         </div>
       ) : (

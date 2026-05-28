@@ -37,7 +37,7 @@ Avec le redesign, l'admin déclare une `pack.categories: list of string = ["weap
 - **Nouveau `FieldType` récursif** pour décrire les schemas (string/number/boolean/list/object récursifs).
 - **Nouveau `Pack.dataSources[]`** : sources admin-made avec id, name, type (FieldType), value. Vivent au niveau du pack, référencées en live par les menus.
 - **Nouveau `Pack.importedConnectors[]`** : specs de connecteurs sourcés depuis Java plugin (ChestShop, Essentials, etc.).
-- **Pas de catalogue centralisé** : les connecteurs sont entièrement Java-sourced. Le plugin Interfaze génère un YAML par connecteur dans `plugins/Interfaze/connectors/`. Le plugin auteur tier (V2+) fait pareil via `registerDataSource`.
+- **Pas de catalogue centralisé** : les connecteurs sont entièrement Java-sourced. Le plugin Artisan génère un YAML par connecteur dans `plugins/Artisan/connectors/`. Le plugin auteur tier (V2+) fait pareil via `registerDataSource`.
 - **Plan paid (WS)** : auto-push des connecteurs YAMLs à la connexion. **Plan free** : bouton "Importer connecteurs" pour drop-and-drop manuel.
 - **Pas de migration** : les packs existants verront `sampleContext` dropped au load et leurs `ContextInput type=list/object` devenir invalides. L'admin recrée. Acceptable parce qu'on est en pré-launch et qu'iban est le seul admin avec packs en dev.
 - **Découpage en 3 specs** d'implémentation (C1, C2, C3) — détails section 8.
@@ -52,7 +52,7 @@ Tout `ContextInput` d'un menu pointe vers une "source de données typée". Trois
 |---|---|---|---|
 | **Primitive** (`player`/`string`/`integer`/`number`/`boolean`) | Caller (commande, parent menu) | Type built-in | Le `default` du primitive |
 | **Pack data source** (admin-made) | Admin dans la page Data | `FieldType` explicite stocké avec | Les valeurs entrées par l'admin |
-| **Connecteur** (plugin tier) | Java plugin (ou Interfaze plugin pour V1 homemade) | Spec YAML générée par le plugin | `sample` dans le YAML |
+| **Connecteur** (plugin tier) | Java plugin (ou Artisan plugin pour V1 homemade) | Spec YAML générée par le plugin | `sample` dans le YAML |
 
 Le menu déclare ses inputs ; l'éditeur résout chaque ref vers sa source ; preview + autocomplete tombent automatiquement.
 
@@ -253,7 +253,7 @@ Le dropdown affiche le schema résolu en hover (genre `[list of {name: string, g
 
 ### 3.1 Format YAML
 
-Un fichier par connecteur dans `plugins/Interfaze/connectors/<plugin>-<source>.yaml` :
+Un fichier par connecteur dans `plugins/Artisan/connectors/<plugin>-<source>.yaml` :
 
 ```yaml
 ref: chestshop:items
@@ -277,10 +277,10 @@ Le `schema` mirror exactement la `FieldType` récursive du domain. Le `sample` e
 
 ### 3.2 Génération côté Java plugin
 
-Au boot, le plugin Interfaze :
+Au boot, le plugin Artisan :
 1. Récupère sa liste de connecteurs enregistrés (registre interne en V1, plus `registerDataSource` API en V2+ pour plugins tiers)
 2. Pour chacun, demande à son auteur le schema + sample (Java methods sur `Connector`)
-3. Sérialise en YAML dans `plugins/Interfaze/connectors/`
+3. Sérialise en YAML dans `plugins/Artisan/connectors/`
 
 L'API Java précise (interfaces, méthodes) est **hors scope du présent spec**. Couvert dans la spec Java plugin séparée.
 

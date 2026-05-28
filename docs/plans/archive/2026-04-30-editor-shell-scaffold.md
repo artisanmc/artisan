@@ -30,7 +30,7 @@ rm -rf web/src web/node_modules web/package.json web/package-lock.json web/tscon
 
 ```json
 {
-  "name": "interfaze-editor",
+  "name": "artisan-editor",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -129,7 +129,7 @@ export default defineConfig({
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Interfaze</title>
+    <title>Artisan</title>
   </head>
   <body class="bg-zinc-950 text-zinc-100">
     <div id="root"></div>
@@ -168,7 +168,7 @@ import "./styles/globals.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <div className="p-8 text-2xl font-semibold">Interfaze editor — bootstrapping</div>
+    <div className="p-8 text-2xl font-semibold">Artisan editor — bootstrapping</div>
   </StrictMode>,
 );
 ```
@@ -259,7 +259,7 @@ import "@testing-library/jest-dom/vitest";
 
 ```ts
 /**
- * Domain types for the Interfaze editor scaffold.
+ * Domain types for the Artisan editor scaffold.
  *
  * - Pack is hermetic: every reference (open_menu, template_ref, i18n key) must
  *   target an entity in the same pack. Enforced by `assertPackHermetic` (see
@@ -779,7 +779,7 @@ const personalPack = (): Pack => {
         id: healCmdId,
         packId: packId("p_personal"),
         name: "heal",
-        permission: "interfaze.heal",
+        permission: "artisan.heal",
         arguments: [],
         actions: [{ type: "send_message", text: "Healed!" }],
       },
@@ -1061,7 +1061,7 @@ export const useAccountStore = create<AccountState>()(
         set({ account: next });
       },
     }),
-    { name: "interfaze:account" },
+    { name: "artisan:account" },
   ),
 );
 ```
@@ -1186,7 +1186,7 @@ import "./styles/globals.css";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <div className="p-8 flex flex-col gap-3">
-      <h1 className="text-2xl font-semibold">Interfaze editor</h1>
+      <h1 className="text-2xl font-semibold">Artisan editor</h1>
       <Button variant="default">Smoke test</Button>
     </div>
   </StrictMode>,

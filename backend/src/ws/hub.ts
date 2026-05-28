@@ -322,7 +322,7 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── local_push: plugin pushes local pack files to backend (/ifz pushLocal) ─
+  // ── local_push: plugin pushes local pack files to backend (/artisan pushLocal) ─
   if (msg.type === "local_push") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };

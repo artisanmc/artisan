@@ -34,7 +34,7 @@ Ce design couvre :
 ## Architecture — Vue d'ensemble
 
 ```
-plugin/src/main/kotlin/gg/interfaze/plugin/
+plugin/src/main/kotlin/net/artisanmc/plugin/
   engine/
     Action.kt              ← sealed class hierarchy (15 actions)
     Condition.kt           ← sealed class hierarchy (16 conditions)
@@ -57,7 +57,7 @@ plugin/src/main/kotlin/gg/interfaze/plugin/
 
   model/PackBundle.kt      ← mise à jour ClickHandlerYaml + BundleMenu.compiledClicks
   render/MenuListener.kt   ← câblage clic → ActionExecutor
-  InterfazePlugin.kt       ← init SoftDepRegistry, CommandRegistrar
+  ArtisanPlugin.kt       ← init SoftDepRegistry, CommandRegistrar
 ```
 
 ---
@@ -298,7 +298,7 @@ class MenuSessionStore {
 `MenuProvider.openMenu` reçoit un `ExecutionContext` optionnel (défaut = contexte vide). Crée une `MenuSession` et la stocke.
 
 `MenuListener` :
-- `InventoryClickEvent` : si `holder is InterfazeMenuHolder`, annule, récupère la session, identifie l'élément via `slotToElement`, récupère le `ClickHandler`, appelle `executor.handle(handler, session.ctx)`
+- `InventoryClickEvent` : si `holder is ArtisanMenuHolder`, annule, récupère la session, identifie l'élément via `slotToElement`, récupère le `ClickHandler`, appelle `executor.handle(handler, session.ctx)`
 - `InventoryCloseEvent` : supprime la session
 
 ---
@@ -332,7 +332,7 @@ class CommandRegistrar(private val plugin: JavaPlugin) {
 Dans `reload()` :
 1. `unregisterAll()` — désenregistre les commandes précédentes
 2. Pour chaque `CommandYaml` dans les bundles : détection de conflit (§15.6), compilation, enregistrement via `Bukkit.getCommandMap().register(plugin.name.lowercase(), cmd)`
-3. **Conflit vanilla / plugin tiers** : si `commandMap.getCommand(name)` retourne une commande non-Interfaze → log warning, skip (pas d'override silencieux)
+3. **Conflit vanilla / plugin tiers** : si `commandMap.getCommand(name)` retourne une commande non-Artisan → log warning, skip (pas d'override silencieux)
 4. **Conflit interne** (même nom dans deux packs) : dernier chargé perd, log warning
 
 ### `PackCommand`
@@ -369,7 +369,7 @@ fun allBundles(): List<PackBundle>  // retourne tous les bundles chargés, pour 
 
 ---
 
-## Câblage dans `InterfazePlugin`
+## Câblage dans `ArtisanPlugin`
 
 ```kotlin
 // onEnable()

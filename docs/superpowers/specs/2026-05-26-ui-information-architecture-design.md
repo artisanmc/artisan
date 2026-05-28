@@ -1,6 +1,6 @@
 # UI Information Architecture Design
 
-> Spec brainstormée le 2026-05-26 pour cadrer la navigation principale d'Interfaze à l'arrivée des modules. Source de vérité pour le plan d'implémentation correspondant.
+> Spec brainstormée le 2026-05-26 pour cadrer la navigation principale d'Artisan à l'arrivée des modules. Source de vérité pour le plan d'implémentation correspondant.
 
 **Goal** — Remplacer la sidebar placeholders (`Menus` + `Commandes` qui pointaient tous deux sur `/networks`, héritage de la migration modular monolith) par une vraie information architecture qui scale jusqu'à l'arrivée des modules tiers (Shop V1.5, Quests V2…). Au passage, renommer "Pack" pour éviter la confusion avec "resource pack" et fixer la structure d'une page Module qui sera utilisée en V1.5+.
 
@@ -54,7 +54,7 @@ Composition de haut en bas :
 - Affiche le name du Network actif.
 - Click → dropdown listant tous les Networks de l'user (membership). Click sur un autre Network = switch.
 - Une entrée "Gérer les networks" en bas du dropdown → page `/networks` (liste + settings, current behavior).
-- État vide : si l'user n'a aucun Network (cas après /ifz setup sans flow complet), redirect direct vers `/networks` ou `/setup`.
+- État vide : si l'user n'a aucun Network (cas après /artisan setup sans flow complet), redirect direct vers `/networks` ou `/setup`.
 
 ### 2.2 Section "MES WORKSPACES"
 
@@ -66,7 +66,7 @@ Composition de haut en bas :
 ### 2.3 Section "MODULES INSTALLÉS"
 
 - **V1** : empty state factuel. Texte :
-  > Aucun module installé. Les plugins compatibles Interfaze (Shop, Quests, etc.) apparaîtront ici quand tu les ajouteras à ton serveur.
+  > Aucun module installé. Les plugins compatibles Artisan (Shop, Quests, etc.) apparaîtront ici quand tu les ajouteras à ton serveur.
 
   Pas de promo, pas de "coming soon", pas de lien Discord — signal neutre que cet espace existe et se remplira.
 
@@ -126,12 +126,12 @@ const shopModule: FrontendModule = {
 ### 4.3 Discovery côté plugin
 
 Comment l'éditeur sait qu'un module Shop existe ?
-1. Le plugin Java `InterfazeShop.jar` est installé sur un MC server.
+1. Le plugin Java `ArtisanShop.jar` est installé sur un MC server.
 2. Au hello WS, il envoie `installed_modules: [{id: "shop", version: "1.0.0"}, …]`.
 3. Backend persiste par server_key (table `server_modules`, à créer en V1.5).
 4. Éditeur fetch les modules d'un Network = union des modules de ses server_keys.
 5. Pour render la page Module, l'éditeur a besoin du `FrontendModule` côté JS. Deux options à explorer en V1.5 :
-   - (a) Bundler les `FrontendModule` JS dans l'app éditeur (registry statique). Marche pour les modules officiels Interfaze.
+   - (a) Bundler les `FrontendModule` JS dans l'app éditeur (registry statique). Marche pour les modules officiels Artisan.
    - (b) Charger dynamiquement depuis un CDN ou depuis l'endpoint backend. Nécessaire pour modules tiers V3+.
 
 V1.5 ship probablement avec (a). (b) attendre V3+.

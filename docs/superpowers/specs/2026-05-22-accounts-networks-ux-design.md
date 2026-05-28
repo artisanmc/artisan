@@ -8,40 +8,40 @@
 
 Plan 1A (accounts foundation), 1B (Multi-server Networks), 1C (logged-in pack management), Phase 2 (branches), Phase 3 (merge) sont tous mergés sur `main`. Côté backend, le modèle est complet : `users`, `user_sessions`, `discord_accounts`, `networks`, `memberships`, `packs`, `pack_bindings`, `server_keys`, `editor_sessions`. Côté éditeur, les routes auth (`/login`, `/signup`, `/account`) et la session éditeur (trust dance via `/session?token=XXX`) fonctionnent.
 
-**Le trou** : la commande `/ifz setup` du plugin crée des Networks **anonymes** (aucun login requis, le `claim` ne demande pas de cookie user). Conséquences :
+**Le trou** : la commande `/artisan setup` du plugin crée des Networks **anonymes** (aucun login requis, le `claim` ne demande pas de cookie user). Conséquences :
 
 - Un setup réussi laisse un Network sans owner Membership → invisible dans le futur `/networks`.
 - Les routes `/api/networks/*` exposent les Networks de l'utilisateur loggué via `memberships`. Networks anonymes inaccessibles.
 - Aucune UI éditeur pour : lister ses Networks, en créer un, voir/manager les server_keys, transférer la propriété.
-- Aucun mécanisme pour bootstrapper l'éditeur avec des packs déjà présents sur disque (le plugin a un `local_push` mais c'est manuel via `/ifz pushLocal`).
+- Aucun mécanisme pour bootstrapper l'éditeur avec des packs déjà présents sur disque (le plugin a un `local_push` mais c'est manuel via `/artisan pushLocal`).
 
 ## Decisions (depuis le brainstorming)
 
 | # | Décision | Justification |
 |---|---|---|
-| 1 | **Hard break** sur le legacy `/ifz setup` : login requis | Projet jeune, peu d'utilisateurs, on évite la dette et les "ghost networks" |
+| 1 | **Hard break** sur le legacy `/artisan setup` : login requis | Projet jeune, peu d'utilisateurs, on évite la dette et les "ghost networks" |
 | 2 | Lien `/link?code=...` non-loggué → redirect `/login?next=...` | Reuse de l'UI auth existante, code TTL 10min couvre le détour |
 | 3 | Choix network destination **smart par count** | 0 → auto-crée, 1 → confirme, 2+ → picker |
 | 4 | UI Networks via routes dédiées `/networks`, `/networks/:id`, `/networks/:id/settings` | Architecture qui scale ; `/account` reste léger (profil) |
 | 5 | Memberships UI **déférée** (section "1 member, you" + placeholder) | Iban solo pour l'instant, table existe déjà côté backend |
-| 6 | Transfert via **commande dédiée UI** (pas `/ifz setup`) | Sépare la responsabilité : setup = ajout, transfer = changement de propriété |
+| 6 | Transfert via **commande dédiée UI** (pas `/artisan setup`) | Sépare la responsabilité : setup = ajout, transfer = changement de propriété |
 | 7 | Transfert = **Network entier** (server_keys + packs en bloc) | Granularité grosse maille, évite la complexité de mutation cross-network par pack |
 | 8 | Désaffectation d'un serveur sans transfert = delete server_key + re-setup | Réutilise l'auto-push bootstrap, pas de logique destructive cross-account |
-| 9 | Bootstrap **auto-push au hello** | Plus de `/ifz pushLocal` manuel pour le first-time |
+| 9 | Bootstrap **auto-push au hello** | Plus de `/artisan pushLocal` manuel pour le first-time |
 | 10 | Initiation transfert = **lien partageable** (TTL 24h), pas d'email transactionnel | MVP minimal, pas d'infra SMTP/Resend à mettre en place |
 
 ## Architecture
 
-### Flow 1 — Setup d'un nouveau serveur (`/ifz setup`)
+### Flow 1 — Setup d'un nouveau serveur (`/artisan setup`)
 
 ```
-[Plugin]  /ifz setup
+[Plugin]  /artisan setup
    ↓ setup_request (WS) → backend génère link_code (TTL 10min)
    ↓ Plugin chat : lien cliquable → ${EDITOR_URL}/link?code=ABC123
 
 [Browser hits /link?code=ABC123]
    ↓ Auth gate :
-      • Pas de cookie `ifz_user_session` → redirect /login?next=/link?code=ABC123
+      • Pas de cookie `artisan_user_session` → redirect /login?next=/link?code=ABC123
       • Loggué → continue
    ↓ Fetch GET /api/networks → wizard claim :
       • 0 networks → auto-crée "Mon Network", proceed
@@ -59,7 +59,7 @@ Plan 1A (accounts foundation), 1B (Multi-server Networks), 1C (logged-in pack ma
 ```
 
 **Erreurs gérées** :
-- Code expiré → page : "Lien expiré, retape `/ifz setup`"
+- Code expiré → page : "Lien expiré, retape `/artisan setup`"
 - Code déjà claim → "Ce setup a déjà été utilisé"
 - Pas membre du network choisi → 403 + message UI
 - 401 si pas de cookie → redirect /login (couvre le cas session expirée pendant le wizard)
@@ -107,7 +107,7 @@ Plan 1A (accounts foundation), 1B (Multi-server Networks), 1C (logged-in pack ma
    → Plugin sur ce serveur perd la connexion (backend ne reconnaît plus la clé au prochain hello)
 
 [Nouveau admin sur le serveur récupéré]
-   /ifz setup → claim normal dans SON network
+   /artisan setup → claim normal dans SON network
    → Auto-push bootstrap (Flow 4) recharge les packs disque dans le nouveau network
    → L'ancien owner garde sa copie des packs intacts dans son network
 ```
@@ -130,7 +130,7 @@ for (packDir in packsDir.listFiles { it.isDirectory && !it.name.startsWith(".") 
         logger?.info("Auto-pushed local pack '$packId' (backend was empty)")
     } else if (backendHash != diskHash) {
         // Les deux ont du contenu différent → conflit, ne pas écraser
-        logger?.warning("Local pack '$packId' diverges from backend — NOT auto-pushed (use /ifz pushLocal to force)")
+        logger?.warning("Local pack '$packId' diverges from backend — NOT auto-pushed (use /artisan pushLocal to force)")
     }
 }
 ```
@@ -158,7 +158,7 @@ for (packDir in packsDir.listFiles { it.isDirectory && !it.name.startsWith(".") 
 
 | Endpoint | Changement |
 |---|---|
-| `POST /api/link/:code/claim` | Require `ifz_user_session` cookie. Body `{network_id?}`. Si absent : 0 networks → auto-crée "Mon Network", 1 → use it, 2+ → 400 `must_choose_network`. Check membership (403). Supprime le code path "anonymous network auto-create". |
+| `POST /api/link/:code/claim` | Require `artisan_user_session` cookie. Body `{network_id?}`. Si absent : 0 networks → auto-crée "Mon Network", 1 → use it, 2+ → 400 `must_choose_network`. Check membership (403). Supprime le code path "anonymous network auto-create". |
 | `GET /api/editor-session/:token` | Ajoute `network_id` à la réponse |
 | `GET /api/networks` | Existant — pas de changement |
 | `POST /api/networks` | Existant — pas de changement |
@@ -192,12 +192,12 @@ Tokens : 32 chars random, base62 (réutilise `generateEditorToken` ou helper éq
 ### Plugin (Kotlin) changes
 
 - `SyncedMenuProvider.handleHelloAck` : après réception du `hello_ack`, walk `packsDir`, pour chaque pack non-vide en disque mais vide côté backend → auto-send `local_push` (Flow 4).
-- Aucun changement à `/ifz setup` (côté plugin) — la commande envoie déjà `setup_request` au backend, le backend gère le reste.
+- Aucun changement à `/artisan setup` (côté plugin) — la commande envoie déjà `setup_request` au backend, le backend gère le reste.
 
 ## Migration de l'existant
 
 État actuel d'Iban (le seul utilisateur affecté pour l'instant) :
-- 1 Network anonyme `net_ebe57cf700fd` (créé via legacy `/ifz setup` aujourd'hui)
+- 1 Network anonyme `net_ebe57cf700fd` (créé via legacy `/artisan setup` aujourd'hui)
 - 1 server_key dedans
 - 1 pack `test` avec contenu
 - Aucune membership row → sans intervention, Iban perdrait l'accès après le hard break
@@ -216,7 +216,7 @@ Documenté dans le plan d'implémentation (étape finale).
 
 ### Backend
 
-- `claim 401` sans cookie `ifz_user_session`
+- `claim 401` sans cookie `artisan_user_session`
 - `claim` auto-crée Network si user a 0 networks
 - `claim 400 must_choose_network` si user a 2+ networks et body sans `network_id`
 - `claim 403` si `network_id` appartient à un autre user (pas de membership)

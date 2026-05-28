@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Interfaze are documented in this file.
+All notable changes to Artisan are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -11,14 +11,14 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ### Added
 - Versioning foundations (`docs/architecture/versioning.md`):
-  - Stability annotations under `gg.interfaze.modules.api.annotations` — `@Stable`, `@Beta`, `@Internal`, `@Sunset(reason, removeInVersion, replacement)`. (`@Sunset` replaces `@Deprecated` in the spec to avoid clashing with `kotlin.Deprecated`.)
-  - Schema migration framework: `SchemaMigration<T>` interface + `SchemaRegistry<T>.loadToCurrent()` chained migrator + `UnsupportedSchemaVersionException` / `CircularMigrationException`. Wired via `InterfazeAPI.schemas`.
+  - Stability annotations under `net.artisanmc.modules.api.annotations` — `@Stable`, `@Beta`, `@Internal`, `@Sunset(reason, removeInVersion, replacement)`. (`@Sunset` replaces `@Deprecated` in the spec to avoid clashing with `kotlin.Deprecated`.)
+  - Schema migration framework: `SchemaMigration<T>` interface + `SchemaRegistry<T>.loadToCurrent()` chained migrator + `UnsupportedSchemaVersionException` / `CircularMigrationException`. Wired via `ArtisanAPI.schemas`.
   - `schema` discriminator field at top of menu, command, dialog, manifest YAML (`menu/v1`, `command/v1`, `dialog/v1`, `manifest/v1`). Plugin `PackReader` enforces; editor `transform.ts` emits.
   - WS hello carries `protocol_version: "1"` + `core_version`. Backend tolerates unknown message types (logs + returns `{ reply: null }`).
   - Backend Drizzle migrations folder `backend/drizzle/` + `db:generate` / `db:migrate` scripts. Docker compose backend boot uses `db:migrate` (idempotent).
   - `CHANGELOG.md` (this file), `docs/architecture/api-surface.md`.
 - Modular monolith pattern (`docs/architecture/modules.md`):
-  - `InterfazeModule` / `BackendModule` / `FrontendModule` interfaces with module registries on all 3 layers.
+  - `ArtisanModule` / `BackendModule` / `FrontendModule` interfaces with module registries on all 3 layers.
   - `DataSourceRegistry`, `CommandRegistry`, `ModuleEventBus` (plugin) + cross-module event bus on editor side via WS `module_event`.
   - `<SchemaForm>` JSON-Schema→React-form generator (`editor/src/components/SchemaForm/`).
   - `menus` and `commands` modules wrap existing engine code without rewrite.

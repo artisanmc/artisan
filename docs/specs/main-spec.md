@@ -1,4 +1,4 @@
-# Interfaze — Plugin Minecraft d'édition de GUIs
+# Artisan — Plugin Minecraft d'édition de GUIs
 
 **Spec produit — document de référence pour le développement et les décisions produit**
 Version : draft 1 (avril 2026)
@@ -35,7 +35,7 @@ L'admin compose des GUIs sans pixel art, le tout dans un éditeur web moderne av
 
 L'architecture repose sur un pattern **hosted-edit / local-runtime** :
 
-- **Côté éditeur** : application web hébergée par nous (ex. `editor.interfaze.gg`). C'est là que les admins configurent leurs menus, gèrent leurs assets, organisent leurs équipes.
+- **Côté éditeur** : application web hébergée par nous (ex. `editor.artisanmc.net`). C'est là que les admins configurent leurs menus, gèrent leurs assets, organisent leurs équipes.
 - **Côté plugin** : module Spigot/Paper installé sur le serveur Minecraft de l'admin. Il sert les menus aux joueurs, gère les inventaires natifs, exécute les actions au clic. Fonctionne offline-first : aucune dépendance internet en jeu. Si l'éditeur tombe, les serveurs des clients continuent à servir leurs menus normalement.
 
 ### 2.2 Flux de données
@@ -89,7 +89,7 @@ Un troisième flavor **Staging** (preview gelée accessible à des testeurs invi
 - **Cloud version history** : free = 30 jours rolling, Pro = illimité avec rollback à n'importe quelle date.
 - **Assistant IA (V1.5)** : free = ✗, Pro = 50 reqs/mois (ou add-on standalone).
 
-Cette structure préserve les solo creators comme ambassadeurs (ils stylisent visuellement avec Nexo/ItemsAdder + Interfaze free, partagent sur YouTube, recrutent des nouveaux users), et capture le payant sur les signaux de "vrai usage productif" : vouloir le service all-in-one Interfaze (custom pack + multi-server + MCModels).
+Cette structure préserve les solo creators comme ambassadeurs (ils stylisent visuellement avec Nexo/ItemsAdder + Artisan free, partagent sur YouTube, recrutent des nouveaux users), et capture le payant sur les signaux de "vrai usage productif" : vouloir le service all-in-one Artisan (custom pack + multi-server + MCModels).
 
 ### 3.2 Tier Pro
 
@@ -147,10 +147,10 @@ Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet : urgenc
 L'admin free **n'est jamais bloqué créativement**. Trois voies pour avoir des menus visuellement custom sans payer Pro :
 
 1. **Vanilla materials** : MC 1.21.4+ propose des centaines de materials, blocks, items vanilla. Largement de quoi faire des menus propres et lisibles.
-2. **Nexo / ItemsAdder / Oraxen** : ces plugins (souvent ~15-20 € one-time) fournissent des items custom illimités. Tu les intègres dans Interfaze via `material: "nexo:custom_sword"` — l'éditeur visualise, le plugin résout au runtime. **Cette intégration est gratuite** parce que ce sont leurs items, pas les tiens.
-3. **Resource pack self-hosté** : l'admin compile son propre pack avec OptiFine/MCPatcher/MCModels, l'héberge sur son webserver, et le pousse aux joueurs via la fonctionnalité Spigot `resource-pack` dans `server.properties`. Pas besoin d'Interfaze pour ça.
+2. **Nexo / ItemsAdder / Oraxen** : ces plugins (souvent ~15-20 € one-time) fournissent des items custom illimités. Tu les intègres dans Artisan via `material: "nexo:custom_sword"` — l'éditeur visualise, le plugin résout au runtime. **Cette intégration est gratuite** parce que ce sont leurs items, pas les tiens.
+3. **Resource pack self-hosté** : l'admin compile son propre pack avec OptiFine/MCPatcher/MCModels, l'héberge sur son webserver, et le pousse aux joueurs via la fonctionnalité Spigot `resource-pack` dans `server.properties`. Pas besoin d'Artisan pour ça.
 
-Pro existe pour les admins qui **veulent éviter ces 3 manipulations** et veulent qu'Interfaze gère tout en autopilot : upload PNG dans l'éditeur, on compile, signe, héberge, distribue. C'est un **service de productivité**, pas une rétention de feature artificielle.
+Pro existe pour les admins qui **veulent éviter ces 3 manipulations** et veulent qu'Artisan gère tout en autopilot : upload PNG dans l'éditeur, on compile, signe, héberge, distribue. C'est un **service de productivité**, pas une rétention de feature artificielle.
 
 ### 3.4 Programmes spéciaux
 
@@ -158,15 +158,15 @@ Pro existe pour les admins qui **veulent éviter ces 3 manipulations** et veulen
 
 **Migration discount** : promo *"Je viens de [zMenu / DeluxeMenus / autre]"* → -50 % les 6 premiers mois. Coupon visible sur la landing page.
 
-**Open source contributors** : compte Pro gratuit pour les contributeurs significatifs sur les libs Interfaze publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT).
+**Open source contributors** : compte Pro gratuit pour les contributeurs significatifs sur les libs Artisan publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT).
 
-**Demo publique sans signup** : `interfaze.gg/playground` — éditeur live qui charge un menu d'exemple, sans login. Drive massif vers le free signup.
+**Demo publique sans signup** : `artisanmc.net/playground` — éditeur live qui charge un menu d'exemple, sans login. Drive massif vers le free signup.
 
 ### 3.5 Personas servis
 
 - **Free, hobby admin vanilla** (1 serveur, vanilla materials) : reste gratuit, ambassadeur YouTube/Discord. Coût pour nous = ~0.
 - **Free, RPG/medieval avec Nexo/ItemsAdder** (1 serveur, items custom via plugin tiers) : workflow seamless via material namespace. Coût pour nous = ~0 (le pack vient de leur plugin tiers).
-- **Pro, custom textures sans plugin tiers** (1-5 serveurs, veut l'all-in-one Interfaze) : **cible cœur**. 30 €/an c'est l'équivalent d'un café tous les 2 mois, et ils ont la gestion auto en plus.
+- **Pro, custom textures sans plugin tiers** (1-5 serveurs, veut l'all-in-one Artisan) : **cible cœur**. 30 €/an c'est l'équivalent d'un café tous les 2 mois, et ils ont la gestion auto en plus.
 - **Pro, MCModels import** : ils ont acheté un pack 30 €, +30 €/an (ou 80 € lifetime) pour l'utiliser visuellement avec l'éditeur = trivial.
 - **Pro, multi-server** : networks publics MC avec multiple modes.
 - **Lifetime buyers** : anti-sub. Amortissement vs annuel à ~2,5 ans.
@@ -229,7 +229,7 @@ Pas d'éditeur de code embarqué dans l'UI. Les power users qui veulent manipule
 **Philosophie AI-native** : en 2026, l'interface "code" naturelle pour un power user n'est plus un éditeur YAML, c'est une IA. L'admin qui veut une modif complexe décrit son intention à Claude/GPT, copie-colle le JSON résultat. Le schéma JSON est traité comme un asset produit central :
 
 - Versionné (`menu/v1`, `menu/v2`...) avec migrations applicables au load.
-- Documenté en TypeScript types + JSON Schema, publié sur `docs.interfaze.gg/schema`.
+- Documenté en TypeScript types + JSON Schema, publié sur `docs.artisanmc.net/schema`.
 - Exemples annotés pour les patterns courants (shop simple, paginé avec composant tiers, apparences conditionnelles, etc.).
 - Stable et explicite (noms de champs verbeux : `requirements` plutôt que `req`).
 
@@ -564,13 +564,13 @@ Les migrations sont versionnées et testées. Un menu en v1 reste lisible par un
 
 ## 9. Resource pack generation
 
-**Note** : la génération automatique du resource pack + son hosting sur le CDN Interfaze + sa signature serveur-bound est une **feature gated sur le tier Pro** (cf. section 3). Les free users ont trois alternatives : (1) vanilla materials uniquement, (2) intégration native avec leurs items Nexo/ItemsAdder/Oraxen via material namespace, (3) self-hosting de leur propre resource pack via la fonctionnalité native Spigot `resource-pack`. Tout ce qui suit décrit le pipeline auto-pack Pro.
+**Note** : la génération automatique du resource pack + son hosting sur le CDN Artisan + sa signature serveur-bound est une **feature gated sur le tier Pro** (cf. section 3). Les free users ont trois alternatives : (1) vanilla materials uniquement, (2) intégration native avec leurs items Nexo/ItemsAdder/Oraxen via material namespace, (3) self-hosting de leur propre resource pack via la fonctionnalité native Spigot `resource-pack`. Tout ce qui suit décrit le pipeline auto-pack Pro.
 
 ### 9.1 Cible technique
 
 Minecraft **1.21.4+** uniquement. Cette décision permet :
 
-- L'usage de `custom_model_data` en string (`"interfaze:button_buy"`), évitant tout conflit de namespace avec Nexo, ItemAdder, ou tout autre pack.
+- L'usage de `custom_model_data` en string (`"artisan:button_buy"`), évitant tout conflit de namespace avec Nexo, ItemAdder, ou tout autre pack.
 - Le pack stacking (depuis 1.20.3+) qui permet à plusieurs resource packs de coexister. Notre pack généré cohabite sans friction avec ceux des autres plugins.
 
 ### 9.2 Mécanismes de rendu
@@ -578,7 +578,7 @@ Minecraft **1.21.4+** uniquement. Cette décision permet :
 Deux techniques combinées :
 
 - **Items custom (CMD strings)** : pour chaque slot avec un asset custom, on génère un modèle d'item lié à un CMD string unique. Le slot affiche un item vanilla (paper, stick) avec ce CMD. Le client résout le modèle via le pack.
-- **Polices custom** : pour les éléments décoratifs et backgrounds (qu'on superpose dans le titre du menu), on définit des polices custom nommées (`interfaze:menu_overlay`). Chaque caractère est mappé à une image. Cela permet de superposer plusieurs éléments visuels dans une seule zone de titre.
+- **Polices custom** : pour les éléments décoratifs et backgrounds (qu'on superpose dans le titre du menu), on définit des polices custom nommées (`artisan:menu_overlay`). Chaque caractère est mappé à une image. Cela permet de superposer plusieurs éléments visuels dans une seule zone de titre.
 
 ### 9.3 Structure du pack généré
 
@@ -586,7 +586,7 @@ Deux techniques combinées :
 pack/
   pack.mcmeta
   assets/
-    interfaze/
+    artisan/
       textures/
         items/<asset_name>.png
         font/<font_glyphs>.png
@@ -604,7 +604,7 @@ pack/
    ↓
 2. Normalisation (resize au plus proche multiple de 16, popup d'info si non-conforme)
    ↓
-3. Allocation des CMD strings (déterministe : interfaze:menu_<menu_id>_<slot_id>)
+3. Allocation des CMD strings (déterministe : artisan:menu_<menu_id>_<slot_id>)
    ↓
 4. Génération des modèles JSON
    ↓
@@ -764,7 +764,7 @@ Les clés i18n n'ont **aucun quota** dans aucun tier. Stockage négligeable (~qu
 
 ## 11. Workflow Live / Draft
 
-**Note** : ce workflow s'applique au **mode cloud** (par défaut, tous tiers Free + Pro). En **mode local** (opt-in, offline, tous tiers), le plugin lit les fichiers JSON depuis `plugins/Interfaze/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/interfaze reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
+**Note** : ce workflow s'applique au **mode cloud** (par défaut, tous tiers Free + Pro). En **mode local** (opt-in, offline, tous tiers), le plugin lit les fichiers JSON depuis `plugins/Artisan/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/artisan reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
 
 ### 11.1 Cycle d'édition
 
@@ -911,7 +911,7 @@ WorkspaceMenuRedirect {
 }
 ```
 
-À l'exécution, Interfaze intercepte les `openMenu(menuId)` et applique la redirection avant de résoudre. Une seule redirection active par source. Les autres forks coexistent dans le workspace, accessibles par leur id direct (`/menu open my_quests_v2`) mais aucun call indirect ne les vise par défaut.
+À l'exécution, Artisan intercepte les `openMenu(menuId)` et applique la redirection avant de résoudre. Une seule redirection active par source. Les autres forks coexistent dans le workspace, accessibles par leur id direct (`/menu open my_quests_v2`) mais aucun call indirect ne les vise par défaut.
 
 UX dans le canvas (cf. section 4.4) : la carte du menu plugin affiche un badge *"Redirigé vers `my_quests`"* si l'admin a setup une redirection. Click pour changer la cible (sélection parmi les forks du workspace) ou supprimer la redirection (revert au menu plugin original).
 
@@ -921,7 +921,7 @@ L'export d'un pack offre deux modes :
 
 | Mode | Contenu du `.itfz` | Taille typique | Use case |
 |---|---|---|---|
-| **Slim** | Manifest + menus + templates + manifest. **Assets référencés par URL CDN** (ex. `https://cdn.interfaze.gg/u/iban/quest_btn.png`). | 10-100 KB | Embarqué dans un JAR plugin (cf. section 13.13). |
+| **Slim** | Manifest + menus + templates + manifest. **Assets référencés par URL CDN** (ex. `https://cdn.artisanmc.net/u/iban/quest_btn.png`). | 10-100 KB | Embarqué dans un JAR plugin (cf. section 13.13). |
 | **Full** | Manifest + menus + templates + assets binaires inclus | 1-50 MB | Marketplace V3, archive, partage offline-first. |
 
 Les paths d'assets dans le menu JSON acceptent à la fois des chemins relatifs (résolus contre le dossier `assets/` du pack en mode full) ou des URLs HTTPS absolues (mode slim). Le moteur runtime pull les assets depuis l'URL et les sert via le resource pack côté joueur — le serveur lui-même n'a pas besoin de les avoir localement.
@@ -943,7 +943,7 @@ Sans cette intégration, les serveurs RPG/quest qui dépendent de ces plugins ne
 ### 13.2 API Java côté plugin tiers
 
 ```java
-InterfazeAPI.register(
+ArtisanAPI.register(
   PluginIntegration.builder("questx")
 
     // ----- Composants disponibles dans la palette de l'éditeur -----
@@ -1230,14 +1230,14 @@ L'API ne sert à rien si aucun plugin tiers ne l'intègre. Plan d'adoption :
 En V1, les plugins fournissent des **composants** (boutons single ou paginables) que l'admin compose dans ses propres menus. En V2, l'API tierce s'élargit : les plugins peuvent enregistrer des **menus complets** dans le workspace de l'admin via :
 
 ```java
-interfaze.registerMenuPack(byte[] packArchive);
+artisan.registerMenuPack(byte[] packArchive);
 ```
 
-Le plugin lit son `.itfz` embarqué dans son JAR (typiquement `resources/interfaze-pack.itfz`), passe les bytes à l'API au `onEnable`. Interfaze parse l'archive, valide contre `pack/v1`, et enregistre les menus sous le **namespace du plugin appelant** (auto-dérivé via `Plugin.getName()` côté Bukkit) — `questx:quest_list`, `questx:quest_detail`, etc. Aucun namespace à déclarer manuellement.
+Le plugin lit son `.itfz` embarqué dans son JAR (typiquement `resources/artisan-pack.itfz`), passe les bytes à l'API au `onEnable`. Artisan parse l'archive, valide contre `pack/v1`, et enregistre les menus sous le **namespace du plugin appelant** (auto-dérivé via `Plugin.getName()` côté Bukkit) — `questx:quest_list`, `questx:quest_detail`, etc. Aucun namespace à déclarer manuellement.
 
 **Workflow plugin dev :**
 
-1. Sign up sur `editor.interfaze.gg` (compte free OK)
+1. Sign up sur `editor.artisanmc.net` (compte free OK)
 2. Designe ses menus dans l'éditeur visuellement, comme n'importe quel admin
 3. Upload ses assets custom (vont sur le CDN R2 sous son compte)
 4. Exporte le pack en mode **slim** (cf. 12.12) — JSON only, assets référencés par URL CDN. Taille typique : 30-100 KB.
@@ -1253,12 +1253,12 @@ Le plugin lit son `.itfz` embarqué dans son JAR (typiquement `resources/interfa
 
 **Bénéfices stratégiques :**
 
-- Les plugin devs deviennent users d'Interfaze (eat your own dogfood, multiplier l'adoption).
+- Les plugin devs deviennent users d'Artisan (eat your own dogfood, multiplier l'adoption).
 - Plus de YAML hardcodé dans les plugins → meilleure UX pour eux.
-- Les assets des plugins remplissent le CDN d'Interfaze → effet de réseau (admins découvrent des assets gratuitement).
+- Les assets des plugins remplissent le CDN d'Artisan → effet de réseau (admins découvrent des assets gratuitement).
 - Networks d'admins voient leur graphe de menus complet (leurs propres menus + les menus plugins) sur un seul canvas.
 
-À documenter en V2 dans la section dédiée plugin dev de `docs.interfaze.gg`.
+À documenter en V2 dans la section dédiée plugin dev de `docs.artisanmc.net`.
 
 ### 13.14 Plugins enregistrent leurs propres data sources (V2)
 
@@ -1266,7 +1266,7 @@ Pendant que `registerComponent` (section 13.4) couvre les composants UI au layou
 
 ```java
 // V2 — exemple d'API côté plugin tier
-InterfazeAPI.registerDataSource(DataSource.builder()
+ArtisanAPI.registerDataSource(DataSource.builder()
     .ref("chestshop:items")              // override notre homemade
     .schema(ItemDTO.class)               // shape des objets retournés
     .fetcher((server, params) -> {
@@ -1286,9 +1286,9 @@ Bénéfices pour l'auteur : contrôle de la shape (le schéma exposé est exacte
 
 ## 14. Data sources et contexte du menu
 
-L'API plugins tiers (section 13) couvre le cas où un plugin **veut intégrer Interfaze** : il appelle `registerComponent`, livre son layout et son comportement. Mais ça suppose que le plugin author a fait l'effort. Pour Interfaze à V1, on ne peut pas attendre que QuestX, ChestShop ou EssentialsX prennent le temps d'intégrer.
+L'API plugins tiers (section 13) couvre le cas où un plugin **veut intégrer Artisan** : il appelle `registerComponent`, livre son layout et son comportement. Mais ça suppose que le plugin author a fait l'effort. Pour Artisan à V1, on ne peut pas attendre que QuestX, ChestShop ou EssentialsX prennent le temps d'intégrer.
 
-**La solution** : on retourne le modèle. Au lieu d'attendre que les plugins poussent leur data, **on l'aspire** via des connecteurs custom qu'on écrit nous-mêmes pour les plugins populaires. L'admin de ChestShop ouvre Interfaze, sélectionne *"Bind to ChestShop items"*, design son shop visuellement — sans que ChestShop ait fait quoi que ce soit. Quand le plugin author voudra prendre la main, il pourra (V2 via `registerDataSource`).
+**La solution** : on retourne le modèle. Au lieu d'attendre que les plugins poussent leur data, **on l'aspire** via des connecteurs custom qu'on écrit nous-mêmes pour les plugins populaires. L'admin de ChestShop ouvre Artisan, sélectionne *"Bind to ChestShop items"*, design son shop visuellement — sans que ChestShop ait fait quoi que ce soit. Quand le plugin author voudra prendre la main, il pourra (V2 via `registerDataSource`).
 
 ### 14.1 Modèle : `contextInputs` du menu
 
@@ -1374,7 +1374,7 @@ Pour chaque item retourné par le connecteur, le moteur évalue les appearances 
 
 | Pattern | Layout | Data | Use case |
 |---|---|---|---|
-| **`iterates` sur un input avec `source: ConnectorBinding`** | Admin (via Interfaze) | Plugin (via connecteur) | Connecteur Interfaze pour ChestShop, EssentialsX warps, etc. L'admin design son shop comme il veut. |
+| **`iterates` sur un input avec `source: ConnectorBinding`** | Admin (via Artisan) | Plugin (via connecteur) | Connecteur Artisan pour ChestShop, EssentialsX warps, etc. L'admin design son shop comme il veut. |
 | **`iterates` sur un input passé par l'appelant** | Admin | Caller (commande / menu parent) | Liste passée explicitement, ex. la commande `/shop <category>` passe `shops: [...]` après filtre côté commande. Rarement utilisé mais permis. |
 | **`appearance.component_ref` (plugin registered)** | Plugin author | Plugin | QuestX livre son bouton de quête avec son layout par défaut, l'admin peut juste override le click ou le title. |
 | **Element statique** | Admin | Admin | Bouton qui run une commande, sans data dynamique. |
@@ -1385,7 +1385,7 @@ Tous cohabitent dans le même menu. Un menu peut mélanger un grid bindé à `ch
 
 ### 14.4 Connecteurs au launch (V1)
 
-Cinq connecteurs **homemade Interfaze** qui couvrent ~80 % des serveurs Minecraft modernes :
+Cinq connecteurs **homemade Artisan** qui couvrent ~80 % des serveurs Minecraft modernes :
 
 | Plugin | Data sources exposées |
 |---|---|
@@ -1395,15 +1395,15 @@ Cinq connecteurs **homemade Interfaze** qui couvrent ~80 % des serveurs Minecraf
 | **LuckPerms** | `luckperms:groups`, `luckperms:tracks` |
 | **Quests** | `quests:active`, `quests:completed`, `quests:available` |
 
-Pour chaque connecteur, on documente le **schéma des objets retournés** (champs `id`, `name`, `material`, etc.) sur `docs.interfaze.gg/connectors`. Le code Java côté plugin Interfaze fetch les data via l'API publique du plugin source (ex: `EssentialsX#getWarps()`).
+Pour chaque connecteur, on documente le **schéma des objets retournés** (champs `id`, `name`, `material`, etc.) sur `docs.artisanmc.net/connectors`. Le code Java côté plugin Artisan fetch les data via l'API publique du plugin source (ex: `EssentialsX#getWarps()`).
 
 V1.5+ : on étend le catalogue (ShopGUIPlus, mcMMO, BetonQuest, WorldGuard regions, Vault, etc.) selon la demande Discord/Reddit.
 
 ### 14.5 Connecteurs : qui les écrit, comment
 
-**V1 — homemade Interfaze** : on écrit les connecteurs nous-mêmes en Java, packagés dans le plugin Interfaze. Ils dépendent des plugins sources via `softdepend` dans `paper-plugin.yml` (chargement conditionnel — pas de crash si EssentialsX absent).
+**V1 — homemade Artisan** : on écrit les connecteurs nous-mêmes en Java, packagés dans le plugin Artisan. Ils dépendent des plugins sources via `softdepend` dans `paper-plugin.yml` (chargement conditionnel — pas de crash si EssentialsX absent).
 
-**V2 — registerDataSource (plugin author)** : un plugin author peut shipper son propre connecteur officiel via une nouvelle API `InterfazeAPI.registerDataSource(...)` (parallèle au `registerComponent` actuel). Override system : si un plugin officiel s'enregistre pour `chestshop:items`, il remplace notre homemade. Bénéfices pour l'auteur : contrôle de la shape, perf optimisée, layout suggéré par défaut.
+**V2 — registerDataSource (plugin author)** : un plugin author peut shipper son propre connecteur officiel via une nouvelle API `ArtisanAPI.registerDataSource(...)` (parallèle au `registerComponent` actuel). Override system : si un plugin officiel s'enregistre pour `chestshop:items`, il remplace notre homemade. Bénéfices pour l'auteur : contrôle de la shape, perf optimisée, layout suggéré par défaut.
 
 **V2.5+ — user-defined connectors** : un admin power user pourra définir ses propres connecteurs via un DSL YAML simple ("ce fichier de config plugin, lis ces clés, expose ces champs"). Permet de support des plugins de niche sans qu'on les ajoute officiellement.
 
@@ -1428,7 +1428,7 @@ Le binding connecteur s'édite **au niveau du menu**, dans le panel `MenuPropert
 
 ### 14.8 Synergie avec le MCP server (V2)
 
-Le MCP server `interfaze-mcp` expose nativement les connecteurs au LLM client (Claude Desktop / Cursor) sous forme de **tools MCP standardisés** : *"liste-moi tous les warps Essentials de ce serveur"*, *"crée un menu qui itère les items ChestShop sous 100 €"*. Aucun travail supplémentaire au-dessus du modèle `ConnectorBinding` — un connecteur enregistré devient un tool MCP automatiquement.
+Le MCP server `artisan-mcp` expose nativement les connecteurs au LLM client (Claude Desktop / Cursor) sous forme de **tools MCP standardisés** : *"liste-moi tous les warps Essentials de ce serveur"*, *"crée un menu qui itère les items ChestShop sous 100 €"*. Aucun travail supplémentaire au-dessus du modèle `ConnectorBinding` — un connecteur enregistré devient un tool MCP automatiquement.
 
 ### 14.9 Limites V1
 
@@ -1442,7 +1442,7 @@ Le MCP server `interfaze-mcp` expose nativement les connecteurs au LLM client (C
 
 ## 15. Commandes
 
-Interfaze permet à l'admin de **créer ses propres commandes** depuis l'éditeur, au même niveau qu'un menu. Une commande est une entité de premier ordre : elle a son id, son nom, ses arguments, ses actions, et vit dans le même workspace que les menus (et le même pack `.itfz` à l'export).
+Artisan permet à l'admin de **créer ses propres commandes** depuis l'éditeur, au même niveau qu'un menu. Une commande est une entité de premier ordre : elle a son id, son nom, ses arguments, ses actions, et vit dans le même workspace que les menus (et le même pack `.itfz` à l'export).
 
 Concept analogue à un `commands.yml` ou à un plugin de commandes custom (CommandPanels, etc.), mais avec :
 
@@ -1541,15 +1541,15 @@ Avec ce modèle, l'admin peut couvrir sans plugin tiers :
 
 Au démarrage, le plugin détecte les conflits avec les commandes déjà enregistrées sur le serveur :
 
-- **Vanilla** (`heal`, `tp`, etc. natives ou via `commands.yml`) : Interfaze refuse de les overrider, log un warning, demande à l'admin de renommer.
+- **Vanilla** (`heal`, `tp`, etc. natives ou via `commands.yml`) : Artisan refuse de les overrider, log un warning, demande à l'admin de renommer.
 - **Autre plugin** : pareil, refus + warning visible dans les logs.
-- **Conflit interne** entre deux commandes Interfaze (même nom dans deux packs activés) : dernier chargé perd, log un warning, l'admin est notifié dans l'éditeur.
+- **Conflit interne** entre deux commandes Artisan (même nom dans deux packs activés) : dernier chargé perd, log un warning, l'admin est notifié dans l'éditeur.
 
 Pas d'override silencieux jamais — un admin doit toujours savoir quelle commande est active pour quel nom.
 
 ### 15.7 Pricing
 
-Les commandes **n'ont pas de quota** dans aucun tier. Une commande coûte ~1 KB de stockage et zéro runtime (pas de rendu, pas de WS persistant). Les quotas Interfaze sont sur les serveurs liés et les seats d'équipe, pas sur les ressources de contenu (cf. section 3).
+Les commandes **n'ont pas de quota** dans aucun tier. Une commande coûte ~1 KB de stockage et zéro runtime (pas de rendu, pas de WS persistant). Les quotas Artisan sont sur les serveurs liés et les seats d'équipe, pas sur les ressources de contenu (cf. section 3).
 
 ### 15.8 Workspace et packs
 
@@ -1578,20 +1578,20 @@ Implémentation côté backend : **Lucia Auth** (lib légère pour Fastify, gèr
 
 **Account linking** : un email = un compte. L'admin peut linker un Discord OAuth en plus pour SSO, mais l'email reste l'identifiant canonique. Évite les emmerdes type "j'ai signé avec Discord puis j'ai changé de Discord, j'ai perdu mon compte".
 
-**Pourquoi pas de workspace anonyme** : on a évalué et écarté un flow `/ifz editor` qui authentifierait via un token in-game sans compte. Trois raisons :
+**Pourquoi pas de workspace anonyme** : on a évalué et écarté un flow `/artisan editor` qui authentifierait via un token in-game sans compte. Trois raisons :
 1. **Sécurité** : un token affiché en clair dans le chat MC peut être lu par un autre OP, par les logs serveur, ou par tout plugin qui hooke le chat. Un attaquant qui intercepte le link en a 5 minutes pour le claim avant l'admin légitime.
 2. **Conversion** : sans compte, pas d'email pour le remarketing, pas de session cross-device, pas de tier abstraction qui groupe N serveurs. Le free anonymous bloquerait toute conversion vers Pro.
 3. **Operations** : pas de billing possible sans compte, pas de support, pas de recovery.
 
 Le compte requis n'est pas une friction — Discord OAuth = 3 secondes, et la sécurité gagnée vaut largement le micro-effort de signup.
 
-### 16.2 `/ifz editor` — shortcut authenticated
+### 16.2 `/artisan editor` — shortcut authenticated
 
-La commande `/ifz editor` reste dans le plugin comme **deeplink shortcut** vers le workspace courant, pas comme bypass d'auth :
+La commande `/artisan editor` reste dans le plugin comme **deeplink shortcut** vers le workspace courant, pas comme bypass d'auth :
 
-1. Admin déjà signé sur Interfaze, pose le plugin sur un serveur lié à son compte.
-2. Sur le serveur, il tape `/ifz editor`.
-3. Plugin affiche : *"Open editor: https://editor.interfaze.gg/server/<id>"*.
+1. Admin déjà signé sur Artisan, pose le plugin sur un serveur lié à son compte.
+2. Sur le serveur, il tape `/artisan editor`.
+3. Plugin affiche : *"Open editor: https://editor.artisanmc.net/server/<id>"*.
 4. Click → browser ouvre l'éditeur, **session existante détectée via JWT cookie** → arrive direct sur le bon workspace avec context serveur pré-rempli. Si pas de session active dans le browser → redirige vers le login normal (Discord/email).
 
 C'est un raccourci utile (skip la navigation manuelle "ouvrir editor → choisir le bon serveur"), pas un mécanisme d'auth séparé. Le compte reste roi.
@@ -1628,7 +1628,7 @@ JWT avec rotation. Session valide 7 jours, refresh transparent. Si la connexion 
 
 ### 17.1 Handshake
 
-Connexion sortante du plugin vers `wss://editor.interfaze.gg/ws/plugin`. Authentification via :
+Connexion sortante du plugin vers `wss://editor.artisanmc.net/ws/plugin`. Authentification via :
 
 ```json
 {
@@ -1694,8 +1694,8 @@ Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la 
 ### 18.1 Plugin Minecraft
 
 **Architecture interne** : le plugin a deux providers de menus, **disponibles dans tous les tiers** :
-- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://editor.interfaze.gg/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
-- `FilesystemMenuProvider` (opt-in, offline) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel. Pour les admins qui ne veulent aucune dépendance cloud (souveraineté, environnements air-gapped).
+- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://editor.artisanmc.net/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
+- `FilesystemMenuProvider` (opt-in, offline) : lit `plugins/Artisan/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel. Pour les admins qui ne veulent aucune dépendance cloud (souveraineté, environnements air-gapped).
 
 Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode par défaut est cloud ; le mode local s'active via `config.yml` (`mode: local`).
 
@@ -1775,7 +1775,7 @@ Possibilité future :
 
 ### 19.3 Marketing au launch
 
-- **Démo serveur public** : `mc.interfaze.gg`. N'importe qui peut se connecter et tester le plugin en action. Le manque de démo de NxMenu est un avantage concurrentiel concret.
+- **Démo serveur public** : `mc.artisanmc.net`. N'importe qui peut se connecter et tester le plugin en action. Le manque de démo de NxMenu est un avantage concurrentiel concret.
 - **Vidéo showcase** (2-3 minutes) : édition live (la WS est un feature visuel imbattable), construction d'un menu shop en 5 minutes, démo de cohabitation avec Nexo.
 - **Discord communautaire** : support, feedback, partage de configs entre utilisateurs (germe de communauté avant la marketplace).
 - **Présence Reddit** : `r/admincraft`, `r/Minecraft` — post de release puis showcases hebdomadaires.
@@ -1848,7 +1848,7 @@ Toute la fondation du produit décrite ci-dessus :
 |---|---|---|
 | V1.1 | Quality-of-life éditeur, fix bugs, optimisations perf, premières intégrations API par plugins partenaires | M+1 à M+3 |
 | V1.5 | **Killer feature 1 : intégration native Nexo / ItemAdder** (items et textures drag-and-drop dans la palette, mode item + mode texture, dégradation gracieuse). **Killer feature 2 : assistant IA intégré** (bouton "Ask AI" qui prend du langage naturel et applique des mutations sur le JSON via Claude API ; se branche aussi sur le canvas V1 pour créer/lier des menus visuellement). Plus : environnement **Staging**, **export/import de packs complets** (.itfz) avec wizard find-&-replace, mode **slim** pour distribution plugin (cf. 12.12), importer MCModels en .itfz, `play_particle`, `set_placeholder`, actions économies alt. (PlayerPoints, etc.), API tierce enrichie (events, hooks, complex actions). Doc dev publique avec schéma JSON. | M+4 à M+6 |
-| V2 | **Killer feature 1 : serveur MCP `interfaze-mcp`** (Claude Desktop / Cursor / autres clients MCP peuvent lister, lire, muter les menus depuis leur outil). **Killer feature 2 : plugins peuvent enregistrer des menus complets** (cf. section 13.13 — `registerMenuPack` API, namespace auto-dérivé, fork + redirections workspace-level). Plus : variables natives (player/server/session) + refresh continu apparences conditionnelles + actions Bungee/Velocity + édition multi-serveur synchronisée | M+6 à M+9 |
+| V2 | **Killer feature 1 : serveur MCP `artisan-mcp`** (Claude Desktop / Cursor / autres clients MCP peuvent lister, lire, muter les menus depuis leur outil). **Killer feature 2 : plugins peuvent enregistrer des menus complets** (cf. section 13.13 — `registerMenuPack` API, namespace auto-dérivé, fork + redirections workspace-level). Plus : variables natives (player/server/session) + refresh continu apparences conditionnelles + actions Bungee/Velocity + édition multi-serveur synchronisée | M+6 à M+9 |
 | V2.5 | Auto-convert zMenu/DeluxeMenus + intégration approfondie Nexo/ItemAdder (édition cross-plugin : créer un item Nexo depuis notre éditeur) + registry cloud des intégrations populaires | M+9 à M+12 |
 | V3 | Marketplace native (assets + menus + intégrations tierces) + édition collaborative (Figma-like) + support Bedrock | M+12+ |
 
@@ -1875,7 +1875,7 @@ Toute la fondation du produit décrite ci-dessus :
 |---|---|
 | **Bundle** | Artefact runtime : .zip signé (config + resource pack) téléchargé par le plugin depuis le CDN. Opaque pour l'admin, généré automatiquement par le backend. |
 | **Pack** | Unité d'organisation dans le workspace (groupe de menus + commandes + templates + assets liés thématiquement). Aussi : format d'export/import partageable `.itfz` (cf. schéma `pack/v1`). |
-| **Command** | Commande custom Interfaze, entité de premier ordre alongside les menus (cf. section 15). Schéma `command/v1`. Réutilise les actions et conditions du catalogue menu, plus un système d'arguments typés. |
+| **Command** | Commande custom Artisan, entité de premier ordre alongside les menus (cf. section 15). Schéma `command/v1`. Réutilise les actions et conditions du catalogue menu, plus un système d'arguments typés. |
 | **Argument** | Paramètre positionnel typé d'une commande (`player`, `online_player`, `string`, `integer`, `number`, `boolean`, `world`, `enum` en V1). Tab-completion automatique selon le type. |
 | **Contexte du menu** | Slots nommées et typées que le menu déclare via `Menu.contextInputs`. Chaque slot est peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs du menu parent, alias d'iteration courant) ou par un connecteur attaché via `source: ConnectorBinding`. Override explicite via `OpenMenuAction.context`. Cf. §15.4. |
 | **ContextInput** | Une slot du contexte du menu. `{ name, type, default?, source? }`. Le `name` est exposé comme `{name}` dans tout champ texte du menu. |
@@ -1902,19 +1902,19 @@ Toute la fondation du produit décrite ci-dessus :
 | **Translation** | Valeur d'une clé i18n pour une langue donnée. Format MiniMessage. Peut contenir des placeholders PAPI et d'autres références i18n. |
 | **default_lang** | Langue de référence du workspace, garantie pour toute clé i18n. Fallback ultime si une autre langue manque à l'exécution. |
 | **Schéma JSON** | Format intermédiaire versionné (`menu/v1`, `menu/v2`...) publié comme asset produit avec types TypeScript et JSON Schema |
-| **MCP server** | Serveur Model Context Protocol (`interfaze-mcp`) qui expose les opérations sur les menus aux clients IA (Claude Desktop, Cursor, etc.). Roadmap V2 |
+| **MCP server** | Serveur Model Context Protocol (`artisan-mcp`) qui expose les opérations sur les menus aux clients IA (Claude Desktop, Cursor, etc.). Roadmap V2 |
 | **PluginIntegration** | Enregistrement d'un plugin tiers auprès de l'éditeur (palette de composants + layouts suggérés) |
 | **Component** | Composant fourni par un plugin tiers (bouton single ou paginable, avec placeholders et action par défaut) |
 | **Composant paginable** | Composant qui occupe une rangée de slots et génère N instances dynamiquement |
 | **Layout suggéré** | Menu pré-rempli proposé par un plugin tiers comme point de départ (purement indicatif) |
 | **component_ref** | Référence dans le JSON d'un menu vers un composant tiers (ex. `questx:quest_button`) |
-| **Connecteur** | Code qui implémente un binding vers un plugin tiers : interroge le plugin, expose une liste (ou un objet unique) d'objets typés. Référencé par `namespace:source` (ex. `chestshop:items`) depuis un `ContextInput.source`. Homemade Interfaze à V1, registered par plugin author en V2. |
+| **Connecteur** | Code qui implémente un binding vers un plugin tiers : interroge le plugin, expose une liste (ou un objet unique) d'objets typés. Référencé par `namespace:source` (ex. `chestshop:items`) depuis un `ContextInput.source`. Homemade Artisan à V1, registered par plugin author en V2. |
 | **Iteration** | Mécanisme par lequel un Element rend un slot par item d'un `ContextInput` de type `"list"`, via `iterates: { source, alias }`. L'`alias` est le nom local de l'item courant, accessible dans les champs de l'Element via `{alias.field}`. |
-| **Pro** | Tier d'abonnement payant unique d'Interfaze (30 €/an ou 80 € lifetime) : débloque le service de hosting de resource pack custom (upload PNG → CDN signé), MCModels import, multi-server (5), IA 50/mois (V1.5), version history illimité, 50 GB storage, priority Discord support. Free reste utilisable avec vanilla materials + intégration Nexo/ItemsAdder/Oraxen + resource pack self-hosté. |
+| **Pro** | Tier d'abonnement payant unique d'Artisan (30 €/an ou 80 € lifetime) : débloque le service de hosting de resource pack custom (upload PNG → CDN signé), MCModels import, multi-server (5), IA 50/mois (V1.5), version history illimité, 50 GB storage, priority Discord support. Free reste utilisable avec vanilla materials + intégration Nexo/ItemsAdder/Oraxen + resource pack self-hosté. |
 | **Founder rate** | Promo locked-in à vie pour les early adopters : -30 % sur Pro pendant les 3 premiers mois post-launch (extendable de 1 mois si bugs critiques). Pro founder = 21 €/an ou 56 € lifetime. |
-| **Mode cloud** | Mode de fonctionnement par défaut du plugin (tous tiers) : connecté à Interfaze via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. Activé dès qu'une `server_key` valide est configurée. |
-| **Mode local** | Mode opt-in offline du plugin (tous tiers) : lit `plugins/Interfaze/menus/*.{json,yaml}` depuis le disque, reload manuel ou file-watch. Pour les admins qui refusent toute dépendance cloud. |
-| **`/ifz editor`** | Commande in-game qui agit comme deeplink shortcut vers le workspace courant : ouvre l'éditeur web sur le bon contexte serveur, en utilisant la session active du browser. Pas un mécanisme d'auth séparé — le compte reste requis (Discord ou email). |
+| **Mode cloud** | Mode de fonctionnement par défaut du plugin (tous tiers) : connecté à Artisan via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. Activé dès qu'une `server_key` valide est configurée. |
+| **Mode local** | Mode opt-in offline du plugin (tous tiers) : lit `plugins/Artisan/menus/*.{json,yaml}` depuis le disque, reload manuel ou file-watch. Pour les admins qui refusent toute dépendance cloud. |
+| **`/artisan editor`** | Commande in-game qui agit comme deeplink shortcut vers le workspace courant : ouvre l'éditeur web sur le bon contexte serveur, en utilisant la session active du browser. Pas un mécanisme d'auth séparé — le compte reste requis (Discord ou email). |
 
 ---
 

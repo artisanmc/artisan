@@ -1,7 +1,7 @@
 /**
- * Interfaze — Pack schema v1 — TypeScript types
+ * Artisan — Pack schema v1 — TypeScript types
  *
- * Manifeste d'un pack Interfaze. Vit à la racine d'une archive .itfz (zip)
+ * Manifeste d'un pack Artisan. Vit à la racine d'une archive .itfz (zip)
  * qui contient le manifeste + les menus + templates + commandes + translations + assets référencés.
  *
  * Concepts :
@@ -29,8 +29,8 @@ export interface PackManifest {
   homepage?: string;
   /** Tags pour catégorisation et recherche. */
   tags?: string[];
-  /** Version minimum d'Interfaze requise. */
-  interfaze_min_version?: string;
+  /** Version minimum d'Artisan requise. */
+  artisan_min_version?: string;
   /** Chemin relatif d'une image de preview dans l'archive. */
   preview_image?: string;
   /** Ids de menus inclus. Doivent avoir menus/<id>.json dans l'archive. */

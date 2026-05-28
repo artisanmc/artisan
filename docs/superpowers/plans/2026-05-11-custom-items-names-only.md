@@ -13,12 +13,12 @@
 ## File Structure
 
 **Plugin (modify):**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt` — drop `loadTexture()` from interface; shrink `CustomItemEntry`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt` — gut: keep only `itemNames()` enumeration
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt` — drop texture/model loaders
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt` — drop texture/model loaders
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt` — bundle only `items.json`; hash only the names list
-- `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt` — rewrite tests for new bundle shape
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt` — drop `loadTexture()` from interface; shrink `CustomItemEntry`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt` — gut: keep only `itemNames()` enumeration
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt` — drop texture/model loaders
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt` — drop texture/model loaders
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt` — bundle only `items.json`; hash only the names list
+- `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt` — rewrite tests for new bundle shape
 
 **Backend (modify):**
 - `backend/src/lib/customItems.ts` — clean up stale `textures/`/`models/` directories when a new bundle lacks them
@@ -35,14 +35,14 @@
 ## Task 1: Shrink `CustomItemEntry` and remove `loadTexture` from the interface
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt`
 
 - [ ] **Step 1: Replace file content**
 
 Open the file. Replace its entire content with:
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 interface CustomItemSource {
     val namespace: String
@@ -71,20 +71,20 @@ Don't commit yet — leave the compile broken; subsequent tasks complete the mig
 ## Task 2: Strip `NexoSource` down to the name list
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt`
 
 - [ ] **Step 1: Replace file content**
 
 Replace the entire file content with:
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
 import java.util.logging.Logger
 
-private val log = Logger.getLogger("Interfaze")
+private val log = Logger.getLogger("Artisan")
 
 class NexoSource(@Suppress("UNUSED_PARAMETER") pluginsDir: File) : CustomItemSource {
     override val namespace = "nexo"
@@ -108,7 +108,7 @@ class NexoSource(@Suppress("UNUSED_PARAMETER") pluginsDir: File) : CustomItemSou
 }
 ```
 
-The `pluginsDir` constructor parameter is kept for binary compatibility with callers (e.g. `InterfazePlugin.onEnable` which passes `server.pluginsFolder`). It's now unused.
+The `pluginsDir` constructor parameter is kept for binary compatibility with callers (e.g. `ArtisanPlugin.onEnable` which passes `server.pluginsFolder`). It's now unused.
 
 - [ ] **Step 2: Compile**
 
@@ -120,12 +120,12 @@ Expected: `NexoSource.kt` now compiles. Other call sites still broken — addres
 ## Task 3: Strip `OraxenSource` to the name list
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt`
 
 - [ ] **Step 1: Replace file content**
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
@@ -160,12 +160,12 @@ Expected: `OraxenSource.kt` compiles.
 ## Task 4: Strip `ItemsAdderSource` to the name list
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt`
 
 - [ ] **Step 1: Replace file content**
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
@@ -202,12 +202,12 @@ Expected: `ItemsAdderSource.kt` compiles. `CustomItemsManager.kt` still broken.
 ## Task 5: Slim `CustomItemsManager` — names-only bundle + hash
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt`
 
 - [ ] **Step 1: Replace file content**
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.ByteArrayOutputStream
@@ -295,17 +295,17 @@ Expected: production code compiles. Tests still broken — fixed next task.
 ## Task 6: Rewrite `CustomItemsManagerTest` for the new bundle shape
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt`
 
 - [ ] **Step 1: Replace file content**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import gg.interfaze.plugin.customitems.CustomItemEntry
-import gg.interfaze.plugin.customitems.CustomItemSource
-import gg.interfaze.plugin.customitems.CustomItemsManager
+import net.artisanmc.plugin.customitems.CustomItemEntry
+import net.artisanmc.plugin.customitems.CustomItemSource
+import net.artisanmc.plugin.customitems.CustomItemsManager
 import java.io.ByteArrayInputStream
 import java.util.Base64
 import java.util.zip.GZIPInputStream
@@ -430,17 +430,17 @@ class CustomItemsManagerTest {
     }
 
     @Test fun `NexoSource isAvailable returns false when Nexo plugin not installed`() {
-        val source = gg.interfaze.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
+        val source = net.artisanmc.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
     }
 
     @Test fun `OraxenSource isAvailable returns false when Oraxen plugin not installed`() {
-        val source = gg.interfaze.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
+        val source = net.artisanmc.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
     }
 
     @Test fun `ItemsAdderSource isAvailable returns false when ItemsAdder plugin not installed`() {
-        val source = gg.interfaze.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
+        val source = net.artisanmc.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
         assertFalse(source.isAvailable())
     }
 }
@@ -454,7 +454,7 @@ Expected: all plugin tests pass. (~190 tests total; CustomItemsManagerTest has 1
 - [ ] **Step 3: Commit plugin changes**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 git commit -m "$(cat <<'EOF'
 refactor(plugin): custom items bundle = names only
 

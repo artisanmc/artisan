@@ -4,7 +4,7 @@
 
 **Goal:** Fixer la sync entre éditeur / backend / plugin sur trois axes connectés : (A) propager les suppressions de fichiers de l'éditeur vers le disque serveur, (B) détecter et résoudre les divergences disque ↔ backend via un workflow conflit persistant, (C) supporter la suppression de pack entier avec confirmation type-to-confirm et trash côté plugin.
 
-**Architecture:** Modèle éditeur-autoritaire en régime normal ; le plugin émet `pack_divergence_detected` au boot et à `/ifz reload` quand le disque diverge de la dernière version synchronisée ; le backend stocke un conflit persistant et gèle les `bundle_available` jusqu'à résolution éditeur. La suppression de fichiers (bug A) devient une étape de sweep dans `BundleDownloader` ; la suppression de pack entier passe par un soft-delete backend + un déplacement vers `plugins/Interfaze/.interfaze-trash/` côté plugin. Toutes les UI éditeur passent par react-i18next + Zustand.
+**Architecture:** Modèle éditeur-autoritaire en régime normal ; le plugin émet `pack_divergence_detected` au boot et à `/artisan reload` quand le disque diverge de la dernière version synchronisée ; le backend stocke un conflit persistant et gèle les `bundle_available` jusqu'à résolution éditeur. La suppression de fichiers (bug A) devient une étape de sweep dans `BundleDownloader` ; la suppression de pack entier passe par un soft-delete backend + un déplacement vers `plugins/Artisan/.artisan-trash/` côté plugin. Toutes les UI éditeur passent par react-i18next + Zustand.
 
 **Tech Stack:** Bun + Hono + Drizzle (PostgreSQL) côté backend ; Kotlin + JUnit + OkHttp + MockWebServer côté plugin ; React 19 + Vitest + Zustand côté éditeur ; bun:test.
 
@@ -16,8 +16,8 @@
 
 | File | Action | Responsibility |
 |---|---|---|
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt` | Modify | Bug A : sweep des fichiers locaux absents du bundle après écriture. |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt` | Modify (append) | Tests sweep / `.interfaze*` préservée / dirs vides / path traversal. |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt` | Modify | Bug A : sweep des fichiers locaux absents du bundle après écriture. |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt` | Modify (append) | Tests sweep / `.artisan*` préservée / dirs vides / path traversal. |
 | `backend/src/db/schema.ts` | Modify | Ajout colonne `pack_bundles.deleted_at` + nouvelle table `pack_conflicts` avec index unique partiel. |
 | `backend/src/protocol.ts` | Modify | Ajout types `PackDivergenceDetectedMessage`, `PackDeletedMessage`, `PackConflictDetectedMessage`, `PackConflictResolvedMessage` + champ `deleted_pack_ids` sur `HelloAckMessage`. |
 | `backend/src/ws/hub.ts` | Modify | Handler `pack_divergence_detected`, broadcast freeze dans `pushBundleAvailable`, populate `deleted_pack_ids` dans `hello_ack`, exclusion des packs supprimés de `pack_hashes`, broadcasts `pack_conflict_detected` / `pack_conflict_resolved` / `pack_deleted`. |
@@ -31,12 +31,12 @@
 | `backend/src/routes/bundles.ts` | Modify | POST `/api/bundles/:packId` renvoie 409 `pack_locked` si conflit ouvert. |
 | `backend/src/routes/bundles.test.ts` | Modify (append) | Test 409. |
 | `backend/src/app.ts` | Modify | Wire le router conflicts. |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/PackDeleter.kt` | Create | Move-to-trash atomique : `packsDir/<packId>` → `packsDir/.interfaze-trash/<packId>-<timestamp>/`. |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/PackDeleterTest.kt` | Create | Tests move-to-trash. |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` | Modify | Lire `deleted_pack_ids` dans `hello_ack`, handler WS `pack_deleted`, émettre `pack_divergence_detected` au boot et `/ifz reload` pour packs LOCAL_ONLY ou CONFLICT, factoriser le walk + read avec `BundleUploader`. |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/PackDeletionTest.kt` | Create | Tests réception `pack_deleted` runtime + `hello_ack.deleted_pack_ids` au reconnect. |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt` | Modify (append) | Scénario E2E plugin : seed divergence → envoi `pack_divergence_detected` → freeze côté backend. |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt` | Modify | Extraire la fonction `readPackFiles(packDir, packId): Map<String, String>` pour réutilisation par le flux de détection. |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/PackDeleter.kt` | Create | Move-to-trash atomique : `packsDir/<packId>` → `packsDir/.artisan-trash/<packId>-<timestamp>/`. |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/PackDeleterTest.kt` | Create | Tests move-to-trash. |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` | Modify | Lire `deleted_pack_ids` dans `hello_ack`, handler WS `pack_deleted`, émettre `pack_divergence_detected` au boot et `/artisan reload` pour packs LOCAL_ONLY ou CONFLICT, factoriser le walk + read avec `BundleUploader`. |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/PackDeletionTest.kt` | Create | Tests réception `pack_deleted` runtime + `hello_ack.deleted_pack_ids` au reconnect. |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt` | Modify (append) | Scénario E2E plugin : seed divergence → envoi `pack_divergence_detected` → freeze côté backend. |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt` | Modify | Extraire la fonction `readPackFiles(packDir, packId): Map<String, String>` pour réutilisation par le flux de détection. |
 | `editor/src/state/conflictsStore.ts` | Create | Zustand store : hydration depuis API, upsert sur WS `pack_conflict_detected`, remove sur `pack_conflict_resolved`. |
 | `editor/src/state/conflictsStore.test.ts` | Create | Tests store. |
 | `editor/src/state/wsStore.ts` | Modify | Router les messages `pack_conflict_detected` / `pack_conflict_resolved` / `pack_deleted` vers les bons stores. |
@@ -52,7 +52,7 @@
 | `editor/src/routes/pack.$packId.tsx` | Modify | Hydratation conflits au mount, banner intégré, autopublish inhibé si conflit ouvert. |
 | `editor/src/locales/en.ts` | Modify | Ajout clés `sync.*` (banner, modal, dialog). |
 | `editor/src/locales/fr.ts` | Modify | Idem en français. |
-| `CLAUDE.md` | Modify | Nouveaux invariants (freeze, .interfaze-trash), nouveaux messages WS, nouveaux endpoints, bump test counts. |
+| `CLAUDE.md` | Modify | Nouveaux invariants (freeze, .artisan-trash), nouveaux messages WS, nouveaux endpoints, bump test counts. |
 
 ---
 
@@ -63,7 +63,7 @@ Cette phase est self-contained et ne touche que le plugin. Elle peut shipper ind
 ## Task 1: Test "fichiers fantômes supprimés après download"
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`
 
 - [ ] **Step 1: Ajouter le test à la fin du fichier (avant la `}` de la classe)**
 
@@ -73,7 +73,7 @@ Cette phase est self-contained et ne touche que le plugin. Elle peut shipper ind
         MockWebServer().use { server ->
             server.start()
             val packId = "p_sweep_test"
-            val packsDir = Files.createTempDirectory("ifz_sweep_").toFile()
+            val packsDir = Files.createTempDirectory("artisan_sweep_").toFile()
             val packDir = File(packsDir, packId).also { it.mkdirs() }
 
             // Seed: deux menus sur disque
@@ -83,7 +83,7 @@ Cette phase est self-contained et ne touche que le plugin. Elle peut shipper ind
 
             // Bundle backend : seulement keep.yaml (stale.yaml a été supprimé dans l'éditeur)
             val files = mapOf(
-                "plugins/Interfaze/packs/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
+                "plugins/Artisan/packs/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
             )
             server.enqueue(
                 MockResponse()
@@ -107,14 +107,14 @@ Cette phase est self-contained et ne touche que le plugin. Elle peut shipper ind
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.BundleDownloaderTest.download removes local files not present in bundle"
+./gradlew test --tests "net.artisanmc.plugin.BundleDownloaderTest.download removes local files not present in bundle"
 ```
 
 Expected: FAIL — `stale.yaml` est toujours présent (sweep pas implémenté).
 
 - [ ] **Step 3: Implémenter le sweep dans `BundleDownloader.kt`**
 
-Modifier `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`, remplacer la fonction `download` par :
+Modifier `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt`, remplacer la fonction `download` par :
 
 ```kotlin
     fun download(url: String, serverKey: String, packId: String) {
@@ -145,7 +145,7 @@ Modifier `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`, 
         }
         val backendHash = parsed["hash"] as? String ?: ""
 
-        val prefix = "plugins/Interfaze/packs/$packId/"
+        val prefix = "plugins/Artisan/packs/$packId/"
         val packDir = File(packsDir, packId)
         packDir.mkdirs()
 
@@ -160,10 +160,10 @@ Modifier `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`, 
             expectedRelPaths.add(relPath.replace('\\', '/'))
         }
 
-        // 2) Sweep: delete local files NOT in the bundle, preserving .interfaze* metadata
+        // 2) Sweep: delete local files NOT in the bundle, preserving .artisan* metadata
         packDir.walkTopDown()
             .filter { it.isFile }
-            .filter { !it.name.startsWith(".interfaze") }
+            .filter { !it.name.startsWith(".artisan") }
             .forEach { f ->
                 val relPath = f.relativeTo(packDir).path.replace('\\', '/')
                 if (relPath !in expectedRelPaths) f.delete()
@@ -184,7 +184,7 @@ Modifier `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`, 
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.BundleDownloaderTest"
+./gradlew test --tests "net.artisanmc.plugin.BundleDownloaderTest"
 ```
 
 Expected: PASS pour les 3 tests (les 2 anciens + le nouveau).
@@ -192,26 +192,26 @@ Expected: PASS pour les 3 tests (les 2 anciens + le nouveau).
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt
 rtk git commit -m "fix(plugin): BundleDownloader — sweep des fichiers locaux absents du bundle"
 ```
 
-## Task 2: Test ".interfaze* metadata préservée pendant le sweep"
+## Task 2: Test ".artisan* metadata préservée pendant le sweep"
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`
 
 - [ ] **Step 1: Ajouter le test**
 
 ```kotlin
     @Test
-    fun `sweep preserves dotinterfaze metadata files`() {
+    fun `sweep preserves dotartisan metadata files`() {
         MockWebServer().use { server ->
             server.start()
             val packId = "p_meta_preserve"
-            val packsDir = Files.createTempDirectory("ifz_meta_preserve_").toFile()
+            val packsDir = Files.createTempDirectory("artisan_meta_preserve_").toFile()
             val packDir = File(packsDir, packId).also { it.mkdirs() }
-            File(packDir, ".interfaze-sync.yaml").writeText("syncedHash: prev\nbackendHash: prev\n")
+            File(packDir, ".artisan-sync.yaml").writeText("syncedHash: prev\nbackendHash: prev\n")
             File(packDir, "menus").mkdirs()
             File(packDir, "menus/old.yaml").writeText("id: old\n")
 
@@ -225,7 +225,7 @@ rtk git commit -m "fix(plugin): BundleDownloader — sweep des fichiers locaux a
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(server.url("/api/bundles/$packId").toString(), "sk", packId)
 
-            assertTrue(File(packDir, ".interfaze-sync.yaml").exists(), "métadonnée préservée")
+            assertTrue(File(packDir, ".artisan-sync.yaml").exists(), "métadonnée préservée")
             assertTrue(!File(packDir, "menus/old.yaml").exists(), "fichier sweepé")
         }
     }
@@ -235,22 +235,22 @@ rtk git commit -m "fix(plugin): BundleDownloader — sweep des fichiers locaux a
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.BundleDownloaderTest.sweep preserves dotinterfaze metadata files"
+./gradlew test --tests "net.artisanmc.plugin.BundleDownloaderTest.sweep preserves dotartisan metadata files"
 ```
 
-Expected: PASS (le filter `!it.name.startsWith(".interfaze")` est déjà en place depuis Task 1).
+Expected: PASS (le filter `!it.name.startsWith(".artisan")` est déjà en place depuis Task 1).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt
-rtk git commit -m "test(plugin): BundleDownloader — sweep préserve .interfaze* metadata"
+rtk git add plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt
+rtk git commit -m "test(plugin): BundleDownloader — sweep préserve .artisan* metadata"
 ```
 
 ## Task 3: Test "répertoires vides nettoyés"
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`
 
 - [ ] **Step 1: Ajouter le test**
 
@@ -260,7 +260,7 @@ rtk git commit -m "test(plugin): BundleDownloader — sweep préserve .interfaze
         MockWebServer().use { server ->
             server.start()
             val packId = "p_dir_cleanup"
-            val packsDir = Files.createTempDirectory("ifz_dir_").toFile()
+            val packsDir = Files.createTempDirectory("artisan_dir_").toFile()
             val packDir = File(packsDir, packId).also { it.mkdirs() }
             File(packDir, "dialogs").mkdirs()
             File(packDir, "dialogs/d1.yaml").writeText("id: d1\n")
@@ -269,7 +269,7 @@ rtk git commit -m "test(plugin): BundleDownloader — sweep préserve .interfaze
 
             // Bundle ne garde que menus/m1.yaml — dialogs/ doit disparaitre
             val files = mapOf(
-                "plugins/Interfaze/packs/$packId/menus/m1.yaml" to "id: m1\n"
+                "plugins/Artisan/packs/$packId/menus/m1.yaml" to "id: m1\n"
             )
             server.enqueue(
                 MockResponse()
@@ -291,20 +291,20 @@ rtk git commit -m "test(plugin): BundleDownloader — sweep préserve .interfaze
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.BundleDownloaderTest.sweep removes directories that become empty"
+./gradlew test --tests "net.artisanmc.plugin.BundleDownloaderTest.sweep removes directories that become empty"
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt
+rtk git add plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt
 rtk git commit -m "test(plugin): BundleDownloader — sweep nettoie les répertoires vides"
 ```
 
 ## Task 4: Test "défense path traversal toujours en place"
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`
 
 - [ ] **Step 1: Ajouter le test**
 
@@ -314,12 +314,12 @@ rtk git commit -m "test(plugin): BundleDownloader — sweep nettoie les réperto
         MockWebServer().use { server ->
             server.start()
             val packId = "p_traversal"
-            val packsDir = Files.createTempDirectory("ifz_trav_").toFile()
+            val packsDir = Files.createTempDirectory("artisan_trav_").toFile()
             // Fichier hors du packDir — ne doit JAMAIS être écrit
             val outsideTarget = File(packsDir, "outside.txt")
 
             val files = mapOf(
-                "plugins/Interfaze/packs/$packId/../outside.txt" to "pwned"
+                "plugins/Artisan/packs/$packId/../outside.txt" to "pwned"
             )
             server.enqueue(
                 MockResponse()
@@ -339,13 +339,13 @@ rtk git commit -m "test(plugin): BundleDownloader — sweep nettoie les réperto
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.BundleDownloaderTest.download rejects path traversal in file keys"
+./gradlew test --tests "net.artisanmc.plugin.BundleDownloaderTest.download rejects path traversal in file keys"
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt
+rtk git add plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt
 rtk git commit -m "test(plugin): BundleDownloader — defense in depth contre path traversal"
 ```
 
@@ -447,7 +447,7 @@ export interface HelloAckMessage {
 À la fin du fichier, juste avant `export type PluginToServerMessage = ...`, ajouter :
 
 ```ts
-// Plugin → backend : divergence disque ↔ backend détectée au boot ou /ifz reload
+// Plugin → backend : divergence disque ↔ backend détectée au boot ou /artisan reload
 export interface PackDivergenceDetectedMessage {
   type: "pack_divergence_detected";
   pack_id: string;
@@ -787,17 +787,17 @@ rtk git commit -m "feat(backend): DELETE /api/editor-session/:token/packs/:packI
 ## Task 9: Plugin — `PackDeleter` (move-to-trash atomique)
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/PackDeleter.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/PackDeleterTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/PackDeleter.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/PackDeleterTest.kt`
 
 - [ ] **Step 1: Écrire le test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/PackDeleterTest.kt` :
+`plugin/src/test/kotlin/net/artisanmc/plugin/PackDeleterTest.kt` :
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.sync.PackDeleter
+import net.artisanmc.plugin.sync.PackDeleter
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -808,8 +808,8 @@ import kotlin.test.assertTrue
 class PackDeleterTest {
 
     @Test
-    fun `moves pack dir into interfaze-trash with timestamp suffix`() {
-        val packsDir = Files.createTempDirectory("ifz_del_").toFile()
+    fun `moves pack dir into artisan-trash with timestamp suffix`() {
+        val packsDir = Files.createTempDirectory("artisan_del_").toFile()
         val packDir = File(packsDir, "p_test").also { it.mkdirs() }
         File(packDir, "menus").mkdirs()
         File(packDir, "menus/m1.yaml").writeText("id: m1\n")
@@ -818,7 +818,7 @@ class PackDeleterTest {
         deleter.delete("p_test")
 
         assertFalse(packDir.exists(), "Original packDir doit disparaître")
-        val trash = File(packsDir, ".interfaze-trash")
+        val trash = File(packsDir, ".artisan-trash")
         assertTrue(trash.exists() && trash.isDirectory, "Trash directory créé")
         val trashEntries = trash.listFiles() ?: emptyArray()
         assertEquals(1, trashEntries.size, "Une seule entrée dans le trash")
@@ -829,16 +829,16 @@ class PackDeleterTest {
 
     @Test
     fun `noop when pack does not exist`() {
-        val packsDir = Files.createTempDirectory("ifz_del_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_del_").toFile()
         val deleter = PackDeleter(packsDir)
         deleter.delete("nonexistent") // ne doit pas lever
-        assertFalse(File(packsDir, ".interfaze-trash").exists(),
+        assertFalse(File(packsDir, ".artisan-trash").exists(),
             "Pas de trash créé si rien à déplacer")
     }
 
     @Test
     fun `unique timestamp suffix when deleting twice with same packId`() {
-        val packsDir = Files.createTempDirectory("ifz_del_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_del_").toFile()
         val deleter = PackDeleter(packsDir)
 
         File(packsDir, "p").also { it.mkdirs() }.also { File(it, "a.yaml").writeText("first\n") }
@@ -847,7 +847,7 @@ class PackDeleterTest {
         Thread.sleep(1100)  // distinct timestamp (epoch seconds)
         deleter.delete("p")
 
-        val trash = File(packsDir, ".interfaze-trash")
+        val trash = File(packsDir, ".artisan-trash")
         assertEquals(2, trash.listFiles()?.size, "Deux entrées trash distinctes")
     }
 }
@@ -857,17 +857,17 @@ class PackDeleterTest {
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.PackDeleterTest"
+./gradlew test --tests "net.artisanmc.plugin.PackDeleterTest"
 ```
 
 Expected: compilation error — `PackDeleter` doesn't exist.
 
 - [ ] **Step 3: Implémenter `PackDeleter`**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/sync/PackDeleter.kt` :
+`plugin/src/main/kotlin/net/artisanmc/plugin/sync/PackDeleter.kt` :
 
 ```kotlin
-package gg.interfaze.plugin.sync
+package net.artisanmc.plugin.sync
 
 import java.io.File
 import java.time.Instant
@@ -878,8 +878,8 @@ import java.util.logging.Logger
 /**
  * Atomic-ish pack deletion via move-to-trash.
  *
- * Pack at `<packsDir>/<packId>/` is moved to `<packsDir>/.interfaze-trash/<packId>-<timestamp>/`.
- * The `.interfaze` prefix excludes the trash directory from BundleHasher (filename filter)
+ * Pack at `<packsDir>/<packId>/` is moved to `<packsDir>/.artisan-trash/<packId>-<timestamp>/`.
+ * The `.artisan` prefix excludes the trash directory from BundleHasher (filename filter)
  * AND from BundleHasher.hashAll's pack iteration (dotfile-directory filter).
  *
  * No-op if the pack dir does not exist.
@@ -894,7 +894,7 @@ class PackDeleter(
         val packDir = File(packsDir, packId)
         if (!packDir.exists()) return
 
-        val trash = File(packsDir, ".interfaze-trash").also { it.mkdirs() }
+        val trash = File(packsDir, ".artisan-trash").also { it.mkdirs() }
         val timestamp = tsFormat.format(Instant.now())
         val target = File(trash, "$packId-$timestamp")
         val ok = packDir.renameTo(target)
@@ -911,7 +911,7 @@ class PackDeleter(
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.PackDeleterTest"
+./gradlew test --tests "net.artisanmc.plugin.PackDeleterTest"
 ```
 
 Expected: PASS pour les 3 tests.
@@ -919,25 +919,25 @@ Expected: PASS pour les 3 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/PackDeleter.kt plugin/src/test/kotlin/gg/interfaze/plugin/PackDeleterTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/PackDeleter.kt plugin/src/test/kotlin/net/artisanmc/plugin/PackDeleterTest.kt
 rtk git commit -m "feat(plugin): PackDeleter — move-to-trash atomique pour suppression de pack"
 ```
 
 ## Task 10: Plugin — handler WS `pack_deleted` runtime + reconcile via `hello_ack.deleted_pack_ids`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/PackDeletionTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/PackDeletionTest.kt`
 
 - [ ] **Step 1: Écrire le test d'intégration**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/PackDeletionTest.kt` :
+`plugin/src/test/kotlin/net/artisanmc/plugin/PackDeletionTest.kt` :
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import gg.interfaze.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -949,8 +949,8 @@ class PackDeletionTest {
     private val mapper = ObjectMapper()
 
     @Test
-    fun `pack_deleted runtime message moves pack dir to interfaze-trash`() {
-        val packsDir = Files.createTempDirectory("ifz_pd_").toFile()
+    fun `pack_deleted runtime message moves pack dir to artisan-trash`() {
+        val packsDir = Files.createTempDirectory("artisan_pd_").toFile()
         val packDir = File(packsDir, "p_kill").also { it.mkdirs() }
         File(packDir, "menus").mkdirs()
         File(packDir, "menus/m.yaml").writeText("id: m\n")
@@ -968,7 +968,7 @@ class PackDeletionTest {
         )
 
         assertFalse(packDir.exists(), "packDir doit avoir été déplacé")
-        val trash = File(packsDir, ".interfaze-trash")
+        val trash = File(packsDir, ".artisan-trash")
         assertTrue(trash.exists(), "trash créé")
         assertTrue(trash.listFiles()!!.any { it.name.startsWith("p_kill-") }, "fichier trash présent")
     }
@@ -979,7 +979,7 @@ class PackDeletionTest {
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.PackDeletionTest"
+./gradlew test --tests "net.artisanmc.plugin.PackDeletionTest"
 ```
 
 Expected: compilation error.
@@ -1009,7 +1009,7 @@ Expected: compilation error.
         }
         menus = freshMenus
         dialogs = freshDialogs
-        gg.interfaze.plugin.sync.PackDeleter(packsDir, logger).delete(packId)
+        net.artisanmc.plugin.sync.PackDeleter(packsDir, logger).delete(packId)
         onReload?.invoke()
     }
 ```
@@ -1039,7 +1039,7 @@ Expected: compilation error.
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.PackDeletionTest"
+./gradlew test --tests "net.artisanmc.plugin.PackDeletionTest"
 ```
 
 Expected: PASS.
@@ -1047,7 +1047,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/PackDeletionTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/PackDeletionTest.kt
 rtk git commit -m "feat(plugin): handlers pack_deleted (runtime + hello_ack.deleted_pack_ids reconcile)"
 ```
 
@@ -1101,7 +1101,7 @@ Dans `editor/src/locales/en.ts`, à un endroit cohérent avec les autres clés (
   sync: {
     deletePackDialog: {
       title: "Delete pack «{{name}}»?",
-      warning: "This action will remove all menus, dialogs and translations of the pack from every connected Minecraft server. The files will be moved to `plugins/Interfaze/.interfaze-trash/` server-side in case you need to recover them.",
+      warning: "This action will remove all menus, dialogs and translations of the pack from every connected Minecraft server. The files will be moved to `plugins/Artisan/.artisan-trash/` server-side in case you need to recover them.",
       conflictWarning: "If a conflict exists for this pack, it will be ignored and the editor will become authoritative.",
       typePrompt: "To confirm, type the pack name:",
       cancel: "Cancel",
@@ -1116,7 +1116,7 @@ Dans `editor/src/locales/fr.ts`, ajouter la version française :
   sync: {
     deletePackDialog: {
       title: "Supprimer le pack «{{name}}» ?",
-      warning: "Cette action supprimera tous les menus, dialogs et traductions du pack sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.",
+      warning: "Cette action supprimera tous les menus, dialogs et traductions du pack sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.",
       conflictWarning: "Si un conflit existe pour ce pack, il sera ignoré et l'éditeur deviendra autoritaire.",
       typePrompt: "Pour confirmer, tape le nom du pack :",
       cancel: "Annuler",
@@ -2006,7 +2006,7 @@ test("POST returns 409 pack_locked when an open conflict exists for the pack", a
   const res = await app.request("/api/bundles/p_locked", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ files: { "plugins/Interfaze/packs/p_locked/m.yaml": "x" } }),
+    body: JSON.stringify({ files: { "plugins/Artisan/packs/p_locked/m.yaml": "x" } }),
   });
   expect(res.status).toBe(409);
   const body = (await res.json()) as { error: string; conflictId?: string };
@@ -2060,14 +2060,14 @@ rtk git commit -m "feat(backend): POST /api/bundles refuse publish si conflit ou
 ## Task 17: Plugin — Extraire `readPackFiles` de `BundleUploader` vers une lib partagée
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt`
 
 - [ ] **Step 1: Refactor**
 
 Ouvrir `BundleUploader.kt` et déplacer la logique de walk dans une fonction object-level :
 
 ```kotlin
-package gg.interfaze.plugin.sync
+package net.artisanmc.plugin.sync
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.MediaType.Companion.toMediaType
@@ -2080,13 +2080,13 @@ import java.util.logging.Logger
 object PackFilesReader {
     /**
      * Walk packDir and produce the canonical files map keyed by
-     * "plugins/Interfaze/packs/<packId>/<relPath>", excluding `.interfaze*` metadata.
+     * "plugins/Artisan/packs/<packId>/<relPath>", excluding `.artisan*` metadata.
      */
     fun read(packDir: File, packId: String): Map<String, String> {
-        val prefix = "plugins/Interfaze/packs/$packId/"
+        val prefix = "plugins/Artisan/packs/$packId/"
         val out = mutableMapOf<String, String>()
         packDir.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".interfaze") }
+            .filter { it.isFile && !it.name.startsWith(".artisan") }
             .forEach { file ->
                 val rel = file.relativeTo(packDir).path.replace('\\', '/')
                 out["$prefix$rel"] = file.readText(Charsets.UTF_8)
@@ -2133,7 +2133,7 @@ class BundleUploader(
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.*"
+./gradlew test --tests "net.artisanmc.plugin.*"
 ```
 
 Expected: tout passe (refactor pur).
@@ -2141,21 +2141,21 @@ Expected: tout passe (refactor pur).
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt
 rtk git commit -m "refactor(plugin): extract PackFilesReader.read from BundleUploader"
 ```
 
 ## Task 18: Plugin — émettre `pack_divergence_detected` au hello_ack pour LOCAL_ONLY/CONFLICT
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt`
 
 - [ ] **Step 1: Lire le test d'intégration existant pour comprendre le pattern**
 
 ```bash
 cd plugin
-head -80 src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt
+head -80 src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt
 ```
 
 - [ ] **Step 2: Ajouter un test à `FullSyncIntegrationTest.kt`**
@@ -2168,16 +2168,16 @@ Append à la fin de la classe :
         // Setup MockWebServer playing the WS role indirectly via REST + a fake WS sender capture.
         // The simplest form: call provider's handleMessageForTesting with a hello_ack
         // and assert that a pack_divergence_detected payload is sent.
-        val packsDir = Files.createTempDirectory("ifz_div_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_div_").toFile()
         val packDir = File(packsDir, "p_local").also { it.mkdirs() }
         File(packDir, "menus").mkdirs()
         File(packDir, "menus/m.yaml").writeText("id: m\n")
 
         // Seed SyncMetadata with a "previous synced hash" so that LOCAL_ONLY is detected
-        gg.interfaze.plugin.sync.SyncMetadata.recordSync(packDir, syncedHash = "old_synced_hash", backendHash = "old_synced_hash")
+        net.artisanmc.plugin.sync.SyncMetadata.recordSync(packDir, syncedHash = "old_synced_hash", backendHash = "old_synced_hash")
 
         val sent = mutableListOf<Map<String, Any>>()
-        val provider = gg.interfaze.plugin.provider.SyncedMenuProvider(
+        val provider = net.artisanmc.plugin.provider.SyncedMenuProvider(
             packsDir = packsDir,
             serverKey = "",
             wsUrl = "ws://noop",
@@ -2201,7 +2201,7 @@ Append à la fin de la classe :
         assertEquals("p_local", divergence!!["pack_id"])
         @Suppress("UNCHECKED_CAST")
         val files = divergence["disk_files"] as Map<String, String>
-        assertTrue(files.containsKey("plugins/Interfaze/packs/p_local/menus/m.yaml"))
+        assertTrue(files.containsKey("plugins/Artisan/packs/p_local/menus/m.yaml"))
     }
 ```
 
@@ -2209,7 +2209,7 @@ Append à la fin de la classe :
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.FullSyncIntegrationTest.plugin sends pack_divergence_detected*"
+./gradlew test --tests "net.artisanmc.plugin.FullSyncIntegrationTest.plugin sends pack_divergence_detected*"
 ```
 
 Expected: compilation error.
@@ -2244,7 +2244,7 @@ Dans le bloc `packsDir.listFiles { ... }?.forEach { packDir -> ... }` (lignes ~2
                         SyncAction.LOCAL_ONLY, SyncAction.CONFLICT -> {
                             logger?.info("Pack $packId: divergence detected ($action) — sending pack_divergence_detected")
                             httpClient.dispatcher.executorService.execute {
-                                val diskFiles = gg.interfaze.plugin.sync.PackFilesReader.read(packDir, packId)
+                                val diskFiles = net.artisanmc.plugin.sync.PackFilesReader.read(packDir, packId)
                                 send(mapOf(
                                     "type" to "pack_divergence_detected",
                                     "pack_id" to packId,
@@ -2269,7 +2269,7 @@ import kotlin.test.assertNotNull
 
 ```bash
 cd plugin
-./gradlew test --tests "gg.interfaze.plugin.FullSyncIntegrationTest"
+./gradlew test --tests "net.artisanmc.plugin.FullSyncIntegrationTest"
 ```
 
 Expected: nouveau test PASS, anciens tests toujours OK.
@@ -2277,7 +2277,7 @@ Expected: nouveau test PASS, anciens tests toujours OK.
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt
 rtk git commit -m "feat(plugin): emit pack_divergence_detected pour LOCAL_ONLY/CONFLICT au hello_ack"
 ```
 
@@ -3118,9 +3118,9 @@ Dans la section "Invariants critiques" de `CLAUDE.md`, ajouter à la fin :
 
 **Auto-resolution sur DELETE pack** — `DELETE /api/editor-session/:token/packs/:packId` marque tout conflit ouvert pour ce pack comme `resolution: "editor"` et envoie `pack_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
 
-**`.interfaze-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.interfaze*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
+**`.artisan-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.artisan*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
 
-**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.interfaze*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
+**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.artisan*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
 ```
 
 - [ ] **Step 2: Ajouter les nouveaux endpoints dans la table API**
@@ -3137,7 +3137,7 @@ Dans la section "Custom Items — endpoints et cache" ou la section dédiée des
 Dans la table "Protocole WS plugin ↔ backend", ajouter :
 
 ```markdown
-| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — émis au boot/`/ifz reload` pour les packs en LOCAL_ONLY/CONFLICT |
+| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — émis au boot/`/artisan reload` pour les packs en LOCAL_ONLY/CONFLICT |
 | `pack_deleted` | backend → plugin | `{ pack_id }` — pack supprimé côté éditeur, le plugin move-to-trash |
 | `pack_conflict_detected` | backend → éditeur | `{ conflict_id, pack_id, detected_at }` |
 | `pack_conflict_resolved` | backend → éditeur | `{ conflict_id, pack_id, resolution }` |
@@ -3181,7 +3181,7 @@ Scénario à exécuter manuellement après le merge du feature `sync-deletion`. 
 ## Préparation
 
 ```bash
-cd /path/to/Interfaze
+cd /path/to/Artisan
 docker compose up -d
 ```
 
@@ -3189,18 +3189,18 @@ Attendre que les trois services soient up : backend (3001), editor (5173), minec
 
 ## Bug A — suppressions éditeur propagées sur disque
 
-1. Ouvrir l'éditeur (URL via `/ifz editor` en jeu), créer un pack `e2e_test`.
+1. Ouvrir l'éditeur (URL via `/artisan editor` en jeu), créer un pack `e2e_test`.
 2. Ajouter 3 menus : `menu_a`, `menu_b`, `menu_c`. Publier.
-3. Sur le serveur Minecraft, vérifier que `/server-data/plugins/Interfaze/packs/e2e_test/menus/` contient les 3 YAML.
+3. Sur le serveur Minecraft, vérifier que `/server-data/plugins/Artisan/packs/e2e_test/menus/` contient les 3 YAML.
 4. Dans l'éditeur, supprimer `menu_b`. Publier.
-5. **Attendu :** `menus/menu_b.yaml` disparait du disque serveur. `menu_a.yaml` et `menu_c.yaml` restent. `.interfaze-sync.yaml` conservé.
+5. **Attendu :** `menus/menu_b.yaml` disparait du disque serveur. `menu_a.yaml` et `menu_c.yaml` restent. `.artisan-sync.yaml` conservé.
 
 ## Bug B — divergence disque ↔ backend détectée et résolue
 
 ### Sous-scénario 1 : LOCAL_ONLY, "Garder l'éditeur"
 
 1. Stopper le serveur Minecraft (`docker compose stop minecraft`).
-2. SSH (ou exec) dans le container, supprimer un YAML manuellement : `rm /server-data/plugins/Interfaze/packs/e2e_test/menus/menu_c.yaml`.
+2. SSH (ou exec) dans le container, supprimer un YAML manuellement : `rm /server-data/plugins/Artisan/packs/e2e_test/menus/menu_c.yaml`.
 3. Redémarrer le serveur.
 4. Ouvrir l'éditeur. **Attendu :** banner conflit en haut du canvas avec "1 conflit détecté".
 5. Cliquer "Voir détails" → modal liste `e2e_test` avec `- 1 fichier supprimé (menus/menu_c.yaml)`.
@@ -3228,14 +3228,14 @@ Attendre que les trois services soient up : backend (3001), editor (5173), minec
 4. Cliquer "Supprimer".
 5. **Attendu :**
    - Le pack disparait de la liste éditeur.
-   - Sur le disque serveur, le dossier `packs/e2e_test/` est déplacé vers `packs/.interfaze-trash/e2e_test-<timestamp>/`.
+   - Sur le disque serveur, le dossier `packs/e2e_test/` est déplacé vers `packs/.artisan-trash/e2e_test-<timestamp>/`.
    - Aucune erreur dans les logs plugin.
 
 ## Edge cases à observer
 
 - **Multi-onglets** : ouvrir deux onglets éditeur. Provoquer un conflit. Un onglet résout. Vérifier que l'autre onglet voit le banner disparaître automatiquement (via `pack_conflict_resolved`).
 - **Publish pendant conflit** : provoquer un conflit, vérifier que le bouton Publier est désactivé pour le pack en question.
-- **Reload pendant freeze** : provoquer un conflit, ne pas le résoudre, exécuter `/ifz reload` en jeu. Vérifier qu'aucun `bundle_available` n'est broadcast (le pack reste sur sa version disque actuelle).
+- **Reload pendant freeze** : provoquer un conflit, ne pas le résoudre, exécuter `/artisan reload` en jeu. Vérifier qu'aucun `bundle_available` n'est broadcast (le pack reste sur sa version disque actuelle).
 ```
 
 - [ ] **Step 2: Commit**

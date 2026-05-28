@@ -2,7 +2,7 @@
   "schema": "command/v1",
   "id": "pay",
   "name": "pay",
-  "permission": "interfaze.cmd.pay",
+  "permission": "artisan.cmd.pay",
   "description": "Transfère de l'argent à un autre joueur.",
   "arguments": [
     {

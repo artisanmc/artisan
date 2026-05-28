@@ -1,37 +1,37 @@
 # Editor Access & Real-Time Collaboration — Design
 
 > **Date :** 2026-05-06
-> **Scope :** `/ifz editor` command, session tokens, WebSocket editor channel, menu-level real-time collaboration, security hardening.
+> **Scope :** `/artisan editor` command, session tokens, WebSocket editor channel, menu-level real-time collaboration, security hardening.
 > **Prérequis :** server linking (B1/B2) implémenté — le plugin a un `server_key` et une WS authentifiée vers le backend.
 
 ---
 
 ## 1. Principe directeur
 
-Pas de compte requis pour utiliser l'éditeur. Le modèle est celui de LuckPerms : `/ifz editor` génère une URL temporaire, l'admin l'ouvre dans son navigateur, accès complet immédiat. Un compte Pro sera introduit plus tard pour les features avancées — ce n'est pas dans le scope de ce design.
+Pas de compte requis pour utiliser l'éditeur. Le modèle est celui de LuckPerms : `/artisan editor` génère une URL temporaire, l'admin l'ouvre dans son navigateur, accès complet immédiat. Un compte Pro sera introduit plus tard pour les features avancées — ce n'est pas dans le scope de ce design.
 
 ---
 
-## 2. Commande `/ifz editor`
+## 2. Commande `/artisan editor`
 
 ### Usage
 
 ```
-/ifz editor          # génère une session et affiche l'URL
-/ifz editor revoke   # révoque toutes les sessions actives du serveur
+/artisan editor          # génère une session et affiche l'URL
+/artisan editor revoke   # révoque toutes les sessions actives du serveur
 ```
 
 ### Permissions
 
-- Gardée par le nœud de permission `interfaze.editor` (configurable via LuckPerms, etc.)
+- Gardée par le nœud de permission `artisan.editor` (configurable via LuckPerms, etc.)
 - Option `editor.console_only: true` dans `config.yml` → refuse si le sender n'est pas la console
 
 ### Config plugin
 
 ```yaml
-# plugins/Interfaze/config.yml
+# plugins/Artisan/config.yml
 server_key: "sk_..."
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 editor:
   console_only: false
 ```
@@ -39,7 +39,7 @@ editor:
 ### Flow
 
 ```
-Admin tape /ifz editor
+Admin tape /artisan editor
         │
         ▼  (sur la WS authentifiée existante)
 Plugin → backend : { type: "editor_session_request", sender: "PlayerName|CONSOLE" }
@@ -53,7 +53,7 @@ Backend → plugin : { type: "editor_session_ready", url: "...", expires_at: "..
         │
         ▼
 Plugin affiche dans le chat / console :
-  [Interfaze] Éditeur → https://editor.interfaze.gg/session?token=XXXXX
+  [Artisan] Éditeur → https://editor.artisanmc.net/session?token=XXXXX
   (expire dans 30 min d'inactivité)
         │
         ▼
@@ -83,7 +83,7 @@ editor_sessions (
 ```ts
 // Plugin → backend (sur WS authentifiée)
 { type: "editor_session_request"; sender: string }
-{ type: "editor_session_revoke" }   // déclenché par /ifz editor revoke
+{ type: "editor_session_revoke" }   // déclenché par /artisan editor revoke
 
 // Backend → plugin
 { type: "editor_session_ready"; url: string; expires_at: string }
@@ -164,7 +164,7 @@ Un curseur/badge "Admin X est sur ce menu" dans la sidebar — alimenté par un 
 
 - Plusieurs tokens actifs simultanément = OK (pas de révocation automatique à la génération)
 - Un admin peut travailler depuis 1h sans craindre qu'un collègue lui coupe sa session
-- `/ifz editor revoke` = seul kill-switch explicite, affiche la liste des sessions actives avant confirmation
+- `/artisan editor revoke` = seul kill-switch explicite, affiche la liste des sessions actives avant confirmation
 
 ### Rate limiting
 
@@ -207,7 +207,7 @@ Chaque génération de session logge : username Minecraft + UUID (ou "CONSOLE"),
 - `backend/src/protocol.ts` — nouveaux types WS
 
 **Plugin :**
-- `plugin/.../command/IfzCommand.kt` — ajout `editor` et `editor revoke` subcommands
+- `plugin/.../command/ArtisanCommand.kt` — ajout `editor` et `editor revoke` subcommands
 - `plugin/.../config/PluginConfig.kt` — ajout `editor.console_only`
 
 **Editor :**

@@ -1,6 +1,6 @@
-# Interfaze — Architecture modules
+# Artisan — Architecture modules
 
-Spec d'architecture pour le pattern "modules" qui permet à Interfaze d'évoluer de "menu editor" vers "plateforme de configuration web pour plugins Minecraft", incrémentalement, sans refactor big-bang.
+Spec d'architecture pour le pattern "modules" qui permet à Artisan d'évoluer de "menu editor" vers "plateforme de configuration web pour plugins Minecraft", incrémentalement, sans refactor big-bang.
 
 Statut : **architecture cible** — V1 implémente le menu editor comme premier module en suivant ce pattern. V1.5+ ajoute d'autres modules (shop, quests, kits, etc.). V3+ ouvre un SDK pour modules tiers.
 
@@ -8,7 +8,7 @@ Statut : **architecture cible** — V1 implémente le menu editor comme premier 
 
 ## 1. Vision et positioning
 
-À long terme, Interfaze n'est pas "un éditeur de menus". C'est **la couche de configuration web unifiée pour les plugins Minecraft modernes**. Le menu editor V1 est juste le **premier module** d'une plateforme plus large qui couvrira progressivement :
+À long terme, Artisan n'est pas "un éditeur de menus". C'est **la couche de configuration web unifiée pour les plugins Minecraft modernes**. Le menu editor V1 est juste le **premier module** d'une plateforme plus large qui couvrira progressivement :
 
 - Menus (V1) — design visuel des inventaires GUI
 - Commandes (V1) — actions custom configurables
@@ -27,7 +27,7 @@ Chaque module est :
 2. **Composable** : communique avec les autres modules via des **data sources** et **commands** (patterns universels), pas via couplage direct.
 3. **Versionné** : son propre schema (`shop/v1`, `quest/v1`, ...) avec migrations.
 
-Le résultat : un admin gère **tous ses plugins compatibles Interfaze** depuis une UI unifiée, sans toucher à du YAML. Plus de friction de configuration.
+Le résultat : un admin gère **tous ses plugins compatibles Artisan** depuis une UI unifiée, sans toucher à du YAML. Plus de friction de configuration.
 
 ## 2. Architecture : modular monolith
 
@@ -44,7 +44,7 @@ Modular monolith donne :
 
 ## 3. Module abstraction
 
-Un **module Interfaze** vit dans 3 endroits : éditeur web (frontend), backend, plugin Paper. Ces 3 parties d'un module sont déployées ensemble (parties du monolith) mais logiquement séparées.
+Un **module Artisan** vit dans 3 endroits : éditeur web (frontend), backend, plugin Paper. Ces 3 parties d'un module sont déployées ensemble (parties du monolith) mais logiquement séparées.
 
 ### 3.1 Frontend module
 
@@ -130,10 +130,10 @@ export interface BackendModule {
 
 **Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par module business**. Côté serveur l'admin install ce dont il a besoin :
 
-- `interfaze` (core) — **obligatoire**, gratuit, contient les modules indissociables du runtime (menus, commands, i18n, asset management, WebSocket sync, registries publics).
-- `interfaze-shop` (V1.5+) — premium, dépend du core, ajoute le module shop.
-- `interfaze-quests` (V2) — premium, dépend du core.
-- `interfaze-kits` (V2) — premium, dépend du core.
+- `artisan` (core) — **obligatoire**, gratuit, contient les modules indissociables du runtime (menus, commands, i18n, asset management, WebSocket sync, registries publics).
+- `artisan-shop` (V1.5+) — premium, dépend du core, ajoute le module shop.
+- `artisan-quests` (V2) — premium, dépend du core.
+- `artisan-kits` (V2) — premium, dépend du core.
 - etc.
 
 C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté du marché MC.
@@ -141,12 +141,12 @@ C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté 
 #### 3.3.1 Plugin core
 
 ```
-interfaze-core/
-  src/main/kotlin/gg/interfaze/core/
-    InterfazeCorePlugin.kt              ← Main plugin class
+artisan-core/
+  src/main/kotlin/net/artisanmc/core/
+    ArtisanCorePlugin.kt              ← Main plugin class
     api/
-      InterfazeAPI.kt                    ← Public API surface (versioned)
-      InterfazeModule.kt                 ← Interface modules
+      ArtisanAPI.kt                    ← Public API surface (versioned)
+      ArtisanModule.kt                 ← Interface modules
       DataSourceDeclaration.kt
       CommandDeclaration.kt
     engine/
@@ -160,7 +160,7 @@ interfaze-core/
       SchemaRegistry
       ModuleRegistry
     sync/
-      WebSocketClient                     ← Connection à interfaze.gg backend
+      WebSocketClient                     ← Connection à artisanmc.net backend
     storage/
       FilesystemMenuProvider
       CloudMenuProvider
@@ -176,15 +176,15 @@ Les **modules indissociables du runtime** (menus, commands, i18n, dialogs) **viv
 #### 3.3.2 Plugin module business (ex: shop)
 
 ```
-interfaze-shop/
+artisan-shop/
   plugin.yml
-    name: InterfazeShop
-    depend: [Interfaze]                    ← Bukkit force le chargement du core d'abord
+    name: ArtisanShop
+    depend: [Artisan]                    ← Bukkit force le chargement du core d'abord
     api-version: 1.21
-    main: gg.interfaze.shop.ShopPlugin
-  src/main/kotlin/gg/interfaze/shop/
+    main: net.artisanmc.shop.ShopPlugin
+  src/main/kotlin/net/artisanmc/shop/
     ShopPlugin.kt                          ← extends JavaPlugin
-    ShopModule.kt                          ← implements InterfazeModule
+    ShopModule.kt                          ← implements ArtisanModule
     ShopExecutor.kt                        ← Handles /buy command
     ShopRepo.kt                            ← Items storage
     bootstrap/                              ← Ressources bundle (cf. section 5)
@@ -201,12 +201,12 @@ class ShopPlugin : JavaPlugin() {
     }
     
     override fun onEnable() {
-        val core = server.pluginManager.getPlugin("Interfaze") as? InterfazeCorePlugin
-            ?: return disableWithError("Interfaze core not found. Install from interfaze.gg.")
+        val core = server.pluginManager.getPlugin("Artisan") as? ArtisanCorePlugin
+            ?: return disableWithError("Artisan core not found. Install from artisanmc.net.")
         
         if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
             return disableWithError(
-                "Interfaze Shop ${description.version} requires Interfaze core $MIN_CORE_API_VERSION+. " +
+                "Artisan Shop ${description.version} requires Artisan core $MIN_CORE_API_VERSION+. " +
                 "Current core: ${core.description.version}."
             )
         }
@@ -225,11 +225,11 @@ class ShopPlugin : JavaPlugin() {
 #### 3.3.3 Interface module
 
 ```kotlin
-interface InterfazeModule {
+interface ArtisanModule {
     val id: String                          // "menus", "shop", "quests"
     val schemaVersion: String                // "shop/v1", "quest/v1"
     
-    fun onEnable(api: InterfazeAPI)         // Register data sources, commands, listeners
+    fun onEnable(api: ArtisanAPI)         // Register data sources, commands, listeners
     fun onDisable()                         // Cleanup
     fun onReload()                          // Hot-reload de la config
 }
@@ -260,7 +260,7 @@ Le backend (Fastify) et l'éditeur web restent **un seul deployment chacun**. Au
 }
 ```
 
-L'éditeur filtre son UI selon ces modules. Les modules non installés sont **affichés en grisé avec un *"Install Interfaze Shop to use this module"*** + link vers SpigotMC Premium / BBV.
+L'éditeur filtre son UI selon ces modules. Les modules non installés sont **affichés en grisé avec un *"Install Artisan Shop to use this module"*** + link vers SpigotMC Premium / BBV.
 
 ## 4. Composition : data sources + commands
 
@@ -279,11 +279,11 @@ Exemples :
 
 **Le module menus consomme** des data sources via le champ `data_source.ref` de ses Elements (cf. main-spec section 14). Le menus module ne sait pas ce qu'est un "shop item" — il sait juste itérer une liste avec des champs typés.
 
-**Le module shop expose** son data source via `InterfazeAPI.dataSources.register(...)` :
+**Le module shop expose** son data source via `ArtisanAPI.dataSources.register(...)` :
 
 ```kotlin
-class ShopModule : InterfazeModule {
-    override fun onEnable(api: InterfazeAPI) {
+class ShopModule : ArtisanModule {
+    override fun onEnable(api: ArtisanAPI) {
         api.dataSources.register(DataSourceDeclaration(
             ref = "shop:items",
             schema = ShopItemSchema,        // shape des objets retournés
@@ -463,7 +463,7 @@ Chaque module a son schema versionné indépendamment :
 Le **plugin Paper et le web editor migrent au load** d'un schema antérieur vers le current. Pattern :
 
 ```kotlin
-class MenusModule : InterfazeModule {
+class MenusModule : ArtisanModule {
     override val schemaVersion = "menu/v2"
     
     fun loadMenu(json: JsonObject): Menu {
@@ -520,7 +520,7 @@ Modules livrés :
 - `translations` — i18n keys (intégré dans menus + commands)
 
 Pattern d'architecture en place :
-- `InterfazeModule` interface (Kotlin) côté plugin
+- `ArtisanModule` interface (Kotlin) côté plugin
 - `BackendModule` / `FrontendModule` interfaces côté web
 - `DataSourceRegistry` + `CommandRegistry` opérationnels
 - 5 connecteurs homemade (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — ce sont déjà des modules read-only en pratique
@@ -549,10 +549,10 @@ Each module = ~1-2 semaines de dev grâce au pattern bien établi.
 ### V3+ (M+9+)
 
 Ouverture du **SDK pour modules tiers** :
-- Documentation publique du pattern `InterfazeModule`
-- NPM package `@interfaze/sdk` pour le frontend
-- Maven artifact `gg.interfaze:sdk` pour le plugin
-- Validation et publication via Interfaze (review process)
+- Documentation publique du pattern `ArtisanModule`
+- NPM package `@artisan/sdk` pour le frontend
+- Maven artifact `net.artisanmc:sdk` pour le plugin
+- Validation et publication via Artisan (review process)
 - Marketplace de modules tiers (commission 15-30 %)
 
 Le SDK n'est ouvert que quand tu as :
@@ -566,9 +566,9 @@ Si tu valides cette architecture, voici les ajouts à intégrer dans les 2-3 sem
 
 ### Plugin (Kotlin)
 
-- Interface `InterfazeModule` (~30 lignes)
+- Interface `ArtisanModule` (~30 lignes)
 - Classes `DataSourceRegistry` et `CommandRegistry` (~100 lignes chacune)
-- `InterfazePlugin` charge un registry de modules au `onEnable()`
+- `ArtisanPlugin` charge un registry de modules au `onEnable()`
 - `MenusModule` créé comme premier module (encapsule ce qui existe déjà)
 - `CommandsModule` créé comme second module
 - 5 connecteurs (EssentialsX, ChestShop, etc.) deviennent des sous-modules de leur namespace, enregistrés dans `DataSourceRegistry`
@@ -622,7 +622,7 @@ Avec le split core + plugins modules, la **compatibility entre versions** devien
 
 ### 13.1 SemVer strict sur l'API publique
 
-L'API publique du core (`InterfazeAPI`, `InterfazeModule`, `DataSourceRegistry`, etc.) suit **SemVer strict** :
+L'API publique du core (`ArtisanAPI`, `ArtisanModule`, `DataSourceRegistry`, etc.) suit **SemVer strict** :
 
 - **Patch (1.0.0 → 1.0.1)** : bug fixes uniquement. Aucun changement d'API. Modules existants continuent à marcher.
 - **Minor (1.0.0 → 1.1.0)** : nouvelles features de l'API, **backward compatible**. Modules existants continuent à marcher.
@@ -642,14 +642,14 @@ class ShopPlugin : JavaPlugin() {
     }
     
     override fun onEnable() {
-        val core = pluginManager.getPlugin("Interfaze") as? InterfazeCorePlugin
-            ?: return disableWithError("Interfaze core not found. Install from interfaze.gg.")
+        val core = pluginManager.getPlugin("Artisan") as? ArtisanCorePlugin
+            ?: return disableWithError("Artisan core not found. Install from artisanmc.net.")
         
         if (!core.api.isCompatibleWith(MIN_CORE_API_VERSION)) {
             return disableWithError(
-                "Interfaze Shop ${description.version} requires Interfaze core $MIN_CORE_API_VERSION or higher. " +
+                "Artisan Shop ${description.version} requires Artisan core $MIN_CORE_API_VERSION or higher. " +
                 "Current core: ${core.description.version}. " +
-                "Update: https://www.spigotmc.org/resources/interfaze/"
+                "Update: https://www.spigotmc.org/resources/artisan/"
             )
         }
     }
@@ -666,10 +666,10 @@ class ShopPlugin : JavaPlugin() {
 **Aucune force update automatique.** Le module fail gracefully avec un message explicite :
 
 ```
-[Interfaze Shop] ERROR: Interfaze Shop 2.0.0 requires Interfaze core 2.0.0+.
-[Interfaze Shop] Current Interfaze core: 1.5.2.
-[Interfaze Shop] Update Interfaze core: https://www.spigotmc.org/resources/interfaze/
-[Interfaze Shop] Shop is disabled. Other plugins are not affected.
+[Artisan Shop] ERROR: Artisan Shop 2.0.0 requires Artisan core 2.0.0+.
+[Artisan Shop] Current Artisan core: 1.5.2.
+[Artisan Shop] Update Artisan core: https://www.spigotmc.org/resources/artisan/
+[Artisan Shop] Shop is disabled. Other plugins are not affected.
 ```
 
 L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update core, downgrade module, désactiver). Ses autres plugins ne sont pas affectés. C'est **le même pattern que Bukkit/Spigot** pour les plugins incompatibles avec une version serveur.
@@ -677,8 +677,8 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 ### 13.4 API publique vs internals
 
 **Stable (covered by SemVer)** :
-- Interface `InterfazeAPI`
-- Interface `InterfazeModule`
+- Interface `ArtisanAPI`
+- Interface `ArtisanModule`
 - Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - Classes `DataSourceDeclaration`, `CommandDeclaration`
 - Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
@@ -696,17 +696,17 @@ Documentation claire dans `docs/architecture/api-surface.md` (à créer V1) qui 
 ### 13.5 Communication aux admins
 
 **Sur SpigotMC / Modrinth** :
-- Page Interfaze Core : changelog clair, breaking changes signalés en gras rouge.
-- Pages des modules premium : *"Compatible avec Interfaze core 1.x"* indiqué visiblement.
+- Page Artisan Core : changelog clair, breaking changes signalés en gras rouge.
+- Pages des modules premium : *"Compatible avec Artisan core 1.x"* indiqué visiblement.
 
 **Discord** :
 - Channel `#announcements` pour les updates majeures.
 - Notification quand une major est planifiée 3+ mois à l'avance.
 - Beta access aux modules updates avant la release de la core major.
 
-**Backend (interfaze.gg)** :
+**Backend (artisanmc.net)** :
 - Détecte les versions installées via WebSocket handshake.
-- Affiche un warning dans l'éditeur web : *"Interfaze Shop 1.0.0 is incompatible with Interfaze core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
+- Affiche un warning dans l'éditeur web : *"Artisan Shop 1.0.0 is incompatible with Artisan core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
 - Email automatique aux Pro users quand un module qu'ils ont a une update disponible.
 
 ### 13.6 Stratégie pour les majors
@@ -726,19 +726,19 @@ Tu peux maintenir 2 majors en parallèle pendant 3-6 mois (1.x + 2.x cohabitent)
 
 En pratique pour ton stade de projet :
 
-- **V1 launch** : `interfaze-core 1.0.0`. Pas de modules premium encore.
-- **V1.5** : `interfaze-core 1.x.y` + `interfaze-shop 1.0.0`. Core continue à evolver en minor/patch, shop continue à marcher tant que tu respectes SemVer.
-- **V2** : `interfaze-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Toujours sur major 1 du core.
+- **V1 launch** : `artisan-core 1.0.0`. Pas de modules premium encore.
+- **V1.5** : `artisan-core 1.x.y` + `artisan-shop 1.0.0`. Core continue à evolver en minor/patch, shop continue à marcher tant que tu respectes SemVer.
+- **V2** : `artisan-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Toujours sur major 1 du core.
 - **Année 2-3** : peut-être une major 2.0 si tu as accumulé de la dette API. Sinon tu restes en 1.x indéfiniment.
 
 **Idéalement, tu ne fais jamais de major 2.0.** Tu accumules en mineurs (`1.5`, `1.10`, `1.20`) en gardant le backward compat. C'est ce qu'a fait Bukkit pendant 15 ans.
 
 ### 13.8 Auto-update et marketplace (V3+)
 
-À terme, interfaze.gg peut offrir un **auto-update système** :
+À terme, artisanmc.net peut offrir un **auto-update système** :
 
 - Backend détecte les updates compatibles des modules installés.
-- Notification dans l'éditeur web : *"Interfaze Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
+- Notification dans l'éditeur web : *"Artisan Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
 - Click → backend triggere un download du .jar dans le `plugins/` du serveur via SFTP/RCON.
 
 Feature V3+, pas critique pour V1.
@@ -750,8 +750,8 @@ Feature V3+, pas critique pour V1.
 **V1** (un seul JAR — état actuel) :
 ```
 plugin/
-  build.gradle.kts        ← shadowJar → interfaze-plugin-X.Y.Z-all.jar
-  src/main/kotlin/gg/interfaze/
+  build.gradle.kts        ← shadowJar → artisan-plugin-X.Y.Z-all.jar
+  src/main/kotlin/net/artisanmc/
     plugin/...            (internals)
     modules/api/...       (@Stable surface, dépendance de tous les modules)
     modules/menus/...     (statiquement linké)
@@ -763,15 +763,15 @@ plugin/
 plugin/
   settings.gradle.kts     ← include("core", "shop", "quests", …)
   core/
-    build.gradle.kts      ← shadowJar → Interfaze.jar
-    src/main/kotlin/gg/interfaze/
+    build.gradle.kts      ← shadowJar → Artisan.jar
+    src/main/kotlin/net/artisanmc/
       plugin/...
       modules/api/...     (exposé en `api(…)` aux subprojects)
       modules/menus/...
       modules/commands/...
   shop/
-    build.gradle.kts      ← shadowJar → InterfazeShop.jar
-    src/main/kotlin/gg/interfaze/modules/shop/...
+    build.gradle.kts      ← shadowJar → ArtisanShop.jar
+    src/main/kotlin/net/artisanmc/modules/shop/...
     dependencies {
         compileOnly(project(":core"))  // résolu depuis modules/api uniquement
     }
@@ -786,8 +786,8 @@ plugin/
 
 **Quand bouger** : au moment d'ajouter `shop` en V1.5. Le coût du split à ce moment-là est faible (~1 jour) parce que `modules/menus/` et `modules/commands/` ont déjà la structure attendue.
 
-**Ce qu'on ne fait PAS** : monorepo séparé par-repo (`interfaze-core` + `interfaze-shop` repos distincts). Trop de friction pour développer une feature qui touche les 2 (PR croisées, version bumps coordonnés). Le monorepo Gradle gère ça naturellement.
+**Ce qu'on ne fait PAS** : monorepo séparé par-repo (`artisan-core` + `artisan-shop` repos distincts). Trop de friction pour développer une feature qui touche les 2 (PR croisées, version bumps coordonnés). Le monorepo Gradle gère ça naturellement.
 
 ---
 
-**Cette architecture est l'étoile polaire d'Interfaze.** Tu peux y revenir à chaque décision pour vérifier que ce que tu shipes va dans la bonne direction. Mais tu ne shipes pas tout d'un coup — tu shipes module par module, en respectant le pattern.
+**Cette architecture est l'étoile polaire d'Artisan.** Tu peux y revenir à chaque décision pour vérifier que ce que tu shipes va dans la bonne direction. Mais tu ne shipes pas tout d'un coup — tu shipes module par module, en respectant le pattern.

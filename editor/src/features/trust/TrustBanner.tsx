@@ -9,7 +9,7 @@ export function TrustBanner({ trustCode }: TrustBannerProps) {
       <span>
         Tapez en jeu :{" "}
         <code className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-amber-200">
-          /ifz trusteditor {trustCode}
+          /artisan trusteditor {trustCode}
         </code>
       </span>
     </div>

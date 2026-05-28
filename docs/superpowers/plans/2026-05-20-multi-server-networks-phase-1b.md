@@ -59,7 +59,7 @@
 
 ### Doc updates (Section H)
 
-- `Interfaze/CLAUDE.md` — table endpoints (toutes les routes assets), table protocole WS (inchangée), section variables d'env (inchangée)
+- `Artisan/CLAUDE.md` — table endpoints (toutes les routes assets), table protocole WS (inchangée), section variables d'env (inchangée)
 - `.claude/skills/sync-docs/doc-impact-map.yaml` — ajouter les chemins refactorés
 
 ---
@@ -91,7 +91,7 @@ cd backend
 bun run db:push          # applique le nouveau schéma
 ```
 
-État résultant : DB vide côté Phase 1B, users Phase 1A intacts. La prochaine fois qu'un plugin se link (`/ifz link`), Task B3 auto-crée un Network anonyme + binding → tout repart.
+État résultant : DB vide côté Phase 1B, users Phase 1A intacts. La prochaine fois qu'un plugin se link (`/artisan link`), Task B3 auto-crée un Network anonyme + binding → tout repart.
 
 ---
 
@@ -2244,7 +2244,7 @@ Expected : 100% green. Le test E2E Playwright (`smoke.spec.ts`) doit aussi passe
 - [ ] **Step 1 : `docker compose up`**
 
 ```bash
-cd Interfaze
+cd Artisan
 docker compose up --build
 ```
 
@@ -2254,7 +2254,7 @@ docker compose up --build
 docker compose exec backend rm -rf data/assets data/custom-items data/resource-packs
 ```
 
-- [ ] **Step 3 : `/ifz link` depuis la console MC du container**
+- [ ] **Step 3 : `/artisan link` depuis la console MC du container**
 
 Vérifier le flux end-to-end :
 - Plugin envoie `setup_request` → reçoit `setup_code`.
@@ -2262,7 +2262,7 @@ Vérifier le flux end-to-end :
 - Backend crée Network + ServerKey + linkCode claimed.
 - Plugin reçoit `link_confirmed` avec server_key.
 
-- [ ] **Step 4 : `/ifz editor` puis trust dance dans l'éditeur**
+- [ ] **Step 4 : `/artisan editor` puis trust dance dans l'éditeur**
 
 - [ ] **Step 5 : Créer un pack via l'éditeur** (saver = PUT → creates pack + binding).
 
@@ -2275,10 +2275,10 @@ Vérifier le flux end-to-end :
 ### Task H4 : Docs updates
 
 **Files:**
-- Modify: `Interfaze/CLAUDE.md` (section Custom Items → endpoints, ajouter le préfixe `/packs/:packId/`)
+- Modify: `Artisan/CLAUDE.md` (section Custom Items → endpoints, ajouter le préfixe `/packs/:packId/`)
 - Modify: `.claude/skills/sync-docs/doc-impact-map.yaml`
 
-- [ ] **Step 1 : Mettre à jour la table endpoints dans `Interfaze/CLAUDE.md`**
+- [ ] **Step 1 : Mettre à jour la table endpoints dans `Artisan/CLAUDE.md`**
 
 Remplacer la section "Custom Items — endpoints et cache" en s'assurant que :
 - `POST /api/editor-session/:token/assets` → `POST /api/editor-session/:token/packs/:packId/assets`
@@ -2301,7 +2301,7 @@ Ajouter les triggers pour les nouveaux fichiers (`networkManager.ts`, `packStora
 - [ ] **Step 4 : Commit**
 
 ```bash
-git add Interfaze/CLAUDE.md .claude/skills/sync-docs/doc-impact-map.yaml
+git add Artisan/CLAUDE.md .claude/skills/sync-docs/doc-impact-map.yaml
 git commit -m "docs(plan-1b): mise à jour endpoints + modèle entités"
 ```
 

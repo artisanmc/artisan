@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add Paper Dialog support to Interfaze so pack authors can define dialogs in YAML — with optional form inputs — that are opened via `open_dialog` action or declared as first-class resources in a pack manifest.
+**Goal:** Add Paper Dialog support to Artisan so pack authors can define dialogs in YAML — with optional form inputs — that are opened via `open_dialog` action or declared as first-class resources in a pack manifest.
 
 **Architecture:** Single unified `dialog/v1` YAML schema, mirroring menu/command patterns. Dialogs are compiled into `BundleDialog` at pack load, opened via `DialogRenderer` which builds Paper `Dialog` objects with inline one-shot callbacks. Input values are injected into `ctx.args` before button actions execute, making `{input_id}` substitution available in all downstream actions.
 
@@ -249,7 +249,7 @@ fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionCon
 - Add `@Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()`
 - `reloadFromDisk()` populates it atomically (same `@Volatile` swap pattern as `menus`)
 - `findDialog` and `openDialog` delegate to `DialogRenderer.open`
-- `openDialog` needs `ActionExecutor` — add `private val executorProvider: () -> ActionExecutor` to the constructor (same lazy-lambda pattern as `onReload`). In `InterfazePlugin.onEnable()`:
+- `openDialog` needs `ActionExecutor` — add `private val executorProvider: () -> ActionExecutor` to the constructor (same lazy-lambda pattern as `onReload`). In `ArtisanPlugin.onEnable()`:
   ```kotlin
   menuProvider = SyncedMenuProvider(
       ...,
@@ -265,7 +265,7 @@ For each id in `manifest.files.dialogs`:
 - Reuse the pack's already-loaded `langMaps`
 - Construct `BundleDialog(yaml, langMaps)`
 
-### `InterfazePlugin`
+### `ArtisanPlugin`
 
 No new Bukkit listener registration needed. Wire `executor` into `SyncedMenuProvider` so `openDialog` can call it. The existing construction order in `onEnable()` handles this — pass `executor` as a constructor param or via a `setExecutor(executor)` call after both are created.
 

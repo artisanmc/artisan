@@ -361,7 +361,7 @@ Pour V1.5+, ajout d'un toggle "⚙ Code" qui expose le textfield brut avec autoc
 ### 5.1 Module `expr/`
 
 ```
-plugin/src/main/java/gg/interfaze/expr/
+plugin/src/main/java/net/artisanmc/expr/
 ├── lexer/Lexer.java
 ├── parser/Parser.java
 ├── parser/ParseError.java

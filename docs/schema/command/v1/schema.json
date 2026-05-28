@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.interfaze.gg/schema/command/v1.json",
-  "title": "Interfaze Command",
-  "description": "Format intermédiaire d'une commande Interfaze. Une commande est une entité de premier ordre (au même niveau que les Menus dans le workspace) qui exécute une séquence d'actions et peut accepter des arguments typés. Les arguments résolus sont propagés comme placeholders aux menus ouverts depuis la commande.",
+  "$id": "https://docs.artisanmc.net/schema/command/v1.json",
+  "title": "Artisan Command",
+  "description": "Format intermédiaire d'une commande Artisan. Une commande est une entité de premier ordre (au même niveau que les Menus dans le workspace) qui exécute une séquence d'actions et peut accepter des arguments typés. Les arguments résolus sont propagés comme placeholders aux menus ouverts depuis la commande.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "name", "actions"],
@@ -19,7 +19,7 @@
     "name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]{0,31}$",
-      "description": "Nom de la commande tel que tapé en jeu, sans le slash. Lowercase + chiffres + _ -. Doit être unique sur le serveur (Interfaze détecte les conflits avec les commandes existantes)."
+      "description": "Nom de la commande tel que tapé en jeu, sans le slash. Lowercase + chiffres + _ -. Doit être unique sur le serveur (Artisan détecte les conflits avec les commandes existantes)."
     },
     "aliases": {
       "type": "array",
@@ -48,22 +48,22 @@
     },
     "requirements": {
       "type": "array",
-      "items": { "$ref": "https://docs.interfaze.gg/schema/menu/v1.json#/$defs/Condition" },
+      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition" },
       "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
     },
     "actions": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "https://docs.interfaze.gg/schema/menu/v1.json#/$defs/Action" },
+      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action" },
       "description": "Actions à exécuter quand la commande est appelée. Les arguments résolus sont disponibles via les placeholders %args_<name>%."
     },
     "fallback": {
       "type": "array",
-      "items": { "$ref": "https://docs.interfaze.gg/schema/menu/v1.json#/$defs/Action" },
+      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action" },
       "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
     },
     "cooldown": {
-      "$ref": "https://docs.interfaze.gg/schema/menu/v1.json#/$defs/Cooldown",
+      "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Cooldown",
       "description": "Cooldown entre exécutions. Scope player par défaut."
     },
     "metadata": {

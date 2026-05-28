@@ -28,11 +28,11 @@
 
 **Plugin:**
 
-- `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt` — add `width: Int` to `Textarea`.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt` — parse `width` with default 168, clamp [8, 256].
-- `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt` — parser tests.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt` — `wrapLine` helper + apply in Textarea branch; `estimateBodyWidth(Textarea)` now wraps too so the max-line-width estimate is accurate.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` — `wrapLine` unit tests + textarea-wrap integration tests.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt` — add `width: Int` to `Textarea`.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt` — parse `width` with default 168, clamp [8, 256].
+- `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt` — parser tests.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt` — `wrapLine` helper + apply in Textarea branch; `estimateBodyWidth(Textarea)` now wraps too so the max-line-width estimate is accurate.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt` — `wrapLine` unit tests + textarea-wrap integration tests.
 
 **Editor:**
 
@@ -54,7 +54,7 @@
 ## Task 1: Plugin model — add `width: Int` to `Textarea`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt`
 
 - [ ] **Step 1: Add the field to the `Textarea` data class**
 
@@ -85,7 +85,7 @@ If `compileKotlin` itself fails, it's because some production code constructs a 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): add width: Int to Textarea data class
 
@@ -99,8 +99,8 @@ EOF
 ## Task 2: Plugin parser — parse `width` (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt`
 
 - [ ] **Step 1: Write the failing parser tests**
 
@@ -157,7 +157,7 @@ Update the existing `textarea kind parses all fields` test — it currently does
 
 From `plugin/`:
 ```
-./gradlew test --tests "gg.interfaze.plugin.MenuTitleParserTest"
+./gradlew test --tests "net.artisanmc.plugin.MenuTitleParserTest"
 ```
 Expected: 4 new tests fail (parser constructs `Textarea(... width = ???)` — actually it won't compile because `width` is now required in `Textarea`). Compile error is OK — the next step fixes it.
 
@@ -193,14 +193,14 @@ Add the `width` field, between `y` and `lineHeight` (matches data class field or
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.MenuTitleParserTest"
+./gradlew test --tests "net.artisanmc.plugin.MenuTitleParserTest"
 ```
 Expected: all green.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): MenuTitleParser — parse textarea width (default 168, clamp [8, 256])
 
@@ -214,8 +214,8 @@ EOF
 ## Task 3: Plugin compiler — `wrapLine` + Textarea branch wrap (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt`
 
 This task introduces `wrapLine`, integrates it into the Textarea branch of `compileLayerBody`, and updates `estimateBodyWidth(Textarea)` to wrap too. Existing Textarea tests in `TitleCompilerTest.kt` constructed `Textarea` instances WITHOUT `width` — they need to be updated to pass `width = X` where `X` is wide enough to avoid auto-wrap so existing assertions stay valid.
 
@@ -244,7 +244,7 @@ Apply to every Textarea construction in the test file. Use `Grep` to find all of
 - [ ] **Step 2: Run existing TitleCompilerTest to confirm baseline still green**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest"
+./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest"
 ```
 Expected: all green (no behavioral change yet — `wrapLine` not invoked).
 
@@ -323,7 +323,7 @@ Then expose two test entry points at the top of `TitleCompiler` (just for testin
 - [ ] **Step 4: Run tests to verify they fail**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest"
+./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest"
 ```
 Expected: 6 new `wrapLine` tests fail with "Unresolved reference: testWrapLine" or similar.
 
@@ -390,7 +390,7 @@ Also keep the two test-only entry points exposed (Step 3).
 - [ ] **Step 6: Run `wrapLine` tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest"
+./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest"
 ```
 Expected: all green including the 6 new `wrapLine` tests.
 
@@ -411,7 +411,7 @@ Append to `TitleCompilerTest.kt`:
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:artisan:text_y\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 2, "Expected at least 2 text_y wrappers but got $text_yCount in '$s'")
     }
 
@@ -425,7 +425,7 @@ Append to `TitleCompilerTest.kt`:
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "line1\nab cd ef"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:artisan:text_y\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 3, "Expected at least 3 text_y wrappers but got $text_yCount in '$s'")
     }
 
@@ -438,7 +438,7 @@ Append to `TitleCompilerTest.kt`:
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "short"), emptyLookup, standardEncoder,
         )
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:artisan:text_y\\d+>").findAll(s).count()
         assertEquals(1, text_yCount)
     }
 
@@ -455,7 +455,7 @@ Append to `TitleCompilerTest.kt`:
             layer, 0, mapOf("g" to "ab cd ef"), emptyLookup, standardEncoder,
         )
         // Sanity: at least 2 lines emitted (the wrap happened).
-        val text_yCount = Regex("<font:interfaze:text_y\\d+>").findAll(s).count()
+        val text_yCount = Regex("<font:artisan:text_y\\d+>").findAll(s).count()
         assertTrue(text_yCount >= 2, "Expected at least 2 sub-lines but got $text_yCount in '$s'")
     }
 ```
@@ -463,7 +463,7 @@ Append to `TitleCompilerTest.kt`:
 - [ ] **Step 8: Run tests to verify they fail**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest"
+./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest"
 ```
 Expected: 4 new integration tests fail because Textarea branch doesn't call `wrapLine` yet.
 
@@ -508,7 +508,7 @@ After:
 - [ ] **Step 10: Run tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest"
+./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest"
 ```
 Expected: all green including the 4 new integration tests.
 
@@ -522,7 +522,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 12: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): TitleCompiler — word-wrap textarea on whitespace boundaries
 
@@ -1569,7 +1569,7 @@ Expected: no NEW errors. Pre-existing errors (LayerEditForm.tsx:436 unused param
 ```
 cd plugin; ./gradlew deploy
 ```
-Rebuilds the shadow JAR and restarts the `interfaze-minecraft-1` container so the new `wrapLine` logic is live.
+Rebuilds the shadow JAR and restarts the `artisan-minecraft-1` container so the new `wrapLine` logic is live.
 
 - [ ] **Step 5: Manual smoke test (Docker)**
 
@@ -1577,7 +1577,7 @@ Rebuilds the shadow JAR and restarts the `interfaze-minecraft-1` container so th
 - Select an existing textarea layer (or create a new one via `+ Bloc texte`).
 - Drag the right-edge yellow handle to narrow the box. Watch the canvas rewrap text live.
 - Save (the editor auto-publishes the bundle).
-- Open the menu in MC (`/interfaze open <menu_id>` or via a command linked to it).
+- Open the menu in MC (`/artisan open <menu_id>` or via a command linked to it).
 - Confirm the in-game title wraps at the same boundaries shown in the editor.
 
 This is visual only — no automated cross-stack E2E in this project.

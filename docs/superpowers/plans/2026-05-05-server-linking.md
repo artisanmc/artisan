@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement a symmetric server linking flow so Minecraft admins can connect their server to Interfaze via `/ifz setup` — either generating a link code the admin claims in the browser (B1), or entering a dashboard-generated code directly (B2).
+**Goal:** Implement a symmetric server linking flow so Minecraft admins can connect their server to Artisan via `/artisan setup` — either generating a link code the admin claims in the browser (B1), or entering a dashboard-generated code directly (B2).
 
 **Architecture:** A `link_codes` table tracks ephemeral 10-minute linking tokens. The backend WS hub handles `setup_request` (B1: plugin generates a code) and `setup_claim` (B2: plugin claims a dashboard code), then pushes `link_confirmed { server_key }` back to the plugin session. On receipt, the plugin's `SetupClient` writes the key to `config.yml` via `ConfigWriter` and triggers a plugin reinit (reload from config + reconnect as authenticated). The editor `/link` route handles B1 (browser claims the plugin's code) and B2 (browser generates a code, admin enters it on the server, browser polls for claim).
 
@@ -25,10 +25,10 @@
 - `backend/src/app.ts` — generate `connId` per WS connection, call `registerConn` on open, pass `connId` to `handlePluginMessage`; mount `/api/link` router
 
 **Plugin — new/modified:**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/config/ConfigWriter.kt` — new: writes `server_key` to `config.yml` using regex replace
-- `plugin/src/main/kotlin/gg/interfaze/plugin/ws/SetupClient.kt` — new: one-shot OkHttp WS client for the linking handshake (no reconnect)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt` — add `setup [code]` subcommand; remove player-only guard
-- `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt` — add `reinit(cfg: PluginConfig)` method
+- `plugin/src/main/kotlin/net/artisanmc/plugin/config/ConfigWriter.kt` — new: writes `server_key` to `config.yml` using regex replace
+- `plugin/src/main/kotlin/net/artisanmc/plugin/ws/SetupClient.kt` — new: one-shot OkHttp WS client for the linking handshake (no reconnect)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt` — add `setup [code]` subcommand; remove player-only guard
+- `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt` — add `reinit(cfg: PluginConfig)` method
 - `plugin/src/main/resources/plugin.yml` — update command usage string
 
 **Editor — new:**
@@ -822,19 +822,19 @@ git commit -m "feat(backend): WS setup_request and setup_claim handlers for serv
 ## Task 5: Plugin — `ConfigWriter`
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/config/ConfigWriter.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ConfigWriterTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/config/ConfigWriter.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ConfigWriterTest.kt`
 
 `ConfigWriter` writes or updates the `server_key` field in `config.yml`. It uses a simple regex replace — no YAML parsing library needed for this single field.
 
 - [ ] **Step 1: Write failing test**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/ConfigWriterTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/ConfigWriterTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.config.ConfigWriter
+import net.artisanmc.plugin.config.ConfigWriter
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -844,7 +844,7 @@ import kotlin.test.assertTrue
 class ConfigWriterTest {
 
     private fun tmpFile(content: String): File {
-        val f = Files.createTempFile("ifz_cfg_", ".yml").toFile()
+        val f = Files.createTempFile("artisan_cfg_", ".yml").toFile()
         f.writeText(content)
         return f
     }
@@ -877,16 +877,16 @@ class ConfigWriterTest {
 - [ ] **Step 2: Run — expect failure**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConfigWriterTest" 2>&1 | tail -20
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConfigWriterTest" 2>&1 | tail -20
 ```
 Expected: `Unresolved reference: ConfigWriter`.
 
 - [ ] **Step 3: Create `ConfigWriter.kt`**
 
-Create `plugin/src/main/kotlin/gg/interfaze/plugin/config/ConfigWriter.kt`:
+Create `plugin/src/main/kotlin/net/artisanmc/plugin/config/ConfigWriter.kt`:
 
 ```kotlin
-package gg.interfaze.plugin.config
+package net.artisanmc.plugin.config
 
 import java.io.File
 
@@ -907,14 +907,14 @@ object ConfigWriter {
 - [ ] **Step 4: Run — expect pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConfigWriterTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConfigWriterTest"
 ```
 Expected: 3 tests PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/config/ConfigWriter.kt plugin/src/test/kotlin/gg/interfaze/plugin/ConfigWriterTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/config/ConfigWriter.kt plugin/src/test/kotlin/net/artisanmc/plugin/ConfigWriterTest.kt
 git commit -m "feat(plugin): ConfigWriter — write server_key to config.yml"
 ```
 
@@ -923,20 +923,20 @@ git commit -m "feat(plugin): ConfigWriter — write server_key to config.yml"
 ## Task 6: Plugin — `SetupClient`
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/SetupClient.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/SetupClientTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/SetupClient.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/SetupClientTest.kt`
 
-`SetupClient` is a one-shot OkHttp WS client. It connects to `/ws/plugin`, sends either `setup_request` (no code) or `setup_claim { code }` on open, dispatches `setup_code` and `link_confirmed` messages to callbacks, then disconnects on `link_confirmed`. No reconnect — if the connection fails the user re-runs `/ifz setup`.
+`SetupClient` is a one-shot OkHttp WS client. It connects to `/ws/plugin`, sends either `setup_request` (no code) or `setup_claim { code }` on open, dispatches `setup_code` and `link_confirmed` messages to callbacks, then disconnects on `link_confirmed`. No reconnect — if the connection fails the user re-runs `/artisan setup`.
 
 - [ ] **Step 1: Write failing tests**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/SetupClientTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/SetupClientTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import gg.interfaze.plugin.ws.SetupClient
+import net.artisanmc.plugin.ws.SetupClient
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
@@ -1013,16 +1013,16 @@ class SetupClientTest {
 - [ ] **Step 2: Run — expect failure**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.SetupClientTest" 2>&1 | tail -20
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.SetupClientTest" 2>&1 | tail -20
 ```
 Expected: `Unresolved reference: SetupClient`.
 
 - [ ] **Step 3: Create `SetupClient.kt`**
 
-Create `plugin/src/main/kotlin/gg/interfaze/plugin/ws/SetupClient.kt`:
+Create `plugin/src/main/kotlin/net/artisanmc/plugin/ws/SetupClient.kt`:
 
 ```kotlin
-package gg.interfaze.plugin.ws
+package net.artisanmc.plugin.ws
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
@@ -1079,7 +1079,7 @@ class SetupClient(
         }
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-            // No reconnect — user must re-run /ifz setup
+            // No reconnect — user must re-run /artisan setup
         }
     }
 }
@@ -1088,7 +1088,7 @@ class SetupClient(
 - [ ] **Step 4: Run — expect pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.SetupClientTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.SetupClientTest"
 ```
 Expected: 2 tests PASS.
 
@@ -1102,27 +1102,27 @@ Expected: all tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/ws/SetupClient.kt plugin/src/test/kotlin/gg/interfaze/plugin/SetupClientTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ws/SetupClient.kt plugin/src/test/kotlin/net/artisanmc/plugin/SetupClientTest.kt
 git commit -m "feat(plugin): SetupClient — one-shot WS client for B1/B2 linking handshake"
 ```
 
 ---
 
-## Task 7: Plugin — `/ifz setup` command + `InterfazePlugin.reinit()`
+## Task 7: Plugin — `/artisan setup` command + `ArtisanPlugin.reinit()`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 - Modify: `plugin/src/main/resources/plugin.yml`
 
-`/ifz setup` can be run from both console and in-game. Without arguments → B1. With a code argument → B2.
+`/artisan setup` can be run from both console and in-game. Without arguments → B1. With a code argument → B2.
 
 - [ ] **Step 1: Write failing test**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/SetupCommandTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/SetupCommandTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -1155,7 +1155,7 @@ class SetupCommandTest {
             }))
             server.start()
 
-            val plugin = MockBukkit.load(InterfazePlugin::class.java)
+            val plugin = MockBukkit.load(ArtisanPlugin::class.java)
 
             val sender = MockBukkit.getMock().consoleSender
             plugin.onCommand(sender, plugin.getCommand("ifz")!!, "ifz", arrayOf("setup"))
@@ -1169,33 +1169,33 @@ class SetupCommandTest {
 }
 ```
 
-Note: Full integration of `/ifz setup` with a real WS mock requires config injection into InterfazePlugin, which is complex with MockBukkit. The test above verifies the command is registered and accepted. The `SetupClientTest` (Task 6) already covers the WS protocol. The `FullSyncIntegrationTest` style of test for setup would require writing a config.yml with the mock server URL — worth adding as a follow-up if needed.
+Note: Full integration of `/artisan setup` with a real WS mock requires config injection into ArtisanPlugin, which is complex with MockBukkit. The test above verifies the command is registered and accepted. The `SetupClientTest` (Task 6) already covers the WS protocol. The `FullSyncIntegrationTest` style of test for setup would require writing a config.yml with the mock server URL — worth adding as a follow-up if needed.
 
 - [ ] **Step 2: Run — expect failure**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.SetupCommandTest" 2>&1 | tail -20
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.SetupCommandTest" 2>&1 | tail -20
 ```
 Expected: `setup` is not a known subcommand → command ignored or error.
 
-- [ ] **Step 3: Add `setup` subcommand to `IfzCommand.kt`**
+- [ ] **Step 3: Add `setup` subcommand to `ArtisanCommand.kt`**
 
 Full file:
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.InterfazePlugin
-import gg.interfaze.plugin.config.ConfigWriter
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.ws.SetupClient
+import net.artisanmc.plugin.ArtisanPlugin
+import net.artisanmc.plugin.config.ConfigWriter
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.ws.SetupClient
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
+class ArtisanCommand(private val plugin: ArtisanPlugin) : CommandExecutor {
 
     @Volatile private var setupClient: SetupClient? = null
 
@@ -1203,13 +1203,13 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 if (sender !is Player) { sender.sendMessage("In-game only."); return true }
-                val menuId = args.getOrNull(1) ?: run { sender.sendMessage("Usage: /ifz menu <id>"); return true }
+                val menuId = args.getOrNull(1) ?: run { sender.sendMessage("Usage: /artisan menu <id>"); return true }
                 plugin.menuProvider.openMenu(sender, menuId, "en")
             }
             "reload" -> {
                 plugin.menuProvider.unload()
                 plugin.menuProvider.load()
-                sender.sendMessage("Interfaze reloaded.")
+                sender.sendMessage("Artisan reloaded.")
             }
             "sync" -> {
                 when (args.getOrNull(1)?.lowercase()) {
@@ -1219,11 +1219,11 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                         plugin.menuProvider.load()
                         sender.sendMessage("Reconnecting to backend — backend version will be applied if available.")
                     }
-                    else -> sender.sendMessage("Usage: /ifz sync <status|reject>")
+                    else -> sender.sendMessage("Usage: /artisan sync <status|reject>")
                 }
             }
             "setup" -> setup(sender, args.getOrNull(1)?.uppercase())
-            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]>")
+            else -> sender.sendMessage("Usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]>")
         }
         return true
     }
@@ -1232,11 +1232,11 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         setupClient?.disconnect()
         val cfg = PluginConfig.from(plugin.config)
         if (cfg.wsUrl.isEmpty()) {
-            sender.sendMessage("[Interfaze] ws_url is not configured in config.yml.")
+            sender.sendMessage("[Artisan] ws_url is not configured in config.yml.")
             return
         }
 
-        sender.sendMessage("[Interfaze] Connexion au backend en cours...")
+        sender.sendMessage("[Artisan] Connexion au backend en cours...")
 
         val configFile = plugin.dataFolder.resolve("config.yml")
 
@@ -1244,7 +1244,7 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
             url = cfg.wsUrl,
             code = code,
             onCode = { receivedCode, url ->
-                val msg = "[Interfaze] Lier ce serveur : $url"
+                val msg = "[Artisan] Lier ce serveur : $url"
                 plugin.logger.info(msg)
                 Bukkit.getScheduler().runTask(plugin, Runnable {
                     sender.sendMessage(msg)
@@ -1252,12 +1252,12 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
             },
             onLinked = { serverKey ->
                 ConfigWriter.writeServerKey(configFile, serverKey)
-                plugin.logger.info("[Interfaze] Serveur lié ✓ (server_key écrit dans config.yml)")
+                plugin.logger.info("[Artisan] Serveur lié ✓ (server_key écrit dans config.yml)")
                 Bukkit.getScheduler().runTask(plugin, Runnable {
-                    sender.sendMessage("[Interfaze] Serveur lié ✓ Rechargement en cours...")
+                    sender.sendMessage("[Artisan] Serveur lié ✓ Rechargement en cours...")
                     plugin.reloadConfig()
                     plugin.reinit(PluginConfig.from(plugin.config))
-                    sender.sendMessage("[Interfaze] Prêt.")
+                    sender.sendMessage("[Artisan] Prêt.")
                 })
             },
         )
@@ -1266,21 +1266,21 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
 }
 ```
 
-- [ ] **Step 4: Add `reinit()` to `InterfazePlugin.kt`**
+- [ ] **Step 4: Add `reinit()` to `ArtisanPlugin.kt`**
 
 Full file:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.provider.MenuProvider
-import gg.interfaze.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-open class InterfazePlugin : JavaPlugin() {
+open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
 
@@ -1295,13 +1295,13 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
         )
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
-        logger.info("Interfaze ${description.version} enabled")
+        getCommand("ifz")?.setExecutor(ArtisanCommand(this))
+        logger.info("Artisan ${description.version} enabled")
     }
 
     override fun onDisable() {
         menuProvider.unload()
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 
     fun reinit(cfg: PluginConfig) {
@@ -1314,7 +1314,7 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
         )
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
+        getCommand("ifz")?.setExecutor(ArtisanCommand(this))
     }
 }
 ```
@@ -1324,15 +1324,15 @@ open class InterfazePlugin : JavaPlugin() {
 Edit `plugin/src/main/resources/plugin.yml`:
 
 ```yaml
-name: Interfaze
+name: Artisan
 version: '1.0.0'
-main: gg.interfaze.plugin.InterfazePlugin
+main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
-description: Interfaze GUI editor plugin
+description: Artisan GUI editor plugin
 commands:
   ifz:
-    description: Interfaze commands
-    usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]>
+    description: Artisan commands
+    usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]>
 ```
 
 - [ ] **Step 6: Run all plugin tests — expect pass**
@@ -1345,8 +1345,8 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt plugin/src/main/resources/plugin.yml plugin/src/test/kotlin/gg/interfaze/plugin/SetupCommandTest.kt
-git commit -m "feat(plugin): /ifz setup command + InterfazePlugin.reinit() for server linking"
+git add plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt plugin/src/main/resources/plugin.yml plugin/src/test/kotlin/net/artisanmc/plugin/SetupCommandTest.kt
+git commit -m "feat(plugin): /artisan setup command + ArtisanPlugin.reinit() for server linking"
 ```
 
 ---
@@ -1359,7 +1359,7 @@ git commit -m "feat(plugin): /ifz setup command + InterfazePlugin.reinit() for s
 
 The `/link` route handles two modes:
 - **B1** — `?code=ABCD1234` in URL: shows the code and a "Link this server" button that calls `POST /api/link/:code/claim`.
-- **B2** — no code: "Generate a code" button calls `POST /api/link`, then shows the code with a `/ifz setup CODE` instruction and polls `GET /api/link/:code` every 2 seconds until `status === "claimed"`.
+- **B2** — no code: "Generate a code" button calls `POST /api/link`, then shows the code with a `/artisan setup CODE` instruction and polls `GET /api/link/:code` every 2 seconds until `status === "claimed"`.
 
 `VITE_API_URL` env var controls the backend URL (default `http://localhost:5173` is wrong — default to `http://localhost:3001`).
 
@@ -1454,7 +1454,7 @@ function ClaimFlow({ code }: { code: string }) {
             Code de liaison : <span className="font-mono font-bold">{code}</span>
           </p>
           <p className="text-muted-foreground max-w-sm text-center text-sm">
-            Ce code a été généré sur votre serveur via <code>/ifz setup</code>. Cliquez pour valider
+            Ce code a été généré sur votre serveur via <code>/artisan setup</code>. Cliquez pour valider
             le lien.
           </p>
           <Button onClick={claim}>Lier ce serveur</Button>
@@ -1535,7 +1535,7 @@ function GenerateFlow() {
             Tapez cette commande sur votre serveur Minecraft :
           </p>
           <code className="rounded bg-muted px-4 py-3 text-lg font-bold tracking-wider">
-            /ifz setup {linkCode.code}
+            /artisan setup {linkCode.code}
           </code>
           <p className="text-muted-foreground text-xs animate-pulse">En attente de connexion…</p>
         </div>
@@ -1601,15 +1601,15 @@ git commit -m "feat(editor): /link route for B1 claim and B2 generate-and-poll s
 ## Self-review
 
 **Spec coverage:**
-- B1 (plugin generates code → browser claims): covered by Tasks 4 (`setup_request` WS) + 6 (`SetupClient`) + 7 (`/ifz setup`) + 8 (ClaimFlow in `/link`)
-- B2 (browser generates code → plugin claims): covered by Task 3 (`POST /api/link`) + Task 4 (`setup_claim` WS) + Task 6 (`SetupClient` with code arg) + Task 7 (`/ifz setup CODE`) + Task 8 (GenerateFlow)
+- B1 (plugin generates code → browser claims): covered by Tasks 4 (`setup_request` WS) + 6 (`SetupClient`) + 7 (`/artisan setup`) + 8 (ClaimFlow in `/link`)
+- B2 (browser generates code → plugin claims): covered by Task 3 (`POST /api/link`) + Task 4 (`setup_claim` WS) + Task 6 (`SetupClient` with code arg) + Task 7 (`/artisan setup CODE`) + Task 8 (GenerateFlow)
 - Config.yml written automatically: Task 5 (ConfigWriter) + Task 7 (onLinked callback)
-- Plugin reinits after linking: Task 7 (InterfazePlugin.reinit)
+- Plugin reinits after linking: Task 7 (ArtisanPlugin.reinit)
 - Code expires in 10 min: Tasks 1 + 3 + 4
 - Code cannot be claimed twice: Task 3 test (409), Task 4 (`claimedAt` check)
 
 **Placeholder scan:** No TBDs. All code is complete in each step.
 
-**Type consistency:** `SetupClient.onLinked` receives `serverKey: String` → `ConfigWriter.writeServerKey(file, serverKey)` ✓. `IfzCommand.setup()` calls `PluginConfig.from(plugin.config).wsUrl` ✓. `pushLinkConfirmed(code, key)` uses the same `code` string throughout ✓.
+**Type consistency:** `SetupClient.onLinked` receives `serverKey: String` → `ConfigWriter.writeServerKey(file, serverKey)` ✓. `ArtisanCommand.setup()` calls `PluginConfig.from(plugin.config).wsUrl` ✓. `pushLinkConfirmed(code, key)` uses the same `code` string throughout ✓.
 
 **Auth note:** `POST /api/link/:code/claim` is unauthenticated in this plan. When auth lands: add `validateUserJwt(c)` check at the top of the claim handler and a `userId` column to `server_keys`.
