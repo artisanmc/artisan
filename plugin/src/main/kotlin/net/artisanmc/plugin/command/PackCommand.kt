@@ -1,0 +1,43 @@
+package net.artisanmc.plugin.command
+
+import net.artisanmc.plugin.engine.ActionExecutor
+import net.artisanmc.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.lang.LangManager
+import org.bukkit.command.Command
+import org.bukkit.command.CommandSender
+import org.bukkit.entity.Player
+
+class PackCommand(
+    private val compiled: CompiledCommand,
+    private val executor: ActionExecutor,
+    private val lang: LangManager,
+) : Command(
+    compiled.name,
+    compiled.description,
+    "/${compiled.name}",
+    compiled.aliases,
+) {
+    init {
+        if (compiled.permission != null) permission = compiled.permission
+    }
+
+    override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
+        if (sender !is Player) {
+            sender.sendMessage(lang.get("cmd.in_game_only", sender))
+            return true
+        }
+        if (compiled.permission != null && !sender.hasPermission(compiled.permission)) {
+            sender.sendMessage(lang.get("cmd.no_permission", sender))
+            return true
+        }
+        val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true
+        val ctx = ExecutionContext(player = sender, args = parsedArgs)
+        executor.handle(compiled.handler, ctx)
+        return true
+    }
+
+    override fun tabComplete(sender: CommandSender, alias: String, args: Array<String>): List<String> {
+        if (sender !is Player) return emptyList()
+        return ArgParser.tabComplete(compiled.argDefs, args)
+    }
+}
