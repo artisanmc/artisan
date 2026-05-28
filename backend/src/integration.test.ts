@@ -55,8 +55,8 @@ async function uploadBundle(key: string, packId: string, files: Record<string, s
 }
 
 const PACK_FILES = {
-  "plugins/Interfaze/packs/p_shop/manifest.yaml": "schema: manifest/v1\npack_id: p_shop\n",
-  "plugins/Interfaze/packs/p_shop/menus/shop.yaml": "id: shop\nsize: 27\n",
+  "plugins/Artisan/packs/p_shop/manifest.yaml": "schema: manifest/v1\npack_id: p_shop\n",
+  "plugins/Artisan/packs/p_shop/menus/shop.yaml": "id: shop\nsize: 27\n",
 };
 
 describe("full-stack integration: WS handshake + bundle sync", () => {

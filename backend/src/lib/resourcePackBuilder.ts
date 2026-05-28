@@ -14,7 +14,7 @@ const PACK_MCMETA = {
   pack: {
     pack_format: 64,
     supported_formats: { min_inclusive: 22, max_inclusive: 200 },
-    description: "Interfaze pack",
+    description: "Artisan pack",
   },
 };
 
@@ -62,13 +62,13 @@ export function buildResourcePackZip(
   files["pack.png"] = PACK_PNG_FALLBACK;
 
   const fontJson = buildDefaultFontJson(remapped);
-  files["assets/interfaze/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
+  files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
 
-  files["assets/interfaze/asset-index.json"] =
+  files["assets/artisan/asset-index.json"] =
     strToU8(JSON.stringify(buildAssetIndex(remapped), null, 2));
 
   // Y-specific text fonts: text_y{Y}.json for Y = -32..172.
-  // TitleCompiler wraps plain text layers in <font:interfaze:text_y{Y}> to
+  // TitleCompiler wraps plain text layers in <font:artisan:text_y{Y}> to
   // achieve arbitrary vertical positioning using minecraft:font/ascii.png
   // with a shifted ascent. Always included so the plugin can reference any
   // Y value without needing a resource-pack rebuild when layers change.
@@ -90,7 +90,7 @@ export function buildResourcePackZip(
     // instead of a missing-font reference.
     const yMin = minYForSize(h);
     for (let y = yMin; y <= 172; y++) {
-      files[`assets/interfaze/font/text_y${y}_h${h}.json`] =
+      files[`assets/artisan/font/text_y${y}_h${h}.json`] =
         strToU8(JSON.stringify(buildTextYFontJson(y, h), null, 2));
     }
   }
@@ -101,7 +101,7 @@ export function buildResourcePackZip(
   for (const g of glyphs) {
     const png = glyphPngs.get(g.id);
     if (!png) continue;
-    files[`assets/interfaze/textures/font/${g.name}.png`] = png;
+    files[`assets/artisan/textures/font/${g.name}.png`] = png;
   }
 
   const fontAssets = assets
@@ -114,12 +114,12 @@ export function buildResourcePackZip(
 
     const providers = glyphMap.map((g) => ({
       type: "bitmap" as const,
-      file: `interfaze:font/${fa.name}/${g.texture}`,
+      file: `artisan:font/${fa.name}/${g.texture}`,
       ascent: g.ascent,
       height: g.height,
       chars: [g.char],
     }));
-    files[`assets/interfaze/font/${fa.name}.json`] =
+    files[`assets/artisan/font/${fa.name}.json`] =
       strToU8(JSON.stringify({ providers }, null, 2));
 
     const pngsForFont = fontGlyphPngs.get(fa.id);
@@ -127,7 +127,7 @@ export function buildResourcePackZip(
     for (const g of glyphMap) {
       const png = pngsForFont.get(g.texture);
       if (!png) continue;
-      files[`assets/interfaze/textures/font/${fa.name}/${g.texture}`] = png;
+      files[`assets/artisan/textures/font/${fa.name}/${g.texture}`] = png;
     }
   }
 

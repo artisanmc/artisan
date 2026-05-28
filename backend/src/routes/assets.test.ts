@@ -128,8 +128,8 @@ function buildFontZip(opts: {
   omitFontJson?: boolean;
 }): Uint8Array {
   const providers = opts.providers ?? [
-    { type: "bitmap", file: "interfaze:glyphs/a.png", ascent: 7, height: 8, chars: ["a"] },
-    { type: "bitmap", file: "interfaze:glyphs/b.png", ascent: 7, height: 8, chars: ["b"] },
+    { type: "bitmap", file: "artisan:glyphs/a.png", ascent: 7, height: 8, chars: ["a"] },
+    { type: "bitmap", file: "artisan:glyphs/b.png", ascent: 7, height: 8, chars: ["b"] },
   ];
   const glyphs = opts.glyphs ?? { "glyphs/a.png": PNG_8x8, "glyphs/b.png": PNG_8x8 };
   const files: Record<string, Uint8Array> = { ...glyphs };
@@ -595,7 +595,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/assets type=font", ()
     expect(body.asset.ascent).toBeNull();
     expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
     expect(body.asset.fontMeta).toBeTruthy();
-    expect(body.asset.fontMeta.namespace).toBe("interfaze:myfont");
+    expect(body.asset.fontMeta.namespace).toBe("artisan:myfont");
     expect(body.asset.fontMeta.glyphMap.length).toBe(2);
     expect(body.warnings).toEqual([]);
 
@@ -643,7 +643,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/assets type=font", ()
     // and actually hit the name-clash check.
     const distinct = buildFontZip({
       providers: [
-        { type: "bitmap", file: "interfaze:glyphs/c.png", ascent: 7, height: 8, chars: ["c"] },
+        { type: "bitmap", file: "artisan:glyphs/c.png", ascent: 7, height: 8, chars: ["c"] },
       ],
       glyphs: { "glyphs/c.png": PNG_8x8 },
     });

@@ -1,13 +1,13 @@
 import type { Hono } from "hono";
 
 /**
- * Backend-side contract for an Interfaze module.
+ * Backend-side contract for an Artisan module.
  *
  * Each module mounts its REST routes under /api/modules/{id}/* and may declare
  * data sources and commands that map to the plugin-side registries via WS.
  */
 export interface BackendModule {
-  /** Module id, lowercase. Must match the plugin-side InterfazeModule.id. */
+  /** Module id, lowercase. Must match the plugin-side ArtisanModule.id. */
   id: string;
 
   /** Schema version this module currently emits / accepts. */

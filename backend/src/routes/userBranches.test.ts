@@ -58,7 +58,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -70,7 +70,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits?branch=main`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -87,7 +87,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
-      headers: { Cookie: `ifz_user_session=${sessB}` },
+      headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
@@ -103,7 +103,7 @@ describe("userBranchesRouter — POST /branches", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     expect(res.status).toBe(201);
@@ -111,7 +111,7 @@ describe("userBranchesRouter — POST /branches", () => {
     expect(body.branch.name).toBe("dev");
     // dev should point to the same head commit as main initially
     const branchesRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const { branches } = await branchesRes.json();
     const main = branches.find((b: { name: string }) => b.name === "main");
@@ -124,7 +124,7 @@ describe("userBranchesRouter — POST /branches", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "", from: "main" }),
     });
     expect(res.status).toBe(422);
@@ -135,12 +135,12 @@ describe("userBranchesRouter — POST /branches", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     expect(res.status).toBe(409);
@@ -163,7 +163,7 @@ describe("userBranchesRouter — POST /commits", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "first real commit" }),
     });
     expect(res.status).toBe(201);
@@ -183,7 +183,7 @@ describe("userBranchesRouter — POST /commits", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "ghost", message: "x" }),
     });
     expect(res.status).toBe(404);
@@ -202,7 +202,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     // Create dev branch (= main head)
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
 
@@ -212,14 +212,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev work" }),
     });
 
     // Promote dev → main
     const promoteRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(promoteRes.status).toBe(200);
 
@@ -235,7 +235,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
 
@@ -243,7 +243,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     await db.update(packs).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
     });
 
@@ -251,14 +251,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     await db.update(packs).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
     // Now promote dev → main : not FF
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -278,7 +278,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     // Create dev branch
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
 
@@ -289,14 +289,14 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
     });
 
     // Merge dev → main : should be a fast-forward (main hasn't advanced)
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
@@ -317,12 +317,12 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     // dev branched from main, no new commits
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
@@ -336,7 +336,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     // Create dev with a different commit content from main.
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
 
@@ -347,7 +347,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
     });
 
@@ -358,13 +358,13 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
@@ -384,7 +384,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     // Same id on both, different names → conflict
@@ -394,7 +394,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
     await db.update(packs).set({
@@ -403,13 +403,13 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
@@ -427,7 +427,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/main/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
@@ -439,7 +439,7 @@ describe("POST /merge-into — FF + already-merged + 3-way", () => {
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/ghost/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(404);
@@ -457,7 +457,7 @@ describe("POST /merge-into/.../resolve", () => {
     // Set up an auto-merge scenario (different items on each branch)
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     await db.update(packs).set({
@@ -466,7 +466,7 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
     await db.update(packs).set({
@@ -475,14 +475,14 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
     // Get the merge plan
     const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const plan = await planRes.json();
@@ -492,7 +492,7 @@ describe("POST /merge-into/.../resolve", () => {
 
     const resolveRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         resolutions: {},  // empty for auto-merge
         lcaCommitId: plan.lcaCommitId,
@@ -523,7 +523,7 @@ describe("POST /merge-into/.../resolve", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     // Same id, different name → conflict
@@ -533,7 +533,7 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
     await db.update(packs).set({
@@ -542,13 +542,13 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
     const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const plan = await planRes.json();
@@ -556,7 +556,7 @@ describe("POST /merge-into/.../resolve", () => {
 
     const resolveRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         resolutions: { "menus:m_x": "src" },
         lcaCommitId: plan.lcaCommitId,
@@ -579,7 +579,7 @@ describe("POST /merge-into/.../resolve", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     await db.update(packs).set({
@@ -588,14 +588,14 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
 
     // POST resolve with random ids that don't match
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         resolutions: {},
         lcaCommitId: "cmt_stale1",
@@ -614,7 +614,7 @@ describe("POST /merge-into/.../resolve", () => {
     const app = makeApp();
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
     await db.update(packs).set({
@@ -623,7 +623,7 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "d" }),
     });
     await db.update(packs).set({
@@ -632,20 +632,20 @@ describe("POST /merge-into/.../resolve", () => {
     }).where(eq(packs.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "m" }),
     });
 
     const planRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     const plan = await planRes.json();
 
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/merge-into/main/resolve`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         resolutions: {},  // empty but there's 1 conflict
         lcaCommitId: plan.lcaCommitId,

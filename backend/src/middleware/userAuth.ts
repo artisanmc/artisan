@@ -20,7 +20,7 @@ declare module "hono" {
 }
 
 export const userAuth = () => createMiddleware(async (c, next) => {
-  const sessionId = getCookie(c, "ifz_user_session");
+  const sessionId = getCookie(c, "artisan_user_session");
   if (!sessionId) {
     c.set("user", null);
     return next();

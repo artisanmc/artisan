@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "interfaze-backend",
+      "name": "artisan-backend",
       "dependencies": {
         "drizzle-orm": "^0.31.0",
         "fflate": "^0.8.2",

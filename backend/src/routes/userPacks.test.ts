@@ -62,7 +62,7 @@ describe("userPacksRouter — GET", () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();
     const res = await app.request(`/api/v1/user/packs/${packId}`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -81,7 +81,7 @@ describe("userPacksRouter — GET", () => {
     const sess2 = await createSession("u2");
     const app = makeApp();
     const res = await app.request(`/api/v1/user/packs/${packId}`, {
-      headers: { Cookie: `ifz_user_session=${sess2.id}` },
+      headers: { Cookie: `artisan_user_session=${sess2.id}` },
     });
     expect(res.status).toBe(403);
   });
@@ -90,7 +90,7 @@ describe("userPacksRouter — GET", () => {
     const { sessionId } = await seedUserWithPack("u1");
     const app = makeApp();
     const res = await app.request("/api/v1/user/packs/pack_nonexistent", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(404);
   });
@@ -105,7 +105,7 @@ describe("userPacksRouter — PUT", () => {
     const res = await app.request(`/api/v1/user/packs/${packId}`, {
       method: "PUT",
       headers: {
-        Cookie: `ifz_user_session=${sessionId}`,
+        Cookie: `artisan_user_session=${sessionId}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -136,7 +136,7 @@ describe("userPacksRouter — PUT", () => {
     const res = await app.request(`/api/v1/user/packs/${packId}`, {
       method: "PUT",
       headers: {
-        Cookie: `ifz_user_session=${sess2.id}`,
+        Cookie: `artisan_user_session=${sess2.id}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ hash: "h99", files: {}, editor: null }),

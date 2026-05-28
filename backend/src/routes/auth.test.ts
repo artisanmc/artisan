@@ -18,7 +18,7 @@ describe("POST /api/v1/auth/signup", () => {
     }));
     expect(res.status).toBe(201);
     const setCookie = res.headers.get("Set-Cookie") ?? "";
-    expect(setCookie).toContain("ifz_user_session=");
+    expect(setCookie).toContain("artisan_user_session=");
     expect(setCookie).toContain("HttpOnly");
     const body = await res.json();
     expect(body.user.email).toBe(email);
@@ -99,7 +99,7 @@ describe("POST /api/v1/auth/login", () => {
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
     expect(res.status).toBe(200);
-    expect(res.headers.get("Set-Cookie") ?? "").toContain("ifz_user_session=");
+    expect(res.headers.get("Set-Cookie") ?? "").toContain("artisan_user_session=");
     expect((await res.json()).user.email).toBe(email);
     await cleanupByEmail(email);
   });
@@ -158,15 +158,15 @@ describe("POST /api/v1/auth/logout", () => {
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
     const cookieRaw = loginRes.headers.get("Set-Cookie") ?? "";
-    const sessionId = /ifz_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
+    const sessionId = /artisan_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
     expect(sessionId).toBeTruthy();
 
     const res = await app.fetch(new Request("http://x/api/v1/auth/logout", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(204);
-    expect(res.headers.get("Set-Cookie") ?? "").toMatch(/ifz_user_session=;.*Max-Age=0|ifz_user_session=;.*expires=/i);
+    expect(res.headers.get("Set-Cookie") ?? "").toMatch(/artisan_user_session=;.*Max-Age=0|artisan_user_session=;.*expires=/i);
 
     const remain = await db.select().from(userSessions).where(eq(userSessions.id, sessionId));
     expect(remain).toHaveLength(0);
@@ -192,10 +192,10 @@ describe("GET /api/v1/auth/me", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
-    const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+    const sessionId = /artisan_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
 
     const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(200);
     expect((await res.json()).user.email).toBe(email);
@@ -209,7 +209,7 @@ describe("GET /api/v1/auth/me", () => {
 
   test("returns 401 with bogus cookie", async () => {
     const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
-      headers: { Cookie: "ifz_user_session=does-not-exist" },
+      headers: { Cookie: "artisan_user_session=does-not-exist" },
     }));
     expect(res.status).toBe(401);
   });
@@ -230,7 +230,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
-    const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+    const sessionId = /artisan_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
     return { sessionId, userId, email };
   }
 
@@ -241,7 +241,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify({ editor_language: "fr" }),
     }));
@@ -273,7 +273,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify({ editor_language: "en" }),
     }));
@@ -283,7 +283,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify({ editor_language: null }),
     }));

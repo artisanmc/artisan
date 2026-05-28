@@ -14,7 +14,7 @@ export const networkTransfersRouter = new Hono();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAuthedUserId(c: any): Promise<string | null> {
-  const sid = getCookie(c, "ifz_user_session");
+  const sid = getCookie(c, "artisan_user_session");
   if (!sid) return null;
   const session = await findSession(sid);
   return session?.userId ?? null;

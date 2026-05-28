@@ -1,7 +1,7 @@
 import { listPacksForServerKey } from "./packBindingManager";
 
 export async function computeBundleHash(files: Record<string, string>, packId: string): Promise<string> {
-  const prefix = `plugins/Interfaze/packs/${packId}/`;
+  const prefix = `plugins/Artisan/packs/${packId}/`;
   const sorted = Object.entries(files)
     .filter(([k]) => k.startsWith(prefix))
     .map(([k, v]) => ({ path: k.slice(prefix.length), content: v }))
