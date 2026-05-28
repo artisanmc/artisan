@@ -85,7 +85,7 @@ function LinkRoute() {
         <h1 className="text-2xl mb-2">Échec du setup</h1>
         <p>{errorMessage ?? "Erreur inconnue."}</p>
         <p>
-          Retape <code>/ifz setup</code> sur ton serveur Minecraft pour obtenir un nouveau lien.
+          Retape <code>/artisan setup</code> sur ton serveur Minecraft pour obtenir un nouveau lien.
         </p>
       </div>
     );

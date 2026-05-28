@@ -1,5 +1,5 @@
 /**
- * Interfaze — Translations schema v1 — TypeScript types
+ * Artisan — Translations schema v1 — TypeScript types
  *
  * Source de vérité pour les traductions d'un workspace.
  * Maintenu à la main, en miroir de schema.json.

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mettre en place les fondations de versioning et stabilité d'API d'Interfaze, spec section 12 — annotations de stabilité, schema registry + migration framework, version dans le protocol WS, REST URL versioning `/api/v1/*`, Drizzle migrations folder, CHANGELOG, api-surface doc.
+**Goal:** Mettre en place les fondations de versioning et stabilité d'API d'Artisan, spec section 12 — annotations de stabilité, schema registry + migration framework, version dans le protocol WS, REST URL versioning `/api/v1/*`, Drizzle migrations folder, CHANGELOG, api-surface doc.
 
 **Architecture:** Couvre les 6 surfaces de versioning (schemas de données, API Java publique, protocol WS, REST API, DB schema, resource pack format). V1 implémente le minimum nécessaire selon section 12.1 du spec, ~7-8 jours total. Décisions de scope :
 1. **REST big-bang** : toutes les routes existantes (`/api/*`) sont renommées en `/api/v1/*`. Plugin + editor clients mis à jour dans le même commit.
@@ -23,7 +23,7 @@
 
 ## File Structure
 
-### Plugin — `plugin/src/main/kotlin/gg/interfaze/`
+### Plugin — `plugin/src/main/kotlin/net/artisanmc/`
 
 - **Create**:
   - `modules/api/annotations/Stable.kt` — `@Stable` annotation
@@ -34,9 +34,9 @@
   - `modules/api/schemas/SchemaRegistry.kt` — registry + `loadToCurrent()` + exceptions
   - Tests : `modules/api/schemas/SchemaRegistryTest.kt`
 - **Modify**:
-  - `modules/api/InterfazeModule.kt`, `InterfazeAPI.kt`, `DataSourceRegistry.kt`, `CommandRegistry.kt`, `ModuleEventBus.kt`, `DataSourceDeclaration.kt`, `CommandDeclaration.kt` — annoter `@Stable`
-  - `modules/api/InterfazeAPI.kt` — ajouter `val schemas: SchemaRegistry`
-  - `plugin/InterfazePlugin.kt` — `buildApi(this)` passe une `SchemaRegistry` à `InterfazeAPI`
+  - `modules/api/ArtisanModule.kt`, `ArtisanAPI.kt`, `DataSourceRegistry.kt`, `CommandRegistry.kt`, `ModuleEventBus.kt`, `DataSourceDeclaration.kt`, `CommandDeclaration.kt` — annoter `@Stable`
+  - `modules/api/ArtisanAPI.kt` — ajouter `val schemas: SchemaRegistry`
+  - `plugin/ArtisanPlugin.kt` — `buildApi(this)` passe une `SchemaRegistry` à `ArtisanAPI`
   - `engine/MenuTitleParser.kt` (+ siblings DialogYamlParser, CommandCompiler) — tolérer `schema:` field optionnel au top
   - `sync/WsClient.kt` ou `provider/SyncedMenuProvider.kt` — `hello` inclut `protocol_version: "1"` + `core_version`
   - `sync/BundleUploader.kt:47` — `/api/bundles/...` → `/api/v1/bundles/...`
@@ -78,15 +78,15 @@
 ### Task A1: Create the 4 stability annotations
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/annotations/Stable.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/annotations/Beta.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/annotations/Internal.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/annotations/Deprecated.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/annotations/Stable.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/annotations/Beta.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/annotations/Internal.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/annotations/Deprecated.kt`
 
 - [ ] **Step 1: Write `Stable.kt`**
 
 ```kotlin
-package gg.interfaze.modules.api.annotations
+package net.artisanmc.modules.api.annotations
 
 /**
  * Marks API surface that is covered by SemVer.
@@ -101,7 +101,7 @@ annotation class Stable
 - [ ] **Step 2: Write `Beta.kt`**
 
 ```kotlin
-package gg.interfaze.modules.api.annotations
+package net.artisanmc.modules.api.annotations
 
 /**
  * Marks API surface that is experimental.
@@ -116,10 +116,10 @@ annotation class Beta
 - [ ] **Step 3: Write `Internal.kt`**
 
 ```kotlin
-package gg.interfaze.modules.api.annotations
+package net.artisanmc.modules.api.annotations
 
 /**
- * Marks API surface that is internal to Interfaze.
+ * Marks API surface that is internal to Artisan.
  * - May change anytime, without notice.
  * - Modules MUST NOT use this.
  */
@@ -133,10 +133,10 @@ annotation class Internal
 Use a distinct name to avoid clashing with `kotlin.Deprecated`:
 
 ```kotlin
-package gg.interfaze.modules.api.annotations
+package net.artisanmc.modules.api.annotations
 
 /**
- * Marks API surface that is deprecated within Interfaze's own deprecation flow.
+ * Marks API surface that is deprecated within Artisan's own deprecation flow.
  * Distinct from kotlin.Deprecated — this is the schedule-aware variant that
  * carries the removal version and a recommended replacement.
  *
@@ -157,42 +157,42 @@ annotation class Sunset(
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/annotations/
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/annotations/
 git commit -m "feat(plugin): add stability annotations (Stable/Beta/Internal/Sunset)"
 ```
 
 ### Task A2: Mark existing `modules/api/*` classes as `@Stable`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeModule.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceRegistry.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceDeclaration.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/CommandRegistry.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/CommandDeclaration.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/ModuleEventBus.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt`
 
-- [ ] **Step 1: Add `@Stable` annotation to `InterfazeModule`**
+- [ ] **Step 1: Add `@Stable` annotation to `ArtisanModule`**
 
-Open `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeModule.kt`. Add import + annotation:
+Open `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt`. Add import + annotation:
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
-import gg.interfaze.modules.api.annotations.Stable
+import net.artisanmc.modules.api.annotations.Stable
 
 @Stable
-interface InterfazeModule {
+interface ArtisanModule {
     @Stable val id: String
     @Stable val schemaVersion: String
-    @Stable fun onEnable(api: InterfazeAPI)
+    @Stable fun onEnable(api: ArtisanAPI)
     @Stable fun onDisable()
     @Stable fun onReload() {}
 }
 ```
 
 Apply the same pattern to the other files:
-- `InterfazeAPI.kt` — `@Stable class InterfazeAPI(...)`
+- `ArtisanAPI.kt` — `@Stable class ArtisanAPI(...)`
 - `DataSourceRegistry.kt` — `@Stable class DataSourceRegistry`, `@Stable fun register(...)`, `@Stable fun fetch(...)`, `@Stable fun has(...)`, `@Stable fun refs(...)` ; exceptions `UnknownDataSourceException` and `DuplicateDataSourceException` get `@Stable class` annotations too
 - `DataSourceDeclaration.kt` — `@Stable data class DataSourceDeclaration(...)`
 - `CommandRegistry.kt` — symmetric to DataSourceRegistry
@@ -202,7 +202,7 @@ Apply the same pattern to the other files:
 - [ ] **Step 2: Run the plugin test suite to verify nothing broke**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.*'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.*'
 ```
 
 Expected: 13 tests pass (the existing modules/api + modules/menus + modules/commands tests).
@@ -210,7 +210,7 @@ Expected: 13 tests pass (the existing modules/api + modules/menus + modules/comm
 - [ ] **Step 3: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/
 git commit -m "feat(plugin): mark modules.api surface as @Stable"
 ```
 
@@ -226,16 +226,16 @@ Find the line `Le widget est routé via le champ \`format\` du schema (e.g. \`{ 
 ```markdown
 ### Stability annotations (depuis 2026-05-25)
 
-Le package `gg.interfaze.modules.api.*` est annoté avec `@Stable` (depuis `gg.interfaze.modules.api.annotations`). Convention :
+Le package `net.artisanmc.modules.api.*` est annoté avec `@Stable` (depuis `net.artisanmc.modules.api.annotations`). Convention :
 
 | Annotation | Signification | Quand |
 |---|---|---|
 | `@Stable` | Couvert par SemVer. Pas de breaking change dans un même major. | Tout `modules/api/*` après stabilisation. |
 | `@Beta` | Expérimental, peut changer en minor. | API nouvelle avant ship public. |
-| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `gg.interfaze.plugin.*` (implicite par convention de package). |
+| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `net.artisanmc.plugin.*` (implicite par convention de package). |
 | `@Sunset(reason, removeInVersion, replacement)` | Sera retiré au prochain major. | À l'annonce de dépréciation. |
 
-**Règle d'import pour les modules** : un `InterfazeModule` n'importe **que** depuis `gg.interfaze.modules.api.*`. Jamais depuis `gg.interfaze.plugin.*` (qui est implicitement `@Internal`).
+**Règle d'import pour les modules** : un `ArtisanModule` n'importe **que** depuis `net.artisanmc.modules.api.*`. Jamais depuis `net.artisanmc.plugin.*` (qui est implicitement `@Internal`).
 
 Cf. `docs/architecture/versioning.md` section 3.
 ```
@@ -254,14 +254,14 @@ git commit -m "docs(claude-md): stability annotations + module import rule"
 ### Task B1: Define `SchemaMigration` interface
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/schemas/SchemaMigration.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaMigration.kt`
 
 - [ ] **Step 1: Write the interface**
 
 ```kotlin
-package gg.interfaze.modules.api.schemas
+package net.artisanmc.modules.api.schemas
 
-import gg.interfaze.modules.api.annotations.Stable
+import net.artisanmc.modules.api.annotations.Stable
 
 /**
  * One-way data migration from one schema version to the next.
@@ -291,20 +291,20 @@ interface SchemaMigration<T> {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/schemas/SchemaMigration.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaMigration.kt
 git commit -m "feat(plugin): add SchemaMigration interface"
 ```
 
 ### Task B2: Implement `SchemaRegistry` — TDD
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/schemas/SchemaRegistry.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/api/schemas/SchemaRegistryTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistry.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistryTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.api.schemas
+package net.artisanmc.modules.api.schemas
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -383,7 +383,7 @@ class SchemaRegistryTest {
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.schemas.SchemaRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.schemas.SchemaRegistryTest'
 ```
 
 Expected: FAIL — compile errors (`SchemaRegistry`, `UnsupportedSchemaVersionException`, `CircularMigrationException` not found).
@@ -391,9 +391,9 @@ Expected: FAIL — compile errors (`SchemaRegistry`, `UnsupportedSchemaVersionEx
 - [ ] **Step 3: Implement `SchemaRegistry`**
 
 ```kotlin
-package gg.interfaze.modules.api.schemas
+package net.artisanmc.modules.api.schemas
 
-import gg.interfaze.modules.api.annotations.Stable
+import net.artisanmc.modules.api.annotations.Stable
 import java.util.concurrent.ConcurrentHashMap
 
 class UnsupportedSchemaVersionException(version: String) :
@@ -451,7 +451,7 @@ class SchemaRegistry<T> {
 - [ ] **Step 4: Run tests to verify pass**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.schemas.SchemaRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.schemas.SchemaRegistryTest'
 ```
 
 Expected: 5 tests pass.
@@ -459,27 +459,27 @@ Expected: 5 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/schemas/SchemaRegistry.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/api/schemas/SchemaRegistryTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistry.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistryTest.kt
 git commit -m "feat(plugin): add SchemaRegistry with chained migration support"
 ```
 
-### Task B3: Wire `SchemaRegistry` into `InterfazeAPI`
+### Task B3: Wire `SchemaRegistry` into `ArtisanAPI`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
-- [ ] **Step 1: Add `schemas` field to `InterfazeAPI`**
+- [ ] **Step 1: Add `schemas` field to `ArtisanAPI`**
 
-Open `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt`. Add `schemas` parameter:
+Open `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt`. Add `schemas` parameter:
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
-import gg.interfaze.modules.api.annotations.Stable
-import gg.interfaze.modules.api.schemas.SchemaRegistry
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.modules.api.annotations.Stable
+import net.artisanmc.modules.api.schemas.SchemaRegistry
+import net.artisanmc.plugin.ArtisanPlugin
 
 /**
  * Facade passed to every module at `onEnable(api)`. Exposes:
@@ -492,8 +492,8 @@ import gg.interfaze.plugin.InterfazePlugin
  * is allowed only inside the module's own package.
  */
 @Stable
-class InterfazeAPI(
-    val plugin: InterfazePlugin,
+class ArtisanAPI(
+    val plugin: ArtisanPlugin,
     val dataSources: DataSourceRegistry,
     val commands: CommandRegistry,
     val events: ModuleEventBus,
@@ -501,16 +501,16 @@ class InterfazeAPI(
 )
 ```
 
-- [ ] **Step 2: Update `InterfazePlugin.buildApi()`**
+- [ ] **Step 2: Update `ArtisanPlugin.buildApi()`**
 
-Open `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`. Find the `companion object` and update `buildApi` to pass a `SchemaRegistry`:
+Open `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`. Find the `companion object` and update `buildApi` to pass a `SchemaRegistry`:
 
 ```kotlin
-import gg.interfaze.modules.api.schemas.SchemaRegistry
+import net.artisanmc.modules.api.schemas.SchemaRegistry
 ```
 
 ```kotlin
-fun buildApi(plugin: InterfazePlugin): InterfazeAPI = InterfazeAPI(
+fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanAPI(
     plugin = plugin,
     dataSources = DataSourceRegistry(),
     commands = CommandRegistry(),
@@ -519,11 +519,11 @@ fun buildApi(plugin: InterfazePlugin): InterfazeAPI = InterfazeAPI(
 )
 ```
 
-- [ ] **Step 3: Update `InterfazePluginModuleWiringTest`**
+- [ ] **Step 3: Update `ArtisanPluginModuleWiringTest`**
 
 The existing test asserts `api.dataSources`, `api.commands`, `api.events` are non-null. Add `api.schemas`:
 
-Open `plugin/src/test/kotlin/gg/interfaze/plugin/InterfazePluginModuleWiringTest.kt`. In the test `plugin exposes an InterfazeAPI after enable`, add:
+Open `plugin/src/test/kotlin/net/artisanmc/plugin/ArtisanPluginModuleWiringTest.kt`. In the test `plugin exposes an ArtisanAPI after enable`, add:
 
 ```kotlin
 assertNotNull(api.schemas)
@@ -540,10 +540,10 @@ Expected: all green (~391 tests = ~387 existing + new SchemaRegistryTest 5).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt \
-        plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt \
-        plugin/src/test/kotlin/gg/interfaze/plugin/InterfazePluginModuleWiringTest.kt
-git commit -m "feat(plugin): expose SchemaRegistry via InterfazeAPI"
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt \
+        plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt \
+        plugin/src/test/kotlin/net/artisanmc/plugin/ArtisanPluginModuleWiringTest.kt
+git commit -m "feat(plugin): expose SchemaRegistry via ArtisanAPI"
 ```
 
 ---
@@ -553,7 +553,7 @@ git commit -m "feat(plugin): expose SchemaRegistry via InterfazeAPI"
 ### Task C1: Plugin YAML parsers accept optional `schema` field
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt` (or the menu YAML root parser — verify location)
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt` (or the menu YAML root parser — verify location)
 - Modify: any other YAML parsers (dialog, command, manifest)
 - Test: add coverage in existing `MenuTitleParserTest.kt` / matching test for dialog/command
 
@@ -563,7 +563,7 @@ git commit -m "feat(plugin): expose SchemaRegistry via InterfazeAPI"
 - [ ] **Step 1: Find the YAML root parsers**
 
 ```bash
-cd plugin && grep -rn "yaml\\.load\\|YamlMap\\|Map<String, Any" src/main/kotlin/gg/interfaze/plugin/engine src/main/kotlin/gg/interfaze/plugin/yaml | head -20
+cd plugin && grep -rn "yaml\\.load\\|YamlMap\\|Map<String, Any" src/main/kotlin/net/artisanmc/plugin/engine src/main/kotlin/net/artisanmc/plugin/yaml | head -20
 ```
 
 Read the files returned. The parsers we want to make tolerant are those that take a top-level `Map<String, Any?>` of a menu/command/dialog YAML.
@@ -641,7 +641,7 @@ Expected: pass after the parser changes. If a parser doesn't have a "root" entry
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/ plugin/src/test/kotlin/
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ plugin/src/test/kotlin/
 git commit -m "feat(plugin): YAML parsers accept optional schema field (versioning foundation)"
 ```
 
@@ -720,12 +720,12 @@ docker compose up -d backend editor minecraft
 In the editor browser, change a menu title, wait for autosave (~2s). Then look on disk inside the MC container :
 
 ```bash
-docker exec interfaze-minecraft-1 cat /data/plugins/Interfaze/packs/<pack_id>/menus/<menu_id>.yaml | head -5
+docker exec artisan-minecraft-1 cat /data/plugins/Artisan/packs/<pack_id>/menus/<menu_id>.yaml | head -5
 ```
 
 Expected: first line is `schema: "menu/v1"` (or unquoted `schema: menu/v1`).
 
-- [ ] **Step 3: In the MC console**, run `/ifz reload`. Verify no errors.
+- [ ] **Step 3: In the MC console**, run `/artisan reload`. Verify no errors.
 
 (No commit — manual verification only.)
 
@@ -736,7 +736,7 @@ Expected: first line is `schema: "menu/v1"` (or unquoted `schema: menu/v1`).
 ### Task D1: Plugin includes `protocol_version` + `core_version` in hello
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/WsClient.kt` (or wherever `HelloMessage` is constructed)
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/WsClient.kt` (or wherever `HelloMessage` is constructed)
 - Test: existing FullSyncIntegrationTest or similar covers hello
 
 - [ ] **Step 1: Locate the hello builder**
@@ -760,7 +760,7 @@ val hello = buildJsonObject {
 }
 ```
 
-If `description.version` isn't accessible from the WS layer, pass it as a constructor parameter to `WsClient`, sourced from `JavaPlugin.description.version` in `InterfazePlugin.onEnable`.
+If `description.version` isn't accessible from the WS layer, pass it as a constructor parameter to `WsClient`, sourced from `JavaPlugin.description.version` in `ArtisanPlugin.onEnable`.
 
 - [ ] **Step 3: Add or update a test that hello includes these fields**
 
@@ -775,7 +775,7 @@ cd plugin && ./gradlew test --tests '*Sync*' --tests '*WsClient*'
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/
+git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/
 git commit -m "feat(plugin): hello includes protocol_version + core_version"
 ```
 
@@ -1055,11 +1055,11 @@ git commit -m "feat(editor): API clients call /api/v1/* (REST versioning big-ban
 ### Task E5: Update plugin BundleUploader
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt`
 
 - [ ] **Step 1: Edit line 47**
 
-Open `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt`. Find:
+Open `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt`. Find:
 
 ```kotlin
 .url("$apiUrl/api/bundles/$packId")
@@ -1084,7 +1084,7 @@ Expected: all green. The MockWebServer-based BundleUploader tests will match the
 - [ ] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt
 git commit -m "feat(plugin): BundleUploader uses /api/v1/bundles"
 ```
 
@@ -1284,7 +1284,7 @@ Create `CHANGELOG.md` at repo root:
 ```markdown
 # Changelog
 
-All notable changes to Interfaze are documented in this file.
+All notable changes to Artisan are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -1295,7 +1295,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ### Added
 - Versioning foundations: stability annotations (`@Stable`, `@Beta`, `@Internal`, `@Sunset`), `SchemaRegistry` + `SchemaMigration` interface, `protocol_version` in WS hello, `/api/v1/*` URL versioning, Drizzle migrations folder, `CHANGELOG.md`, `docs/architecture/api-surface.md`.
-- Modular monolith pattern: `InterfazeModule` / `BackendModule` / `FrontendModule` interfaces, `DataSourceRegistry`, `CommandRegistry`, `ModuleEventBus`, `<SchemaForm>` generator. See `docs/architecture/modules.md`.
+- Modular monolith pattern: `ArtisanModule` / `BackendModule` / `FrontendModule` interfaces, `DataSourceRegistry`, `CommandRegistry`, `ModuleEventBus`, `<SchemaForm>` generator. See `docs/architecture/modules.md`.
 - Schema field at the top of menu/command/dialog YAMLs (`schema: "menu/v1"` etc.).
 
 ### Changed
@@ -1340,28 +1340,28 @@ git commit -m "docs(changelog): initialize CHANGELOG.md (Keep-a-Changelog format
 Create `docs/architecture/api-surface.md`:
 
 ```markdown
-# Interfaze Public API Surface (v1.x)
+# Artisan Public API Surface (v1.x)
 
-This document lists the **stable** API surface of Interfaze Core that modules can safely depend on.
+This document lists the **stable** API surface of Artisan Core that modules can safely depend on.
 Anything not listed here is internal and may change without notice.
 
-> Source of truth : the `@Stable` annotations in `plugin/src/main/kotlin/gg/interfaze/modules/api/`.
+> Source of truth : the `@Stable` annotations in `plugin/src/main/kotlin/net/artisanmc/modules/api/`.
 > This doc is hand-maintained; future versions will auto-generate it (see versioning.md §9.2).
 
 ## Annotations
 
 | Annotation | Package | Meaning |
 |---|---|---|
-| `@Stable` | `gg.interfaze.modules.api.annotations.Stable` | Covered by SemVer. No breaking change within a major version. |
-| `@Beta` | `gg.interfaze.modules.api.annotations.Beta` | Experimental. May change in minor versions. |
-| `@Internal` | `gg.interfaze.modules.api.annotations.Internal` | DO NOT USE from modules. |
-| `@Sunset(reason, removeInVersion, replacement)` | `gg.interfaze.modules.api.annotations.Sunset` | Scheduled for removal. Replacement is provided. |
+| `@Stable` | `net.artisanmc.modules.api.annotations.Stable` | Covered by SemVer. No breaking change within a major version. |
+| `@Beta` | `net.artisanmc.modules.api.annotations.Beta` | Experimental. May change in minor versions. |
+| `@Internal` | `net.artisanmc.modules.api.annotations.Internal` | DO NOT USE from modules. |
+| `@Sunset(reason, removeInVersion, replacement)` | `net.artisanmc.modules.api.annotations.Sunset` | Scheduled for removal. Replacement is provided. |
 
 Note : we use `@Sunset` (not `@Deprecated`) to avoid clashing with `kotlin.Deprecated`. The schedule-aware annotation carries removal version + replacement.
 
 ## Stable APIs (v1.x)
 
-### `gg.interfaze.modules.api.InterfazeModule`
+### `net.artisanmc.modules.api.ArtisanModule`
 
 Contract implemented by every module.
 
@@ -1369,23 +1369,23 @@ Contract implemented by every module.
 |---|---|---|
 | `id` | `String` | 1.0.0 |
 | `schemaVersion` | `String` | 1.0.0 |
-| `onEnable(api: InterfazeAPI)` | `Unit` | 1.0.0 |
+| `onEnable(api: ArtisanAPI)` | `Unit` | 1.0.0 |
 | `onDisable()` | `Unit` | 1.0.0 |
 | `onReload()` | `Unit` (default empty) | 1.0.0 |
 
-### `gg.interfaze.modules.api.InterfazeAPI`
+### `net.artisanmc.modules.api.ArtisanAPI`
 
 The facade passed to every module at `onEnable(api)`.
 
 | Member | Type | Since |
 |---|---|---|
-| `plugin` | `InterfazePlugin` | 1.0.0 |
+| `plugin` | `ArtisanPlugin` | 1.0.0 |
 | `dataSources` | `DataSourceRegistry` | 1.0.0 |
 | `commands` | `CommandRegistry` | 1.0.0 |
 | `events` | `ModuleEventBus` | 1.0.0 |
 | `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | 1.0.0 |
 
-### `gg.interfaze.modules.api.DataSourceRegistry`
+### `net.artisanmc.modules.api.DataSourceRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -1396,7 +1396,7 @@ The facade passed to every module at `onEnable(api)`.
 
 Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 
-### `gg.interfaze.modules.api.CommandRegistry`
+### `net.artisanmc.modules.api.CommandRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -1407,7 +1407,7 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 
 Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
-### `gg.interfaze.modules.api.ModuleEventBus`
+### `net.artisanmc.modules.api.ModuleEventBus`
 
 | Member | Type | Since |
 |---|---|---|
@@ -1417,7 +1417,7 @@ Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
 Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own subclasses of `ModuleEvent`.
 
-### `gg.interfaze.modules.api.schemas.SchemaRegistry<T>`
+### `net.artisanmc.modules.api.schemas.SchemaRegistry<T>`
 
 | Member | Type | Since |
 |---|---|---|
@@ -1427,7 +1427,7 @@ Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own s
 
 Exceptions: `UnsupportedSchemaVersionException`, `CircularMigrationException`.
 
-### `gg.interfaze.modules.api.schemas.SchemaMigration<T>`
+### `net.artisanmc.modules.api.schemas.SchemaMigration<T>`
 
 | Member | Type | Since |
 |---|---|---|
@@ -1445,7 +1445,7 @@ None at this time.
 
 ## Internal — DO NOT USE
 
-Everything under `gg.interfaze.plugin.*` is implicitly internal. Use the API surface above instead.
+Everything under `net.artisanmc.plugin.*` is implicitly internal. Use the API surface above instead.
 ```
 
 - [ ] **Step 2: Commit**
@@ -1475,7 +1475,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 
 **Les 4 disciplines à respecter** :
 
-1. **CHANGELOG** : tout commit qui touche `gg.interfaze.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
+1. **CHANGELOG** : tout commit qui touche `net.artisanmc.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
 2. **Nouveau schema version = nouveau dossier** : on ne modifie jamais un `menu/v1` après ship. On crée `menu/v2` séparé et on écrit `MenuV1ToV2 : SchemaMigration` qu'on register via `api.schemas.register(...)`.
 3. **DB forward-only** : tout changement de `schema.ts` génère `bun run db:generate` un fichier dans `backend/drizzle/` qui doit être committé. Pas de `db:push` en prod.
 4. **REST URL versionné** : nouvelle route = `/api/v1/<name>`. Quand un endpoint a un breaking change inevitable, on crée `/api/v2/<name>` à côté et on garde v1 6-12 mois.
@@ -1492,7 +1492,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 Open `.claude/skills/sync-docs/doc-impact-map.yaml`. Append :
 
 ```yaml
-  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
+  - touches: "plugin/src/main/kotlin/net/artisanmc/modules/api/"
     updates:
       - "CHANGELOG.md"
       - "docs/architecture/api-surface.md"
@@ -1546,7 +1546,7 @@ git commit -m "docs: versioning discipline rules in CLAUDE.md + sync-docs map"
 - [ ] `curl http://localhost:3001/api/v1/modules/commands/health` returns JSON
 - [ ] `curl -o /dev/null -w "%{http_code}\n" http://localhost:3001/api/modules/menus/health` returns `404` (old prefix gone)
 - [ ] Open editor in browser → login → networks → pack → edit a menu → autosave → inspect YAML on disk: `schema: "menu/v1"` at top
-- [ ] MC console : `/ifz reload` — no errors
+- [ ] MC console : `/artisan reload` — no errors
 
 ### Task Z3: Verify CHANGELOG completeness
 
@@ -1576,13 +1576,13 @@ Total realistic effort : 7-9 days due to big-bang REST + schema field decisions 
 
 **3. Type consistency**
 - `SchemaMigration<T>.from`, `.to`, `.migrate(data)` consistent between interface (B1), tests (B2), usage in registry (B2)
-- `SchemaRegistry<T>` parameterized — `InterfazeAPI.schemas: SchemaRegistry<MutableMap<String, Any?>>` (B3)
+- `SchemaRegistry<T>` parameterized — `ArtisanAPI.schemas: SchemaRegistry<MutableMap<String, Any?>>` (B3)
 - Annotation rename `Deprecated` → `Sunset` consistent across A1, A3, H1
 - Test pattern uses `MutableMap<String, Any?>` (not `JsonObject` as in spec literal) because that's what Kotlin's YAML libs return naturally on this codebase
 
 **4. Deliberate omissions / scope choices**
-- **No physical package rename** `gg.interfaze.plugin.*` → `gg.interfaze.core.*` (spec section 3.1 namespace is aspirational; rename = 2+ days, not in spec's 1-day estimate)
-- **No `@Internal` annotation on `gg.interfaze.plugin.*`** (100+ files, redundant given the package convention; the api-surface.md documents the rule)
+- **No physical package rename** `net.artisanmc.plugin.*` → `net.artisanmc.core.*` (spec section 3.1 namespace is aspirational; rename = 2+ days, not in spec's 1-day estimate)
+- **No `@Internal` annotation on `net.artisanmc.plugin.*`** (100+ files, redundant given the package convention; the api-surface.md documents the rule)
 - **No multi-version protocol handler scaffolding** (per section 12.2 "tout est neuf, juste v1 partout")
 - **No `japicmp` in CI** (per section 12.2)
 - **`@Sunset` instead of `@Deprecated`** to avoid clash with `kotlin.Deprecated` (rationale documented in A1, A3, H1)

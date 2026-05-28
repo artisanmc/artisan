@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement `/ifz editor` — a LuckPerms-style command that generates a short-lived browser session, secured by Minecraft permissions, with a WebSocket channel for real-time draft broadcast across concurrent editor sessions.
+**Goal:** Implement `/artisan editor` — a LuckPerms-style command that generates a short-lived browser session, secured by Minecraft permissions, with a WebSocket channel for real-time draft broadcast across concurrent editor sessions.
 
 **Architecture:** The plugin sends `editor_session_request` on its existing authenticated WS → backend creates a 30-char crypto-random token in `editor_sessions` DB table and returns a URL. The browser opens `/session?token=...`, validates via REST, opens `/ws/editor?token=...` for push. Draft saves go via `POST /api/editor-session/:token/draft` which broadcasts `draft_update` to all connected editors and the plugin WS for the same server. Sessions expire after 30 min of inactivity (auto-refreshed every 10 min while active). Multiple concurrent tokens allowed — no auto-revocation.
 
@@ -24,12 +24,12 @@
 - `backend/src/app.ts` — mount `/api/editor-session`, add `/ws/editor` endpoint
 
 **Plugin — new/modified:**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt` — add `editorConsoleOnly`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt` — add `editorConsoleOnly`
 - `plugin/src/main/resources/config.yml` — add `editor.console_only` default
-- `plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt` — add `requestEditorSession`, `revokeEditorSessions`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` — implement the two new methods, handle `editor_session_ready`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` — add `send(msg: String)` if absent
-- `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt` — add `editor`/`editor revoke` subcommands
+- `plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt` — add `requestEditorSession`, `revokeEditorSessions`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` — implement the two new methods, handle `editor_session_ready`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` — add `send(msg: String)` if absent
+- `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt` — add `editor`/`editor revoke` subcommands
 - `plugin/src/main/resources/plugin.yml` — update usage string
 
 **Editor — new:**
@@ -853,7 +853,7 @@ cd backend && rtk git add src/ws/hub.ts src/ws/hub.test.ts src/app.ts && rtk git
 ## Task 7: Plugin — `PluginConfig` + default config
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`
 - Modify: `plugin/src/main/resources/config.yml`
 
 - [ ] **Step 1: Add `editorConsoleOnly` to `PluginConfig.kt`**
@@ -861,7 +861,7 @@ cd backend && rtk git add src/ws/hub.ts src/ws/hub.test.ts src/app.ts && rtk git
 Full file:
 
 ```kotlin
-package gg.interfaze.plugin.config
+package net.artisanmc.plugin.config
 
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -874,8 +874,8 @@ data class PluginConfig(
     companion object {
         fun from(cfg: FileConfiguration) = PluginConfig(
             serverKey        = cfg.getString("server_key", "") ?: "",
-            wsUrl            = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
-            packsDir         = cfg.getString("packs_dir", "plugins/Interfaze/packs") ?: "",
+            wsUrl            = cfg.getString("ws_url", "wss://editor.artisanmc.net/ws/plugin") ?: "",
+            packsDir         = cfg.getString("packs_dir", "plugins/Artisan/packs") ?: "",
             editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
         )
     }
@@ -885,17 +885,17 @@ data class PluginConfig(
 - [ ] **Step 2: Update `plugin/src/main/resources/config.yml`**
 
 ```yaml
-# Set to connect this server to the Interfaze editor backend for live sync.
+# Set to connect this server to the Artisan editor backend for live sync.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 
 # Path relative to the server root where exported pack bundles are stored.
-packs_dir: "plugins/Interfaze/packs"
+packs_dir: "plugins/Artisan/packs"
 
 # Editor access settings.
 editor:
-  # Set to true to restrict /ifz editor to console only (no in-game players).
+  # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
 ```
 
@@ -909,7 +909,7 @@ Expected: all tests PASS (PluginConfig is parsed in existing tests — verify no
 - [ ] **Step 4: Commit**
 
 ```bash
-cd plugin && rtk git add src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt src/main/resources/config.yml && rtk git commit -m "feat(plugin): add editor.console_only to PluginConfig"
+cd plugin && rtk git add src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt src/main/resources/config.yml && rtk git commit -m "feat(plugin): add editor.console_only to PluginConfig"
 ```
 
 ---
@@ -917,16 +917,16 @@ cd plugin && rtk git add src/main/kotlin/gg/interfaze/plugin/config/PluginConfig
 ## Task 8: Plugin — `MenuProvider` interface + `SyncedMenuProvider` editor methods
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` (add `send` if absent)
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/EditorSessionTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` (add `send` if absent)
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/EditorSessionTest.kt`
 
 - [ ] **Step 1: Read `WsClient.kt` and `MenuProvider.kt`**
 
 ```bash
-cat plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt
-cat plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt
+cat plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt
+cat plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt
 ```
 
 Check whether `WsClient` already exposes a `send(msg: String): Boolean` method. If not, add it in Step 2.
@@ -952,13 +952,13 @@ fun revokeEditorSessions() {}
 
 - [ ] **Step 4: Write failing test**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/EditorSessionTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/EditorSessionTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import gg.interfaze.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
@@ -995,7 +995,7 @@ class EditorSessionTest {
         }))
         server.start()
 
-        val packsDir = Files.createTempDirectory("ifz_test_packs").toFile()
+        val packsDir = Files.createTempDirectory("artisan_test_packs").toFile()
         val provider = SyncedMenuProvider(
             packsDir  = packsDir,
             serverKey = "sk_" + "a".repeat(64),
@@ -1034,7 +1034,7 @@ class EditorSessionTest {
         }))
         server.start()
 
-        val packsDir = Files.createTempDirectory("ifz_test_packs2").toFile()
+        val packsDir = Files.createTempDirectory("artisan_test_packs2").toFile()
         val provider = SyncedMenuProvider(
             packsDir  = packsDir,
             serverKey = "sk_" + "b".repeat(64),
@@ -1059,7 +1059,7 @@ Note: the test uses `serverKey = "sk_" + "a".repeat(64)` which will fail the rea
 - [ ] **Step 5: Run — expect failure**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.EditorSessionTest" 2>&1 | tail -20
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.EditorSessionTest" 2>&1 | tail -20
 ```
 Expected: `Unresolved reference: requestEditorSession`.
 
@@ -1101,7 +1101,7 @@ Where `node` is the parsed JSON — use the same JSON parsing idiom already in `
 - [ ] **Step 7: Run — expect pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.EditorSessionTest" 2>&1 | tail -15
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.EditorSessionTest" 2>&1 | tail -15
 ```
 Expected: 2 tests PASS.
 
@@ -1115,24 +1115,24 @@ Expected: all tests PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-cd plugin && rtk git add src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt src/test/kotlin/gg/interfaze/plugin/EditorSessionTest.kt && rtk git commit -m "feat(plugin): requestEditorSession and revokeEditorSessions on SyncedMenuProvider"
+cd plugin && rtk git add src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt src/test/kotlin/net/artisanmc/plugin/EditorSessionTest.kt && rtk git commit -m "feat(plugin): requestEditorSession and revokeEditorSessions on SyncedMenuProvider"
 ```
 
 ---
 
-## Task 9: Plugin — `/ifz editor` command
+## Task 9: Plugin — `/artisan editor` command
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
 - Modify: `plugin/src/main/resources/plugin.yml`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/EditorCommandTest.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/EditorCommandTest.kt`
 
 - [ ] **Step 1: Write failing test**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/EditorCommandTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/EditorCommandTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import kotlin.test.AfterTest
@@ -1147,7 +1147,7 @@ class EditorCommandTest {
 
     @Test
     fun `editor subcommand is accepted without exception`() {
-        val plugin = MockBukkit.load(InterfazePlugin::class.java)
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val sender = MockBukkit.getMock().consoleSender
         // Should not throw; will fail gracefully (ws_url not configured in test)
         val result = plugin.onCommand(sender, plugin.getCommand("ifz")!!, "ifz", arrayOf("editor"))
@@ -1156,7 +1156,7 @@ class EditorCommandTest {
 
     @Test
     fun `editor revoke subcommand is accepted without exception`() {
-        val plugin = MockBukkit.load(InterfazePlugin::class.java)
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val sender = MockBukkit.getMock().consoleSender
         val result = plugin.onCommand(sender, plugin.getCommand("ifz")!!, "ifz", arrayOf("editor", "revoke"))
         assertTrue(result, "Command should return true")
@@ -1167,21 +1167,21 @@ class EditorCommandTest {
 - [ ] **Step 2: Run — expect failure**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.EditorCommandTest" 2>&1 | tail -20
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.EditorCommandTest" 2>&1 | tail -20
 ```
 Expected: `editor` subcommand falls through to usage message (result is true but wrong branch).
 
-- [ ] **Step 3: Update `IfzCommand.kt`**
+- [ ] **Step 3: Update `ArtisanCommand.kt`**
 
 Full file:
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.InterfazePlugin
-import gg.interfaze.plugin.config.ConfigWriter
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.ws.SetupClient
+import net.artisanmc.plugin.ArtisanPlugin
+import net.artisanmc.plugin.config.ConfigWriter
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.ws.SetupClient
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -1189,7 +1189,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
+class ArtisanCommand(private val plugin: ArtisanPlugin) : CommandExecutor {
 
     @Volatile private var setupClient: SetupClient? = null
 
@@ -1202,13 +1202,13 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 if (sender !is Player) { sender.sendMessage("In-game only."); return true }
-                val menuId = args.getOrNull(1) ?: run { sender.sendMessage("Usage: /ifz menu <id>"); return true }
+                val menuId = args.getOrNull(1) ?: run { sender.sendMessage("Usage: /artisan menu <id>"); return true }
                 plugin.menuProvider.openMenu(sender, menuId, "en")
             }
             "reload" -> {
                 plugin.menuProvider.unload()
                 plugin.menuProvider.load()
-                sender.sendMessage("Interfaze reloaded.")
+                sender.sendMessage("Artisan reloaded.")
             }
             "sync" -> {
                 when (args.getOrNull(1)?.lowercase()) {
@@ -1218,7 +1218,7 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                         plugin.menuProvider.load()
                         sender.sendMessage("Reconnecting to backend — backend version will be applied if available.")
                     }
-                    else -> sender.sendMessage("Usage: /ifz sync <status|reject>")
+                    else -> sender.sendMessage("Usage: /artisan sync <status|reject>")
                 }
             }
             "setup" -> setup(sender, args.getOrNull(1)?.uppercase())
@@ -1226,10 +1226,10 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                 when (args.getOrNull(1)?.lowercase()) {
                     "revoke" -> editorRevoke(sender)
                     null     -> editor(sender)
-                    else     -> sender.sendMessage("Usage: /ifz editor [revoke]")
+                    else     -> sender.sendMessage("Usage: /artisan editor [revoke]")
                 }
             }
-            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>")
+            else -> sender.sendMessage("Usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>")
         }
         return true
     }
@@ -1237,33 +1237,33 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
     private fun editor(sender: CommandSender) {
         val cfg = PluginConfig.from(plugin.config)
         if (cfg.editorConsoleOnly && sender !is ConsoleCommandSender) {
-            sender.sendMessage("[Interfaze] /ifz editor est réservé à la console (editor.console_only=true).")
+            sender.sendMessage("[Artisan] /artisan editor est réservé à la console (editor.console_only=true).")
             return
         }
-        if (!sender.hasPermission("interfaze.editor")) {
-            sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+        if (!sender.hasPermission("artisan.editor")) {
+            sender.sendMessage("[Artisan] Permission manquante : artisan.editor")
             return
         }
         if (cfg.wsUrl.isEmpty() || cfg.serverKey.isEmpty()) {
-            sender.sendMessage("[Interfaze] Le serveur n'est pas lié. Lancez /ifz setup.")
+            sender.sendMessage("[Artisan] Le serveur n'est pas lié. Lancez /artisan setup.")
             return
         }
         val senderName = if (sender is Player) sender.name else "CONSOLE"
         plugin.menuProvider.requestEditorSession(senderName) { url, expiresAt ->
             Bukkit.getScheduler().runTask(plugin, Runnable {
-                sender.sendMessage("[Interfaze] Éditeur → $url")
-                sender.sendMessage("[Interfaze] (expire le $expiresAt)")
+                sender.sendMessage("[Artisan] Éditeur → $url")
+                sender.sendMessage("[Artisan] (expire le $expiresAt)")
             })
         }
     }
 
     private fun editorRevoke(sender: CommandSender) {
-        if (!sender.hasPermission("interfaze.editor")) {
-            sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+        if (!sender.hasPermission("artisan.editor")) {
+            sender.sendMessage("[Artisan] Permission manquante : artisan.editor")
             return
         }
         plugin.menuProvider.revokeEditorSessions()
-        sender.sendMessage("[Interfaze] Toutes les sessions éditeur ont été révoquées.")
+        sender.sendMessage("[Artisan] Toutes les sessions éditeur ont été révoquées.")
     }
 
     private fun setup(sender: CommandSender, code: String?) {
@@ -1271,27 +1271,27 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         setupClient = null
         val cfg = PluginConfig.from(plugin.config)
         if (cfg.wsUrl.isEmpty()) {
-            sender.sendMessage("[Interfaze] ws_url is not configured in config.yml.")
+            sender.sendMessage("[Artisan] ws_url is not configured in config.yml.")
             return
         }
-        sender.sendMessage("[Interfaze] Connexion au backend en cours...")
+        sender.sendMessage("[Artisan] Connexion au backend en cours...")
         val configFile = plugin.dataFolder.resolve("config.yml")
         setupClient = SetupClient(
             url = cfg.wsUrl,
             code = code,
             onCode = { receivedCode, url ->
-                val msg = "[Interfaze] Lier ce serveur : $url"
+                val msg = "[Artisan] Lier ce serveur : $url"
                 plugin.logger.info(msg)
                 Bukkit.getScheduler().runTask(plugin, Runnable { sender.sendMessage(msg) })
             },
             onLinked = { serverKey ->
                 ConfigWriter.writeServerKey(configFile, serverKey)
-                plugin.logger.info("[Interfaze] Serveur lié ✓ (server_key écrit dans config.yml)")
+                plugin.logger.info("[Artisan] Serveur lié ✓ (server_key écrit dans config.yml)")
                 Bukkit.getScheduler().runTask(plugin, Runnable {
-                    sender.sendMessage("[Interfaze] Serveur lié ✓ Rechargement en cours...")
+                    sender.sendMessage("[Artisan] Serveur lié ✓ Rechargement en cours...")
                     plugin.reloadConfig()
                     plugin.reinit(PluginConfig.from(plugin.config))
-                    sender.sendMessage("[Interfaze] Prêt.")
+                    sender.sendMessage("[Artisan] Prêt.")
                 })
             },
         )
@@ -1303,26 +1303,26 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
 - [ ] **Step 4: Update `plugin.yml` usage string**
 
 ```yaml
-name: Interfaze
+name: Artisan
 version: '1.0.0'
-main: gg.interfaze.plugin.InterfazePlugin
+main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
-description: Interfaze GUI editor plugin
+description: Artisan GUI editor plugin
 commands:
   ifz:
-    description: Interfaze commands
-    usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>
+    description: Artisan commands
+    usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>
     default: op
 permissions:
-  interfaze.editor:
-    description: Allows opening the Interfaze web editor
+  artisan.editor:
+    description: Allows opening the Artisan web editor
     default: op
 ```
 
 - [ ] **Step 5: Run — expect pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.EditorCommandTest" 2>&1 | tail -15
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.EditorCommandTest" 2>&1 | tail -15
 ```
 Expected: 2 tests PASS.
 
@@ -1336,7 +1336,7 @@ Expected: all tests PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-cd plugin && rtk git add src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt src/main/resources/plugin.yml src/test/kotlin/gg/interfaze/plugin/EditorCommandTest.kt && rtk git commit -m "feat(plugin): /ifz editor and /ifz editor revoke commands"
+cd plugin && rtk git add src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt src/main/resources/plugin.yml src/test/kotlin/net/artisanmc/plugin/EditorCommandTest.kt && rtk git commit -m "feat(plugin): /artisan editor and /artisan editor revoke commands"
 ```
 
 ---
@@ -1526,7 +1526,7 @@ function SessionPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-destructive text-lg">Session invalide.</p>
-        <p className="text-muted-foreground text-sm">Relancez <code>/ifz editor</code> sur votre serveur Minecraft.</p>
+        <p className="text-muted-foreground text-sm">Relancez <code>/artisan editor</code> sur votre serveur Minecraft.</p>
       </div>
     );
   }
@@ -1535,7 +1535,7 @@ function SessionPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-lg font-medium">Session expirée</p>
-        <p className="text-muted-foreground text-sm">Relancez <code>/ifz editor</code> sur votre serveur Minecraft pour obtenir un nouveau lien.</p>
+        <p className="text-muted-foreground text-sm">Relancez <code>/artisan editor</code> sur votre serveur Minecraft pour obtenir un nouveau lien.</p>
       </div>
     );
   }
@@ -1589,14 +1589,14 @@ cd editor && rtk git add src/routes/session.tsx src/routeTree.gen.ts src/lib/edi
 ## Self-review
 
 **Spec coverage:**
-- `/ifz editor` command with `interfaze.editor` permission: Task 9 ✓
+- `/artisan editor` command with `artisan.editor` permission: Task 9 ✓
 - `editor.console_only` config option: Task 7 ✓
 - Session token 30 chars crypto-random: Task 2 (`generateEditorToken`) ✓
 - `editor_sessions` DB table: Task 1 ✓
 - Token auto-extended on activity: Task 5 (`POST /refresh`), Task 12 (10-min interval) ✓
 - Session expired push to WS: Task 6 (`session_expired` in `editor_session_revoke`) ✓
 - Multiple concurrent sessions (no auto-revoke): no single-token limit in Task 6 ✓
-- `/ifz editor revoke` kills all sessions: Task 6 (`editor_session_revoke` handler) + Task 9 ✓
+- `/artisan editor revoke` kills all sessions: Task 6 (`editor_session_revoke` handler) + Task 9 ✓
 - Token stripped from URL bar: Task 12 (`history.replaceState`) ✓
 - Rate limiting on validate endpoint: Task 5 (`checkRateLimit`) ✓
 - WS editor channel (`/ws/editor`): Task 6 ✓

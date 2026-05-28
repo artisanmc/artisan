@@ -17,13 +17,13 @@
   - `backend/src/db/schema.ts`
   - `editor/package.json`, `editor/package-lock.json`, `editor/tests/setup.ts`
   - `editor/src/features/export/transform.ts`, `editor/src/features/export/transform.test.ts` (the condition-serialization rewrite)
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt`
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ConditionParser.kt`
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/engine/SoftDepRegistry.kt`
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt`
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt`
-  - `plugin/src/test/kotlin/gg/interfaze/plugin/BundleCompilerTest.kt`
-  - `plugin/src/test/kotlin/gg/interfaze/plugin/ConditionParserTest.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionParser.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/engine/SoftDepRegistry.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`
+  - `plugin/src/test/kotlin/net/artisanmc/plugin/BundleCompilerTest.kt`
+  - `plugin/src/test/kotlin/net/artisanmc/plugin/ConditionParserTest.kt`
 - **Always use explicit `git add <paths>` per task.** Never `git add -A`.
 
 ## File structure overview
@@ -549,7 +549,7 @@ describe("TitleRender", () => {
       assets: [{
         id: A("f1"), serverKeyId: "sk", type: "font", name: "myfont", width: 0, height: 0,
         ascent: null, codepoint: null,
-        fontMeta: { namespace: "interfaze:myfont", glyphMap: [] },
+        fontMeta: { namespace: "artisan:myfont", glyphMap: [] },
         contentHash: "h", createdAt: "", updatedAt: "",
       }],
     } as any);
@@ -1442,7 +1442,7 @@ describe("LayerSidePanel — text branch", () => {
       assets: [{
         id: "f1" as any, serverKeyId: "sk", type: "font", name: "myfont",
         width: 0, height: 0, ascent: null, codepoint: null,
-        fontMeta: { namespace: "interfaze:myfont", glyphMap: [] },
+        fontMeta: { namespace: "artisan:myfont", glyphMap: [] },
         contentHash: "h", createdAt: "", updatedAt: "",
       }],
     } as any);

@@ -38,9 +38,9 @@ YAML on-wire mirror : `size: 16` (entier). Omis si égal à 8 (default), pour mi
 
 ### Renommage `text_y{Y}.json` → `text_y{Y}_h{H}.json`
 
-Aujourd'hui : `backend/src/lib/resourcePackBuilder.ts` bake `text_y{Y}.json` pour Y ∈ [-32, 172] via `buildTextYFontJson(y)` à `backend/src/lib/fontJsonBuilder.ts:103`. Le plugin (`TitleCompiler.kt`) référence `<font:interfaze:text_y${clampedY}>`.
+Aujourd'hui : `backend/src/lib/resourcePackBuilder.ts` bake `text_y{Y}.json` pour Y ∈ [-32, 172] via `buildTextYFontJson(y)` à `backend/src/lib/fontJsonBuilder.ts:103`. Le plugin (`TitleCompiler.kt`) référence `<font:artisan:text_y${clampedY}>`.
 
-Nouveau : `buildTextYFontJson(y, h)` accepte un height. Pour chaque (Y, H) du produit cartésien, émet `text_y{Y}_h{H}.json`. Le plugin référence `<font:interfaze:text_y${Y}_h${H}>` avec H=8 par défaut quand le layer n'a pas de `size`.
+Nouveau : `buildTextYFontJson(y, h)` accepte un height. Pour chaque (Y, H) du produit cartésien, émet `text_y{Y}_h{H}.json`. Le plugin référence `<font:artisan:text_y${Y}_h${H}>` avec H=8 par défaut quand le layer n'a pas de `size`.
 
 ### Échelle de rendu
 
@@ -70,7 +70,7 @@ L'ascent reste inchangé : le top du glyphe est positionné par ascent uniquemen
 
 ### `TitleCompiler.kt`
 
-- Wrap : `<font:interfaze:text_y${clampedY}_h${H}>$colored</font>` (et idem pour textarea). H = `layer.size ?: 8`.
+- Wrap : `<font:artisan:text_y${clampedY}_h${H}>$colored</font>` (et idem pour textarea). H = `layer.size ?: 8`.
 - Width estimation : multiplier `estimateTextWidth(content)` par `H / 8.0` (Double pour préserver précision sur les scales fractionnaires, puis `.toInt()`).
 - Clamp Y : pas de changement (même range [-32, 172]).
 - Suppression de l'ancien format `text_y${Y}` sans suffixe `_h` : le plugin n'émet plus que la nouvelle forme. Les `text_y{Y}.json` sans size deviennent obsolètes et sont retirés du bake.

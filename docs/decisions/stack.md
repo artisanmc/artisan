@@ -1,4 +1,4 @@
-# Interfaze — Stack technique
+# Artisan — Stack technique
 
 Décisions consolidées sur la stack du produit, avec rationale et alternatives écartées. Document vivant : à mettre à jour quand on revisite un choix.
 
@@ -65,7 +65,7 @@ export default { port, fetch: app.fetch, websocket };
 
 ```ts
 // db/index.ts
-const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/interfaze");
+const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/artisan");
 export const db = drizzle(client, { schema });
 ```
 
@@ -83,7 +83,7 @@ Les sessions sont en mémoire (`activeSessions`, `sessionSenders` dans `hub.ts`)
 
 Le canvas est un `<Stage>` Konva unique. Les menus sont des `<Group>` positionnés avec `menuLayout.ts`, les items des `<Rect>` + `<Image>`, le texte en MiniMessage rendu par `MiniMessageKonvaText.tsx`. Pan/zoom géré par `usePanZoom.ts`.
 
-Pas de React Flow : les menus Interfaze ne sont pas des nœuds dans un graphe. Ce sont des compositions d'items dans une grille. Les "edges" visuelles entre menus (actions `open_menu`) sont rendues custom avec `deriveEdges.ts`.
+Pas de React Flow : les menus Artisan ne sont pas des nœuds dans un graphe. Ce sont des compositions d'items dans une grille. Les "edges" visuelles entre menus (actions `open_menu`) sont rendues custom avec `deriveEdges.ts`.
 
 ### Zustand + Zundo
 

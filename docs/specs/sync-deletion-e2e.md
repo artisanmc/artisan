@@ -5,7 +5,7 @@ Scénario à exécuter manuellement après le merge du feature `sync-deletion`. 
 ## Préparation
 
 ```bash
-cd /path/to/Interfaze
+cd /path/to/Artisan
 docker compose up -d
 ```
 
@@ -13,18 +13,18 @@ Attendre que les trois services soient up : backend (3001), editor (5173), minec
 
 ## Bug A — suppressions éditeur propagées sur disque
 
-1. Ouvrir l'éditeur (URL via `/ifz editor` en jeu), créer un pack `e2e_test`.
+1. Ouvrir l'éditeur (URL via `/artisan editor` en jeu), créer un pack `e2e_test`.
 2. Ajouter 3 menus : `menu_a`, `menu_b`, `menu_c`. Publier.
-3. Sur le serveur Minecraft, vérifier que `/server-data/plugins/Interfaze/packs/e2e_test/menus/` contient les 3 YAML.
+3. Sur le serveur Minecraft, vérifier que `/server-data/plugins/Artisan/packs/e2e_test/menus/` contient les 3 YAML.
 4. Dans l'éditeur, supprimer `menu_b`. Publier.
-5. **Attendu :** `menus/menu_b.yaml` disparait du disque serveur. `menu_a.yaml` et `menu_c.yaml` restent. `.interfaze-sync.yaml` conservé.
+5. **Attendu :** `menus/menu_b.yaml` disparait du disque serveur. `menu_a.yaml` et `menu_c.yaml` restent. `.artisan-sync.yaml` conservé.
 
 ## Bug B — divergence disque ↔ backend détectée et résolue
 
 ### Sous-scénario 1 : LOCAL_ONLY, "Garder l'éditeur"
 
 1. Stopper le serveur Minecraft (`docker compose stop minecraft`).
-2. SSH (ou exec) dans le container, supprimer un YAML manuellement : `rm /server-data/plugins/Interfaze/packs/e2e_test/menus/menu_c.yaml`.
+2. SSH (ou exec) dans le container, supprimer un YAML manuellement : `rm /server-data/plugins/Artisan/packs/e2e_test/menus/menu_c.yaml`.
 3. Redémarrer le serveur.
 4. Ouvrir l'éditeur. **Attendu :** banner conflit en haut du canvas avec "1 conflit détecté".
 5. Cliquer "Voir détails" → modal liste `e2e_test` avec `- 1 fichier supprimé (menus/menu_c.yaml)`.
@@ -52,11 +52,11 @@ Attendre que les trois services soient up : backend (3001), editor (5173), minec
 4. Cliquer "Supprimer".
 5. **Attendu :**
    - Le pack disparait de la liste éditeur.
-   - Sur le disque serveur, le dossier `packs/e2e_test/` est déplacé vers `packs/.interfaze-trash/e2e_test-<timestamp>/`.
+   - Sur le disque serveur, le dossier `packs/e2e_test/` est déplacé vers `packs/.artisan-trash/e2e_test-<timestamp>/`.
    - Aucune erreur dans les logs plugin.
 
 ## Edge cases à observer
 
 - **Multi-onglets** : ouvrir deux onglets éditeur. Provoquer un conflit. Un onglet résout. Vérifier que l'autre onglet voit le banner disparaître automatiquement (via `pack_conflict_resolved`).
 - **Publish pendant conflit** : provoquer un conflit, vérifier que le bouton Publier est désactivé pour le pack en question.
-- **Reload pendant freeze** : provoquer un conflit, ne pas le résoudre, exécuter `/ifz reload` en jeu. Vérifier qu'aucun `bundle_available` n'est broadcast (le pack reste sur sa version disque actuelle).
+- **Reload pendant freeze** : provoquer un conflit, ne pas le résoudre, exécuter `/artisan reload` en jeu. Vérifier qu'aucun `bundle_available` n'est broadcast (le pack reste sur sa version disque actuelle).

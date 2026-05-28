@@ -2,12 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Livrer le modèle "backend = source de vérité" complet : retrait UI conflits (backend + éditeur + plugin), setup wizard logged-in pour générer Network + Pack + server_key, gestion REST des Networks par les users, ouverture/édition de packs en mode logged-in, et nouvelle commande `/ifz pushLocal` pour les admins qui éditent via FTP.
+**Goal:** Livrer le modèle "backend = source de vérité" complet : retrait UI conflits (backend + éditeur + plugin), setup wizard logged-in pour générer Network + Pack + server_key, gestion REST des Networks par les users, ouverture/édition de packs en mode logged-in, et nouvelle commande `/artisan pushLocal` pour les admins qui éditent via FTP.
 
 **Architecture:**
-- **Backend** : nouveau routeur `userNetworks` exposant `/api/networks/*` (gated par cookie `ifz_user_session` + membership check). Nouveau routeur `userPacks` exposant `/api/user/packs/*` pour l'édition logged-in. Table `pack_conflicts` + `conflictDiff.ts` + `conflicts.ts` supprimés. Message WS `pack_divergence_detected` retiré du hub (no-op accepté). Nouveau message WS `local_push` pour le flow `/ifz pushLocal`.
+- **Backend** : nouveau routeur `userNetworks` exposant `/api/networks/*` (gated par cookie `artisan_user_session` + membership check). Nouveau routeur `userPacks` exposant `/api/user/packs/*` pour l'édition logged-in. Table `pack_conflicts` + `conflictDiff.ts` + `conflicts.ts` supprimés. Message WS `pack_divergence_detected` retiré du hub (no-op accepté). Nouveau message WS `local_push` pour le flow `/artisan pushLocal`.
 - **Editor** : nouvelles routes `/setup`, `/networks`, `/networks/$networkId`. `Account` page liste les Networks. `pack.$packId` route détecte le mode (session-token vs user-cookie) et route les API calls. `ConflictBanner`/`Modal`/`conflictsStore`/conflict client supprimés. Nouveau store `networksStore`.
-- **Plugin** : `SyncedMenuProvider.handleMessage` ne fire plus `pack_divergence_detected` (juste un WARN une fois sur mismatch + auto-overwrite local). Nouvelle subcommand `IfzCommand.pushLocal(packId|--all)` qui envoie un message WS `local_push` au backend.
+- **Plugin** : `SyncedMenuProvider.handleMessage` ne fire plus `pack_divergence_detected` (juste un WARN une fois sur mismatch + auto-overwrite local). Nouvelle subcommand `ArtisanCommand.pushLocal(packId|--all)` qui envoie un message WS `local_push` au backend.
 
 **Tech Stack:** TypeScript, Bun, Hono, Drizzle ORM (PostgreSQL), React 19, Vite 6, Zustand, TanStack Router, Vitest, Kotlin 2.0, Paper 1.21, JUnit 5.
 
@@ -80,15 +80,15 @@
 ### Fichiers modifiés (plugin)
 
 - `plugin/src/main/kotlin/.../provider/SyncedMenuProvider.kt` — retirer émission `pack_divergence_detected` ; ajouter WARN log unique sur mismatch
-- `plugin/src/main/kotlin/.../command/IfzCommand.kt` — ajouter subcommand `pushLocal`
+- `plugin/src/main/kotlin/.../command/ArtisanCommand.kt` — ajouter subcommand `pushLocal`
 - `plugin/src/main/kotlin/.../sync/LocalPushSender.kt` (nouveau) — lecture fichiers locaux + envoi WS `local_push`
 - `plugin/src/test/kotlin/.../sync/LocalPushSenderTest.kt` (nouveau)
 - `plugin/src/test/kotlin/.../ConflictDetectionTest.kt` — supprimé (l'émission disparaît)
 
 ### Doc updates (Section K)
 
-- `Interfaze/CLAUDE.md` — table commandes plugin (ajouter `pushLocal`), table protocole WS (retrait `pack_conflict_*`, ajout `local_push`), table endpoints (ajouter `/api/networks/*` et `/api/user/packs/*`, retirer `/api/.../conflicts/*`)
-- `docs-site/src/content/docs/getting-started/install-admin.md` — mentionner `/ifz pushLocal` et la procédure FTP
+- `Artisan/CLAUDE.md` — table commandes plugin (ajouter `pushLocal`), table protocole WS (retrait `pack_conflict_*`, ajout `local_push`), table endpoints (ajouter `/api/networks/*` et `/api/user/packs/*`, retirer `/api/.../conflicts/*`)
+- `docs-site/src/content/docs/getting-started/install-admin.md` — mentionner `/artisan pushLocal` et la procédure FTP
 - `.claude/skills/sync-docs/doc-impact-map.yaml` — ajouter les nouveaux chemins
 
 ---
@@ -237,7 +237,7 @@ git commit -m "feat(backend): membershipGuard (isMember + requireMember + getNet
 - Create: `backend/src/routes/userNetworks.ts`
 - Test: `backend/src/routes/userNetworks.test.ts`
 
-The router mounts at `/api/networks` and is gated by `userAuth` middleware (from Plan 1A) which validates `ifz_user_session` cookie and sets `c.var.userId`.
+The router mounts at `/api/networks` and is gated by `userAuth` middleware (from Plan 1A) which validates `artisan_user_session` cookie and sets `c.var.userId`.
 
 - [ ] **Step 1 : Test**
 
@@ -292,7 +292,7 @@ describe("userNetworksRouter", () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
     const res = await app.request("/api/networks", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -311,7 +311,7 @@ describe("userNetworksRouter", () => {
     const res = await app.request("/api/networks", {
       method: "POST",
       headers: {
-        Cookie: `ifz_user_session=${sessionId}`,
+        Cookie: `artisan_user_session=${sessionId}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: "My Network" }),
@@ -332,7 +332,7 @@ describe("userNetworksRouter", () => {
     const res = await app.request("/api/networks", {
       method: "POST",
       headers: {
-        Cookie: `ifz_user_session=${sessionId}`,
+        Cookie: `artisan_user_session=${sessionId}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({}),
@@ -345,17 +345,17 @@ describe("userNetworksRouter", () => {
     const app = makeApp();
     await app.request("/api/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N1" }),
     });
     await app.request("/api/networks", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "N2" }),
     });
 
     const list = await (await app.request("/api/networks", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     })).json();
     expect(list.networks).toHaveLength(2);
     expect(list.networks.map((n: { name: string }) => n.name).sort()).toEqual(["N1", "N2"]);
@@ -448,7 +448,7 @@ test("GET /api/networks/:id returns detail with packs + serverKeys", async () =>
   // Create network
   const create = await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N1" }),
   });
   const { network } = await create.json();
@@ -465,7 +465,7 @@ test("GET /api/networks/:id returns detail with packs + serverKeys", async () =>
   });
 
   const res = await app.request(`/api/networks/${network.id}`, {
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   expect(res.status).toBe(200);
   const body = await res.json();
@@ -484,7 +484,7 @@ test("GET /api/networks/:id 403 when not member", async () => {
   // uA creates a network
   const create = await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N" }),
   });
   const { network } = await create.json();
@@ -493,7 +493,7 @@ test("GET /api/networks/:id 403 when not member", async () => {
   const { createSession } = await import("../lib/sessionManager");
   const sessB = (await createSession("uB")).id;
   const res = await app.request(`/api/networks/${network.id}`, {
-    headers: { Cookie: `ifz_user_session=${sessB}` },
+    headers: { Cookie: `artisan_user_session=${sessB}` },
   });
   expect(res.status).toBe(403);
 });
@@ -550,13 +550,13 @@ test("POST /api/networks/:id/server-keys creates server_key and returns plaintex
   const app = makeApp();
   const { network } = await (await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N" }),
   })).json();
 
   const res = await app.request(`/api/networks/${network.id}/server-keys`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ label: "test-server" }),
   });
   expect(res.status).toBe(201);
@@ -575,7 +575,7 @@ test("POST /api/networks/:id/server-keys 403 when not member", async () => {
   const app = makeApp();
   const { network } = await (await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessA}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N" }),
   })).json();
 
@@ -583,7 +583,7 @@ test("POST /api/networks/:id/server-keys 403 when not member", async () => {
   const sessB = (await createSession("uB")).id;
   const res = await app.request(`/api/networks/${network.id}/server-keys`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessB}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
     body: JSON.stringify({ label: "x" }),
   });
   expect(res.status).toBe(403);
@@ -638,13 +638,13 @@ test("POST /api/networks/:id/packs creates pack in network", async () => {
   const app = makeApp();
   const { network } = await (await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N" }),
   })).json();
 
   const res = await app.request(`/api/networks/${network.id}/packs`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "my-pack", description: "desc" }),
   });
   expect(res.status).toBe(201);
@@ -705,20 +705,20 @@ test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () =
   const app = makeApp();
   const { network } = await (await app.request("/api/networks", {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "N" }),
   })).json();
 
   const skRes = await app.request(`/api/networks/${network.id}/server-keys`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
   const { id: skId } = await skRes.json();
 
   const packRes = await app.request(`/api/networks/${network.id}/packs`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "p" }),
   });
   const { pack } = await packRes.json();
@@ -726,7 +726,7 @@ test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () =
   // Bind
   const bind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   expect(bind.status).toBe(201);
 
@@ -737,7 +737,7 @@ test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () =
   // Unbind
   const unbind = await app.request(`/api/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
     method: "DELETE",
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   expect(unbind.status).toBe(204);
 
@@ -865,7 +865,7 @@ describe("userPacksRouter — GET", () => {
     const { sessionId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/user/packs/${packId}`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -885,7 +885,7 @@ describe("userPacksRouter — GET", () => {
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
     const res = await app.request(`/api/user/packs/${packId}`, {
-      headers: { Cookie: `ifz_user_session=${sessB}` },
+      headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
@@ -894,7 +894,7 @@ describe("userPacksRouter — GET", () => {
     const { sessionId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request("/api/user/packs/pack_nope", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(404);
   });
@@ -969,7 +969,7 @@ describe("userPacksRouter — PUT", () => {
     const app = makeApp();
     const res = await app.request(`/api/user/packs/${packId}`, {
       method: "PUT",
-      headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         hash: "newhash",
         files: { "a.yaml": "x" },
@@ -993,7 +993,7 @@ describe("userPacksRouter — PUT", () => {
     const app = makeApp();
     const res = await app.request(`/api/user/packs/${packId}`, {
       method: "PUT",
-      headers: { Cookie: `ifz_user_session=${sessB}`, "Content-Type": "application/json" },
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
       body: JSON.stringify({ hash: "x", files: {}, editor: {} }),
     });
     expect(res.status).toBe(403);
@@ -1226,7 +1226,7 @@ git commit -m "refactor(backend): drop PackConflict* message types from protocol
 
 ---
 
-## Section D — Backend: WS `local_push` handler for /ifz pushLocal
+## Section D — Backend: WS `local_push` handler for /artisan pushLocal
 
 ### Task D1 : Add `local_push` message handler
 
@@ -1340,7 +1340,7 @@ import { createBinding, listPacksForServerKey } from "../lib/packBindingManager"
 
 ```bash
 git add backend/src/ws/hub.ts backend/src/ws/hub.test.ts backend/src/protocol.ts
-git commit -m "feat(backend): WS local_push handler (/ifz pushLocal flow)"
+git commit -m "feat(backend): WS local_push handler (/artisan pushLocal flow)"
 ```
 
 ---
@@ -2381,11 +2381,11 @@ describe("Step4Install", () => {
     expect(screen.getByText(/ws_url:/)).toBeTruthy();
   });
 
-  it("shows '/ifz reload' instruction", () => {
+  it("shows '/artisan reload' instruction", () => {
     render(<Step4Install state={{
       networkId: "n1", packId: "p1", serverKey: "sk_abc", serverKeyId: "id",
     }} setState={() => {}} />);
-    expect(screen.getByText(/ifz reload/)).toBeTruthy();
+    expect(screen.getByText(/artisan reload/)).toBeTruthy();
   });
 });
 ```
@@ -2403,16 +2403,16 @@ interface Props {
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }
 
-const WS_URL = import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://editor.interfaze.gg/ws/plugin";
+const WS_URL = import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://editor.artisanmc.net/ws/plugin";
 
 export function Step4Install({ state }: Props) {
   if (!state.serverKey) return <div>No server key generated.</div>;
   const snippet = `server_key: "${state.serverKey}"\nws_url: "${WS_URL}"`;
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm">Add the following to your <code>plugins/Interfaze/config.yml</code>:</div>
+      <div className="text-sm">Add the following to your <code>plugins/Artisan/config.yml</code>:</div>
       <pre className="bg-muted p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">{snippet}</pre>
-      <div className="text-sm">Then, in your MC server console: <code>/ifz reload</code></div>
+      <div className="text-sm">Then, in your MC server console: <code>/artisan reload</code></div>
       <div className="text-xs text-muted-foreground">The server will connect to the backend and start syncing your pack.</div>
     </div>
   );
@@ -2751,13 +2751,13 @@ git commit -m "refactor(editor): remove conflict UI (Plan 1C: backend-as-truth)"
 
 ---
 
-## Section K — Plugin: backend-as-truth + /ifz pushLocal
+## Section K — Plugin: backend-as-truth + /artisan pushLocal
 
 ### Task K1 : Remove `pack_divergence_detected` emission
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/ConflictDetectionTest.kt` (likely delete)
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/ConflictDetectionTest.kt` (likely delete)
 
 - [ ] **Step 1 : Read `SyncedMenuProvider.kt`** to locate the `pack_divergence_detected` emission (lines 278-289 per prior exploration, may have shifted).
 
@@ -2769,10 +2769,10 @@ Find the block that sends `pack_divergence_detected` on `SyncAction.LOCAL_ONLY` 
 // Plan 1C: backend = source of truth. Local divergence will be overwritten
 // by the next bundle_available. We log a single WARN line for post-mortem
 // tracing — no UI, no prompt, no delay. Admins who edited via FTP must use
-// `/ifz pushLocal <pack_id>` to upload before reconnecting.
+// `/artisan pushLocal <pack_id>` to upload before reconnecting.
 plugin.logger.warning(
-    "[Interfaze] Local pack '$packId' differs from backend (action=$action). " +
-    "Backend version will overwrite local. Use /ifz pushLocal $packId if local edits were intentional."
+    "[Artisan] Local pack '$packId' differs from backend (action=$action). " +
+    "Backend version will overwrite local. Use /artisan pushLocal $packId if local edits were intentional."
 )
 ```
 
@@ -2780,7 +2780,7 @@ plugin.logger.warning(
 
 ```bash
 # Inspect first; delete only if appropriate.
-cat plugin/src/test/kotlin/gg/interfaze/plugin/ConflictDetectionTest.kt
+cat plugin/src/test/kotlin/net/artisanmc/plugin/ConflictDetectionTest.kt
 ```
 
 - [ ] **Step 4 : Run plugin tests**
@@ -2803,14 +2803,14 @@ git commit -m "refactor(plugin): drop pack_divergence_detected emission (Plan 1C
 ### Task K2 : Add `LocalPushSender` helper
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/LocalPushSender.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/sync/LocalPushSenderTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/LocalPushSender.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/sync/LocalPushSenderTest.kt`
 
 - [ ] **Step 1 : Test**
 
 ```kotlin
-// plugin/src/test/kotlin/gg/interfaze/plugin/sync/LocalPushSenderTest.kt
-package gg.interfaze.plugin.sync
+// plugin/src/test/kotlin/net/artisanmc/plugin/sync/LocalPushSenderTest.kt
+package net.artisanmc.plugin.sync
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -2832,8 +2832,8 @@ class LocalPushSenderTest {
         assertEquals("p_test", msg["pack_id"])
         val files = msg["files"] as Map<String, String>
         assertEquals(2, files.size)
-        assertTrue(files.containsKey("plugins/Interfaze/packs/p_test/manifest.yaml"))
-        assertTrue(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!!.contains("manifest/v1"))
+        assertTrue(files.containsKey("plugins/Artisan/packs/p_test/manifest.yaml"))
+        assertTrue(files["plugins/Artisan/packs/p_test/manifest.yaml"]!!.contains("manifest/v1"))
         assertTrue((msg["hash"] as String).matches(Regex("[0-9a-f]{64}")))
     }
 }
@@ -2842,14 +2842,14 @@ class LocalPushSenderTest {
 - [ ] **Step 2 : Run — expect FAIL**
 
 ```bash
-cd plugin && ./gradlew test --tests gg.interfaze.plugin.sync.LocalPushSenderTest
+cd plugin && ./gradlew test --tests net.artisanmc.plugin.sync.LocalPushSenderTest
 ```
 
 - [ ] **Step 3 : Implement**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/sync/LocalPushSender.kt
-package gg.interfaze.plugin.sync
+// plugin/src/main/kotlin/net/artisanmc/plugin/sync/LocalPushSender.kt
+package net.artisanmc.plugin.sync
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -2860,7 +2860,7 @@ import kotlin.io.path.walk
 object LocalPushSender {
     /**
      * Walks the pack dir and produces a `local_push` message body. The file paths
-     * are normalized to `plugins/Interfaze/packs/<packId>/<relative>` to match the
+     * are normalized to `plugins/Artisan/packs/<packId>/<relative>` to match the
      * canonical form the backend stores.
      */
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)
@@ -2869,8 +2869,8 @@ object LocalPushSender {
         for (file in packDir.walk()) {
             if (!Files.isRegularFile(file)) continue
             val rel = file.relativeTo(packDir).toString().replace('\\', '/')
-            if (rel.startsWith(".interfaze")) continue   // skip sync metadata
-            val key = "plugins/Interfaze/packs/$packId/$rel"
+            if (rel.startsWith(".artisan")) continue   // skip sync metadata
+            val key = "plugins/Artisan/packs/$packId/$rel"
             files[key] = Files.readString(file)
         }
         return mapOf(
@@ -2898,21 +2898,21 @@ object LocalPushSender {
 - [ ] **Step 5 : Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/LocalPushSender.kt plugin/src/test/kotlin/gg/interfaze/plugin/sync/LocalPushSenderTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/LocalPushSender.kt plugin/src/test/kotlin/net/artisanmc/plugin/sync/LocalPushSenderTest.kt
 git commit -m "feat(plugin): LocalPushSender helper"
 ```
 
 ---
 
-### Task K3 : `/ifz pushLocal` subcommand
+### Task K3 : `/artisan pushLocal` subcommand
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
 
 - [ ] **Step 1 : Add `pushLocal` to the subcommand list and wire to handler**
 
 ```kotlin
-// In IfzCommand.kt, find the subcommand dispatcher (likely a `when (args[0])` block)
+// In ArtisanCommand.kt, find the subcommand dispatcher (likely a `when (args[0])` block)
 "pushLocal" -> handlePushLocal(sender, args.drop(1))
 ```
 
@@ -2921,7 +2921,7 @@ And implement:
 ```kotlin
 private fun handlePushLocal(sender: CommandSender, args: List<String>) {
     if (args.isEmpty()) {
-        sender.sendMessage("Usage: /ifz pushLocal <pack_id|--all>")
+        sender.sendMessage("Usage: /artisan pushLocal <pack_id|--all>")
         return
     }
     val target = args[0]
@@ -2949,7 +2949,7 @@ private fun handlePushLocal(sender: CommandSender, args: List<String>) {
 }
 ```
 
-> Note : `wsClient.send(msg)` assumes `IfzCommand` has access to the WS client. Check the actual structure; you may need to inject it via constructor or get it from `plugin`.
+> Note : `wsClient.send(msg)` assumes `ArtisanCommand` has access to the WS client. Check the actual structure; you may need to inject it via constructor or get it from `plugin`.
 
 - [ ] **Step 2 : Manual integration check**
 
@@ -2966,8 +2966,8 @@ Expected: builds without errors.
 - [ ] **Step 4 : Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt
-git commit -m "feat(plugin): /ifz pushLocal command (FTP scenario for backend-as-truth)"
+git add plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt
+git commit -m "feat(plugin): /artisan pushLocal command (FTP scenario for backend-as-truth)"
 ```
 
 ---
@@ -3029,7 +3029,7 @@ Expected: all green.
 
 ```bash
 cd plugin && ./gradlew shadowJar
-cp build/libs/interfaze-plugin-1.0.0-SNAPSHOT-all.jar ../docker/server/plugins/InterfazePlugin.jar
+cp build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar ../docker/server/plugins/ArtisanPlugin.jar
 ```
 
 - [ ] **Step 2 : Restart stack**
@@ -3045,19 +3045,19 @@ cd .. && docker compose down && docker compose up -d --build
 3. Step 1 : create Network "Test Network".
 4. Step 2 : create Pack "test-pack".
 5. Step 3 : generate server key, copy plaintext.
-6. Step 4 : copy snippet, paste into `docker/server/plugins/Interfaze/config.yml` :
+6. Step 4 : copy snippet, paste into `docker/server/plugins/Artisan/config.yml` :
    ```yaml
    server_key: "<paste here>"
    ws_url: "ws://backend:3001/ws/plugin"
    ```
 7. Restart MC: `docker compose restart minecraft`
-8. From MC console: `/ifz reload`
+8. From MC console: `/artisan reload`
 9. Verify in editor `/networks/<networkId>` the pack appears with the server_key bound.
 
-- [ ] **Step 4 : Test `/ifz pushLocal`**
+- [ ] **Step 4 : Test `/artisan pushLocal`**
 
-1. Edit `docker/server/plugins/Interfaze/packs/test-pack/manifest.yaml` directly on host.
-2. From MC console: `/ifz pushLocal test-pack`
+1. Edit `docker/server/plugins/Artisan/packs/test-pack/manifest.yaml` directly on host.
+2. From MC console: `/artisan pushLocal test-pack`
 3. Verify backend received the change (curl `/api/user/packs/<packId>` while logged-in user is authenticated).
 
 ---
@@ -3065,14 +3065,14 @@ cd .. && docker compose down && docker compose up -d --build
 ### Task L5 : Doc updates
 
 **Files:**
-- Modify: `Interfaze/CLAUDE.md` — endpoints, commandes plugin, protocole WS
+- Modify: `Artisan/CLAUDE.md` — endpoints, commandes plugin, protocole WS
 - Modify: `.claude/skills/sync-docs/doc-impact-map.yaml`
 
 - [ ] **Step 1 : Update endpoint table in `CLAUDE.md`**
 
 Add :
 ```
-| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Requires cookie `ifz_user_session`. |
+| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Requires cookie `artisan_user_session`. |
 | `POST /api/networks` | Crée un Network + Membership owner. Body `{name}`. 201 ou 422. |
 | `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
 | `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key. |
@@ -3091,7 +3091,7 @@ Remove `pack_conflict_detected` and `pack_conflict_resolved`. Remove `pack_diver
 
 - [ ] **Step 3 : Update commandes plugin**
 
-Add `pushLocal` to the IfzCommand table.
+Add `pushLocal` to the ArtisanCommand table.
 
 - [ ] **Step 4 : Update doc-impact-map.yaml**
 
@@ -3100,7 +3100,7 @@ Add paths : `backend/src/routes/userNetworks.ts`, `backend/src/routes/userPacks.
 - [ ] **Step 5 : Commit**
 
 ```bash
-git add Interfaze/CLAUDE.md .claude/skills/sync-docs/doc-impact-map.yaml
+git add Artisan/CLAUDE.md .claude/skills/sync-docs/doc-impact-map.yaml
 git commit -m "docs(plan-1c): endpoints + WS protocol + plugin commands + entities"
 ```
 
@@ -3112,7 +3112,7 @@ git commit -m "docs(plan-1c): endpoints + WS protocol + plugin commands + entiti
 - ✅ Setup flow (Section G)
 - ✅ Retrait UI conflits — backend (Section C) + editor (Section J) + plugin (Section K1)
 - ✅ Backend = source of truth — auto-overwrite via existing bundle_available + WARN log (K1)
-- ✅ /ifz pushLocal (K2, K3) + WS local_push (D1)
+- ✅ /artisan pushLocal (K2, K3) + WS local_push (D1)
 - ✅ Logged-in pack opening (Section I) + user-auth pack APIs (Section B)
 - ✅ Network/Pack management REST (Section A)
 - ✅ /account expansion (Section H)

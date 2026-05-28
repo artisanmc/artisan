@@ -15,12 +15,12 @@
 **Create:**
 - `backend/src/lib/customItems.ts` — bundle decode/write, cache read helpers
 - `backend/src/lib/customItems.test.ts` — unit tests for bundle processing
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt` — interface + data class
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt` — hash, bundle build, reload
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt` — Nexo adapter
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt` — Oraxen adapter
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt` — ItemsAdder adapter
-- `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt` — plugin unit tests
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt` — interface + data class
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt` — hash, bundle build, reload
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt` — Nexo adapter
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt` — Oraxen adapter
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt` — ItemsAdder adapter
+- `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt` — plugin unit tests
 
 **Modify:**
 - `backend/src/protocol.ts` — add 4 new WS message types, update HelloMessage
@@ -28,8 +28,8 @@
 - `backend/src/routes/editorSession.ts` — add `GET /:token/custom-items` endpoint
 - `backend/src/routes/textures.ts` — add `GET /custom/:serverKeyId/*` route
 - `backend/src/routes/textures.test.ts` — add test for new custom route
-- `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` — add `customItemsHash` param to hello
-- `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` — wire CustomItemsManager, handle `custom_items_request`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` — add `customItemsHash` param to hello
+- `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` — wire CustomItemsManager, handle `custom_items_request`
 - `plugin/build.gradle.kts` — add compileOnly deps for Nexo, Oraxen, ItemsAdder
 - `editor/src/lib/packApi.ts` — add `fetchCustomItems`, `CustomItemsData`
 - `editor/src/features/canvas/Library.tsx` — fetch custom items in parallel, merge, correct texture URL
@@ -560,19 +560,19 @@ rtk git commit -m "feat(backend): add /custom-items and /textures/custom REST en
 ## Task 5: Plugin — CustomItemSource Interface + CustomItemsManager Core
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-// plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
-package gg.interfaze.plugin
+// plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.customitems.CustomItemEntry
-import gg.interfaze.plugin.customitems.CustomItemSource
-import gg.interfaze.plugin.customitems.CustomItemsManager
+import net.artisanmc.plugin.customitems.CustomItemEntry
+import net.artisanmc.plugin.customitems.CustomItemSource
+import net.artisanmc.plugin.customitems.CustomItemsManager
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import java.io.ByteArrayInputStream
@@ -693,7 +693,7 @@ class CustomItemsManagerTest {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest"
 ```
 
 Expected: compilation failure (classes don't exist yet).
@@ -701,8 +701,8 @@ Expected: compilation failure (classes don't exist yet).
 - [ ] **Step 3: Create `CustomItemSource.kt`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt
-package gg.interfaze.plugin.customitems
+// plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt
+package net.artisanmc.plugin.customitems
 
 interface CustomItemSource {
     val namespace: String
@@ -723,8 +723,8 @@ data class CustomItemEntry(
 - [ ] **Step 4: Create `CustomItemsManager.kt`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt
-package gg.interfaze.plugin.customitems
+// plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt
+package net.artisanmc.plugin.customitems
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.ByteArrayOutputStream
@@ -805,7 +805,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest"
 ```
 
 Expected: all 8 tests pass.
@@ -813,7 +813,7 @@ Expected: all 8 tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 rtk git commit -m "feat(plugin): CustomItemSource interface and CustomItemsManager core"
 ```
 
@@ -822,8 +822,8 @@ rtk git commit -m "feat(plugin): CustomItemSource interface and CustomItemsManag
 ## Task 6: Plugin — WsClient + SyncedMenuProvider Wiring
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
 - Modify: `plugin/src/main/resources/plugin.yml`
 
 - [ ] **Step 1: Update `WsClient.kt` to include `customItemsHash` in hello**
@@ -862,7 +862,7 @@ val hello = mapOf(
 Add import at the top of `SyncedMenuProvider.kt`:
 
 ```kotlin
-import gg.interfaze.plugin.customitems.CustomItemsManager
+import net.artisanmc.plugin.customitems.CustomItemsManager
 ```
 
 Add a field and initialize it in the class body (after the existing `@Volatile private var` fields):
@@ -943,7 +943,7 @@ Expected: all existing tests still pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/main/resources/plugin.yml
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/main/resources/plugin.yml
 rtk git commit -m "feat(plugin): wire CustomItemsManager into SyncedMenuProvider and WsClient hello"
 ```
 
@@ -955,8 +955,8 @@ Nexo is a custom-item plugin available at `https://repo.nexomc.com/releases/`.
 
 **Files:**
 - Modify: `plugin/build.gradle.kts`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add Nexo compileOnly dependency**
 
@@ -979,7 +979,7 @@ Add to `CustomItemsManagerTest.kt`:
 ```kotlin
 @Test
 fun `NexoSource isAvailable returns false when plugin not on classpath`() {
-    val source = gg.interfaze.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
+    val source = net.artisanmc.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
     assertFalse(source.isAvailable())
 }
 ```
@@ -987,7 +987,7 @@ fun `NexoSource isAvailable returns false when plugin not on classpath`() {
 - [ ] **Step 3: Run test to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest.NexoSource*"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest.NexoSource*"
 ```
 
 Expected: compilation error — `NexoSource` doesn't exist yet.
@@ -995,8 +995,8 @@ Expected: compilation error — `NexoSource` doesn't exist yet.
 - [ ] **Step 4: Create `NexoSource.kt`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt
-package gg.interfaze.plugin.customitems
+// plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
@@ -1041,22 +1041,22 @@ class NexoSource(private val pluginsDir: File) : CustomItemSource {
 }
 ```
 
-- [ ] **Step 5: Register `NexoSource` in `InterfazePlugin.onEnable()`**
+- [ ] **Step 5: Register `NexoSource` in `ArtisanPlugin.onEnable()`**
 
-In `InterfazePlugin.kt`, after `menuProvider.load()`:
+In `ArtisanPlugin.kt`, after `menuProvider.load()`:
 
 ```kotlin
 val pluginsDir = server.pluginsFolder
-val customItemsManager = gg.interfaze.plugin.customitems.CustomItemsManager(
-    listOf(gg.interfaze.plugin.customitems.NexoSource(pluginsDir))
+val customItemsManager = net.artisanmc.plugin.customitems.CustomItemsManager(
+    listOf(net.artisanmc.plugin.customitems.NexoSource(pluginsDir))
 )
-(menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
+(menuProvider as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
 ```
 
 - [ ] **Step 6: Run tests to verify they pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest"
 ```
 
 Expected: all tests pass (including the `NexoSource.isAvailable` test which returns false in the test JVM where Nexo's plugin manager is mocked via MockBukkit).
@@ -1064,7 +1064,7 @@ Expected: all tests pass (including the `NexoSource.isAvailable` test which retu
 - [ ] **Step 7: Commit**
 
 ```bash
-rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 rtk git commit -m "feat(plugin): NexoSource adapter for custom items integration"
 ```
 
@@ -1074,8 +1074,8 @@ rtk git commit -m "feat(plugin): NexoSource adapter for custom items integration
 
 **Files:**
 - Modify: `plugin/build.gradle.kts`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add Oraxen compileOnly dependency**
 
@@ -1098,7 +1098,7 @@ Add to `CustomItemsManagerTest.kt`:
 ```kotlin
 @Test
 fun `OraxenSource isAvailable returns false when plugin not installed`() {
-    val source = gg.interfaze.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
+    val source = net.artisanmc.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
     assertFalse(source.isAvailable())
 }
 ```
@@ -1114,8 +1114,8 @@ Expected: compilation error.
 - [ ] **Step 4: Create `OraxenSource.kt`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt
-package gg.interfaze.plugin.customitems
+// plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
@@ -1150,19 +1150,19 @@ class OraxenSource(private val pluginsDir: File) : CustomItemSource {
 }
 ```
 
-- [ ] **Step 5: Add `OraxenSource` to the manager in `InterfazePlugin.kt`**
+- [ ] **Step 5: Add `OraxenSource` to the manager in `ArtisanPlugin.kt`**
 
 Replace the `CustomItemsManager` instantiation from Task 7 with:
 
 ```kotlin
 val pluginsDir = server.pluginsFolder
-val customItemsManager = gg.interfaze.plugin.customitems.CustomItemsManager(
+val customItemsManager = net.artisanmc.plugin.customitems.CustomItemsManager(
     listOf(
-        gg.interfaze.plugin.customitems.NexoSource(pluginsDir),
-        gg.interfaze.plugin.customitems.OraxenSource(pluginsDir),
+        net.artisanmc.plugin.customitems.NexoSource(pluginsDir),
+        net.artisanmc.plugin.customitems.OraxenSource(pluginsDir),
     )
 )
-(menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
+(menuProvider as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.setCustomItemsManager(customItemsManager)
 ```
 
 - [ ] **Step 6: Run tests**
@@ -1176,7 +1176,7 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 rtk git commit -m "feat(plugin): OraxenSource adapter for custom items integration"
 ```
 
@@ -1186,8 +1186,8 @@ rtk git commit -m "feat(plugin): OraxenSource adapter for custom items integrati
 
 **Files:**
 - Modify: `plugin/build.gradle.kts`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add ItemsAdder compileOnly dependency**
 
@@ -1204,7 +1204,7 @@ Add to `CustomItemsManagerTest.kt`:
 ```kotlin
 @Test
 fun `ItemsAdderSource isAvailable returns false when plugin not installed`() {
-    val source = gg.interfaze.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
+    val source = net.artisanmc.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
     assertFalse(source.isAvailable())
 }
 ```
@@ -1220,8 +1220,8 @@ Expected: compilation error.
 - [ ] **Step 4: Create `ItemsAdderSource.kt`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt
-package gg.interfaze.plugin.customitems
+// plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt
+package net.artisanmc.plugin.customitems
 
 import org.bukkit.Bukkit
 import java.io.File
@@ -1266,14 +1266,14 @@ class ItemsAdderSource(private val pluginsDir: File) : CustomItemSource {
 }
 ```
 
-- [ ] **Step 5: Add `ItemsAdderSource` to the manager in `InterfazePlugin.kt`**
+- [ ] **Step 5: Add `ItemsAdderSource` to the manager in `ArtisanPlugin.kt`**
 
 ```kotlin
-val customItemsManager = gg.interfaze.plugin.customitems.CustomItemsManager(
+val customItemsManager = net.artisanmc.plugin.customitems.CustomItemsManager(
     listOf(
-        gg.interfaze.plugin.customitems.NexoSource(pluginsDir),
-        gg.interfaze.plugin.customitems.OraxenSource(pluginsDir),
-        gg.interfaze.plugin.customitems.ItemsAdderSource(pluginsDir),
+        net.artisanmc.plugin.customitems.NexoSource(pluginsDir),
+        net.artisanmc.plugin.customitems.OraxenSource(pluginsDir),
+        net.artisanmc.plugin.customitems.ItemsAdderSource(pluginsDir),
     )
 )
 ```
@@ -1289,7 +1289,7 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+rtk git add plugin/build.gradle.kts plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 rtk git commit -m "feat(plugin): ItemsAdderSource adapter for custom items integration"
 ```
 
@@ -1489,17 +1489,17 @@ rtk git commit -m "feat(editor): display custom items (Nexo/Oraxen/ItemsAdder) i
 
 ## Task 11: Plugin — Hot-Reload Listeners
 
-When a third-party plugin reloads (e.g. `/n reload` in Nexo), its items and textures may change. Each plugin fires a Bukkit event on reload. This task registers listeners in `InterfazePlugin` so that `notifyCustomItemsReload()` is called automatically.
+When a third-party plugin reloads (e.g. `/n reload` in Nexo), its items and textures may change. Each plugin fires a Bukkit event on reload. This task registers listeners in `ArtisanPlugin` so that `notifyCustomItemsReload()` is called automatically.
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add a helper that registers all available reload listeners**
 
-In `InterfazePlugin.kt`, add a private helper after `onEnable`:
+In `ArtisanPlugin.kt`, add a private helper after `onEnable`:
 
 ```kotlin
-private fun registerCustomItemsReloadListeners(provider: gg.interfaze.plugin.provider.SyncedMenuProvider) {
+private fun registerCustomItemsReloadListeners(provider: net.artisanmc.plugin.provider.SyncedMenuProvider) {
     val mgr = server.pluginManager
 
     if (mgr.getPlugin("Nexo") != null) {
@@ -1536,7 +1536,7 @@ private fun registerCustomItemsReloadListeners(provider: gg.interfaze.plugin.pro
 At the end of the custom items manager block in `onEnable` (after `setCustomItemsManager(customItemsManager)`):
 
 ```kotlin
-val syncedProvider = menuProvider as? gg.interfaze.plugin.provider.SyncedMenuProvider
+val syncedProvider = menuProvider as? net.artisanmc.plugin.provider.SyncedMenuProvider
 if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 ```
 
@@ -1551,7 +1551,7 @@ Expected: all tests pass (no hot-reload unit test — Bukkit events are covered 
 - [ ] **Step 4: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt
 rtk git commit -m "feat(plugin): register hot-reload listeners for Nexo, Oraxen, ItemsAdder"
 ```
 

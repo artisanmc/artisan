@@ -130,7 +130,7 @@ val hardLines = text.split("\n")
 val lines = hardLines.flatMap { wrapLine(it, layer.width) }
 ```
 
-Everything downstream of `lines` is unchanged — per-line offsets, alignment math, `<font:interfaze:text_y{Y}>` wrappers, and `lineY > 140` truncation all operate on the already-wrapped lines.
+Everything downstream of `lines` is unchanged — per-line offsets, alignment math, `<font:artisan:text_y{Y}>` wrappers, and `lineY > 140` truncation all operate on the already-wrapped lines.
 
 ### Editor (TypeScript)
 
@@ -298,11 +298,11 @@ const width = Math.min(256, Math.max(8, rawW));
 
 **Plugin:**
 
-- `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt` — add `width: Int` to `Textarea`.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt` — parse `width`.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt` — `wrapLine` helper; Textarea branch uses it.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt` — tests.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` — tests.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt` — add `width: Int` to `Textarea`.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt` — parse `width`.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt` — `wrapLine` helper; Textarea branch uses it.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt` — tests.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt` — tests.
 
 **Editor:**
 

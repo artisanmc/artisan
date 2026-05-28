@@ -1,4 +1,4 @@
-# Interfaze — Editor shell scaffold
+# Artisan — Editor shell scaffold
 
 **Status :** implémenté (2026-04-30 → 2026-05-05). Document de référence — le canvas Konva a remplacé React Flow (voir `docs/decisions/stack.md`), le répertoire `web/` a été renommé `editor/`. Le domaine (Pack, Menu, Element, i18n, hermétisme) est intact.
 **Scope :** spec du scaffold v0 de l'éditeur web — la shell qui introduit la notion de **workspace drag-and-drop** à 3 niveaux.
@@ -65,7 +65,7 @@ Types TS sources de vérité dans `web/src/domain/` (purs, sans couplage UI). À
   - `MenuNode` — carré arrondi, mini-grille 9×N rendant le `background` + premier element par position (preview), titre du menu en header.
   - `CommandNode` — forme/couleur distincte (orange), affiche `name` + flèche vers le menu ouvert s'il y en a une.
 - **Edges** : auto-dérivées depuis les `open_menu` actions trouvées dans n'importe quel `click` ou `command.actions` du pack. **Jamais stockées** — recalculées à chaque mutation du pack, mémoizé.
-- **Position des nodes** : stockée par pack en localStorage (clé `interfaze:layout:pack:<packId>`). Auto-layout (force-directed) la première fois si position absente.
+- **Position des nodes** : stockée par pack en localStorage (clé `artisan:layout:pack:<packId>`). Auto-layout (force-directed) la première fois si position absente.
 - **Drag-and-drop** :
   - Drag d'un node dans le canvas = update position (state local du store `packCanvas`).
   - Drag-out d'un node hors du canvas (vers un sidebar / breadcrumb / overlay) → trigger `moveMenuToPack` via une zone de drop visible (à designer dans le scaffold, premier essai : afficher la liste des autres packs en sidebar contextuelle quand un drag-out est en cours).

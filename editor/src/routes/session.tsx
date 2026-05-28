@@ -139,7 +139,7 @@ function SessionPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-destructive text-lg">Session invalide.</p>
         <p className="text-muted-foreground text-sm">
-          Relancez <code>/ifz editor</code> sur votre serveur Minecraft.
+          Relancez <code>/artisan editor</code> sur votre serveur Minecraft.
         </p>
       </div>
     );
@@ -150,7 +150,7 @@ function SessionPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-destructive text-lg">Lien déjà utilisé.</p>
         <p className="text-muted-foreground text-sm">
-          Relancez <code>/ifz editor</code> sur votre serveur Minecraft.
+          Relancez <code>/artisan editor</code> sur votre serveur Minecraft.
         </p>
       </div>
     );
@@ -161,7 +161,7 @@ function SessionPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-lg font-medium">Session expirée</p>
         <p className="text-muted-foreground text-sm">
-          Relancez <code>/ifz editor</code> sur votre serveur Minecraft pour obtenir un nouveau lien.
+          Relancez <code>/artisan editor</code> sur votre serveur Minecraft pour obtenir un nouveau lien.
         </p>
       </div>
     );

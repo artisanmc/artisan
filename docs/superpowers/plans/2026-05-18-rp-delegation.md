@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Plugin-only feature — when admin sets `resource-pack.delegate-to-dir` in `config.yml`, Interfaze extracts its RP contents into that directory (owning the `assets/interfaze/` subtree) and stops pushing its own RP to players. The host plugin (Oraxen/Nexo/ItemsAdder/etc.) then includes those files in its next pack rebuild.
+**Goal:** Plugin-only feature — when admin sets `resource-pack.delegate-to-dir` in `config.yml`, Artisan extracts its RP contents into that directory (owning the `assets/artisan/` subtree) and stops pushing its own RP to players. The host plugin (Oraxen/Nexo/ItemsAdder/etc.) then includes those files in its next pack rebuild.
 
-**Architecture:** New `ResourcePackDelegator` component encapsulates download + SHA-1 verify + scoped extraction. `ResourcePackManager` gains an optional constructor arg; when non-null, `onUpdate` routes there and skips the player-push path. `InterfazePlugin` instantiates from config with a writability fallback. No backend or editor changes.
+**Architecture:** New `ResourcePackDelegator` component encapsulates download + SHA-1 verify + scoped extraction. `ResourcePackManager` gains an optional constructor arg; when non-null, `onUpdate` routes there and skips the player-push path. `ArtisanPlugin` instantiates from config with a writability fallback. No backend or editor changes.
 
 **Tech Stack:** Kotlin 2.0 + Paper 1.21.4 + JUnit 5 (`./gradlew test`). Standard library `java.util.zip.ZipInputStream` for extraction. Existing `OkHttpClient` already used elsewhere in the plugin for downloads (reuse via `httpClient` field on `SyncedMenuProvider` or import a fresh client — match existing pattern).
 
@@ -15,23 +15,23 @@ Spec: `docs/superpowers/specs/2026-05-18-rp-delegation-design.md`.
 ## Branch / hygiene
 
 - Target branch: `main` (recent feature work has been merging here directly; previous textarea + auto-wrap plans both landed on main).
-- Standing WIP across the tree stays untouched. The plugin files this plan modifies (`PluginConfig.kt`, `ResourcePackManager.kt`, `InterfazePlugin.kt`, `config.yml`) may carry pre-existing WIP — `git diff <path>` before each commit and write honest commit messages that cover both planned changes and any swept WIP. This is the same sweep-and-message-honestly strategy used by the prior plans on this branch.
+- Standing WIP across the tree stays untouched. The plugin files this plan modifies (`PluginConfig.kt`, `ResourcePackManager.kt`, `ArtisanPlugin.kt`, `config.yml`) may carry pre-existing WIP — `git diff <path>` before each commit and write honest commit messages that cover both planned changes and any swept WIP. This is the same sweep-and-message-honestly strategy used by the prior plans on this branch.
 - **Always use explicit `git add <paths>` per task.** Never `git add -A`.
 
 ## File structure overview
 
 ### Created
 
-- `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackDelegator.kt` — single responsibility: download zip + verify hash + extract `assets/interfaze/*` into target dir.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackDelegatorTest.kt` — unit tests targeting an in-memory `applyBytes(zipBytes, expectedHash)` seam.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackDelegator.kt` — single responsibility: download zip + verify hash + extract `assets/artisan/*` into target dir.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackDelegatorTest.kt` — unit tests targeting an in-memory `applyBytes(zipBytes, expectedHash)` seam.
 
 ### Modified
 
-- `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt` — add `delegateToDir: String?` field to `ResourcePackConfig` + parse.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt` — 3 new tests.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt` — optional `delegator: ResourcePackDelegator? = null` constructor arg; `onUpdate` routes to delegator when set; `onJoin` short-circuits in delegate mode.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt` — 3 new tests.
-- `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt` — instantiate delegator from config with writability fallback; pass to `ResourcePackManager`.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt` — add `delegateToDir: String?` field to `ResourcePackConfig` + parse.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt` — 3 new tests.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt` — optional `delegator: ResourcePackDelegator? = null` constructor arg; `onUpdate` routes to delegator when set; `onJoin` short-circuits in delegate mode.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt` — 3 new tests.
+- `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt` — instantiate delegator from config with writability fallback; pass to `ResourcePackManager`.
 - `plugin/src/main/resources/config.yml` — add commented `delegate-to-dir:` entry with doc.
 - `CLAUDE.md` — note delegation mode under the resource-pack section.
 
@@ -40,8 +40,8 @@ Spec: `docs/superpowers/specs/2026-05-18-rp-delegation-design.md`.
 ## Task 1: Config — `delegateToDir: String?` (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`
 
 - [ ] **Step 1: Write the failing parser tests**
 
@@ -103,13 +103,13 @@ import kotlin.test.assertNull
 
 From `plugin/`:
 ```
-./gradlew test --tests "gg.interfaze.plugin.PluginConfigTest"
+./gradlew test --tests "net.artisanmc.plugin.PluginConfigTest"
 ```
 Expected: 3 new tests fail with "Unresolved reference: delegateToDir" (the field doesn't exist on `ResourcePackConfig` yet).
 
 - [ ] **Step 3: Add field + parsing**
 
-In `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`, add `delegateToDir: String?` to `ResourcePackConfig`:
+In `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`, add `delegateToDir: String?` to `ResourcePackConfig`:
 
 ```kotlin
 data class ResourcePackConfig(
@@ -126,7 +126,7 @@ Then in `PluginConfig.from(cfg)`, extend the `ResourcePackConfig(...)` construct
 ```kotlin
 resourcePack      = ResourcePackConfig(
     enabled        = cfg.getBoolean("resource-pack.enabled", true),
-    prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Interfaze</gold>") ?: "<gold>Pack Interfaze</gold>",
+    prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Artisan</gold>") ?: "<gold>Pack Artisan</gold>",
     sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
     sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
     delegateToDir  = cfg.getString("resource-pack.delegate-to-dir")?.takeIf { it.isNotBlank() },
@@ -136,13 +136,13 @@ resourcePack      = ResourcePackConfig(
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.PluginConfigTest"
+./gradlew test --tests "net.artisanmc.plugin.PluginConfigTest"
 ```
 Expected: 5 tests green (2 existing + 3 new).
 
 Other test files (`ResourcePackManagerTest`) may fail to compile because they construct `ResourcePackConfig` positionally without `delegateToDir`. That's expected — they have a `config()` helper at line 28-29 that needs updating. Fix it now to keep the build green:
 
-In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, find the `private fun config(...)` helper around line 28 and add `delegateToDir = null`:
+In `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt`, find the `private fun config(...)` helper around line 28 and add `delegateToDir = null`:
 
 ```kotlin
     private fun config(enabled: Boolean = true, sendOnJoin: Boolean = true, delayTicks: Long = 0L) =
@@ -166,13 +166,13 @@ Expected: BUILD SUCCESSFUL.
 
 Inspect WIP first:
 ```
-git diff plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt
+git diff plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt
 ```
 
 Include observed WIP in the commit message honestly.
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): ResourcePackConfig.delegateToDir — parse from config.yml
 
@@ -189,19 +189,19 @@ EOF
 ## Task 2: `ResourcePackDelegator` — new component (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackDelegatorTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackDelegator.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackDelegatorTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackDelegator.kt`
 
 The HTTP path (`apply(downloadUrl, hash)`) is a thin wrapper around a unit-testable `applyBytes(zipBytes, expectedHash)` method. Tests target `applyBytes` exclusively — no HTTP simulation needed.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackDelegatorTest.kt`:
+Create `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackDelegatorTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.resourcepack.ResourcePackDelegator
+import net.artisanmc.plugin.resourcepack.ResourcePackDelegator
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
@@ -242,16 +242,16 @@ class ResourcePackDelegatorTest {
             .joinToString("") { "%02x".format(it) }
 
     @Test
-    fun `applyBytes extracts assets-interfaze entries into target dir`() {
+    fun `applyBytes extracts assets-artisan entries into target dir`() {
         val zip = buildZip(mapOf(
-            "assets/interfaze/font/default.json" to "{}".toByteArray(),
-            "assets/interfaze/textures/foo.png" to byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47),
+            "assets/artisan/font/default.json" to "{}".toByteArray(),
+            "assets/artisan/textures/foo.png" to byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
 
-        val fontFile = File(tempDir, "assets/interfaze/font/default.json")
-        val pngFile = File(tempDir, "assets/interfaze/textures/foo.png")
+        val fontFile = File(tempDir, "assets/artisan/font/default.json")
+        val pngFile = File(tempDir, "assets/artisan/textures/foo.png")
         assertTrue(fontFile.exists(), "font file not extracted")
         assertTrue(pngFile.exists(), "png file not extracted")
         assertEquals("{}", fontFile.readText())
@@ -261,39 +261,39 @@ class ResourcePackDelegatorTest {
     fun `applyBytes skips pack-mcmeta at zip root`() {
         val zip = buildZip(mapOf(
             "pack.mcmeta" to """{"pack":{"pack_format":64}}""".toByteArray(),
-            "assets/interfaze/font/default.json" to "{}".toByteArray(),
+            "assets/artisan/font/default.json" to "{}".toByteArray(),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
 
         assertFalse(File(tempDir, "pack.mcmeta").exists(), "pack.mcmeta should NOT be extracted")
-        assertTrue(File(tempDir, "assets/interfaze/font/default.json").exists())
+        assertTrue(File(tempDir, "assets/artisan/font/default.json").exists())
     }
 
     @Test
-    fun `applyBytes skips entries outside assets-interfaze`() {
+    fun `applyBytes skips entries outside assets-artisan`() {
         val zip = buildZip(mapOf(
             "assets/minecraft/font/default.json" to "{}".toByteArray(),
             "assets/oraxen/textures/foo.png" to byteArrayOf(0x00),
-            "assets/interfaze/textures/keep.png" to byteArrayOf(0x01),
+            "assets/artisan/textures/keep.png" to byteArrayOf(0x01),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
 
         assertFalse(File(tempDir, "assets/minecraft/font/default.json").exists())
         assertFalse(File(tempDir, "assets/oraxen/textures/foo.png").exists())
-        assertTrue(File(tempDir, "assets/interfaze/textures/keep.png").exists())
+        assertTrue(File(tempDir, "assets/artisan/textures/keep.png").exists())
     }
 
     @Test
-    fun `applyBytes wipes assets-interfaze before extraction`() {
+    fun `applyBytes wipes assets-artisan before extraction`() {
         // Pre-seed a stale file inside the namespace we own.
-        val staleDir = File(tempDir, "assets/interfaze")
+        val staleDir = File(tempDir, "assets/artisan")
         staleDir.mkdirs()
         File(staleDir, "stale.png").writeBytes(byteArrayOf(0xFF.toByte()))
 
         val zip = buildZip(mapOf(
-            "assets/interfaze/fresh.png" to byteArrayOf(0x01),
+            "assets/artisan/fresh.png" to byteArrayOf(0x01),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
@@ -303,8 +303,8 @@ class ResourcePackDelegatorTest {
     }
 
     @Test
-    fun `applyBytes does NOT wipe content outside assets-interfaze`() {
-        // Pre-seed host content alongside the interfaze subtree.
+    fun `applyBytes does NOT wipe content outside assets-artisan`() {
+        // Pre-seed host content alongside the artisan subtree.
         val hostFile = File(tempDir, "assets/minecraft/font/default.json")
         hostFile.parentFile.mkdirs()
         hostFile.writeText("host content")
@@ -312,7 +312,7 @@ class ResourcePackDelegatorTest {
         hostRoot.writeText("""{"pack":{"pack_format":64}}""")
 
         val zip = buildZip(mapOf(
-            "assets/interfaze/x.json" to "{}".toByteArray(),
+            "assets/artisan/x.json" to "{}".toByteArray(),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
@@ -324,14 +324,14 @@ class ResourcePackDelegatorTest {
     @Test
     fun `applyBytes silently skips path traversal entries`() {
         val zip = buildZip(mapOf(
-            "assets/interfaze/../../etc/passwd" to "evil".toByteArray(),
-            "assets/interfaze/safe.png" to byteArrayOf(0x01),
+            "assets/artisan/../../etc/passwd" to "evil".toByteArray(),
+            "assets/artisan/safe.png" to byteArrayOf(0x01),
         ))
         val delegator = ResourcePackDelegator(tempDir, logger = null)
         delegator.applyBytes(zip, sha1Hex(zip))
 
         // The safe entry lands, nothing escapes the target.
-        assertTrue(File(tempDir, "assets/interfaze/safe.png").exists())
+        assertTrue(File(tempDir, "assets/artisan/safe.png").exists())
         // No file outside the target dir was created. We test by inspecting
         // the tempDir parent — only our subdir should appear there.
         val parent = tempDir.parentFile
@@ -342,7 +342,7 @@ class ResourcePackDelegatorTest {
     @Test
     fun `applyBytes throws on hash mismatch and does not touch target dir`() {
         val zip = buildZip(mapOf(
-            "assets/interfaze/x.json" to "{}".toByteArray(),
+            "assets/artisan/x.json" to "{}".toByteArray(),
         ))
         val wrongHash = "0".repeat(40)
         val delegator = ResourcePackDelegator(tempDir, logger = null)
@@ -350,7 +350,7 @@ class ResourcePackDelegatorTest {
         assertFails {
             delegator.applyBytes(zip, wrongHash)
         }
-        assertFalse(File(tempDir, "assets/interfaze/x.json").exists(),
+        assertFalse(File(tempDir, "assets/artisan/x.json").exists(),
             "no file should be extracted when hash mismatches")
     }
 }
@@ -359,16 +359,16 @@ class ResourcePackDelegatorTest {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackDelegatorTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackDelegatorTest"
 ```
 Expected: compile error — `ResourcePackDelegator` doesn't exist.
 
 - [ ] **Step 3: Create `ResourcePackDelegator`**
 
-Create `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackDelegator.kt`:
+Create `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackDelegator.kt`:
 
 ```kotlin
-package gg.interfaze.plugin.resourcepack
+package net.artisanmc.plugin.resourcepack
 
 import java.io.File
 import java.net.URL
@@ -377,14 +377,14 @@ import java.util.logging.Logger
 import java.util.zip.ZipInputStream
 
 /**
- * Extracts the `assets/interfaze/` subtree of the Interfaze resource pack into
+ * Extracts the `assets/artisan/` subtree of the Artisan resource pack into
  * a target directory owned by a host plugin (Oraxen / Nexo / ItemsAdder / etc.).
  *
  * Used when the admin sets `resource-pack.delegate-to-dir` in `config.yml`.
  * In that mode the plugin does NOT push its own RP to players — the host pack
  * plugin is expected to merge our files into its own RP at its next rebuild.
  *
- * Owns the `<targetDir>/assets/interfaze/` namespace entirely:
+ * Owns the `<targetDir>/assets/artisan/` namespace entirely:
  *  - Wipes it recursively before each extraction (deleted/renamed files
  *    don't accumulate).
  *  - Refuses to write anything outside that subtree, even if the zip
@@ -419,7 +419,7 @@ open class ResourcePackDelegator(
                 "[delegate] hash mismatch: expected=$expectedHash actual=$actualHash"
             )
         }
-        val ifzRoot = File(targetDir, "assets/interfaze")
+        val ifzRoot = File(targetDir, "assets/artisan")
         ifzRoot.deleteRecursively()
         ifzRoot.mkdirs()
         val ifzCanonical = ifzRoot.canonicalPath
@@ -447,11 +447,11 @@ open class ResourcePackDelegator(
                 zis.closeEntry()
             }
         }
-        logger?.info("[delegate] extracted Interfaze pack into ${ifzRoot.absolutePath}")
+        logger?.info("[delegate] extracted Artisan pack into ${ifzRoot.absolutePath}")
     }
 
     private fun acceptEntry(name: String): Boolean =
-        name.startsWith("assets/interfaze/")
+        name.startsWith("assets/artisan/")
 
     private fun sha1Hex(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-1").digest(bytes)
@@ -462,20 +462,20 @@ open class ResourcePackDelegator(
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackDelegatorTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackDelegatorTest"
 ```
 Expected: all 7 tests green.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackDelegator.kt plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackDelegatorTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackDelegator.kt plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackDelegatorTest.kt
 git commit -m "$(cat <<'EOF'
-feat(plugin): ResourcePackDelegator — extract Interfaze RP to host plugin dir
+feat(plugin): ResourcePackDelegator — extract Artisan RP to host plugin dir
 
-Owns assets/interfaze/ under the target directory: wipes before each
+Owns assets/artisan/ under the target directory: wipes before each
 extraction, rejects path traversal, skips pack.mcmeta and entries
-outside the interfaze namespace. SHA-1 verified against the
+outside the artisan namespace. SHA-1 verified against the
 backend-supplied expected hash before any disk write.
 
 Public entry points: apply(downloadUrl, hash) for production
@@ -492,12 +492,12 @@ EOF
 ## Task 3: Wire delegator into `ResourcePackManager` (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt`
 
 - [ ] **Step 1: Write the failing tests**
 
-In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add a recording delegator and 3 new tests. Append BEFORE the closing `}` of the class:
+In `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt`, add a recording delegator and 3 new tests. Append BEFORE the closing `}` of the class:
 
 ```kotlin
     /**
@@ -505,7 +505,7 @@ In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add 
      * tests never make a network call. Returns silently — no extraction in
      * tests; we only care that the manager calls us.
      */
-    private class RecordingDelegator : gg.interfaze.plugin.resourcepack.ResourcePackDelegator(
+    private class RecordingDelegator : net.artisanmc.plugin.resourcepack.ResourcePackDelegator(
         targetDir = java.io.File("."),  // unused — apply is overridden
         logger = null,
     ) {
@@ -530,7 +530,7 @@ In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add 
         }
         // The simplest path is to construct via the new constructor — the test
         // below uses the production class with the delegator slot:
-        val delegateMgr = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        val delegateMgr = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = plugin,
             config = config(),
             logger = plugin.logger,
@@ -563,7 +563,7 @@ In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add 
         // stack — skip the loop.
         val player = server.addPlayer()
         val delegator = RecordingDelegator()
-        val delegateMgr = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        val delegateMgr = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = plugin,
             config = config(),
             logger = plugin.logger,
@@ -584,7 +584,7 @@ In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add 
     fun `onJoin in delegate mode is a no-op`() {
         val player = server.addPlayer()
         val delegator = RecordingDelegator()
-        val delegateMgr = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        val delegateMgr = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = plugin,
             config = config(sendOnJoin = true, delayTicks = 0L),
             logger = plugin.logger,
@@ -606,13 +606,13 @@ In `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`, add 
 
 From `plugin/`:
 ```
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackManagerTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackManagerTest"
 ```
 Expected: 3 new tests fail with "Unresolved reference: delegator" or "No value passed for parameter 'delegator'" — the constructor doesn't accept that arg yet.
 
 - [ ] **Step 3: Extend `ResourcePackManager` constructor + route `onUpdate`**
 
-In `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt`:
+In `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt`:
 
 (a) Extend the constructor signature (find the `open class ResourcePackManager(` declaration around line 14):
 
@@ -667,7 +667,7 @@ open class ResourcePackManager(
             }
         }.apply {
             isDaemon = true
-            name = "interfaze-rp-delegate"
+            name = "artisan-rp-delegate"
             start()
         }
     }
@@ -692,7 +692,7 @@ open class ResourcePackManager(
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackManagerTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackManagerTest"
 ```
 Expected: all green (existing tests + 3 new).
 
@@ -707,7 +707,7 @@ Cleanest fix: in `ResourcePackManager`, extract the thread-spawn into an `open p
     protected open fun runDelegate(action: () -> Unit) {
         Thread {
             try { action() } catch (t: Throwable) { logger?.warning("[delegate] apply failed: ${t.message}") }
-        }.apply { isDaemon = true; name = "interfaze-rp-delegate"; start() }
+        }.apply { isDaemon = true; name = "artisan-rp-delegate"; start() }
     }
 
     private fun applyDelegateAsync(info: ResourcePackInfo) {
@@ -736,7 +736,7 @@ And the 3 new tests use `InlineManager` instead of the production class. Update 
 - [ ] **Step 5: Run tests to verify they pass (no race)**
 
 ```
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackManagerTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackManagerTest"
 ```
 Expected: all green.
 
@@ -750,7 +750,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): ResourcePackManager — route to delegator when configured
 
@@ -769,17 +769,17 @@ EOF
 
 ---
 
-## Task 4: Instantiate delegator in `InterfazePlugin`
+## Task 4: Instantiate delegator in `ArtisanPlugin`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Read the current `onEnable` resource-pack section**
 
-Find the `val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(...)` block (around line 65). Currently:
+Find the `val resourcePackManager = net.artisanmc.plugin.resourcepack.ResourcePackManager(...)` block (around line 65). Currently:
 
 ```kotlin
-        val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        val resourcePackManager = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
@@ -792,7 +792,7 @@ Find the `val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePac
 Replace the block with:
 
 ```kotlin
-        val delegator: gg.interfaze.plugin.resourcepack.ResourcePackDelegator? =
+        val delegator: net.artisanmc.plugin.resourcepack.ResourcePackDelegator? =
             cfg.resourcePack.delegateToDir?.let { path ->
                 val dir = File(path)
                 if (!dir.exists()) dir.mkdirs()
@@ -804,10 +804,10 @@ Replace the block with:
                     null
                 } else {
                     logger.info("[delegate] delegation enabled, target dir: ${dir.absolutePath}")
-                    gg.interfaze.plugin.resourcepack.ResourcePackDelegator(dir, logger)
+                    net.artisanmc.plugin.resourcepack.ResourcePackDelegator(dir, logger)
                 }
             }
-        val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+        val resourcePackManager = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = this,
             config = cfg.resourcePack,
             logger = logger,
@@ -835,9 +835,9 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt
 git commit -m "$(cat <<'EOF'
-feat(plugin): InterfazePlugin — instantiate ResourcePackDelegator from config
+feat(plugin): ArtisanPlugin — instantiate ResourcePackDelegator from config
 
 When `resource-pack.delegate-to-dir` is set, build a delegator targeting
 that directory and inject it into ResourcePackManager. If the directory
@@ -862,16 +862,16 @@ EOF
 Open `plugin/src/main/resources/config.yml`. After the existing `send-delay-ticks: 20` line in the `resource-pack:` block, append:
 
 ```yaml
-  # When set, Interfaze stops pushing its own RP to players and extracts its
+  # When set, Artisan stops pushing its own RP to players and extracts its
   # pack contents into this directory. The admin configures the host RP
   # plugin (Oraxen / Nexo / ItemsAdder / etc.) to read from this path, then
-  # runs the host's reload command after every Interfaze update.
+  # runs the host's reload command after every Artisan update.
   #
-  # Path is filesystem-absolute or relative to the server root. Interfaze
-  # owns the `assets/interfaze/` subtree inside it and wipes it before
+  # Path is filesystem-absolute or relative to the server root. Artisan
+  # owns the `assets/artisan/` subtree inside it and wipes it before
   # every extraction. Other files in the dir are left untouched.
   #
-  # Default: empty (legacy mode — Interfaze pushes its own RP to players).
+  # Default: empty (legacy mode — Artisan pushes its own RP to players).
   delegate-to-dir: ""
 ```
 
@@ -887,9 +887,9 @@ Two modes, switched by the plugin config `resource-pack.delegate-to-dir`:
 | Mode | When | Behavior |
 |---|---|---|
 | Legacy (default) | `delegate-to-dir` empty | Plugin pushes its own RP via `addResourcePack` on join + on every update. Coexists with other RP plugins via the multi-pack stack (each pack has its own UUID). Two prompts at login when a host plugin also pushes. |
-| Delegation | `delegate-to-dir: <path>` | Plugin extracts `assets/interfaze/*` into `<path>/assets/interfaze/` on every update. Skips player push. Admin manually reloads the host RP plugin (`/oraxen reload`, `/iazip`, etc.) after each update. Single download for the player (host pack only). |
+| Delegation | `delegate-to-dir: <path>` | Plugin extracts `assets/artisan/*` into `<path>/assets/artisan/` on every update. Skips player push. Admin manually reloads the host RP plugin (`/oraxen reload`, `/iazip`, etc.) after each update. Single download for the player (host pack only). |
 
-The delegation path owns the `assets/interfaze/` subtree only — `pack.mcmeta` and anything outside that namespace is skipped, so it's safe to point at Oraxen/Nexo/ItemsAdder/etc. pack-source directories.
+The delegation path owns the `assets/artisan/` subtree only — `pack.mcmeta` and anything outside that namespace is skipped, so it's safe to point at Oraxen/Nexo/ItemsAdder/etc. pack-source directories.
 ```
 
 - [ ] **Step 3: Commit**
@@ -922,30 +922,30 @@ Expected: BUILD SUCCESSFUL. Plugin test count up by ~13 (3 config + 7 delegator 
 ```
 ./gradlew deploy
 ```
-Rebuilds the shadowJar and restarts `interfaze-minecraft-1`. The new code is now live in the dev container.
+Rebuilds the shadowJar and restarts `artisan-minecraft-1`. The new code is now live in the dev container.
 
 - [ ] **Step 3: Manual smoke — legacy mode unchanged**
 
-- Leave `resource-pack.delegate-to-dir` unset / empty in `plugins/Interfaze/config.yml`.
+- Leave `resource-pack.delegate-to-dir` unset / empty in `plugins/Artisan/config.yml`.
 - Connect a Minecraft client.
-- Confirm the Interfaze RP prompt appears at login (legacy behavior).
+- Confirm the Artisan RP prompt appears at login (legacy behavior).
 
 - [ ] **Step 4: Manual smoke — delegation mode**
 
 - Stop the server.
-- Edit `plugins/Interfaze/config.yml`: set `delegate-to-dir: "plugins/Interfaze/_delegate_test/"` (relative path, server-root-resolved).
+- Edit `plugins/Artisan/config.yml`: set `delegate-to-dir: "plugins/Artisan/_delegate_test/"` (relative path, server-root-resolved).
 - Start the server. Watch the log for `[delegate] delegation enabled, target dir: ...` (Task 4 step 2).
 - Trigger a resource-pack rebuild (e.g. from the editor: change an asset, save, deploy).
-- Watch the log for `[delegate] extracted Interfaze pack into ...` followed by `[delegate] pack updated — reload the host RP plugin to apply`.
-- Check the disk: `plugins/Interfaze/_delegate_test/assets/interfaze/` should now contain `font/default.json` + the asset textures + (if any) custom font directories.
-- Confirm no `pack.mcmeta` exists at `plugins/Interfaze/_delegate_test/pack.mcmeta`.
-- Connect a Minecraft client: no Interfaze pack prompt should appear.
+- Watch the log for `[delegate] extracted Artisan pack into ...` followed by `[delegate] pack updated — reload the host RP plugin to apply`.
+- Check the disk: `plugins/Artisan/_delegate_test/assets/artisan/` should now contain `font/default.json` + the asset textures + (if any) custom font directories.
+- Confirm no `pack.mcmeta` exists at `plugins/Artisan/_delegate_test/pack.mcmeta`.
+- Connect a Minecraft client: no Artisan pack prompt should appear.
 
 - [ ] **Step 5: Manual smoke — fallback on bad path**
 
 - Set `delegate-to-dir: "/proc/1/root/forbidden"` (a path that's not writable).
 - Restart server. Watch log for `[delegate] ... is not a writable directory — falling back to legacy push mode`.
-- Confirm legacy behavior: Interfaze RP prompt reappears at login.
+- Confirm legacy behavior: Artisan RP prompt reappears at login.
 
 - [ ] **Step 6: Stop**
 
@@ -960,7 +960,7 @@ Plan complete. Do not commit anything in this task — verification only.
 - [x] Section "Configuration" (config flag + Kotlin shape) → Task 1.
 - [x] Section "Architecture" — `ResourcePackDelegator` component → Task 2.
 - [x] Section "Architecture" — `ResourcePackManager` wiring → Task 3.
-- [x] Section "Architecture" — `InterfazePlugin` instantiation with writability fallback → Task 4.
+- [x] Section "Architecture" — `ArtisanPlugin` instantiation with writability fallback → Task 4.
 - [x] Section "Behavior summary" — modes table → Task 5 (docs in CLAUDE.md).
 - [x] Section "Edge cases" — hash mismatch / path traversal / non-writable dir → covered in Tasks 2 + 4 (tests + fallback).
 - [x] Section "Tests" — all listed tests assigned to a task.

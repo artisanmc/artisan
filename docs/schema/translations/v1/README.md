@@ -1,6 +1,6 @@
-# Interfaze — Translations schema v1
+# Artisan — Translations schema v1
 
-Format des traductions d'un workspace Interfaze. Une **clé** = un texte traduisible scoped au workspace, référencée depuis les menus et commandes via la syntaxe inline `{i18n:<key>}`.
+Format des traductions d'un workspace Artisan. Une **clé** = un texte traduisible scoped au workspace, référencée depuis les menus et commandes via la syntaxe inline `{i18n:<key>}`.
 
 ## Vocabulaire
 

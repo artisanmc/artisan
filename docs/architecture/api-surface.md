@@ -1,25 +1,25 @@
-# Interfaze Public API Surface (v1.x)
+# Artisan Public API Surface (v1.x)
 
-This document lists the **stable** API surface of Interfaze Core that modules can safely depend on.
+This document lists the **stable** API surface of Artisan Core that modules can safely depend on.
 Anything not listed here is internal and may change without notice.
 
-> Source of truth : the `@Stable` annotations in `plugin/src/main/kotlin/gg/interfaze/modules/api/`.
+> Source of truth : the `@Stable` annotations in `plugin/src/main/kotlin/net/artisanmc/modules/api/`.
 > This doc is hand-maintained; future versions will auto-generate it (see `versioning.md` §9.2).
 
 ## Annotations
 
 | Annotation | Package | Meaning |
 |---|---|---|
-| `@Stable` | `gg.interfaze.modules.api.annotations.Stable` | Covered by SemVer. No breaking change within a major version. |
-| `@Beta` | `gg.interfaze.modules.api.annotations.Beta` | Experimental. May change in minor versions. |
-| `@Internal` | `gg.interfaze.modules.api.annotations.Internal` | DO NOT USE from modules. |
-| `@Sunset(reason, removeInVersion, replacement)` | `gg.interfaze.modules.api.annotations.Sunset` | Scheduled for removal. Replacement is provided. |
+| `@Stable` | `net.artisanmc.modules.api.annotations.Stable` | Covered by SemVer. No breaking change within a major version. |
+| `@Beta` | `net.artisanmc.modules.api.annotations.Beta` | Experimental. May change in minor versions. |
+| `@Internal` | `net.artisanmc.modules.api.annotations.Internal` | DO NOT USE from modules. |
+| `@Sunset(reason, removeInVersion, replacement)` | `net.artisanmc.modules.api.annotations.Sunset` | Scheduled for removal. Replacement is provided. |
 
 Note : we use `@Sunset` (not `@Deprecated`) to avoid clashing with `kotlin.Deprecated`. The schedule-aware annotation carries removal version + replacement.
 
 ## Stable APIs (v1.x)
 
-### `gg.interfaze.modules.api.InterfazeModule`
+### `net.artisanmc.modules.api.ArtisanModule`
 
 Contract implemented by every module.
 
@@ -27,23 +27,23 @@ Contract implemented by every module.
 |---|---|---|
 | `id` | `String` | 1.0.0 |
 | `schemaVersion` | `String` | 1.0.0 |
-| `onEnable(api: InterfazeAPI)` | `Unit` | 1.0.0 |
+| `onEnable(api: ArtisanAPI)` | `Unit` | 1.0.0 |
 | `onDisable()` | `Unit` | 1.0.0 |
 | `onReload()` | `Unit` (default empty) | 1.0.0 |
 
-### `gg.interfaze.modules.api.InterfazeAPI`
+### `net.artisanmc.modules.api.ArtisanAPI`
 
 The facade passed to every module at `onEnable(api)`.
 
 | Member | Type | Since |
 |---|---|---|
-| `plugin` | `InterfazePlugin` | 1.0.0 |
+| `plugin` | `ArtisanPlugin` | 1.0.0 |
 | `dataSources` | `DataSourceRegistry` | 1.0.0 |
 | `commands` | `CommandRegistry` | 1.0.0 |
 | `events` | `ModuleEventBus` | 1.0.0 |
 | `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | 1.0.0 |
 
-### `gg.interfaze.modules.api.DataSourceRegistry`
+### `net.artisanmc.modules.api.DataSourceRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -54,7 +54,7 @@ The facade passed to every module at `onEnable(api)`.
 
 Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 
-### `gg.interfaze.modules.api.CommandRegistry`
+### `net.artisanmc.modules.api.CommandRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -65,7 +65,7 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 
 Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
-### `gg.interfaze.modules.api.ModuleEventBus`
+### `net.artisanmc.modules.api.ModuleEventBus`
 
 | Member | Type | Since |
 |---|---|---|
@@ -75,7 +75,7 @@ Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
 Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own subclasses of `ModuleEvent`.
 
-### `gg.interfaze.modules.api.schemas.SchemaRegistry<T>`
+### `net.artisanmc.modules.api.schemas.SchemaRegistry<T>`
 
 | Member | Type | Since |
 |---|---|---|
@@ -85,7 +85,7 @@ Event types: `DataReloadEvent`, `ConfigReloadEvent`. Modules may add their own s
 
 Exceptions: `UnsupportedSchemaVersionException`, `CircularMigrationException`.
 
-### `gg.interfaze.modules.api.schemas.SchemaMigration<T>`
+### `net.artisanmc.modules.api.schemas.SchemaMigration<T>`
 
 | Member | Type | Since |
 |---|---|---|
@@ -105,7 +105,7 @@ None at this time.
 
 ## Internal — DO NOT USE
 
-Everything under `gg.interfaze.plugin.*` is implicitly internal. Use the API surface above instead.
+Everything under `net.artisanmc.plugin.*` is implicitly internal. Use the API surface above instead.
 
 ## Protocol surfaces
 

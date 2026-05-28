@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add manual import of connector YAML files (Plan free workflow). The Java plugin generates `plugins/Interfaze/connectors/<plugin>-<source>.yaml` files; the admin downloads them and drops them into the editor via a file picker. The editor parses, validates, and stores them in `pack.importedConnectors[]`. WS push for plan paid is out of scope (deferred to a later phase tied to the WS infrastructure).
+**Goal:** Add manual import of connector YAML files (Plan free workflow). The Java plugin generates `plugins/Artisan/connectors/<plugin>-<source>.yaml` files; the admin downloads them and drops them into the editor via a file picker. The editor parses, validates, and stores them in `pack.importedConnectors[]`. WS push for plan paid is out of scope (deferred to a later phase tied to the WS infrastructure).
 
 **Architecture:** A pure parser `parseConnectorYaml(text: string): ConnectorSpec | ParseError` lives at `web/src/lib/connectors/parser.ts`. A small reducer set on accountStore manages `pack.importedConnectors` (add/replace by ref, remove). The Sidebar's "+ Importer" button opens a `<input type="file" multiple accept=".yaml,.yml">` and runs each file through the parser.
 

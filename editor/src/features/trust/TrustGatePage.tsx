@@ -8,7 +8,7 @@ interface TrustGatePageProps {
 export function TrustGatePage({ trustCode }: TrustGatePageProps) {
   const [copied, setCopied] = useState(false);
 
-  const command = `/ifz trusteditor ${trustCode}`;
+  const command = `/artisan trusteditor ${trustCode}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(command);

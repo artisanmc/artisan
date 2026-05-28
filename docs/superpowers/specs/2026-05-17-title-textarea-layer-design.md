@@ -119,7 +119,7 @@ for (i, line) in lines:
      CENTER -> layer.x - lineWidth / 2
      RIGHT  -> layer.x - lineWidth
   sb.append(offsetEncoder.encode(lineX - localX))
-  sb.append("<font:interfaze:text_y${lineY}>")
+  sb.append("<font:artisan:text_y${lineY}>")
   sb.append(line)                                  // MiniMessage as-is
   sb.append("</font>")
   localX = lineX + lineWidth
@@ -269,7 +269,7 @@ Parse errors (missing `value`, malformed types) propagate via existing
 - `textarea single line renders same as text` — one `\n`-less line produces
   output equivalent to a `text` layer at same `(x, y)`.
 - `textarea three lines emits three text_y fonts` — verify three distinct
-  `<font:interfaze:text_y{Y}>` wrappers at `y, y+lineHeight, y+2*lineHeight`.
+  `<font:artisan:text_y{Y}>` wrappers at `y, y+lineHeight, y+2*lineHeight`.
 - `textarea alignment center` — widest line dictates; shorter lines offset
   to center under widest.
 - `textarea alignment right` — all lines end at the same x.

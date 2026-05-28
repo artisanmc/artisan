@@ -19,7 +19,7 @@
 - Tags / releases.
 - Stockage diff-based (Phase 2 fait snapshot+dedup ; migration future à content-addressable possible).
 - Auto-commit à chaque save (resté explicit per spec §9).
-- Plugin `/ifz switchBranch` command (set côté backend via éditeur seulement).
+- Plugin `/artisan switchBranch` command (set côté backend via éditeur seulement).
 
 **Pré-requis :** Plan 1A, 1B, 1C sur `main` (tip = `e08bade4`).
 
@@ -73,7 +73,7 @@ Le plugin continue à recevoir `pack_hashes` et à lire le contenu via `GET /api
 
 ### Doc updates (Section F)
 
-- `Interfaze/CLAUDE.md` — table endpoints (ajouter `/branches`, `/commits`, `/promote`), table protocole WS (no change — sémantique du `pack_hashes` clarifiée), section modèle entités (ajout branches+commits)
+- `Artisan/CLAUDE.md` — table endpoints (ajouter `/branches`, `/commits`, `/promote`), table protocole WS (no change — sémantique du `pack_hashes` clarifiée), section modèle entités (ajout branches+commits)
 - `.claude/skills/sync-docs/doc-impact-map.yaml`
 
 ---
@@ -160,7 +160,7 @@ Note : l'ancien `uniqueIndex("pack_bindings_uniq").on(serverKeyId, packId)` devi
 - [ ] **Step 3 : Commit**
 
 ```bash
-cd "C:/Users/ibane/Documents/Minecraft/Plugins/Interfaze" && git add backend/src/db/schema.ts && git commit -m "feat(backend): tables pack_commits + pack_branches + packBindings.branchName"
+cd "C:/Users/ibane/Documents/Minecraft/Plugins/Artisan" && git add backend/src/db/schema.ts && git commit -m "feat(backend): tables pack_commits + pack_branches + packBindings.branchName"
 ```
 
 ---
@@ -253,7 +253,7 @@ describe("commitStorage", () => {
 - [ ] **Step 2 : Run — expect FAIL**
 
 ```bash
-cd "C:/Users/ibane/Documents/Minecraft/Plugins/Interfaze/backend" && bun test src/lib/commitStorage.test.ts
+cd "C:/Users/ibane/Documents/Minecraft/Plugins/Artisan/backend" && bun test src/lib/commitStorage.test.ts
 ```
 
 - [ ] **Step 3 : Implement**
@@ -550,7 +550,7 @@ main().catch((e) => { console.error(e); process.exit(1); });
 - [ ] **Step 2 : Apply schema + run migration**
 
 ```bash
-cd "C:/Users/ibane/Documents/Minecraft/Plugins/Interfaze/backend" && bun run db:push && bun run scripts/migrate-phase-2.ts
+cd "C:/Users/ibane/Documents/Minecraft/Plugins/Artisan/backend" && bun run db:push && bun run scripts/migrate-phase-2.ts
 ```
 
 Expected : `db:push` applies cleanly (warns about `branch_name` default for existing rows — accept). Migration logs creation per pack.
@@ -722,7 +722,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -734,7 +734,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits?branch=main`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -751,7 +751,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
     const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
-      headers: { Cookie: `ifz_user_session=${sessB}` },
+      headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
   });
@@ -851,7 +851,7 @@ test("POST /branches creates a new branch from an existing branch", async () => 
   const app = makeApp();
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "dev", from: "main" }),
   });
   expect(res.status).toBe(201);
@@ -859,7 +859,7 @@ test("POST /branches creates a new branch from an existing branch", async () => 
   expect(body.branch.name).toBe("dev");
   // dev should point to the same head commit as main initially
   const branchesRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   const { branches } = await branchesRes.json();
   const main = branches.find((b: { name: string }) => b.name === "main");
@@ -872,7 +872,7 @@ test("POST /branches 422 when name missing or invalid", async () => {
   const app = makeApp();
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "", from: "main" }),
   });
   expect(res.status).toBe(422);
@@ -883,12 +883,12 @@ test("POST /branches 409 when name already exists", async () => {
   const app = makeApp();
   await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "dev", from: "main" }),
   });
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "dev", from: "main" }),
   });
   expect(res.status).toBe(409);
@@ -962,7 +962,7 @@ test("POST /commits creates commit from current WIP and advances branch head", a
   const app = makeApp();
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ branch: "main", message: "first real commit" }),
   });
   expect(res.status).toBe(201);
@@ -982,7 +982,7 @@ test("POST /commits 404 when branch does not exist", async () => {
   const app = makeApp();
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ branch: "ghost", message: "x" }),
   });
   expect(res.status).toBe(404);
@@ -1065,7 +1065,7 @@ test("POST /branches/:src/promote/:dst advances dst to src.head when FF", async 
   // Create dev branch (= main head)
   await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "dev", from: "main" }),
   });
 
@@ -1075,14 +1075,14 @@ test("POST /branches/:src/promote/:dst advances dst to src.head when FF", async 
   }).where(eq(packs.id, packId));
   await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ branch: "dev", message: "dev work" }),
   });
 
   // Promote dev → main
   const promoteRes = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   expect(promoteRes.status).toBe(200);
 
@@ -1098,7 +1098,7 @@ test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward
   const app = makeApp();
   await app.request(`/api/networks/${networkId}/packs/${packId}/branches`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "dev", from: "main" }),
   });
 
@@ -1106,7 +1106,7 @@ test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward
   await db.update(packs).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(packs.id, packId));
   await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ branch: "dev", message: "dev1" }),
   });
 
@@ -1114,14 +1114,14 @@ test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward
   await db.update(packs).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(packs.id, packId));
   await app.request(`/api/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}`, "Content-Type": "application/json" },
+    headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
     body: JSON.stringify({ branch: "main", message: "main1" }),
   });
 
   // Now promote dev → main : not FF
   const res = await app.request(`/api/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
     method: "POST",
-    headers: { Cookie: `ifz_user_session=${sessionId}` },
+    headers: { Cookie: `artisan_user_session=${sessionId}` },
   });
   expect(res.status).toBe(409);
   const body = await res.json();

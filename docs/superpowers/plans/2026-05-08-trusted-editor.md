@@ -4,7 +4,7 @@
 
 **Goal:** Sécuriser les sessions éditeur via refresh tokens (sessions 7 jours safe), trust in-game obligatoire avant deploy, et IP binding sur le trust.
 
-**Architecture:** Le token dans l'URL devient one-time (consommé à la 1ère visite via `/exchange`). L'éditeur obtient un `access_token` 5 min (mémoire JS) + `refresh_token` HttpOnly cookie 7 jours. Le deploy est bloqué tant que `/ifz trusteditor <code>` n'a pas été tapé in-game — ce qui pose `trusted_ip`. Si l'IP change, il faut re-truster (session intacte, juste deploy re-bloqué).
+**Architecture:** Le token dans l'URL devient one-time (consommé à la 1ère visite via `/exchange`). L'éditeur obtient un `access_token` 5 min (mémoire JS) + `refresh_token` HttpOnly cookie 7 jours. Le deploy est bloqué tant que `/artisan trusteditor <code>` n'a pas été tapé in-game — ce qui pose `trusted_ip`. Si l'IP change, il faut re-truster (session intacte, juste deploy re-bloqué).
 
 **Tech Stack:** Bun + Hono + Drizzle/PostgreSQL (backend) · Kotlin 2.0 + Paper (plugin) · React 19 + Vite + Zustand (editor)
 
@@ -24,13 +24,13 @@
 | `backend/src/ws/hub.test.ts` | Modify | Test trust flow |
 | `plugin/.../provider/MenuProvider.kt` | Modify | Ajout `sendTrustRequest(code: String)` |
 | `plugin/.../provider/SyncedMenuProvider.kt` | Modify | Store trust_code, envoie trust_request, gère session_trusted |
-| `plugin/.../command/IfzCommand.kt` | Modify | Subcommand `trusteditor` |
+| `plugin/.../command/ArtisanCommand.kt` | Modify | Subcommand `trusteditor` |
 | `editor/src/lib/editorSession.ts` | Modify | `exchangeEditorSession`, `refreshEditorSession` sans token (cookie) |
 | `editor/src/state/sessionStore.ts` | Modify | Ajoute `accessToken`, `trustCode`, `trusted`; enlève persist |
 | `editor/src/routes/session.tsx` | Modify | Exchange/refresh au chargement, intervalle 4 min |
 | `editor/src/lib/editorWs.ts` | Modify | Handler `session_trusted` |
 | `editor/src/lib/packApi.ts` | Modify | `deployPack` throw `DeployError` typé sur 403 |
-| `editor/src/features/trust/TrustBanner.tsx` | Create | Bandeau "Tapez /ifz trusteditor <code>" |
+| `editor/src/features/trust/TrustBanner.tsx` | Create | Bandeau "Tapez /artisan trusteditor <code>" |
 | `editor/src/routes/pack.$packId.tsx` | Modify | Intègre TrustBanner, gère `DeployError` |
 
 ---
@@ -403,7 +403,7 @@ describe("POST /api/editor-session/:urlToken/exchange", () => {
     expect(typeof body.trust_code).toBe("string");
     expect(body.trust_code.length).toBe(6);
     const cookie = res.headers.get("set-cookie");
-    expect(cookie).toContain("ifz_refresh=");
+    expect(cookie).toContain("artisan_refresh=");
     expect(cookie).toContain("HttpOnly");
   });
 
@@ -464,7 +464,7 @@ router.post("/:urlToken/exchange", async (c) => {
     .set({ exchangedAt: new Date(), accessToken, accessExpiresAt, refreshToken, trustCode })
     .where(eq(editorSessions.token, urlToken));
 
-  setCookie(c, "ifz_refresh", refreshToken, {
+  setCookie(c, "artisan_refresh", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
@@ -552,25 +552,25 @@ describe("POST /api/editor-session/refresh", () => {
     // Exchange d'abord pour obtenir le refresh cookie
     const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
-    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+    const refreshToken = cookie.match(/artisan_refresh=([^;]+)/)?.[1] ?? "";
     expect(refreshToken).not.toBe("");
 
     const res = await app.request("/api/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json() as { access_token: string; expires_in: number };
     expect(typeof body.access_token).toBe("string");
     expect(body.expires_in).toBe(300);
     // Le nouveau cookie est bien set
-    expect(res.headers.get("set-cookie")).toContain("ifz_refresh=");
+    expect(res.headers.get("set-cookie")).toContain("artisan_refresh=");
   });
 
   test("401 for unknown refresh token", async () => {
     const res = await app.request("/api/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": "ifz_refresh=unknowntoken000000000000000" },
+      headers: { "Cookie": "artisan_refresh=unknowntoken000000000000000" },
     });
     expect(res.status).toBe(401);
   });
@@ -584,18 +584,18 @@ describe("POST /api/editor-session/refresh", () => {
     const { urlToken } = await createRawSession();
     const exchangeRes = await app.request(`/api/editor-session/${urlToken}/exchange`, { method: "POST" });
     const cookie = exchangeRes.headers.get("set-cookie") ?? "";
-    const refreshToken = cookie.match(/ifz_refresh=([^;]+)/)?.[1] ?? "";
+    const refreshToken = cookie.match(/artisan_refresh=([^;]+)/)?.[1] ?? "";
 
     // Premier refresh
     await app.request("/api/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
 
     // Deuxième refresh avec l'ancien token → 401
     const res2 = await app.request("/api/editor-session/refresh", {
       method: "POST",
-      headers: { "Cookie": `ifz_refresh=${refreshToken}` },
+      headers: { "Cookie": `artisan_refresh=${refreshToken}` },
     });
     expect(res2.status).toBe(401);
   });
@@ -614,7 +614,7 @@ Dans `editorSession.ts`, remplacer le placeholder `router.post("/refresh", ...)`
 
 ```typescript
 router.post("/refresh", async (c) => {
-  const token = getCookie(c, "ifz_refresh");
+  const token = getCookie(c, "artisan_refresh");
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
   const rows = await db.select().from(editorSessions).where(eq(editorSessions.refreshToken, token));
@@ -630,7 +630,7 @@ router.post("/refresh", async (c) => {
     .set({ accessToken: newAccessToken, accessExpiresAt, refreshToken: newRefreshToken })
     .where(eq(editorSessions.token, row.token));
 
-  setCookie(c, "ifz_refresh", newRefreshToken, {
+  setCookie(c, "artisan_refresh", newRefreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
@@ -1035,12 +1035,12 @@ git commit -m "feat(backend): hub trust request handler + editorTokenToIp tracki
 
 ---
 
-## Task 9: Plugin — trust_code + /ifz trusteditor
+## Task 9: Plugin — trust_code + /artisan trusteditor
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
 
 - [ ] **Ajouter `sendTrustRequest` à l'interface `MenuProvider`**
 
@@ -1079,7 +1079,7 @@ override fun sendTrustRequest(code: String) {
 }
 ```
 
-- [ ] **Ajouter `trusteditor` dans `IfzCommand`**
+- [ ] **Ajouter `trusteditor` dans `ArtisanCommand`**
 
 Dans `onTabComplete`, ajouter `"trusteditor"` à la liste des subcommands :
 
@@ -1093,22 +1093,22 @@ Dans `onCommand`, ajouter le cas :
 ```kotlin
 "trusteditor" -> {
     val code = args.getOrNull(1) ?: run {
-        sender.sendMessage("[Interfaze] Usage: /ifz trusteditor <code>")
+        sender.sendMessage("[Artisan] Usage: /artisan trusteditor <code>")
         return true
     }
-    if (!sender.hasPermission("interfaze.editor")) {
-        sender.sendMessage("[Interfaze] Permission manquante : interfaze.editor")
+    if (!sender.hasPermission("artisan.editor")) {
+        sender.sendMessage("[Artisan] Permission manquante : artisan.editor")
         return true
     }
     plugin.menuProvider.sendTrustRequest(code.uppercase())
-    sender.sendMessage("[Interfaze] Demande de trust envoyée.")
+    sender.sendMessage("[Artisan] Demande de trust envoyée.")
 }
 ```
 
 Dans l'affichage d'usage en bas :
 
 ```kotlin
-else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]|trusteditor <code>>")
+else -> sender.sendMessage("Usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]|trusteditor <code>>")
 ```
 
 - [ ] **Builder le plugin**
@@ -1122,10 +1122,10 @@ Attendu : tous les 25 tests passent.
 - [ ] **Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt
-git add plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt
-git commit -m "feat(plugin): /ifz trusteditor command + editor_trust_request WS message"
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt
+git commit -m "feat(plugin): /artisan trusteditor command + editor_trust_request WS message"
 ```
 
 ---
@@ -1431,7 +1431,7 @@ if (state === "already_used") {
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
       <p className="text-destructive text-lg">Lien déjà utilisé.</p>
       <p className="text-muted-foreground text-sm">
-        Relancez <code>/ifz editor</code> sur votre serveur Minecraft.
+        Relancez <code>/artisan editor</code> sur votre serveur Minecraft.
       </p>
     </div>
   );
@@ -1484,7 +1484,7 @@ export function TrustBanner({ trustCode }: TrustBannerProps) {
       <span>
         Tapez en jeu :{" "}
         <code className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-amber-200">
-          /ifz trusteditor {trustCode}
+          /artisan trusteditor {trustCode}
         </code>
       </span>
     </div>
@@ -1637,13 +1637,13 @@ docker compose up -d
 
 - [ ] **Vérifier que le flow complet fonctionne**
 
-1. `/ifz editor` en jeu → lien dans le chat
+1. `/artisan editor` en jeu → lien dans le chat
 2. Ouvrir le lien dans le navigateur → page de chargement
-3. Vérifier que le bandeau "Tapez /ifz trusteditor <code>" apparaît
-4. Taper `/ifz trusteditor <code>` en jeu → bandeau disparaît
+3. Vérifier que le bandeau "Tapez /artisan trusteditor <code>" apparaît
+4. Taper `/artisan trusteditor <code>` en jeu → bandeau disparaît
 5. Cliquer "Deploy" → succès ✓
 6. Changer de VPN / d'IP → le bandeau réapparaît
-7. Re-taper `/ifz trusteditor <code>` → deploy fonctionne à nouveau
+7. Re-taper `/artisan trusteditor <code>` → deploy fonctionne à nouveau
 8. Recharger la page → la session est restaurée via cookie refresh
 
 - [ ] **Commit final si ajustements**

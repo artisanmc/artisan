@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrer Interfaze de sa structure plate actuelle (`routes/`, `features/`, `engine/`) vers le **modular monolith** spécifié dans `docs/architecture/modules.md`, en wrappant le code existant dans des modules `menus` et `commands` sans rewrite, et en mettant en place les registries `DataSource` + `Command` qui découpleront les modules futurs (shop V1.5, quests V2, etc.).
+**Goal:** Migrer Artisan de sa structure plate actuelle (`routes/`, `features/`, `engine/`) vers le **modular monolith** spécifié dans `docs/architecture/modules.md`, en wrappant le code existant dans des modules `menus` et `commands` sans rewrite, et en mettant en place les registries `DataSource` + `Command` qui découpleront les modules futurs (shop V1.5, quests V2, etc.).
 
 **Architecture:** 3 couches symétriques — plugin (Kotlin), backend (Bun/Hono), editor (React) — chacune avec :
 1. Une interface `*Module` (~30 lignes par layer)
@@ -28,11 +28,11 @@
 
 ## File Structure
 
-### Plugin — `plugin/src/main/kotlin/gg/interfaze/`
+### Plugin — `plugin/src/main/kotlin/net/artisanmc/`
 
 - **Create**:
-  - `modules/api/InterfazeModule.kt` — interface module
-  - `modules/api/InterfazeAPI.kt` — facade exposée aux modules
+  - `modules/api/ArtisanModule.kt` — interface module
+  - `modules/api/ArtisanAPI.kt` — facade exposée aux modules
   - `modules/api/DataSourceRegistry.kt` + `DataSourceDeclaration.kt`
   - `modules/api/CommandRegistry.kt` + `CommandDeclaration.kt`
   - `modules/api/ModuleEventBus.kt` — pub/sub interne pour hot-reload
@@ -40,7 +40,7 @@
   - `modules/commands/CommandsModule.kt` — wrap `CommandRegistrar`
   - Tests : `modules/api/*Test.kt`, `modules/menus/MenusModuleTest.kt`, `modules/commands/CommandsModuleTest.kt`
 - **Modify**:
-  - `plugin/InterfazePlugin.kt` — `onEnable()` charge la liste de modules, appelle `onEnable(api)` sur chacun
+  - `plugin/ArtisanPlugin.kt` — `onEnable()` charge la liste de modules, appelle `onEnable(api)` sur chacun
 
 ### Backend — `backend/src/`
 
@@ -80,24 +80,24 @@
 
 ## Phase A — Plugin foundation : interfaces + registries
 
-### Task A1: Define `InterfazeModule` interface
+### Task A1: Define `ArtisanModule` interface
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeModule.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt`
 
 - [ ] **Step 1: Create the interface file**
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
 /**
- * Contract implemented by every Interfaze module (menus, commands, future shop/quests/...).
+ * Contract implemented by every Artisan module (menus, commands, future shop/quests/...).
  *
- * Each module lives in `gg.interfaze.modules.{id}/` and is statically registered
- * in [gg.interfaze.plugin.InterfazePlugin.onEnable]. Modules communicate exclusively
- * via [InterfazeAPI] — never via direct dependencies on each other.
+ * Each module lives in `net.artisanmc.modules.{id}/` and is statically registered
+ * in [net.artisanmc.plugin.ArtisanPlugin.onEnable]. Modules communicate exclusively
+ * via [ArtisanAPI] — never via direct dependencies on each other.
  */
-interface InterfazeModule {
+interface ArtisanModule {
     /** Module id, lowercase, e.g. "menus", "commands", "shop". Used in data source refs. */
     val id: String
 
@@ -105,7 +105,7 @@ interface InterfazeModule {
     val schemaVersion: String
 
     /** Called once at plugin enable, after the API facade is built. */
-    fun onEnable(api: InterfazeAPI)
+    fun onEnable(api: ArtisanAPI)
 
     /** Called on plugin disable. Modules must release listeners, executors, threads. */
     fun onDisable()
@@ -118,21 +118,21 @@ interface InterfazeModule {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeModule.kt
-git commit -m "feat(plugin): add InterfazeModule interface"
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt
+git commit -m "feat(plugin): add ArtisanModule interface"
 ```
 
 ### Task A2: Define `DataSourceDeclaration` + `DataSourceRegistry`
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceDeclaration.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceRegistry.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/api/DataSourceRegistryTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/api/DataSourceRegistryTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import org.bukkit.entity.Player
@@ -192,7 +192,7 @@ class DataSourceRegistryTest {
 - [ ] **Step 2: Run test to verify it fails (file does not exist)**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.DataSourceRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.DataSourceRegistryTest'
 ```
 
 Expected: FAIL — compilation errors (`DataSourceRegistry not found`).
@@ -200,8 +200,8 @@ Expected: FAIL — compilation errors (`DataSourceRegistry not found`).
 - [ ] **Step 3: Implement `DataSourceDeclaration`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceDeclaration.kt
-package gg.interfaze.modules.api
+// plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt
+package net.artisanmc.modules.api
 
 import org.bukkit.entity.Player
 
@@ -224,8 +224,8 @@ data class DataSourceDeclaration(
 - [ ] **Step 4: Implement `DataSourceRegistry`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceRegistry.kt
-package gg.interfaze.modules.api
+// plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt
+package net.artisanmc.modules.api
 
 import org.bukkit.entity.Player
 import java.util.concurrent.ConcurrentHashMap
@@ -259,7 +259,7 @@ class DataSourceRegistry {
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.DataSourceRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.DataSourceRegistryTest'
 ```
 
 Expected: PASS (3 tests).
@@ -267,23 +267,23 @@ Expected: PASS (3 tests).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceDeclaration.kt \
-        plugin/src/main/kotlin/gg/interfaze/modules/api/DataSourceRegistry.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/api/DataSourceRegistryTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt \
+        plugin/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/api/DataSourceRegistryTest.kt
 git commit -m "feat(plugin): add DataSourceRegistry with register + fetch"
 ```
 
 ### Task A3: Define `CommandDeclaration` + `CommandRegistry`
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/CommandDeclaration.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/CommandRegistry.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/api/CommandRegistryTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/api/CommandRegistryTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import org.bukkit.entity.Player
@@ -339,14 +339,14 @@ class CommandRegistryTest {
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.CommandRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.CommandRegistryTest'
 ```
 
 - [ ] **Step 3: Implement `CommandDeclaration` + `CommandRegistry`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/api/CommandDeclaration.kt
-package gg.interfaze.modules.api
+// plugin/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt
+package net.artisanmc.modules.api
 
 import org.bukkit.entity.Player
 
@@ -357,8 +357,8 @@ data class CommandDeclaration(
 ```
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/api/CommandRegistry.kt
-package gg.interfaze.modules.api
+// plugin/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt
+package net.artisanmc.modules.api
 
 import org.bukkit.entity.Player
 import java.util.concurrent.ConcurrentHashMap
@@ -392,28 +392,28 @@ class CommandRegistry {
 - [ ] **Step 4: Run tests to verify pass**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.CommandRegistryTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.CommandRegistryTest'
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/CommandDeclaration.kt \
-        plugin/src/main/kotlin/gg/interfaze/modules/api/CommandRegistry.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/api/CommandRegistryTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt \
+        plugin/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/api/CommandRegistryTest.kt
 git commit -m "feat(plugin): add CommandRegistry with register + dispatch"
 ```
 
 ### Task A4: Define `ModuleEventBus` for cross-module hot-reload
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/ModuleEventBus.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/api/ModuleEventBusTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/api/ModuleEventBusTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -446,8 +446,8 @@ class ModuleEventBusTest {
 - [ ] **Step 2: Implement**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/api/ModuleEventBus.kt
-package gg.interfaze.modules.api
+// plugin/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt
+package net.artisanmc.modules.api
 
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -484,28 +484,28 @@ class ModuleEventBus {
 - [ ] **Step 3: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.api.ModuleEventBusTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.api.ModuleEventBusTest'
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/ModuleEventBus.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/api/ModuleEventBusTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/api/ModuleEventBusTest.kt
 git commit -m "feat(plugin): add ModuleEventBus for cross-module hot-reload"
 ```
 
-### Task A5: Define `InterfazeAPI` facade
+### Task A5: Define `ArtisanAPI` facade
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt`
 
 - [ ] **Step 1: Write the file**
 
 ```kotlin
-package gg.interfaze.modules.api
+package net.artisanmc.modules.api
 
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.plugin.ArtisanPlugin
 
 /**
  * Facade passed to every module at `onEnable(api)`. Exposes:
@@ -516,8 +516,8 @@ import gg.interfaze.plugin.InterfazePlugin
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
  */
-class InterfazeAPI(
-    val plugin: InterfazePlugin,
+class ArtisanAPI(
+    val plugin: ArtisanPlugin,
     val dataSources: DataSourceRegistry,
     val commands: CommandRegistry,
     val events: ModuleEventBus,
@@ -527,8 +527,8 @@ class InterfazeAPI(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/api/InterfazeAPI.kt
-git commit -m "feat(plugin): add InterfazeAPI facade for modules"
+git add plugin/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt
+git commit -m "feat(plugin): add ArtisanAPI facade for modules"
 ```
 
 ---
@@ -538,17 +538,17 @@ git commit -m "feat(plugin): add InterfazeAPI facade for modules"
 ### Task B1: Create `MenusModule` wrapping existing menu logic
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/menus/MenusModule.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/menus/MenusModuleTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/menus/MenusModule.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/menus/MenusModuleTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.menus
+package net.artisanmc.modules.menus
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.modules.api.*
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.modules.api.*
+import net.artisanmc.plugin.ArtisanPlugin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -556,11 +556,11 @@ import org.junit.jupiter.api.Test
 
 class MenusModuleTest {
 
-    private lateinit var plugin: InterfazePlugin
+    private lateinit var plugin: ArtisanPlugin
 
     @BeforeEach fun setup() {
         MockBukkit.mock()
-        plugin = MockBukkit.load(InterfazePlugin::class.java)
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
     }
 
     @AfterEach fun teardown() { MockBukkit.unmock() }
@@ -575,7 +575,7 @@ class MenusModuleTest {
     @Test
     fun `onEnable does not throw with a real plugin API`() {
         val module = MenusModule()
-        val api = InterfazeAPI(
+        val api = ArtisanAPI(
             plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
@@ -590,42 +590,42 @@ class MenusModuleTest {
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.menus.MenusModuleTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.menus.MenusModuleTest'
 ```
 
 - [ ] **Step 3: Implement `MenusModule` (skeletal — wraps existing code at boot)**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/menus/MenusModule.kt
-package gg.interfaze.modules.menus
+// plugin/src/main/kotlin/net/artisanmc/modules/menus/MenusModule.kt
+package net.artisanmc.modules.menus
 
-import gg.interfaze.modules.api.InterfazeAPI
-import gg.interfaze.modules.api.InterfazeModule
+import net.artisanmc.modules.api.ArtisanAPI
+import net.artisanmc.modules.api.ArtisanModule
 
 /**
- * First Interfaze module — encapsulates the existing menu rendering pipeline:
+ * First Artisan module — encapsulates the existing menu rendering pipeline:
  * - SyncedMenuProvider (WS sync, pack loading)
  * - MenuListener (Bukkit InventoryClickEvent)
  * - TitleCompiler, AssetCatalog
  *
  * V1 scope: this module is a thin wrapper. The existing classes are kept in
- * gg.interfaze.plugin.* and instantiated inside [onEnable]. Phase B5 moves
+ * net.artisanmc.plugin.* and instantiated inside [onEnable]. Phase B5 moves
  * the relevant classes physically under modules/menus/.
  */
-class MenusModule : InterfazeModule {
+class MenusModule : ArtisanModule {
     override val id = "menus"
     override val schemaVersion = "menu/v1"
 
-    private var api: InterfazeAPI? = null
+    private var api: ArtisanAPI? = null
 
-    override fun onEnable(api: InterfazeAPI) {
+    override fun onEnable(api: ArtisanAPI) {
         this.api = api
-        // Wiring happens in InterfazePlugin for V1 — see migration note in onEnable docstring.
+        // Wiring happens in ArtisanPlugin for V1 — see migration note in onEnable docstring.
         // This keeps the patch surface minimal: existing instantiation order is preserved.
     }
 
     override fun onDisable() {
-        // Provider shutdown is handled by InterfazePlugin.onDisable for V1.
+        // Provider shutdown is handled by ArtisanPlugin.onDisable for V1.
     }
 
     override fun onReload() {
@@ -637,31 +637,31 @@ class MenusModule : InterfazeModule {
 - [ ] **Step 4: Run tests to verify pass**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.menus.MenusModuleTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.menus.MenusModuleTest'
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/menus/MenusModule.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/menus/MenusModuleTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/menus/MenusModule.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/menus/MenusModuleTest.kt
 git commit -m "feat(plugin): add MenusModule skeleton"
 ```
 
 ### Task B2: Create `CommandsModule` wrapping `CommandRegistrar`
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/modules/commands/CommandsModule.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/modules/commands/CommandsModuleTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/modules/commands/CommandsModule.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/modules/commands/CommandsModuleTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package gg.interfaze.modules.commands
+package net.artisanmc.modules.commands
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.modules.api.*
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.modules.api.*
+import net.artisanmc.plugin.ArtisanPlugin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -669,11 +669,11 @@ import org.junit.jupiter.api.Test
 
 class CommandsModuleTest {
 
-    private lateinit var plugin: InterfazePlugin
+    private lateinit var plugin: ArtisanPlugin
 
     @BeforeEach fun setup() {
         MockBukkit.mock()
-        plugin = MockBukkit.load(InterfazePlugin::class.java)
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
     }
 
     @AfterEach fun teardown() { MockBukkit.unmock() }
@@ -688,7 +688,7 @@ class CommandsModuleTest {
     @Test
     fun `onEnable does not throw with a real plugin API`() {
         val module = CommandsModule()
-        val api = InterfazeAPI(
+        val api = ArtisanAPI(
             plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
@@ -702,22 +702,22 @@ class CommandsModuleTest {
 - [ ] **Step 2: Implement**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/modules/commands/CommandsModule.kt
-package gg.interfaze.modules.commands
+// plugin/src/main/kotlin/net/artisanmc/modules/commands/CommandsModule.kt
+package net.artisanmc.modules.commands
 
-import gg.interfaze.modules.api.InterfazeAPI
-import gg.interfaze.modules.api.InterfazeModule
+import net.artisanmc.modules.api.ArtisanAPI
+import net.artisanmc.modules.api.ArtisanModule
 
 /**
- * Encapsulates the existing CommandRegistrar / IfzCommand / CommandCompiler pipeline.
+ * Encapsulates the existing CommandRegistrar / ArtisanCommand / CommandCompiler pipeline.
  * V1 scope: thin wrapper. Physical relocation happens in Phase B5.
  */
-class CommandsModule : InterfazeModule {
+class CommandsModule : ArtisanModule {
     override val id = "commands"
     override val schemaVersion = "command/v1"
 
-    override fun onEnable(api: InterfazeAPI) {
-        // Wiring done by InterfazePlugin for V1 — see B5 for relocation plan.
+    override fun onEnable(api: ArtisanAPI) {
+        // Wiring done by ArtisanPlugin for V1 — see B5 for relocation plan.
     }
 
     override fun onDisable() {}
@@ -728,44 +728,44 @@ class CommandsModule : InterfazeModule {
 - [ ] **Step 3: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.modules.commands.CommandsModuleTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.modules.commands.CommandsModuleTest'
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/modules/commands/CommandsModule.kt \
-        plugin/src/test/kotlin/gg/interfaze/modules/commands/CommandsModuleTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/modules/commands/CommandsModule.kt \
+        plugin/src/test/kotlin/net/artisanmc/modules/commands/CommandsModuleTest.kt
 git commit -m "feat(plugin): add CommandsModule skeleton"
 ```
 
-### Task B3: Wire modules into `InterfazePlugin.onEnable`
+### Task B3: Wire modules into `ArtisanPlugin.onEnable`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
-- Test: `plugin/src/test/kotlin/gg/interfaze/plugin/InterfazePluginModuleWiringTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
+- Test: `plugin/src/test/kotlin/net/artisanmc/plugin/ArtisanPluginModuleWiringTest.kt`
 
 - [ ] **Step 1: Write the failing test (registry visible after onEnable)**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.modules.api.InterfazeAPI
+import net.artisanmc.modules.api.ArtisanAPI
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class InterfazePluginModuleWiringTest {
+class ArtisanPluginModuleWiringTest {
 
     @BeforeEach fun setup() { MockBukkit.mock() }
     @AfterEach fun teardown() { MockBukkit.unmock() }
 
     @Test
-    fun `plugin exposes an InterfazeAPI after enable`() {
-        val plugin = MockBukkit.load(InterfazePlugin::class.java)
-        val api = InterfazePlugin.buildApi(plugin)
+    fun `plugin exposes an ArtisanAPI after enable`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        val api = ArtisanPlugin.buildApi(plugin)
         assertNotNull(api.dataSources)
         assertNotNull(api.commands)
         assertNotNull(api.events)
@@ -773,37 +773,37 @@ class InterfazePluginModuleWiringTest {
 
     @Test
     fun `default module list contains menus and commands`() {
-        val ids = InterfazePlugin.defaultModules().map { it.id }
+        val ids = ArtisanPlugin.defaultModules().map { it.id }
         assertTrue("menus" in ids)
         assertTrue("commands" in ids)
     }
 }
 ```
 
-- [ ] **Step 2: Modify `InterfazePlugin` to expose the helpers + wire modules**
+- [ ] **Step 2: Modify `ArtisanPlugin` to expose the helpers + wire modules**
 
-In `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`, after the existing imports add:
+In `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`, after the existing imports add:
 
 ```kotlin
-import gg.interfaze.modules.api.*
-import gg.interfaze.modules.menus.MenusModule
-import gg.interfaze.modules.commands.CommandsModule
+import net.artisanmc.modules.api.*
+import net.artisanmc.modules.menus.MenusModule
+import net.artisanmc.modules.commands.CommandsModule
 ```
 
 Add at the **top of the class body** (after the existing `lateinit var` declarations):
 
 ```kotlin
-    lateinit var api: InterfazeAPI
+    lateinit var api: ArtisanAPI
         private set
-    private val modules: List<InterfazeModule> = defaultModules()
+    private val modules: List<ArtisanModule> = defaultModules()
 
     companion object {
-        fun defaultModules(): List<InterfazeModule> = listOf(
+        fun defaultModules(): List<ArtisanModule> = listOf(
             MenusModule(),
             CommandsModule(),
         )
 
-        fun buildApi(plugin: InterfazePlugin): InterfazeAPI = InterfazeAPI(
+        fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanAPI(
             plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
@@ -828,7 +828,7 @@ Inside `onDisable()`, BEFORE the existing teardown:
 - [ ] **Step 3: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests 'gg.interfaze.plugin.InterfazePluginModuleWiringTest'
+cd plugin && ./gradlew test --tests 'net.artisanmc.plugin.ArtisanPluginModuleWiringTest'
 ```
 
 Expected: PASS (2 tests).
@@ -844,15 +844,15 @@ Expected: all green (~365 tests existing + 9 new from A2–A4 + 2 new from B1 + 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt \
-        plugin/src/test/kotlin/gg/interfaze/plugin/InterfazePluginModuleWiringTest.kt
-git commit -m "feat(plugin): wire module registry into InterfazePlugin.onEnable"
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt \
+        plugin/src/test/kotlin/net/artisanmc/plugin/ArtisanPluginModuleWiringTest.kt
+git commit -m "feat(plugin): wire module registry into ArtisanPlugin.onEnable"
 ```
 
 ### Task B4: Wire `onReload` from `SyncedMenuProvider` into module bus
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Change the `onReload` callback in the `SyncedMenuProvider` ctor**
 
@@ -879,7 +879,7 @@ Apply the same change at both call sites (`onEnable` and `reinit`).
 Add the import at top of the file:
 
 ```kotlin
-import gg.interfaze.modules.api.ConfigReloadEvent
+import net.artisanmc.modules.api.ConfigReloadEvent
 ```
 
 - [ ] **Step 2: Run the plugin test suite**
@@ -893,13 +893,13 @@ Expected: all green.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt
 git commit -m "feat(plugin): fan onReload to module list and event bus"
 ```
 
 ### Task B5: Physically relocate menus + commands classes (light-touch)
 
-**Note:** For V1 we deliberately keep the existing `gg.interfaze.plugin.engine.*` and `gg.interfaze.plugin.command.*` packages where they are. Moving them physically would force a cascade of import updates with no behavior change. We document the deferred move and tackle it when adding a 3rd module (V1.5+).
+**Note:** For V1 we deliberately keep the existing `net.artisanmc.plugin.engine.*` and `net.artisanmc.plugin.command.*` packages where they are. Moving them physically would force a cascade of import updates with no behavior change. We document the deferred move and tackle it when adding a 3rd module (V1.5+).
 
 **Files:**
 - Modify: `docs/architecture/modules.md`
@@ -912,12 +912,12 @@ Append to `docs/architecture/modules.md` (new section after section 12):
 ## 13. Physical layout — V1 vs target
 
 The target layout in section 3.3 places module-specific code under
-`gg.interfaze.modules.{id}/`. V1 keeps the existing physical structure
-(`gg.interfaze.plugin.engine`, `gg.interfaze.plugin.command`, etc.) and only adds
-the module wrapper classes under `gg.interfaze.modules.{id}/`.
+`net.artisanmc.modules.{id}/`. V1 keeps the existing physical structure
+(`net.artisanmc.plugin.engine`, `net.artisanmc.plugin.command`, etc.) and only adds
+the module wrapper classes under `net.artisanmc.modules.{id}/`.
 
 **Why defer the move:**
-- The wrapper interface (`InterfazeModule`) is what other code depends on.
+- The wrapper interface (`ArtisanModule`) is what other code depends on.
 - Moving ~50 files just to change package names is a high-risk, zero-behavior change.
 - Move opportunistically when adding the 3rd module (shop V1.5), which makes the
   pattern more visible and amortises the rename cost.
@@ -949,13 +949,13 @@ git commit -m "docs(architecture): document V1 vs target physical layout"
 import type { Hono } from "hono";
 
 /**
- * Backend-side contract for an Interfaze module.
+ * Backend-side contract for an Artisan module.
  *
  * Each module mounts its REST routes under /api/modules/{id}/* and may declare
  * data sources and commands that map to the plugin-side registries via WS.
  */
 export interface BackendModule {
-  /** Module id, lowercase. Must match the plugin-side InterfazeModule.id. */
+  /** Module id, lowercase. Must match the plugin-side ArtisanModule.id. */
   id: string;
 
   /** Schema version this module currently emits / accepts. */
@@ -1680,7 +1680,7 @@ cd editor && npm run dev
 Then open `http://localhost:5173/`, open DevTools console, run :
 
 ```js
-window.__interfaze_debug_modules__ ?? "no debug hook — that's OK if no error logged"
+window.__artisan_debug_modules__ ?? "no debug hook — that's OK if no error logged"
 ```
 
 Expected: no errors at boot. The sidebar isn't visible yet (mounted in F5).
@@ -2223,19 +2223,19 @@ Append after the `## Architecture` section, before `### Flux de données`:
 ```markdown
 ### Pattern modulaire (depuis 2026-05-25)
 
-Interfaze suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
+Artisan suit le pattern **modular monolith** spécifié dans `docs/architecture/modules.md`. Chaque module vit en 3 layers symétriques :
 
-- Plugin : `plugin/src/main/kotlin/gg/interfaze/modules/{id}/` — implements `InterfazeModule`
+- Plugin : `plugin/src/main/kotlin/net/artisanmc/modules/{id}/` — implements `ArtisanModule`
 - Backend : `backend/src/modules/{id}/` — exports `BackendModule`
 - Éditeur : `editor/src/modules/{id}/` — exports `FrontendModule`
 
 Communication cross-module via deux registries plugin-side : `DataSourceRegistry` (`namespace:source_id`) et `CommandRegistry` (`namespace:command`). Aucune dépendance directe entre modules.
 
-V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `gg.interfaze.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé (voir section 13 de la spec).
+V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `net.artisanmc.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé (voir section 13 de la spec).
 
 **Quand ajouter un module :**
 1. Spec dans `docs/architecture/modules.md` (ajouter section "Module {id}")
-2. Layer plugin : nouvelle classe sous `gg.interfaze.modules.{id}/` impl `InterfazeModule`
+2. Layer plugin : nouvelle classe sous `net.artisanmc.modules.{id}/` impl `ArtisanModule`
 3. Layer backend : nouveau dir `modules/{id}/index.ts` exporte un `BackendModule`
 4. Layer éditeur : `editor/src/modules/{id}/index.ts` exporte `FrontendModule`, `registerModule(...)` dans `main.tsx`
 5. Schema JSON dans `modules/{id}/schemas/` si form-based — utiliser `<SchemaForm>`
@@ -2258,7 +2258,7 @@ git commit -m "docs(claude-md): document modular monolith pattern"
 Append entries:
 
 ```yaml
-  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
+  - touches: "plugin/src/main/kotlin/net/artisanmc/modules/api/"
     updates:
       - "CLAUDE.md"
       - "docs/architecture/modules.md"
@@ -2350,7 +2350,7 @@ git commit -m "docs(claude-md): SchemaForm usage + custom widgets"
 - [ ] In the editor browser, see the new sidebar with **Menus** + **Commandes** entries on the left of every page
 - [ ] `curl http://localhost:3001/api/modules/menus/health` returns `{"module":"menus","schema":"menu/v1"}`
 - [ ] `curl http://localhost:3001/api/modules/commands/health` returns `{"module":"commands","schema":"command/v1"}`
-- [ ] In-game `/ifz reload` — verify plugin logs no errors (modules `onReload()` fires harmlessly)
+- [ ] In-game `/artisan reload` — verify plugin logs no errors (modules `onReload()` fires harmlessly)
 
 ### Task J3: Manual integration check — module bus
 
@@ -2380,10 +2380,10 @@ git commit -m "docs(claude-md): SchemaForm usage + custom widgets"
 | §11 NOT in V1 | Respected — no dynamic loading, no SDK |
 | §12 Risks (hot-reload) | H1–H2 (event bus) |
 
-**2. Placeholder scan** — Searched for "TBD", "TODO", "implement later", "appropriate" — none in the plan body. The wrappers in B1–B2 intentionally have empty `onEnable` bodies for V1 — this is documented (V1 keeps the existing instantiation in `InterfazePlugin.onEnable`) and isn't a placeholder, it's a deliberate skeletal step preserving existing behavior.
+**2. Placeholder scan** — Searched for "TBD", "TODO", "implement later", "appropriate" — none in the plan body. The wrappers in B1–B2 intentionally have empty `onEnable` bodies for V1 — this is documented (V1 keeps the existing instantiation in `ArtisanPlugin.onEnable`) and isn't a placeholder, it's a deliberate skeletal step preserving existing behavior.
 
 **3. Type consistency**
-- `InterfazeModule.id`, `BackendModule.id`, `FrontendModule.id` — all `string`
+- `ArtisanModule.id`, `BackendModule.id`, `FrontendModule.id` — all `string`
 - `schemaVersion` consistent across all 3 (`"menu/v1"`, `"command/v1"`)
 - `DataSourceDeclaration.ref` (plugin) is `string`; backend `DataSourceDeclaration.ref` mirror
 - `registerModule` / `mountModules` / `mountModules` (the editor and backend use different names — that's correct, they're different functions on different layers and each registry has slightly different semantics : the editor registry is a singleton, the backend registry returns a handle)

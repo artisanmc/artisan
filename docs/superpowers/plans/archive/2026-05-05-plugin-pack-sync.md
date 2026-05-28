@@ -7,8 +7,8 @@
 **Architecture:**
 - `SyncedMenuProvider` (replaces both `FilesystemMenuProvider` and `CloudMenuProvider`) always loads from disk on startup. If a `server_key` is set in config, it also starts a `WsClient` connection to the backend. No more `mode` field — the two behaviors coexist.
 - `BundleHasher` computes a deterministic SHA-256 over pack file content using the exact same algorithm on both the plugin (Kotlin) and the backend (TypeScript), enabling byte-exact sync detection.
-- `SyncMetadata` (`.interfaze-sync.yaml` per pack dir) records the hash at last successful sync. On reconnect, three hashes are compared: `disk_hash` (current), `synced_hash` (last sync), `backend_hash` (from backend) — enabling distinction between "backend newer, no local changes" (auto-sync) vs "both sides changed" (true conflict, warn and default to backend wins).
-- On `hello_ack`, if `needs_sync: true`, the backend sends `bundle_available` per outdated pack. `BundleDownloader` fetches the bundle JSON, writes YAML files to disk, updates `.interfaze-sync.yaml`, and hot-reloads in-memory menus.
+- `SyncMetadata` (`.artisan-sync.yaml` per pack dir) records the hash at last successful sync. On reconnect, three hashes are compared: `disk_hash` (current), `synced_hash` (last sync), `backend_hash` (from backend) — enabling distinction between "backend newer, no local changes" (auto-sync) vs "both sides changed" (true conflict, warn and default to backend wins).
+- On `hello_ack`, if `needs_sync: true`, the backend sends `bundle_available` per outdated pack. `BundleDownloader` fetches the bundle JSON, writes YAML files to disk, updates `.artisan-sync.yaml`, and hot-reloads in-memory menus.
 - The backend gains a `pack_bundles` table and `/api/bundles/:packId` endpoints. The frontend gains a `publish()` call on `wsStore` that POSTs exported files to the backend on explicit user action.
 
 **Tech Stack:** Kotlin 2.0 + OkHttp 4.12 + MockWebServer 4.12 (plugin); Hono 4 + bun:sqlite + Drizzle (backend); Zustand + Vitest (frontend).
@@ -21,20 +21,20 @@
 
 | File | Action | Responsibility |
 |---|---|---|
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt` | **Delete** | Superseded by SyncedMenuProvider |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt` | **Delete** | Superseded by SyncedMenuProvider |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` | **Create** | Disk load + optional WS sync in one class |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleHasher.kt` | **Create** | Deterministic SHA-256 over all files in a pack dir |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/SyncMetadata.kt` | **Create** | Read/write `.interfaze-sync.yaml` per pack |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt` | **Create** | HTTP fetch of bundle JSON, write YAML files to disk |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt` | **Modify** | Remove `mode` field |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` | **Modify** | Add `currentBundleHash: String = ""` param |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt` | **Modify** | Construct SyncedMenuProvider instead of mode switch |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt` | **Delete** | Superseded by SyncedMenuProvider |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt` | **Delete** | Superseded by SyncedMenuProvider |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` | **Create** | Disk load + optional WS sync in one class |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleHasher.kt` | **Create** | Deterministic SHA-256 over all files in a pack dir |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/SyncMetadata.kt` | **Create** | Read/write `.artisan-sync.yaml` per pack |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt` | **Create** | HTTP fetch of bundle JSON, write YAML files to disk |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt` | **Modify** | Remove `mode` field |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` | **Modify** | Add `currentBundleHash: String = ""` param |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt` | **Modify** | Construct SyncedMenuProvider instead of mode switch |
 | `plugin/src/main/resources/config.yml` | **Modify** | Remove `mode` line and its comment |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/FilesystemMenuProviderTest.kt` | **Delete** | Migrated to SyncedMenuProviderTest |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/SyncedMenuProviderTest.kt` | **Create** | Disk loading + no WS when serverKey empty |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/BundleHasherTest.kt` | **Create** | Hash determinism and change detection |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt` | **Create** | Download + disk write + sync metadata via MockWebServer |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/FilesystemMenuProviderTest.kt` | **Delete** | Migrated to SyncedMenuProviderTest |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/SyncedMenuProviderTest.kt` | **Create** | Disk loading + no WS when serverKey empty |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/BundleHasherTest.kt` | **Create** | Hash determinism and change detection |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt` | **Create** | Download + disk write + sync metadata via MockWebServer |
 
 ### Backend
 
@@ -64,7 +64,7 @@
 
 **Per-pack hash** — used for a single pack directory:
 
-1. Walk all files under the pack dir recursively; skip files whose name starts with `.interfaze`
+1. Walk all files under the pack dir recursively; skip files whose name starts with `.artisan`
 2. Sort by relative path (forward slashes, case-sensitive)
 3. For each file, append `{relative_path}\n{utf8_file_content}\n` to a buffer
 4. SHA-256 of the whole buffer, hex-encoded
@@ -93,46 +93,46 @@ On `hello_ack`, for each pack in `pack_hashes` from the backend:
 | ✅ | any | In sync — nothing to do |
 | ❌ | ✅ | Backend is newer, no local changes → auto-sync (apply backend version) |
 | ❌ | ❌ (backendHash == syncedHash) | Local was manually edited, backend unchanged → log warning, keep local |
-| ❌ | ❌ (backendHash != syncedHash) | True conflict — both sides changed → backend wins (warn prominently), `/ifz sync reject` to cancel |
+| ❌ | ❌ (backendHash != syncedHash) | True conflict — both sides changed → backend wins (warn prominently), `/artisan sync reject` to cancel |
 
 ---
 
 ### Task 1: SyncedMenuProvider — unify providers, remove mode
 
 **Files:**
-- Delete: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt`
-- Delete: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt`
-- Delete: `plugin/src/test/kotlin/gg/interfaze/plugin/FilesystemMenuProviderTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/SyncedMenuProviderTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Delete: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt`
+- Delete: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt`
+- Delete: `plugin/src/test/kotlin/net/artisanmc/plugin/FilesystemMenuProviderTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/SyncedMenuProviderTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 - Modify: `plugin/src/main/resources/config.yml`
 
 After this task all existing tests still pass. WS is started if `server_key` is non-empty in config; `currentBundleHash` is still hardcoded `""` (real hash added in Task 2).
 
 - [ ] **Step 1: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/SyncedMenuProviderTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/SyncedMenuProviderTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
-import gg.interfaze.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.*
 
 class SyncedMenuProviderTest {
     private lateinit var server: ServerMock
-    private lateinit var plugin: InterfazePlugin
+    private lateinit var plugin: ArtisanPlugin
 
     @BeforeTest
     fun setup() {
         server = MockBukkit.mock()
-        plugin = MockBukkit.load(InterfazePlugin::class.java)
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
     }
 
     @AfterTest
@@ -176,7 +176,7 @@ class SyncedMenuProviderTest {
 
     @Test
     fun `resolves menu by id from disk`() {
-        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         writePackFixture(packsRoot)
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
@@ -187,7 +187,7 @@ class SyncedMenuProviderTest {
 
     @Test
     fun `openMenu creates a 27-slot inventory for the player`() {
-        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         writePackFixture(packsRoot)
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
@@ -199,7 +199,7 @@ class SyncedMenuProviderTest {
 
     @Test
     fun `no WsClient created when serverKey is empty`() {
-        val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
         provider.load()
         // unload must not throw (wsClient is null) — this verifies the guard in unload()
@@ -213,24 +213,24 @@ class SyncedMenuProviderTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.SyncedMenuProviderTest"
+gradlew.bat test --tests "net.artisanmc.plugin.SyncedMenuProviderTest"
 ```
 Expected: BUILD FAILED — `SyncedMenuProvider` not found.
 
 - [ ] **Step 3: Write SyncedMenuProvider**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`:
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
-import gg.interfaze.plugin.render.MenuRenderer
-import gg.interfaze.plugin.ws.WsClient
-import gg.interfaze.plugin.yaml.PackReader
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.ws.WsClient
+import net.artisanmc.plugin.yaml.PackReader
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -287,7 +287,7 @@ class SyncedMenuProvider(
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
             "hello_ack" ->
-                logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
+                logger?.info("Connected to Artisan backend (session=${node["session_id"]?.asText()})")
 
             "bundle_available" ->
                 logger?.info("bundle_available received for pack ${node["pack_id"]?.asText()} — download not yet implemented (Task 4)")
@@ -308,9 +308,9 @@ class SyncedMenuProvider(
 
 - [ ] **Step 4: Modify PluginConfig — remove mode**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`:
 ```kotlin
-package gg.interfaze.plugin.config
+package net.artisanmc.plugin.config
 
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -322,8 +322,8 @@ data class PluginConfig(
     companion object {
         fun from(cfg: FileConfiguration) = PluginConfig(
             serverKey = cfg.getString("server_key", "") ?: "",
-            wsUrl     = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
-            packsDir  = cfg.getString("packs_dir", "plugins/Interfaze/packs") ?: "",
+            wsUrl     = cfg.getString("ws_url", "wss://editor.artisanmc.net/ws/plugin") ?: "",
+            packsDir  = cfg.getString("packs_dir", "plugins/Artisan/packs") ?: "",
         )
     }
 }
@@ -331,10 +331,10 @@ data class PluginConfig(
 
 - [ ] **Step 5: Modify WsClient — add currentBundleHash param**
 
-Replace the constructor and `onOpen` in `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`. Only the class header and `onOpen` change:
+Replace the constructor and `onOpen` in `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`. Only the class header and `onOpen` change:
 
 ```kotlin
-package gg.interfaze.plugin.ws
+package net.artisanmc.plugin.ws
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
@@ -412,20 +412,20 @@ class WsClient(
 }
 ```
 
-- [ ] **Step 6: Modify InterfazePlugin — use SyncedMenuProvider**
+- [ ] **Step 6: Modify ArtisanPlugin — use SyncedMenuProvider**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.provider.MenuProvider
-import gg.interfaze.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-open class InterfazePlugin : JavaPlugin() {
+open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
 
@@ -440,13 +440,13 @@ open class InterfazePlugin : JavaPlugin() {
             logger    = logger,
         )
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
-        logger.info("Interfaze ${description.version} enabled")
+        getCommand("ifz")?.setExecutor(ArtisanCommand(this))
+        logger.info("Artisan ${description.version} enabled")
     }
 
     override fun onDisable() {
         menuProvider.unload()
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 }
 ```
@@ -455,21 +455,21 @@ open class InterfazePlugin : JavaPlugin() {
 
 `plugin/src/main/resources/config.yml`:
 ```yaml
-# Set to connect this server to the Interfaze editor backend for live sync.
+# Set to connect this server to the Artisan editor backend for live sync.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 
 # Path relative to the server root where exported pack bundles are stored.
-packs_dir: "plugins/Interfaze/packs"
+packs_dir: "plugins/Artisan/packs"
 ```
 
 - [ ] **Step 8: Delete old provider files and test**
 
 ```powershell
-Remove-Item plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt
-Remove-Item plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt
-Remove-Item plugin/src/test/kotlin/gg/interfaze/plugin/FilesystemMenuProviderTest.kt
+Remove-Item plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt
+Remove-Item plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt
+Remove-Item plugin/src/test/kotlin/net/artisanmc/plugin/FilesystemMenuProviderTest.kt
 ```
 
 - [ ] **Step 9: Run all plugin tests — confirm they pass**
@@ -492,18 +492,18 @@ git commit -m "refactor(plugin): SyncedMenuProvider unifies local+cloud, removes
 ### Task 2: BundleHasher + SyncMetadata + real hash in hello
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleHasher.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/SyncMetadata.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` (load method only)
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleHasherTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleHasher.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/SyncMetadata.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` (load method only)
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleHasherTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/BundleHasherTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/BundleHasherTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.sync.BundleHasher
+import net.artisanmc.plugin.sync.BundleHasher
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -544,10 +544,10 @@ class BundleHasherTest {
     }
 
     @Test
-    fun `dot-interfaze files are excluded from hash`() {
+    fun `dot-artisan files are excluded from hash`() {
         val dir = Files.createTempDirectory("bh5_").toFile().also { makePack(it) }
         val before = BundleHasher.hash(dir)
-        File(dir, ".interfaze-sync.yaml").writeText("synced_hash: abc\n")
+        File(dir, ".artisan-sync.yaml").writeText("synced_hash: abc\n")
         assertEquals(before, BundleHasher.hash(dir))
     }
 
@@ -573,15 +573,15 @@ class BundleHasherTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.BundleHasherTest"
+gradlew.bat test --tests "net.artisanmc.plugin.BundleHasherTest"
 ```
 Expected: BUILD FAILED — `BundleHasher` not found.
 
 - [ ] **Step 3: Write BundleHasher**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleHasher.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleHasher.kt`:
 ```kotlin
-package gg.interfaze.plugin.sync
+package net.artisanmc.plugin.sync
 
 import java.io.File
 import java.security.MessageDigest
@@ -590,7 +590,7 @@ object BundleHasher {
 
     /**
      * Deterministic SHA-256 of all files under [packDir].
-     * Files whose name starts with ".interfaze" are excluded.
+     * Files whose name starts with ".artisan" are excluded.
      * Canonical algorithm (must match hashUtils.ts on the backend):
      *   - Walk files recursively, sort by relative path (forward slashes)
      *   - Build: {relPath}\n{utf8 content}\n  for each file
@@ -599,7 +599,7 @@ object BundleHasher {
     fun hash(packDir: File): String {
         val sb = StringBuilder()
         packDir.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".interfaze") }
+            .filter { it.isFile && !it.name.startsWith(".artisan") }
             .sortedBy { it.relativeTo(packDir).path.replace('\\', '/') }
             .forEach { file ->
                 val relPath = file.relativeTo(packDir).path.replace('\\', '/')
@@ -637,9 +637,9 @@ object BundleHasher {
 
 - [ ] **Step 4: Write SyncMetadata**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/sync/SyncMetadata.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/sync/SyncMetadata.kt`:
 ```kotlin
-package gg.interfaze.plugin.sync
+package net.artisanmc.plugin.sync
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -656,7 +656,7 @@ data class SyncMetadata(
     @JsonProperty("backend_hash") val backendHash: String = "",
 ) {
     companion object {
-        private const val FILENAME = ".interfaze-sync.yaml"
+        private const val FILENAME = ".artisan-sync.yaml"
         private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
         fun read(packDir: File): SyncMetadata {
@@ -683,7 +683,7 @@ data class SyncMetadata(
 
 - [ ] **Step 5: Update SyncedMenuProvider.load() to send real hash**
 
-In `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`, change only the `load()` method:
+In `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`, change only the `load()` method:
 
 ```kotlin
 override fun load() {
@@ -704,7 +704,7 @@ override fun load() {
 
 Add the import at the top of the file:
 ```kotlin
-import gg.interfaze.plugin.sync.BundleHasher
+import net.artisanmc.plugin.sync.BundleHasher
 ```
 
 - [ ] **Step 6: Run all plugin tests — confirm they pass**
@@ -718,7 +718,7 @@ Expected: BUILD SUCCESSFUL — all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/ plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/BundleHasherTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/ plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/BundleHasherTest.kt
 git commit -m "feat(plugin): BundleHasher + SyncMetadata + real bundle hash in hello"
 ```
 
@@ -744,8 +744,8 @@ import { describe, expect, test } from "bun:test";
 import { app } from "../app";
 
 const PACK_FILES = {
-  "plugins/Interfaze/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
-  "plugins/Interfaze/packs/p_test/menus/shop.yaml": "id: shop\nsize: 27\n",
+  "plugins/Artisan/packs/p_test/manifest.yaml": "schema: manifest/v1\npack_id: p_test\n",
+  "plugins/Artisan/packs/p_test/menus/shop.yaml": "id: shop\nsize: 27\n",
 };
 
 describe("bundle upload/download", () => {
@@ -787,7 +787,7 @@ describe("bundle upload/download", () => {
     expect(downloadRes.status).toBe(200);
     const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
     expect(body.hash).toBe(hash);
-    expect(body.files["plugins/Interfaze/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
+    expect(body.files["plugins/Artisan/packs/p_test/manifest.yaml"]).toContain("manifest/v1");
   });
 });
 ```
@@ -829,9 +829,9 @@ export const packBundles = sqliteTable("pack_bundles", {
 cd backend
 bun run db:push
 ```
-If it fails due to existing DB, delete `interfaze.db` and run again:
+If it fails due to existing DB, delete `artisan.db` and run again:
 ```powershell
-Remove-Item interfaze.db -ErrorAction SilentlyContinue
+Remove-Item artisan.db -ErrorAction SilentlyContinue
 bun run db:push
 ```
 Expected: `server_keys` and `pack_bundles` tables created.
@@ -872,11 +872,11 @@ import { packBundles } from "../db/schema";
 
 /**
  * Per-pack hash — must match BundleHasher.hash(packDir) in Kotlin.
- * Algorithm: sort files by relative path (strip "plugins/Interfaze/packs/{packId}/" prefix),
+ * Algorithm: sort files by relative path (strip "plugins/Artisan/packs/{packId}/" prefix),
  *   build "{relPath}\n{content}\n" for each, SHA-256 the whole string.
  */
 export async function computeBundleHash(files: Record<string, string>, packId: string): Promise<string> {
-  const prefix = `plugins/Interfaze/packs/${packId}/`;
+  const prefix = `plugins/Artisan/packs/${packId}/`;
   const sorted = Object.entries(files)
     .filter(([k]) => k.startsWith(prefix))
     .map(([k, v]) => ({ path: k.slice(prefix.length), content: v }))
@@ -1176,20 +1176,20 @@ git commit -m "feat(backend): pack_bundles table, upload/download endpoints, nee
 ### Task 4: Plugin — BundleDownloader + bundle_available handling
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` (handleBundleAvailable)
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` (handleBundleAvailable)
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import gg.interfaze.plugin.sync.BundleDownloader
-import gg.interfaze.plugin.sync.BundleHasher
-import gg.interfaze.plugin.sync.SyncMetadata
+import net.artisanmc.plugin.sync.BundleDownloader
+import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.sync.SyncMetadata
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -1205,8 +1205,8 @@ class BundleDownloaderTest {
     private val mapper = ObjectMapper()
 
     private fun makeBundle(packId: String): Map<String, String> = mapOf(
-        "plugins/Interfaze/packs/$packId/manifest.yaml" to "schema: manifest/v1\npack_id: $packId\n",
-        "plugins/Interfaze/packs/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
+        "plugins/Artisan/packs/$packId/manifest.yaml" to "schema: manifest/v1\npack_id: $packId\n",
+        "plugins/Artisan/packs/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
     )
 
     @Test
@@ -1218,7 +1218,7 @@ class BundleDownloaderTest {
         server.enqueue(MockResponse().setBody(responseBody).setHeader("Content-Type", "application/json"))
         server.start()
 
-        val packsDir = Files.createTempDirectory("ifz_dl_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_dl_").toFile()
         val downloader = BundleDownloader(OkHttpClient(), packsDir)
         downloader.download(
             url       = server.url("/api/bundles/$packId").toString(),
@@ -1246,7 +1246,7 @@ class BundleDownloaderTest {
         )
         server.start()
 
-        val packsDir = Files.createTempDirectory("ifz_meta_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_meta_").toFile()
         val downloader = BundleDownloader(OkHttpClient(), packsDir)
         downloader.download(
             url       = server.url("/api/bundles/$packId").toString(),
@@ -1267,15 +1267,15 @@ class BundleDownloaderTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.BundleDownloaderTest"
+gradlew.bat test --tests "net.artisanmc.plugin.BundleDownloaderTest"
 ```
 Expected: BUILD FAILED — `BundleDownloader` not found.
 
 - [ ] **Step 3: Write BundleDownloader**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt`:
 ```kotlin
-package gg.interfaze.plugin.sync
+package net.artisanmc.plugin.sync
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -1293,7 +1293,7 @@ class BundleDownloader(
 
     /**
      * Downloads a bundle from [url] (authenticated with [serverKey]) and writes
-     * YAML files to [packsDir]/[packId]/. Updates `.interfaze-sync.yaml` after writing.
+     * YAML files to [packsDir]/[packId]/. Updates `.artisan-sync.yaml` after writing.
      */
     fun download(url: String, serverKey: String, packId: String) {
         val request = Request.Builder()
@@ -1323,7 +1323,7 @@ class BundleDownloader(
         }
         val backendHash = parsed["hash"] as? String ?: ""
 
-        val prefix = "plugins/Interfaze/packs/$packId/"
+        val prefix = "plugins/Artisan/packs/$packId/"
         val packDir = File(packsDir, packId)
 
         for ((path, content) in files) {
@@ -1345,18 +1345,18 @@ class BundleDownloader(
 In `SyncedMenuProvider.kt`, add the `BundleDownloader` field and the full `handleBundleAvailable` handler. The complete updated file:
 
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
-import gg.interfaze.plugin.render.MenuRenderer
-import gg.interfaze.plugin.sync.BundleDownloader
-import gg.interfaze.plugin.sync.BundleHasher
-import gg.interfaze.plugin.ws.WsClient
-import gg.interfaze.plugin.yaml.PackReader
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.sync.BundleDownloader
+import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.ws.WsClient
+import net.artisanmc.plugin.yaml.PackReader
 import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
@@ -1419,7 +1419,7 @@ class SyncedMenuProvider(
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
             "hello_ack" ->
-                logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
+                logger?.info("Connected to Artisan backend (session=${node["session_id"]?.asText()})")
 
             "bundle_available" -> {
                 val packId = node["pack_id"]?.asText() ?: return
@@ -1455,18 +1455,18 @@ Expected: BUILD SUCCESSFUL — all tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt
 git commit -m "feat(plugin): BundleDownloader handles bundle_available — writes packs to disk and hot-reloads"
 ```
 
 ---
 
-### Task 5: Plugin — conflict detection + /ifz sync command
+### Task 5: Plugin — conflict detection + /artisan sync command
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` (hello_ack handler)
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt` (add sync subcommand)
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ConflictDetectionTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` (hello_ack handler)
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt` (add sync subcommand)
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ConflictDetectionTest.kt`
 
 The conflict detection logic reads three values for each known pack dir:
 - `diskHash` = `BundleHasher.hash(packDir)` right now
@@ -1617,12 +1617,12 @@ git commit -m "feat(backend): include per-pack hashes in hello_ack for conflict 
 
 - [ ] **Step 2: Write the failing conflict detection test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/ConflictDetectionTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/ConflictDetectionTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.sync.BundleHasher
-import gg.interfaze.plugin.sync.SyncMetadata
+import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.sync.SyncMetadata
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -1681,7 +1681,7 @@ Also create the `detectSyncAction` function and `SyncAction` enum. These go in `
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.ConflictDetectionTest"
+gradlew.bat test --tests "net.artisanmc.plugin.ConflictDetectionTest"
 ```
 Expected: BUILD FAILED — `detectSyncAction` not found.
 
@@ -1704,7 +1704,7 @@ Then update `handleMessage` in `SyncedMenuProvider` to use this logic for `hello
 ```kotlin
 "hello_ack" -> {
     val sessionId = node["session_id"]?.asText()
-    logger?.info("Connected to Interfaze backend (session=$sessionId)")
+    logger?.info("Connected to Artisan backend (session=$sessionId)")
 
     val packHashesNode = node["pack_hashes"] ?: return
     val packHashes: Map<String, String> = runCatching {
@@ -1715,37 +1715,37 @@ Then update `handleMessage` in `SyncedMenuProvider` to use this logic for `hello
         val packId = packDir.name
         val backendHash = packHashes[packId] ?: return@forEach
         val diskHash = BundleHasher.hash(packDir)
-        val meta = gg.interfaze.plugin.sync.SyncMetadata.read(packDir)
+        val meta = net.artisanmc.plugin.sync.SyncMetadata.read(packDir)
 
         when (detectSyncAction(diskHash, meta.syncedHash, backendHash)) {
             SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
             SyncAction.AUTO_SYNC  -> logger?.info("Pack $packId: backend is newer — syncing automatically")
             SyncAction.LOCAL_ONLY -> logger?.warning(
                 "Pack $packId: local files were manually edited (disk differs from last sync). " +
-                "Backend has not changed. Use '/ifz sync accept' to apply local or '/ifz sync reject' to pull backend."
+                "Backend has not changed. Use '/artisan sync accept' to apply local or '/artisan sync reject' to pull backend."
             )
             SyncAction.CONFLICT   -> logger?.warning(
                 "Pack $packId: CONFLICT — both local and backend changed since last sync. " +
-                "Backend version will be applied. Use '/ifz sync reject' before reconnecting to keep local."
+                "Backend version will be applied. Use '/artisan sync reject' before reconnecting to keep local."
             )
         }
     }
 }
 ```
 
-- [ ] **Step 5: Update IfzCommand to add /ifz sync**
+- [ ] **Step 5: Update ArtisanCommand to add /artisan sync**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`:
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.plugin.ArtisanPlugin
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
+class ArtisanCommand(private val plugin: ArtisanPlugin) : CommandExecutor {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender !is Player) {
             sender.sendMessage("This command can only be run by a player.")
@@ -1754,7 +1754,7 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 val menuId = args.getOrNull(1) ?: run {
-                    sender.sendMessage("Usage: /ifz menu <id>")
+                    sender.sendMessage("Usage: /artisan menu <id>")
                     return true
                 }
                 plugin.menuProvider.openMenu(sender, menuId, "en")
@@ -1762,7 +1762,7 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
             "reload" -> {
                 plugin.menuProvider.unload()
                 plugin.menuProvider.load()
-                sender.sendMessage("Interfaze reloaded.")
+                sender.sendMessage("Artisan reloaded.")
             }
             "sync" -> {
                 when (args.getOrNull(1)?.lowercase()) {
@@ -1774,10 +1774,10 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
                         plugin.menuProvider.load()
                         sender.sendMessage("Reconnecting to backend — backend version will be applied if available.")
                     }
-                    else -> sender.sendMessage("Usage: /ifz sync <status|reject>")
+                    else -> sender.sendMessage("Usage: /artisan sync <status|reject>")
                 }
             }
-            else -> sender.sendMessage("Usage: /ifz <menu <id>|reload|sync <status|reject>>")
+            else -> sender.sendMessage("Usage: /artisan <menu <id>|reload|sync <status|reject>>")
         }
         return true
     }
@@ -1795,8 +1795,8 @@ Expected: BUILD SUCCESSFUL — all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt plugin/src/test/kotlin/gg/interfaze/plugin/ConflictDetectionTest.kt
-git commit -m "feat(plugin): conflict detection on hello_ack + /ifz sync command"
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt plugin/src/test/kotlin/net/artisanmc/plugin/ConflictDetectionTest.kt
+git commit -m "feat(plugin): conflict detection on hello_ack + /artisan sync command"
 ```
 
 ---
@@ -1824,7 +1824,7 @@ describe("publishBundle", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    const files = { "plugins/Interfaze/packs/p_test/manifest.yaml": "schema: manifest/v1\n" };
+    const files = { "plugins/Artisan/packs/p_test/manifest.yaml": "schema: manifest/v1\n" };
     const result = await publishBundle({
       apiUrl: "http://localhost:3001",
       serverKey: "sk_abc",
@@ -2032,7 +2032,7 @@ git commit -m "feat(frontend): bundlePublisher + wsStore.publish() for pushing p
 
 After all 6 tasks:
 
-**Plugin** — one provider (`SyncedMenuProvider`) always loads from disk; if `server_key` is set in `config.yml`, connects to the backend on startup, sends a real SHA-256 hash of all packs in `hello`, receives `bundle_available` messages, downloads and applies updates automatically, and logs clear warnings for conflicts. `/ifz sync reject` forces a clean re-sync from the backend.
+**Plugin** — one provider (`SyncedMenuProvider`) always loads from disk; if `server_key` is set in `config.yml`, connects to the backend on startup, sends a real SHA-256 hash of all packs in `hello`, receives `bundle_available` messages, downloads and applies updates automatically, and logs clear warnings for conflicts. `/artisan sync reject` forces a clean re-sync from the backend.
 
 **Backend** — stores uploaded pack bundles per server in `pack_bundles` table; computes `needs_sync` using the same hash algorithm as the plugin; sends `bundle_available` per out-of-date pack after `hello_ack`; exposes `POST /api/bundles/:packId` for the frontend to publish and `GET /api/bundles/:packId` for the plugin to download (both auth'd via `Authorization: Bearer <server_key>`).
 
@@ -2043,4 +2043,4 @@ After all 6 tasks:
 - Multiple pack conflict resolution UI in the editor
 - Bundle versioning / rollback history in the backend
 - `bundle_available` via CDN URL instead of direct backend download
-- `/ifz sync accept` to explicitly push local changes to the backend
+- `/artisan sync accept` to explicitly push local changes to the backend

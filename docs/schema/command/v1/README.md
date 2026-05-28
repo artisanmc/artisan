@@ -1,6 +1,6 @@
-# Interfaze — Command schema v1
+# Artisan — Command schema v1
 
-Format intermédiaire d'une commande Interfaze. Une commande est une **entité de premier ordre** dans le workspace, au même niveau qu'un Menu : elle a son id, ses notes, sa permission, et vit dans le même pack `.itfz`.
+Format intermédiaire d'une commande Artisan. Une commande est une **entité de premier ordre** dans le workspace, au même niveau qu'un Menu : elle a son id, ses notes, sa permission, et vit dans le même pack `.itfz`.
 
 ## Fichiers
 
@@ -12,9 +12,9 @@ Format intermédiaire d'une commande Interfaze. Une commande est une **entité d
 | `examples/profile-with-target.json` | Commande à 1 argument optionnel qui ouvre un menu avec contexte. |
 | `examples/pay-player.json` | Commande à 2 arguments required avec requirements + fallback + cooldown. |
 
-## Pourquoi des commandes côté Interfaze
+## Pourquoi des commandes côté Artisan
 
-Tous les plugins de menus existants (DeluxeMenus, zMenu) bindent `/menu open <name>` ou des commandes triviales. Interfaze va plus loin : la commande est un objet de design à part entière, avec ses arguments typés, ses requirements, son cooldown, et son contexte propagé au menu. Cela couvre 80 % des `/profile`, `/shop`, `/heal`, `/pay`, `/warps` qu'un admin tape autrement à la main dans `commands.yml` ou via un plugin séparé.
+Tous les plugins de menus existants (DeluxeMenus, zMenu) bindent `/menu open <name>` ou des commandes triviales. Artisan va plus loin : la commande est un objet de design à part entière, avec ses arguments typés, ses requirements, son cooldown, et son contexte propagé au menu. Cela couvre 80 % des `/profile`, `/shop`, `/heal`, `/pay`, `/warps` qu'un admin tape autrement à la main dans `commands.yml` ou via un plugin séparé.
 
 ## Modèle conceptuel
 
@@ -34,7 +34,7 @@ Les `Action`, `Condition` et `Cooldown` sont **les mêmes objets** que dans `men
 
 ```json
 "actions": {
-  "items": { "$ref": "https://docs.interfaze.gg/schema/menu/v1.json#/$defs/Action" }
+  "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Action" }
 }
 ```
 
@@ -117,11 +117,11 @@ Une `description` peut donc être totalement i18n (`{i18n:command.profile.descri
 
 ## Conflits avec commandes existantes
 
-Au démarrage du plugin, Interfaze détecte les conflits avec les commandes déjà enregistrées (commandes vanilla, autres plugins). Politique en V1 :
+Au démarrage du plugin, Artisan détecte les conflits avec les commandes déjà enregistrées (commandes vanilla, autres plugins). Politique en V1 :
 
-- **Commande vanilla** (`heal`, `tp`, etc. natives) : Interfaze refuse d'enregistrer, log un warning, demande à l'admin de renommer ou de définir un alias en config serveur.
+- **Commande vanilla** (`heal`, `tp`, etc. natives) : Artisan refuse d'enregistrer, log un warning, demande à l'admin de renommer ou de définir un alias en config serveur.
 - **Commande d'un autre plugin** : pareil, refus + warning. Pas d'override silencieux.
-- **Conflit interne entre deux commandes Interfaze** (même name dans deux packs activés) : le pack chargé en dernier perd, log un warning visible.
+- **Conflit interne entre deux commandes Artisan** (même name dans deux packs activés) : le pack chargé en dernier perd, log un warning visible.
 
 ## Pricing
 
