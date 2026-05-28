@@ -1,14 +1,14 @@
-name: Interfaze
+name: Artisan
 version: '1.0.0'
-main: gg.interfaze.plugin.InterfazePlugin
+main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
 softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder]
-description: Interfaze GUI editor plugin
+description: Artisan GUI editor plugin
 commands:
-  ifz:
-    description: Interfaze commands
-    usage: /ifz <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>
+  artisan:
+    description: Artisan commands
+    usage: /artisan <menu <id>|reload|sync <status|reject>|setup [CODE]|editor [revoke]>
 permissions:
-  interfaze.editor:
-    description: Allows opening the Interfaze web editor
+  artisan.editor:
+    description: Allows opening the Artisan web editor
     default: op

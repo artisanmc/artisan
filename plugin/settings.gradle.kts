@@ -1,1 +1,1 @@
-rootProject.name = "interfaze-plugin"
+rootProject.name = "artisan-plugin"

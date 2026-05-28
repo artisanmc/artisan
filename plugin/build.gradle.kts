@@ -5,7 +5,7 @@ plugins {
     id("io.github.goooler.shadow") version "8.1.8"
 }
 
-group = "gg.interfaze"
+group = "net.artisanmc"
 version = "1.0.0-SNAPSHOT"
 
 java {
@@ -57,9 +57,9 @@ tasks.test {
 }
 
 tasks.shadowJar {
-    relocate("com.fasterxml.jackson", "gg.interfaze.shaded.jackson")
-    relocate("okhttp3", "gg.interfaze.shaded.okhttp3")
-    relocate("okio", "gg.interfaze.shaded.okio")
+    relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
+    relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
+    relocate("okio", "net.artisanmc.shaded.okio")
     // Required: merge service-loader files instead of overwriting them.
     // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
     // causing "No BuiltInsLoader implementation was found" at runtime.
@@ -73,7 +73,7 @@ val deploy by tasks.registering(Exec::class) {
     workingDir = composeDir
     doFirst {
         val jar = tasks.shadowJar.get().archiveFile.get().asFile
-        val dest = composeDir.resolve("docker/server/plugins/InterfazePlugin.jar")
+        val dest = composeDir.resolve("docker/server/plugins/ArtisanPlugin.jar")
         dest.parentFile.mkdirs()
         jar.copyTo(dest, overwrite = true)
     }

@@ -1,0 +1,42 @@
+package net.artisanmc.modules.menus
+
+import be.seeseemelk.mockbukkit.MockBukkit
+import net.artisanmc.modules.api.*
+import net.artisanmc.modules.api.schemas.SchemaRegistry
+import net.artisanmc.plugin.ArtisanPlugin
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+
+class MenusModuleTest {
+
+    private lateinit var plugin: ArtisanPlugin
+
+    @BeforeEach fun setup() {
+        MockBukkit.mock()
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
+    }
+
+    @AfterEach fun teardown() { MockBukkit.unmock() }
+
+    @Test
+    fun `module id is 'menus' and schema is 'menu_v1'`() {
+        val module = MenusModule()
+        assertEquals("menus", module.id)
+        assertEquals("menu/v1", module.schemaVersion)
+    }
+
+    @Test
+    fun `onEnable does not throw with a real plugin API`() {
+        val module = MenusModule()
+        val api = ArtisanAPI(
+            plugin = plugin,
+            dataSources = DataSourceRegistry(),
+            commands = CommandRegistry(),
+            events = ModuleEventBus(),
+            schemas = SchemaRegistry(),
+        )
+        module.onEnable(api)
+    }
+}
