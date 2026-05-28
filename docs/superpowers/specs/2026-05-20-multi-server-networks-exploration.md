@@ -12,9 +12,9 @@ Le pack passe d'**entité scoped au server_key** à **entité first-class** dét
 
 L'idée initiale "stocker dans GitHub" a été explorée et écartée : GitHub n'aide pas sur le merge sémantique (qui est custom de toute façon), complique la sync multi-server (webhooks vs WS direct), et son seul vrai gain — sharing/fork public — a été dé-priorisé. On garde un backend custom, avec un système de comptes natif (Discord OAuth + email/password) puisqu'on n'utilise plus GitHub comme provider d'identité non plus.
 
-Positionnement Interfaze : **freemium SaaS**. Subscription scopée au Network. Stripe différé à une phase future ; Phase 1-3 sont account-aware sans billing.
+Positionnement Artisan : **freemium SaaS**. Subscription scopée au Network. Stripe différé à une phase future ; Phase 1-3 sont account-aware sans billing.
 
-Conflit de sync simplifié : **backend = source de vérité**. Local YAML = cache + resilience boot. `/ifz pushLocal` pour pousser explicitement les modifs FTP. Pas d'UI de résolution interactive (l'UI conflits récemment mergée est à retirer, hors deletion auto-resolve).
+Conflit de sync simplifié : **backend = source de vérité**. Local YAML = cache + resilience boot. `/artisan pushLocal` pour pousser explicitement les modifs FTP. Pas d'UI de résolution interactive (l'UI conflits récemment mergée est à retirer, hors deletion auto-resolve).
 
 ---
 
@@ -71,7 +71,7 @@ ServerKey (credential — N instances physiques peuvent partager une clé)
 
 ## 4. Editor anonyme vs logged-in
 
-`/ifz editor` continue à ouvrir une session **anonyme** via trust dance. Pas de login à taper pour les édits quotidiens. Le compte n'intervient qu'au **setup**.
+`/artisan editor` continue à ouvrir une session **anonyme** via trust dance. Pas de login à taper pour les édits quotidiens. Le compte n'intervient qu'au **setup**.
 
 | Action | Anonyme | Logged-in |
 |---|---|---|
@@ -81,7 +81,7 @@ ServerKey (credential — N instances physiques peuvent partager une clé)
 | Changer les bindings (`server_key → pack/branch`) | ✗ | ✓ |
 | Gérer membres, billing | ✗ | ✓ (owner) |
 
-Au quotidien, l'admin tape `/ifz editor`, est trust-confirmé, peut éditer les packs liés à son serveur — c'est le scénario actuel. Login débloque les opérations "structurelles" (création de pack, switch de binding, gestion réseau).
+Au quotidien, l'admin tape `/artisan editor`, est trust-confirmé, peut éditer les packs liés à son serveur — c'est le scénario actuel. Login débloque les opérations "structurelles" (création de pack, switch de binding, gestion réseau).
 
 ---
 
@@ -103,7 +103,7 @@ Aujourd'hui : assets stockés à `data/assets/{server_key_id}/...` avec codepoin
 
 Nouveau : `data/assets/{pack_id}/...`, codepoint allocation par pack. Les assets voyagent avec le pack lors d'un partage cross-server_key.
 
-**Conséquence sur le resource pack zip** : aujourd'hui les assets d'un server_key sont mergés dans `assets/interfaze/`. Avec pack-scope, plusieurs packs sur un même server_key peuvent vouloir coexister dans le RP. Solution : **merge à la volée avec ré-allocation de codepoints** au build du RP (le pack interne du zip reste `assets/interfaze/`, mais l'allocateur tient compte des collisions entre packs). Plus complexe que la solution naïve "sub-namespaces par pack", mais évite de casser la résolution de codepoints dans les YAMLs existants.
+**Conséquence sur le resource pack zip** : aujourd'hui les assets d'un server_key sont mergés dans `assets/artisan/`. Avec pack-scope, plusieurs packs sur un même server_key peuvent vouloir coexister dans le RP. Solution : **merge à la volée avec ré-allocation de codepoints** au build du RP (le pack interne du zip reste `assets/artisan/`, mais l'allocateur tient compte des collisions entre packs). Plus complexe que la solution naïve "sub-namespaces par pack", mais évite de casser la résolution de codepoints dans les YAMLs existants.
 
 Migration : Iban accepte un wipe complet (il n'a qu'un environnement de test). On reconstruit propre.
 
@@ -116,7 +116,7 @@ Les fichiers YAML sur le disque du serveur MC servent à **deux choses uniquemen
 1. **Resilience** : le serveur peut booter et fonctionner si le backend est down.
 2. **Cache** : ce qui est servi aux joueurs jusqu'à la prochaine sync backend.
 
-### Flux normal (boot ou /ifz reload)
+### Flux normal (boot ou /artisan reload)
 
 ```
 plugin charge local → connecte WS → hello { current_bundle_hash: H_local }
@@ -133,7 +133,7 @@ Plugin opère sur les fichiers locaux indéfiniment. Sync reprend quand backend 
 ### Push manuel (cas FTP)
 
 ```
-admin tape : /ifz pushLocal <pack_id> | --all
+admin tape : /artisan pushLocal <pack_id> | --all
   plugin lit les fichiers locaux
   plugin → WS local_push { pack_id, files, hash }
   backend accepte sans résolution → broadcast bundle_available aux autres instances
@@ -214,7 +214,7 @@ La résolution qu'on supprime est entre `(local disk)` et `(backend)`. La merge 
 - **Assets per-pack** + refactor codepoint allocator avec merge à la volée au build RP.
 - **Provider OAuth** : Discord en priorité (cible = admins MC). Email/password en fallback. GitHub écarté (n'avait de valeur que comme storage, qui est custom).
 - **Migration data** : agressive. Iban a un seul environnement de test, accepte un wipe pour repartir propre.
-- **Backend = source de vérité** pour les conflits sync. Local = cache + resilience. `/ifz pushLocal` pour les cas FTP.
+- **Backend = source de vérité** pour les conflits sync. Local = cache + resilience. `/artisan pushLocal` pour les cas FTP.
 - **`server_key` = credential** : autoscale supporté nativement (N instances, même clé). Pas d'UI dédiée pour ce cas, "advanced".
 
 ---

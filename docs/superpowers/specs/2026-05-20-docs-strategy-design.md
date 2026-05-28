@@ -36,7 +36,7 @@ Audience explicitement exclue : devs qui self-hostent leur propre backend.
 ## Architecture — Layout du repo
 
 ```
-Interfaze/
+Artisan/
 ├── CLAUDE.md                      étendu — règles maintenance doc
 ├── CONTEXT.md                     inchangé
 ├── docs/                          inchangé — archive AI/design
@@ -83,14 +83,14 @@ Justifications :
 
 Une seule page riche. Sections :
 
-1. **Prerequisites** — Paper 1.21.4+, Java 21, compte Interfaze
+1. **Prerequisites** — Paper 1.21.4+, Java 21, compte Artisan
    (self-hosting backend hors scope MVP, ouvre la voie via Contributing
    plus tard).
 2. **Download** — lien GitHub Releases, drop jar, restart pour générer
    `config.yml`.
 3. **Link your server** — récupérer server_key depuis dashboard,
-   coller dans `config.yml`, `/ifz reload`.
-4. **Open the editor** — `/ifz editor`, click trust link.
+   coller dans `config.yml`, `/artisan reload`.
+4. **Open the editor** — `/artisan editor`, click trust link.
 5. **Create your first menu** — un paragraphe, lien vers `/editor`
    (stub) ou GIF court.
 6. **Troubleshooting** — 3-5 problèmes courants : backend unreachable,
@@ -117,7 +117,7 @@ comportement explicite juste après.
 | Tu touches | Tu mets à jour |
 |---|---|
 | Config plugin (`config.yml`, defaults) | `docs-site/getting-started/install-admin.md` (sections Config / Reference) |
-| Commande user-visible (`/ifz editor`, `/ifz reload`) | `docs-site/getting-started/install-admin.md` |
+| Commande user-visible (`/artisan editor`, `/artisan reload`) | `docs-site/getting-started/install-admin.md` |
 | Resource pack distribution modes | `docs-site/getting-started/install-admin.md` (section Resource pack) |
 | UI éditeur (nouveau bouton/flow visible user) | `docs-site/editor/<feature>.md` (créer si nécessaire) |
 
@@ -157,7 +157,7 @@ mappings:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "User-visible plugin config"
 
-  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
+  - touches: "plugin/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"

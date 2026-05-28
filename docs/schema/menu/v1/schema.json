@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.interfaze.gg/schema/menu/v1.json",
-  "title": "Interfaze Menu",
-  "description": "Format intermédiaire d'un menu Interfaze. Source de vérité unique pour un menu.",
+  "$id": "https://docs.artisanmc.net/schema/menu/v1.json",
+  "title": "Artisan Menu",
+  "description": "Format intermédiaire d'un menu Artisan. Source de vérité unique pour un menu.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "title", "size", "layers"],
@@ -182,7 +182,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["ref"],
-      "description": "Référence vers un connecteur (homemade Interfaze ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle le connecteur au render et obtient une liste/objet typé qui peuple la slot.",
+      "description": "Référence vers un connecteur (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle le connecteur au render et obtient une liste/objet typé qui peuple la slot.",
       "properties": {
         "ref": {
           "type": "string",

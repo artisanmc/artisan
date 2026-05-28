@@ -1,4 +1,4 @@
-# Interfaze — Domain Glossary
+# Artisan — Domain Glossary
 
 This file is the source of truth for domain language used in specs, code, and
 chats. When a term in the codebase or spec drifts from a definition here, the

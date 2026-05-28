@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Comble le trou UX entre le système accounts (Plan 1A) et Networks (Plan 1B/1C) déjà mergés et l'ancien flow `/ifz setup` qui créait des Networks anonymes.
+**Goal:** Comble le trou UX entre le système accounts (Plan 1A) et Networks (Plan 1B/1C) déjà mergés et l'ancien flow `/artisan setup` qui créait des Networks anonymes.
 
-**Architecture:** Hard break sur `/ifz setup` (login requis pour claim), nouvelle UI éditeur `/networks/*` pour gérer Networks/server_keys, transfert de Network entier via lien partageable, et auto-push bootstrap au hello pour récupérer les packs disque.
+**Architecture:** Hard break sur `/artisan setup` (login requis pour claim), nouvelle UI éditeur `/networks/*` pour gérer Networks/server_keys, transfert de Network entier via lien partageable, et auto-push bootstrap au hello pour récupérer les packs disque.
 
 **Tech Stack:** Backend Bun + Hono + Drizzle + PostgreSQL, Editor React 19 + Vite 6 + TanStack Router + Zustand, Plugin Kotlin 2.0 + Paper + OkHttp.
 
@@ -22,7 +22,7 @@
   - `lib/networkTransferStorage.ts` — DB helpers for `network_transfers`
 - **Modify**:
   - `db/schema.ts` — add `networkTransfers` table
-  - `routes/link.ts` — claim now requires `ifz_user_session` cookie + body `{network_id?}`
+  - `routes/link.ts` — claim now requires `artisan_user_session` cookie + body `{network_id?}`
   - `routes/link.test.ts` — update tests for new claim behavior
   - `routes/userNetworks.ts` — add `DELETE /:id/server-keys/:keyId`, mount `networkTransfers` router
   - `routes/editorSession.ts:96-103` — `GET /:token` returns `network_id`
@@ -47,9 +47,9 @@
 ### Plugin — `plugin/src/main/kotlin/`
 
 - **Modify**:
-  - `gg/interfaze/plugin/provider/SyncedMenuProvider.kt` — `handleHelloAck` walks packDir + auto-pushes disk-only packs
+  - `net/artisanmc/plugin/provider/SyncedMenuProvider.kt` — `handleHelloAck` walks packDir + auto-pushes disk-only packs
 - **Test**:
-  - `gg/interfaze/plugin/FullSyncIntegrationTest.kt` — new test "auto-push at hello when disk non-empty + backend empty"
+  - `net/artisanmc/plugin/FullSyncIntegrationTest.kt` — new test "auto-push at hello when disk non-empty + backend empty"
 
 ### Docs
 
@@ -101,7 +101,7 @@ git commit -m "feat(backend): add network_transfers table"
 
 ## Phase B — Backend claim hard-break
 
-### Task B1: Test that claim 401s without `ifz_user_session` cookie
+### Task B1: Test that claim 401s without `artisan_user_session` cookie
 
 **Files:**
 - Modify: `backend/src/routes/link.test.ts`
@@ -114,7 +114,7 @@ In `link.test.ts`, after the existing claim tests:
 import { describe, expect, it, beforeEach } from "bun:test";
 
 describe("POST /api/link/:code/claim — hard break (Plan accounts × networks)", () => {
-  it("returns 401 when no ifz_user_session cookie is present", async () => {
+  it("returns 401 when no artisan_user_session cookie is present", async () => {
     const created = await app.request("/api/link/", { method: "POST" });
     const { code } = await created.json();
 
@@ -137,7 +137,7 @@ describe("POST /api/link/:code/claim — hard break (Plan accounts × networks)"
 cd backend && bun test src/routes/link.test.ts
 ```
 
-Expected: `(fail) ... returns 401 when no ifz_user_session cookie ...` (current claim is anonymous, returns 200).
+Expected: `(fail) ... returns 401 when no artisan_user_session cookie ...` (current claim is anonymous, returns 200).
 
 - [ ] **Step 3: Modify the claim handler to require auth**
 
@@ -149,7 +149,7 @@ import { validateUserSession } from "../lib/sessionManager";
 import { addMembership } from "../lib/membershipManager";
 
 router.post("/:code/claim", async (c) => {
-  const userSessionId = getCookie(c, "ifz_user_session");
+  const userSessionId = getCookie(c, "artisan_user_session");
   if (!userSessionId) return c.json({ error: "unauthorized" }, 401);
   const user = await validateUserSession(userSessionId);
   if (!user) return c.json({ error: "unauthorized" }, 401);
@@ -224,7 +224,7 @@ Expected: PASS.
 
 ```bash
 git add backend/src/routes/link.ts backend/src/routes/link.test.ts
-git commit -m "feat(backend): claim requires ifz_user_session cookie"
+git commit -m "feat(backend): claim requires artisan_user_session cookie"
 ```
 
 ### Task B2: Test smart-count network selection
@@ -265,7 +265,7 @@ describe("POST /api/link/:code/claim — smart network selection", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify(body),
     });
@@ -442,7 +442,7 @@ describe("POST /api/networks/:id/transfer/init", () => {
     const { sessionId, networkId } = await seedUserWithNetwork();
     const res = await app.request(`/api/networks/${networkId}/transfer/init`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -455,7 +455,7 @@ describe("POST /api/networks/:id/transfer/init", () => {
     const foreign = await seedUserWithNetwork();         // owns network B
     const res = await app.request(`/api/networks/${foreign.networkId}/transfer/init`, {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(403);
   });
@@ -493,7 +493,7 @@ const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 export const networkTransfersRouter = new Hono();
 
 async function getAuthedUser(c: any) {
-  const sid = getCookie(c, "ifz_user_session");
+  const sid = getCookie(c, "artisan_user_session");
   if (!sid) return null;
   return await validateUserSession(sid);
 }
@@ -562,12 +562,12 @@ describe("GET /api/networks/transfer/:token", () => {
   it("returns transfer info for a valid token", async () => {
     const { sessionId, networkId } = await seedUserWithNetwork("Source");
     const init = await app.request(`/api/networks/${networkId}/transfer/init`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const token = new URL((await init.json()).url).searchParams.get("token");
 
     const res = await app.request(`/api/networks/transfer/${token}`, {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -603,12 +603,12 @@ describe("POST /api/networks/transfer/:token/accept", () => {
     const source = await seedUserWithNetwork("Source");
     const dest = await seedUserWithNetwork("Other");
     const init = await app.request(`/api/networks/${source.networkId}/transfer/init`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${source.sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${source.sessionId}` },
     });
     const token = new URL((await init.json()).url).searchParams.get("token");
 
     const res = await app.request(`/api/networks/transfer/${token}/accept`, {
-      method: "POST", headers: { Cookie: `ifz_user_session=${dest.sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${dest.sessionId}` },
     });
     expect(res.status).toBe(200);
 
@@ -634,7 +634,7 @@ describe("POST /api/networks/transfer/:token/accept", () => {
     });
     const { sessionId } = await seedUserWithNetwork();
     const res = await app.request("/api/networks/transfer/exp2/accept", {
-      method: "POST", headers: { Cookie: `ifz_user_session=${sessionId}` },
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(410);
   });
@@ -732,7 +732,7 @@ describe("DELETE /api/networks/:id/server-keys/:keyId", () => {
     // ... (use generateServerKey + insert binding)
     const res = await app.request(`/api/networks/${networkId}/server-keys/<keyId>`, {
       method: "DELETE",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(204);
     // Assert binding row deleted via cascade
@@ -839,7 +839,7 @@ git commit -m "feat(backend): editor-session validate returns network_id"
 ### Task E1: Test that hello triggers auto-push when disk non-empty + backend empty
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt`
 
 - [ ] **Step 1: Add test**
 
@@ -849,7 +849,7 @@ fun `auto-push at hello when disk pack non-empty and backend empty`() {
     MockBukkit.mock()
     try {
         val packId = "p_auto"
-        val packsDir = Files.createTempDirectory("ifz_auto_").toFile()
+        val packsDir = Files.createTempDirectory("artisan_auto_").toFile()
         val packDir = File(packsDir, packId).apply { mkdirs() }
         File(packDir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: $packId\n")
         File(packDir, "menus").mkdirs()
@@ -897,7 +897,7 @@ Find the `handleHelloAck` (or equivalent — the existing function processing `h
 
 ```kotlin
 // Bootstrap auto-push: for each disk pack that has content but the backend
-// reports as empty/unknown, push the local content. Mirrors /ifz pushLocal
+// reports as empty/unknown, push the local content. Mirrors /artisan pushLocal
 // behavior but automatic at hello time.
 for (packDir in packsDir.listFiles { it.isDirectory && !it.name.startsWith(".") } ?: emptyArray()) {
     val packId = packDir.name
@@ -909,7 +909,7 @@ for (packDir in packsDir.listFiles { it.isDirectory && !it.name.startsWith(".") 
         pushLocalPack(packId, packDir)
         logger?.info("Auto-pushed local pack '$packId' (backend was empty)")
     } else if (backendHash != diskHash) {
-        logger?.warning("Local pack '$packId' diverges from backend — NOT auto-pushed (use /ifz pushLocal to force)")
+        logger?.warning("Local pack '$packId' diverges from backend — NOT auto-pushed (use /artisan pushLocal to force)")
     }
 }
 ```
@@ -927,7 +927,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt
 git commit -m "feat(plugin): auto-push disk-only packs at hello"
 ```
 
@@ -1255,7 +1255,7 @@ export function LinkRoute() {
 
   if (status === "loading") return <div>Chargement…</div>;
   if (status === "done") return <div>Setup terminé ! Retournez sur Minecraft.</div>;
-  if (status === "error") return <div>Échec du setup. Retape <code>/ifz setup</code>.</div>;
+  if (status === "error") return <div>Échec du setup. Retape <code>/artisan setup</code>.</div>;
   if (status === "claiming") return <div>Liaison en cours…</div>;
 
   // status === "ready"
@@ -1350,7 +1350,7 @@ function NetworksRoute() {
     return (
       <div className="p-8">
         <h1 className="text-2xl mb-4">Aucun Network</h1>
-        <p>Lance <code>/ifz setup</code> sur ton serveur Minecraft pour commencer.</p>
+        <p>Lance <code>/artisan setup</code> sur ton serveur Minecraft pour commencer.</p>
       </div>
     );
   }
@@ -1710,7 +1710,7 @@ git commit -m "feat(editor): / redirects based on auth state"
 - [ ] **Step 1: After merge, find Iban's user_id**
 
 ```bash
-docker exec interfaze-postgres-1 psql -U postgres -d interfaze \
+docker exec artisan-postgres-1 psql -U postgres -d artisan \
   -c "SELECT id FROM users WHERE email = 'iban.etchepareborde@gmail.com'"
 ```
 
@@ -1719,7 +1719,7 @@ Note the `id` (e.g. `user_xyz`).
 - [ ] **Step 2: Find the anonymous Network id**
 
 ```bash
-docker exec interfaze-postgres-1 psql -U postgres -d interfaze \
+docker exec artisan-postgres-1 psql -U postgres -d artisan \
   -c "SELECT id, name FROM networks WHERE id NOT IN (SELECT network_id FROM memberships)"
 ```
 
@@ -1728,14 +1728,14 @@ Note the network_id (e.g. `net_ebe57cf700fd`).
 - [ ] **Step 3: Insert Membership row**
 
 ```bash
-docker exec interfaze-postgres-1 psql -U postgres -d interfaze \
+docker exec artisan-postgres-1 psql -U postgres -d artisan \
   -c "INSERT INTO memberships (user_id, network_id, role, created_at) VALUES ('<user_id>', '<network_id>', 'owner', NOW())"
 ```
 
 - [ ] **Step 4: Verify**
 
 ```bash
-docker exec interfaze-postgres-1 psql -U postgres -d interfaze \
+docker exec artisan-postgres-1 psql -U postgres -d artisan \
   -c "SELECT * FROM memberships WHERE user_id = '<user_id>'"
 ```
 
@@ -1770,7 +1770,7 @@ Add to the auth/networks endpoints table:
 ```
 ### Plan accounts × networks UX — flow setup logged-in
 
-- `/ifz setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `ifz_user_session` et choisit le network destination via smart count.
+- `/artisan setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `artisan_user_session` et choisit le network destination via smart count.
 - `network_transfers (token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id)` : tokens partageables 24h pour transférer la propriété d'un Network entier.
 - Bootstrap plugin : au hello, les packs disque inconnus du backend sont auto-pushés via `local_push`.
 ```
@@ -1837,7 +1837,7 @@ git commit -m "docs(sync-docs): map network_transfers + claim auth"
 - [ ] Deploy : `cd plugin && ./gradlew deploy`
 - [ ] Restart backend if schema changed
 - [ ] Execute Phase M migration
-- [ ] In Minecraft, run `/ifz setup` → verify link redirects to `/login` when logged out
+- [ ] In Minecraft, run `/artisan setup` → verify link redirects to `/login` when logged out
 - [ ] Log in / sign up → return to `/link` → claim wizard
 - [ ] Open `/networks` → see the new network
 - [ ] Open `/networks/:id/settings` → generate transfer URL
@@ -1850,7 +1850,7 @@ git commit -m "docs(sync-docs): map network_transfers + claim auth"
 ## Self-Review
 
 **Spec coverage:**
-- ✅ Hard break /ifz setup login required → Task B1
+- ✅ Hard break /artisan setup login required → Task B1
 - ✅ /link?code=... auth gate redirect → Task H1
 - ✅ Smart count picker → Task H2
 - ✅ Routes /networks, /:id, /:id/settings → Tasks I1, I2, I3

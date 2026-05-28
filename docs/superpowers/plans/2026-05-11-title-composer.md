@@ -6,7 +6,7 @@
 
 **Goal:** Sub-project 3 of the texture pack system — replace `Menu.title: LText` with `Menu.title: MenuTitleLayer[]` (background + glyphs + text segments, each positioned in pixels). Add a WYSIWYG composer UI in the editor (Konva mockup + layer list). Implement the runtime compiler in the plugin (Kotlin) that turns the layer array into a MiniMessage string with negative-space offsets.
 
-**Architecture:** Editor stores titles as a JSON array of typed layer objects. Each layer references an `assetId` (from Sub-project 1's library) by ID, not by content. The plugin downloads the resource pack zip (Sub-project 2) and parses a new `assets/interfaze/asset-index.json` inside it to map `assetId → codepoint char + ascent + height`. At render time, the plugin's `TitleCompiler` walks the layer array and emits `<font:interfaze:default><offset:Xpx>\uE0XX</offset></font>` for glyphs and `<offset:Xpx><color:#…>text</color></offset>` for text — concatenated into a single MiniMessage Component used as the inventory title.
+**Architecture:** Editor stores titles as a JSON array of typed layer objects. Each layer references an `assetId` (from Sub-project 1's library) by ID, not by content. The plugin downloads the resource pack zip (Sub-project 2) and parses a new `assets/artisan/asset-index.json` inside it to map `assetId → codepoint char + ascent + height`. At render time, the plugin's `TitleCompiler` walks the layer array and emits `<font:artisan:default><offset:Xpx>\uE0XX</offset></font>` for glyphs and `<offset:Xpx><color:#…>text</color></offset>` for text — concatenated into a single MiniMessage Component used as the inventory title.
 
 **Tech Stack:** Editor = React + Zustand + Konva. Backend = Bun + fflate (existing `resourcePackBuilder` extended). Plugin = Kotlin + Jackson + Adventure (MiniMessage). Tests = Vitest, `bun:test`, JUnit + MockBukkit.
 
@@ -51,7 +51,7 @@ export interface Menu {
 ### Plugin (Kotlin)
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt
+// plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt
 sealed class MenuTitleLayer {
     data class Background(val assetId: String) : MenuTitleLayer()
     data class Glyph(val assetId: String, val x: Int, val y: Int) : MenuTitleLayer()
@@ -74,7 +74,7 @@ sealed class MenuTitleLayer {
 ### Asset index (zip-embedded)
 
 ```json
-// assets/interfaze/asset-index.json (new file in the resource pack zip)
+// assets/artisan/asset-index.json (new file in the resource pack zip)
 {
   "version": 1,
   "assets": {
@@ -110,18 +110,18 @@ sealed class MenuTitleLayer {
 
 ### Backend (modify)
 - `backend/src/lib/assetIndexBuilder.ts` (new) + test — `buildAssetIndex(assets) → object`
-- `backend/src/lib/resourcePackBuilder.ts` + test — include `assets/interfaze/asset-index.json` in the zip
+- `backend/src/lib/resourcePackBuilder.ts` + test — include `assets/artisan/asset-index.json` in the zip
 
 ### Plugin (create)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/AssetCatalog.kt` + test
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt` + test
+- `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/AssetCatalog.kt` + test
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt` + test
 
 ### Plugin (modify)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/model/Menu.kt` — `title: List<MenuTitleLayer>` (was `LText`)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt` (or wherever YAML is parsed) — read the new array; tolerate legacy String
-- `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt` — invoke `AssetCatalog.update` from `onUpdate`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt` — call `TitleCompiler.compileTitle` instead of `getText(pack, menu.title, lang)`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/model/Menu.kt` — `title: List<MenuTitleLayer>` (was `LText`)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt` (or wherever YAML is parsed) — read the new array; tolerate legacy String
+- `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt` — invoke `AssetCatalog.update` from `onUpdate`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt` — call `TitleCompiler.compileTitle` instead of `getText(pack, menu.title, lang)`
 
 ### Docs
 - `CLAUDE.md` — note the title-layer YAML format, bump test counts
@@ -727,7 +727,7 @@ In `buildResourcePackZip`, add to the `files` map before zipping:
 import { buildAssetIndex } from "./assetIndexBuilder";
 
 // ... existing code ...
-files["assets/interfaze/asset-index.json"] =
+files["assets/artisan/asset-index.json"] =
   strToU8(JSON.stringify(buildAssetIndex(assets), null, 2));
 ```
 
@@ -744,13 +744,13 @@ Update tests to assert the new file is present in the zip and parses correctly. 
 ### Task 16: Plugin — `MenuTitleLayer.kt` + YAML parsing
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/model/Menu.kt` (or the file holding the `Menu` class) — change `title: LText` to `title: List<MenuTitleLayer>`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt` (or wherever menu YAML is parsed) — read the title array; tolerate legacy String
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/model/Menu.kt` (or the file holding the `Menu` class) — change `title: LText` to `title: List<MenuTitleLayer>`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt` (or wherever menu YAML is parsed) — read the title array; tolerate legacy String
 
 ```kotlin
 // MenuTitleLayer.kt
-package gg.interfaze.plugin.model
+package net.artisanmc.plugin.model
 
 sealed class MenuTitleLayer {
     data class Background(val assetId: String) : MenuTitleLayer()
@@ -816,7 +816,7 @@ Use the existing `BundleCompilerTest` or create a new `MenuYamlMapperTest`. Add 
 
 - [ ] Commit:
   ```bash
-  git add plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt plugin/src/main/kotlin/gg/interfaze/plugin/model/Menu.kt plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/BundleCompilerTest.kt
+  git add plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt plugin/src/main/kotlin/net/artisanmc/plugin/model/Menu.kt plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/BundleCompilerTest.kt
   git commit -m "feat(plugin): MenuTitleLayer model + YAML parsing"
   ```
 
@@ -825,13 +825,13 @@ Use the existing `BundleCompilerTest` or create a new `MenuYamlMapperTest`. Add 
 ### Task 17: Plugin — `AssetCatalog`
 
 **Files (both new):**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/AssetCatalog.kt`
-- `plugin/src/test/kotlin/gg/interfaze/plugin/AssetCatalogTest.kt`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/AssetCatalog.kt`
+- `plugin/src/test/kotlin/net/artisanmc/plugin/AssetCatalogTest.kt`
 
-A service that downloads the resource pack zip via OkHttp and parses `assets/interfaze/asset-index.json` to build a `Map<String, AssetEntry>`. Atomic swap on update.
+A service that downloads the resource pack zip via OkHttp and parses `assets/artisan/asset-index.json` to build a `Map<String, AssetEntry>`. Atomic swap on update.
 
 ```kotlin
-package gg.interfaze.plugin.resourcepack
+package net.artisanmc.plugin.resourcepack
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.OkHttpClient
@@ -865,7 +865,7 @@ class AssetCatalog(
             ZipInputStream(body).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    if (entry.name == "assets/interfaze/asset-index.json") {
+                    if (entry.name == "assets/artisan/asset-index.json") {
                         val json = zip.readBytes().toString(Charsets.UTF_8)
                         state.set(parse(json))
                         return
@@ -903,7 +903,7 @@ Wire into `ResourcePackManager.onUpdate`: after setting `currentPackInfo`, call 
 
 - [ ] Commit:
   ```bash
-  git add plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/AssetCatalog.kt plugin/src/test/kotlin/gg/interfaze/plugin/AssetCatalogTest.kt plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt
+  git add plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/AssetCatalog.kt plugin/src/test/kotlin/net/artisanmc/plugin/AssetCatalogTest.kt plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt
   git commit -m "feat(plugin): AssetCatalog (zip-embedded asset index)"
   ```
 
@@ -912,17 +912,17 @@ Wire into `ResourcePackManager.onUpdate`: after setting `currentPackInfo`, call 
 ### Task 18: Plugin — `TitleCompiler`
 
 **Files (both new):**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt`
-- `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt`
+- `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt`
 
 Pure function `compileTitle(layers, lang, pack, assetCatalog, externalGlyphsCatalog): Component`. Walks the layers, builds a MiniMessage string segment per layer, and finally renders the concatenated string via `MiniMessage.miniMessage().deserialize(...)`.
 
 ```kotlin
-package gg.interfaze.plugin.render
+package net.artisanmc.plugin.render
 
-import gg.interfaze.plugin.model.MenuTitleLayer
-import gg.interfaze.plugin.model.Pack
-import gg.interfaze.plugin.resourcepack.AssetCatalog
+import net.artisanmc.plugin.model.MenuTitleLayer
+import net.artisanmc.plugin.model.Pack
+import net.artisanmc.plugin.resourcepack.AssetCatalog
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 
@@ -953,17 +953,17 @@ object TitleCompiler {
             val entry = assetCatalog.lookup(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
             // No offset for backgrounds — they anchor at the title baseline.
-            "<font:interfaze:default>${escapeChar(ch)}</font>"
+            "<font:artisan:default>${escapeChar(ch)}</font>"
         }
         is MenuTitleLayer.Glyph -> {
             val entry = assetCatalog.lookup(layer.assetId) ?: return ""
             val ch = entry.codepointChar ?: return ""
-            wrapOffset(layer.x, "<font:interfaze:default>${escapeChar(ch)}</font>")
+            wrapOffset(layer.x, "<font:artisan:default>${escapeChar(ch)}</font>")
         }
         is MenuTitleLayer.Text -> {
             val text = getText(pack, layer.value, lang)
             val colored = layer.color?.let { "<color:$it>$text</color>" } ?: text
-            // fontAssetId is forward-compat — Sub-project 4 wraps in <font:interfaze:my_font>.
+            // fontAssetId is forward-compat — Sub-project 4 wraps in <font:artisan:my_font>.
             wrapOffset(layer.x, colored)
         }
         is MenuTitleLayer.ExternalGlyph -> {
@@ -982,7 +982,7 @@ object TitleCompiler {
 Tests:
 - Empty layers → `Component.empty()`
 - Text only at x=10, color=#FFAA00 → contains `<offset:10px><color:#FFAA00>hello</color></offset>` (assert via reflection on the compiled string before deserialize, OR use Adventure's serializer to round-trip)
-- Glyph layer → `<font:interfaze:default>` + the codepoint char
+- Glyph layer → `<font:artisan:default>` + the codepoint char
 - External glyph with missing catalog → falls back to "□"
 - Background layer renders without offset
 
@@ -992,7 +992,7 @@ For the "assert the intermediate string" pattern: make `compileLayer` package-pr
 
 - [ ] Commit:
   ```bash
-  git add plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt
+  git add plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt
   git commit -m "feat(plugin): TitleCompiler (layers → MiniMessage)"
   ```
 
@@ -1001,7 +1001,7 @@ For the "assert the intermediate string" pattern: make `compileLayer` package-pr
 ### Task 19: Plugin — wire `TitleCompiler` into `MenuRenderer`
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`
 
 Find the place where the inventory title is currently set from `menu.title`. It's likely something like:
 
@@ -1017,9 +1017,9 @@ val title = TitleCompiler.compileTitle(menu.title, lang, pack, assetCatalog, ext
 val inv = Bukkit.createInventory(holder, rows * 9, title)
 ```
 
-`assetCatalog` and `externalGlyphsCatalog` need to be injected into `MenuRenderer` (constructor or setter). Plumb them from `InterfazePlugin` where the renderer is constructed.
+`assetCatalog` and `externalGlyphsCatalog` need to be injected into `MenuRenderer` (constructor or setter). Plumb them from `ArtisanPlugin` where the renderer is constructed.
 
-Update `InterfazePlugin.kt` to:
+Update `ArtisanPlugin.kt` to:
 1. Instantiate the `AssetCatalog` once
 2. Pass it to `MenuRenderer`
 3. Hook `assetCatalog.update(info.url, info.hash)` from `ResourcePackManager.onUpdate` (done in Task 17 already — verify)
@@ -1028,7 +1028,7 @@ Run `./gradlew test`. The existing `MenuRendererTest` may need updates if it ass
 
 - [ ] Commit:
   ```bash
-  git add plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt plugin/src/test/kotlin/gg/interfaze/plugin/MenuRendererTest.kt
+  git add plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt plugin/src/test/kotlin/net/artisanmc/plugin/MenuRendererTest.kt
   git commit -m "feat(plugin): MenuRenderer uses TitleCompiler"
   ```
 

@@ -6,7 +6,7 @@
 
 ## Goal
 
-Permettre à l'utilisateur d'enrichir visuellement ses menus Interfaze avec :
+Permettre à l'utilisateur d'enrichir visuellement ses menus Artisan avec :
 
 1. **Backgrounds custom** (textures qui remplacent/recouvrent le fond du chest GUI)
 2. **Glyphs/overlays** (icônes décoratives positionnées en pixels dans le menu)
@@ -21,7 +21,7 @@ Le système doit fonctionner **avec ou sans** plugin de pack externe (Oraxen/Nex
 │  EDITOR (React)                                            │
 │  • Onglet Assets (biblio globale par server_key)           │
 │  • Title composer WYSIWYG : layers (bg, glyphs, text)      │
-│  • Asset picker (filtre Interfaze/Oraxen/Nexo/ItemsAdder)  │
+│  • Asset picker (filtre Artisan/Oraxen/Nexo/ItemsAdder)  │
 └──────────────────────┬────────────────────────────────────┘
                        │ POST /api/assets (upload)
                        │ PUT  /api/packs/.../menus (refs AssetId)
@@ -48,11 +48,11 @@ Le système doit fonctionner **avec ou sans** plugin de pack externe (Oraxen/Nex
 
 **Décisions clés** :
 
-- Un seul resource pack par `server_key` (toutes packs Interfaze fusionnées dedans)
+- Un seul resource pack par `server_key` (toutes packs Artisan fusionnées dedans)
 - Asset library globale au `server_key` (pas au pack)
 - Cache busting par hash dans l'URL
 - Le plugin push le pack au joueur (`setResourcePack`), coexistence via pack stack 1.20.3+
-- Glyphs externes (Oraxen/Nexo/ItemsAdder) **référencés** mais **jamais** inclus dans le pack Interfaze
+- Glyphs externes (Oraxen/Nexo/ItemsAdder) **référencés** mais **jamais** inclus dans le pack Artisan
 
 ## Domain Model
 
@@ -75,7 +75,7 @@ interface Asset {
 
   // pour type=font (import MCFonts) :
   fontMeta?: {
-    namespace: string;      // ex "interfaze:my_font"
+    namespace: string;      // ex "artisan:my_font"
     glyphMap: Array<{
       char: string;
       texture: string;
@@ -129,9 +129,9 @@ type ExternalGlyph = {
 
 `MenuTitleLayer[]` → MiniMessage string :
 
-- Background/glyph Interfaze → `<font:interfaze:default><offset:Xpx></offset></font>`
+- Background/glyph Artisan → `<font:artisan:default><offset:Xpx></offset></font>`
 - Text vanilla → `<offset:Xpx><color:...>texte</color></offset>`
-- Text custom font → `<offset:Xpx><font:interfaze:my_font>texte</font></offset>`
+- Text custom font → `<offset:Xpx><font:artisan:my_font>texte</font></offset>`
 - External glyph → `<font:oraxen:default></font>`
 
 (où le caractère après `<offset:Xpx>` ou dans `<font:oraxen:default>` est le codepoint Unicode alloué au glyph dans la Private Use Area, ex ``. Valeurs réelles assignées par le générateur backend.)
@@ -149,11 +149,11 @@ L'ordre des layers détermine le z-order (premier = arrière, dernier = avant). 
 ### Structure du zip
 
 ```
-interfaze-pack.zip
+artisan-pack.zip
 ├── pack.mcmeta              # format 22 (1.21+)
-├── pack.png                 # icône Interfaze (fixe MVP)
+├── pack.png                 # icône Artisan (fixe MVP)
 └── assets/
-    └── interfaze/
+    └── artisan/
         ├── font/
         │   ├── default.json # aggregate glyphs standalone + refs minecraft:default
         │   └── <name>.json  # 1 par font importée
@@ -170,9 +170,9 @@ Exemple `font/default.json` :
 {
   "providers": [
     { "type": "reference", "id": "minecraft:default" },
-    { "type": "bitmap", "file": "interfaze:font/coin_icon.png",
+    { "type": "bitmap", "file": "artisan:font/coin_icon.png",
       "ascent": 8, "height": 9, "chars": [""] },
-    { "type": "bitmap", "file": "interfaze:font/shop_bg.png",
+    { "type": "bitmap", "file": "artisan:font/shop_bg.png",
       "ascent": -8, "height": 200, "chars": [""] }
   ]
 }
@@ -246,10 +246,10 @@ fun pushPackToPlayer(player: Player) {
 ### Configuration plugin
 
 ```yaml
-# plugins/Interfaze/config.yml
+# plugins/Artisan/config.yml
 resource-pack:
   enabled: true
-  prompt: "<gold>Pack Interfaze</gold>"
+  prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
   send-delay-ticks: 20
 ```
@@ -293,13 +293,13 @@ Mockup chest à l'échelle 2x avec layers superposés. À droite, liste z-order 
 - "Add layer" → asset picker (filtré par type)
 - Reorder via drag-drop dans la liste = z-index
 
-**Preview** : Konva rend à l'échelle, glyphs Interfaze via `<img>` asset, glyphs externes via `textureUrl`, texte en font Minecraft approximative HTML/CSS (MVP) ou Canvas bitmap (phase 2).
+**Preview** : Konva rend à l'échelle, glyphs Artisan via `<img>` asset, glyphs externes via `textureUrl`, texte en font Minecraft approximative HTML/CSS (MVP) ou Canvas bitmap (phase 2).
 
 ### Asset picker (partagé)
 
 Réutilisable depuis : title composer, element appearances, font selector.
 
-Toggle source : All / Interfaze / Oraxen / Nexo / ItemsAdder. External glyphs badgés + cadenas read-only.
+Toggle source : All / Artisan / Oraxen / Nexo / ItemsAdder. External glyphs badgés + cadenas read-only.
 
 ### Import font
 
@@ -379,9 +379,9 @@ val glyph = externalGlyphs.lookup(layer.provider, layer.glyphName)
 "<font:${glyph.namespace}:default>${glyph.char}</font>"
 ```
 
-### Pas d'inclusion dans le pack Interfaze
+### Pas d'inclusion dans le pack Artisan
 
-Les glyphs externes sont délivrés au joueur par le pack Oraxen/Nexo/ItemsAdder lui-même (stack 1.20.3+). Interfaze ne fait que **référencer** le namespace au runtime.
+Les glyphs externes sont délivrés au joueur par le pack Oraxen/Nexo/ItemsAdder lui-même (stack 1.20.3+). Artisan ne fait que **référencer** le namespace au runtime.
 
 ## Export / Import
 
@@ -501,7 +501,7 @@ Le scope MVP couvre les 3 axes (bg + glyphs + text custom), découpé en **6 sub
 |---|---|---|---|
 | **1** | **Asset library + backend** | Schema DB, CRUD endpoints, upload PNG, codepoint allocation, asset detail panel UI | — |
 | **2** | **Resource pack generator** | Pipeline génération zip, HTTP endpoint, plugin distribution (`setResourcePack`) | 1 |
-| **3** | **MenuTitleLayer + WYSIWYG composer** | Domain migration, title composer UI, runtime compiler (plugin) — text + glyphs Interfaze | 1, 2 |
+| **3** | **MenuTitleLayer + WYSIWYG composer** | Domain migration, title composer UI, runtime compiler (plugin) — text + glyphs Artisan | 1, 2 |
 | **4** | **Background + custom fonts** | Bg layer kind, import MCFonts dialog, font asset type, font rendering preview | 3 |
 | **5** | **External glyphs (Oraxen/Nexo/ItemsAdder)** | `GlyphSource` adapters, WS messaging, external glyphs picker | 3 |
 | **6** | **Export/import `.zip` avec assets** | Export dialog, zip pipeline, import conflict resolution, AssetId remap | 1, 3 |
@@ -518,7 +518,7 @@ Hors MVP, à reprendre dans des specs futures :
 - **`pack.png` custom** : upload icône custom par l'admin
 - **Glyph studio** : éditeur pixel-art intégré (créer un glyph sans uploader)
 - **Animated glyphs** (Minecraft 1.20+ supporte animation frames dans font bitmaps)
-- **Bridge inverse** : "exporter un asset Interfaze vers le config Oraxen"
+- **Bridge inverse** : "exporter un asset Artisan vers le config Oraxen"
 - **Asset marketplace** : partage public d'assets entre serveurs
 
 ## Decision Log

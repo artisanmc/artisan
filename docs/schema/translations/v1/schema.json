@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.interfaze.gg/schema/translations/v1.json",
-  "title": "Interfaze Translations",
+  "$id": "https://docs.artisanmc.net/schema/translations/v1.json",
+  "title": "Artisan Translations",
   "description": "Format intermédiaire des traductions d'un workspace. Une clé = un texte traduisible, scoped au workspace (pas de partage entre admins). Référencée depuis les menus et commandes via {i18n:<key>}. Le contenu de chaque traduction est du MiniMessage (cf. https://docs.advntr.dev/minimessage/).",
   "type": "object",
   "additionalProperties": false,

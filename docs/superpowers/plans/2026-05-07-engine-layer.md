@@ -4,7 +4,7 @@
 
 **Goal:** Implement sealed Action/Condition hierarchies, parsers, soft-dep registry, condition evaluator, action executor, session store, and bundle compiler — pure engine with no rendering changes.
 
-**Architecture:** New `engine/` package under `gg.interfaze.plugin`. `BundleCompiler` replaces direct `BundleMenu(yaml, langMaps)` construction in `PackReader`. Tests use kotlin-test + MockBukkit only where a `Player` is required.
+**Architecture:** New `engine/` package under `net.artisanmc.plugin`. `BundleCompiler` replaces direct `BundleMenu(yaml, langMaps)` construction in `PackReader`. Tests use kotlin-test + MockBukkit only where a `Player` is required.
 
 **Tech Stack:** Kotlin 2.0, Paper API 1.21.4, MockBukkit 3.133.2, VaultAPI 1.7.1 (compileOnly), PlaceholderAPI 2.11.6 (compileOnly), WorldGuard 7.0.12 (compileOnly)
 
@@ -49,20 +49,20 @@ rtk git commit -m "chore(plugin): add Vault, PlaceholderAPI, WorldGuard compileO
 ### Task 2: Update data model
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt`
 
 - [ ] **Step 1: Replace ClickHandlerYaml, add CooldownYaml, add showIf to AppearanceYaml, update BundleMenu**
 
 Replace the existing content of `PackBundle.kt` with:
 
 ```kotlin
-package gg.interfaze.plugin.model
+package net.artisanmc.plugin.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
-import gg.interfaze.plugin.engine.ClickType
-import gg.interfaze.plugin.engine.ClickHandler
-import gg.interfaze.plugin.engine.CompiledAppearance
+import net.artisanmc.plugin.engine.ClickType
+import net.artisanmc.plugin.engine.ClickHandler
+import net.artisanmc.plugin.engine.CompiledAppearance
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
@@ -175,19 +175,19 @@ data class BundleMenu(
 ```bash
 cd plugin && ./gradlew compileKotlin
 ```
-Expected: compile errors referencing `gg.interfaze.plugin.engine.*` — that is correct at this point. Proceed to Task 3.
+Expected: compile errors referencing `net.artisanmc.plugin.engine.*` — that is correct at this point. Proceed to Task 3.
 
 ---
 
 ### Task 3: Action sealed class
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/Action.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/Action.kt`
 
 - [ ] **Step 1: Create Action.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 sealed class Action {
     data class RunCommand(val command: String, val asConsole: Boolean = false) : Action()
@@ -230,12 +230,12 @@ sealed class Action {
 ### Task 4: Condition sealed class
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/Condition.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/Condition.kt`
 
 - [ ] **Step 1: Create Condition.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 sealed class Condition {
     data class HasPermission(val perm: String) : Condition()
@@ -263,13 +263,13 @@ sealed class Condition {
 ### Task 5: ExecutionContext + ClickHandler types
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ExecutionContext.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ClickHandler.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ExecutionContext.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ClickHandler.kt`
 
 - [ ] **Step 1: Create ExecutionContext.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import org.bukkit.entity.Player
 
@@ -283,9 +283,9 @@ data class ExecutionContext(
 - [ ] **Step 2: Create ClickHandler.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
-import gg.interfaze.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.model.AppearanceYaml
 
 data class Cooldown(
     val id: String,
@@ -332,7 +332,7 @@ Expected: `BUILD SUCCESSFUL` (PackBundle.kt imports now resolve)
 - [ ] **Step 4: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/ plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/ plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt
 rtk git commit -m "feat(plugin): engine data types — Action, Condition, ClickHandler, ExecutionContext"
 ```
 
@@ -341,16 +341,16 @@ rtk git commit -m "feat(plugin): engine data types — Action, Condition, ClickH
 ### Task 6: ActionParser (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ActionParserTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ActionParser.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ActionParserTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ActionParser.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.engine.Action
-import gg.interfaze.plugin.engine.ActionParser
+import net.artisanmc.plugin.engine.Action
+import net.artisanmc.plugin.engine.ActionParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -473,14 +473,14 @@ class ActionParserTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ActionParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ActionParserTest"
 ```
 Expected: FAIL — `ActionParser` not found
 
 - [ ] **Step 3: Implement ActionParser**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 object ActionParser {
 
@@ -540,14 +540,14 @@ object ActionParser {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ActionParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ActionParserTest"
 ```
 Expected: All 18 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/ActionParser.kt plugin/src/test/kotlin/gg/interfaze/plugin/ActionParserTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/ActionParser.kt plugin/src/test/kotlin/net/artisanmc/plugin/ActionParserTest.kt
 rtk git commit -m "feat(plugin): ActionParser with 15 action types (TDD)"
 ```
 
@@ -556,16 +556,16 @@ rtk git commit -m "feat(plugin): ActionParser with 15 action types (TDD)"
 ### Task 7: ConditionParser (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ConditionParserTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ConditionParser.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ConditionParserTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionParser.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.engine.Condition
-import gg.interfaze.plugin.engine.ConditionParser
+import net.artisanmc.plugin.engine.Condition
+import net.artisanmc.plugin.engine.ConditionParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -680,14 +680,14 @@ class ConditionParserTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConditionParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConditionParserTest"
 ```
 Expected: FAIL — `ConditionParser` not found
 
 - [ ] **Step 3: Implement ConditionParser**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 object ConditionParser {
 
@@ -725,14 +725,14 @@ object ConditionParser {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConditionParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConditionParserTest"
 ```
 Expected: All 18 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/ConditionParser.kt plugin/src/test/kotlin/gg/interfaze/plugin/ConditionParserTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionParser.kt plugin/src/test/kotlin/net/artisanmc/plugin/ConditionParserTest.kt
 rtk git commit -m "feat(plugin): ConditionParser with 16 condition types including not/and/or (TDD)"
 ```
 
@@ -741,15 +741,15 @@ rtk git commit -m "feat(plugin): ConditionParser with 16 condition types includi
 ### Task 8: CooldownStore (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/CooldownStoreTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/CooldownStore.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/CooldownStoreTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/CooldownStore.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.engine.CooldownStore
+import net.artisanmc.plugin.engine.CooldownStore
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -809,14 +809,14 @@ class CooldownStoreTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CooldownStoreTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CooldownStoreTest"
 ```
 Expected: FAIL — `CooldownStore` not found
 
 - [ ] **Step 3: Implement CooldownStore**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -850,14 +850,14 @@ class CooldownStore {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CooldownStoreTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CooldownStoreTest"
 ```
 Expected: All 7 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/CooldownStore.kt plugin/src/test/kotlin/gg/interfaze/plugin/CooldownStoreTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/CooldownStore.kt plugin/src/test/kotlin/net/artisanmc/plugin/CooldownStoreTest.kt
 rtk git commit -m "feat(plugin): CooldownStore — player + global scope, thread-safe (TDD)"
 ```
 
@@ -866,14 +866,14 @@ rtk git commit -m "feat(plugin): CooldownStore — player + global scope, thread
 ### Task 9: SoftDepRegistry
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/SoftDepRegistry.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/SoftDepRegistry.kt`
 
 No tests — this wraps external plugins unavailable in test environment.
 
 - [ ] **Step 1: Create SoftDepRegistry.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.entity.Player
@@ -950,7 +950,7 @@ Expected: `BUILD SUCCESSFUL`
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/SoftDepRegistry.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/SoftDepRegistry.kt
 rtk git commit -m "feat(plugin): SoftDepRegistry — Vault, PlaceholderAPI, WorldGuard soft-deps"
 ```
 
@@ -959,16 +959,16 @@ rtk git commit -m "feat(plugin): SoftDepRegistry — Vault, PlaceholderAPI, Worl
 ### Task 10: ConditionEvaluator (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ConditionEvaluatorTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ConditionEvaluator.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ConditionEvaluatorTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionEvaluator.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.plugin.engine.*
+import net.artisanmc.plugin.engine.*
 import kotlin.test.*
 
 class ConditionEvaluatorTest {
@@ -1093,14 +1093,14 @@ class ConditionEvaluatorTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConditionEvaluatorTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConditionEvaluatorTest"
 ```
 Expected: FAIL — `ConditionEvaluator` not found
 
 - [ ] **Step 3: Implement ConditionEvaluator**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import org.bukkit.Material
 
@@ -1159,14 +1159,14 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ConditionEvaluatorTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ConditionEvaluatorTest"
 ```
 Expected: All 21 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/ConditionEvaluator.kt plugin/src/test/kotlin/gg/interfaze/plugin/ConditionEvaluatorTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionEvaluator.kt plugin/src/test/kotlin/net/artisanmc/plugin/ConditionEvaluatorTest.kt
 rtk git commit -m "feat(plugin): ConditionEvaluator — 16 conditions, soft-dep no-op, recursive not/and/or (TDD)"
 ```
 
@@ -1175,14 +1175,14 @@ rtk git commit -m "feat(plugin): ConditionEvaluator — 16 conditions, soft-dep 
 ### Task 11: ActionExecutor (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ActionExecutorTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/ActionExecutor.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuSessionStore.kt` (needed by ActionExecutor)
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ActionExecutorTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ActionExecutor.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuSessionStore.kt` (needed by ActionExecutor)
 
 - [ ] **Step 1: Create MenuSessionStore.kt**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import org.bukkit.entity.Player
 import java.util.UUID
@@ -1205,14 +1205,14 @@ class MenuSessionStore {
 - [ ] **Step 2: Write failing tests for ActionExecutor**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
-import gg.interfaze.plugin.model.PackBundle
-import gg.interfaze.plugin.provider.MenuProvider
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
 
@@ -1221,7 +1221,7 @@ class ActionExecutorTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest fun teardown() { MockBukkit.unmock() }
 
-    private val plugin = lazy { MockBukkit.load(gg.interfaze.plugin.InterfazePlugin::class.java) }
+    private val plugin = lazy { MockBukkit.load(net.artisanmc.plugin.ArtisanPlugin::class.java) }
     private val deps = SoftDepRegistry.EMPTY
     private val cooldowns = CooldownStore()
     private val sessions = MenuSessionStore()
@@ -1312,19 +1312,19 @@ class ActionExecutorTest {
 - [ ] **Step 3: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ActionExecutorTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ActionExecutorTest"
 ```
 Expected: FAIL — `ActionExecutor` not found, also `MenuProvider.openMenu` signature mismatch (fix MenuProvider first — see Plan 2 Task 3, but for now just add the new signature to the stub)
 
 Note: The stub `MenuProvider` in the test adds `openMenu(player, menuId, lang, ctx)` and `allBundles()`. This will require `MenuProvider.kt` to be updated first. Update `MenuProvider.kt` with the new interface before running this test:
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt
-package gg.interfaze.plugin.provider
+// plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt
+package net.artisanmc.plugin.provider
 
-import gg.interfaze.plugin.engine.ExecutionContext
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.PackBundle
+import net.artisanmc.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.PackBundle
 import org.bukkit.entity.Player
 
 interface MenuProvider {
@@ -1360,7 +1360,7 @@ override fun openMenu(player: Player, menuId: String, lang: String, ctx: Executi
 - [ ] **Step 4: Implement ActionExecutor**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Bukkit
@@ -1372,7 +1372,7 @@ import org.bukkit.plugin.java.JavaPlugin
 
 class ActionExecutor(
     private val plugin: JavaPlugin,
-    private val menuProvider: gg.interfaze.plugin.provider.MenuProvider,
+    private val menuProvider: net.artisanmc.plugin.provider.MenuProvider,
     private val sessions: MenuSessionStore,
     private val deps: SoftDepRegistry,
     private val cooldowns: CooldownStore,
@@ -1469,7 +1469,7 @@ class ActionExecutor(
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ActionExecutorTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ActionExecutorTest"
 ```
 Expected: All 6 tests PASS
 
@@ -1483,7 +1483,7 @@ Expected: All existing tests still pass
 - [ ] **Step 7: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/ plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt plugin/src/test/kotlin/gg/interfaze/plugin/ActionExecutorTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/ plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt plugin/src/test/kotlin/net/artisanmc/plugin/ActionExecutorTest.kt
 rtk git commit -m "feat(plugin): ActionExecutor, MenuSessionStore — full click handler flow (TDD)"
 ```
 
@@ -1492,17 +1492,17 @@ rtk git commit -m "feat(plugin): ActionExecutor, MenuSessionStore — full click
 ### Task 12: BundleCompiler (TDD) + update PackReader
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/BundleCompilerTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/yaml/PackReader.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/BundleCompilerTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/yaml/PackReader.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.*
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.*
 import kotlin.test.*
 
 class BundleCompilerTest {
@@ -1597,18 +1597,18 @@ class BundleCompilerTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.BundleCompilerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.BundleCompilerTest"
 ```
 Expected: FAIL — `BundleCompiler` not found
 
 - [ ] **Step 3: Implement BundleCompiler**
 
 ```kotlin
-package gg.interfaze.plugin.engine
+package net.artisanmc.plugin.engine
 
-import gg.interfaze.plugin.model.AppearanceYaml
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
 import java.util.logging.Logger
 
 object BundleCompiler {
@@ -1681,14 +1681,14 @@ BundleCompiler.compile(mapper.readValue(f, MenuYaml::class.java), langMaps, logg
 
 Full updated `PackReader.kt`:
 ```kotlin
-package gg.interfaze.plugin.yaml
+package net.artisanmc.plugin.yaml
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.engine.BundleCompiler
-import gg.interfaze.plugin.model.*
+import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.model.*
 import java.io.File
 import java.util.logging.Logger
 
@@ -1729,7 +1729,7 @@ class PackReader(private val packsRoot: File, private val logger: Logger? = null
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.BundleCompilerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.BundleCompilerTest"
 ```
 Expected: All 8 tests PASS
 
@@ -1743,6 +1743,6 @@ Expected: All tests pass
 - [ ] **Step 7: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/BundleCompiler.kt plugin/src/main/kotlin/gg/interfaze/plugin/yaml/PackReader.kt plugin/src/test/kotlin/gg/interfaze/plugin/BundleCompilerTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/BundleCompiler.kt plugin/src/main/kotlin/net/artisanmc/plugin/yaml/PackReader.kt plugin/src/test/kotlin/net/artisanmc/plugin/BundleCompilerTest.kt
 rtk git commit -m "feat(plugin): BundleCompiler — compile MenuYaml to typed ClickHandlers at load time (TDD)"
 ```

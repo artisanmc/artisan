@@ -1,9 +1,9 @@
-# Interfaze — Spec de l'éditeur web
+# Artisan — Spec de l'éditeur web
 
 **Document de référence pour la conception et le développement de l'interface web**
 Version : draft 1 (avril 2026)
 
-Ce document décrit les capacités que doit offrir l'éditeur web `editor.interfaze.gg`. Il complète la spec produit générale (`spec-plugin-minecraft-gui-editor.md`) en zoomant sur l'expérience utilisateur côté admin. Il décrit **ce qui doit être possible**, pas l'apparence visuelle exacte (laissée au design).
+Ce document décrit les capacités que doit offrir l'éditeur web `editor.artisanmc.net`. Il complète la spec produit générale (`spec-plugin-minecraft-gui-editor.md`) en zoomant sur l'expérience utilisateur côté admin. Il décrit **ce qui doit être possible**, pas l'apparence visuelle exacte (laissée au design).
 
 ---
 
@@ -52,7 +52,7 @@ Page d'accueil minimaliste avec deux options :
 - **"Login with Discord"** — OAuth standard. Option recommandée (un clic, pas de mot de passe à gérer).
 - **"Email + mot de passe"** — Inscription classique (email / password + confirmation). Email de validation obligatoire avant activation. Récupération par lien envoyé à l'email.
 
-Les deux méthodes produisent le même compte Interfaze. Un utilisateur Discord peut ultérieurement ajouter un email/password depuis son profil (et vice-versa), pour avoir les deux liens. Au premier login, on demande un email de récupération aux utilisateurs Discord-only — ne bloque pas l'usage immédiat (skip possible) mais relance l'utilisateur après 24h.
+Les deux méthodes produisent le même compte Artisan. Un utilisateur Discord peut ultérieurement ajouter un email/password depuis son profil (et vice-versa), pour avoir les deux liens. Au premier login, on demande un email de récupération aux utilisateurs Discord-only — ne bloque pas l'usage immédiat (skip possible) mais relance l'utilisateur après 24h.
 
 ### 3.2 Onboarding (premier login)
 
@@ -243,11 +243,11 @@ Pour les modifications très complexes ou les power users habitués à travaille
 Le schéma JSON est traité comme un asset produit central :
 
 - **Versionné** (`menu/v1`, `menu/v2`...) avec migrations applicables au load.
-- **Documenté en TypeScript types + JSON Schema** publié sur `docs.interfaze.gg/schema`.
+- **Documenté en TypeScript types + JSON Schema** publié sur `docs.artisanmc.net/schema`.
 - **Exemples annotés** pour les patterns courants (shop simple, menu paginé avec composant tiers, view states, etc.).
 - **Stable et explicite** : noms de champs verbeux et explicites plutôt que cryptiques (`requirements` plutôt que `req`, `actions` plutôt que `act`).
 
-Cette qualité de schéma rend l'usage des IA externes (Claude, ChatGPT, Cursor, etc.) trivial dès le MVP. À chaque export, l'admin peut prompt "voici mon menu Interfaze, ajoute-moi une condition has_money sur ce slot" et obtenir un JSON valide à réimporter.
+Cette qualité de schéma rend l'usage des IA externes (Claude, ChatGPT, Cursor, etc.) trivial dès le MVP. À chaque export, l'admin peut prompt "voici mon menu Artisan, ajoute-moi une condition has_money sur ce slot" et obtenir un JSON valide à réimporter.
 
 Roadmap AI native (V1.5+ et V2+) construite sur cette base — voir section 20.
 
@@ -658,7 +658,7 @@ Notifications email optionnelles pour les évents critiques.
 
 ### 15.2 Doc developer (V1.5)
 
-Lien vers `docs.interfaze.gg` pour la doc API tierce.
+Lien vers `docs.artisanmc.net` pour la doc API tierce.
 
 ### 15.3 Contact support
 
@@ -802,7 +802,7 @@ Liste des raccourcis disponibles dans l'éditeur :
   - Panel droit avec properties (apparence, click actions, conditions, view states, cooldown, tags).
   - Mode unifié à divulgation progressive (sections expandables, boutons "+ Ajouter X").
   - Export JSON / Import JSON / View raw JSON (pas d'éditeur de code embarqué).
-  - Schéma JSON versionné, bien documenté, AI-ready (publié sur `docs.interfaze.gg/schema`).
+  - Schéma JSON versionné, bien documenté, AI-ready (publié sur `docs.artisanmc.net/schema`).
   - Toolbar avec save / publish / preview / history / undo-redo.
   - Status bar avec WS status.
 - Édition live in-game (`/menu join_edit`).
@@ -828,14 +828,14 @@ Liste des raccourcis disponibles dans l'éditeur :
 - **Killer feature 2 : assistant IA intégré** ("Ask AI" dans la toolbar) qui prend du langage naturel ("ajoute un bouton pour acheter un rang VIP à 500$") et applique des mutations sur le JSON du menu via Claude API. Coût marginal absorbé par les tiers Network/Unlimited.
 - Deep links "Open in Claude" / "Open in ChatGPT" depuis le View raw JSON, qui pré-remplissent le contexte côté IA externe.
 - Invitation d'équipe par rôle Discord ("tous les @admin").
-- Doc developer site (`docs.interfaze.gg`) avec schéma JSON publié + exemples annotés + types TypeScript.
+- Doc developer site (`docs.artisanmc.net`) avec schéma JSON publié + exemples annotés + types TypeScript.
 - Mode "Promote to prod" (copier un menu d'un serveur dev vers prod).
 - Historique enrichi (visualisation des diffs entre versions).
 - Notifications email pour les évents critiques.
 
 ### 20.3 V2+
 
-- **Killer feature : serveur MCP `interfaze-mcp`** qui permet aux utilisateurs de Claude Desktop, Cursor, ChatGPT MCP-enabled, etc. de lister, lire, et muter leurs menus Interfaze depuis leur outil habituel ("dans Cursor : édite mon menu shop_principal pour ajouter X"). Différenciation forte AI-native vs concurrence.
+- **Killer feature : serveur MCP `artisan-mcp`** qui permet aux utilisateurs de Claude Desktop, Cursor, ChatGPT MCP-enabled, etc. de lister, lire, et muter leurs menus Artisan depuis leur outil habituel ("dans Cursor : édite mon menu shop_principal pour ajouter X"). Différenciation forte AI-native vs concurrence.
 - Marketplace native (assets, menus, intégrations tierces).
 - Édition collaborative en temps réel (Figma-like).
 - Auto-convert de configs zMenu / DeluxeMenus.

@@ -22,8 +22,8 @@ describe("Step4Install", () => {
     expect(screen.getByText(/backend-url/)).toBeTruthy();
   });
 
-  it("shows the /ifz reload instruction", () => {
+  it("shows the /artisan reload instruction", () => {
     render(<Step4Install state={stateWithKey} setState={() => {}} />);
-    expect(screen.getByText(/\/ifz reload/)).toBeTruthy();
+    expect(screen.getByText(/\/artisan reload/)).toBeTruthy();
   });
 });

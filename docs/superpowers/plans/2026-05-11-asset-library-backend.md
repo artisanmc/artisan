@@ -51,7 +51,7 @@ This plan covers only **Sub-project 1**. Out of scope:
 - `editor/src/routes/pack.$packId.tsx` (modify) — mount `AssetsTab` in the sidebar Tabs
 
 ### Docs
-- `Interfaze/CLAUDE.md` (modify) — endpoints, test counts
+- `Artisan/CLAUDE.md` (modify) — endpoints, test counts
 
 ---
 
@@ -2297,11 +2297,11 @@ git commit -m "feat(editor): mount AssetsTab in pack route sidebar"
 ## Task 18: Update CLAUDE.md
 
 **Files:**
-- Modify: `Interfaze/CLAUDE.md`
+- Modify: `Artisan/CLAUDE.md`
 
 - [ ] **Step 1: Update endpoints table**
 
-In the "Custom Items — endpoints et cache" section of `Interfaze/CLAUDE.md`, add the new asset endpoints:
+In the "Custom Items — endpoints et cache" section of `Artisan/CLAUDE.md`, add the new asset endpoints:
 
 ```markdown
 | `POST /api/editor-session/:token/assets`       | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + serverKey. |
@@ -2338,7 +2338,7 @@ Capture the final counts and update CLAUDE.md to match.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Interfaze/CLAUDE.md
+git add Artisan/CLAUDE.md
 git commit -m "docs: assets endpoints + updated test counts"
 ```
 
@@ -2352,7 +2352,7 @@ git commit -m "docs: assets endpoints + updated test counts"
 cd backend && bun test
 ```
 
-Expected: 0 failures introduced. Existing pre-existing failures (mentioned in `Interfaze/CLAUDE.md` as `link_codes schema`, `findSessionByTrustCode`) are tolerated.
+Expected: 0 failures introduced. Existing pre-existing failures (mentioned in `Artisan/CLAUDE.md` as `link_codes schema`, `findSessionByTrustCode`) are tolerated.
 
 - [ ] **Run all editor tests**
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.interfaze.gg/schema/pack/v1.json",
-  "title": "Interfaze Pack Manifest",
-  "description": "Manifeste d'un pack Interfaze : unité d'organisation et d'export/import qui groupe des menus, templates, commandes, traductions et assets liés thématiquement. Le manifeste vit à la racine d'une archive .itfz (zip).",
+  "$id": "https://docs.artisanmc.net/schema/pack/v1.json",
+  "title": "Artisan Pack Manifest",
+  "description": "Manifeste d'un pack Artisan : unité d'organisation et d'export/import qui groupe des menus, templates, commandes, traductions et assets liés thématiquement. Le manifeste vit à la racine d'une archive .itfz (zip).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "name", "version"],
@@ -53,10 +53,10 @@
       "maxItems": 16,
       "description": "Tags pour catégorisation et recherche dans le marketplace."
     },
-    "interfaze_min_version": {
+    "artisan_min_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Version minimum d'Interfaze requise pour utiliser ce pack."
+      "description": "Version minimum d'Artisan requise pour utiliser ce pack."
     },
     "preview_image": {
       "type": "string",

@@ -10,7 +10,7 @@
 - `editor/src/state/accountStore.ts` (zustand + localStorage)
 - `packBundles.editorJson` côté backend (écrit par `PUT /api/editor-session/:token/packs/:packId` et `POST .../deploy`)
 
-Elle n'est **pas** sérialisée dans les YAML du pack (`editor/src/features/export/transform.ts:542-555`). Conséquence : si un admin copie `plugins/Interfaze/packs/<id>/` d'un serveur A vers un serveur B (file copy hors éditeur), le plugin B republie via `hello` → le backend B reconstruit `editorJson` depuis les fichiers via `importPackFromFiles` → `canvasLayout: {}` à `backend/src/lib/packImport.ts:239`. Les cartes retombent sur le grid auto par défaut.
+Elle n'est **pas** sérialisée dans les YAML du pack (`editor/src/features/export/transform.ts:542-555`). Conséquence : si un admin copie `plugins/Artisan/packs/<id>/` d'un serveur A vers un serveur B (file copy hors éditeur), le plugin B republie via `hello` → le backend B reconstruit `editorJson` depuis les fichiers via `importPackFromFiles` → `canvasLayout: {}` à `backend/src/lib/packImport.ts:239`. Les cartes retombent sur le grid auto par défaut.
 
 But : positions portées par les fichiers eux-mêmes, donc transférables.
 
@@ -152,7 +152,7 @@ Une seule source à l'écriture, peu importe le chemin (plugin publish ou édite
 
 ### Plugin — aucun changement
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt:14` :
+`plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt:14` :
 ```kotlin
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(...)

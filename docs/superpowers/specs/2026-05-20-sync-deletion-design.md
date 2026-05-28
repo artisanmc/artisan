@@ -12,16 +12,16 @@ Le modèle de sync actuel entre éditeur web, backend et plugin Minecraft est **
 
 ### Bug A — Suppressions éditeur ne propagent pas
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt:48-54` boucle sur les fichiers reçus du backend et écrit chacun sur disque, **sans supprimer les fichiers locaux absents du bundle**. Conséquence : supprimer un menu dans l'éditeur met à jour le snapshot backend, mais le fichier YAML reste fantôme sur le disque serveur et est rechargé par `reloadFromDisk()` au prochain `bundle_available`.
+`plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt:48-54` boucle sur les fichiers reçus du backend et écrit chacun sur disque, **sans supprimer les fichiers locaux absents du bundle**. Conséquence : supprimer un menu dans l'éditeur met à jour le snapshot backend, mais le fichier YAML reste fantôme sur le disque serveur et est rechargé par `reloadFromDisk()` au prochain `bundle_available`.
 
 ### Bug B — Divergence disque ↔ backend silencieusement écrasée
 
-`SyncedMenuProvider.detectSyncAction` (plugin/.../SyncedMenuProvider.kt:43-48) compare trois hashes (disque, dernier sync, backend) et logge un warning en cas de `LOCAL_ONLY` ou `CONFLICT`, mais ne fait rien d'autre. La commande `/ifz sync accept|reject` mentionnée dans les warnings n'est pas implémentée. Conséquence : toute modif faite directement sur les fichiers serveur (SSH d'un admin, édition manuelle) est silencieusement écrasée au prochain `bundle_available`.
+`SyncedMenuProvider.detectSyncAction` (plugin/.../SyncedMenuProvider.kt:43-48) compare trois hashes (disque, dernier sync, backend) et logge un warning en cas de `LOCAL_ONLY` ou `CONFLICT`, mais ne fait rien d'autre. La commande `/artisan sync accept|reject` mentionnée dans les warnings n'est pas implémentée. Conséquence : toute modif faite directement sur les fichiers serveur (SSH d'un admin, édition manuelle) est silencieusement écrasée au prochain `bundle_available`.
 
 ### Décisions de design retenues
 
-1. **Source de vérité hybride** : éditeur autoritaire en régime normal ; divergence détectée au boot du plugin et à `/ifz reload` doit produire une alerte interactive dans l'éditeur.
-2. **Trigger de détection** : boot du plugin et `/ifz reload` uniquement. Pas de file watcher runtime.
+1. **Source de vérité hybride** : éditeur autoritaire en régime normal ; divergence détectée au boot du plugin et à `/artisan reload` doit produire une alerte interactive dans l'éditeur.
+2. **Trigger de détection** : boot du plugin et `/artisan reload` uniquement. Pas de file watcher runtime.
 3. **Granularité de résolution** : par pack.
 4. **Cas "aucun éditeur ouvert"** : conflit persistant en DB, surfacé à la prochaine ouverture d'éditeur.
 5. **Approche détection** : pre-fetch upfront — le plugin envoie le contenu disque complet au moment où il détecte la divergence, le backend stocke et résout en un seul round-trip.
@@ -46,7 +46,7 @@ Plugin → GET /api/bundles/:packId → { files, hash }
 ### Flux conflit (bug B)
 
 ```
-Plugin boot (ou /ifz reload)
+Plugin boot (ou /artisan reload)
   → BundleHasher.hash(packDir) pour chaque pack
   → detectSyncAction(disk, synced, backend)
   → si LOCAL_ONLY ou CONFLICT :
@@ -76,7 +76,7 @@ Backend → UPDATE pack_bundles SET deleted_at = NOW() WHERE serverId=? AND pack
        → WS broadcast pack_deleted { pack_id } aux plugins connectés
        → WS broadcast pack_deleted { pack_id } aux autres éditeurs (multi-onglets)
 Plugin → atomic switch sur bundles map (retire l'entrée)
-       → move packsDir/<packId> → packsDir/.interfaze-trash/<packId>-<timestamp>/
+       → move packsDir/<packId> → packsDir/.artisan-trash/<packId>-<timestamp>/
 ```
 
 ### Invariant fondamental
@@ -87,7 +87,7 @@ Plugin → atomic switch sur bundles map (retire l'entrée)
 
 ## 3. Fix mécanique du bug A
 
-**Cible** : `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt`.
+**Cible** : `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt`.
 
 **Mécanique** :
 
@@ -95,7 +95,7 @@ Plugin → atomic switch sur bundles map (retire l'entrée)
 2. Écrire les fichiers comme aujourd'hui (boucle existante L48-54).
 3. Après écriture, walk `packDir` :
    - Pour chaque fichier rencontré, calculer son `relPath` (séparateur `/`).
-   - **Skip** tout fichier dont le nom de base commence par `.interfaze` (préfixe sentinel de SyncMetadata, déjà exclu du hash).
+   - **Skip** tout fichier dont le nom de base commence par `.artisan` (préfixe sentinel de SyncMetadata, déjà exclu du hash).
    - **Skip** tout fichier dont le chemin top-level commence par `.` (défense contre `.git`, `.DS_Store`, etc.).
    - Si `relPath ∉ expectedRelPaths` → supprimer.
 4. Après le sweep, supprimer les répertoires devenus vides (`packDir.walkBottomUp().filter { it.isDirectory && it.list()?.isEmpty() == true && it != packDir }.forEach { it.delete() }`).
@@ -165,7 +165,7 @@ Les rows résolues restent en DB (audit trail). Pas de purge auto, pas une prior
 
 | Type | Payload | Quand |
 |---|---|---|
-| `pack_divergence_detected` | `{ pack_id: string, disk_files: Record<string, string>, disk_hash: string, last_synced_hash: string }` | Au boot et à `/ifz reload`, une fois par pack divergent |
+| `pack_divergence_detected` | `{ pack_id: string, disk_files: Record<string, string>, disk_hash: string, last_synced_hash: string }` | Au boot et à `/artisan reload`, une fois par pack divergent |
 
 ### Messages backend → plugin (nouveaux + modifiés)
 
@@ -188,9 +188,9 @@ Aucun message existant n'est breaking change.
 
 Préfixé comme aujourd'hui dans `BundleUploader.kt:25` :
 ```
-"plugins/Interfaze/packs/<packId>/<relPath>" → "<content>"
+"plugins/Artisan/packs/<packId>/<relPath>" → "<content>"
 ```
-Symétrie avec `BundleUploader` (le code de walk + read peut être factorisé). Les fichiers `.interfaze*` sont exclus du payload.
+Symétrie avec `BundleUploader` (le code de walk + read peut être factorisé). Les fichiers `.artisan*` sont exclus du payload.
 
 ### Hello flow modifié
 
@@ -367,7 +367,7 @@ Supprimer le pack «my_pack» ?
 
 Cette action supprimera tous les menus, dialogs et traductions du pack sur tous
 les serveurs Minecraft connectés. Les fichiers seront déplacés dans
-`plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.
+`plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.
 
 Si un conflit existe pour ce pack, il sera ignoré et l'éditeur deviendra autoritaire.
 
@@ -392,14 +392,14 @@ Un pack avec un conflit ouvert est gelé côté plugin — aucun `bundle_availab
 | 2 | Plugin offline pendant que l'admin résout "keep editor" | Plugin reconnecte avec son `disk_hash` (toujours divergent). Backend voit conflit résolu → re-broadcast `bundle_available` immédiatement. Plugin télécharge, applique avec suppressions, divergence éliminée. |
 | 3 | Race : admin résout pendant que plugin envoie nouveau `pack_divergence_detected` | UPDATE de résolution `WHERE resolved_at IS NULL` garantit qu'une seule transaction gagne. Si insert arrive après, c'est un nouveau conflit légitime (disque a re-changé). |
 | 4 | Deux admins ouvrent l'éditeur, un résout, l'autre reçoit `pack_conflict_resolved` | Modal close + toast + refresh. |
-| 5 | Plugin re-détecte pendant qu'un conflit est déjà ouvert (admin re-édite SSH puis /ifz reload) | UPSERT : UPDATE `disk_files_json` + `disk_hash` du conflit existant. `detected_at` garde sa valeur originale. |
+| 5 | Plugin re-détecte pendant qu'un conflit est déjà ouvert (admin re-édite SSH puis /artisan reload) | UPSERT : UPDATE `disk_files_json` + `disk_hash` du conflit existant. `detected_at` garde sa valeur originale. |
 | 6 | Admin publie depuis l'éditeur pendant qu'un conflit est ouvert pour le même pack | Bouton désactivé côté UI. Défense backend : POST /api/bundles renvoie 409 `pack_locked`. |
 | 7 | "Use server" mais `diskFilesJson` est vide (admin a `rm -rf` le pack) | Warning supplémentaire dans le modal : "⚠ Adopter la version du serveur va vider ce pack (aucun fichier détecté sur disque). Confirmer ?". Si confirmé, `packBundles.filesJson = "{}"`. |
 | 8 | Pack supprimé côté éditeur ET un conflit était en cours | DELETE marque le conflit `resolution: "editor"` automatiquement et envoie `pack_deleted` au plugin. Documenté dans la copy du modal de suppression. |
 | 9 | Plugin envoie `pack_divergence_detected` pour un pack supprimé entre temps côté backend | Backend vérifie `packBundles` : si `deletedAt IS NOT NULL` ou row absente → skip l'upsert. Plugin recevra `pack_deleted` au prochain reconnect. |
 | 10 | Path traversal via `disk_files` keys malicieuses | Côté plugin lors de la lecture initiale : `BundleUploader` walk depuis `packDir`, chemins safe by construction. Côté plugin lors du `bundle_available` qui suit : `BundleDownloader.kt:51` garde la défense `canonicalPath.startsWith(packDir.canonicalPath + File.separator)`. |
 | 11 | Pack n'existe pas dans `pack_bundles` mais sur disque, et l'admin résout "keep editor" | Impossible en pratique : `pack_hashes` doit avoir été envoyé pour ce pack pour qu'un conflit s'ouvre. Le code d'auto-upload des empty-stubs (SyncedMenuProvider.kt:230-247) opère AVANT toute détection de conflit. |
-| 12 | `/ifz reload` pendant que le pack est gelé en conflit | Plugin re-walk, re-détecte, ré-upsert (update `disk_files_json` si re-touché). Pas de boucle : aucun `bundle_available` n'arrive (gelé). Serveur tourne sur l'état disque. |
+| 12 | `/artisan reload` pendant que le pack est gelé en conflit | Plugin re-walk, re-détecte, ré-upsert (update `disk_files_json` si re-touché). Pas de boucle : aucun `bundle_available` n'arrive (gelé). Serveur tourne sur l'état disque. |
 | 13 | Pack vide des deux côtés (`disk_hash == "" && backend_hash == ""`) | `detectSyncAction("", "", "")` → IN_SYNC. Pas de conflit. Sentinel `""` respecté. |
 
 ### Invariants à documenter dans CLAUDE.md
@@ -407,7 +407,7 @@ Un pack avec un conflit ouvert est gelé côté plugin — aucun `bundle_availab
 - **Conflit = freeze** : tant que `pack_conflicts.resolved_at IS NULL`, aucun `bundle_available` n'est émis pour `(server_id, pack_id)`.
 - **Auto-resolution sur DELETE pack** : supprimer un pack côté éditeur résout implicitement tout conflit ouvert en `resolution: "editor"`.
 - **Path safety** : la défense `canonicalPath.startsWith` dans `BundleDownloader` est essentielle — defense in depth, ne jamais retirer.
-- **`.interfaze*` est sacré** : préfixe exclu du hash, du sweep de suppression (bug A), et utilisé pour `.interfaze-trash/`. Ne jamais utiliser pour autre chose.
+- **`.artisan*` est sacré** : préfixe exclu du hash, du sweep de suppression (bug A), et utilisé pour `.artisan-trash/`. Ne jamais utiliser pour autre chose.
 
 ---
 
@@ -430,15 +430,15 @@ Un pack avec un conflit ouvert est gelé côté plugin — aucun `bundle_availab
 ### Plugin (Kotlin + JUnit)
 
 **Fichiers modifiés** :
-- `plugin/src/test/kotlin/gg/interfaze/plugin/BundleDownloaderTest.kt` — 4 tests bug A : suppression propagée, SyncMetadata préservée, répertoires vides nettoyés, path traversal défendu.
-- `plugin/src/test/kotlin/gg/interfaze/plugin/FullSyncIntegrationTest.kt` — scénario end-to-end : seed divergence → `load()` → vérif envoi `pack_divergence_detected` au mock backend → mock répond `bundle_available` simulant "keep editor" → vérif fichiers fantômes supprimés.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/BundleDownloaderTest.kt` — 4 tests bug A : suppression propagée, SyncMetadata préservée, répertoires vides nettoyés, path traversal défendu.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/FullSyncIntegrationTest.kt` — scénario end-to-end : seed divergence → `load()` → vérif envoi `pack_divergence_detected` au mock backend → mock répond `bundle_available` simulant "keep editor" → vérif fichiers fantômes supprimés.
 
 **Nouveau fichier** :
-- `plugin/src/test/kotlin/gg/interfaze/plugin/PackDeletionTest.kt` :
-  - WS `pack_deleted` runtime → dossier déplacé dans `.interfaze-trash/<packId>-<timestamp>/`, `bundles` map atomiquement mis à jour.
+- `plugin/src/test/kotlin/net/artisanmc/plugin/PackDeletionTest.kt` :
+  - WS `pack_deleted` runtime → dossier déplacé dans `.artisan-trash/<packId>-<timestamp>/`, `bundles` map atomiquement mis à jour.
   - `hello_ack.deleted_pack_ids` au reconnect → même comportement.
   - `pack_deleted` pour pack inexistant localement → no-op silencieux.
-  - `.interfaze-trash/` préexistant → second pack avec même nom → dossier trash avec timestamp distinct.
+  - `.artisan-trash/` préexistant → second pack avec même nom → dossier trash avec timestamp distinct.
 
 ### Éditeur (Vitest + React Testing Library)
 
@@ -464,7 +464,7 @@ Scénario documenté dans `docs/specs/sync-deletion-e2e.md` (à créer avec la s
 7. Cliquer "Garder l'éditeur" → fichier YAML réapparait sur disque.
 8. Refaire (5) avec une modif de contenu.
 9. Cliquer "Utiliser le serveur" → éditeur reflète la version disque.
-10. DELETE pack via modal type-to-confirm → vérifier déplacement dans `.interfaze-trash/`.
+10. DELETE pack via modal type-to-confirm → vérifier déplacement dans `.artisan-trash/`.
 
 ---
 
@@ -472,7 +472,7 @@ Scénario documenté dans `docs/specs/sync-deletion-e2e.md` (à créer avec la s
 
 - **File watcher runtime** côté plugin (option rejetée section trigger). Si jamais on en a besoin plus tard, c'est ajoutable sans changer le protocole.
 - **Diff file-level** dans la modal de résolution (viewer YAML side-by-side). La structure actuelle (`diskFiles` complet en DB) permet de l'ajouter sans migration.
-- **GC du trash** côté plugin (`.interfaze-trash/` purgé après N jours). Le dossier peut grossir indéfiniment sinon — TODO à tracker.
+- **GC du trash** côté plugin (`.artisan-trash/` purgé après N jours). Le dossier peut grossir indéfiniment sinon — TODO à tracker.
 - **GC des conflits résolus** en DB (purge des rows `resolved_at < NOW() - 90 days`). Pas critique en v1.
 - **Audit log** dédié des résolutions (qui a cliqué quoi, quand). Pour l'instant traçable via les timestamps sur `pack_conflicts`, mais sans identité utilisateur — le projet n'a pas encore d'utilisateurs nominatifs.
 
@@ -490,10 +490,10 @@ Scénario documenté dans `docs/specs/sync-deletion-e2e.md` (à créer avec la s
 - `backend/src/index.ts` (registration des nouvelles routes)
 
 **Plugin** :
-- `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleDownloader.kt` (fix bug A)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/sync/BundleUploader.kt` (factoriser le walk + read pour réutilisation dans la détection de conflit)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` (envoi `pack_divergence_detected`, handler `pack_deleted`, lecture `deleted_pack_ids` dans `hello_ack`)
-- `plugin/src/main/kotlin/gg/interfaze/plugin/sync/PackDeleter.kt` (nouveau — move-to-trash atomique)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleDownloader.kt` (fix bug A)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/sync/BundleUploader.kt` (factoriser le walk + read pour réutilisation dans la détection de conflit)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` (envoi `pack_divergence_detected`, handler `pack_deleted`, lecture `deleted_pack_ids` dans `hello_ack`)
+- `plugin/src/main/kotlin/net/artisanmc/plugin/sync/PackDeleter.kt` (nouveau — move-to-trash atomique)
 
 **Éditeur** :
 - `editor/src/state/conflictsStore.ts` (nouveau)
@@ -505,5 +505,5 @@ Scénario documenté dans `docs/specs/sync-deletion-e2e.md` (à créer avec la s
 - `editor/src/locales/en.ts` + `fr.ts` (nouvelles clés)
 
 **Docs** :
-- `CLAUDE.md` (nouveaux invariants section "Invariants critiques", nouveaux endpoints dans la table, message `pack_deleted` dans la table protocole, mention `.interfaze-trash/`)
+- `CLAUDE.md` (nouveaux invariants section "Invariants critiques", nouveaux endpoints dans la table, message `pack_deleted` dans la table protocole, mention `.artisan-trash/`)
 - `docs/specs/sync-deletion-e2e.md` (nouveau — scénario manuel)

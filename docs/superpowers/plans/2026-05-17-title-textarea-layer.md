@@ -23,7 +23,7 @@
   - `editor/src/features/export/transform*.ts` — will be modified in Task 7
   - `editor/src/locales/{en,fr}.ts` — DO NOT touch in this plan; the composer uses hardcoded French strings per existing convention
   - `editor/src/routes/pack.$packId.tsx`
-  - `plugin/src/main/kotlin/gg/interfaze/plugin/engine/*.kt`, `model/*.kt`, `render/*.kt`
+  - `plugin/src/main/kotlin/net/artisanmc/plugin/engine/*.kt`, `model/*.kt`, `render/*.kt`
 - **Always use explicit `git add <paths>` per task.** Never `git add -A`.
 - Convention: French strings inline (no i18n file changes for the composer UI — match existing `LayerEditForm.tsx`, `AddLayerControls.tsx`).
 - Run scoped tests with `rtk` (token-killer) per the user's global preferences.
@@ -39,11 +39,11 @@
 ### Modified
 
 **Plugin:**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt` — add `Alignment` enum + `Textarea` data class
-- `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt` — add `"textarea"` case
-- `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt` — parse tests
-- `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt` — refactor `compileLayerBody` signature to return `Pair<String, Int>`, add `measureLineWidth` helper extraction, add textarea branch, update `estimateBodyWidth`, update `compileTitle`
-- `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` — fix existing call sites for new signature + add textarea tests
+- `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt` — add `Alignment` enum + `Textarea` data class
+- `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt` — add `"textarea"` case
+- `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt` — parse tests
+- `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt` — refactor `compileLayerBody` signature to return `Pair<String, Int>`, add `measureLineWidth` helper extraction, add textarea branch, update `estimateBodyWidth`, update `compileTitle`
+- `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt` — fix existing call sites for new signature + add textarea tests
 
 **Editor:**
 - `editor/src/domain/types.ts` — extend `MenuTitleLayer` union with `textarea` kind
@@ -67,11 +67,11 @@
 ## Task 1: Plugin model — Alignment enum + Textarea data class
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt`
 
 - [ ] **Step 1: Add `Alignment` enum and `Textarea` data class**
 
-Open `plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt`. After the `ExternalGlyph` data class (line 41), inside the sealed-class body, append:
+Open `plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt`. After the `ExternalGlyph` data class (line 41), inside the sealed-class body, append:
 
 ```kotlin
     /** Alignment of each line inside a [Textarea] layer. */
@@ -101,7 +101,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/model/MenuTitleLayer.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/model/MenuTitleLayer.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): add Textarea title layer + Alignment enum
 
@@ -115,12 +115,12 @@ EOF
 ## Task 2: Plugin parser — `"textarea"` case (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt`
 
 - [ ] **Step 1: Write the failing parser tests**
 
-Append to `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt` (before the closing `}` of the class):
+Append to `plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt` (before the closing `}` of the class):
 
 ```kotlin
     @Test fun `textarea kind parses all fields`() {
@@ -200,12 +200,12 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt` (b
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `(cd plugin && ./gradlew test --tests "gg.interfaze.plugin.MenuTitleParserTest")`
+Run: `(cd plugin && ./gradlew test --tests "net.artisanmc.plugin.MenuTitleParserTest")`
 Expected: FAIL — `Test framework quit unexpectedly` OR `MenuTitleLayer.Textarea` unresolved. Either way, red.
 
 - [ ] **Step 3: Implement the parser case**
 
-In `plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt`, inside the `parseLayer` `when (m["kind"])` block, add a `"textarea"` case after the `"text"` case (before `"external_glyph"`):
+In `plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt`, inside the `parseLayer` `when (m["kind"])` block, add a `"textarea"` case after the `"text"` case (before `"external_glyph"`):
 
 ```kotlin
             "textarea" -> MenuTitleLayer.Textarea(
@@ -230,13 +230,13 @@ Then add a private helper above `parseLText`:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `(cd plugin && ./gradlew test --tests "gg.interfaze.plugin.MenuTitleParserTest")`
+Run: `(cd plugin && ./gradlew test --tests "net.artisanmc.plugin.MenuTitleParserTest")`
 Expected: 17 tests, all green (12 existing + 5 new — the "missing value" test merges into existing leniency behaviour).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/engine/MenuTitleParser.kt plugin/src/test/kotlin/gg/interfaze/plugin/MenuTitleParserTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/engine/MenuTitleParser.kt plugin/src/test/kotlin/net/artisanmc/plugin/MenuTitleParserTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): parse textarea title layer YAML
 
@@ -252,8 +252,8 @@ EOF
 This task is a pure refactor: change the signature from `(layer, langMap, lookup) -> String` to `(layer, startX, langMap, lookup, offsetEncoder) -> Pair<String, Int>` for all existing kinds. No textarea logic yet. Existing tests update mechanically (add `startX = 0` arg, unwrap `.first`).
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt`
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt`
 
 - [ ] **Step 1: Refactor `compileLayerBody` to the new signature**
 
@@ -270,7 +270,7 @@ In `TitleCompiler.kt`, replace the existing `compileLayerBody` (lines 159–199)
      *
      * Internal so unit tests can assert on the produced string directly.
      * Returned MiniMessage assumes it will be rendered inside an outer
-     * `<font:interfaze:default>` (set by [compileTitle]).
+     * `<font:artisan:default>` (set by [compileTitle]).
      */
     internal fun compileLayerBody(
         layer: MenuTitleLayer,
@@ -300,7 +300,7 @@ In `TitleCompiler.kt`, replace the existing `compileLayerBody` (lines 159–199)
                         startX + estimateBodyWidth(layer, langMap, lookupAsset),
                     )
                 }
-                "<font:interfaze:text_y${layer.y}>$colored</font>"
+                "<font:artisan:text_y${layer.y}>$colored</font>"
             }
             is MenuTitleLayer.Plain -> {
                 val text = resolveLText(layer.value, langMap)
@@ -358,7 +358,7 @@ Replace the body of the `for (layer in sorted)` loop in `compileTitle` (lines 13
 
 - [ ] **Step 3: Migrate existing compileLayerBody test calls**
 
-In `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt`, every existing call of the form:
+In `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt`, every existing call of the form:
 
 ```kotlin
 val s = TitleCompiler.compileLayerBody(layer, <langMap>, <lookup>)
@@ -383,7 +383,7 @@ val (s, _) = TitleCompiler.compileLayerBody(layer, 0, mapOf("greeting" to "hello
 
 - [ ] **Step 4: Run the full TitleCompiler suite**
 
-Run: `(cd plugin && ./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest")`
+Run: `(cd plugin && ./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest")`
 Expected: all existing tests pass (the body string is unchanged; only the call shape moved).
 
 - [ ] **Step 5: Run the full plugin test suite**
@@ -394,7 +394,7 @@ Expected: BUILD SUCCESSFUL — ~282 tests pass (existing ~277 + 5 textarea-parse
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt
 git commit -m "$(cat <<'EOF'
 refactor(plugin): compileLayerBody returns Pair<String, Int>
 
@@ -411,12 +411,12 @@ EOF
 ## Task 4: Plugin compiler — Textarea branch (TDD)
 
 **Files:**
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt`
 
 - [ ] **Step 1: Write the failing compiler tests for textarea**
 
-Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (before the final closing `}` of the class):
+Append to `plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt` (before the final closing `}` of the class):
 
 ```kotlin
     // ---------- compileLayerBody for Textarea ----------
@@ -430,7 +430,7 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (bef
         val (s, _) = TitleCompiler.compileLayerBody(
             layer, 0, mapOf("g" to "hi"), emptyLookup, standardEncoder,
         )
-        assertEquals("<font:interfaze:text_y0>hi</font>", s)
+        assertEquals("<font:artisan:text_y0>hi</font>", s)
     }
 
     @Test
@@ -445,9 +445,9 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (bef
         // Each line starts at x=0; cursor is already at 0, so first offset is empty.
         // After "a" (width 6) cursor=6, next line needs offset 0-6=-6.
         // After "b" cursor=6, next line offset 0-6=-6.
-        assertTrue(s.contains("<font:interfaze:text_y0>a</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y10>b</font>"))
-        assertTrue(s.contains("<font:interfaze:text_y20>c</font>"))
+        assertTrue(s.contains("<font:artisan:text_y0>a</font>"))
+        assertTrue(s.contains("<font:artisan:text_y10>b</font>"))
+        assertTrue(s.contains("<font:artisan:text_y20>c</font>"))
     }
 
     @Test
@@ -462,7 +462,7 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (bef
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(44)
-        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+        assertEquals("$firstOffset<font:artisan:text_y0>ab</font>", s)
     }
 
     @Test
@@ -476,7 +476,7 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (bef
             layer, 0, mapOf("g" to "ab"), emptyLookup, standardEncoder,
         )
         val firstOffset = standardEncoder.encode(48)
-        assertEquals("$firstOffset<font:interfaze:text_y0>ab</font>", s)
+        assertEquals("$firstOffset<font:artisan:text_y0>ab</font>", s)
     }
 
     @Test
@@ -547,7 +547,7 @@ Append to `plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt` (bef
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `(cd plugin && ./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest")`
+Run: `(cd plugin && ./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest")`
 Expected: 8 new tests fail — body string is currently `""` because Task 3 stubbed the branch.
 
 - [ ] **Step 3: Implement the Textarea branch**
@@ -581,7 +581,7 @@ with:
                         MenuTitleLayer.Alignment.RIGHT -> layer.x - lineWidth
                     }
                     if (lineX != localX) sb.append(offsetEncoder.encode(lineX - localX))
-                    sb.append("<font:interfaze:text_y${lineY}>")
+                    sb.append("<font:artisan:text_y${lineY}>")
                     sb.append(line)
                     sb.append("</font>")
                     localX = lineX + lineWidth
@@ -640,7 +640,7 @@ And the `Textarea` branch:
 
 - [ ] **Step 5: Run the test suite**
 
-Run: `(cd plugin && ./gradlew test --tests "gg.interfaze.plugin.TitleCompilerTest")`
+Run: `(cd plugin && ./gradlew test --tests "net.artisanmc.plugin.TitleCompilerTest")`
 Expected: all tests green including the 8 new textarea tests.
 
 - [ ] **Step 6: Run the full plugin test suite**
@@ -651,7 +651,7 @@ Expected: BUILD SUCCESSFUL. ~290 tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/TitleCompilerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/render/TitleCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/TitleCompilerTest.kt
 git commit -m "$(cat <<'EOF'
 feat(plugin): TitleCompiler textarea branch
 
@@ -777,7 +777,7 @@ describe("transform — textarea title layer", () => {
       ],
     });
     const files = transform(pack);
-    const yaml = files["plugins/Interfaze/packs/p1/menus/m1.yaml"];
+    const yaml = files["plugins/Artisan/packs/p1/menus/m1.yaml"];
     expect(yaml).toContain("kind: textarea");
     expect(yaml).toContain("x: 12");
     expect(yaml).toContain("y: 8");
@@ -1820,7 +1820,7 @@ docker compose up -d
 
 - Open `http://localhost:5173` → pack → menu.
 - Click `+ Bloc texte` → set content `Welcome\nto the shop` → alignment center → save.
-- Run `/interfaze` in Minecraft to open the menu and confirm 2 lines render at the expected y positions and are horizontally centered around `layer.x`.
+- Run `/artisan` in Minecraft to open the menu and confirm 2 lines render at the expected y positions and are horizontally centered around `layer.x`.
 
 This is a visual check only — there is no automated cross-stack E2E in this project. If the visual matches, the feature is shipped.
 

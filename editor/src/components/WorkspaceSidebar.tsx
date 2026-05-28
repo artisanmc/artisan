@@ -32,7 +32,7 @@ export function WorkspaceSidebar() {
     }
   }, []);
 
-  // Active network = session network (set after /ifz setup), otherwise first
+  // Active network = session network (set after /artisan setup), otherwise first
   // network in the user's membership list. Null when the user has no networks
   // at all (fresh signup before any setup).
   const activeNetworkId = useMemo(
@@ -128,7 +128,7 @@ export function WorkspaceSidebar() {
             />
           ) : (
             <div className="mt-1 px-2 py-1 text-[11px] text-zinc-500">
-              Crée un Network ou lance <code>/ifz setup</code> sur ton serveur pour commencer.
+              Crée un Network ou lance <code>/artisan setup</code> sur ton serveur pour commencer.
             </div>
           )}
         </div>

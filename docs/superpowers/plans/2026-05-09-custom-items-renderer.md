@@ -13,12 +13,12 @@
 ## File Map
 
 **Modified (plugin):**
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt` — Add `modelJson: ByteArray? = null` to `CustomItemEntry`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt` — Extend `buildBundle()`/`buildData()`/hash computation to include models
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt` — Add private `loadModelJson(itemId: String): ByteArray?`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt` — Add private `loadModelJson(id: String): ByteArray?`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt` — Add private `loadModelJson(ns: String, name: String): ByteArray?`
-- `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt` — New tests for model JSON bundle, hash
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt` — Add `modelJson: ByteArray? = null` to `CustomItemEntry`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt` — Extend `buildBundle()`/`buildData()`/hash computation to include models
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt` — Add private `loadModelJson(itemId: String): ByteArray?`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt` — Add private `loadModelJson(id: String): ByteArray?`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt` — Add private `loadModelJson(ns: String, name: String): ByteArray?`
+- `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt` — New tests for model JSON bundle, hash
 
 **Created (backend):**
 - `backend/src/lib/customItemRenderer.ts` — `renderCustomIconsWithPaths()` + `renderCustomIcons()`
@@ -33,9 +33,9 @@
 ## Task 1: Extend `CustomItemEntry` + `CustomItemsManager` bundle
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt`
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt`
 
 - [ ] **Step 1: Write failing tests**
 
@@ -97,7 +97,7 @@ fun `computeHash changes when modelJson changes`() {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest" 2>&1 | tail -30
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest" 2>&1 | tail -30
 ```
 
 Expected: compilation errors (modelJson field doesn't exist yet).
@@ -122,7 +122,7 @@ data class CustomItemEntry(
 Replace the entire `CustomItemsManager.kt` with:
 
 ```kotlin
-package gg.interfaze.plugin.customitems
+package net.artisanmc.plugin.customitems
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.ByteArrayOutputStream
@@ -234,7 +234,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CustomItemsManagerTest" 2>&1 | tail -30
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CustomItemsManagerTest" 2>&1 | tail -30
 ```
 
 Expected: all tests pass (28 total).
@@ -251,9 +251,9 @@ Expected: BUILD SUCCESSFUL, 28 tests.
 
 ```bash
 cd plugin
-rtk git add src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemSource.kt
-rtk git add src/main/kotlin/gg/interfaze/plugin/customitems/CustomItemsManager.kt
-rtk git add src/test/kotlin/gg/interfaze/plugin/CustomItemsManagerTest.kt
+rtk git add src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemSource.kt
+rtk git add src/main/kotlin/net/artisanmc/plugin/customitems/CustomItemsManager.kt
+rtk git add src/test/kotlin/net/artisanmc/plugin/CustomItemsManagerTest.kt
 rtk git commit -m "feat(plugin): extend custom items bundle with model JSONs"
 ```
 
@@ -262,7 +262,7 @@ rtk git commit -m "feat(plugin): extend custom items bundle with model JSONs"
 ## Task 2: NexoSource — extract model JSON
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt`
 
 No new automated tests needed — NexoSource requires Bukkit runtime. The model JSON pipeline is already tested through the fakeSource tests in Task 1. Manual verification: Nexo items should show icons in the editor after completing all tasks.
 
@@ -326,7 +326,7 @@ Expected: 28 tests, BUILD SUCCESSFUL.
 
 ```bash
 cd plugin
-rtk git add src/main/kotlin/gg/interfaze/plugin/customitems/NexoSource.kt
+rtk git add src/main/kotlin/net/artisanmc/plugin/customitems/NexoSource.kt
 rtk git commit -m "feat(plugin): NexoSource extracts model JSON from pack zip"
 ```
 
@@ -335,7 +335,7 @@ rtk git commit -m "feat(plugin): NexoSource extracts model JSON from pack zip"
 ## Task 3: OraxenSource — extract model JSON
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt`
 
 - [ ] **Step 1: Add `loadModelJson` private method**
 
@@ -387,7 +387,7 @@ Expected: 28 tests, BUILD SUCCESSFUL.
 
 ```bash
 cd plugin
-rtk git add src/main/kotlin/gg/interfaze/plugin/customitems/OraxenSource.kt
+rtk git add src/main/kotlin/net/artisanmc/plugin/customitems/OraxenSource.kt
 rtk git commit -m "feat(plugin): OraxenSource extracts model JSON from pack directory"
 ```
 
@@ -396,7 +396,7 @@ rtk git commit -m "feat(plugin): OraxenSource extracts model JSON from pack dire
 ## Task 4: ItemsAdderSource — extract model JSON
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt`
 
 - [ ] **Step 1: Add `loadModelJson` private method**
 
@@ -448,7 +448,7 @@ Expected: 28 tests, BUILD SUCCESSFUL.
 
 ```bash
 cd plugin
-rtk git add src/main/kotlin/gg/interfaze/plugin/customitems/ItemsAdderSource.kt
+rtk git add src/main/kotlin/net/artisanmc/plugin/customitems/ItemsAdderSource.kt
 rtk git commit -m "feat(plugin): ItemsAdderSource extracts model JSON from resource pack"
 ```
 

@@ -169,7 +169,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify({ editor_language: "fr" }),
     });
@@ -198,7 +198,7 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `ifz_user_session=${sessionId}`,
+        "Cookie": `artisan_user_session=${sessionId}`,
       },
       body: JSON.stringify({ editor_language: null }),
     });
@@ -225,7 +225,7 @@ In `backend/src/routes/auth.ts`, ADD after the existing `GET /me` handler:
 
 ```ts
 router.patch("/me", async (c) => {
-  const sessionId = getCookie(c, "ifz_user_session");
+  const sessionId = getCookie(c, "artisan_user_session");
   if (!sessionId) return c.json({ error: "unauthorized" }, 401);
   const user = await validateUserSession(sessionId);
   if (!user) return c.json({ error: "unauthorized" }, 401);

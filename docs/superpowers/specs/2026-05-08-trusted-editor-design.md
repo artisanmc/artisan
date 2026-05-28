@@ -15,7 +15,7 @@ Le token de session éditeur actuel est un token unique 30 min présent dans l'U
 
 1. Sessions longues (7 jours) sans sacrifier la sécurité
 2. L'URL de l'éditeur est one-time — inutilisable après la première visite
-3. Le deploy requiert une confirmation in-game (`/ifz trusteditor`) même avec un token valide
+3. Le deploy requiert une confirmation in-game (`/artisan trusteditor`) même avec un token valide
 4. Un changement d'IP re-déclenche la confirmation in-game (sans invalider la session)
 
 ---
@@ -46,7 +46,7 @@ refresh_token (7 jours, HttpOnly cookie) → renouvelle l'access token
 | `access_token` | text nullable | Access token courant (5 min) |
 | `access_expires_at` | timestamp nullable | Expiry de l'access token |
 | `trust_code` | text nullable | Code 6 chars généré à la création, affiché dans l'éditeur |
-| `trusted_at` | timestamp nullable | Posé quand `/ifz trusteditor` est tapé |
+| `trusted_at` | timestamp nullable | Posé quand `/artisan trusteditor` est tapé |
 | `trusted_ip` | text nullable | IP capturée au moment du trust |
 
 `expires_at` passe de 30 min à **7 jours**.
@@ -58,7 +58,7 @@ refresh_token (7 jours, HttpOnly cookie) → renouvelle l'access token
 ### A. Exchange (visite initiale)
 
 ```
-/ifz editor
+/artisan editor
     → backend crée session : url_token + trust_code (6 chars), expires_at = now + 7j
     → éditorSessionReadyMessage inclut trust_code
 
@@ -86,9 +86,9 @@ POST /api/editor-session/refresh
 ### C. Trust in-game
 
 ```
-Editor affiche banner : "Tapez /ifz trusteditor <trust_code> en jeu"
+Editor affiche banner : "Tapez /artisan trusteditor <trust_code> en jeu"
 
-Admin → /ifz trusteditor <code>
+Admin → /artisan trusteditor <code>
     → plugin envoie WS : editor_trust_request { trust_code }
     → backend : cherche session par trust_code
     → capture IP depuis editorTokenToIp[session.access_token]
@@ -105,7 +105,7 @@ POST /:token/packs/:packId/deploy
     → SI trusted_ip ≠ request_ip → 403 { error: "session_not_trusted" }
 
 Editor : réaffiche le banner trust (même flow que C)
-Admin retape /ifz trusteditor → trusted_ip mis à jour
+Admin retape /artisan trusteditor → trusted_ip mis à jour
 ```
 
 ---
@@ -150,8 +150,8 @@ Le `trust_code` est valide pour toute la durée de la session (7 jours). Il n'a 
 
 - **Exchange au chargement** de `/session?token=...` : POST exchange → `access_token` en mémoire Zustand
 - **Error states** :
-  - `already_used` → page "Ce lien a déjà été utilisé — relancez `/ifz editor`"
-  - refresh 401 → "Session expirée — relancez `/ifz editor`"
+  - `already_used` → page "Ce lien a déjà été utilisé — relancez `/artisan editor`"
+  - refresh 401 → "Session expirée — relancez `/artisan editor`"
 - **Banner trust** : affiché si `trusted: false` à la validation, ou sur 403 `session_not_trusted` après un deploy
 - **WS `session_trusted`** → banner disparaît
 - **Refresh silencieux** : `setInterval` 4 min, rotation transparente
@@ -160,7 +160,7 @@ Le `trust_code` est valide pour toute la durée de la session (7 jours). Il n'a 
 
 ## Plugin — changements
 
-- `/ifz trusteditor <code>` : nouveau subcommand
+- `/artisan trusteditor <code>` : nouveau subcommand
 - Envoie `editor_trust_request { trust_code }` via WS principal
 - Feedback : "Session éditeur autorisée." / "Code invalide ou expiré."
 - Tab-complete sur `trusteditor`

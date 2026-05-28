@@ -24,7 +24,7 @@
 | `backend/src/routes/bundles.test.ts` | Modify (append tests) | Assert canvasLayout overwrite on plugin republish. |
 | `backend/src/routes/editorSession.ts` | Modify (PUT around line 120-148; deploy around 150-186) | Same "files win" on PUT + deploy. |
 | `backend/src/routes/editorSession.test.ts` | Modify (append tests) | Assert canvasLayout reflected from manifest on PUT/deploy. |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/ManifestYamlIgnoresEditorLayoutTest.kt` | **Create** | Smoke test that the Kotlin parser silently ignores `editor_layout`. |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/ManifestYamlIgnoresEditorLayoutTest.kt` | **Create** | Smoke test that the Kotlin parser silently ignores `editor_layout`. |
 
 No file deletions. No directory moves.
 
@@ -57,7 +57,7 @@ it("emits editor_layout in manifest with menu/command/dialog positions", () => {
     },
   });
   const files = transform(pack);
-  const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+  const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
   expect(manifest.editor_layout).toEqual({
     shop:    { x: 40,  y: 40 },
     heal:    { x: 260, y: 40 },
@@ -132,7 +132,7 @@ it("omits editor_layout when canvasLayout is empty", () => {
     canvasLayout: {},
   });
   const files = transform(pack);
-  const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+  const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
   expect(manifest.editor_layout).toBeUndefined();
 });
 
@@ -148,7 +148,7 @@ it("filters orphaned ids from editor_layout (id no longer in pack)", () => {
     },
   });
   const files = transform(pack);
-  const manifest = parse(files["plugins/Interfaze/packs/p_test/manifest.yaml"]!);
+  const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
   expect(manifest.editor_layout).toEqual({ shop: { x: 40, y: 40 } });
 });
 ```
@@ -180,7 +180,7 @@ import { describe, expect, test } from "bun:test";
 import { importPackFromFiles, readEditorLayoutFromFiles } from "./packImport";
 
 const PACK_ID = "p_layout";
-const base = `plugins/Interfaze/packs/${PACK_ID}`;
+const base = `plugins/Artisan/packs/${PACK_ID}`;
 
 function manifestWith(editorLayout: string | null): Record<string, string> {
   const body = [
@@ -327,7 +327,7 @@ test("POST overwrites canvasLayout from manifest editor_layout (files win)", asy
   const { key } = (await keyRes.json()) as { key: string };
 
   const files = {
-    "plugins/Interfaze/packs/p_layout/manifest.yaml": [
+    "plugins/Artisan/packs/p_layout/manifest.yaml": [
       "schema: manifest/v1",
       "pack_id: p_layout",
       "default_lang: en",
@@ -338,7 +338,7 @@ test("POST overwrites canvasLayout from manifest editor_layout (files win)", asy
       "editor_layout:",
       "  shop: { x: 111, y: 222 }",
     ].join("\n") + "\n",
-    "plugins/Interfaze/packs/p_layout/menus/shop.yaml": "id: shop\nsize: 27\n",
+    "plugins/Artisan/packs/p_layout/menus/shop.yaml": "id: shop\nsize: 27\n",
   };
 
   const res = await app.request("/api/bundles/p_layout", {
@@ -372,12 +372,12 @@ test("POST without editor_layout in manifest resets canvasLayout to {}", async (
 
   // First publish: with positions.
   const withPos = {
-    "plugins/Interfaze/packs/p_reset/manifest.yaml": [
+    "plugins/Artisan/packs/p_reset/manifest.yaml": [
       "schema: manifest/v1", "pack_id: p_reset", "default_lang: en",
       "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
       "editor_layout:", "  shop: { x: 9, y: 9 }",
     ].join("\n") + "\n",
-    "plugins/Interfaze/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
+    "plugins/Artisan/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
   };
   await app.request("/api/bundles/p_reset", {
     method: "POST",
@@ -387,11 +387,11 @@ test("POST without editor_layout in manifest resets canvasLayout to {}", async (
 
   // Second publish: no editor_layout.
   const withoutPos = {
-    "plugins/Interfaze/packs/p_reset/manifest.yaml": [
+    "plugins/Artisan/packs/p_reset/manifest.yaml": [
       "schema: manifest/v1", "pack_id: p_reset", "default_lang: en",
       "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
     ].join("\n") + "\n",
-    "plugins/Interfaze/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
+    "plugins/Artisan/packs/p_reset/menus/shop.yaml": "id: shop\nsize: 27\n",
   };
   await app.request("/api/bundles/p_reset", {
     method: "POST",
@@ -492,7 +492,7 @@ describe("PUT /api/editor-session/:token/packs/:packId — canvasLayout (files w
       canvasLayout: { shop: { x: 1, y: 1 } }, // STALE — files should win
     };
     const fakeFiles = {
-      "plugins/Interfaze/packs/p_files_win/manifest.yaml": [
+      "plugins/Artisan/packs/p_files_win/manifest.yaml": [
         "schema: manifest/v1", "pack_id: p_files_win", "default_lang: en",
         "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
         "editor_layout:", "  shop: { x: 77, y: 88 }",
@@ -522,7 +522,7 @@ describe("POST /api/editor-session/:token/packs/:packId/deploy — canvasLayout 
       canvasLayout: { foo: { x: 0, y: 0 } }, // stale
     };
     const fakeFiles = {
-      "plugins/Interfaze/packs/p_deploy_layout/manifest.yaml": [
+      "plugins/Artisan/packs/p_deploy_layout/manifest.yaml": [
         "schema: manifest/v1", "pack_id: p_deploy_layout", "default_lang: en",
         "files:", "  menus: []", "  commands: []", "  dialogs: []",
         "editor_layout:", "  bar: { x: 200, y: 300 }",
@@ -609,19 +609,19 @@ git commit -m "feat(backend): editorSession PUT/deploy — overwrite canvasLayou
 ## Task 6: Plugin — smoke test that `ManifestYaml` ignores `editor_layout`
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ManifestYamlIgnoresEditorLayoutTest.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ManifestYamlIgnoresEditorLayoutTest.kt`
 
 This task confirms the spec's claim that the plugin code needs no change. It's defensive: if someone later removes `@JsonIgnoreProperties(ignoreUnknown = true)` from `ManifestYaml`, this test catches it.
 
-- [ ] **Step 1: Write the test** — create `plugin/src/test/kotlin/gg/interfaze/plugin/ManifestYamlIgnoresEditorLayoutTest.kt`:
+- [ ] **Step 1: Write the test** — create `plugin/src/test/kotlin/net/artisanmc/plugin/ManifestYamlIgnoresEditorLayoutTest.kt`:
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.model.ManifestYaml
+import net.artisanmc.plugin.model.ManifestYaml
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -655,13 +655,13 @@ class ManifestYamlIgnoresEditorLayoutTest {
 
 - [ ] **Step 2: Run the test to verify it passes (it should — the production code already supports this)**
 
-Run (from `plugin/`): `./gradlew test --tests "gg.interfaze.plugin.ManifestYamlIgnoresEditorLayoutTest"`
-Expected: PASS. If FAIL with `UnrecognizedPropertyException`, the production fix is to ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is on `ManifestYaml` (`plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt:14`). It already is, so the test should pass on first run.
+Run (from `plugin/`): `./gradlew test --tests "net.artisanmc.plugin.ManifestYamlIgnoresEditorLayoutTest"`
+Expected: PASS. If FAIL with `UnrecognizedPropertyException`, the production fix is to ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is on `ManifestYaml` (`plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt:14`). It already is, so the test should pass on first run.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add plugin/src/test/kotlin/gg/interfaze/plugin/ManifestYamlIgnoresEditorLayoutTest.kt
+git add plugin/src/test/kotlin/net/artisanmc/plugin/ManifestYamlIgnoresEditorLayoutTest.kt
 git commit -m "test(plugin): ManifestYaml ignores editor_layout field (regression lock)"
 ```
 
@@ -686,7 +686,7 @@ it("emits editor_layout in block-style YAML the backend round-trip test parses",
     canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
   });
   const files = transform(pack);
-  const manifestYaml = files["plugins/Interfaze/packs/p_test/manifest.yaml"]!;
+  const manifestYaml = files["plugins/Artisan/packs/p_test/manifest.yaml"]!;
   // The editor emits block-style YAML for nested objects (the `yaml` lib's
   // default with our yamlOpts). The backend mirror test below asserts the
   // same block-style shape is parseable. If you change to flow style here,
@@ -706,7 +706,7 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
     // Mirror of editor/src/features/export/transform.test.ts:
     // "emits editor_layout in block-style YAML the backend round-trip test parses"
     const files = {
-      "plugins/Interfaze/packs/p_mirror/manifest.yaml": [
+      "plugins/Artisan/packs/p_mirror/manifest.yaml": [
         "schema: manifest/v1",
         "pack_id: p_mirror",
         "default_lang: en",
@@ -722,7 +722,7 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
         "    x: 123",
         "    y: 456",
       ].join("\n") + "\n",
-      "plugins/Interfaze/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
+      "plugins/Artisan/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
     };
     const pack = importPackFromFiles("p_mirror", files) as {
       canvasLayout: Record<string, { x: number; y: number }>;
@@ -771,7 +771,7 @@ Expected: all tests pass (including the new `ManifestYamlIgnoresEditorLayoutTest
   1. Start the stack: `docker compose up -d`.
   2. Open the editor in browser A, create a pack with 2+ menus, drag them to specific positions.
   3. Wait for autosave (a few seconds).
-  4. From a shell on the host: copy `plugins/Interfaze/packs/<pack_id>/` out of the minecraft container (`docker cp minecraft:/data/plugins/Interfaze/packs/<id> /tmp/exported`).
+  4. From a shell on the host: copy `plugins/Artisan/packs/<pack_id>/` out of the minecraft container (`docker cp minecraft:/data/plugins/Artisan/packs/<id> /tmp/exported`).
   5. Inspect `/tmp/exported/manifest.yaml` — confirm `editor_layout` is present with the dragged positions.
   6. Simulate a "fresh server" by deleting the pack's editorJson row in the DB:
      `psql $DATABASE_URL -c "DELETE FROM pack_bundles WHERE pack_id='<pack_id>';"`

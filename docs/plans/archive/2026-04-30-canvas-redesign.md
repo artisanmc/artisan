@@ -668,7 +668,7 @@ git commit -m "feat(canvas): right-click context menu on Konva nodes via shadcn 
 
 ### Task 13: Copy / paste / duplicate
 
-Window-level Ctrl+C, Ctrl+V, Ctrl+D handlers (with input-focus guard). Clipboard format: `application/json` (Interfaze-specific MIME or fallback to text JSON), structure `{ kind: "interfaze.clipboard", version: 1, items: [{ type: "menu" | "command" | "slot", data: ... }] }`.
+Window-level Ctrl+C, Ctrl+V, Ctrl+D handlers (with input-focus guard). Clipboard format: `application/json` (Artisan-specific MIME or fallback to text JSON), structure `{ kind: "artisan.clipboard", version: 1, items: [{ type: "menu" | "command" | "slot", data: ... }] }`.
 
 Paste behavior:
 - Same pack: clone with new ids, offset position by 24px

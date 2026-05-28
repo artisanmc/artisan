@@ -3,7 +3,7 @@
   "id": "heal",
   "name": "heal",
   "aliases": ["soin"],
-  "permission": "interfaze.cmd.heal",
+  "permission": "artisan.cmd.heal",
   "description": "Restaure votre vie et votre faim.",
   "notes": "Commande sans menu — exécution directe d'actions.",
   "actions": [

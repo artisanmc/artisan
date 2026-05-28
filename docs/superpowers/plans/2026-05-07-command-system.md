@@ -6,7 +6,7 @@
 
 **Goal:** Parse `CommandYaml` definitions into typed `CompiledCommand` objects, register them dynamically as Bukkit commands via `Bukkit.getCommandMap()`, and route executions through `ActionExecutor`.
 
-**Architecture:** `ArgDef` sealed class for typed argument definitions. `ArgParser` handles positional parsing + tab-completion. `CommandCompiler` compiles `CommandYaml` → `CompiledCommand`. `PackCommand` is one Bukkit `Command` per pack command. `CommandRegistrar` handles register/unregister via the server command map. `InterfazePlugin` wires `CommandRegistrar` and calls `reload()` after pack load.
+**Architecture:** `ArgDef` sealed class for typed argument definitions. `ArgParser` handles positional parsing + tab-completion. `CommandCompiler` compiles `CommandYaml` → `CompiledCommand`. `PackCommand` is one Bukkit `Command` per pack command. `CommandRegistrar` handles register/unregister via the server command map. `ArtisanPlugin` wires `CommandRegistrar` and calls `reload()` after pack load.
 
 **Tech Stack:** Kotlin 2.0, Paper API 1.21.4, MockBukkit 3.133.2
 
@@ -15,14 +15,14 @@
 ### Task 1: ArgDef sealed class
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/ArgDef.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArgDef.kt`
 
 No tests — pure data types + simple parser from Map.
 
 - [ ] **Step 1: Create ArgDef.kt**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
 sealed class ArgDef {
     abstract val name: String
@@ -96,7 +96,7 @@ Expected: `BUILD SUCCESSFUL`
 - [ ] **Step 3: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/command/ArgDef.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/command/ArgDef.kt
 rtk git commit -m "feat(plugin): ArgDef sealed class + ArgDefParser for 6 arg types"
 ```
 
@@ -105,17 +105,17 @@ rtk git commit -m "feat(plugin): ArgDef sealed class + ArgDefParser for 6 arg ty
 ### Task 2: ArgParser (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ArgParserTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/ArgParser.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ArgParserTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArgParser.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.plugin.command.ArgDef
-import gg.interfaze.plugin.command.ArgParser
+import net.artisanmc.plugin.command.ArgDef
+import net.artisanmc.plugin.command.ArgParser
 import kotlin.test.*
 
 class ArgParserTest {
@@ -229,14 +229,14 @@ class ArgParserTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ArgParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ArgParserTest"
 ```
 Expected: FAIL — `ArgParser` not found
 
 - [ ] **Step 3: Implement ArgParser**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -324,14 +324,14 @@ object ArgParser {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.ArgParserTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.ArgParserTest"
 ```
 Expected: All 14 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/command/ArgParser.kt plugin/src/test/kotlin/gg/interfaze/plugin/ArgParserTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/command/ArgParser.kt plugin/src/test/kotlin/net/artisanmc/plugin/ArgParserTest.kt
 rtk git commit -m "feat(plugin): ArgParser — positional arg parsing + tab-completion for 6 arg types (TDD)"
 ```
 
@@ -340,16 +340,16 @@ rtk git commit -m "feat(plugin): ArgParser — positional arg parsing + tab-comp
 ### Task 3: CompiledCommand + CommandCompiler (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/CommandCompilerTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/CompiledCommand.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/CommandCompiler.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/CommandCompilerTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/CompiledCommand.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/CommandCompiler.kt`
 
 - [ ] **Step 1: Create CompiledCommand.kt**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.engine.ClickHandler
+import net.artisanmc.plugin.engine.ClickHandler
 
 data class CompiledCommand(
     val name: String,
@@ -364,14 +364,14 @@ data class CompiledCommand(
 - [ ] **Step 2: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.ArgDef
-import gg.interfaze.plugin.command.CommandCompiler
-import gg.interfaze.plugin.engine.Action
-import gg.interfaze.plugin.engine.Condition
-import gg.interfaze.plugin.model.CooldownYaml
-import gg.interfaze.plugin.model.CommandYaml
+import net.artisanmc.plugin.command.ArgDef
+import net.artisanmc.plugin.command.CommandCompiler
+import net.artisanmc.plugin.engine.Action
+import net.artisanmc.plugin.engine.Condition
+import net.artisanmc.plugin.model.CooldownYaml
+import net.artisanmc.plugin.model.CommandYaml
 import kotlin.test.*
 
 class CommandCompilerTest {
@@ -396,10 +396,10 @@ class CommandCompilerTest {
     }
 
     @Test fun `compile command with permission`() {
-        val yaml = CommandYaml(name = "vipshop", permission = "interfaze.vip")
+        val yaml = CommandYaml(name = "vipshop", permission = "artisan.vip")
         val result = CommandCompiler.compile(yaml)
         assertNotNull(result)
-        assertEquals("interfaze.vip", result.permission)
+        assertEquals("artisan.vip", result.permission)
     }
 
     @Test fun `compile command with requirements and fallback`() {
@@ -459,17 +459,17 @@ class CommandCompilerTest {
 - [ ] **Step 3: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CommandCompilerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CommandCompilerTest"
 ```
 Expected: FAIL — `CommandCompiler` not found
 
 - [ ] **Step 4: Implement CommandCompiler**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.CommandYaml
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.CommandYaml
 import java.util.logging.Logger
 
 object CommandCompiler {
@@ -498,14 +498,14 @@ object CommandCompiler {
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CommandCompilerTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CommandCompilerTest"
 ```
 Expected: All 7 tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/command/CompiledCommand.kt plugin/src/main/kotlin/gg/interfaze/plugin/command/CommandCompiler.kt plugin/src/test/kotlin/gg/interfaze/plugin/CommandCompilerTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/command/CompiledCommand.kt plugin/src/main/kotlin/net/artisanmc/plugin/command/CommandCompiler.kt plugin/src/test/kotlin/net/artisanmc/plugin/CommandCompilerTest.kt
 rtk git commit -m "feat(plugin): CompiledCommand + CommandCompiler — CommandYaml → typed CompiledCommand (TDD)"
 ```
 
@@ -514,20 +514,20 @@ rtk git commit -m "feat(plugin): CompiledCommand + CommandCompiler — CommandYa
 ### Task 4: PackCommand (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/PackCommandTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/PackCommand.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/PackCommandTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/PackCommand.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.plugin.command.*
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.PackBundle
-import gg.interfaze.plugin.provider.MenuProvider
+import net.artisanmc.plugin.command.*
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
 
@@ -536,7 +536,7 @@ class PackCommandTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest fun teardown() { MockBukkit.unmock() }
 
-    private val plugin = lazy { MockBukkit.load(gg.interfaze.plugin.InterfazePlugin::class.java) }
+    private val plugin = lazy { MockBukkit.load(net.artisanmc.plugin.ArtisanPlugin::class.java) }
     private val deps = SoftDepRegistry.EMPTY
     private val cooldowns = CooldownStore()
     private val sessions = MenuSessionStore()
@@ -582,7 +582,7 @@ class PackCommandTest {
     }
 
     @Test fun `execute respects command permission`() {
-        val command = cmd("admin", permission = "interfaze.admin")
+        val command = cmd("admin", permission = "artisan.admin")
         val player = MockBukkit.getMock().addPlayer()
         val result = command.execute(player, "admin", emptyArray())
         assertTrue(result)
@@ -601,17 +601,17 @@ class PackCommandTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.PackCommandTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.PackCommandTest"
 ```
 Expected: FAIL — `PackCommand` not found
 
 - [ ] **Step 3: Implement PackCommand**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.engine.ActionExecutor
-import gg.interfaze.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.engine.ActionExecutor
+import net.artisanmc.plugin.engine.ExecutionContext
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -654,14 +654,14 @@ class PackCommand(
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.PackCommandTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.PackCommandTest"
 ```
 Expected: All 5 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/command/PackCommand.kt plugin/src/test/kotlin/gg/interfaze/plugin/PackCommandTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/command/PackCommand.kt plugin/src/test/kotlin/net/artisanmc/plugin/PackCommandTest.kt
 rtk git commit -m "feat(plugin): PackCommand — Bukkit Command wrapping CompiledCommand + ActionExecutor (TDD)"
 ```
 
@@ -670,19 +670,19 @@ rtk git commit -m "feat(plugin): PackCommand — Bukkit Command wrapping Compile
 ### Task 5: CommandRegistrar (TDD)
 
 **Files:**
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/CommandRegistrarTest.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/CommandRegistrar.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/CommandRegistrarTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/CommandRegistrar.kt`
 
 - [ ] **Step 1: Write failing tests**
 
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import gg.interfaze.plugin.command.CommandRegistrar
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.model.*
-import gg.interfaze.plugin.provider.MenuProvider
+import net.artisanmc.plugin.command.CommandRegistrar
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.model.*
+import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
 
@@ -691,7 +691,7 @@ class CommandRegistrarTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest fun teardown() { MockBukkit.unmock() }
 
-    private val plugin = lazy { MockBukkit.load(gg.interfaze.plugin.InterfazePlugin::class.java) }
+    private val plugin = lazy { MockBukkit.load(net.artisanmc.plugin.ArtisanPlugin::class.java) }
     private val deps = SoftDepRegistry.EMPTY
     private val cooldowns = CooldownStore()
     private val sessions = MenuSessionStore()
@@ -718,7 +718,7 @@ class CommandRegistrarTest {
         val registrar = CommandRegistrar(plugin.value)
         registrar.reload(listOf(bundle(cmdYaml("testcmd"))), executor(), evaluator)
         val cmd = MockBukkit.getMock().getCommandMap().getCommand("testcmd")
-            ?: MockBukkit.getMock().getCommandMap().getCommand("interfaze:testcmd")
+            ?: MockBukkit.getMock().getCommandMap().getCommand("artisan:testcmd")
         assertNotNull(cmd)
         registrar.unregisterAll()
     }
@@ -765,18 +765,18 @@ class CommandRegistrarTest {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CommandRegistrarTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CommandRegistrarTest"
 ```
 Expected: FAIL — `CommandRegistrar` not found
 
 - [ ] **Step 3: Implement CommandRegistrar**
 
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.engine.ActionExecutor
-import gg.interfaze.plugin.engine.ConditionEvaluator
-import gg.interfaze.plugin.model.PackBundle
+import net.artisanmc.plugin.engine.ActionExecutor
+import net.artisanmc.plugin.engine.ConditionEvaluator
+import net.artisanmc.plugin.model.PackBundle
 import org.bukkit.Bukkit
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.java.JavaPlugin
@@ -801,7 +801,7 @@ class CommandRegistrar(private val plugin: JavaPlugin) {
                     continue
                 }
 
-                // Detect conflict with non-Interfaze commands
+                // Detect conflict with non-Artisan commands
                 val existing = commandMap.getCommand(name)
                 if (existing != null && existing !is PackCommand) {
                     logger.warning("Command '$name' conflicts with an existing command from '${existing.label}' — skipped.")
@@ -842,7 +842,7 @@ class CommandRegistrar(private val plugin: JavaPlugin) {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd plugin && ./gradlew test --tests "gg.interfaze.plugin.CommandRegistrarTest"
+cd plugin && ./gradlew test --tests "net.artisanmc.plugin.CommandRegistrarTest"
 ```
 Expected: All 5 tests PASS
 
@@ -856,16 +856,16 @@ Expected: All tests pass
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/command/CommandRegistrar.kt plugin/src/test/kotlin/gg/interfaze/plugin/CommandRegistrarTest.kt
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/command/CommandRegistrar.kt plugin/src/test/kotlin/net/artisanmc/plugin/CommandRegistrarTest.kt
 rtk git commit -m "feat(plugin): CommandRegistrar — dynamic Bukkit command registration with conflict detection (TDD)"
 ```
 
 ---
 
-### Task 6: Wire CommandRegistrar in InterfazePlugin
+### Task 6: Wire CommandRegistrar in ArtisanPlugin
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add CommandRegistrar field and wire reload calls**
 
@@ -887,24 +887,24 @@ In `onDisable()`, before `menuProvider.unload()`, add:
 commandRegistrar.unregisterAll()
 ```
 
-Full updated `InterfazePlugin.kt`:
+Full updated `ArtisanPlugin.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.CommandRegistrar
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.engine.*
-import gg.interfaze.plugin.provider.MenuProvider
-import gg.interfaze.plugin.provider.SyncedMenuProvider
-import gg.interfaze.plugin.render.MenuListener
+import net.artisanmc.plugin.command.CommandRegistrar
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.engine.*
+import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.provider.SyncedMenuProvider
+import net.artisanmc.plugin.render.MenuListener
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-open class InterfazePlugin : JavaPlugin() {
+open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
-    private lateinit var ifzCommand: IfzCommand
+    private lateinit var ifzCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
     private lateinit var cooldowns: CooldownStore
@@ -935,18 +935,18 @@ open class InterfazePlugin : JavaPlugin() {
         commandRegistrar = CommandRegistrar(this)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
-        ifzCommand = IfzCommand(this)
+        ifzCommand = ArtisanCommand(this)
         getCommand("ifz")?.setExecutor(ifzCommand)
         getCommand("ifz")?.tabCompleter = ifzCommand
         server.pluginManager.registerEvents(MenuListener(sessions, executor), this)
-        logger.info("Interfaze ${description.version} enabled")
+        logger.info("Artisan ${description.version} enabled")
     }
 
     override fun onDisable() {
         ifzCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.unload()
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 
     fun reinit(cfg: PluginConfig) {
@@ -995,6 +995,6 @@ Expected: `BUILD SUCCESSFUL`
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt
-rtk git commit -m "feat(plugin): wire CommandRegistrar into InterfazePlugin — commands registered on load and reinit"
+rtk git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt
+rtk git commit -m "feat(plugin): wire CommandRegistrar into ArtisanPlugin — commands registered on load and reinit"
 ```

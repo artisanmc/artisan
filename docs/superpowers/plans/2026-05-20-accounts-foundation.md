@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ajouter des comptes utilisateurs natifs à Interfaze (signup, login email+password, login Discord OAuth, logout, page profil `/account`). Couche additive : rien du flow existant (trust dance, editor sessions, server_keys) n'est touché.
+**Goal:** Ajouter des comptes utilisateurs natifs à Artisan (signup, login email+password, login Discord OAuth, logout, page profil `/account`). Couche additive : rien du flow existant (trust dance, editor sessions, server_keys) n'est touché.
 
-**Architecture:** Cookie HTTP-only `ifz_user_session` qui référence une row dans `user_sessions`. Mot de passe haché en argon2id via `Bun.password`. Discord OAuth2 standard (state cookie pour CSRF). Cookie de session utilisateur coexiste sans heurts avec les cookies éditeur existants (`ifz_refresh`).
+**Architecture:** Cookie HTTP-only `artisan_user_session` qui référence une row dans `user_sessions`. Mot de passe haché en argon2id via `Bun.password`. Discord OAuth2 standard (state cookie pour CSRF). Cookie de session utilisateur coexiste sans heurts avec les cookies éditeur existants (`artisan_refresh`).
 
 **Tech Stack:** Backend = Bun + Hono + Drizzle (PostgreSQL) + bun:test ; Editor = React 19 + Vite + TanStack Router (file-based) + Zustand + Vitest + Testing Library.
 
@@ -25,7 +25,7 @@
 | `backend/src/lib/passwordHasher.test.ts` | Create | Round-trip, rejet mauvais mot de passe, hash stable mais différent à chaque appel. |
 | `backend/src/lib/sessionManager.ts` | Create | `createSession(userId)`, `findSession(id)`, `destroySession(id)`, `touchSession(id)`. |
 | `backend/src/lib/sessionManager.test.ts` | Create | Création, lookup, expiration, touch, destroy. |
-| `backend/src/middleware/userAuth.ts` | Create | Middleware Hono qui lit le cookie `ifz_user_session`, charge l'user et l'attache à `c.var.user`. |
+| `backend/src/middleware/userAuth.ts` | Create | Middleware Hono qui lit le cookie `artisan_user_session`, charge l'user et l'attache à `c.var.user`. |
 | `backend/src/middleware/userAuth.test.ts` | Create | Cookie absent / expiré / valide. |
 | `backend/src/lib/emailNormalizer.ts` | Create | Trim + lowercase email pour cohérence index. |
 | `backend/src/lib/emailNormalizer.test.ts` | Create | Cas mixed case, trailing space, etc. |
@@ -499,7 +499,7 @@ describe("userAuth middleware", () => {
     app.get("/x", (c) => c.json({ userId: c.var.user?.id ?? null }));
 
     const res = await app.fetch(new Request("http://x/x", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -522,7 +522,7 @@ describe("userAuth middleware", () => {
     app.get("/x", (c) => c.json({ userId: c.var.user?.id ?? null }));
 
     const res = await app.fetch(new Request("http://x/x", {
-      headers: { Cookie: "ifz_user_session=does-not-exist" },
+      headers: { Cookie: "artisan_user_session=does-not-exist" },
     }));
     const body = await res.json();
     expect(body.userId).toBeNull();
@@ -559,7 +559,7 @@ declare module "hono" {
 }
 
 export const userAuth = () => createMiddleware(async (c, next) => {
-  const sessionId = getCookie(c, "ifz_user_session");
+  const sessionId = getCookie(c, "artisan_user_session");
   if (!sessionId) {
     c.set("user", null);
     return next();
@@ -594,7 +594,7 @@ Expected: PASS (3 tests).
 
 ```bash
 git add backend/src/middleware/userAuth.ts backend/src/middleware/userAuth.test.ts
-git commit -m "feat(backend): middleware userAuth (cookie ifz_user_session)"
+git commit -m "feat(backend): middleware userAuth (cookie artisan_user_session)"
 ```
 
 ---
@@ -632,7 +632,7 @@ describe("POST /api/auth/signup", () => {
     }));
     expect(res.status).toBe(201);
     const setCookie = res.headers.get("Set-Cookie") ?? "";
-    expect(setCookie).toContain("ifz_user_session=");
+    expect(setCookie).toContain("artisan_user_session=");
     expect(setCookie).toContain("HttpOnly");
     const body = await res.json();
     expect(body.user.email).toBe(email);
@@ -674,7 +674,7 @@ function newUserId(): string {
 }
 
 function setSessionCookie(c: Parameters<typeof setCookie>[0], sessionId: string, expires: Date) {
-  setCookie(c, "ifz_user_session", sessionId, {
+  setCookie(c, "artisan_user_session", sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
@@ -840,7 +840,7 @@ describe("POST /api/auth/login", () => {
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
     expect(res.status).toBe(200);
-    expect(res.headers.get("Set-Cookie") ?? "").toContain("ifz_user_session=");
+    expect(res.headers.get("Set-Cookie") ?? "").toContain("artisan_user_session=");
     expect((await res.json()).user.email).toBe(email);
     await cleanupByEmail(email);
   });
@@ -966,15 +966,15 @@ describe("POST /api/auth/logout", () => {
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
     const cookieRaw = loginRes.headers.get("Set-Cookie") ?? "";
-    const sessionId = /ifz_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
+    const sessionId = /artisan_user_session=([^;]+)/.exec(cookieRaw)?.[1] ?? "";
     expect(sessionId).toBeTruthy();
 
     const res = await app.fetch(new Request("http://x/api/auth/logout", {
       method: "POST",
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(204);
-    expect(res.headers.get("Set-Cookie") ?? "").toMatch(/ifz_user_session=;.*Max-Age=0|ifz_user_session=;.*expires=/i);
+    expect(res.headers.get("Set-Cookie") ?? "").toMatch(/artisan_user_session=;.*Max-Age=0|artisan_user_session=;.*expires=/i);
 
     const remain = await db.select().from(userSessions).where(eq(userSessions.id, sessionId));
     expect(remain).toHaveLength(0);
@@ -1000,10 +1000,10 @@ describe("GET /api/auth/me", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password: "longenoughpw" }),
     }));
-    const sessionId = /ifz_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
+    const sessionId = /artisan_user_session=([^;]+)/.exec(loginRes.headers.get("Set-Cookie") ?? "")?.[1] ?? "";
 
     const res = await app.fetch(new Request("http://x/api/auth/me", {
-      headers: { Cookie: `ifz_user_session=${sessionId}` },
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
     }));
     expect(res.status).toBe(200);
     expect((await res.json()).user.email).toBe(email);
@@ -1017,7 +1017,7 @@ describe("GET /api/auth/me", () => {
 
   test("returns 401 with bogus cookie", async () => {
     const res = await app.fetch(new Request("http://x/api/auth/me", {
-      headers: { Cookie: "ifz_user_session=does-not-exist" },
+      headers: { Cookie: "artisan_user_session=does-not-exist" },
     }));
     expect(res.status).toBe(401);
   });
@@ -1038,9 +1038,9 @@ import { destroySession } from "../lib/sessionManager";
 import { userAuth } from "../middleware/userAuth";
 
 router.post("/logout", async (c) => {
-  const sessionId = getCookie(c, "ifz_user_session");
+  const sessionId = getCookie(c, "artisan_user_session");
   if (sessionId) await destroySession(sessionId);
-  deleteCookie(c, "ifz_user_session", { path: "/" });
+  deleteCookie(c, "artisan_user_session", { path: "/" });
   return c.body(null, 204);
 });
 
@@ -1346,7 +1346,7 @@ describe("GET /api/auth/discord/start", () => {
     expect(location).toContain("https://discord.com/api/oauth2/authorize");
     expect(location).toContain("client_id=test_cid");
     const setCookie = res.headers.get("Set-Cookie") ?? "";
-    expect(setCookie).toContain("ifz_oauth_state=");
+    expect(setCookie).toContain("artisan_oauth_state=");
     expect(setCookie).toContain("HttpOnly");
   });
 
@@ -1393,7 +1393,7 @@ router.get("/start", (c) => {
     return c.json({ error: "discord_not_configured" }, 500);
   }
   const state = newOauthState();
-  setCookie(c, "ifz_oauth_state", state, {
+  setCookie(c, "artisan_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
@@ -1449,14 +1449,14 @@ describe("GET /api/auth/discord/callback (invalid state)", () => {
 
   test("400 when state mismatches", async () => {
     const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=mismatch", {
-      headers: { Cookie: "ifz_oauth_state=actual" },
+      headers: { Cookie: "artisan_oauth_state=actual" },
     }));
     expect(res.status).toBe(400);
   });
 
   test("400 when code is missing", async () => {
     const res = await app.fetch(new Request("http://x/api/auth/discord/callback?state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("missing_code");
@@ -1476,7 +1476,7 @@ Expected: FAIL — route /callback retourne 404.
 router.get("/callback", async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
-  const stateCookie = getCookie(c, "ifz_oauth_state");
+  const stateCookie = getCookie(c, "artisan_oauth_state");
 
   if (!stateCookie || !state || stateCookie !== state) {
     return c.json({ error: "invalid_state" }, 400);
@@ -1546,7 +1546,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
       return c.json({ error: "discord_not_configured" }, 500);
     }
     const state = newOauthState();
-    setCookie(c, "ifz_oauth_state", state, {
+    setCookie(c, "artisan_oauth_state", state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
@@ -1559,14 +1559,14 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
   router.get("/callback", async (c) => {
     const code = c.req.query("code");
     const state = c.req.query("state");
-    const stateCookie = getCookie(c, "ifz_oauth_state");
+    const stateCookie = getCookie(c, "artisan_oauth_state");
     if (!stateCookie || !state || stateCookie !== state) {
       return c.json({ error: "invalid_state" }, 400);
     }
     if (!code) {
       return c.json({ error: "missing_code" }, 400);
     }
-    deleteCookie(c, "ifz_oauth_state", { path: "/" });
+    deleteCookie(c, "artisan_oauth_state", { path: "/" });
 
     const clientId = envOrNull("DISCORD_CLIENT_ID");
     const clientSecret = envOrNull("DISCORD_CLIENT_SECRET");
@@ -1619,7 +1619,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
     }
 
     const session = await createSession(userId);
-    setCookie(c, "ifz_user_session", session.id, {
+    setCookie(c, "artisan_user_session", session.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
@@ -1675,11 +1675,11 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
 
     const app = buildAppWith(mockFetch);
     const res = await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     expect(res.status).toBe(302);
     expect(res.headers.get("Location") ?? "").toContain("/account");
-    expect(res.headers.get("Set-Cookie") ?? "").toContain("ifz_user_session=");
+    expect(res.headers.get("Set-Cookie") ?? "").toContain("artisan_user_session=");
 
     const userRow = await db.select().from(usersTable).where(eq(usersTable.email, email));
     expect(userRow).toHaveLength(1);
@@ -1707,10 +1707,10 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
 
     const app = buildAppWith(mockFetch);
     await app.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     await app.fetch(new Request("http://x/api/auth/discord/callback?code=c2&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -1743,7 +1743,7 @@ describe("GET /api/auth/discord/callback (happy path)", () => {
 
     const tmpApp = buildAppWith(mockFetch);
     await tmpApp.fetch(new Request("http://x/api/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -2605,20 +2605,20 @@ Ajouter dans la section "Custom Items — endpoints et cache" un nouveau bloc av
 
 | Endpoint | Description |
 |---|---|
-| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `ifz_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
+| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `artisan_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
 | `POST /api/auth/login` | Authentifie email+password. 200 + Set-Cookie. Erreur : 401 invalid_credentials. |
 | `POST /api/auth/logout` | Détruit la session courante (si présente), clear le cookie. Toujours 204. |
 | `GET /api/auth/me` | Retourne le user courant. 200 `{ user }` ou 401 si pas de session. |
-| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `ifz_oauth_state`). 500 si Discord pas configuré. |
+| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `artisan_oauth_state`). 500 si Discord pas configuré. |
 | `GET /api/auth/discord/callback?code&state` | Callback OAuth : exchange code, fetch user Discord, crée/lien user + session, redirige vers `${EDITOR_URL}/account`. |
 
 Cookies utilisés :
-- `ifz_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
-- `ifz_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
+- `artisan_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
+- `artisan_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
 
 Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
 
-Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`ifz_user_session` et `ifz_refresh`) coexistent.
+Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`artisan_user_session` et `artisan_refresh`) coexistent.
 ```
 
 - [ ] **Step 2: Ajouter les env vars dans la section "Variables d'environnement"**

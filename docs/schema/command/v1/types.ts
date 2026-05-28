@@ -1,5 +1,5 @@
 /**
- * Interfaze — Command schema v1 — TypeScript types
+ * Artisan — Command schema v1 — TypeScript types
  *
  * Source de vérité pour le format intermédiaire d'une commande.
  * Maintenu à la main, en miroir de schema.json. Les deux DOIVENT rester synchrones.

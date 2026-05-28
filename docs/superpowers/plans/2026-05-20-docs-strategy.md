@@ -72,7 +72,7 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
   integrations: [
     starlight({
-      title: 'Interfaze',
+      title: 'Artisan',
       description: 'Build beautiful Minecraft inventory menus with a visual editor.',
       sidebar: [
         {
@@ -161,11 +161,11 @@ git commit -m "chore(docs-site): scaffold Astro Starlight project"
 
 ```markdown
 ---
-title: Interfaze
+title: Artisan
 description: Build beautiful Minecraft inventory menus with a visual editor.
 template: splash
 hero:
-  title: Interfaze
+  title: Artisan
   tagline: Design Minecraft inventory menus visually. Live-sync from web to server.
   actions:
     - text: Install on a Paper server
@@ -180,11 +180,11 @@ hero:
 ```markdown
 ---
 title: Editor
-description: Documentation for menu and pack creators using the Interfaze web editor.
+description: Documentation for menu and pack creators using the Artisan web editor.
 ---
 
 The editor guide is under construction. For now, the editor is best learned
-by opening it (`/ifz editor` in-game) and experimenting — basic operations
+by opening it (`/artisan editor` in-game) and experimenting — basic operations
 are discoverable.
 
 Sections planned:
@@ -221,7 +221,7 @@ npm run dev
 ```
 
 Expected: serveur listen sur `http://localhost:4321/`. Vérifier dans un browser :
-- `/` → landing avec hero "Interfaze".
+- `/` → landing avec hero "Artisan".
 - `/editor/` → page stub.
 - `/contributing/` → page stub.
 - Sidebar montre les 3 sections.
@@ -251,50 +251,50 @@ git commit -m "docs(site): landing + editor/contributing stubs"
 **Files:**
 - Create: `docs-site/src/content/docs/getting-started/install-admin.md`
 
-**Contexte préparé :** la config plugin actuelle et les commandes `/ifz` sont déjà connues du plan (config.yml lu, IfzCommand lu). Si tu exécutes cette task et la doc plugin a changé entre-temps, relire :
+**Contexte préparé :** la config plugin actuelle et les commandes `/artisan` sont déjà connues du plan (config.yml lu, ArtisanCommand lu). Si tu exécutes cette task et la doc plugin a changé entre-temps, relire :
 - `plugin/src/main/resources/config.yml`
-- `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
+- `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
 
 - [ ] **Step 1: Créer `docs-site/src/content/docs/getting-started/install-admin.md`**
 
 ```markdown
 ---
 title: Install on a Paper server
-description: Get Interfaze running on your Paper server in five minutes.
+description: Get Artisan running on your Paper server in five minutes.
 ---
 
-This guide walks you through installing the Interfaze plugin on a Paper
-server and linking it to the Interfaze backend so you can design menus
+This guide walks you through installing the Artisan plugin on a Paper
+server and linking it to the Artisan backend so you can design menus
 from the web editor.
 
 > **Prerequisites**
 > - Paper 1.21.4 or newer
 > - Java 21
-> - An Interfaze account (self-hosting the backend is out of scope for this guide)
+> - An Artisan account (self-hosting the backend is out of scope for this guide)
 
 ## 1. Download the plugin
 
-Download the latest `interfaze-plugin-*.jar` from the Interfaze GitHub
+Download the latest `artisan-plugin-*.jar` from the Artisan GitHub
 Releases page, then drop it into your server's `plugins/` folder.
 
-Restart the server once. A default `plugins/Interfaze/config.yml` is
-generated. The plugin will log `Interfaze enabled — no server_key set,
+Restart the server once. A default `plugins/Artisan/config.yml` is
+generated. The plugin will log `Artisan enabled — no server_key set,
 running in offline mode`.
 
 ## 2. Link your server
 
-Get a `server_key` from your Interfaze dashboard. Open
-`plugins/Interfaze/config.yml` and paste it:
+Get a `server_key` from your Artisan dashboard. Open
+`plugins/Artisan/config.yml` and paste it:
 
 ```yaml
 server_key: "sk_live_..."
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 ```
 
-Run `/ifz reload` (or restart). The log should show:
+Run `/artisan reload` (or restart). The log should show:
 
 ```
-Interfaze enabled — connected to backend, pack synced
+Artisan enabled — connected to backend, pack synced
 ```
 
 ## 3. Open the editor
@@ -302,7 +302,7 @@ Interfaze enabled — connected to backend, pack synced
 In-game, run:
 
 ```
-/ifz editor
+/artisan editor
 ```
 
 A trust link appears in chat. Click it to open the editor in your browser.
@@ -312,19 +312,19 @@ live-synced to your players' next menu open.
 To revoke the active editor session at any time:
 
 ```
-/ifz editor revoke
+/artisan editor revoke
 ```
 
 ## 4. Useful commands
 
 | Command | Description |
 |---|---|
-| `/ifz menu <id>` | Open a menu by id (in-game). |
-| `/ifz reload` | Reload menus from disk. |
-| `/ifz sync status` | Show the last sync status. |
-| `/ifz sync reject` | Reload from disk and reconnect to the backend. |
-| `/ifz editor` | Open the editor (paired with this server). |
-| `/ifz editor revoke` | Revoke the active editor session. |
+| `/artisan menu <id>` | Open a menu by id (in-game). |
+| `/artisan reload` | Reload menus from disk. |
+| `/artisan sync status` | Show the last sync status. |
+| `/artisan sync reject` | Reload from disk and reconnect to the backend. |
+| `/artisan editor` | Open the editor (paired with this server). |
+| `/artisan editor revoke` | Revoke the active editor session. |
 
 ## 5. Troubleshooting
 
@@ -333,8 +333,8 @@ The plugin can't reach `ws_url`. Check that your server has outbound
 internet, and that no firewall blocks WebSocket on port 443.
 
 **"Invalid server_key"**
-The key was rotated or revoked. Get a fresh one from your Interfaze
-dashboard and re-paste it into `config.yml`, then `/ifz reload`.
+The key was rotated or revoked. Get a fresh one from your Artisan
+dashboard and re-paste it into `config.yml`, then `/artisan reload`.
 
 **Resource pack not loading**
 By default the plugin sends its own resource pack on join. If a
@@ -346,9 +346,9 @@ see two prompts at login. See _Resource pack distribution_ below.
 Three modes, controlled by `resource-pack.delegate-to-dir` in
 `config.yml`.
 
-**Default — Interfaze pushes its own pack**
+**Default — Artisan pushes its own pack**
 
-Leave `delegate-to-dir` empty. Interfaze pushes its pack to each player
+Leave `delegate-to-dir` empty. Artisan pushes its pack to each player
 using the 1.20.3+ multi-pack stack, coexisting with other RP plugins
 side by side. Two login prompts when a host plugin also pushes one.
 
@@ -356,11 +356,11 @@ side by side. Two login prompts when a host plugin also pushes one.
 
 ```yaml
 resource-pack:
-  delegate-to-dir: "plugins/Oraxen/pack/external_packs/interfaze"
+  delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
   delegate-reload-command: "oraxen reload pack"
 ```
 
-Interfaze writes its pack contents under `<path>/assets/interfaze/`
+Artisan writes its pack contents under `<path>/assets/artisan/`
 on every update, and skips player push. Set
 `delegate-reload-command` so the host plugin reloads its pack
 automatically.
@@ -369,7 +369,7 @@ automatically.
 
 ```yaml
 resource-pack:
-  delegate-to-dir: "plugins/Nexo/pack/external_packs/interfaze.zip"
+  delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   delegate-reload-command: "n reload"
 ```
 
@@ -380,13 +380,13 @@ zip-merger picks them up.
 ## 7. Reference: `config.yml`
 
 ```yaml
-# Set to connect this server to the Interfaze editor backend for live sync.
+# Set to connect this server to the Artisan editor backend for live sync.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 
 # Language for plugin system messages (en, fr). Defaults to en.
-# Place custom lang files in plugins/Interfaze/lang/<code>.yml to override.
+# Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
 language: "en"
 
 # When true, plugin messages are sent in each player's client language when
@@ -395,14 +395,14 @@ per_player_language: false
 
 # Editor access settings.
 editor:
-  # Set to true to restrict /ifz editor to console only (no in-game players).
+  # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
 
-# Resource pack pushed by Interfaze (independent from Oraxen/Nexo/ItemsAdder
+# Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder
 # packs; uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
 resource-pack:
   enabled: true
-  prompt: "<gold>Pack Interfaze</gold>"
+  prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
   send-delay-ticks: 20
   # See "Resource pack distribution" section above.
@@ -464,7 +464,7 @@ Trouver dans `CLAUDE.md` :
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/specs/` section protocole |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
-| Commandes plugin (`IfzCommand.kt`) | Ce fichier, section Plugin ci-dessous |
+| Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Plugin ci-dessous |
 | Variables d'environnement | `.env.example` + ce fichier |
 | Endpoints API | Ce fichier, section Backend |
 ```
@@ -477,7 +477,7 @@ Remplacer par :
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/specs/` section protocole |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
-| Commandes plugin (`IfzCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
+| Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
 | Variables d'environnement | `.env.example` + ce fichier |
 | Endpoints API | Ce fichier, section Backend |
 | Config plugin (`config.yml`, defaults) | `docs-site/src/content/docs/getting-started/install-admin.md` (sections Config / Reference) |
@@ -530,7 +530,7 @@ mappings:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
-  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
+  - touches: "plugin/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"

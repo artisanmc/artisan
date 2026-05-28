@@ -4,7 +4,7 @@
 
 **Goal:** Scaffold the Kotlin/Paper plugin, Hono/Bun backend, and WebSocket bridge, wiring them to the existing export pipeline already built in the frontend.
 
-**Architecture:** Three new directories at repo root: `plugin/` (Kotlin/Paper plugin that reads exported YAML bundles from disk or cloud), `backend/` (Hono 4 on Bun, manages server keys and WebSocket hub for plugin connections), and the frontend gains a `web/src/lib/ws/` layer. The plugin first works offline via `FilesystemMenuProvider` (reads YAML written by the export pipeline from `plugins/Interfaze/packs/`), then gains `CloudMenuProvider` that connects to the backend via WebSocket for live draft updates. The backend validates server keys, performs the `hello`/`hello_ack` handshake, and routes `draft_update` messages from the editor to the connected plugin.
+**Architecture:** Three new directories at repo root: `plugin/` (Kotlin/Paper plugin that reads exported YAML bundles from disk or cloud), `backend/` (Hono 4 on Bun, manages server keys and WebSocket hub for plugin connections), and the frontend gains a `web/src/lib/ws/` layer. The plugin first works offline via `FilesystemMenuProvider` (reads YAML written by the export pipeline from `plugins/Artisan/packs/`), then gains `CloudMenuProvider` that connects to the backend via WebSocket for live draft updates. The backend validates server keys, performs the `hello`/`hello_ack` handshake, and routes `draft_update` messages from the editor to the connected plugin.
 
 **Tech Stack:** Kotlin 2.0 + Paper API 1.21.4 + Gradle 8.9 + Jackson YAML + OkHttp 4.12; Hono 4 + Bun 1.x + Drizzle ORM + `bun:sqlite`; Vitest (frontend WS tests).
 
@@ -18,16 +18,16 @@
 | `plugin/build.gradle.kts` | Kotlin 2.0, Paper API, Jackson, OkHttp, shadow |
 | `plugin/src/main/resources/plugin.yml` | Plugin manifest for Paper |
 | `plugin/src/main/resources/config.yml` | Default config (mode, server_key, packs_dir) |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt` | Plugin entry — selects provider by config |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt` | Typed wrapper over `FileConfiguration` |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt` | Data classes matching the exported YAML schema |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/yaml/PackReader.kt` | Reads all packs under `packs_dir/` |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt` | Interface: load, findMenu, openMenu |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt` | Implements MenuProvider from disk |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt` | Implements MenuProvider via WebSocket |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt` | Bukkit inventory creation from MenuYaml |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt` | `/ifz menu <id>` and `/ifz reload` |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt` | OkHttp WS client with exponential backoff |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt` | Plugin entry — selects provider by config |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt` | Typed wrapper over `FileConfiguration` |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt` | Data classes matching the exported YAML schema |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/yaml/PackReader.kt` | Reads all packs under `packs_dir/` |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt` | Interface: load, findMenu, openMenu |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt` | Implements MenuProvider from disk |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt` | Implements MenuProvider via WebSocket |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt` | Bukkit inventory creation from MenuYaml |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt` | `/artisan menu <id>` and `/artisan reload` |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt` | OkHttp WS client with exponential backoff |
 | `backend/package.json` | Bun project |
 | `backend/tsconfig.json` | TypeScript config |
 | `backend/drizzle.config.ts` | Drizzle-kit config |
@@ -50,8 +50,8 @@
 - Create: `plugin/gradle/wrapper/gradle-wrapper.properties`
 - Create: `plugin/src/main/resources/plugin.yml`
 - Create: `plugin/src/main/resources/config.yml`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/PluginLoadTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/PluginLoadTest.kt`
 
 - [ ] **Step 1: Create the Gradle wrapper properties**
 
@@ -78,7 +78,7 @@ After this, every subsequent command uses `gradlew.bat` (Windows) instead of `gr
 
 `plugin/settings.gradle.kts`:
 ```kotlin
-rootProject.name = "interfaze-plugin"
+rootProject.name = "artisan-plugin"
 ```
 
 `plugin/build.gradle.kts`:
@@ -90,7 +90,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-group = "gg.interfaze"
+group = "net.artisanmc"
 version = "1.0.0-SNAPSHOT"
 
 java {
@@ -125,9 +125,9 @@ tasks.test {
 }
 
 tasks.shadowJar {
-    relocate("com.fasterxml.jackson", "gg.interfaze.shaded.jackson")
-    relocate("okhttp3", "gg.interfaze.shaded.okhttp3")
-    relocate("okio", "gg.interfaze.shaded.okio")
+    relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
+    relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
+    relocate("okio", "net.artisanmc.shaded.okio")
 }
 ```
 
@@ -135,15 +135,15 @@ tasks.shadowJar {
 
 `plugin/src/main/resources/plugin.yml`:
 ```yaml
-name: Interfaze
+name: Artisan
 version: '1.0.0'
-main: gg.interfaze.plugin.InterfazePlugin
+main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
-description: Interfaze GUI editor plugin
+description: Artisan GUI editor plugin
 commands:
   ifz:
-    description: Interfaze commands
-    usage: /ifz <menu|reload> [args]
+    description: Artisan commands
+    usage: /artisan <menu|reload> [args]
 ```
 
 `plugin/src/main/resources/config.yml`:
@@ -153,17 +153,17 @@ mode: local
 
 # Only used in cloud mode
 server_key: ""
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 
 # Path relative to the server root where exported pack bundles are placed
-packs_dir: "plugins/Interfaze/packs"
+packs_dir: "plugins/Artisan/packs"
 ```
 
 - [ ] **Step 4: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/PluginLoadTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/PluginLoadTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import kotlin.test.AfterTest
@@ -184,7 +184,7 @@ class PluginLoadTest {
 
     @Test
     fun `plugin loads without throwing`() {
-        val plugin = MockBukkit.load(InterfazePlugin::class.java)
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         assertNotNull(plugin)
     }
 }
@@ -194,25 +194,25 @@ class PluginLoadTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.PluginLoadTest"
+gradlew.bat test --tests "net.artisanmc.plugin.PluginLoadTest"
 ```
-Expected: BUILD FAILED — `InterfazePlugin` class not found.
+Expected: BUILD FAILED — `ArtisanPlugin` class not found.
 
 - [ ] **Step 6: Write the minimal plugin class**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import org.bukkit.plugin.java.JavaPlugin
 
-class InterfazePlugin : JavaPlugin() {
+class ArtisanPlugin : JavaPlugin() {
     override fun onEnable() {
-        logger.info("Interfaze ${description.version} enabled")
+        logger.info("Artisan ${description.version} enabled")
     }
 
     override fun onDisable() {
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 }
 ```
@@ -221,7 +221,7 @@ class InterfazePlugin : JavaPlugin() {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.PluginLoadTest"
+gradlew.bat test --tests "net.artisanmc.plugin.PluginLoadTest"
 ```
 Expected: BUILD SUCCESSFUL — 1 test passed.
 
@@ -237,14 +237,14 @@ git commit -m "feat(plugin): scaffold Kotlin/Paper plugin with Gradle build"
 ### Task 2: Pack YAML reader
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/yaml/PackReader.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/PackReaderTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/yaml/PackReader.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/PackReaderTest.kt`
 
 The export pipeline in the frontend already produces this layout:
 
 ```
-plugins/Interfaze/packs/<packId>/
+plugins/Artisan/packs/<packId>/
   manifest.yaml        — schema, pack_id, default_lang, languages[], files.menus[], files.commands[]
   menus/<id>.yaml      — schema, id, title (as "{i18n:key}"), size, layers
   commands/<id>.yaml   — schema, id, name, aliases, steps
@@ -253,11 +253,11 @@ plugins/Interfaze/packs/<packId>/
 
 - [ ] **Step 1: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/PackReaderTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/PackReaderTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.yaml.PackReader
+import net.artisanmc.plugin.yaml.PackReader
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -266,7 +266,7 @@ import kotlin.test.assertNotNull
 class PackReaderTest {
 
     private fun writeTempPack(): File {
-        val root = createTempDir("ifz_packs_")
+        val root = createTempDir("artisan_packs_")
         val packDir = File(root, "p_test").apply { mkdirs() }
 
         File(packDir, "manifest.yaml").writeText("""
@@ -336,15 +336,15 @@ class PackReaderTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.PackReaderTest"
+gradlew.bat test --tests "net.artisanmc.plugin.PackReaderTest"
 ```
 Expected: FAIL — `PackReader` not found.
 
 - [ ] **Step 3: Write the data model**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/model/PackBundle.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt`:
 ```kotlin
-package gg.interfaze.plugin.model
+package net.artisanmc.plugin.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -445,14 +445,14 @@ data class BundleMenu(
 
 - [ ] **Step 4: Write the PackReader**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/yaml/PackReader.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/yaml/PackReader.kt`:
 ```kotlin
-package gg.interfaze.plugin.yaml
+package net.artisanmc.plugin.yaml
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.model.*
+import net.artisanmc.plugin.model.*
 import java.io.File
 
 class PackReader(private val packsRoot: File) {
@@ -495,7 +495,7 @@ class PackReader(private val packsRoot: File) {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.PackReaderTest"
+gradlew.bat test --tests "net.artisanmc.plugin.PackReaderTest"
 ```
 Expected: BUILD SUCCESSFUL — 3 tests passed.
 
@@ -508,36 +508,36 @@ git commit -m "feat(plugin): add PackBundle data model and PackReader for export
 
 ---
 
-### Task 3: FilesystemMenuProvider + inventory renderer + /ifz command
+### Task 3: FilesystemMenuProvider + inventory renderer + /artisan command
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/FilesystemMenuProviderTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/FilesystemMenuProviderTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/FilesystemMenuProviderTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/FilesystemMenuProviderTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
-import gg.interfaze.plugin.provider.FilesystemMenuProvider
+import net.artisanmc.plugin.provider.FilesystemMenuProvider
 import java.io.File
 import kotlin.test.*
 
 class FilesystemMenuProviderTest {
     private lateinit var server: ServerMock
-    private lateinit var plugin: InterfazePlugin
+    private lateinit var plugin: ArtisanPlugin
 
     @BeforeTest
     fun setup() {
         server = MockBukkit.mock()
-        plugin = MockBukkit.load(InterfazePlugin::class.java)
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
     }
 
     @AfterTest
@@ -581,7 +581,7 @@ class FilesystemMenuProviderTest {
 
     @Test
     fun `resolves menu by id`() {
-        val packsRoot = createTempDir("ifz_packs_")
+        val packsRoot = createTempDir("artisan_packs_")
         writePackFixture(packsRoot)
         val provider = FilesystemMenuProvider(packsRoot)
         provider.load()
@@ -592,7 +592,7 @@ class FilesystemMenuProviderTest {
 
     @Test
     fun `openMenu creates a 27-slot inventory for the player`() {
-        val packsRoot = createTempDir("ifz_packs_")
+        val packsRoot = createTempDir("artisan_packs_")
         writePackFixture(packsRoot)
         val provider = FilesystemMenuProvider(packsRoot)
         provider.load()
@@ -608,17 +608,17 @@ class FilesystemMenuProviderTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.FilesystemMenuProviderTest"
+gradlew.bat test --tests "net.artisanmc.plugin.FilesystemMenuProviderTest"
 ```
 Expected: FAIL — `FilesystemMenuProvider` not found.
 
 - [ ] **Step 3: Write the MenuProvider interface**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/provider/MenuProvider.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/provider/MenuProvider.kt`:
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
-import gg.interfaze.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.BundleMenu
 import org.bukkit.entity.Player
 
 interface MenuProvider {
@@ -630,12 +630,12 @@ interface MenuProvider {
 
 - [ ] **Step 4: Write the MenuRenderer**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/render/MenuRenderer.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`:
 ```kotlin
-package gg.interfaze.plugin.render
+package net.artisanmc.plugin.render
 
-import gg.interfaze.plugin.model.AppearanceYaml
-import gg.interfaze.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.model.BundleMenu
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -707,13 +707,13 @@ object MenuRenderer {
 
 - [ ] **Step 5: Write the FilesystemMenuProvider**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/provider/FilesystemMenuProvider.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/provider/FilesystemMenuProvider.kt`:
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.render.MenuRenderer
-import gg.interfaze.plugin.yaml.PackReader
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.yaml.PackReader
 import org.bukkit.entity.Player
 import java.io.File
 
@@ -739,19 +739,19 @@ class FilesystemMenuProvider(private val packsDir: File) : MenuProvider {
 }
 ```
 
-- [ ] **Step 6: Write the /ifz command**
+- [ ] **Step 6: Write the /artisan command**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/command/IfzCommand.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`:
 ```kotlin
-package gg.interfaze.plugin.command
+package net.artisanmc.plugin.command
 
-import gg.interfaze.plugin.InterfazePlugin
+import net.artisanmc.plugin.ArtisanPlugin
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
-class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
+class ArtisanCommand(private val plugin: ArtisanPlugin) : CommandExecutor {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender !is Player) {
             sender.sendMessage("This command can only be run by a player.")
@@ -760,50 +760,50 @@ class IfzCommand(private val plugin: InterfazePlugin) : CommandExecutor {
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 val menuId = args.getOrNull(1) ?: run {
-                    sender.sendMessage("Usage: /ifz menu <id>")
+                    sender.sendMessage("Usage: /artisan menu <id>")
                     return true
                 }
                 plugin.menuProvider.openMenu(sender, menuId, "en")
             }
             "reload" -> {
                 plugin.menuProvider.load()
-                sender.sendMessage("Interfaze reloaded.")
+                sender.sendMessage("Artisan reloaded.")
             }
-            else -> sender.sendMessage("Usage: /ifz menu <id> | /ifz reload")
+            else -> sender.sendMessage("Usage: /artisan menu <id> | /artisan reload")
         }
         return true
     }
 }
 ```
 
-- [ ] **Step 7: Wire everything in InterfazePlugin**
+- [ ] **Step 7: Wire everything in ArtisanPlugin**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.provider.FilesystemMenuProvider
-import gg.interfaze.plugin.provider.MenuProvider
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.provider.FilesystemMenuProvider
+import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-class InterfazePlugin : JavaPlugin() {
+class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
 
     override fun onEnable() {
         saveDefaultConfig()
-        val packsDir = File(dataFolder.parentFile, config.getString("packs_dir", "plugins/Interfaze/packs")!!)
+        val packsDir = File(dataFolder.parentFile, config.getString("packs_dir", "plugins/Artisan/packs")!!)
         packsDir.mkdirs()
         menuProvider = FilesystemMenuProvider(packsDir)
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
-        logger.info("Interfaze ${description.version} enabled — packs loaded from $packsDir")
+        getCommand("ifz")?.setExecutor(ArtisanCommand(this))
+        logger.info("Artisan ${description.version} enabled — packs loaded from $packsDir")
     }
 
     override fun onDisable() {
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 }
 ```
@@ -820,7 +820,7 @@ Expected: BUILD SUCCESSFUL — all tests pass.
 
 ```bash
 git add plugin/src/
-git commit -m "feat(plugin): FilesystemMenuProvider, MenuRenderer, /ifz command"
+git commit -m "feat(plugin): FilesystemMenuProvider, MenuRenderer, /artisan command"
 ```
 
 ---
@@ -867,7 +867,7 @@ Expected: error — cannot find module `./app`.
 `backend/package.json`:
 ```json
 {
-  "name": "interfaze-backend",
+  "name": "artisan-backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -931,7 +931,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Database } from "bun:sqlite";
 import * as schema from "./schema";
 
-const sqlite = new Database(process.env.DB_PATH ?? "interfaze.db");
+const sqlite = new Database(process.env.DB_PATH ?? "artisan.db");
 export const db = drizzle(sqlite, { schema });
 ```
 
@@ -943,7 +943,7 @@ export default defineConfig({
   dialect: "sqlite",
   schema: "./src/db/schema.ts",
   out: "./drizzle",
-  dbCredentials: { url: "interfaze.db" },
+  dbCredentials: { url: "artisan.db" },
 });
 ```
 
@@ -969,7 +969,7 @@ export default {
   fetch: app.fetch,
 };
 
-console.log(`Interfaze backend listening on http://localhost:${port}`);
+console.log(`Artisan backend listening on http://localhost:${port}`);
 ```
 
 - [ ] **Step 7: Run test — confirm it passes**
@@ -986,7 +986,7 @@ Expected: 1 test passed.
 cd backend
 bun run db:push
 ```
-Expected: `interfaze.db` created, `server_keys` table exists.
+Expected: `artisan.db` created, `server_keys` table exists.
 
 - [ ] **Step 9: Commit**
 
@@ -1337,7 +1337,7 @@ export default {
   websocket,
 };
 
-console.log(`Interfaze backend on http://localhost:${port}`);
+console.log(`Artisan backend on http://localhost:${port}`);
 ```
 
 - [ ] **Step 6: Run all backend tests — confirm they pass**
@@ -1545,19 +1545,19 @@ git commit -m "feat(frontend): WebSocket bridge and wsStore for plugin connectio
 
 **Files:**
 - Modify: `plugin/build.gradle.kts` — OkHttp already added in Task 1; add `mockwebserver` to tests
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/WsClientTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/WsClientTest.kt`
 
 - [ ] **Step 1: Write the failing WsClient test**
 
-`plugin/src/test/kotlin/gg/interfaze/plugin/WsClientTest.kt`:
+`plugin/src/test/kotlin/net/artisanmc/plugin/WsClientTest.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.ws.WsClient
+import net.artisanmc.plugin.ws.WsClient
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -1605,15 +1605,15 @@ class WsClientTest {
 
 ```powershell
 cd plugin
-gradlew.bat test --tests "gg.interfaze.plugin.WsClientTest"
+gradlew.bat test --tests "net.artisanmc.plugin.WsClientTest"
 ```
 Expected: FAIL — `WsClient` not found.
 
 - [ ] **Step 3: Write the PluginConfig**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`:
 ```kotlin
-package gg.interfaze.plugin.config
+package net.artisanmc.plugin.config
 
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -1627,8 +1627,8 @@ data class PluginConfig(
         fun from(cfg: FileConfiguration) = PluginConfig(
             mode     = cfg.getString("mode", "local") ?: "local",
             serverKey = cfg.getString("server_key", "") ?: "",
-            wsUrl    = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
-            packsDir = cfg.getString("packs_dir", "plugins/Interfaze/packs") ?: "",
+            wsUrl    = cfg.getString("ws_url", "wss://editor.artisanmc.net/ws/plugin") ?: "",
+            packsDir = cfg.getString("packs_dir", "plugins/Artisan/packs") ?: "",
         )
     }
 }
@@ -1636,9 +1636,9 @@ data class PluginConfig(
 
 - [ ] **Step 4: Write the WsClient**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/ws/WsClient.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/ws/WsClient.kt`:
 ```kotlin
-package gg.interfaze.plugin.ws
+package net.artisanmc.plugin.ws
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
@@ -1711,17 +1711,17 @@ class WsClient(
 
 - [ ] **Step 5: Write the CloudMenuProvider**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/provider/CloudMenuProvider.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/provider/CloudMenuProvider.kt`:
 ```kotlin
-package gg.interfaze.plugin.provider
+package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import gg.interfaze.plugin.model.BundleMenu
-import gg.interfaze.plugin.model.MenuYaml
-import gg.interfaze.plugin.render.MenuRenderer
-import gg.interfaze.plugin.ws.WsClient
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.ws.WsClient
 import org.bukkit.entity.Player
 import java.util.logging.Logger
 
@@ -1764,7 +1764,7 @@ class CloudMenuProvider(
         val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
         when (node["type"]?.asText()) {
             "hello_ack" ->
-                logger?.info("Connected to Interfaze backend (session=${node["session_id"]?.asText()})")
+                logger?.info("Connected to Artisan backend (session=${node["session_id"]?.asText()})")
 
             "draft_update" -> {
                 val menuId   = node["menu_id"]?.asText()   ?: return
@@ -1778,21 +1778,21 @@ class CloudMenuProvider(
 }
 ```
 
-- [ ] **Step 6: Update InterfazePlugin to select provider from config**
+- [ ] **Step 6: Update ArtisanPlugin to select provider from config**
 
-`plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`:
+`plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`:
 ```kotlin
-package gg.interfaze.plugin
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.command.IfzCommand
-import gg.interfaze.plugin.config.PluginConfig
-import gg.interfaze.plugin.provider.CloudMenuProvider
-import gg.interfaze.plugin.provider.FilesystemMenuProvider
-import gg.interfaze.plugin.provider.MenuProvider
+import net.artisanmc.plugin.command.ArtisanCommand
+import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.provider.CloudMenuProvider
+import net.artisanmc.plugin.provider.FilesystemMenuProvider
+import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-class InterfazePlugin : JavaPlugin() {
+class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
         private set
 
@@ -1804,12 +1804,12 @@ class InterfazePlugin : JavaPlugin() {
             else    -> FilesystemMenuProvider(File(dataFolder.parentFile, cfg.packsDir).also { it.mkdirs() })
         }
         menuProvider.load()
-        getCommand("ifz")?.setExecutor(IfzCommand(this))
-        logger.info("Interfaze ${description.version} enabled (mode=${cfg.mode})")
+        getCommand("ifz")?.setExecutor(ArtisanCommand(this))
+        logger.info("Artisan ${description.version} enabled (mode=${cfg.mode})")
     }
 
     override fun onDisable() {
-        logger.info("Interfaze disabled")
+        logger.info("Artisan disabled")
     }
 }
 ```
@@ -1835,7 +1835,7 @@ git commit -m "feat(plugin): CloudMenuProvider with OkHttp WS client and live dr
 
 After all 8 tasks, the repo has:
 
-- **`plugin/`** — builds a shadow JAR via `gradlew.bat shadowJar`. Drop it in a Paper 1.21.4 server's `plugins/` folder. Set `mode: local` in `config.yml`, copy an exported ZIP's contents to `plugins/Interfaze/packs/`, then `/ifz menu <id>` opens the menu. Set `mode: cloud` with a real `server_key` from the backend to get live draft updates.
+- **`plugin/`** — builds a shadow JAR via `gradlew.bat shadowJar`. Drop it in a Paper 1.21.4 server's `plugins/` folder. Set `mode: local` in `config.yml`, copy an exported ZIP's contents to `plugins/Artisan/packs/`, then `/artisan menu <id>` opens the menu. Set `mode: cloud` with a real `server_key` from the backend to get live draft updates.
 
 - **`backend/`** — runs with `bun run src/index.ts` on port 3001. `POST /api/server-keys` generates keys. WebSocket at `ws://localhost:3001/ws/plugin` accepts plugin connections.
 

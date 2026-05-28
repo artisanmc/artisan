@@ -34,7 +34,7 @@ This plan covers only **Sub-project 2**. Out of scope:
 | File | Action | Responsibility |
 |---|---|---|
 | `backend/src/db/schema.ts` | modify | Add `resourcePackHash` + `resourcePackUpdatedAt` columns on `server_keys` |
-| `backend/src/lib/fontJsonBuilder.ts` | create | Pure `buildDefaultFontJson(glyphs) → object` (assets/interfaze/font/default.json) |
+| `backend/src/lib/fontJsonBuilder.ts` | create | Pure `buildDefaultFontJson(glyphs) → object` (assets/artisan/font/default.json) |
 | `backend/src/lib/fontJsonBuilder.test.ts` | create | Tests for default font JSON shape, glyph filtering |
 | `backend/src/lib/resourcePackBuilder.ts` | create | Pure `buildResourcePackZip(assets, glyphPngs) → { zipBytes, hash }` via `fflate.zipSync` |
 | `backend/src/lib/resourcePackBuilder.test.ts` | create | Tests for pack.mcmeta, file layout, deterministic hash |
@@ -54,14 +54,14 @@ This plan covers only **Sub-project 2**. Out of scope:
 
 | File | Action | Responsibility |
 |---|---|---|
-| `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackInfo.kt` | create | Data class `{ url, hash, sha1Bytes, uuid, prompt }` |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt` | create | State + listeners + push to players |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt` | create | MockBukkit-based join + onUpdate tests |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt` | modify | Add `resourcePack` block (`enabled`, `prompt`, `sendOnJoin`, `sendDelayTicks`) |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackInfo.kt` | create | Data class `{ url, hash, sha1Bytes, uuid, prompt }` |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt` | create | State + listeners + push to players |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt` | create | MockBukkit-based join + onUpdate tests |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt` | modify | Add `resourcePack` block (`enabled`, `prompt`, `sendOnJoin`, `sendDelayTicks`) |
 | `plugin/src/main/resources/config.yml` | modify | Add `resource-pack:` section |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt` | modify | Read `resource_pack` from `hello_ack` and handle `resource_pack_updated` WS message |
-| `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt` | modify | Instantiate `ResourcePackManager`, wire into `SyncedMenuProvider`, register listener |
-| `plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt` | modify (or create) | Confirm resource-pack defaults parsed |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt` | modify | Read `resource_pack` from `hello_ack` and handle `resource_pack_updated` WS message |
+| `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt` | modify | Instantiate `ResourcePackManager`, wire into `SyncedMenuProvider`, register listener |
+| `plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt` | modify (or create) | Confirm resource-pack defaults parsed |
 
 ### Docs
 
@@ -79,7 +79,7 @@ Referenced across tasks:
 // backend/src/lib/fontJsonBuilder.ts
 export interface BitmapProvider {
   type: "bitmap";
-  file: string;            // "interfaze:font/<asset_name>.png"
+  file: string;            // "artisan:font/<asset_name>.png"
   ascent: number;
   height: number;
   chars: string[];         // [single codepoint string]
@@ -165,7 +165,7 @@ git commit -m "feat(backend): add resourcePackHash + resourcePackUpdatedAt to se
 
 ## Task 2: Font JSON builder (default.json)
 
-Pure function that turns glyph assets into the `assets/interfaze/font/default.json` shape. Skips assets without codepoints. Only handles `type=glyph` (fonts deferred to Sub-project 4).
+Pure function that turns glyph assets into the `assets/artisan/font/default.json` shape. Skips assets without codepoints. Only handles `type=glyph` (fonts deferred to Sub-project 4).
 
 **Files:**
 - Create: `backend/src/lib/fontJsonBuilder.ts`
@@ -209,14 +209,14 @@ describe("buildDefaultFontJson", () => {
     expect(json.providers).toHaveLength(3);
     expect(json.providers[1]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/coin.png",
+      file: "artisan:font/coin.png",
       ascent: 8,
       height: 9,
       chars: ["\uE000"],
     });
     expect(json.providers[2]).toEqual({
       type: "bitmap",
-      file: "interfaze:font/gem.png",
+      file: "artisan:font/gem.png",
       ascent: 7,
       height: 8,
       chars: ["\uE001"],
@@ -241,8 +241,8 @@ describe("buildDefaultFontJson", () => {
       glyph({ id: "g_b", name: "b", codepoint: 0xE002 }),
       glyph({ id: "g_a", name: "a", codepoint: 0xE001 }),
     ]);
-    expect((json.providers[1] as { file: string }).file).toBe("interfaze:font/a.png");
-    expect((json.providers[2] as { file: string }).file).toBe("interfaze:font/b.png");
+    expect((json.providers[1] as { file: string }).file).toBe("artisan:font/a.png");
+    expect((json.providers[2] as { file: string }).file).toBe("artisan:font/b.png");
   });
 });
 ```
@@ -292,7 +292,7 @@ export function buildDefaultFontJson(assets: AssetRow[]): DefaultFontJson {
   for (const g of glyphs) {
     providers.push({
       type: "bitmap",
-      file: `interfaze:font/${g.name}.png`,
+      file: `artisan:font/${g.name}.png`,
       ascent: g.ascent!,
       height: g.height,
       chars: [String.fromCodePoint(g.codepoint!)],
@@ -379,18 +379,18 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g], pngs);
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
     expect(json.providers[0].id).toBe("minecraft:default");
-    expect(json.providers[1].file).toBe("interfaze:font/coin.png");
+    expect(json.providers[1].file).toBe("artisan:font/coin.png");
   });
 
-  test("places glyph PNGs under assets/interfaze/textures/font/<name>.png", () => {
+  test("places glyph PNGs under assets/artisan/textures/font/<name>.png", () => {
     const g = row({ codepoint: 0xE000, name: "coin" });
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g], pngs);
     const entries = unzipSync(zipBytes);
-    expect(entries["assets/interfaze/textures/font/coin.png"]).toBeDefined();
-    expect(entries["assets/interfaze/textures/font/coin.png"].length).toBe(PNG_1x1.length);
+    expect(entries["assets/artisan/textures/font/coin.png"]).toBeDefined();
+    expect(entries["assets/artisan/textures/font/coin.png"].length).toBe(PNG_1x1.length);
   });
 
   test("returns a stable SHA1 hex hash", () => {
@@ -405,10 +405,10 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[t.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([t], pngs);
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/interfaze/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
     expect(json.providers).toHaveLength(1);
     // textures without codepoint are NOT placed in the font/ directory
-    expect(entries["assets/interfaze/textures/font/bg_one.png"]).toBeUndefined();
+    expect(entries["assets/artisan/textures/font/bg_one.png"]).toBeUndefined();
   });
 
   test("hash changes when an asset is added", () => {
@@ -447,7 +447,7 @@ export interface BuildResult {
 const PACK_MCMETA = {
   pack: {
     pack_format: 22,           // Minecraft 1.21.x
-    description: "Interfaze pack",
+    description: "Artisan pack",
   },
 };
 
@@ -483,7 +483,7 @@ export function buildResourcePackZip(
   files["pack.png"] = PACK_PNG_FALLBACK;
 
   const fontJson = buildDefaultFontJson(assets);
-  files["assets/interfaze/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
+  files["assets/artisan/font/default.json"] = strToU8(JSON.stringify(fontJson, null, 2));
 
   // Sort glyphs by codepoint so the zip is deterministic regardless of input order.
   const glyphs = assets
@@ -492,7 +492,7 @@ export function buildResourcePackZip(
   for (const g of glyphs) {
     const png = glyphPngs.get(g.id);
     if (!png) continue;
-    files[`assets/interfaze/textures/font/${g.name}.png`] = png;
+    files[`assets/artisan/textures/font/${g.name}.png`] = png;
   }
 
   // `level: 0` (no deflate) keeps output byte-stable across machines and makes
@@ -1341,18 +1341,18 @@ git commit -m "feat(backend): WS resource_pack_updated + hello_ack resource_pack
 Plain-data wrapper + config plumbing. No Bukkit hooks yet (next task).
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackInfo.kt`
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackInfo.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt`
 - Modify: `plugin/src/main/resources/config.yml`
 
 - [ ] **Step 1: Add the `resource-pack:` section to `config.yml`**
 
 ```yaml
-# Resource pack pushed by Interfaze (independent from Oraxen/Nexo/ItemsAdder packs;
+# Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
 # uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
 resource-pack:
   enabled: true
-  prompt: "<gold>Pack Interfaze</gold>"
+  prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
   send-delay-ticks: 20
 ```
@@ -1362,7 +1362,7 @@ resource-pack:
 Replace the body of `PluginConfig.kt` with:
 
 ```kotlin
-package gg.interfaze.plugin.config
+package net.artisanmc.plugin.config
 
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -1384,13 +1384,13 @@ data class PluginConfig(
     companion object {
         fun from(cfg: FileConfiguration) = PluginConfig(
             serverKey         = cfg.getString("server_key", "") ?: "",
-            wsUrl             = cfg.getString("ws_url", "wss://editor.interfaze.gg/ws/plugin") ?: "",
+            wsUrl             = cfg.getString("ws_url", "wss://editor.artisanmc.net/ws/plugin") ?: "",
             editorConsoleOnly = cfg.getBoolean("editor.console_only", false),
             language          = cfg.getString("language", "en") ?: "en",
             perPlayerLanguage = cfg.getBoolean("per_player_language", false),
             resourcePack      = ResourcePackConfig(
                 enabled        = cfg.getBoolean("resource-pack.enabled", true),
-                prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Interfaze</gold>") ?: "<gold>Pack Interfaze</gold>",
+                prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Artisan</gold>") ?: "<gold>Pack Artisan</gold>",
                 sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
                 sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
             ),
@@ -1402,8 +1402,8 @@ data class PluginConfig(
 - [ ] **Step 3: Create `ResourcePackInfo`**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackInfo.kt
-package gg.interfaze.plugin.resourcepack
+// plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackInfo.kt
+package net.artisanmc.plugin.resourcepack
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -1444,10 +1444,10 @@ data class ResourcePackInfo(
 If `PluginConfigTest.kt` already exists, add a case asserting defaults. Otherwise create one:
 
 ```kotlin
-// plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt
-package gg.interfaze.plugin
+// plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt
+package net.artisanmc.plugin
 
-import gg.interfaze.plugin.config.PluginConfig
+import net.artisanmc.plugin.config.PluginConfig
 import org.bukkit.configuration.file.YamlConfiguration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1494,7 +1494,7 @@ class PluginConfigTest {
 
 From `plugin/`:
 ```bash
-./gradlew test --tests "gg.interfaze.plugin.PluginConfigTest"
+./gradlew test --tests "net.artisanmc.plugin.PluginConfigTest"
 ```
 
 Expected: 2 tests pass.
@@ -1502,10 +1502,10 @@ Expected: 2 tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackInfo.kt \
-        plugin/src/main/kotlin/gg/interfaze/plugin/config/PluginConfig.kt \
+git add plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackInfo.kt \
+        plugin/src/main/kotlin/net/artisanmc/plugin/config/PluginConfig.kt \
         plugin/src/main/resources/config.yml \
-        plugin/src/test/kotlin/gg/interfaze/plugin/PluginConfigTest.kt
+        plugin/src/test/kotlin/net/artisanmc/plugin/PluginConfigTest.kt
 git commit -m "feat(plugin): ResourcePackInfo + config block"
 ```
 
@@ -1516,30 +1516,30 @@ git commit -m "feat(plugin): ResourcePackInfo + config block"
 Holds the current pack info. Listens to `PlayerJoinEvent` (with configurable tick delay) → pushes the pack. Exposes `onUpdate(info)` for the WS handler to call, which updates state + re-pushes to all online players. Listens to `PlayerResourcePackStatusEvent` for logging.
 
 **Files:**
-- Create: `plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt`
-- Create: `plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt`
+- Create: `plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt`
+- Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-// plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt
-package gg.interfaze.plugin
+// plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt
+package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.ServerMock
-import gg.interfaze.plugin.config.ResourcePackConfig
-import gg.interfaze.plugin.resourcepack.ResourcePackInfo
-import gg.interfaze.plugin.resourcepack.ResourcePackManager
+import net.artisanmc.plugin.config.ResourcePackConfig
+import net.artisanmc.plugin.resourcepack.ResourcePackInfo
+import net.artisanmc.plugin.resourcepack.ResourcePackManager
 import kotlin.test.*
 
 class ResourcePackManagerTest {
     private lateinit var server: ServerMock
-    private lateinit var plugin: InterfazePlugin
+    private lateinit var plugin: ArtisanPlugin
 
     @BeforeTest
     fun setup() {
         server = MockBukkit.mock()
-        plugin = MockBukkit.load(InterfazePlugin::class.java)
+        plugin = MockBukkit.load(ArtisanPlugin::class.java)
     }
 
     @AfterTest
@@ -1618,7 +1618,7 @@ class ResourcePackManagerTest {
 - [ ] **Step 2: Run the test — verify it fails**
 
 ```bash
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackManagerTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackManagerTest"
 ```
 
 Expected: FAIL — class not found.
@@ -1626,10 +1626,10 @@ Expected: FAIL — class not found.
 - [ ] **Step 3: Implement the manager**
 
 ```kotlin
-// plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt
-package gg.interfaze.plugin.resourcepack
+// plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt
+package net.artisanmc.plugin.resourcepack
 
-import gg.interfaze.plugin.config.ResourcePackConfig
+import net.artisanmc.plugin.config.ResourcePackConfig
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -1695,7 +1695,7 @@ class ResourcePackManager(
 - [ ] **Step 4: Run the test — verify it passes**
 
 ```bash
-./gradlew test --tests "gg.interfaze.plugin.ResourcePackManagerTest"
+./gradlew test --tests "net.artisanmc.plugin.ResourcePackManagerTest"
 ```
 
 Expected: 8 tests pass.
@@ -1703,8 +1703,8 @@ Expected: 8 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt \
-        plugin/src/test/kotlin/gg/interfaze/plugin/ResourcePackManagerTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt \
+        plugin/src/test/kotlin/net/artisanmc/plugin/ResourcePackManagerTest.kt
 git commit -m "feat(plugin): ResourcePackManager (push on join + on update)"
 ```
 
@@ -1715,21 +1715,21 @@ git commit -m "feat(plugin): ResourcePackManager (push on join + on update)"
 `SyncedMenuProvider` already centralizes WS message handling. Extend its `handleMessage` to (a) read `resource_pack` from `hello_ack` and (b) handle `resource_pack_updated`. Add a constructor-injected `ResourcePackManager`.
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt`
-- Modify: `plugin/src/test/kotlin/gg/interfaze/plugin/SyncedMenuProviderTest.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt`
+- Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/SyncedMenuProviderTest.kt`
 
 - [ ] **Step 1: Write a failing test for the new message routing**
 
 Append to `SyncedMenuProviderTest.kt`:
 
 ```kotlin
-import gg.interfaze.plugin.resourcepack.ResourcePackManager
-import gg.interfaze.plugin.config.ResourcePackConfig
-import gg.interfaze.plugin.resourcepack.ResourcePackInfo
+import net.artisanmc.plugin.resourcepack.ResourcePackManager
+import net.artisanmc.plugin.config.ResourcePackConfig
+import net.artisanmc.plugin.resourcepack.ResourcePackInfo
 
 @Test
 fun `provider forwards resource_pack_updated to manager`() {
-    val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+    val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
     val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
     val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
     provider.load()
@@ -1744,7 +1744,7 @@ fun `provider forwards resource_pack_updated to manager`() {
 
 @Test
 fun `provider applies resource_pack from hello_ack`() {
-    val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+    val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
     val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
     val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
     provider.load()
@@ -1758,7 +1758,7 @@ fun `provider applies resource_pack from hello_ack`() {
 
 @Test
 fun `provider clears resource pack when hello_ack resource_pack is null`() {
-    val packsRoot = Files.createTempDirectory("ifz_packs_").toFile()
+    val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
     val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L))
     mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
     val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
@@ -1774,7 +1774,7 @@ fun `provider clears resource pack when hello_ack resource_pack is null`() {
 - [ ] **Step 2: Run the test — verify it fails**
 
 ```bash
-./gradlew test --tests "gg.interfaze.plugin.SyncedMenuProviderTest"
+./gradlew test --tests "net.artisanmc.plugin.SyncedMenuProviderTest"
 ```
 
 Expected: compile or assertion failure (no `resourcePackManager` param yet).
@@ -1790,7 +1790,7 @@ class SyncedMenuProvider(
     private val packsDir: File,
     // ... existing params ...
     private val langManager: LangManager? = null,
-    private val resourcePackManager: gg.interfaze.plugin.resourcepack.ResourcePackManager? = null,
+    private val resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null,
 ) : MenuProvider {
 ```
 
@@ -1803,11 +1803,11 @@ if (rpNode == null || rpNode.isNull) {
 } else {
     val url = rpNode["url"]?.asText()
     val hash = rpNode["hash"]?.asText()
-    val promptMini = "<gold>Pack Interfaze</gold>"  // overridden via config in InterfazePlugin
+    val promptMini = "<gold>Pack Artisan</gold>"  // overridden via config in ArtisanPlugin
     if (url != null && hash != null) {
         try {
             resourcePackManager?.onUpdate(
-                gg.interfaze.plugin.resourcepack.ResourcePackInfo.from(url, hash, promptMini)
+                net.artisanmc.plugin.resourcepack.ResourcePackInfo.from(url, hash, promptMini)
             )
         } catch (t: Throwable) {
             logger?.warning("Invalid resource_pack info from hello_ack: ${t.message}")
@@ -1822,10 +1822,10 @@ if (rpNode == null || rpNode.isNull) {
 "resource_pack_updated" -> {
     val url = node["url"]?.asText() ?: return
     val hash = node["hash"]?.asText() ?: return
-    val promptMini = "<gold>Pack Interfaze</gold>"
+    val promptMini = "<gold>Pack Artisan</gold>"
     try {
         resourcePackManager?.onUpdate(
-            gg.interfaze.plugin.resourcepack.ResourcePackInfo.from(url, hash, promptMini)
+            net.artisanmc.plugin.resourcepack.ResourcePackInfo.from(url, hash, promptMini)
         )
     } catch (t: Throwable) {
         logger?.warning("Invalid resource_pack_updated payload: ${t.message}")
@@ -1836,7 +1836,7 @@ if (rpNode == null || rpNode.isNull) {
 - [ ] **Step 4: Run the test — verify it passes**
 
 ```bash
-./gradlew test --tests "gg.interfaze.plugin.SyncedMenuProviderTest"
+./gradlew test --tests "net.artisanmc.plugin.SyncedMenuProviderTest"
 ```
 
 Expected: 6 tests pass (3 existing + 3 new).
@@ -1844,19 +1844,19 @@ Expected: 6 tests pass (3 existing + 3 new).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt \
-        plugin/src/test/kotlin/gg/interfaze/plugin/SyncedMenuProviderTest.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt \
+        plugin/src/test/kotlin/net/artisanmc/plugin/SyncedMenuProviderTest.kt
 git commit -m "feat(plugin): SyncedMenuProvider routes resource_pack_updated and hello_ack.resource_pack"
 ```
 
 ---
 
-## Task 12: Plugin — instantiate `ResourcePackManager` in `InterfazePlugin`
+## Task 12: Plugin — instantiate `ResourcePackManager` in `ArtisanPlugin`
 
 Wire the manager into both `onEnable` and `reinit`. Pass the configured prompt; register the listener with Bukkit.
 
 **Files:**
-- Modify: `plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt`
+- Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt`
 
 - [ ] **Step 1: Add the prompt-aware factory in `ResourcePackManager`**
 
@@ -1874,12 +1874,12 @@ fun clear() { onUpdate(null) }
 
 In `SyncedMenuProvider.handleMessage`, replace the two ad-hoc `ResourcePackInfo.from(...)` calls with `resourcePackManager?.applyFromBackend(url, hash)` / `resourcePackManager?.clear()`. Drop the unused `promptMini` literals.
 
-- [ ] **Step 2: Wire the manager into `InterfazePlugin.onEnable`**
+- [ ] **Step 2: Wire the manager into `ArtisanPlugin.onEnable`**
 
 Below the existing `customItemsManager` setup, before `menuProvider.load()`, add:
 
 ```kotlin
-val resourcePackManager = gg.interfaze.plugin.resourcepack.ResourcePackManager(
+val resourcePackManager = net.artisanmc.plugin.resourcepack.ResourcePackManager(
     plugin = this,
     config = cfg.resourcePack,
     logger = logger,
@@ -1891,19 +1891,19 @@ server.pluginManager.registerEvents(resourcePackManager, this)
 Add a setter on `SyncedMenuProvider` (next to `setCustomItemsManager`):
 
 ```kotlin
-fun setResourcePackManager(mgr: gg.interfaze.plugin.resourcepack.ResourcePackManager) {
+fun setResourcePackManager(mgr: net.artisanmc.plugin.resourcepack.ResourcePackManager) {
     // @Volatile field set lazily after construction so the existing constructor
     // signatures stay backwards compatible with tests.
     resourcePackManagerRef = mgr
 }
-@Volatile private var resourcePackManagerRef: gg.interfaze.plugin.resourcepack.ResourcePackManager? = null
+@Volatile private var resourcePackManagerRef: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
 ```
 
 Replace the constructor param `resourcePackManager` with a helper `private fun rpm() = resourcePackManager ?: resourcePackManagerRef` and use `rpm()` in `handleMessage`. (Keeps both injection styles — constructor for tests, setter for the plugin.)
 
 - [ ] **Step 3: Mirror the wiring in `reinit`**
 
-Apply the same `ResourcePackManager` creation + `setResourcePackManager` + listener registration in `InterfazePlugin.reinit` so config reload picks up new prompt / delay values.
+Apply the same `ResourcePackManager` creation + `setResourcePackManager` + listener registration in `ArtisanPlugin.reinit` so config reload picks up new prompt / delay values.
 
 (For the listener re-register on reinit, the existing pattern in this file does not unregister the previous instance for other listeners either — accept that behavior. The replacement manager will become the latest one set on the provider, and stale instances are harmless because their `currentPackInfo` is never updated after the swap.)
 
@@ -1926,9 +1926,9 @@ Expected: full suite passes (~190 + 8 new + 3 ResourcePackInfo cases ≈ 201).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add plugin/src/main/kotlin/gg/interfaze/plugin/InterfazePlugin.kt \
-        plugin/src/main/kotlin/gg/interfaze/plugin/provider/SyncedMenuProvider.kt \
-        plugin/src/main/kotlin/gg/interfaze/plugin/resourcepack/ResourcePackManager.kt
+git add plugin/src/main/kotlin/net/artisanmc/plugin/ArtisanPlugin.kt \
+        plugin/src/main/kotlin/net/artisanmc/plugin/provider/SyncedMenuProvider.kt \
+        plugin/src/main/kotlin/net/artisanmc/plugin/resourcepack/ResourcePackManager.kt
 git commit -m "feat(plugin): instantiate ResourcePackManager + register listener"
 ```
 
@@ -2040,8 +2040,8 @@ unzip -l backend/data/resource-packs/<server_key_id>/<hash>.zip
 Expect:
 - `pack.mcmeta`
 - `pack.png`
-- `assets/interfaze/font/default.json`
-- `assets/interfaze/textures/font/<glyph_name>.png`
+- `assets/artisan/font/default.json`
+- `assets/artisan/textures/font/<glyph_name>.png`
 
 e. **Manual rebuild trigger**:
 ```bash
@@ -2051,8 +2051,8 @@ curl -X POST http://localhost:3001/api/editor-session/<token>/resource-pack/rebu
 Expect `{ "url": "...", "hash": "<same hash>" }`. With no asset changes, the hash should be identical (deterministic builder).
 
 f. **In-game test**: join the Minecraft server, observe the chat / server log:
-- `[Interfaze] [resource-pack] ...` lines if the player declines.
-- The Interfaze pack appears in the player's resource pack stack (F3 → resource packs, or the in-game prompt).
+- `[Artisan] [resource-pack] ...` lines if the player declines.
+- The Artisan pack appears in the player's resource pack stack (F3 → resource packs, or the in-game prompt).
 
 g. **WS hot update**: while in-game, upload another glyph from the editor. Within ~1s, the plugin should log a re-push line and the client should re-download the pack (visible as a brief reload prompt).
 
@@ -2130,7 +2130,7 @@ Walking the spec checklist line-by-line:
 
 ## Summary for the parent agent
 
-**Path of saved plan:** `C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\docs\superpowers\plans\2026-05-11-resource-pack-generator.md`
+**Path of saved plan:** `C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\docs\superpowers\plans\2026-05-11-resource-pack-generator.md`
 
 **Number of tasks:** 13 numbered tasks + a Final Verification section.
 
@@ -2144,8 +2144,8 @@ Walking the spec checklist line-by-line:
 
 ### Critical Files for Implementation
 
-- C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\backend\src\lib\resourcePack.ts (new — orchestrator)
-- C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\backend\src\lib\resourcePackBuilder.ts (new — zip builder)
-- C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\backend\src\ws\hub.ts (modify — `pushResourcePackUpdated` + `hello_ack.resource_pack`)
-- C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\backend\src\routes\assets.ts (modify — trigger rebuild on POST/PATCH/DELETE)
-- C:\Users\ibane\Documents\Minecraft\Plugins\Interfaze\plugin\src\main\kotlin\gg\interfaze\plugin\resourcepack\ResourcePackManager.kt (new — push to players + WS handler entrypoint)
+- C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\backend\src\lib\resourcePack.ts (new — orchestrator)
+- C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\backend\src\lib\resourcePackBuilder.ts (new — zip builder)
+- C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\backend\src\ws\hub.ts (modify — `pushResourcePackUpdated` + `hello_ack.resource_pack`)
+- C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\backend\src\routes\assets.ts (modify — trigger rebuild on POST/PATCH/DELETE)
+- C:\Users\ibane\Documents\Minecraft\Plugins\Artisan\plugin\src\main\kotlin\gg\artisan\plugin\resourcepack\ResourcePackManager.kt (new — push to players + WS handler entrypoint)
