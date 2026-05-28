@@ -18,10 +18,10 @@ class NexoSource(@Suppress("UNUSED_PARAMETER") pluginsDir: File) : CustomItemSou
             val nexoItems = Class.forName("com.nexomc.nexo.api.NexoItems")
             @Suppress("UNCHECKED_CAST")
             val names = nexoItems.getMethod("itemNames").invoke(null) as Collection<String>
-            log.info("[IFZ] NexoSource: ${names.size} item name(s) from Nexo")
+            log.info("[ART] NexoSource: ${names.size} item name(s) from Nexo")
             names.map { id -> CustomItemEntry(id = "nexo:$id", label = id, category = "nexo") }
         } catch (e: Exception) {
-            log.warning("[IFZ] NexoSource.collectItems() failed: ${e.javaClass.name}: ${e.message}")
+            log.warning("[ART] NexoSource.collectItems() failed: ${e.javaClass.name}: ${e.message}")
             emptyList()
         }
     }

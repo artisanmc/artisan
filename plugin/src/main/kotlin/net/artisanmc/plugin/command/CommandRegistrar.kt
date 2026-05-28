@@ -19,13 +19,13 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
         val namespace = plugin.name.lowercase()
         val seen = mutableSetOf<String>()
         val totalCmds = bundles.sumOf { it.commands.size }
-        logger.info("[IFZ-DEBUG] CommandRegistrar.reload: ${bundles.size} bundles, $totalCmds commands total")
+        logger.info("[ART-DEBUG] CommandRegistrar.reload: ${bundles.size} bundles, $totalCmds commands total")
 
         for (bundle in bundles) {
-            logger.info("[IFZ-DEBUG] Bundle ${bundle.packId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
+            logger.info("[ART-DEBUG] Bundle ${bundle.packId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
             for (cmdYaml in bundle.commands) {
                 val name = cmdYaml.name.lowercase()
-                logger.info("[IFZ-DEBUG] Processing command '$name' actions=${cmdYaml.resolvedActions().size} steps=${cmdYaml.steps.size}")
+                logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.resolvedActions().size} steps=${cmdYaml.steps.size}")
 
                 if (name in seen) {
                     logger.warning("Command '$name' defined in multiple packs — only first registration kept.")
@@ -40,7 +40,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
 
                 val compiled = CommandCompiler.compile(cmdYaml, logger)
                 if (compiled == null) {
-                    logger.warning("[IFZ-DEBUG] CommandCompiler returned null for '$name'")
+                    logger.warning("[ART-DEBUG] CommandCompiler returned null for '$name'")
                     continue
                 }
                 // Warn about alias conflicts — best-effort, never skip the command itself.
@@ -59,7 +59,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                     registered += normalised
                     seen += normalised
                 }
-                logger.info("[IFZ-DEBUG] Registered command: /$name (actions=${compiled.handler.actions.size})")
+                logger.info("[ART-DEBUG] Registered command: /$name (actions=${compiled.handler.actions.size})")
             }
         }
     }

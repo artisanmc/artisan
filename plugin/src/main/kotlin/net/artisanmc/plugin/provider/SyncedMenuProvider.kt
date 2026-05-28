@@ -103,7 +103,7 @@ class SyncedMenuProvider(
                 "1.21.4"
             }
             val availableSources = customItemsManager.availableSources()
-            logger?.info("[IFZ] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
+            logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
             // Custom items hash is computed off-thread (see registerCustomItemsReloadListeners).
             // hello sends an empty hash; the backend learns the real hash via a follow-up
             // custom_items_changed message once the async task runs. Keeping hashing off
@@ -163,7 +163,7 @@ class SyncedMenuProvider(
         }
         val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider())
         sessions?.set(player, session)
-        logger?.info("[IFZ-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
+        logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
 
     override fun findDialog(dialogId: String): BundleDialog? = dialogs[dialogId]
@@ -302,7 +302,7 @@ class SyncedMenuProvider(
                             downloader.download(url = url, serverKey = serverKey, packId = packId)
                             reloadFromDisk()
                             draftMenus.clear()
-                            logger?.info("[IFZ-DEBUG] bundle_available: triggering onReload for pack=$packId")
+                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$packId")
                             onReload?.invoke()
                         } finally {
                             downloadsInFlight.remove(packId)
@@ -343,14 +343,14 @@ class SyncedMenuProvider(
                     val result = customItemsManager.buildBundle()
                     if (result != null) {
                         val (hash, data) = result
-                        logger?.info("[IFZ] Sending custom items bundle — hash=${hash.take(8)}…")
+                        logger?.info("[ART] Sending custom items bundle — hash=${hash.take(8)}…")
                         wsClient?.send(mapOf(
                             "type" to "custom_items_bundle",
                             "hash" to hash,
                             "data" to data,
                         ))
                     } else {
-                        logger?.warning("[IFZ] custom_items_request received but no custom items available — bundle not sent")
+                        logger?.warning("[ART] custom_items_request received but no custom items available — bundle not sent")
                     }
                 }
             }
