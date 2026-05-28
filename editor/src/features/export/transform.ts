@@ -534,14 +534,14 @@ function serializeLang(pack: Pack, lang: string, referencedKeys: Set<string>): R
 
 /**
  * Transform a Pack into a flat map of filename → YAML string.
- * Keys use the server-side path (e.g. "plugins/Interfaze/menus/shop_main.yaml").
+ * Keys use the server-side path (e.g. "plugins/Artisan/menus/shop_main.yaml").
  */
 export function transform(pack: Pack): Record<string, string> {
   const files: Record<string, string> = {};
 
   const yamlOpts = { lineWidth: 0 };
 
-  const base = `plugins/Interfaze/packs/${pack.id}`;
+  const base = `plugins/Artisan/packs/${pack.id}`;
 
   for (const menu of pack.menus) {
     files[`${base}/menus/${menu.id}.yaml`] = stringify(

@@ -6,7 +6,7 @@ import type { WizardState } from "../SetupWizard";
 const stateWithKey: WizardState = {
   networkId: "n1",
   packId: "p1",
-  serverKey: "ifz_sk_plaintext_abc123",
+  serverKey: "artisan_sk_plaintext_abc123",
   serverKeyId: "sk-abc",
 };
 
@@ -15,7 +15,7 @@ describe("Step4Install", () => {
     render(<Step4Install state={stateWithKey} setState={() => {}} />);
 
     // The server key should appear (at least once in the page)
-    const keyElements = screen.getAllByText(/ifz_sk_plaintext_abc123/);
+    const keyElements = screen.getAllByText(/artisan_sk_plaintext_abc123/);
     expect(keyElements.length).toBeGreaterThan(0);
 
     // The config snippet contains the backend-url key

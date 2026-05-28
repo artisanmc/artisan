@@ -4,8 +4,8 @@ import { conditionSummary } from "./labels";
 
 describe("conditionSummary", () => {
   it("renders has_permission with the perm slug", () => {
-    const c: Condition = { type: "has_permission", perm: "interfaze.vip" };
-    expect(conditionSummary(c)).toBe('has perm "interfaze.vip"');
+    const c: Condition = { type: "has_permission", perm: "artisan.vip" };
+    expect(conditionSummary(c)).toBe('has perm "artisan.vip"');
   });
 
   it("renders placeholder_equals as `placeholder = value`", () => {

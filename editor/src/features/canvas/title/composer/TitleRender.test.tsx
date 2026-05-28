@@ -260,9 +260,9 @@ const FONT_ASSET: Asset = {
   ascent: null,
   codepoint: null,
   fontMeta: {
-    namespace: "interfaze",
+    namespace: "artisan",
     glyphMap: [
-      { char: "H", texture: "interfaze:font/H.png", ascent: 7, height: 8, width: 6 },
+      { char: "H", texture: "artisan:font/H.png", ascent: 7, height: 8, width: 6 },
     ],
   },
   contentHash: "fh",
@@ -445,7 +445,7 @@ describe("TitleRender", () => {
       ...FONT_ASSET,
       id: "asset_body_font" as AssetId,
       fontMeta: {
-        namespace: "interfaze:custom",
+        namespace: "artisan:custom",
         glyphMap: [
           { char: "H", texture: "H.png", ascent: -20, height: 10, width: 6 },
         ],

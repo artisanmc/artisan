@@ -105,7 +105,7 @@ const TITLE_LABEL_X = 8;
 const BASELINE_Y_PX = 7;
 /**
  * MC chest GUI title draw Y (AbstractContainerScreen.titleLabelY).
- * TitleCompiler wraps text in `<font:interfaze:text_y{Y}>` whose ascent shifts
+ * TitleCompiler wraps text in `<font:artisan:text_y{Y}>` whose ascent shifts
  * the baseline so the glyph top lands at the desired Y — `layer.y` IS used.
  */
 const MC_TITLE_LABEL_Y = 6;

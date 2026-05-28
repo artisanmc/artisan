@@ -95,7 +95,7 @@ const personalPack = (): Pack => {
         id: healCmdId,
         packId: pId,
         name: "heal",
-        permission: "interfaze.heal",
+        permission: "artisan.heal",
         arguments: [],
         steps: [
           {

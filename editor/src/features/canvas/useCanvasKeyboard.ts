@@ -152,7 +152,7 @@ const copySelection = async (packId: PackId, ids: string[], onError?: (m: string
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   try {
     await writeClipboard({
-      kind: "interfaze.clipboard",
+      kind: "artisan.clipboard",
       version: CLIPBOARD_VERSION,
       menus,
       commands,

@@ -251,7 +251,7 @@ function ConditionInline({
     case "has_permission":
       return (
         <Input
-          placeholder="interfaze.vip"
+          placeholder="artisan.vip"
           value={condition.perm}
           onChange={(e) => onChange({ ...condition, perm: e.target.value })}
           className="h-6 w-[140px] px-1.5 py-0 text-[11px]"

@@ -29,7 +29,7 @@ export function Step3ServerKey({ state, setState }: Props) {
     <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold">Step 3: Generate Server Key</h2>
       <p className="text-sm text-muted-foreground">
-        A server key authenticates your Minecraft server with the Interfaze backend.
+        A server key authenticates your Minecraft server with the Artisan backend.
         Click below to generate one and bind it to the selected pack.
       </p>
 
