@@ -1,10 +1,10 @@
-# Set to connect this server to the Interfaze editor backend for live sync.
+# Set to connect this server to the Artisan editor backend for live sync.
 # Leave empty to run offline using only locally exported packs.
 server_key: ""
-ws_url: "wss://editor.interfaze.gg/ws/plugin"
+ws_url: "wss://editor.artisanmc.net/ws/plugin"
 
 # Language for plugin system messages (en, fr). Defaults to en.
-# Place custom lang files in plugins/Interfaze/lang/<code>.yml to override.
+# Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
 language: "en"
 
 # When true, plugin messages are sent in each player's client language when
@@ -13,36 +13,36 @@ per_player_language: false
 
 # Editor access settings.
 editor:
-  # Set to true to restrict /ifz editor to console only (no in-game players).
+  # Set to true to restrict /artisan editor to console only (no in-game players).
   console_only: false
 
-# Resource pack pushed by Interfaze (independent from Oraxen/Nexo/ItemsAdder packs;
+# Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
 # uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
 resource-pack:
   enabled: true
-  prompt: "<gold>Pack Interfaze</gold>"
+  prompt: "<gold>Pack Artisan</gold>"
   send-on-join: true
   send-delay-ticks: 20
-  # When set, Interfaze stops pushing its own RP to players and writes its
+  # When set, Artisan stops pushing its own RP to players and writes its
   # pack contents to this path. The admin configures the host RP plugin
   # (Oraxen / Nexo / ItemsAdder / etc.) to read from it.
   #
   # Output shape depends on the path suffix:
-  #   - `<path>.zip`  → single zip file with `assets/interfaze/*` and a
+  #   - `<path>.zip`  → single zip file with `assets/artisan/*` and a
   #                     minimal pack.mcmeta. **Use this with Nexo's
   #                     pack/external_packs/** — its directory scanner skips
   #                     PNGs for non-vanilla namespaces, the zip-merger does
   #                     not.
-  #   - `<path>`      → directory; Interfaze writes under
-  #                     `<path>/assets/interfaze/` (wiped before each update).
+  #   - `<path>`      → directory; Artisan writes under
+  #                     `<path>/assets/artisan/` (wiped before each update).
   #
   # Path is filesystem-absolute or relative to the server root.
   #
   # Nexo example:
-  #   delegate-to-dir: "plugins/Nexo/pack/external_packs/interfaze.zip"
+  #   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   #   delegate-reload-command: "n reload"
   #
-  # Default: empty (legacy mode — Interfaze pushes its own RP to players).
+  # Default: empty (legacy mode — Artisan pushes its own RP to players).
   delegate-to-dir: ""
   # Optional: command dispatched on the console after each pack update.
   # Use this to auto-reload the host RP plugin so players don't see missing
