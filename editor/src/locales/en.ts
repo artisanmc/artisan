@@ -289,7 +289,7 @@ export default {
     typeLabel: "type",
     notLabel: "NOT",
     permLabel: "permission",
-    permPlaceholder: "interfaze.shop",
+    permPlaceholder: "artisan.shop",
     moneyAmountLabel: "amount",
     moneyAmountPlaceholder: "100",
     placeholderPlaceholder: "{shop.rarity}",
@@ -334,7 +334,7 @@ export default {
     aliasesLabel: "aliases",
     aliasesPlaceholder: "alias…",
     permissionLabel: "permission",
-    permissionPlaceholder: "interfaze.shop",
+    permissionPlaceholder: "artisan.shop",
     descriptionLabel: "description",
     descriptionPlaceholder: "(none)",
     argumentsLabel: "Arguments",
@@ -373,12 +373,12 @@ export default {
   },
   export: {
     button: "Export to server (.zip)",
-    success: "Exported — extract the zip on your server and run /interfaze reload.",
+    success: "Exported — extract the zip on your server and run /artisan reload.",
     failed: "Export failed",
     errorTitle: "Cannot export",
     errorSubtitle: "Fix these issues before exporting:",
     overwriteWarning:
-      "Server edits will be overwritten on next export. Extract the zip on your server and run /interfaze reload.",
+      "Server edits will be overwritten on next export. Extract the zip on your server and run /artisan reload.",
   },
   toast: {
     titleEditFailed: "title edit failed",
@@ -453,7 +453,7 @@ export default {
   sync: {
     deletePackDialog: {
       title: "Delete workspace «{{name}}»?",
-      warning: "This action will remove all menus, dialogs and translations of the workspace from every connected Minecraft server. The files will be moved to `plugins/Interfaze/.interfaze-trash/` server-side in case you need to recover them.",
+      warning: "This action will remove all menus, dialogs and translations of the workspace from every connected Minecraft server. The files will be moved to `plugins/Artisan/.artisan-trash/` server-side in case you need to recover them.",
       conflictWarning: "If a conflict exists for this workspace, it will be ignored and the editor will become authoritative.",
       typePrompt: "To confirm, type the workspace name:",
       cancel: "Cancel",

@@ -10,7 +10,7 @@ export function exportPackToFile(pack: Pack): void {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  a.download = `${safeName || "pack"}.interfaze.json`;
+  a.download = `${safeName || "pack"}.artisan.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -20,7 +20,7 @@ describe("Step3ServerKey", () => {
   it("generates a server key, binds it to the pack, and stores the plaintext key", async () => {
     const createSpy = vi.spyOn(networksApi, "createServerKey").mockResolvedValue({
       id: "sk-abc",
-      key: "ifz_sk_plaintext123",
+      key: "artisan_sk_plaintext123",
       label: null,
     });
     const bindSpy = vi.spyOn(networksApi, "bindPackToServerKey").mockResolvedValue(undefined);
@@ -36,7 +36,7 @@ describe("Step3ServerKey", () => {
 
     const updater = setState.mock.calls[0][0] as (s: WizardState) => WizardState;
     const newState = updater(stateReady);
-    expect(newState.serverKey).toBe("ifz_sk_plaintext123");
+    expect(newState.serverKey).toBe("artisan_sk_plaintext123");
     expect(newState.serverKeyId).toBe("sk-abc");
   });
 });

@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Editor surfaces (custom Interfaze tokens) */
+  /* Editor surfaces (custom Artisan tokens) */
   --color-bg: oklch(0.14 0 0);
   --color-bg-1: oklch(0.18 0 0);
   --color-bg-2: oklch(0.22 0 0);

@@ -1,7 +1,7 @@
 import type { WizardState } from "../SetupWizard";
 
 const WS_URL =
-  import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://editor.interfaze.gg/ws/plugin";
+  import.meta.env.VITE_PLUGIN_WS_URL ?? "wss://editor.artisanmc.net/ws/plugin";
 
 interface Props {
   state: WizardState;
@@ -14,7 +14,7 @@ export function Step4Install({ state }: Props) {
       <h2 className="text-lg font-semibold">Step 4: Install on your server</h2>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">1. Add this to your Interfaze config.yml</h3>
+        <h3 className="text-sm font-medium">1. Add this to your Artisan config.yml</h3>
         <pre className="bg-muted rounded px-4 py-3 text-sm font-mono whitespace-pre-wrap break-all">
 {`server-key: "${state.serverKey ?? "<your-server-key>"}"
 backend-url: "${WS_URL}"`}
