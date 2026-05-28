@@ -149,7 +149,7 @@ describe("rebuildResourcePack", () => {
     const { readFile } = await import("fs/promises");
     const zipBytes = await readFile(resourcePackPath(serverKeyId, hash));
     const entries = unzipSync(new Uint8Array(zipBytes));
-    const indexBytes = entries["assets/interfaze/asset-index.json"]!;
+    const indexBytes = entries["assets/artisan/asset-index.json"]!;
     const index = JSON.parse(strFromU8(indexBytes)) as {
       assets: Record<string, { codepoint?: number }>;
     };

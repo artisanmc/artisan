@@ -29,7 +29,7 @@ describe("GET /api/v1/auth/discord/start", () => {
     expect(location).toContain("https://discord.com/api/oauth2/authorize");
     expect(location).toContain("client_id=test_cid");
     const setCookie = res.headers.get("Set-Cookie") ?? "";
-    expect(setCookie).toContain("ifz_oauth_state=");
+    expect(setCookie).toContain("artisan_oauth_state=");
     expect(setCookie).toContain("HttpOnly");
   });
 
@@ -53,14 +53,14 @@ describe("GET /api/v1/auth/discord/callback (invalid state)", () => {
 
   test("400 when state mismatches", async () => {
     const res = await app.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=mismatch", {
-      headers: { Cookie: "ifz_oauth_state=actual" },
+      headers: { Cookie: "artisan_oauth_state=actual" },
     }));
     expect(res.status).toBe(400);
   });
 
   test("400 when code is missing", async () => {
     const res = await app.fetch(new Request("http://x/api/v1/auth/discord/callback?state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("missing_code");
@@ -94,11 +94,11 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
 
     const testApp = buildAppWith(mockFetch);
     const res = await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     expect(res.status).toBe(302);
     expect(res.headers.get("Location") ?? "").toContain("/account");
-    expect(res.headers.get("Set-Cookie") ?? "").toContain("ifz_user_session=");
+    expect(res.headers.get("Set-Cookie") ?? "").toContain("artisan_user_session=");
 
     const userRow = await db.select().from(usersTable).where(eq(usersTable.email, email));
     expect(userRow).toHaveLength(1);
@@ -126,10 +126,10 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
 
     const testApp = buildAppWith(mockFetch);
     await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
     await testApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c2&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -161,7 +161,7 @@ describe("GET /api/v1/auth/discord/callback (happy path)", () => {
 
     const tmpApp = buildAppWith(mockFetch);
     await tmpApp.fetch(new Request("http://x/api/v1/auth/discord/callback?code=c&state=s", {
-      headers: { Cookie: "ifz_oauth_state=s" },
+      headers: { Cookie: "artisan_oauth_state=s" },
     }));
 
     const userRows = await db.select().from(usersTable).where(eq(usersTable.email, email));

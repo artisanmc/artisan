@@ -30,7 +30,7 @@ function clientIp(c: { req: { header: (name: string) => string | undefined } }):
 }
 
 router.post("/refresh", async (c) => {
-  const token = getCookie(c, "ifz_refresh");
+  const token = getCookie(c, "artisan_refresh");
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
   const rows = await db.select().from(editorSessions).where(eq(editorSessions.refreshToken, token));
@@ -51,7 +51,7 @@ router.post("/refresh", async (c) => {
 
   if (updated.length === 0) return c.json({ error: "Unauthorized" }, 401);
 
-  setCookie(c, "ifz_refresh", newRefreshToken, {
+  setCookie(c, "artisan_refresh", newRefreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
@@ -84,7 +84,7 @@ router.post("/:urlToken/exchange", async (c) => {
 
   if (updated.length === 0) return c.json({ error: "already_used" }, 401);
 
-  setCookie(c, "ifz_refresh", refreshToken, {
+  setCookie(c, "artisan_refresh", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",

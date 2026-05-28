@@ -160,7 +160,7 @@ interface DialogYaml {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function getFile(files: Record<string, string>, packId: string, rel: string): string | null {
-  return files[`plugins/Interfaze/packs/${packId}/${rel}`] ?? null;
+  return files[`plugins/Artisan/packs/${packId}/${rel}`] ?? null;
 }
 
 function tryParse<T>(text: string | null): T | null {

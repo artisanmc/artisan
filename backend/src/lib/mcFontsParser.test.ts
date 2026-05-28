@@ -37,14 +37,14 @@ describe("parseMcFontsZip", () => {
       "font.json": fontJson([
         {
           type: "bitmap",
-          file: "interfaze:glyphs/a.png",
+          file: "artisan:glyphs/a.png",
           ascent: 7,
           height: 8,
           chars: ["a"],
         },
         {
           type: "bitmap",
-          file: "interfaze:glyphs/b.png",
+          file: "artisan:glyphs/b.png",
           ascent: 7,
           height: 8,
           chars: ["b"],
@@ -86,7 +86,7 @@ describe("parseMcFontsZip", () => {
         },
         {
           type: "bitmap",
-          file: "interfaze:glyphs/a.png",
+          file: "artisan:glyphs/a.png",
           ascent: 7,
           height: 8,
           chars: ["a"],
@@ -108,7 +108,7 @@ describe("parseMcFontsZip", () => {
       "font.json": fontJson([
         {
           type: "bitmap",
-          file: "interfaze:glyphs/missing.png",
+          file: "artisan:glyphs/missing.png",
           ascent: 7,
           height: 8,
           chars: ["x"],
@@ -128,7 +128,7 @@ describe("parseMcFontsZip", () => {
       "font.json": fontJson([
         {
           type: "bitmap",
-          file: "interfaze:glyphs/a.png",
+          file: "artisan:glyphs/a.png",
           ascent: 7,
           height: 8,
           chars: ["ab"],
@@ -150,14 +150,14 @@ describe("parseMcFontsZip", () => {
       "font.json": fontJson([
         {
           type: "bitmap",
-          file: "interfaze:glyphs/shared.png",
+          file: "artisan:glyphs/shared.png",
           ascent: 7,
           height: 8,
           chars: ["x"],
         },
         {
           type: "bitmap",
-          file: "interfaze:glyphs/shared.png",
+          file: "artisan:glyphs/shared.png",
           ascent: 7,
           height: 8,
           chars: ["y"],
@@ -181,7 +181,7 @@ describe("parseMcFontsZip", () => {
       "font.json": fontJson([
         {
           type: "bitmap",
-          file: "interfaze:font/myfont/glyphs/a.png",
+          file: "artisan:font/myfont/glyphs/a.png",
           ascent: 7,
           height: 8,
           chars: ["a"],

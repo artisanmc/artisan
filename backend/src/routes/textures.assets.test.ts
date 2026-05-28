@@ -164,7 +164,7 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
       ascent: null,
       codepoint: null,
       fontMeta: opts.type === "font" || opts.type === undefined
-        ? { namespace: "interfaze:font_test", glyphMap: [] }
+        ? { namespace: "artisan:font_test", glyphMap: [] }
         : null,
       contentHash: "0".repeat(40),
       createdAt: now,

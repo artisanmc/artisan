@@ -1,5 +1,5 @@
 /**
- * Codepoints used by the `space` provider in the `interfaze:default` font.
+ * Codepoints used by the `space` provider in the `artisan:default` font.
  * Each maps to a pixel advance (positive or negative). A greedy decomposition
  * by descending absolute value lets us shift the rendering cursor by any
  * integer in `[-511, +511]` using at most 9 chars.
