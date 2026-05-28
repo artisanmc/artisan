@@ -2,7 +2,7 @@ import JSZip from "jszip";
 
 /**
  * Pack a flat map of path → YAML content into a zip Blob.
- * Paths may contain directory separators (e.g. "plugins/Interfaze/menus/shop.yaml")
+ * Paths may contain directory separators (e.g. "plugins/Artisan/menus/shop.yaml")
  * and JSZip will create the intermediate directories automatically.
  */
 export async function buildZip(files: Record<string, string>): Promise<Blob> {

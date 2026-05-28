@@ -262,7 +262,7 @@ export const useUiStore = create<UiState>()(
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
     }),
     {
-      name: "interfaze:ui",
+      name: "artisan:ui",
       // armedMaterial is session state; don't persist it.
       // Title-composer v3 fields (selectedLayerKey, hiddenLayerKeys,
       // draggingNewLayer, selectedMenuId, lastSelectedMenuId) are all

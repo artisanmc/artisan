@@ -12,7 +12,7 @@ import type {
   Step,
 } from "@/domain/types";
 
-const CLIPBOARD_KIND = "interfaze.clipboard" as const;
+const CLIPBOARD_KIND = "artisan.clipboard" as const;
 export const CLIPBOARD_VERSION = 2;
 
 export interface ElementCopy {

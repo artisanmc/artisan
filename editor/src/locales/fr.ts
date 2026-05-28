@@ -295,7 +295,7 @@ const fr: typeof en = {
     typeLabel: "type",
     notLabel: "NON",
     permLabel: "permission",
-    permPlaceholder: "interfaze.shop",
+    permPlaceholder: "artisan.shop",
     moneyAmountLabel: "montant",
     moneyAmountPlaceholder: "100",
     placeholderPlaceholder: "{shop.rarity}",
@@ -341,7 +341,7 @@ const fr: typeof en = {
     aliasesLabel: "alias",
     aliasesPlaceholder: "alias…",
     permissionLabel: "permission",
-    permissionPlaceholder: "interfaze.shop",
+    permissionPlaceholder: "artisan.shop",
     descriptionLabel: "description",
     descriptionPlaceholder: "(aucune)",
     argumentsLabel: "Arguments",
@@ -381,12 +381,12 @@ const fr: typeof en = {
   },
   export: {
     button: "Exporter vers le serveur (.zip)",
-    success: "Exporté — extrayez le zip sur votre serveur et lancez /interfaze reload.",
+    success: "Exporté — extrayez le zip sur votre serveur et lancez /artisan reload.",
     failed: "Export échoué",
     errorTitle: "Impossible d'exporter",
     errorSubtitle: "Corrigez ces problèmes avant d'exporter :",
     overwriteWarning:
-      "Les modifications côté serveur seront écrasées au prochain export. Extrayez le zip sur votre serveur et lancez /interfaze reload.",
+      "Les modifications côté serveur seront écrasées au prochain export. Extrayez le zip sur votre serveur et lancez /artisan reload.",
   },
   toast: {
     titleEditFailed: "édition du titre échouée",
@@ -461,7 +461,7 @@ const fr: typeof en = {
   sync: {
     deletePackDialog: {
       title: "Supprimer le workspace «{{name}}» ?",
-      warning: "Cette action supprimera tous les menus, dialogs et traductions du workspace sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Interfaze/.interfaze-trash/` côté serveur en cas de récupération nécessaire.",
+      warning: "Cette action supprimera tous les menus, dialogs et traductions du workspace sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.",
       conflictWarning: "Si un conflit existe pour ce workspace, il sera ignoré et l'éditeur deviendra autoritaire.",
       typePrompt: "Pour confirmer, tape le nom du workspace :",
       cancel: "Annuler",
