@@ -57,10 +57,11 @@ describe("PlaceholderCatalog.compute", () => {
       ],
     });
     const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
+    // Sorted alpha by path within context origin (Task 8 sort applied throughout).
     expect(out).toEqual([
+      { path: "active", type: "boolean", sample: "true", origin: "context" },
       { path: "player", type: "player", sample: "Steve", origin: "context" },
       { path: "rank", type: "integer", sample: "5", origin: "context" },
-      { path: "active", type: "boolean", sample: "true", origin: "context" },
     ]);
   });
 
