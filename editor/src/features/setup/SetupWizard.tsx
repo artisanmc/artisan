@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
 import { Step2Pack } from "./SetupWizardSteps/Step2Pack";
@@ -16,10 +17,17 @@ function canNext(step: number, state: WizardState): boolean {
   if (step === 1) return state.networkId !== null;
   if (step === 2) return state.packId !== null;
   if (step === 3) return state.serverKeyId !== null;
-  return false; // step 4 is terminal
+  return false;
 }
 
 export function SetupWizard() {
+  const { t } = useTranslation();
+  const stepLabels = [
+    t("setupWizard.stepLabels.network"),
+    t("setupWizard.stepLabels.pack"),
+    t("setupWizard.stepLabels.serverKey"),
+    t("setupWizard.stepLabels.install"),
+  ];
   const [step, setStep] = useState(1);
   const [state, setState] = useState<WizardState>({
     networkId: null,
@@ -39,23 +47,90 @@ export function SetupWizard() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8">
-      <div className="w-full max-w-lg flex flex-col gap-6">
-        <div className="text-xs text-muted-foreground text-right">
-          Step {step} of {totalSteps}
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
+        }}
+      />
+
+      <div className="card relative z-[1] flex w-full max-w-[560px] flex-col gap-7 p-8">
+        <header className="flex flex-col gap-4">
+          <div className="flex items-center gap-2.5">
+            <span className="pixel-mark">
+              <i /><i /><i /><i /><i /><i /><i /><i /><i />
+            </span>
+            <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+              {t("setupWizard.eyebrow")}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {stepLabels.map((label, i) => {
+              const n = i + 1;
+              const isActive = n === step;
+              const isDone = n < step;
+              return (
+                <div key={label} className="flex flex-1 items-center gap-2.5">
+                  <div className="flex flex-col items-center gap-1">
+                    <span
+                      className={[
+                        "flex h-7 w-7 items-center justify-center rounded-full text-[11.5px] font-semibold transition-colors",
+                        isActive
+                          ? "border border-[var(--terra-line)] bg-[var(--terra-soft)] text-[var(--terra)]"
+                          : isDone
+                            ? "bg-[var(--terra)] text-[#2A140C]"
+                            : "border border-[var(--line)] text-[var(--ink-faint)]",
+                      ].join(" ")}
+                    >
+                      {isDone ? "✓" : n}
+                    </span>
+                    <span
+                      className={[
+                        "text-[10.5px] font-semibold uppercase tracking-[.14em]",
+                        isActive
+                          ? "text-[var(--ink)]"
+                          : isDone
+                            ? "text-[var(--ink-2)]"
+                            : "text-[var(--ink-faint)]",
+                      ].join(" ")}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                  {i < stepLabels.length - 1 && (
+                    <div
+                      className="-mt-4 h-px flex-1"
+                      style={{
+                        background:
+                          isDone
+                            ? "var(--terra)"
+                            : "var(--line-soft)",
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </header>
+
+        <div className="flex flex-col gap-4">
+          {step === 1 && <Step1Network state={state} setState={setState} />}
+          {step === 2 && <Step2Pack state={state} setState={setState} />}
+          {step === 3 && <Step3ServerKey state={state} setState={setState} />}
+          {step === 4 && <Step4Install state={state} setState={setState} />}
         </div>
 
-        {step === 1 && <Step1Network state={state} setState={setState} />}
-        {step === 2 && <Step2Pack state={state} setState={setState} />}
-        {step === 3 && <Step3ServerKey state={state} setState={setState} />}
-        {step === 4 && <Step4Install state={state} setState={setState} />}
-
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack} disabled={step === 1}>
-            Back
+        <div className="flex items-center justify-between border-t border-[var(--line-soft)] pt-5">
+          <Button variant="ghost" onClick={handleBack} disabled={step === 1}>
+            {t("setupWizard.back")}
           </Button>
-          <Button onClick={handleNext} disabled={!canNext(step, state)}>
-            {step === totalSteps ? "Done" : "Next"}
+          <Button variant="primary" onClick={handleNext} disabled={!canNext(step, state)}>
+            {step === totalSteps ? t("setupWizard.done") : t("setupWizard.next")}
           </Button>
         </div>
       </div>

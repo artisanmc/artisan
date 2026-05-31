@@ -40,10 +40,10 @@ describe("Step1Network", () => {
     const setState = vi.fn();
     render(<Step1Network state={baseState} setState={setState} />);
 
-    await waitFor(() => expect(screen.getByPlaceholderText(/new network name/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByPlaceholderText(/my_network/i)).toBeTruthy());
 
-    await userEvent.type(screen.getByPlaceholderText(/new network name/i), "My New Network");
-    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+    await userEvent.type(screen.getByPlaceholderText(/my_network/i), "My New Network");
+    await userEvent.click(screen.getByRole("button", { name: /créer|create/i }));
 
     await waitFor(() => expect(createSpy).toHaveBeenCalledWith("My New Network"));
     expect(setState).toHaveBeenCalled();
