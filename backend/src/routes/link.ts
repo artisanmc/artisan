@@ -2,12 +2,14 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { getCookie } from "hono/cookie";
 import { db } from "../db/index";
-import { linkCodes, serverKeys, memberships, users } from "../db/schema";
+import { linkCodes, serverKeys, memberships, users, packs } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { pushLinkConfirmed } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { findSession } from "../lib/sessionManager";
+import { createPack } from "../lib/packStorage";
+import { createBinding } from "../lib/packBindingManager";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
@@ -48,16 +50,33 @@ router.post("/:code/claim", async (c) => {
   if (row.claimedAt) return c.json({ error: "Already claimed" }, 409);
   if (row.expiresAt < new Date()) return c.json({ error: "Expired" }, 410);
 
-  // Parse optional network_id from request body
-  let networkIdInput: string | undefined;
-  try {
-    const body = await c.req.json<{ network_id?: string }>();
-    networkIdInput = typeof body?.network_id === "string" ? body.network_id : undefined;
-  } catch {
-    networkIdInput = undefined;
+  // Body lets the caller pick or create the destination network AND pack in
+  // one shot. The legacy "smart count" path stays as a fallback when no body
+  // is sent, so older clients keep working.
+  let body: {
+    network_id?: unknown;
+    network_name?: unknown;
+    pack_id?: unknown;
+    pack_name?: unknown;
+    server_key_label?: unknown;
+  } = {};
+  try { body = await c.req.json(); } catch { /* empty body */ }
+  const networkIdInput = typeof body.network_id === "string" ? body.network_id : undefined;
+  const networkNameInput = typeof body.network_name === "string" ? body.network_name.trim() : undefined;
+  const packIdInput = typeof body.pack_id === "string" ? body.pack_id : undefined;
+  const packNameInput = typeof body.pack_name === "string" ? body.pack_name.trim() : undefined;
+  const serverKeyLabel = typeof body.server_key_label === "string"
+    ? body.server_key_label.trim() || null
+    : null;
+
+  if (networkIdInput && networkNameInput) {
+    return c.json({ error: "ambiguous_network" }, 400);
+  }
+  if (packIdInput && packNameInput) {
+    return c.json({ error: "ambiguous_pack" }, 400);
   }
 
-  // Resolve target network via smart-count logic
+  // Resolve target network: explicit id > new (with name) > smart count fallback.
   const userMemberships = await db
     .select({ networkId: memberships.networkId })
     .from(memberships)
@@ -70,29 +89,72 @@ router.post("/:code/claim", async (c) => {
       return c.json({ error: "forbidden" }, 403);
     }
     targetNetworkId = networkIdInput;
+  } else if (networkNameInput) {
+    if (networkNameInput.length === 0) {
+      return c.json({ error: "invalid_network_name" }, 422);
+    }
+    const network = await createNetwork(networkNameInput);
+    await addMembership(user.id, network.id, "owner");
+    targetNetworkId = network.id;
   } else if (ownedNetworkIds.length === 0) {
     const network = await createNetwork("Mon Network");
     await addMembership(user.id, network.id, "owner");
     targetNetworkId = network.id;
   } else if (ownedNetworkIds.length === 1) {
-    targetNetworkId = ownedNetworkIds[0];
+    targetNetworkId = ownedNetworkIds[0]!;
   } else {
     return c.json({ error: "must_choose_network", networks: ownedNetworkIds }, 400);
+  }
+
+  // Resolve target pack: explicit id (within target network) > new (with name)
+  // > skip (no binding created, legacy behaviour).
+  let targetPackId: string | null = null;
+  if (packIdInput) {
+    const packRows = await db.select().from(packs).where(eq(packs.id, packIdInput));
+    if (packRows.length === 0 || packRows[0]?.networkId !== targetNetworkId) {
+      return c.json({ error: "pack_not_in_network" }, 404);
+    }
+    targetPackId = packIdInput;
+  } else if (packNameInput) {
+    if (packNameInput.length === 0) {
+      return c.json({ error: "invalid_pack_name" }, 422);
+    }
+    const pack = await createPack({
+      networkId: targetNetworkId,
+      name: packNameInput,
+      description: null,
+    });
+    targetPackId = pack.id;
   }
 
   const { id, key, hash } = await generateServerKey();
   await db.transaction(async (tx) => {
     await tx.insert(serverKeys).values({
-      id, hash, label: null, networkId: targetNetworkId, createdAt: new Date(),
+      id,
+      hash,
+      label: serverKeyLabel,
+      networkId: targetNetworkId,
+      createdAt: new Date(),
     });
     await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id })
       .where(eq(linkCodes.code, code));
   });
 
+  // Bind the chosen pack to the freshly-minted server_key so the plugin starts
+  // syncing immediately on reconnect. Default branch = main (auto-created by
+  // createPack).
+  if (targetPackId) {
+    await createBinding(id, targetPackId, "main");
+  }
+
   // Push server_key to any plugin WS session waiting on this code.
   pushLinkConfirmed(code, key);
 
-  return c.json({ server_key_id: id, network_id: targetNetworkId }, 200);
+  return c.json({
+    server_key_id: id,
+    network_id: targetNetworkId,
+    pack_id: targetPackId,
+  }, 200);
 });
 
 export { router as linkRouter };
