@@ -1,3 +1,7 @@
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { MenuId, PackId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
@@ -13,9 +17,15 @@ interface PlainTitleFormProps {
  * LayersPanel when vanilla mode is active — no layer selection needed.
  */
 export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
+  const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const menu = pack?.menus.find((m) => m.id === menuId);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const placeholderLocation = useMemo(
+    () => ({ kind: "menu" as const, menuId }),
+    [menuId],
+  );
+  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
 
   const plainLayer = menu?.title.find((l) => l.kind === "plain");
   const textEdit = useTextEdit(packId, plainLayer?.kind === "plain" ? plainLayer.value : { key: "" as import("@/domain/types").I18nKey });
@@ -23,38 +33,38 @@ export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
   if (!plainLayer || plainLayer.kind !== "plain") return null;
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
-      <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
+      <div className="rounded border border-[var(--line)] bg-[var(--card-surface)]/60 px-2.5 py-2 text-[10px] text-[var(--ink-mut)] leading-snug">
         Titre vanilla — aucun resource pack requis. MiniMessage supporté (
-        <code className="text-zinc-300">{"<gold>"}</code>,{" "}
-        <code className="text-zinc-300">{"<bold>"}</code>, etc.).
+        <code className="text-[var(--ink-2)]">{"<gold>"}</code>,{" "}
+        <code className="text-[var(--ink-2)]">{"<bold>"}</code>, etc.).
       </div>
 
       <div>
         <label
           htmlFor="plain-title-text"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Texte (MiniMessage) — {textEdit.lang}
         </label>
-        <textarea
-          id="plain-title-text"
+        <PlaceholderInput
+          multiline
           value={textEdit.value}
-          onChange={(e) =>
+          onChange={(v) =>
             setI18nValue({
               packId,
               lt: plainLayer.value,
               lang: textEdit.lang,
-              value: e.target.value,
+              value: v,
             })
           }
-          className="min-h-[60px] w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none"
-          placeholder="Texte du titre…"
+          entries={placeholderEntries}
+          placeholder={t("layerEditForm.plainPlaceholder")}
         />
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+      <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
+        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">Aperçu</div>
         <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>

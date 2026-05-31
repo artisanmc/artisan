@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -43,7 +45,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
 
   if (!selectedKey || !menu || !layer) {
     return (
-      <div className="rounded border border-dashed border-zinc-800 bg-zinc-900/40 px-3 py-4 text-center text-[11px] text-zinc-500">
+      <div className="rounded border border-dashed border-[var(--line-soft)] bg-[var(--card-surface)]/40 px-3 py-4 text-center text-[11px] text-[var(--ink-faint)]">
         Sélectionne un élément pour modifier ses détails
       </div>
     );
@@ -202,21 +204,21 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
   };
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
       <div className="flex items-center gap-2">
         {asset ? (
           <img
             src={assetPreviewUrl(asset)}
             alt={asset.name}
-            className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900 object-contain"
+            className="h-10 w-10 rounded border border-[var(--line)] bg-[var(--card-surface)] object-contain"
             style={{ imageRendering: "pixelated" }}
           />
         ) : (
-          <div className="h-10 w-10 rounded border border-zinc-700 bg-zinc-900" />
+          <div className="h-10 w-10 rounded border border-[var(--line)] bg-[var(--card-surface)]" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs text-zinc-200">{asset?.name ?? "<image manquante>"}</div>
-          <div className="text-[10px] text-zinc-500">
+          <div className="truncate text-xs text-[var(--ink)]">{asset?.name ?? "<image manquante>"}</div>
+          <div className="text-[10px] text-[var(--ink-faint)]">
             {/* `width` is intentionally local-only — MC fonts derive glyph
                 width from PNG transparency, so the backend doesn't persist a
                 width field. ResizeHandles mutates `asset.width` optimistically
@@ -242,7 +244,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
 
       {layer.kind === "glyph" && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase text-zinc-500">Position horizontale (x)</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Position horizontale (x)</div>
           <Input
             type="number"
             value={currentX}
@@ -254,7 +256,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
             }}
             className="h-7 w-20 font-mono text-xs"
           />
-          <div className="text-[10px] text-zinc-500">
+          <div className="text-[10px] text-[var(--ink-faint)]">
             Position depuis le bord gauche du coffre (px).
           </div>
         </div>
@@ -262,7 +264,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
 
       {isGlyph && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase text-zinc-500">Position verticale (ascent)</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Position verticale (ascent)</div>
           <Input
             type="number"
             key={currentAscent}
@@ -299,7 +301,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
           >
             {patchingAscent ? "…" : `Calibrer pour coffre (x=0, y=${Y_FOR_CHEST_BACKGROUND}, ascent ${ASCENT_FOR_CHEST_BACKGROUND})`}
           </Button>
-          <div className="text-[10px] text-zinc-500 leading-snug">
+          <div className="text-[10px] text-[var(--ink-faint)] leading-snug">
             {`Zone des slots : ascent ${ASCENT_FOR_CHEST_BACKGROUND} → glyphe à y=${Y_FOR_CHEST_BACKGROUND} (bordure du coffre). Pour aligner coffre ET inventaire joueur simultanément, ajoute 1px de padding transparent en haut du PNG.`}
           </div>
         </div>
@@ -334,38 +336,44 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
   const fontAssets = allAssets.filter((a) => a.type === "font");
+  const placeholderLocation = useMemo(
+    () => ({ kind: "menu" as const, menuId }),
+    [menuId],
+  );
+  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
       <div>
         <label
           htmlFor="layer-edit-text"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Texte (MiniMessage) — {textEdit.lang}
         </label>
-        <textarea
-          id="layer-edit-text"
+        <PlaceholderInput
+          multiline
           value={textEdit.value}
-          onChange={(e) =>
+          onChange={(v) =>
             setI18nValue({
               packId,
               lt: layer.value,
               lang: textEdit.lang,
-              value: e.target.value,
+              value: v,
             })
           }
-          className="min-h-[80px] w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none"
+          entries={placeholderEntries}
+          placeholder={t("layerEditForm.textPlaceholder")}
         />
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+      <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
+        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">Aperçu</div>
         <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="layer-edit-font" className="text-[10px] uppercase text-zinc-500">Police personnalisée</label>
+        <label htmlFor="layer-edit-font" className="text-[10px] uppercase text-[var(--ink-faint)]">Police personnalisée</label>
         <select
           id="layer-edit-font"
           value={layer.fontAssetId ?? ""}
@@ -378,7 +386,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
               patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
             });
           }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+          className="h-8 w-full rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 text-xs text-[var(--ink)]"
         >
           <option value="">Aucune (vanilla)</option>
           {fontAssets.map((f) => (
@@ -386,7 +394,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           ))}
         </select>
         {fontAssets.length === 0 ? (
-          <div className="text-[10px] text-zinc-500 leading-snug">
+          <div className="text-[10px] text-[var(--ink-faint)] leading-snug">
             Importe une police via l'onglet Assets pour afficher ce texte dans la zone d'inventaire (ascent négatif).
           </div>
         ) : null}
@@ -409,7 +417,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">X</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">X</div>
           <Input
             type="number"
             value={layer.x}
@@ -423,7 +431,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Y</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Y</div>
           <Input
             type="number"
             value={layer.y}
@@ -437,7 +445,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           />
         </div>
       </div>
-      <div className="text-[10px] text-zinc-500 leading-snug">
+      <div className="text-[10px] text-[var(--ink-faint)] leading-snug">
         X depuis le bord gauche (titre naturel = 8) · Y depuis le haut (barre = 5–6, inventaire ≥ 18).
       </div>
     </div>
@@ -454,39 +462,46 @@ interface PlainLayerFormProps {
 }
 
 function PlainLayerForm({ packId, menuId, index, layer }: PlainLayerFormProps) {
+  const { t } = useTranslation();
   const textEdit = useTextEdit(packId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const placeholderLocation = useMemo(
+    () => ({ kind: "menu" as const, menuId }),
+    [menuId],
+  );
+  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
-      <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
+      <div className="rounded border border-[var(--line)] bg-[var(--card-surface)]/60 px-2.5 py-2 text-[10px] text-[var(--ink-mut)] leading-snug">
         Titre vanilla — aucun resource pack requis. Le texte s'affiche avec la police MC par défaut.
-        MiniMessage supporté (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
-        <code className="text-zinc-300">{"<bold>"}</code>, etc.).
+        MiniMessage supporté (<code className="text-[var(--ink-2)]">{"<gold>"}</code>,{" "}
+        <code className="text-[var(--ink-2)]">{"<bold>"}</code>, etc.).
       </div>
       <div>
         <label
           htmlFor={`plain-layer-text-${index}`}
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Texte (MiniMessage) — {textEdit.lang}
         </label>
-        <textarea
-          id={`plain-layer-text-${index}`}
+        <PlaceholderInput
+          multiline
           value={textEdit.value}
-          onChange={(e) =>
+          onChange={(v) =>
             setI18nValue({
               packId,
               lt: layer.value,
               lang: textEdit.lang,
-              value: e.target.value,
+              value: v,
             })
           }
-          className="min-h-[60px] w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none"
+          entries={placeholderEntries}
+          placeholder={t("layerEditForm.plainPlaceholder")}
         />
       </div>
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+      <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
+        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">Aperçu</div>
         <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>
@@ -506,11 +521,11 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
       <div>
         <label
           htmlFor="layer-edit-external-provider"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Provider
         </label>
@@ -526,7 +541,7 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
               patch: { provider } as Partial<MenuTitleLayer>,
             });
           }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+          className="h-8 w-full rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 text-xs text-[var(--ink)]"
         >
           <option value="nexo">nexo</option>
           <option value="oraxen">oraxen</option>
@@ -537,7 +552,7 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
       <div>
         <label
           htmlFor="layer-edit-external-name"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Glyph name
         </label>
@@ -575,6 +590,11 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
   const fontAssets = allAssets.filter((a) => a.type === "font");
+  const placeholderLocation = useMemo(
+    () => ({ kind: "menu" as const, menuId }),
+    [menuId],
+  );
+  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
 
   // Y-overflow: line i renders at y + i*lineHeight, must be ≤ 140.
   const lines = textEdit.value.split("\n");
@@ -588,33 +608,33 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
     });
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
       <div>
         <label
           htmlFor={`textarea-layer-content-${index}`}
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
+          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
         >
           Texte (MiniMessage, multi-ligne) — {textEdit.lang}
         </label>
-        <textarea
-          id={`textarea-layer-content-${index}`}
-          data-testid="textarea-content"
+        <PlaceholderInput
+          multiline
+          rows={3}
           value={textEdit.value}
-          onChange={(e) =>
+          onChange={(v) =>
             setI18nValue({
               packId,
               lt: layer.value,
               lang: textEdit.lang,
-              value: e.target.value,
+              value: v,
             })
           }
-          rows={3}
-          className="min-h-[80px] w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none"
+          entries={placeholderEntries}
+          placeholder={t("layerEditForm.textareaPlaceholder")}
         />
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+      <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
+        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">Aperçu</div>
         {lines.map((line, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: order is stable within preview
           <MiniMessageInline key={i} source={line} className="font-mono text-xs" />
@@ -623,7 +643,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Hauteur de ligne (px)</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Hauteur de ligne (px)</div>
           <Input
             type="number"
             data-testid="textarea-line-height"
@@ -647,21 +667,21 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
                 patch: { lineHeight: (layer.size ?? 8) + 2 } as Partial<MenuTitleLayer>,
               })
             }
-            className="h-7 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-zinc-300 hover:bg-zinc-700"
+            className="h-7 rounded border border-[var(--line)] bg-[var(--raised-2)] px-2 text-[10px] text-[var(--ink-2)] hover:bg-[var(--raised-2)]"
           >
             {t("layerEditForm.size.align")}
           </button>
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Alignement</div>
-          <div className="flex rounded border border-zinc-700 bg-zinc-900 p-0.5">
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Alignement</div>
+          <div className="flex rounded border border-[var(--line)] bg-[var(--card-surface)] p-0.5">
             <button
               type="button"
               data-testid="textarea-align-left"
               onClick={() => setAlignment("left")}
               className={cn(
                 "flex-1 rounded p-1",
-                layer.alignment === "left" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                layer.alignment === "left" ? "bg-[var(--raised-2)] text-[var(--ink)]" : "text-[var(--ink-mut)]",
               )}
               title="Aligner à gauche"
               aria-label="Aligner à gauche"
@@ -674,7 +694,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
               onClick={() => setAlignment("center")}
               className={cn(
                 "flex-1 rounded p-1",
-                layer.alignment === "center" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                layer.alignment === "center" ? "bg-[var(--raised-2)] text-[var(--ink)]" : "text-[var(--ink-mut)]",
               )}
               title="Centrer"
               aria-label="Centrer"
@@ -687,7 +707,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
               onClick={() => setAlignment("right")}
               className={cn(
                 "flex-1 rounded p-1",
-                layer.alignment === "right" ? "bg-zinc-700 text-zinc-100" : "text-zinc-400",
+                layer.alignment === "right" ? "bg-[var(--raised-2)] text-[var(--ink)]" : "text-[var(--ink-mut)]",
               )}
               title="Aligner à droite"
               aria-label="Aligner à droite"
@@ -699,7 +719,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] uppercase text-zinc-500">Police personnalisée</div>
+        <div className="text-[10px] uppercase text-[var(--ink-faint)]">Police personnalisée</div>
         <select
           data-testid="textarea-font"
           value={layer.fontAssetId ?? ""}
@@ -710,7 +730,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
               patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
             });
           }}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+          className="h-8 w-full rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 text-xs text-[var(--ink)]"
         >
           <option value="">Aucune (vanilla)</option>
           {fontAssets.map((f) => (
@@ -735,7 +755,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
       )}
 
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] uppercase text-zinc-500">Largeur (px)</div>
+        <div className="text-[10px] uppercase text-[var(--ink-faint)]">Largeur (px)</div>
         <Input
           type="number"
           data-testid="textarea-width"
@@ -755,7 +775,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">X</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">X</div>
           <Input
             type="number"
             data-testid="textarea-x"
@@ -770,7 +790,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
           />
         </div>
         <div className="flex flex-col gap-1.5 flex-1">
-          <div className="text-[10px] uppercase text-zinc-500">Y (ligne 0)</div>
+          <div className="text-[10px] uppercase text-[var(--ink-faint)]">Y (ligne 0)</div>
           <Input
             type="number"
             data-testid="textarea-y"
@@ -789,7 +809,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
       {overflows ? (
         <div
           data-testid="textarea-y-overflow-warning"
-          className="rounded border border-amber-700 bg-amber-950/40 px-2.5 py-2 text-[11px] text-amber-200"
+          className="rounded-[10px] border border-[var(--gold-soft)] bg-[var(--gold-soft)] px-2.5 py-2 text-[11px] text-[var(--gold)]"
         >
           ⚠ Certaines lignes dépassent la zone rendable (Y &gt; 140) et seront tronquées.
         </div>
