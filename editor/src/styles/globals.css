@@ -2,37 +2,95 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  /* Editor surfaces (custom Artisan tokens) */
-  --color-bg: oklch(0.14 0 0);
-  --color-bg-1: oklch(0.18 0 0);
-  --color-bg-2: oklch(0.22 0 0);
-  --color-fg: oklch(0.95 0 0);
-  --color-fg-muted: oklch(0.65 0 0);
-  --color-border-soft: oklch(0.28 0 0);
-  --color-warning: oklch(0.74 0.16 60);
+/* ================================================================
+   ARTISAN — Atelier design system
+   Dark · warm & earthy · elegant · rounded · a whisper of pixel
+   Default direction = "Atelier" (espresso + terracotta + sand).
+   ================================================================ */
 
-  /* shadcn semantic tokens (zinc-on-dark) */
-  --background: oklch(0.14 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.18 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.74 0.16 142);
-  --primary-foreground: oklch(0.14 0 0);
-  --secondary: oklch(0.26 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.26 0 0);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.62 0.21 27);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.28 0 0);
-  --input: oklch(0.28 0 0);
-  --ring: oklch(0.74 0.16 142);
-  --radius: 0.5rem;
+:root {
+  /* ---- Atelier tokens — warm charcoal, low chroma (neutral, not sepia) ---- */
+  --bg:            #1A1815;
+  --bg-deep:       #131110;
+  --raised:        #221F1B;
+  --raised-2:      #2A2622;
+  --card-surface:  #242019;
+  --hover:         #322C26;
+  --inset:         #15120F;
+
+  --line:          #393229;
+  --line-soft:     #2A251F;
+  --line-strong:   #4D453B;
+
+  --ink:           #F1ECE4;
+  --ink-2:         #C2BAAF;
+  --ink-mut:       #8E867A;
+  --ink-faint:     #615A51;
+
+  --terra:         #DF6B41;
+  --terra-deep:    #BE522E;
+  --terra-soft:    rgba(223, 107, 65, .16);
+  --terra-line:    rgba(223, 107, 65, .48);
+
+  --sand:          #F0DDB8;
+  --sand-soft:     rgba(240, 221, 184, .12);
+
+  --gold:          #E2A85A;
+  --gold-soft:     rgba(226, 168, 90, .13);
+
+  --sage:          #5DBA70;
+  --sage-soft:     rgba(93, 186, 112, .15);
+
+  --brick:         #E85758;
+  --brick-soft:    rgba(232, 87, 88, .15);
+
+  --font-display:  'Spectral', Georgia, serif;
+  --font-body:     'Hanken Grotesque', system-ui, sans-serif;
+  --font-mono:     'IBM Plex Mono', ui-monospace, monospace;
+
+  --r-xs:  7px;
+  --r-sm:  10px;
+  --r-md:  14px;
+  --r-lg:  20px;
+  --r-xl:  28px;
+  --r-pill: 999px;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .30);
+  --sh-2: 0 6px 20px -8px rgba(0, 0, 0, .55);
+  --sh-3: 0 22px 60px -18px rgba(0, 0, 0, .66);
+  --glow-terra: 0 0 0 1px var(--terra-line), 0 8px 26px -10px rgba(223, 107, 65, .45);
+  --ring-terra: 0 0 0 3px var(--terra-soft), 0 0 0 1px var(--terra-line);
+
+  /* ---- Legacy editor aliases (mapped onto Atelier) ---- */
+  --color-bg: var(--bg);
+  --color-bg-1: var(--raised);
+  --color-bg-2: var(--card-surface);
+  --color-fg: var(--ink);
+  --color-fg-muted: var(--ink-mut);
+  --color-border-soft: var(--line);
+  --color-warning: var(--gold);
+
+  /* ---- shadcn semantic tokens mapped to Atelier ---- */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--card-surface);
+  --card-foreground: var(--ink);
+  --popover: var(--card-surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--terra);
+  --primary-foreground: #2A140C;
+  --secondary: var(--raised-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--raised);
+  --muted-foreground: var(--ink-mut);
+  --accent: var(--hover);
+  --accent-foreground: var(--ink);
+  --destructive: var(--brick);
+  --destructive-foreground: var(--ink);
+  --border: var(--line-soft);
+  --input: var(--line);
+  --ring: var(--terra);
+  --radius: 14px;
 }
 
 @theme inline {
@@ -55,11 +113,35 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-card: var(--radius);
+
+  --color-terra: var(--terra);
+  --color-terra-deep: var(--terra-deep);
+  --color-sand: var(--sand);
+  --color-gold: var(--gold);
+  --color-sage: var(--sage);
+  --color-brick: var(--brick);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-mut: var(--ink-mut);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-raised: var(--raised);
+  --color-raised-2: var(--raised-2);
+  --color-bg-deep: var(--bg-deep);
+  --color-inset: var(--inset);
+  --color-hover: var(--hover);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-card: var(--r-lg);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
 :root {
@@ -71,10 +153,321 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-fg);
+  background: var(--bg);
+  color: var(--ink);
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--terra-soft); }
+
+/* ----------------------------------------------------------------
+   Warm paper grain — barely there, opt-in via .grain
+---------------------------------------------------------------- */
+.grain::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: .035; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ----------------------------------------------------------------
+   TYPOGRAPHY UTILITIES
+---------------------------------------------------------------- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -.01em;
+}
+.serif { font-family: var(--font-display); }
+.mono  { font-family: var(--font-mono); }
+
+.eyebrow {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-weight: 600;
+  color: var(--ink-mut);
+}
+
+/* ----------------------------------------------------------------
+   BUTTONS
+---------------------------------------------------------------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  height: 38px; padding: 0 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--raised-2);
+  color: var(--ink);
+  font-size: 13.5px; font-weight: 600;
+  letter-spacing: .005em;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .12s ease, box-shadow .16s ease, filter .16s ease;
+}
+.btn:hover { background: var(--hover); border-color: var(--line-strong); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring-terra); }
+.btn .ico { width: 16px; height: 16px; }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--terra), var(--terra-deep));
+  border-color: transparent; color: #2A130A;
+  box-shadow: 0 8px 22px -12px rgba(223, 107, 65, .75);
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+  background: linear-gradient(180deg, var(--terra), var(--terra-deep));
+  border-color: transparent;
+}
+
+.btn-deploy {
+  background: linear-gradient(180deg, var(--sage), color-mix(in oklab, var(--sage) 80%, #000));
+  border-color: transparent; color: #14180D;
+  box-shadow: 0 8px 22px -12px rgba(93, 186, 112, .65);
+}
+.btn-deploy:hover {
+  filter: brightness(1.06);
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--sage), color-mix(in oklab, var(--sage) 80%, #000));
+}
+
+.btn-ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+.btn-ghost:hover { background: var(--hover); color: var(--ink); border-color: transparent; }
+
+.btn-outline { background: transparent; }
+
+.btn-danger { color: var(--brick); border-color: transparent; background: transparent; }
+.btn-danger:hover { background: var(--brick-soft); color: var(--brick); border-color: transparent; }
+
+.btn-sm { height: 31px; padding: 0 12px; font-size: 12.5px; border-radius: var(--r-sm); }
+.btn-icon { width: 38px; padding: 0; }
+.btn-icon.btn-sm { width: 31px; }
+
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+
+/* ----------------------------------------------------------------
+   INPUTS
+---------------------------------------------------------------- */
+.field-label {
+  display: block; font-size: 11px; font-weight: 600;
+  letter-spacing: .04em; color: var(--ink-mut); margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.input, .textarea, .select {
+  width: 100%;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 13.5px;
+  padding: 10px 13px;
+  font-family: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.input { height: 40px; }
+.input::placeholder, .textarea::placeholder { color: var(--ink-faint); }
+.input:focus, .textarea:focus, .select:focus {
+  outline: none; border-color: var(--terra-line); box-shadow: var(--ring-terra);
+}
+.textarea { resize: vertical; line-height: 1.5; min-height: 80px; }
+
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A8876' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+}
+
+.search {
+  display: flex; align-items: center; gap: 9px;
+  height: 38px; padding: 0 13px;
+  background: var(--inset); border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+}
+.search input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font-size: 13px; font-family: inherit; }
+.search input::placeholder { color: var(--ink-faint); }
+.search .ico { width: 15px; height: 15px; color: var(--ink-faint); }
+
+/* ----------------------------------------------------------------
+   CARDS & SURFACES
+---------------------------------------------------------------- */
+.card {
+  background: var(--card-surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+.panel {
+  background: var(--raised);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg);
+}
+
+/* ----------------------------------------------------------------
+   CHIPS / BADGES / PILLS
+---------------------------------------------------------------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px; font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .14s ease;
+}
+.chip:hover { border-color: var(--line-strong); color: var(--ink); }
+.chip.is-active {
+  border-color: var(--terra-line);
+  background: var(--terra-soft);
+  color: var(--terra);
+}
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 19px; padding: 0 7px;
+  border-radius: var(--r-pill);
+  font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  background: var(--raised-2); color: var(--ink-mut);
+}
+.badge-amber { background: var(--gold-soft); color: var(--gold); }
+.badge-sage  { background: var(--sage-soft); color: var(--sage); }
+.badge-terra { background: var(--terra-soft); color: var(--terra); }
+.badge-brick { background: var(--brick-soft); color: var(--brick); }
+
+.dot { width: 7px; height: 7px; border-radius: var(--r-pill); }
+
+/* ----------------------------------------------------------------
+   TABS
+---------------------------------------------------------------- */
+.tabstrip { display: flex; align-items: center; gap: 4px; }
+.tab {
+  position: relative;
+  height: 38px; padding: 0 14px;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: none;
+  color: var(--ink-mut); font-size: 13px; font-weight: 600;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.tab:hover { color: var(--ink-2); }
+.tab.is-active { color: var(--ink); }
+.tab.is-active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px;
+  height: 2px; border-radius: 2px; background: var(--terra);
+}
+
+.utab {
+  background: none; border: none; padding: 8px 2px;
+  color: var(--ink-mut); font-size: 12.5px; font-weight: 600;
+  position: relative;
+  font-family: inherit;
+  cursor: pointer;
+}
+.utab:hover { color: var(--ink-2); }
+.utab.is-active { color: var(--ink); }
+.utab.is-active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px; border-radius: 2px; background: var(--sage);
+}
+
+/* ----------------------------------------------------------------
+   PIXEL MOTIF — discreet craft nod (3x3 grid, terracotta)
+---------------------------------------------------------------- */
+.pixel-mark {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 4px);
+  grid-template-rows: repeat(3, 4px);
+  gap: 1px;
+}
+.pixel-mark i { background: var(--terra); border-radius: 1px; }
+.pixel-mark i:nth-child(2),
+.pixel-mark i:nth-child(4),
+.pixel-mark i:nth-child(6),
+.pixel-mark i:nth-child(8) { opacity: .35; }
+
+/* divider */
+.rule { height: 1px; background: var(--line-soft); border: none; margin: 0; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: var(--r-pill); border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Konva canvas backdrop helper */
+.stage-bg-dots {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(230, 203, 159, .07) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--inset);
+}
+.stage-bg-glow {
+  background: radial-gradient(120% 80% at 50% 0%, rgba(223, 107, 65, .05), transparent 60%);
+}
+
+/* Placeholder autocomplete ------------------------------------------------- */
+.placeholder-popup {
+  position: absolute;
+  z-index: 30;
+  min-width: 260px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--card-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2);
+}
+.placeholder-popup li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.placeholder-popup li[aria-selected="true"] { background: var(--hover); }
+.placeholder-popup li .name { color: var(--terra); }
+.placeholder-popup li .type { color: var(--ink-faint); font-size: 10px; }
+.placeholder-popup li .sample { color: var(--ink-mut); font-size: 10px; }
+.placeholder-popup li .origin {
+  color: var(--ink-faint); font-size: 9px; text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.placeholder-popup li.empty {
+  grid-template-columns: 1fr;
+  color: var(--ink-mut);
+  font-style: italic;
+  cursor: default;
+}
+.placeholder-hint {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+}
+.placeholder-hint code {
+  background: var(--inset);
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--sand);
 }
