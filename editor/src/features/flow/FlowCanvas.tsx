@@ -1,3 +1,5 @@
+import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Appearance } from "@/domain/types";
@@ -123,7 +125,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
 
 function EmptyHint({ label }: { label: string }) {
   return (
-    <div className="flex h-full items-center justify-center bg-zinc-950 text-xs text-zinc-500">
+    <div className="flex h-full items-center justify-center bg-[var(--bg-deep)] text-xs text-[var(--ink-faint)]">
       {label}
     </div>
   );
@@ -158,10 +160,10 @@ function ElementEditor({
   const addAppearance = useAccountStore((s) => s.addAppearance);
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-[var(--bg-deep)]">
       {/* Element identity strip — preview of the focused state. */}
-      <div className="flex items-center gap-3 border-zinc-800 border-b bg-zinc-900 px-3 py-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
+      <div className="flex items-center gap-3 border-[var(--line-soft)] border-b bg-[var(--card-surface)] px-3 py-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded border border-[var(--line-soft)] bg-[var(--bg-deep)]">
           {headerTextureUrl ? (
             <img
               src={headerTextureUrl}
@@ -171,12 +173,12 @@ function ElementEditor({
               style={{ imageRendering: "pixelated" }}
             />
           ) : (
-            <span className="text-[8px] text-zinc-500">{headerMaterial.slice(0, 4)}</span>
+            <span className="text-[8px] text-[var(--ink-faint)]">{headerMaterial.slice(0, 4)}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-zinc-200">{headerTitle || headerMaterial}</div>
-          <div className="text-[10px] text-zinc-500">
+          <div className="font-mono text-xs text-[var(--ink)]">{headerTitle || headerMaterial}</div>
+          <div className="text-[10px] text-[var(--ink-faint)]">
             {menuTitle} ·{" "}
             {t(element.appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
               count: element.appearances.length,
@@ -253,7 +255,7 @@ function IterationField({
         <button
           type="button"
           onClick={enable}
-          className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          className="rounded border border-[var(--line)] border-dashed px-2 py-1 text-[10px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
           title={t("flow.iterateBindHint")}
         >
           {t("flow.iterationEnable")}
@@ -272,20 +274,20 @@ function IterationField({
           type="button"
           onClick={disable}
           title={t("flow.iterationDisable")}
-          className="flex h-6 w-6 items-center justify-center rounded text-[12px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          className="flex h-6 w-6 items-center justify-center rounded text-[12px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
         >
           ×
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-mono text-[10px] text-zinc-400">{t("flow.iterationForEach")}</span>
+        <span className="font-mono text-[10px] text-[var(--ink-mut)]">{t("flow.iterationForEach")}</span>
         <Input
           value={iterates.alias}
           placeholder="item"
           onChange={(e) => update({ alias: e.target.value })}
           className="h-7 w-24 px-2 py-0 font-mono text-xs"
         />
-        <span className="font-mono text-[10px] text-zinc-400">{t("flow.iterationIn")}</span>
+        <span className="font-mono text-[10px] text-[var(--ink-mut)]">{t("flow.iterationIn")}</span>
         <Input
           value={iterates.source}
           placeholder="shops"
@@ -299,7 +301,7 @@ function IterationField({
           ))}
         </datalist>
       </div>
-      <p className="text-[10px] text-zinc-500">
+      <p className="text-[10px] text-[var(--ink-faint)]">
         {t("flow.iterationFieldsHint", { example: `{${iterates.alias}.field}` })}
       </p>
     </div>
@@ -377,7 +379,7 @@ function SortableStates({
           <button
             type="button"
             onClick={onAdd}
-            className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            className="self-start rounded border border-[var(--line)] border-dashed px-3 py-1.5 text-xs text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
           >
             {t("flow.addState")}
           </button>
@@ -432,8 +434,8 @@ function StateMaterialIcon({
             title="Pick item from library — or drag a library item here"
             className={
               droppable.isOver
-                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500"
-                : "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950 hover:border-emerald-500"
+                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--terra)] bg-[var(--sage-soft)] ring-2 ring-[var(--terra)]"
+                : "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--line-soft)] bg-[var(--bg-deep)] hover:border-[var(--terra)]"
             }
           >
             {textureUrl ? (
@@ -445,7 +447,7 @@ function StateMaterialIcon({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-zinc-600">{material.slice(0, 3) || "—"}</span>
+              <span className="text-[8px] text-[var(--ink-faint)]">{material.slice(0, 3) || "—"}</span>
             )}
           </button>
         }
@@ -471,7 +473,7 @@ function DragHandleButton({
       title="Drag to reorder state"
       {...sortable.attributes}
       {...sortable.listeners}
-      className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-l border-zinc-800 border-r font-mono text-[12px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 active:cursor-grabbing"
+      className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-l border-[var(--line-soft)] border-r font-mono text-[12px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)] active:cursor-grabbing"
     >
       ⠿
     </button>
@@ -599,7 +601,7 @@ function StateCard({
       <div
         ref={sortable.setNodeRef}
         style={dragStyle}
-        className="flex w-full items-stretch gap-1 rounded border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600"
+        className="flex w-full items-stretch gap-1 rounded border border-[var(--line-soft)] bg-[var(--card-surface)] transition-colors hover:border-[var(--line)]"
       >
         <DragHandleButton sortable={sortable} />
         <button
@@ -607,7 +609,7 @@ function StateCard({
           onClick={() => setSub({ kind: "state", stateIndex })}
           className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-left"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[var(--line-soft)] bg-[var(--bg-deep)]">
             {textureUrl ? (
               <img
                 src={textureUrl}
@@ -617,14 +619,14 @@ function StateCard({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-zinc-600">{material.slice(0, 3) || "—"}</span>
+              <span className="text-[8px] text-[var(--ink-faint)]">{material.slice(0, 3) || "—"}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
+            <div className="font-mono text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
               {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
               {!isDefault && (appearance.if ?? []).length > 0 ? (
-                <span className="ml-1.5 normal-case text-zinc-600">
+                <span className="ml-1.5 normal-case text-[var(--ink-faint)]">
                   ·{" "}
                   {t(
                     (appearance.if ?? []).length === 1
@@ -637,7 +639,7 @@ function StateCard({
             </div>
             <MiniMessageInline
               source={displayTitle}
-              className="block truncate font-mono text-xs text-zinc-200"
+              className="block truncate font-mono text-xs text-[var(--ink)]"
             />
             {lore.length > 0
               ? lore.slice(0, 2).map((line, i) => (
@@ -645,12 +647,12 @@ function StateCard({
                     // biome-ignore lint/suspicious/noArrayIndexKey: lore lines stable per render
                     key={i}
                     source={line}
-                    className="block truncate font-mono text-[10px] text-zinc-400"
+                    className="block truncate font-mono text-[10px] text-[var(--ink-mut)]"
                   />
                 ))
               : null}
             {lore.length > 2 ? (
-              <div className="font-mono text-[10px] text-zinc-600">
+              <div className="font-mono text-[10px] text-[var(--ink-faint)]">
                 {t(lore.length - 2 === 1 ? "flow.moreLinesOne" : "flow.moreLinesOther", {
                   count: lore.length - 2,
                 })}
@@ -667,16 +669,16 @@ function StateCard({
       <div
         ref={sortable.setNodeRef}
         style={dragStyle}
-        className="relative flex w-full items-stretch gap-1 rounded border border-emerald-500 bg-emerald-500/10 text-xs transition-colors"
+        className="relative flex w-full items-stretch gap-1 rounded border border-[var(--terra)] bg-[var(--sage-soft)] text-xs transition-colors"
       >
         <DragHandleButton sortable={sortable} />
         <div className="flex flex-1 flex-col gap-2 px-2.5 py-2">
           {/* Header row — state name + delete. Click header to collapse. */}
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wide">
+            <span className="font-mono text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
               {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
             </span>
-            <span className="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[9px] text-emerald-200 uppercase">
+            <span className="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[9px] text-[var(--sage)] uppercase">
               {t("flow.editing")}
             </span>
             <span className="ml-auto" />
@@ -693,7 +695,7 @@ function StateCard({
                   });
                   setSub(null);
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
               >
                 ×
               </button>
@@ -723,17 +725,21 @@ function StateCard({
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <FieldLabel>{t("flow.titleLabel", { lang: activeLang })}</FieldLabel>
-              <Input
+              <PlaceholderInput
                 value={title}
+                onChange={(v) => updateTitle(v)}
+                entries={usePlaceholderEntries(packId, {
+                  kind: "element",
+                  menuId: menu.id,
+                  elementId: element.id,
+                })}
                 placeholder={t("flow.titlePlaceholder")}
-                onChange={(e) => updateTitle(e.target.value)}
                 onFocus={() => setSub({ kind: "state", stateIndex })}
-                className="h-8 px-2 py-0 text-xs"
               />
               <ArgInsertBar onInsert={(name) => updateTitle(`${title}{${name}}`)} />
               {looksLikeMiniMessage(title) ? (
-                <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-                  <span className="mr-2 text-[9px] text-zinc-600 uppercase">
+                <div className="mt-1 rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+                  <span className="mr-2 text-[9px] text-[var(--ink-faint)] uppercase">
                     {t("menuProperties.preview")}
                   </span>
                   <MiniMessageInline source={title} className="font-mono text-xs" />
@@ -760,10 +766,14 @@ function StateCard({
           {/* Lore */}
           <div>
             <FieldLabel>{t("flow.loreLabel", { lang: activeLang })}</FieldLabel>
-            <textarea
+            <PlaceholderInput
+              multiline
               rows={lore.length > 2 ? 4 : 2}
-              placeholder={t("flow.lorePlaceholder")}
               value={loreDraft}
+              onChange={(v) => {
+                setLoreDraft(v);
+                updateLore(v.replace(/\n+$/, ""));
+              }}
               onFocus={() => {
                 setLoreHasFocus(true);
                 setSub({ kind: "state", stateIndex });
@@ -774,11 +784,12 @@ function StateCard({
                 updateLore(trimmed);
                 setLoreDraft(trimmed);
               }}
-              onChange={(e) => {
-                setLoreDraft(e.target.value);
-                updateLore(e.target.value.replace(/\n+$/, ""));
-              }}
-              className="w-full rounded border border-zinc-800 bg-zinc-950 p-2 font-mono text-xs"
+              entries={usePlaceholderEntries(packId, {
+                kind: "element",
+                menuId: menu.id,
+                elementId: element.id,
+              })}
+              placeholder={t("flow.lorePlaceholder")}
             />
             <ArgInsertBar
               onInsert={(name) => {
@@ -788,8 +799,8 @@ function StateCard({
               }}
             />
             {lore.length > 0 && pack ? (
-              <div className="mt-1 flex flex-col gap-0.5 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-                <span className="text-[9px] text-zinc-600 uppercase">preview</span>
+              <div className="mt-1 flex flex-col gap-0.5 rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+                <span className="text-[9px] text-[var(--ink-faint)] uppercase">preview</span>
                 {lore.map((line, i) => (
                   <MiniMessageInline
                     // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
@@ -948,7 +959,7 @@ function CommandIdField({ packId, commandId }: { packId: PackId; commandId: Comm
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+      {error ? <div className="mt-1 text-[10px] text-[var(--brick)]">{error}</div> : null}
     </div>
   );
 }
@@ -1005,7 +1016,7 @@ function ElementIdField({
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+      {error ? <div className="mt-1 text-[10px] text-[var(--brick)]">{error}</div> : null}
     </div>
   );
 }
@@ -1067,10 +1078,10 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
   const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
-        <div className="font-mono text-xs text-zinc-200">{commandSignature(command)}</div>
-        <div className="text-[10px] text-zinc-500">
+    <div className="flex h-full flex-col bg-[var(--bg-deep)]">
+      <div className="border-[var(--line-soft)] border-b bg-[var(--card-surface)] px-3 py-2">
+        <div className="font-mono text-xs text-[var(--ink)]">{commandSignature(command)}</div>
+        <div className="text-[10px] text-[var(--ink-faint)]">
           {command.permission ? `perm: ${command.permission} · ` : ""}command
         </div>
       </div>
@@ -1119,7 +1130,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
           <CommandArgsEditor packId={packId} command={command} />
         </Lane>
         <Lane label={t("command.steps")}>
-          <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+          <div className="overflow-x-auto rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
             {/* Args declared above are referenceable as {name} in any text
                 field of the actions inside this step tree. */}
             <PlaceholderProvider
@@ -1196,14 +1207,14 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] text-zinc-500">{t("command.argumentsHint", { tag: "{name}" })}</p>
+      <p className="text-[10px] text-[var(--ink-faint)]">{t("command.argumentsHint", { tag: "{name}" })}</p>
       {orderError && (
-        <div className="rounded border border-amber-500/60 bg-amber-500/5 px-2 py-1.5 text-[10px] text-amber-300">
+        <div className="rounded border border-[var(--gold)]/60 bg-[var(--gold-soft)] px-2 py-1.5 text-[10px] text-[var(--gold)]">
           {orderError}
         </div>
       )}
       {command.arguments.length === 0 ? (
-        <div className="rounded border border-zinc-800 border-dashed bg-zinc-900/40 px-2 py-3 text-[11px] text-zinc-500">
+        <div className="rounded border border-[var(--line-soft)] border-dashed bg-[var(--card-surface)]/40 px-2 py-3 text-[11px] text-[var(--ink-faint)]">
           {t("command.noArguments", { name: command.name })}
         </div>
       ) : (
@@ -1216,7 +1227,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
               className={
                 isInvalid
                   ? "flex flex-col gap-1 rounded border border-red-500/60 bg-red-500/5 p-1.5"
-                  : "flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+                  : "flex flex-col gap-1 rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-1.5"
               }
             >
               {/* Row 1: identity controls + remove button */}
@@ -1234,7 +1245,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                 <select
                   value={arg.type}
                   onChange={(e) => update(i, { type: e.target.value as CommandArg["type"] })}
-                  className="h-8 rounded border border-zinc-800 bg-zinc-900 px-1.5 font-mono text-xs text-zinc-200"
+                  className="h-8 rounded border border-[var(--line-soft)] bg-[var(--card-surface)] px-1.5 font-mono text-xs text-[var(--ink)]"
                 >
                   {ARG_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -1247,8 +1258,8 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                   onClick={() => update(i, { required: !arg.required })}
                   className={
                     arg.required
-                      ? "h-8 rounded border border-emerald-500 bg-emerald-500/10 px-2 font-mono text-[11px] text-emerald-200"
-                      : "h-8 rounded border border-zinc-700 px-2 font-mono text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                      ? "h-8 rounded border border-[var(--terra)] bg-[var(--sage-soft)] px-2 font-mono text-[11px] text-[var(--terra)]"
+                      : "h-8 rounded border border-[var(--line)] px-2 font-mono text-[11px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
                   }
                 >
                   {arg.required ? t("command.required") : t("command.optional")}
@@ -1257,7 +1268,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                   type="button"
                   title={t("command.removeArg")}
                   onClick={() => removeCommandArg({ packId, commandId: command.id, index: i })}
-                  className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
                 >
                   ×
                 </button>
@@ -1266,7 +1277,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
               {!arg.required ? (
                 <div className="flex items-center gap-2 pl-0.5">
                   <div className="flex items-center gap-1">
-                    <span className="font-mono text-[10px] text-zinc-500">
+                    <span className="font-mono text-[10px] text-[var(--ink-faint)]">
                       {t("command.defaultLabel")}:
                     </span>
                     <Input
@@ -1278,7 +1289,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                     />
                   </div>
                   {arg.type === "player" ? (
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--ink-mut)]">
                       <input
                         type="checkbox"
                         checked={arg.default === "{sender}"}
@@ -1293,7 +1304,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                 </div>
               ) : null}
               {isInvalid ? (
-                <div className="text-[10px] text-red-300">
+                <div className="text-[10px] text-[var(--brick)]">
                   {arg.name === ""
                     ? t("command.argNeedsName")
                     : t("command.argNameDup", { name: arg.name })}
@@ -1306,7 +1317,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
       <button
         type="button"
         onClick={addArg}
-        className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        className="self-start rounded border border-[var(--line)] border-dashed px-3 py-1.5 text-xs text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
       >
         {t("command.addArg")}
       </button>
@@ -1362,7 +1373,7 @@ function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogI
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-red-300">{error}</div> : null}
+      {error ? <div className="mt-1 text-[10px] text-[var(--brick)]">{error}</div> : null}
     </div>
   );
 }
@@ -1386,10 +1397,10 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
   const getText = useGetText(packId);
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
+    <div className="flex h-full flex-col bg-[var(--bg-deep)]">
+      <div className="border-[var(--line-soft)] border-b bg-[var(--card-surface)] px-3 py-2">
         <div className="font-mono text-xs text-violet-300">{dialog.id}</div>
-        <div className="text-[10px] text-zinc-500">
+        <div className="text-[10px] text-[var(--ink-faint)]">
           dialog · {dialog.buttons.length} button{dialog.buttons.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -1405,7 +1416,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
             }
           />
           <div className="mt-2 flex items-center gap-2">
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--ink-mut)]">
               <input
                 type="checkbox"
                 checked={dialog.canCloseWithEscape}
@@ -1430,7 +1441,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: body index stable per render
                 key={i}
-                className="flex items-start gap-1.5 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+                className="flex items-start gap-1.5 rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-1.5"
               >
                 {body.type === "text" ? (
                   <div className="flex-1">
@@ -1490,7 +1501,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 <button
                   type="button"
                   onClick={() => removeDialogBody({ packId, dialogId: dialog.id, index: i })}
-                  className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
                 >
                   ×
                 </button>
@@ -1506,7 +1517,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     body: { type: "text", text: { key: "" as Dialog["title"]["key"] } },
                   })
                 }
-                className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                className="rounded border border-[var(--line)] border-dashed px-2 py-1 text-[10px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
               >
                 {t("dialog.addBodyText")}
               </button>
@@ -1519,7 +1530,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     body: { type: "item", material: "DIAMOND", count: 1 },
                   })
                 }
-                className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                className="rounded border border-[var(--line)] border-dashed px-2 py-1 text-[10px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
               >
                 {t("dialog.addBodyItem")}
               </button>
@@ -1533,10 +1544,10 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: input index stable per render
                 key={i}
-                className="flex flex-col gap-1.5 rounded border border-zinc-800 bg-zinc-900/40 p-1.5"
+                className="flex flex-col gap-1.5 rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-1.5"
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">
+                  <span className="rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--ink-mut)]">
                     {input.type}
                   </span>
                   <Input
@@ -1570,14 +1581,14 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     onClick={() =>
                       removeDialogInput({ packId, dialogId: dialog.id, index: i })
                     }
-                    className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                    className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
                   >
                     ×
                   </button>
                 </div>
                 {input.type === "number_range" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMin")}</span>
+                    <span className="font-mono text-[10px] text-[var(--ink-faint)]">{t("dialog.inputMin")}</span>
                     <Input
                       type="number"
                       value={input.min}
@@ -1591,7 +1602,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMax")}</span>
+                    <span className="font-mono text-[10px] text-[var(--ink-faint)]">{t("dialog.inputMax")}</span>
                     <Input
                       type="number"
                       value={input.max}
@@ -1605,7 +1616,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputDefault")}</span>
+                    <span className="font-mono text-[10px] text-[var(--ink-faint)]">{t("dialog.inputDefault")}</span>
                     <Input
                       type="number"
                       value={input.default}
@@ -1623,7 +1634,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 ) : null}
                 {input.type === "text" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-zinc-500">{t("dialog.inputMaxLength")}</span>
+                    <span className="font-mono text-[10px] text-[var(--ink-faint)]">{t("dialog.inputMaxLength")}</span>
                     <Input
                       type="number"
                       min={1}
@@ -1643,7 +1654,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 ) : null}
                 {input.type === "bool" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--ink-mut)]">
                       <input
                         type="checkbox"
                         checked={input.default}
@@ -1671,7 +1682,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   onClick={() =>
                     addDialogInput({ packId, dialogId: dialog.id, inputType: type })
                   }
-                  className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                  className="rounded border border-[var(--line)] border-dashed px-2 py-1 text-[10px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
                 >
                   + {type}
                 </button>
@@ -1683,9 +1694,9 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
         <Lane label={t("dialog.buttonsLabel")}>
           <div className="flex flex-col gap-3">
             {dialog.buttons.map((btn, btnIndex) => (
-              <div key={btn.id} className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
+              <div key={btn.id} className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
                 <div className="mb-2 flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] text-zinc-500">{btn.id}</span>
+                  <span className="font-mono text-[10px] text-[var(--ink-faint)]">{btn.id}</span>
                   <Input
                     value={getText(btn.label)}
                     placeholder={t("dialog.buttonLabelPlaceholder")}
@@ -1710,13 +1721,13 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                           buttonIndex: btnIndex,
                         })
                       }
-                      className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                      className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
                     >
                       ×
                     </button>
                   ) : null}
                 </div>
-                <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+                <div className="overflow-x-auto rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
                   <DialogButtonStepPseudocode
                     packId={packId}
                     dialogId={dialog.id}
@@ -1730,7 +1741,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
             <button
               type="button"
               onClick={() => addDialogButton({ packId, dialogId: dialog.id })}
-              className="self-start rounded border border-zinc-700 border-dashed px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+              className="self-start rounded border border-[var(--line)] border-dashed px-3 py-1.5 text-xs text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
             >
               {t("dialog.addButton")}
             </button>
@@ -1748,7 +1759,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
 function Lane({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="mb-1.5 font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+      <div className="mb-1.5 font-mono text-[10px] text-[var(--ink-faint)] uppercase tracking-wider">
         {label}
       </div>
       {children}
@@ -1757,5 +1768,5 @@ function Lane({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 font-mono text-[10px] text-zinc-500 uppercase">{children}</div>;
+  return <div className="mb-1 font-mono text-[10px] text-[var(--ink-faint)] uppercase">{children}</div>;
 }
