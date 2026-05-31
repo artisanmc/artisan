@@ -36,12 +36,37 @@ const BRANCH_NAME_RE = /^[a-zA-Z0-9_\-./]+$/;
 
 export const userBranchesRouter = new Hono<{ Variables: Vars }>();
 
-// GET /:id/packs/:packId/branches — list branches for a pack
+// GET /:id/packs/:packId/branches — list branches for a pack, augmented with
+// each branch's head commit contentHash so the editor can detect a divergence
+// between the WIP buffer (packs.hash) and the branch HEAD (uncommitted edits).
 userBranchesRouter.get("/:id/packs/:packId/branches", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
   const list = await listBranchesForPack(c.req.param("packId"));
-  return c.json({ branches: list });
+  const headIds = Array.from(new Set(list.map((b) => b.headCommitId)));
+  const heads = headIds.length > 0
+    ? await db
+        .select({ id: packCommits.id, contentHash: packCommits.contentHash })
+        .from(packCommits)
+        .where(eq(packCommits.id, headIds[0]!))
+    : [];
+  // The single eq() above only fetches one head — extend to an `in` clause if
+  // we ever need multiple heads in a single round-trip. For now most packs
+  // have ≤ 3 branches so one lookup per branch is fine.
+  const byId = new Map<string, string>();
+  for (const h of heads) byId.set(h.id, h.contentHash);
+  for (const id of headIds.slice(1)) {
+    const rows = await db
+      .select({ id: packCommits.id, contentHash: packCommits.contentHash })
+      .from(packCommits)
+      .where(eq(packCommits.id, id));
+    if (rows[0]) byId.set(rows[0].id, rows[0].contentHash);
+  }
+  const enriched = list.map((b) => ({
+    ...b,
+    headCommitHash: byId.get(b.headCommitId) ?? "",
+  }));
+  return c.json({ branches: enriched });
 });
 
 // GET /:id/packs/:packId/commits — list commits for a pack (optional ?branch=, ?limit=)
