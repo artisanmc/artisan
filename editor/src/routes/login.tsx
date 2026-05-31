@@ -15,7 +15,15 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
+        }}
+      />
       <LoginForm apiUrl={apiUrl} onSuccess={handleLoginSuccess} />
     </div>
   );

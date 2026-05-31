@@ -34,7 +34,7 @@ export function PackMiniSidebar({ activePackId, embedded }: PackMiniSidebarProps
   const inner = (
     <>
       <header className="flex items-center justify-between gap-2">
-        <span className="text-xs uppercase text-zinc-500">{t("packMini.sidebarTitle")}</span>
+        <span className="text-xs uppercase text-[var(--ink-faint)]">{t("packMini.sidebarTitle")}</span>
         <NewPackDialog
           trigger={
             <Button size="sm" variant="ghost" className="h-9 w-9 p-0 text-base leading-none">
@@ -68,7 +68,7 @@ export function PackMiniSidebar({ activePackId, embedded }: PackMiniSidebarProps
   return (
     <aside
       data-pack-mini-sidebar="true"
-      className="hidden w-56 shrink-0 flex-col gap-2 overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-3 lg:flex"
+      className="hidden w-56 shrink-0 flex-col gap-2 overflow-y-auto border-r border-[var(--line-soft)] bg-[var(--bg-deep)] p-3 lg:flex"
     >
       {inner}
     </aside>

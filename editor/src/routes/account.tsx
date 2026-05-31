@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Plus } from "lucide-react";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { listNetworks } from "@/lib/api/networks";
@@ -22,37 +23,82 @@ export function AccountPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8">
-        <p>{t("auth.account.signedInAs")} ?</p>
-        <Link to="/login" className="underline">{t("auth.loginSubmit")}</Link>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg)] p-8">
+        <p className="text-[var(--ink-mut)]">{t("accountPage.notSignedIn")}</p>
+        <Link to="/login" className="btn btn-primary">
+          {t("auth.loginSubmit")}
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-8 max-w-2xl mx-auto flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">{t("auth.account.title")}</h1>
-      <p className="text-muted-foreground">{t("auth.account.signedInAs")} <strong>{user.name}</strong> ({user.email})</p>
+    <div className="grain relative min-h-screen bg-[var(--bg)]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
+        <header className="flex flex-col gap-2">
+          <h1
+            className="display text-[36px] tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {t("auth.account.title")}
+          </h1>
+          <p className="text-[14px] text-[var(--ink-mut)]">
+            {t("auth.account.signedInAs")}{" "}
+            <strong className="text-[var(--ink-2)]">{user.name}</strong>{" "}
+            <span className="text-[var(--ink-faint)]">({user.email})</span>
+          </p>
+        </header>
 
-      <section>
-        <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-2">Networks</h2>
-        {networks.length === 0 ? (
-          <Link to="/setup" className="underline">Set up your first server</Link>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {networks.map((n) => (
-              <li key={n.id}>
-                <Link to="/networks/$networkId" params={{ networkId: n.id }} className="block p-2 border rounded hover:bg-muted">
-                  {n.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link to="/setup" className="mt-3 inline-block text-sm underline">+ Add another server</Link>
-      </section>
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="eyebrow">{t("accountPage.networksSection")}</h2>
+            <span className="h-px flex-1 bg-[var(--line-soft)]" />
+          </div>
+          {networks.length === 0 ? (
+            <Link
+              to="/setup"
+              className="card flex items-center gap-3 p-5 transition-colors hover:border-[var(--terra-line)]"
+            >
+              <Plus className="size-[18px] text-[var(--terra)]" />
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-[var(--ink)]">
+                  {t("accountPage.firstServerTitle")}
+                </span>
+                <span className="text-[12px] text-[var(--ink-mut)]">
+                  {t("accountPage.firstServerHint")}
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {networks.map((n) => (
+                <li key={n.id}>
+                  <Link
+                    to="/networks/$networkId"
+                    params={{ networkId: n.id }}
+                    className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-[var(--terra-line)]"
+                  >
+                    <span className="text-[14px] font-semibold text-[var(--ink)]">{n.name}</span>
+                    <span className="text-[11px] uppercase tracking-[.12em] text-[var(--ink-faint)]">
+                      {t("accountPage.networkBadge")}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link
+            to="/setup"
+            className="self-start text-[12.5px] text-[var(--ink-mut)] underline-offset-2 hover:text-[var(--terra)] hover:underline"
+          >
+            {t("accountPage.addAnotherServer")}
+          </Link>
+        </section>
 
-      <LogoutButton apiUrl={apiUrl} />
+        <div className="rule" />
+
+        <LogoutButton apiUrl={apiUrl} />
+      </div>
     </div>
   );
 }
