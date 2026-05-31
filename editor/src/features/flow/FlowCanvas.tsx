@@ -1395,6 +1395,12 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(packId);
 
+  const titlePlaceholderLocation = useMemo(
+    () => ({ kind: "dialog" as const, dialogId: dialog.id }),
+    [dialog.id],
+  );
+  const titlePlaceholderEntries = usePlaceholderEntries(packId, titlePlaceholderLocation);
+
   return (
     <div className="flex h-full flex-col bg-zinc-950">
       <div className="border-zinc-800 border-b bg-zinc-900 px-3 py-2">
@@ -1407,13 +1413,18 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
       <div className="flex-1 overflow-auto px-3 py-3">
         <Lane label={t("dialog.idLabel")}>
           <DialogIdField packId={packId} dialogId={dialog.id} />
-          <PropertyField
-            label={t("dialog.titleLabel", { lang: activeLang })}
-            value={getText(dialog.title)}
-            onChange={(v) =>
-              setDialogTitle({ packId, dialogId: dialog.id, lang: activeLang, value: v })
-            }
-          />
+          <div>
+            <div className="mb-1 text-[10px] uppercase text-zinc-500">
+              {t("dialog.titleLabel", { lang: activeLang })}
+            </div>
+            <PlaceholderInput
+              value={getText(dialog.title)}
+              onChange={(v) =>
+                setDialogTitle({ packId, dialogId: dialog.id, lang: activeLang, value: v })
+              }
+              entries={titlePlaceholderEntries}
+            />
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
               <input
