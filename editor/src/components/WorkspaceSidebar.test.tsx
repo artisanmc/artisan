@@ -37,20 +37,20 @@ describe("WorkspaceSidebar", () => {
     expect(screen.getByText("Mon Network")).toBeInTheDocument();
   });
 
-  it("lists workspaces returned by getNetwork, sorted by updatedAt desc", async () => {
+  it("lists workspaces returned by getNetwork, sorted alphabetically by id", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       packs: [
-        { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z" },
         { id: "pack_b", name: "Menu principal", hash: "h2", updatedAt: "2026-05-26T10:00:00Z" },
+        { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z" },
       ],
       serverKeys: [],
     });
     render(<WorkspaceSidebar />);
     const items = await screen.findAllByRole("link", { name: /Menu principal|Lobby/ });
-    // First item should be Menu principal (most recent updatedAt)
-    expect(items[0]).toHaveTextContent("Menu principal");
-    expect(items[1]).toHaveTextContent("Lobby");
+    // Sort is by id (stable, deterministic), so pack_a comes before pack_b.
+    expect(items[0]).toHaveTextContent("Lobby");
+    expect(items[1]).toHaveTextContent("Menu principal");
   });
 
   it("renders the Modules empty state", async () => {
