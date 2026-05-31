@@ -82,6 +82,20 @@ describe("PlaceholderInput", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
+  it("typing a space closes the popup; the `{ ` stays as typed", () => {
+    const calls: string[] = [];
+    const { rerender } = render(
+      <PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.input(input, { target: { value: "{" } });
+    rerender(<PlaceholderInput value="{" onChange={(v) => calls.push(v)} entries={entries} />);
+    fireEvent.input(input, { target: { value: "{ " } });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    // onChange was called with "{ " — the space stays as typed, no insertion
+    expect(calls.at(-1)).toBe("{ ");
+  });
+
   it("backspacing past the original { closes the popup", () => {
     const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");

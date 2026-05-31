@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCaretCoordinates } from "@/lib/caretCoordinates";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
@@ -34,12 +34,19 @@ export function PlaceholderInput({
   onBlur,
 }: PlaceholderInputProps) {
   const { t } = useTranslation();
+  const reactId = useId();
+  const listboxId = `${reactId}-listbox`;
+  const rowId = (path: string) => `${reactId}-row-${encodeURIComponent(path)}`;
+
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const [popupPos, setPopupPos] = useState({ left: 0, top: 0 });
+  // Position of the caret at the moment `{` was typed (i.e. the char right
+  // after the opening brace). anchorPos === 0 means "not set".
+  const [anchorPos, setAnchorPos] = useState(0);
 
   const filtered = entries.filter((e) =>
     e.path.toLowerCase().includes(query.toLowerCase()),
@@ -61,17 +68,20 @@ export function PlaceholderInput({
     const next = e.target.value;
     onChange(next);
 
+    const caretPos = (e.target as HTMLInputElement).selectionStart ?? next.length;
+
     if (!open) {
       // Check if the new value has an open `{...` fragment at or before the caret
       // with no closing `}` or whitespace between the `{` and the caret.
-      const caretPos = (e.target as HTMLInputElement).selectionStart ?? next.length;
       const head = next.slice(0, caretPos);
       const lastBrace = head.lastIndexOf("{");
       if (lastBrace !== -1) {
         const tail = head.slice(lastBrace + 1);
         // Only open if no `}` or whitespace in the tail (fresh open fragment).
         if (!/[}\s]/.test(tail)) {
+          const anchor = lastBrace + 1; // caret position right after the `{`
           setOpen(true);
+          setAnchorPos(anchor);
           setQuery(tail);
           setHighlight(0);
           requestAnimationFrame(() => {
@@ -83,13 +93,13 @@ export function PlaceholderInput({
         }
       }
     } else {
-      const lastBrace = next.lastIndexOf("{");
-      if (lastBrace === -1) {
-        // Backspaced past the original `{`.
+      // The `{` is at anchorPos - 1. If it's gone, close.
+      if (next[anchorPos - 1] !== "{") {
         setOpen(false);
         return;
       }
-      const tail = next.slice(lastBrace + 1);
+      // Derive query from the anchor to the current caret.
+      const tail = next.slice(anchorPos, caretPos);
       // Close if the user added a closing brace, a space, or a newline.
       if (/[}\s]/.test(tail)) {
         setOpen(false);
@@ -136,20 +146,15 @@ export function PlaceholderInput({
   const insertAtCaret = (path: string) => {
     const el = ref.current;
     if (!el) return;
-    // Replace from the most recent `{` (and any partial query already typed) up
-    // to the caret with `{path}`. Then close.
+    // Replace from anchorPos - 1 (the `{`) through the current caret with
+    // `{path}`. Then close.
     const caret = el.selectionStart ?? value.length;
-    const head = value.slice(0, caret);
-    const lastBrace = head.lastIndexOf("{");
-    if (lastBrace === -1) return;
-    const newValue = value.slice(0, lastBrace) + `{${path}}` + value.slice(caret);
+    const bracePos = anchorPos - 1; // position of the `{` in value
+    if (bracePos < 0 || value[bracePos] !== "{") return;
+    const newValue = value.slice(0, bracePos) + `{${path}}` + value.slice(caret);
     onChange(newValue);
     setOpen(false);
     setQuery("");
-  };
-
-  const handleRowClick = (path: string) => {
-    insertAtCaret(path);
   };
 
   const commonProps = {
@@ -161,9 +166,9 @@ export function PlaceholderInput({
     placeholder,
     role: "combobox" as const,
     "aria-expanded": open,
-    "aria-controls": "placeholder-listbox",
+    "aria-controls": listboxId,
     "aria-activedescendant":
-      open && filtered[highlight] ? `placeholder-row-${filtered[highlight].path}` : undefined,
+      open && filtered[highlight] ? rowId(filtered[highlight].path) : undefined,
   };
 
   return (
@@ -181,7 +186,7 @@ export function PlaceholderInput({
       {open && (
         <ul
           role="listbox"
-          id="placeholder-listbox"
+          id={listboxId}
           className="placeholder-popup"
           style={{ left: popupPos.left, top: popupPos.top }}
         >
@@ -195,12 +200,12 @@ export function PlaceholderInput({
             filtered.map((e, i) => (
               <li
                 key={e.path}
-                id={`placeholder-row-${e.path}`}
+                id={rowId(e.path)}
                 role="option"
                 aria-selected={i === highlight}
                 onMouseDown={(ev) => {
                   ev.preventDefault(); // don't blur the input
-                  handleRowClick(e.path);
+                  insertAtCaret(e.path);
                 }}
               >
                 <span className="name">{e.path}</span>
