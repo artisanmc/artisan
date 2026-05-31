@@ -56,7 +56,7 @@ export function getCaretCoordinates(
   if (typeof window === "undefined" || typeof document === "undefined") {
     return { left: 0, top: 0, height: 0 };
   }
-  const isInput = el.nodeName === "INPUT";
+  const isInput = el instanceof HTMLInputElement;
   const mirror = document.createElement("div");
   mirror.id = "placeholder-input-mirror";
   document.body.appendChild(mirror);
