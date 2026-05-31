@@ -89,7 +89,7 @@ describe("/transfer?token=...", () => {
     vi.spyOn(networksApi, "getNetworkTransfer").mockResolvedValue("consumed");
     const { default: TransferRoute } = await import("./transfer");
     render(<TransferRoute />);
-    await screen.findByText(/déjà été utilisé/i);
+    await screen.findByText(/déjà utilisé|déjà été utilisé/i);
   });
 
   it("shows not found on 404", async () => {

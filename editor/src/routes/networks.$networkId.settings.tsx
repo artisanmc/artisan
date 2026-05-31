@@ -1,10 +1,12 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { initNetworkTransfer } from "@/lib/api/networks";
 
 export const Route = createFileRoute("/networks/$networkId/settings")({ component: SettingsRoute });
 
 function SettingsRoute() {
+  const { t } = useTranslation();
   const { networkId } = useParams({ from: "/networks/$networkId/settings" });
   const [transferUrl, setTransferUrl] = useState<string | null>(null);
   const [transferExpires, setTransferExpires] = useState<string | null>(null);
@@ -19,49 +21,69 @@ function SettingsRoute() {
       setTransferUrl(r.url);
       setTransferExpires(r.expiresAt);
     } catch {
-      setError("Erreur lors de la génération du lien.");
+      setError(t("networkSettings.generationError"));
     } finally {
       setGenerating(false);
     }
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto grid gap-8">
-      <h1 className="text-2xl">Settings</h1>
+    <div className="grain relative min-h-screen bg-[var(--bg)]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
+        <h1
+          className="display text-[36px] tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {t("networkSettings.title")}
+        </h1>
 
-      <section className="grid gap-3">
-        <h2 className="text-lg">Transférer la propriété</h2>
-        <p className="text-sm text-zinc-400">
-          Génère un lien à partager avec le nouvel owner. TTL 24h. Une fois accepté, tu perdras
-          tous tes droits sur ce Network.
-        </p>
-        <div>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded disabled:opacity-50"
-          >
-            {generating ? "Génération…" : "Générer un lien"}
-          </button>
-        </div>
-        {transferUrl && (
-          <div className="grid gap-1">
-            <label className="text-xs text-zinc-500">Partage ce lien :</label>
-            <input
-              readOnly
-              value={transferUrl}
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-              className="w-full font-mono text-xs px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded"
-            />
-            {transferExpires && (
-              <p className="text-xs text-zinc-500">
-                Expire le {new Date(transferExpires).toLocaleString()}.
-              </p>
-            )}
+        <section className="card flex flex-col gap-4 p-6">
+          <header className="flex flex-col gap-1.5">
+            <h2
+              className="display text-[19px] text-[var(--ink)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {t("networkSettings.transferOwnershipTitle")}
+            </h2>
+            <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
+              {t("networkSettings.transferOwnershipDescription")}
+            </p>
+          </header>
+
+          <div>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="btn btn-primary"
+            >
+              {generating
+                ? t("networkSettings.generating")
+                : t("networkSettings.generateLink")}
+            </button>
           </div>
-        )}
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-      </section>
+
+          {transferUrl && (
+            <div className="flex flex-col gap-1.5">
+              <span className="field-label">{t("networkSettings.shareLink")}</span>
+              <input
+                readOnly
+                value={transferUrl}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+                className="input mono text-[12px]"
+              />
+              {transferExpires && (
+                <p className="text-[12px] text-[var(--ink-faint)]">
+                  {t("networkSettings.expiresAt", {
+                    date: new Date(transferExpires).toLocaleString(),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {error && <p className="text-[13px] text-[var(--brick)]">{error}</p>}
+        </section>
+      </div>
     </div>
   );
 }
