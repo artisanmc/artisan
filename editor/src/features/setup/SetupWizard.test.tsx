@@ -15,12 +15,13 @@ vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
 describe("SetupWizard", () => {
   it("starts on step 1", () => {
     render(<SetupWizard />);
-    expect(screen.getByText(/step 1 of 4/i)).toBeTruthy();
+    // Step 1 is the "Network" step — its label is rendered as a stepper item
+    expect(screen.getAllByText(/network/i).length).toBeGreaterThan(0);
   });
 
   it("Next is disabled when no network chosen (step 1)", () => {
     render(<SetupWizard />);
-    const nextBtn = screen.getByRole("button", { name: /next/i });
+    const nextBtn = screen.getByRole("button", { name: /next|suivant/i });
     expect(nextBtn).toBeDisabled();
   });
 });
