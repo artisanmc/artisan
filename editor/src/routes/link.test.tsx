@@ -48,51 +48,82 @@ describe("/link?code=...", () => {
     );
   });
 
-  it("auto-claims when user has 0 networks", async () => {
+  it("shows the network picker even when user has 0 networks", async () => {
+    setUrl("?code=ABC123");
+    mockUser({ id: "u1", email: "test@x" });
+    vi.spyOn(api, "listNetworks").mockResolvedValue([]);
+    const { default: LinkRoute } = await import("./link");
+    render(<LinkRoute />);
+    // No auto-claim — the picker shows up with the "create new network" input
+    await screen.findByPlaceholderText(/my_network/i);
+  });
+
+  it("creates a new network + pack inline via the picker flow", async () => {
     setUrl("?code=ABC123");
     mockUser({ id: "u1", email: "test@x" });
     vi.spyOn(api, "listNetworks").mockResolvedValue([]);
     const claimSpy = vi
       .spyOn(api, "claimLinkCode")
-      .mockResolvedValue({ server_key_id: "sk", network_id: "n1" });
+      .mockResolvedValue({ server_key_id: "sk", network_id: "n_new", pack_id: "p_new" });
     const { default: LinkRoute } = await import("./link");
     render(<LinkRoute />);
-    await waitFor(() => expect(claimSpy).toHaveBeenCalledWith("ABC123"));
-    await screen.findByText(/Setup terminé/i);
+
+    // Step 1 — type a new network name
+    fireEvent.change(await screen.findByPlaceholderText(/my_network/i), {
+      target: { value: "Vaelheim" },
+    });
+    fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
+
+    // Step 2 — type a new pack name
+    fireEvent.change(await screen.findByPlaceholderText(/my_pack/i), {
+      target: { value: "Lobby" },
+    });
+    fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
+
+    // Step 3 — confirm
+    fireEvent.click(await screen.findByText(/Confirmer|^Confirm$/i));
+    await waitFor(() => {
+      expect(claimSpy).toHaveBeenCalledWith("ABC123", {
+        networkId: undefined,
+        networkName: "Vaelheim",
+        packId: undefined,
+        packName: "Lobby",
+        serverKeyLabel: undefined,
+      });
+    });
   });
 
-  it("shows confirm UI when user has exactly 1 network", async () => {
+  it("lets the user pick an existing network + pack via the picker flow", async () => {
     setUrl("?code=ABC123");
     mockUser({ id: "u1", email: "test@x" });
     vi.spyOn(api, "listNetworks").mockResolvedValue([
       { id: "n1", name: "My Net", tier: "free" },
     ]);
+    vi.spyOn(api, "getNetwork").mockResolvedValue({
+      network: { id: "n1", name: "My Net", tier: "free" },
+      packs: [{ id: "p1", name: "menu_principal", hash: "h", updatedAt: "2026-05-01T00:00:00Z" }],
+      serverKeys: [],
+    });
     const claimSpy = vi
       .spyOn(api, "claimLinkCode")
-      .mockResolvedValue({ server_key_id: "sk", network_id: "n1" });
+      .mockResolvedValue({ server_key_id: "sk", network_id: "n1", pack_id: "p1" });
     const { default: LinkRoute } = await import("./link");
     render(<LinkRoute />);
-    await screen.findByText("My Net");
-    fireEvent.click(screen.getByText(/Confirmer/i));
-    await waitFor(() => expect(claimSpy).toHaveBeenCalledWith("ABC123", "n1"));
-  });
 
-  it("shows picker when user has 2+ networks", async () => {
-    setUrl("?code=ABC123");
-    mockUser({ id: "u1", email: "test@x" });
-    vi.spyOn(api, "listNetworks").mockResolvedValue([
-      { id: "n1", name: "A", tier: "free" },
-      { id: "n2", name: "B", tier: "free" },
-    ]);
-    const claimSpy = vi
-      .spyOn(api, "claimLinkCode")
-      .mockResolvedValue({ server_key_id: "sk", network_id: "n2" });
-    const { default: LinkRoute } = await import("./link");
-    render(<LinkRoute />);
-    await screen.findByText("A");
-    await screen.findByText("B");
-    fireEvent.click(screen.getByText("B"));
-    fireEvent.click(screen.getByText(/Confirmer/i));
-    await waitFor(() => expect(claimSpy).toHaveBeenCalledWith("ABC123", "n2"));
+    fireEvent.click(await screen.findByText("My Net"));
+    fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
+    fireEvent.click(await screen.findByText("menu_principal"));
+    fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
+    fireEvent.click(await screen.findByText(/Confirmer|^Confirm$/i));
+
+    await waitFor(() => {
+      expect(claimSpy).toHaveBeenCalledWith("ABC123", {
+        networkId: "n1",
+        networkName: undefined,
+        packId: "p1",
+        packName: undefined,
+        serverKeyLabel: undefined,
+      });
+    });
   });
 });
