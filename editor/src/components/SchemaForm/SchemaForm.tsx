@@ -42,7 +42,7 @@ function StringField({ schema, value, onChange, widgets, fieldId }: FieldProps) 
           aria-label={s.title}
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+          className="rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 py-1"
         >
           {s.enum.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
         </select>
@@ -58,7 +58,7 @@ function StringField({ schema, value, onChange, widgets, fieldId }: FieldProps) 
           aria-label={s.title}
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value)}
-          className="min-h-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+          className="min-h-20 rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 py-1"
         />
       </label>
     );
@@ -72,7 +72,7 @@ function StringField({ schema, value, onChange, widgets, fieldId }: FieldProps) 
         type="text"
         value={String(value ?? "")}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+        className="rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 py-1"
       />
     </label>
   );
@@ -92,7 +92,7 @@ function NumberField({ schema, value, onChange, fieldId }: FieldProps) {
         value={Number(value ?? 0)}
         step={s.type === "integer" ? 1 : "any"}
         onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-        className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+        className="rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 py-1"
       />
     </label>
   );
@@ -137,7 +137,7 @@ function ObjectField({ schema, value, onChange, widgets }: FieldProps & { schema
 function ArrayField({ schema, value, onChange, widgets }: FieldProps & { schema: ArraySchema }) {
   const arr = (Array.isArray(value) ? value : []) as unknown[];
   return (
-    <div className="flex flex-col gap-2 rounded border border-zinc-800 p-2">
+    <div className="flex flex-col gap-2 rounded border border-[var(--line-soft)] p-2">
       {schema.title && <h3 className="text-sm font-semibold">{schema.title}</h3>}
       {arr.map((item, i) => (
         <div key={i} className="flex items-start gap-2">
@@ -154,7 +154,7 @@ function ArrayField({ schema, value, onChange, widgets }: FieldProps & { schema:
           <button
             type="button"
             onClick={() => onChange(arr.filter((_, j) => j !== i))}
-            className="text-zinc-500 hover:text-red-400"
+            className="text-[var(--ink-faint)] hover:text-[var(--brick)]"
           >
             ×
           </button>
@@ -163,7 +163,7 @@ function ArrayField({ schema, value, onChange, widgets }: FieldProps & { schema:
       <button
         type="button"
         onClick={() => onChange([...arr, undefined])}
-        className="self-start text-sm text-zinc-400 hover:text-zinc-200"
+        className="self-start text-sm text-[var(--ink-mut)] hover:text-[var(--ink)]"
       >
         + Add
       </button>

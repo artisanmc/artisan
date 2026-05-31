@@ -7,9 +7,12 @@ export function Toaster() {
       position="bottom-right"
       toastOptions={{
         classNames: {
-          toast: "border border-zinc-800 bg-zinc-950 text-zinc-100 font-mono text-xs",
-          error: "border-red-900 text-red-200",
-          success: "border-emerald-900 text-emerald-200",
+          toast:
+            "border border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)] font-mono text-xs rounded-[14px]",
+          error: "border-[var(--brick-soft)] text-[var(--brick)]",
+          success: "border-[var(--sage-soft)] text-[var(--sage)]",
+          info: "border-[var(--line)] text-[var(--ink)]",
+          warning: "border-[var(--gold-soft)] text-[var(--gold)]",
         },
       }}
     />

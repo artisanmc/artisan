@@ -72,10 +72,10 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
       {...attributes}
       className={cx(
         "group relative flex shrink-0 select-none touch-none items-center justify-center",
-        "rounded border bg-[#8b8b8b] active:cursor-grabbing",
+        "rounded-[8px] border active:cursor-grabbing",
         armed
-          ? "border-emerald-500 bg-emerald-500/20 ring-1 ring-emerald-500"
-          : "border-zinc-600 cursor-grab hover:border-zinc-400",
+          ? "border-[var(--terra)] bg-[var(--terra-soft)] ring-1 ring-[var(--terra)]"
+          : "border-[var(--line)] bg-[var(--inset)] cursor-grab hover:border-[var(--line-strong)]",
       )}
       style={{ opacity: isDragging ? 0.4 : 1, width: TILE_SIZE, height: TILE_SIZE }}
     >
@@ -92,7 +92,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
       ) : (
         <span
           data-placeholder
-          className="flex h-full w-full items-center justify-center text-xs font-medium uppercase text-zinc-400"
+          className="flex h-full w-full items-center justify-center text-xs font-medium uppercase text-[var(--ink-mut)]"
           aria-hidden="true"
         >
           {item.category.charAt(0)}
@@ -150,7 +150,7 @@ export function Library() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-zinc-500">
+      <div className="flex h-full items-center justify-center text-xs text-[var(--ink-faint)]">
         {t("library.unavailable")}
       </div>
     );
@@ -170,10 +170,8 @@ export function Library() {
             type="button"
             onClick={() => setCategory(cat)}
             className={cx(
-              "rounded-full border px-2 py-0.5 text-[10px] capitalize",
-              category === cat
-                ? "border-emerald-600 bg-emerald-600/10 text-emerald-300"
-                : "border-zinc-700 text-zinc-400 hover:border-zinc-500",
+              "chip h-6 px-2.5 text-[10.5px] capitalize",
+              category === cat && "is-active",
             )}
           >
             {cat}
@@ -182,10 +180,10 @@ export function Library() {
       </div>
 
       {allItems.length === 0 && !error && (
-        <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.loading")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--ink-faint)]">{t("library.loading")}</div>
       )}
       {allItems.length > 0 && filtered.length === 0 && (
-        <div className="w-full py-4 text-center text-xs text-zinc-500">{t("library.noMatch")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--ink-faint)]">{t("library.noMatch")}</div>
       )}
 
       <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto pb-2">

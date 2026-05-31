@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { useNetworksStore } from "@/state/networksStore";
 import { listNetworks } from "@/lib/api/networks";
 
 export const Route = createFileRoute("/networks")({ component: NetworksPage });
 
 export function NetworksPage() {
+  const { t } = useTranslation();
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
 
@@ -14,26 +16,65 @@ export function NetworksPage() {
   }, [setNetworks]);
 
   return (
-    <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-semibold mb-4">Mes Networks</h1>
-      {networks.length === 0 ? (
-        <div className="text-muted-foreground">
-          <p className="mb-3">Aucun Network. Lance <code className="bg-zinc-800 px-1 rounded text-sm">/artisan setup</code> sur ton serveur Minecraft pour commencer.</p>
-          <Link to="/setup" className="underline">Créer un Network</Link>
-        </div>
-      ) : (
-        <ul className="grid gap-3">
-          {networks.map((n) => (
-            <li key={n.id}>
-              <Link to="/networks/$networkId" params={{ networkId: n.id }} className="block p-4 border border-zinc-700 rounded hover:border-zinc-500 transition">
-                <div className="font-medium">{n.name}</div>
-                <div className="text-xs text-muted-foreground">Tier: {n.tier}</div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Link to="/setup" className="mt-4 inline-block underline">+ Ajouter un serveur</Link>
+    <div className="grain relative min-h-screen bg-[var(--bg)]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-7 px-8 py-12">
+        <header className="flex flex-col gap-2">
+          <h1
+            className="display text-[36px] tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {t("networksPage.title")}
+          </h1>
+        </header>
+
+        {networks.length === 0 ? (
+          <div className="card flex flex-col gap-3 p-6">
+            <p className="text-[14px] text-[var(--ink-2)]">
+              <Trans
+                i18nKey="networksPage.none"
+                components={{
+                  1: (
+                    <code className="mono rounded-md bg-[var(--inset)] px-1.5 py-0.5 text-[12.5px] text-[var(--sand)]" />
+                  ),
+                }}
+                values={{ cmd: "/artisan setup" }}
+              />
+            </p>
+            <Link to="/setup" className="btn btn-primary self-start">
+              {t("networksPage.createNetwork")}
+            </Link>
+          </div>
+        ) : (
+          <ul className="grid gap-3">
+            {networks.map((n) => (
+              <li key={n.id}>
+                <Link
+                  to="/networks/$networkId"
+                  params={{ networkId: n.id }}
+                  className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-[var(--terra-line)]"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-semibold text-[var(--ink)]">{n.name}</span>
+                    <span className="text-[11px] text-[var(--ink-faint)]">
+                      {t("networksPage.tierLabel")}: {n.tier}
+                    </span>
+                  </div>
+                  <span className="text-[11px] uppercase tracking-[.12em] text-[var(--ink-faint)]">
+                    {t("accountPage.networkBadge")}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <Link
+          to="/setup"
+          className="self-start text-[12.5px] text-[var(--ink-mut)] underline-offset-2 hover:text-[var(--terra)] hover:underline"
+        >
+          {t("networksPage.addServer")}
+        </Link>
+      </div>
     </div>
   );
 }

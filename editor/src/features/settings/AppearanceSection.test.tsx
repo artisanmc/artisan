@@ -5,7 +5,9 @@ import { AppearanceSection } from "./AppearanceSection";
 describe("AppearanceSection", () => {
   it("renders the section title", () => {
     render(<AppearanceSection />);
-    expect(screen.getByText(/Apparence|Appearance/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Apparence|Appearance/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders the editor language switcher", () => {

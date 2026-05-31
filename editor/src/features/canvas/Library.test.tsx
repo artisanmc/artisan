@@ -57,7 +57,7 @@ describe("Library", () => {
 
   it("filters by search query", () => {
     render(<Library />);
-    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: "diamond" } });
+    fireEvent.change(screen.getByPlaceholderText(/search|recherche/i), { target: { value: "diamond" } });
     expect(screen.getByTitle("Diamond Sword")).toBeTruthy();
     expect(screen.queryByTitle("Stone")).toBeNull();
   });

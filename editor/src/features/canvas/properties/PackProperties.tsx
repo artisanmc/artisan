@@ -1,8 +1,8 @@
 import type { Pack } from "@/domain/types";
 import { DeletePackDialog } from "@/features/account/DeletePackDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { useAccountStore } from "@/state/accountStore";
-import { useSelectionStore } from "@/state/selectionStore";
 import { LayoutGrid, Plus, Terminal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,31 +19,25 @@ const sourceLabelKey = (
 
 const sourceColor = (source: Pack["source"]) =>
   source === "imported"
-    ? "bg-blue-500/15 text-blue-300"
+    ? "bg-[var(--terra-soft)] text-[var(--terra)]"
     : source === "forked"
-      ? "bg-amber-500/15 text-amber-300"
-      : "bg-emerald-500/15 text-emerald-300";
+      ? "bg-[var(--gold-soft)] text-[var(--gold)]"
+      : "bg-[var(--sage-soft)] text-[var(--terra)]";
 
 export function PackProperties({ pack }: PackPropertiesProps) {
   const setPackField = useAccountStore((s) => s.setPackField);
-  const createCommand = useAccountStore((s) => s.createCommand);
-  const setSelection = useSelectionStore((s) => s.set);
   const { t } = useTranslation();
   const [menuDialogOpen, setMenuDialogOpen] = useState(false);
+  const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  const onCreateCommand = () => {
-    const id = createCommand({ packId: pack.id });
-    setSelection([id]);
-  };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <div>
-          <div className="mb-1 text-[10px] uppercase text-zinc-500">{t("packProperties.id")}</div>
+          <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{t("packProperties.id")}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-zinc-400">{pack.id}</span>
+            <span className="font-mono text-xs text-[var(--ink-mut)]">{pack.id}</span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(pack.source)}`}>
               {t(`packProperties.${sourceLabelKey(pack.source)}`)}
             </span>
@@ -77,11 +71,16 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         label={t("packProperties.commandsLabel")}
         count={pack.commands.length}
         emptyHint={t("packProperties.commandsEmpty")}
-        onCreate={onCreateCommand}
+        onCreate={() => setCommandDialogOpen(true)}
         createLabel={t("packProperties.newCommand")}
       />
+      <NewCommandDialog
+        packId={pack.id}
+        open={commandDialogOpen}
+        onOpenChange={setCommandDialogOpen}
+      />
 
-      <div className="text-[10px] text-zinc-500">
+      <div className="text-[10px] text-[var(--ink-faint)]">
         {t("packProperties.countTemplatesAssets", {
           templates: pack.templates.length,
           templatesPlural: t(
@@ -96,11 +95,11 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         })}
       </div>
 
-      <div className="mt-2 border-t border-zinc-800 pt-4">
+      <div className="mt-2 border-t border-[var(--line-soft)] pt-4">
         <button
           type="button"
           onClick={() => setDeleteDialogOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-red-400 hover:border-red-700/60 hover:bg-red-900/20"
+          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-[var(--brick)] hover:border-red-700/60 hover:bg-red-900/20"
         >
           <Trash2 className="h-3 w-3" />
           {t("packProperties.deletePack")}
@@ -137,24 +136,24 @@ function ContentsSection({
     <div
       className={
         isEmpty
-          ? "flex flex-col gap-2 rounded border border-zinc-800 border-dashed bg-zinc-900/40 p-3"
+          ? "flex flex-col gap-2 rounded border border-[var(--line-soft)] border-dashed bg-[var(--card-surface)]/40 p-3"
           : "flex items-center gap-2"
       }
     >
-      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 uppercase tracking-wide">
+      <div className="flex items-center gap-1.5 text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
         {icon}
         <span>
           {count} {label}
         </span>
       </div>
-      {isEmpty ? <p className="text-[11px] text-zinc-400">{emptyHint}</p> : null}
+      {isEmpty ? <p className="text-[11px] text-[var(--ink-mut)]">{emptyHint}</p> : null}
       <button
         type="button"
         onClick={onCreate}
         className={
           isEmpty
-            ? "self-start inline-flex items-center gap-1 rounded border border-emerald-600/60 bg-emerald-600/10 px-2.5 py-1.5 text-[11px] text-emerald-200 hover:bg-emerald-600/20"
-            : "ml-auto inline-flex items-center gap-1 rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800"
+            ? "self-start inline-flex items-center gap-1 rounded border border-[var(--terra)]/60 bg-[var(--terra-soft)] px-2.5 py-1.5 text-[11px] text-[var(--terra)] hover:bg-[var(--terra)]/20"
+            : "ml-auto inline-flex items-center gap-1 rounded border border-[var(--line)] px-2 py-1 text-[10px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:bg-[var(--raised-2)]"
         }
       >
         <Plus className="h-3 w-3" />

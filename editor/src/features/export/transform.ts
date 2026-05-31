@@ -521,11 +521,21 @@ function collectReferencedKeys(pack: Pack): Set<string> {
 
 function serializeLang(pack: Pack, lang: string, referencedKeys: Set<string>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(pack.i18nKeys)) {
-    if (!referencedKeys.has(key)) continue;
-    if (!entry) continue;
-    const val = entry[lang];
-    if (val !== undefined) out[key] = val;
+  // Iterate `referencedKeys` (not `pack.i18nKeys`) so we always emit *every*
+  // key the runtime will look up — even ones that have never been assigned a
+  // value. Otherwise a freshly-created menu with no title typed yet yields a
+  // missing key in the YAML, and the plugin falls back to printing the raw
+  // key (`menus.foo.title`) to chat instead of nothing.
+  for (const key of referencedKeys) {
+    const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
+    const val = entry?.[lang];
+    if (val !== undefined) {
+      out[key] = val;
+    } else if (lang === pack.defaultLang) {
+      // Always seed the defaultLang file with an empty string so the runtime
+      // resolves the key to "" rather than echoing the raw key.
+      out[key] = "";
+    }
   }
   return out;
 }

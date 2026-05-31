@@ -211,15 +211,15 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
       data-testid="layers-panel"
     >
       {/* Mode toggle */}
-      <div className="flex rounded border border-zinc-700 bg-zinc-900 p-0.5 text-[11px]">
+      <div className="flex rounded border border-[var(--line)] bg-[var(--card-surface)] p-0.5 text-[11px]">
         <button
           type="button"
           onClick={switchToVanilla}
           className={cn(
             "flex-1 rounded px-2 py-1 transition-colors",
             isVanillaMode
-              ? "bg-zinc-700 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200",
+              ? "bg-[var(--raised-2)] text-[var(--ink)]"
+              : "text-[var(--ink-mut)] hover:text-[var(--ink)]",
           )}
         >
           Vanilla
@@ -230,8 +230,8 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
           className={cn(
             "flex-1 rounded px-2 py-1 transition-colors",
             !isVanillaMode
-              ? "bg-zinc-700 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200",
+              ? "bg-[var(--raised-2)] text-[var(--ink)]"
+              : "text-[var(--ink-mut)] hover:text-[var(--ink)]",
           )}
         >
           Composé (Resource Pack)
@@ -266,7 +266,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
             ))}
           </div>
 
-          <div className="mt-2 border-t border-zinc-800 pt-2">
+          <div className="mt-2 border-t border-[var(--line-soft)] pt-2">
             <LayerEditForm packId={packId} />
           </div>
         </>

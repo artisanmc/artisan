@@ -95,11 +95,11 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-zinc-800 border-b px-4 py-3">
-        <div className="flex items-center gap-2 font-mono text-sm text-zinc-100">
+      <div className="border-[var(--line-soft)] border-b px-4 py-3">
+        <div className="flex items-center gap-2 font-mono text-sm text-[var(--ink)]">
           {t("translations.title")}
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+        <div className="flex items-center gap-3 text-[11px] text-[var(--ink-mut)]">
           <span>
             {t("translations.statTranslated", {
               translated: stats.translated,
@@ -108,11 +108,11 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
             })}
           </span>
           {missing > 0 ? (
-            <span className="text-amber-400">
+            <span className="text-[var(--gold)]">
               · {t("translations.statMissing", { count: missing })}
             </span>
           ) : (
-            <span className="text-emerald-400">· {t("translations.statComplete")}</span>
+            <span className="text-[var(--sage)]">· {t("translations.statComplete")}</span>
           )}
         </div>
       </div>
@@ -120,7 +120,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
       {/* Per-language tabs — one click switches both the panel view
           and the global active language, so the canvas/editor below
           stay in sync with what the user is translating. */}
-      <div className="flex items-center gap-1 overflow-x-auto border-zinc-800 border-b bg-zinc-950 px-2 py-1.5">
+      <div className="flex items-center gap-1 overflow-x-auto border-[var(--line-soft)] border-b bg-[var(--bg-deep)] px-2 py-1.5">
         {langs.map((lang) => {
           const isActive = lang === activeLang;
           const isDefault = lang === pack.defaultLang;
@@ -132,21 +132,21 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
               onClick={() => setActiveLang(lang)}
               className={
                 isActive
-                  ? "flex shrink-0 items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2.5 py-1 font-mono text-[11px] text-emerald-100"
-                  : "flex shrink-0 items-center gap-1.5 rounded border border-transparent px-2.5 py-1 font-mono text-[11px] text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+                  ? "flex shrink-0 items-center gap-1.5 rounded border border-[var(--terra-line)] bg-[var(--terra-soft)] px-2.5 py-1 font-mono text-[11px] text-[var(--terra)]"
+                  : "flex shrink-0 items-center gap-1.5 rounded border border-transparent px-2.5 py-1 font-mono text-[11px] text-[var(--ink-mut)] hover:border-[var(--line)] hover:bg-[var(--card-surface)] hover:text-[var(--ink)]"
               }
             >
               <span className="uppercase">{lang}</span>
               {isDefault ? (
-                <span className="rounded bg-zinc-800 px-1 py-0.5 text-[8px] uppercase tracking-wide text-zinc-400">
+                <span className="rounded bg-[var(--raised-2)] px-1 py-0.5 text-[8px] uppercase tracking-wide text-[var(--ink-mut)]">
                   src
                 </span>
               ) : count > 0 ? (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[9px] text-zinc-950">
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 font-mono text-[9px] text-[#2A140C]">
                   {count}
                 </span>
               ) : (
-                <span className="text-emerald-400">✓</span>
+                <span className="text-[var(--sage)]">✓</span>
               )}
             </button>
           );
@@ -155,21 +155,21 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
           type="button"
           onClick={onAddLang}
           title={t("translations.addLanguage")}
-          className="flex shrink-0 items-center gap-1 rounded border border-zinc-800 border-dashed px-2 py-1 text-[11px] text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+          className="flex shrink-0 items-center gap-1 rounded border border-[var(--line-soft)] border-dashed px-2 py-1 text-[11px] text-[var(--ink-faint)] hover:border-[var(--line)] hover:text-[var(--ink-2)]"
         >
           <Plus className="h-3 w-3" />
         </button>
       </div>
 
       {isOnDefault ? (
-        <div className="border-amber-600/40 border-b bg-amber-600/5 px-4 py-2 text-[11px] text-amber-200">
+        <div className="border-b border-[var(--gold-soft)] bg-[var(--gold-soft)] px-4 py-2 text-[11px] text-[var(--gold)]">
           {t("translations.onDefaultWarning", { lang: activeLang })}
         </div>
       ) : null}
 
       {/* Mode switcher (segmented control). */}
-      <div className="flex items-center gap-2 border-zinc-800 border-b bg-zinc-950/40 px-4 py-2">
-        <div className="flex overflow-hidden rounded border border-zinc-700">
+      <div className="flex items-center gap-2 border-[var(--line-soft)] border-b bg-[var(--bg-deep)]/40 px-4 py-2">
+        <div className="flex overflow-hidden rounded border border-[var(--line)]">
           <ModeTab active={mode === "visual"} onClick={() => setMode("visual")}>
             {t("translations.modeVisual")}
           </ModeTab>
@@ -257,8 +257,8 @@ function ModeTab({
       onClick={onClick}
       className={
         active
-          ? "bg-emerald-500/20 px-3 py-1 font-mono text-[10px] text-emerald-200 uppercase tracking-wide"
-          : "px-3 py-1 font-mono text-[10px] text-zinc-400 uppercase tracking-wide hover:bg-zinc-800 hover:text-zinc-200"
+          ? "bg-[var(--terra-soft)] px-3 py-1 font-mono text-[10px] text-[var(--terra)] uppercase tracking-wide"
+          : "px-3 py-1 font-mono text-[10px] text-[var(--ink-mut)] uppercase tracking-wide hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
       }
     >
       {children}
@@ -281,8 +281,8 @@ function FilterTab({
       onClick={onClick}
       className={
         active
-          ? "rounded bg-emerald-500/20 px-2 py-1 font-mono text-[10px] text-emerald-200 uppercase tracking-wide"
-          : "rounded px-2 py-1 font-mono text-[10px] text-zinc-400 uppercase tracking-wide hover:bg-zinc-800 hover:text-zinc-200"
+          ? "rounded bg-[var(--terra-soft)] px-2 py-1 font-mono text-[10px] text-[var(--terra)] uppercase tracking-wide"
+          : "rounded px-2 py-1 font-mono text-[10px] text-[var(--ink-mut)] uppercase tracking-wide hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
       }
     >
       {children}
@@ -337,7 +337,7 @@ function VisualBody({
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-zinc-500">
+      <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-[var(--ink-faint)]">
         {filter === "missing"
           ? t("translations.nothingMissing")
           : t("translations.noMatch")}
@@ -382,22 +382,22 @@ function VisualRow({
     <li
       className={
         isMissing
-          ? "rounded border border-amber-600/40 border-l-4 border-l-amber-500 bg-amber-600/5"
-          : "rounded border border-emerald-700/30 border-l-4 border-l-emerald-700/50 bg-zinc-900/40"
+          ? "rounded-[10px] border border-[var(--gold-soft)] border-l-4 border-l-[var(--gold)] bg-[var(--gold-soft)]"
+          : "rounded-[10px] border border-[var(--sage-soft)] border-l-4 border-l-[var(--sage)] bg-[var(--card-surface)]/40"
       }
     >
       {/* Header: context path + missing/translated indicator. */}
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">
+        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--ink-faint)]">
           {row.context}
         </span>
         {isMissing ? (
-          <span className="flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[9px] text-amber-200 uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--gold-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--gold)] uppercase">
             <AlertCircle className="h-2.5 w-2.5" />
             {t("translations.badgeMissing")}
           </span>
         ) : (
-          <span className="flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] text-emerald-300 uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--sage-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--terra)] uppercase">
             <Check className="h-2.5 w-2.5" />
             {t("translations.badgeDone")}
           </span>
@@ -407,7 +407,7 @@ function VisualRow({
       {/* Source row (skipped when active === default — redundant). */}
       {!sameLang ? (
         <div className="flex items-start gap-2 px-3 pb-1.5 text-xs">
-          <span className="mt-0.5 w-7 shrink-0 font-mono text-[10px] text-zinc-500 uppercase">
+          <span className="mt-0.5 w-7 shrink-0 font-mono text-[10px] text-[var(--ink-faint)] uppercase">
             {defaultLang}
           </span>
           <div className="min-w-0 flex-1">
@@ -419,13 +419,13 @@ function VisualRow({
                       // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
                       key={i}
                       source={line}
-                      className="block break-words font-mono text-zinc-300"
+                      className="block break-words font-mono text-[var(--ink-2)]"
                     />
                   ) : (
                     <span
                       // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
                       key={i}
-                      className="block break-words font-mono text-zinc-300"
+                      className="block break-words font-mono text-[var(--ink-2)]"
                     >
                       {line}
                     </span>
@@ -433,7 +433,7 @@ function VisualRow({
                 )}
               </div>
             ) : (
-              <span className="text-zinc-700 italic">{t("translations.emptySource")}</span>
+              <span className="text-[var(--ink-faint)] italic">{t("translations.emptySource")}</span>
             )}
           </div>
         </div>
@@ -441,7 +441,7 @@ function VisualRow({
 
       {/* Target row (the input). */}
       <div className="flex items-start gap-2 px-3 pb-2 text-xs">
-        <span className="mt-1.5 w-7 shrink-0 font-mono text-[10px] text-zinc-500 uppercase">
+        <span className="mt-1.5 w-7 shrink-0 font-mono text-[10px] text-[var(--ink-faint)] uppercase">
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
@@ -451,7 +451,7 @@ function VisualRow({
               onChange={(e) => onChange(e.target.value)}
               placeholder={t("translations.translationPlaceholder")}
               rows={Math.min(6, Math.max(2, row.target.split("\n").length))}
-              className="w-full rounded border border-zinc-800 bg-zinc-950 p-1.5 font-mono text-xs text-zinc-100"
+              className="w-full rounded border border-[var(--line-soft)] bg-[var(--bg-deep)] p-1.5 font-mono text-xs text-[var(--ink)]"
             />
           ) : (
             <Input
@@ -462,8 +462,8 @@ function VisualRow({
             />
           )}
           {row.target && row.target.split("\n").some(looksLikeMM) ? (
-            <div className="mt-1 flex flex-col rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-              <span className="mb-0.5 font-mono text-[9px] text-zinc-600 uppercase">
+            <div className="mt-1 flex flex-col rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+              <span className="mb-0.5 font-mono text-[9px] text-[var(--ink-faint)] uppercase">
                 {t("translations.previewLabel")}
               </span>
               {row.target.split("\n").map((line, i) => (
@@ -573,8 +573,8 @@ function YamlBody({
 
   return (
     <>
-      <div className="flex items-center justify-end gap-2 border-zinc-800 border-b bg-zinc-950/40 px-4 py-2">
-        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-300">
+      <div className="flex items-center justify-end gap-2 border-[var(--line-soft)] border-b bg-[var(--bg-deep)]/40 px-4 py-2">
+        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--ink-2)]">
           <input
             type="checkbox"
             checked={includeContext}
@@ -589,8 +589,8 @@ function YamlBody({
         <div
           className={
             error
-              ? "min-h-0 flex-1 overflow-auto border-red-500/60 border-y bg-zinc-950"
-              : "min-h-0 flex-1 overflow-auto bg-zinc-950"
+              ? "min-h-0 flex-1 overflow-auto border-y border-[var(--brick-soft)] bg-[var(--bg-deep)]"
+              : "min-h-0 flex-1 overflow-auto bg-[var(--bg-deep)]"
           }
         >
           <CodeMirror
@@ -609,22 +609,22 @@ function YamlBody({
               indentOnInput: true,
               bracketMatching: true,
             }}
-            className="bg-zinc-950 text-zinc-100"
+            className="bg-[var(--bg-deep)] text-[var(--ink)]"
             style={{ height: "100%" }}
           />
         </div>
         {error ? (
-          <div className="border-zinc-800 border-t bg-zinc-900/60 px-4 py-2 text-[11px] text-red-300">
+          <div className="border-[var(--line-soft)] border-t bg-[var(--card-surface)]/60 px-4 py-2 text-[11px] text-[var(--brick)]">
             {error}
           </div>
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2 border-zinc-800 border-t bg-zinc-950 px-4 py-3">
+      <div className="flex items-center gap-2 border-[var(--line-soft)] border-t bg-[var(--bg-deep)] px-4 py-3">
         <button
           type="button"
           onClick={onCopy}
-          className="flex items-center gap-1.5 rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-zinc-500"
+          className="flex items-center gap-1.5 rounded border border-[var(--line)] bg-[var(--card-surface)] px-3 py-1.5 text-xs text-[var(--ink)] hover:border-[var(--line-strong)]"
         >
           <CopyIcon className="h-3 w-3" />
           {t("translations.yamlCopy")}
@@ -632,7 +632,7 @@ function YamlBody({
         <button
           type="button"
           onClick={onApply}
-          className="ml-auto rounded border border-emerald-600/60 bg-emerald-600/10 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-600/20"
+          className="ml-auto rounded border border-[var(--terra)]/60 bg-[var(--terra-soft)] px-3 py-1.5 text-xs text-[var(--terra)] hover:bg-[var(--terra)]/20"
         >
           {t("translations.yamlApply")}
         </button>
