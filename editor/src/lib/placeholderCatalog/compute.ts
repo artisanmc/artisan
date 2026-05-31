@@ -1,6 +1,6 @@
 import type { FieldType, Menu, Pack } from "@/domain/types";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
-import { renderSample, sampleForPath, walkPath } from "./sample";
+import { renderSample, walkPath } from "./sample";
 import type {
   FieldLocation,
   PlaceholderEntry,
@@ -27,12 +27,14 @@ export function compute(pack: Pack, location: FieldLocation): PlaceholderEntry[]
     case "action": {
       const menu = pack.menus.find((m) => m.id === location.menuId);
       if (!menu) return [];
+      // Build the preview scope once; thread it through all helpers.
+      const scope = buildPreviewScope(menu, pack);
       const out: PlaceholderEntry[] = [];
-      collectMenuContextInputs(menu, pack, out);
+      collectMenuContextInputs(menu, pack, scope, out);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
         if (element?.iterates) {
-          collectIterationLeaves(element.iterates.source, element.iterates.alias, pack, menu.id, out);
+          collectIterationLeaves(element.iterates.source, element.iterates.alias, pack, menu, scope, out);
           collectPagination(out);
         }
       }
@@ -51,6 +53,7 @@ export function compute(pack: Pack, location: FieldLocation): PlaceholderEntry[]
 function collectMenuContextInputs(
   menu: Menu,
   pack: Pack,
+  scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
 ): void {
   for (const input of menu.contextInputs ?? []) {
@@ -59,7 +62,7 @@ function collectMenuContextInputs(
       out.push({
         path: input.name,
         type,
-        sample: sampleForPath(pack, menu.id, input.name),
+        sample: sampleFromScope(scope, input.name),
         origin: "context",
       });
       continue;
@@ -83,7 +86,7 @@ function collectMenuContextInputs(
         out.push({
           path,
           type: fieldTypeToPlaceholderType(field.type),
-          sample: sampleForPath(pack, menu.id, path),
+          sample: sampleFromScope(scope, path),
           origin: "context",
         });
       }
@@ -93,10 +96,15 @@ function collectMenuContextInputs(
     out.push({
       path: input.name,
       type: fieldTypeToPlaceholderType(resolvedType),
-      sample: sampleForPath(pack, menu.id, input.name),
+      sample: sampleFromScope(scope, input.name),
       origin: "context",
     });
   }
+}
+
+/** Resolve a dot-separated path against a pre-built scope and render it. */
+function sampleFromScope(scope: ReturnType<typeof buildPreviewScope>, path: string): string | null {
+  return renderSample(walkPath(scope, path));
 }
 
 function typeOfSourceRef(ref: string, pack: Pack): FieldType | null {
@@ -132,11 +140,10 @@ function collectIterationLeaves(
   sourcePath: string,
   alias: string,
   pack: Pack,
-  menuId: string,
+  menu: Menu,
+  scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
 ): void {
-  const menu = pack.menus.find((m) => m.id === menuId);
-  if (!menu) return;
   const sourceInput = (menu.contextInputs ?? []).find(
     (i) => i.kind === "sourceRef" && i.name === sourcePath,
   );
@@ -150,7 +157,7 @@ function collectIterationLeaves(
       out.push({
         path: leafPath,
         type: fieldTypeToPlaceholderType(field.type),
-        sample: iterationSample(pack, menuId, sourcePath, alias, leafPath),
+        sample: iterationSample(scope, sourcePath, alias, leafPath),
         origin: "iteration",
       });
     }
@@ -158,22 +165,18 @@ function collectIterationLeaves(
     out.push({
       path: alias,
       type: fieldTypeToPlaceholderType(itemType),
-      sample: iterationSample(pack, menuId, sourcePath, alias, alias),
+      sample: iterationSample(scope, sourcePath, alias, alias),
       origin: "iteration",
     });
   }
 }
 
 function iterationSample(
-  pack: Pack,
-  menuId: string,
+  scope: ReturnType<typeof buildPreviewScope>,
   sourcePath: string,
   alias: string,
   fullPath: string,
 ): string | null {
-  const menu = pack.menus.find((m) => m.id === menuId);
-  if (!menu) return null;
-  const scope = buildPreviewScope(menu, pack);
   const list = walkPath(scope, sourcePath);
   if (!Array.isArray(list) || list.length === 0) return null;
   const enriched: Record<string, unknown> = { ...(scope as Record<string, unknown>), [alias]: list[0] };
