@@ -2627,11 +2627,19 @@ export const useAccountStore = create<AccountState>()(
                 firstLayer = { id: newLayerId(), name: "default", elements: [] };
                 menu.layers.push(firstLayer);
               }
+              // Renumber the id following the material_N scheme so paste/duplicate
+              // doesn't leak the random `el_<n>_<ts>` id from the clipboard. The
+              // raw nanoid would surface in YAML files and breaks the visual
+              // grouping admins rely on (`diamond_sword_1`, `_2`, …).
+              const materialForId =
+                element.appearances[0]?.material ?? undefined;
+              const renumberedId = nextElementIdForMaterial(pack, materialForId);
               // Clone LText keys so the added element never shares keys with its source.
               // Without this, rekeyMenuLTexts at deploy time would delete the shared key,
               // breaking the original element's translations.
               const elementToAdd: Element = {
                 ...element,
+                id: renumberedId,
                 positions: formatPositions(newPositions),
                 appearances: element.appearances.map((a) => {
                   const cloned = { ...a };

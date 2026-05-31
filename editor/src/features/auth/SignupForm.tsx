@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/state/authStore";
 import { DiscordLoginButton } from "./DiscordLoginButton";
 
@@ -16,9 +15,6 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  // Track the last submit error locally too — useful in tests where the
-  // store action is mocked and `state.error` is never updated, and as a
-  // fallback when the store hasn't yet reflected the rejection.
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
@@ -33,33 +29,90 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
   }
 
   const errorKey = submitError ?? storeError ?? "";
-  const errorMsg = errorKey ? t(`auth.errors.${errorKey}` as const, { defaultValue: t("auth.errors.unknown") }) : "";
+  const errorMsg = errorKey
+    ? t(`auth.errors.${errorKey}` as const, { defaultValue: t("auth.errors.unknown") })
+    : "";
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4 max-w-sm mx-auto">
-      <h1 className="text-xl font-semibold">{t("auth.signupTitle")}</h1>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">{t("auth.email")}</span>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="rounded border px-3 py-2" />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">{t("auth.password")}</span>
-        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="rounded border px-3 py-2" />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">{t("auth.name")}</span>
-        <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="rounded border px-3 py-2" />
-      </label>
-      {errorMsg && <div className="text-sm text-red-600">{errorMsg}</div>}
-      <button type="submit" disabled={isLoading} className="rounded bg-black text-white px-4 py-2 disabled:opacity-50">
+    <form
+      onSubmit={onSubmit}
+      className="card relative z-[1] mx-auto flex w-full max-w-[400px] flex-col gap-5 p-8"
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="pixel-mark">
+          <i /><i /><i /><i /><i /><i /><i /><i /><i />
+        </span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+          Artisan
+        </span>
+      </div>
+
+      <h1
+        className="display text-[28px] text-[var(--ink)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {t("auth.signupTitle")}
+      </h1>
+
+      <div className="flex flex-col gap-3.5">
+        <label className="flex flex-col">
+          <span className="field-label">{t("auth.name")}</span>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="input"
+            autoComplete="name"
+          />
+        </label>
+        <label className="flex flex-col">
+          <span className="field-label">{t("auth.email")}</span>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input"
+            autoComplete="email"
+          />
+        </label>
+        <label className="flex flex-col">
+          <span className="field-label">{t("auth.password")}</span>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="input"
+            autoComplete="new-password"
+          />
+        </label>
+      </div>
+
+      {errorMsg && <div className="text-sm text-[var(--brick)]">{errorMsg}</div>}
+
+      <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
         {t("auth.signupSubmit")}
       </button>
+
+      <div className="flex items-center gap-3 text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-faint)]">
+        <span className="h-px flex-1 bg-[var(--line-soft)]" />
+        <span>ou</span>
+        <span className="h-px flex-1 bg-[var(--line-soft)]" />
+      </div>
+
       <DiscordLoginButton apiUrl={apiUrl} />
-      <p className="text-sm text-center text-zinc-500">
+
+      <p className="text-center text-[13px] text-[var(--ink-mut)]">
         {t("auth.haveAccount")}{" "}
-        <Link to="/login" search={(prev: Record<string, unknown>) => prev} className="underline text-zinc-300 hover:text-zinc-100">
+        <a
+          href={`/login${typeof window !== "undefined" ? window.location.search : ""}`}
+          className="text-[var(--terra)] underline-offset-2 hover:underline"
+        >
           {t("auth.loginLink")}
-        </Link>
+        </a>
       </p>
     </form>
   );

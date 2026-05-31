@@ -71,13 +71,13 @@ export function NewWorkspaceDialog({ networkId, onCreated, trigger }: NewWorkspa
             autoFocus
           />
           {error && (
-            <div className="text-xs text-red-400">{error}</div>
+            <div className="text-xs text-[var(--brick)]">{error}</div>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
               {t("newPackDialog.cancel")}
             </Button>
-            <Button onClick={submit} disabled={!name.trim() || !networkId || submitting}>
+            <Button variant="primary" onClick={submit} disabled={!name.trim() || !networkId || submitting}>
               {submitting ? "…" : t("newPackDialog.create")}
             </Button>
           </div>
