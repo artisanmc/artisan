@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { exchangeEditorSession, validateEditorSession, refreshEditorSession } from "@/lib/editorSession";
 import { EditorWs } from "@/lib/editorWs";
 import { loadPacks, savePack } from "@/lib/packApi";
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/session")({
 });
 
 function SessionPage() {
+  const { t } = useTranslation();
   const tokenRef = useRef<string | null>(null);
   const [state, setState] = useState<"loading" | "invalid" | "expired" | "already_used" | "empty" | "trust_gate">("loading");
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
@@ -70,10 +72,25 @@ function SessionPage() {
         const packs = await loadPacks(accessToken);
         if (!mountedRef.current) return;
 
+        // Merge session packs into the existing accountStore instead of
+        // replacing it — without this, a user who created packs via the
+        // web UI before running /artisan setup would see their work wiped
+        // the moment a session arrived. Session packs upsert by id;
+        // existing user-mode packs (not bound to this server_key yet)
+        // stay reachable from the sidebar.
+        const current = useAccountStore.getState().account;
+        const byId = new Map(current.packs.map((p) => [p.id, p]));
+        for (const p of packs) byId.set(p.id, p);
+        const mergedPacks = Array.from(byId.values());
+        const existingOrder = current.packOrder;
+        const mergedOrder = [
+          ...existingOrder,
+          ...packs.map((p) => p.id as PackId).filter((id) => !existingOrder.includes(id)),
+        ];
         useAccountStore.getState().setAccount({
           id: info.server_key_id as AccountId,
-          packs,
-          packOrder: packs.map((p) => p.id as PackId),
+          packs: mergedPacks,
+          packOrder: mergedOrder,
         });
 
         setSession(accessToken, info.server_key_id, info.network_id, trustCode, info.trusted);
@@ -82,7 +99,7 @@ function SessionPage() {
           accessToken,
           (_packId, menuId, _menuYaml, _updatedBy) => {
             if (!mountedRef.current) return;
-            setDraftNotice(`Menu "${menuId}" mis à jour par un autre éditeur.`);
+            setDraftNotice(t("sessionPage.draftConflict", { menuId }));
             setTimeout(() => setDraftNotice(null), 5000);
           },
           () => {
@@ -136,34 +153,31 @@ function SessionPage() {
 
   if (state === "invalid") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-destructive text-lg">Session invalide.</p>
-        <p className="text-muted-foreground text-sm">
-          Relancez <code>/artisan editor</code> sur votre serveur Minecraft.
-        </p>
-      </div>
+      <SessionMessage
+        tone="brick"
+        title={t("sessionPage.invalid")}
+        hintKey="sessionPage.invalidHint"
+      />
     );
   }
 
   if (state === "already_used") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-destructive text-lg">Lien déjà utilisé.</p>
-        <p className="text-muted-foreground text-sm">
-          Relancez <code>/artisan editor</code> sur votre serveur Minecraft.
-        </p>
-      </div>
+      <SessionMessage
+        tone="brick"
+        title={t("sessionPage.alreadyUsed")}
+        hintKey="sessionPage.invalidHint"
+      />
     );
   }
 
   if (state === "expired") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-lg font-medium">Session expirée</p>
-        <p className="text-muted-foreground text-sm">
-          Relancez <code>/artisan editor</code> sur votre serveur Minecraft pour obtenir un nouveau lien.
-        </p>
-      </div>
+      <SessionMessage
+        tone="gold"
+        title={t("sessionPage.expired")}
+        hintKey="sessionPage.expiredHint"
+      />
     );
   }
 
@@ -176,13 +190,59 @@ function SessionPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg)]">
       {draftNotice && (
-        <div className="fixed top-4 right-4 z-50 rounded bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800 shadow">
+        <div
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-[14px] border border-[var(--gold-soft)] bg-[var(--card-surface)] px-4 py-2.5 text-[13px] text-[var(--gold)]"
+          style={{ boxShadow: "var(--sh-2)" }}
+        >
+          <span className="dot" style={{ background: "var(--gold)" }} />
           {draftNotice}
         </div>
       )}
-      <p className="text-muted-foreground">Chargement…</p>
+      <p className="text-[var(--ink-mut)]">{t("sessionPage.loading")}</p>
+    </div>
+  );
+}
+
+function SessionMessage({
+  title,
+  hintKey,
+  tone,
+}: {
+  title: string;
+  hintKey: "sessionPage.invalidHint" | "sessionPage.expiredHint";
+  tone: "brick" | "gold";
+}) {
+  const { t } = useTranslation();
+  const accent = tone === "brick" ? "var(--brick)" : "var(--gold)";
+  return (
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+      <div className="card relative z-[1] flex w-full max-w-md flex-col gap-4 p-7">
+        <div className="flex items-center gap-2.5">
+          <span className="dot" style={{ background: accent }} />
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+            {t("sessionPage.eyebrow")}
+          </span>
+        </div>
+        <h1
+          className="display text-[24px] tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {title}
+        </h1>
+        <p className="text-[13.5px] leading-relaxed text-[var(--ink-mut)]">
+          <Trans
+            i18nKey={hintKey}
+            components={{
+              1: (
+                <code className="mono rounded bg-[var(--inset)] px-1.5 py-0.5 text-[var(--sand)]" />
+              ),
+            }}
+            values={{ cmd: "/artisan editor" }}
+          />
+        </p>
+      </div>
     </div>
   );
 }
@@ -194,6 +254,7 @@ function EmptyState({
   tokenRef: RefObject<string | null>;
   navigate: ReturnType<typeof useNavigate>;
 }) {
+  const { t } = useTranslation();
   const [id, setId] = useState("");
   const [busy, setBusy] = useState(false);
   const createPack = useAccountStore((s) => s.createPack);
@@ -214,26 +275,46 @@ function EmptyState({
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <p className="text-lg font-medium">Aucun pack</p>
-      <p className="text-muted-foreground text-sm">Créez votre premier pack pour commencer.</p>
-      <div className="flex gap-2">
-        <input
-          className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-          placeholder="my_pack"
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-          autoFocus
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!id.trim() || busy}
-          className="rounded border border-emerald-600/60 bg-emerald-600/10 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-600/20 disabled:opacity-40"
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+      <div className="card relative z-[1] flex w-full max-w-md flex-col gap-5 p-7">
+        <div className="flex items-center gap-2.5">
+          <span className="pixel-mark">
+            <i /><i /><i /><i /><i /><i /><i /><i /><i />
+          </span>
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+            {t("sessionPage.firstPackEyebrow")}
+          </span>
+        </div>
+        <h1
+          className="display text-[24px] tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
         >
-          Créer
-        </button>
+          {t("sessionPage.noPack")}
+        </h1>
+        <p className="text-[13.5px] leading-relaxed text-[var(--ink-mut)]">
+          {t("sessionPage.noPackBody")}
+        </p>
+        <div className="flex flex-col gap-2">
+          <span className="field-label">{t("sessionPage.idLabel")}</span>
+          <div className="flex gap-2">
+            <input
+              className="input"
+              placeholder="my_pack"
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!id.trim() || busy}
+              className="btn btn-primary"
+            >
+              {t("sessionPage.create")}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -62,12 +62,12 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
               autoFocus
             />
             {prefixedId && !conflict && (
-              <span className="font-mono text-xs text-zinc-400">
-                {t("canvas.idPreviewLabel")} <span className="text-zinc-300">{prefixedId}</span>
+              <span className="font-mono text-xs text-[var(--ink-mut)]">
+                {t("canvas.idPreviewLabel")} <span className="text-[var(--sand)]">{prefixedId}</span>
               </span>
             )}
             {conflict && (
-              <span className="text-xs text-red-400">{t("canvas.idConflict")}</span>
+              <span className="text-xs text-[var(--brick)]">{t("canvas.idConflict")}</span>
             )}
           </div>
           <div className="flex justify-end gap-2">

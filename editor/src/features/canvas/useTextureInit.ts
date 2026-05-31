@@ -1,16 +1,29 @@
 import { useEffect } from "react";
 import { fetchItems, fetchCustomItems } from "@/lib/packApi";
+import { fetchUserItems, fetchUserCustomItems } from "@/lib/api/userPacks";
 import { useSessionStore } from "@/state/sessionStore";
+import { useAuthStore } from "@/state/authStore";
+import { useUiStore } from "@/state/uiStore";
 import { renderToCanvas, preloadModels } from "@/lib/mcModelRenderer";
 import { useTextureStore } from "./textureStore";
 
 /**
- * Initialises the texture store as soon as a session token is available.
- * Must be called from a component that is always mounted (e.g. EditorPane),
- * NOT from Library which is conditionally rendered per tab.
+ * Initialises the texture store as soon as a session token OR a logged-in
+ * user is available. Must be called from a component that is always mounted
+ * (e.g. EditorPane), NOT from Library which is conditionally rendered per tab.
+ *
+ * Two modes:
+ *  - **Session mode** (`/artisan editor` flow) — items resolved via the
+ *    session token, which carries the bound server_key + its MC version.
+ *  - **User-auth mode** (web login → workspace) — items resolved via
+ *    `/api/v1/user/packs/{packId}/items`, which picks a representative
+ *    server_key binding and falls back to the newest available items.json
+ *    if no MC version is known yet.
  */
 export function useTextureInit() {
   const token = useSessionStore((s) => s.accessToken);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const lastActivePackId = useUiStore((s) => s.lastActivePackId);
   const setData = useTextureStore((s) => s.setData);
   const setCustomData = useTextureStore((s) => s.setCustomData);
   const setRendered = useTextureStore((s) => s.setRendered);
@@ -20,8 +33,17 @@ export function useTextureInit() {
   const setLibraryError = useTextureStore((s) => s.setLibraryError);
 
   useEffect(() => {
-    if (!token) return;
-    Promise.all([fetchItems(token), fetchCustomItems(token)])
+    // Session mode wins when both are present; user mode requires a packId
+    // to derive the binding.
+    const sessionFetch = token
+      ? Promise.all([fetchItems(token), fetchCustomItems(token)])
+      : currentUser && lastActivePackId
+        ? Promise.all([fetchUserItems(lastActivePackId), fetchUserCustomItems(lastActivePackId)])
+        : null;
+
+    if (!sessionFetch) return;
+
+    sessionFetch
       .then(async ([vanilla, custom]) => {
         setData(vanilla.version, vanilla.items);
         setLibraryItems(vanilla.items);
@@ -40,5 +62,16 @@ export function useTextureInit() {
         }
       })
       .catch(() => setLibraryError(true));
-  }, [token, setData, setCustomData, setRendered, setLibraryItems, setLibraryCustomData, setLibraryBundleReady, setLibraryError]);
+  }, [
+    token,
+    currentUser,
+    lastActivePackId,
+    setData,
+    setCustomData,
+    setRendered,
+    setLibraryItems,
+    setLibraryCustomData,
+    setLibraryBundleReady,
+    setLibraryError,
+  ]);
 }

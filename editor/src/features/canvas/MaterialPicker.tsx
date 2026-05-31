@@ -44,18 +44,18 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-zinc-800 bg-zinc-950 p-3 text-zinc-200">
+      <DialogContent className="flex max-h-[80vh] flex-col gap-3 p-4">
         <DialogHeader>
-          <DialogTitle className="text-sm">{t("materialPicker.title")}</DialogTitle>
+          <DialogTitle className="text-base">{t("materialPicker.title")}</DialogTitle>
         </DialogHeader>
         <div className="relative">
-          <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 h-4 w-4 text-zinc-500" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--ink-faint)]" />
           <Input
             autoFocus
             placeholder={t("library.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
+            className="pl-9"
           />
         </div>
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
@@ -63,7 +63,7 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
             <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-6 py-4 text-center text-xs text-zinc-500 sm:col-span-8">
+            <div className="col-span-6 py-4 text-center text-xs text-[var(--ink-faint)] sm:col-span-8">
               {t("library.noMatch")}
             </div>
           )}
@@ -82,7 +82,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
       title={label}
       className={cx(
         "group relative flex aspect-square cursor-pointer items-center justify-center",
-        "rounded border border-zinc-800 bg-zinc-900 hover:border-emerald-500 hover:bg-emerald-500/5",
+        "rounded-[8px] border border-[var(--line)] bg-[var(--inset)] hover:border-[var(--terra-line)] hover:bg-[var(--terra-soft)]",
       )}
     >
       {url ? (
@@ -94,7 +94,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[8px] text-zinc-400">{label.slice(0, 4)}</span>
+        <span className="text-[8px] text-[var(--ink-mut)]">{label.slice(0, 4)}</span>
       )}
     </button>
   );

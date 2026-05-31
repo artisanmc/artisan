@@ -123,12 +123,12 @@ export function ConditionListEditor({
     <div>
       {label ? (
         <div className="mb-1">
-          <span className="text-[10px] uppercase text-zinc-500">{label}</span>
+          <span className="text-[10px] uppercase text-[var(--ink-faint)]">{label}</span>
         </div>
       ) : null}
       {conditions.length === 0 ? (
         <div className="flex items-center gap-1.5">
-          <div className="flex-1 rounded border border-zinc-800 border-dashed bg-zinc-900/30 px-2 py-1.5 text-[11px] text-zinc-500">
+          <div className="flex-1 rounded border border-[var(--line-soft)] border-dashed bg-[var(--card-surface)]/30 px-2 py-1.5 text-[11px] text-[var(--ink-faint)]">
             {emptyHint ?? t("conditions.alwaysNoCondition")}
           </div>
           <AppendChip onPick={append} joiner="AND" />
@@ -194,8 +194,8 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
         ref={setNodeRef}
         style={style}
         className={cx(
-          "group flex items-center gap-1 rounded border bg-zinc-900 px-1.5 py-0.5",
-          isDragging ? "border-emerald-500" : "border-zinc-700",
+          "group flex items-center gap-1 rounded border bg-[var(--card-surface)] px-1.5 py-0.5",
+          isDragging ? "border-[var(--terra)]" : "border-[var(--line)]",
         )}
       >
         <DropdownMenu>
@@ -204,17 +204,17 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
               type="button"
               {...attributes}
               {...listeners}
-              className="cursor-grab rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-200 hover:bg-zinc-700 active:cursor-grabbing"
+              className="cursor-grab rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--ink)] hover:bg-[var(--raised-2)] active:cursor-grabbing"
             >
               {labelForType(condition.type)}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+          <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
             {TYPES.map((t) => (
               <DropdownMenuItem
                 key={t.value}
                 onSelect={() => onChange(defaultCondition(t.value))}
-                className="cursor-pointer text-[11px] focus:bg-zinc-800"
+                className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
               >
                 {t.label}
               </DropdownMenuItem>
@@ -226,7 +226,7 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
           type="button"
           title={t("conditions.removeCondition")}
           onClick={onRemove}
-          className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-zinc-500 opacity-100 hover:bg-zinc-800 hover:text-zinc-200 lg:opacity-0 lg:group-hover:opacity-100"
+          className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[var(--ink-faint)] opacity-100 hover:bg-[var(--raised-2)] hover:text-[var(--ink)] lg:opacity-0 lg:group-hover:opacity-100"
         >
           ×
         </button>
@@ -260,7 +260,7 @@ function ConditionInline({
     case "has_money":
       return (
         <>
-          <span className="font-mono text-[10px] text-zinc-500">≥</span>
+          <span className="font-mono text-[10px] text-[var(--ink-faint)]">≥</span>
           <Input
             type="number"
             min={0}
@@ -282,7 +282,7 @@ function ConditionInline({
             onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
-          <span className="font-mono text-[10px] text-zinc-500">=</span>
+          <span className="font-mono text-[10px] text-[var(--ink-faint)]">=</span>
           <Input
             placeholder={t("conditions.placeholderValuePlaceholder")}
             value={condition.value}
@@ -300,7 +300,7 @@ function ConditionInline({
             onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
-          <span className="font-mono text-[10px] text-zinc-500">~</span>
+          <span className="font-mono text-[10px] text-[var(--ink-faint)]">~</span>
           <Input
             placeholder={t("conditions.placeholderRegexPlaceholder")}
             value={condition.regex}
@@ -311,25 +311,25 @@ function ConditionInline({
       );
     case "not":
       return (
-        <div className="flex items-center gap-1 rounded border border-zinc-800 border-dashed bg-zinc-950/50 px-1 py-0.5">
+        <div className="flex items-center gap-1 rounded border border-[var(--line-soft)] border-dashed bg-[var(--bg-deep)]/50 px-1 py-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-200 hover:bg-zinc-700"
+                className="rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--ink)] hover:bg-[var(--raised-2)]"
               >
                 {labelForType(condition.of.type)}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="border-zinc-700 bg-zinc-900 text-zinc-200"
+              className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]"
             >
               {TYPES.filter((t) => t.value !== "not").map((t) => (
                 <DropdownMenuItem
                   key={t.value}
                   onSelect={() => onChange({ type: "not", of: defaultCondition(t.value) })}
-                  className="cursor-pointer text-[11px] focus:bg-zinc-800"
+                  className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
                 >
                   {t.label}
                 </DropdownMenuItem>
@@ -381,15 +381,15 @@ function CompositeInner({
   const append = (type: Condition["type"]) =>
     onChange({ ...condition, of: [...condition.of, defaultCondition(type)] });
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded border border-zinc-800 border-dashed bg-zinc-950/50 px-1 py-0.5">
+    <div className="flex flex-wrap items-center gap-1 rounded border border-[var(--line-soft)] border-dashed bg-[var(--bg-deep)]/50 px-1 py-0.5">
       {condition.of.length === 0 ? (
-        <span className="font-mono text-[10px] text-zinc-600 italic">empty</span>
+        <span className="font-mono text-[10px] text-[var(--ink-faint)] italic">empty</span>
       ) : (
         condition.of.map((inner, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: index stable per render
           <Fragment key={i}>
             {i > 0 ? (
-              <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+              <span className="select-none font-mono text-[9px] uppercase tracking-wide text-[var(--ink-faint)]">
                 {op}
               </span>
             ) : null}
@@ -421,22 +421,22 @@ function InnerChip({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="group flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5">
+    <div className="group flex items-center gap-1 rounded border border-[var(--line)] bg-[var(--card-surface)] px-1.5 py-0.5">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-200 hover:bg-zinc-700"
+            className="rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--ink)] hover:bg-[var(--raised-2)]"
           >
             {labelForType(condition.type)}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
           {TYPES.map((t) => (
             <DropdownMenuItem
               key={t.value}
               onSelect={() => onChange(defaultCondition(t.value))}
-              className="cursor-pointer text-[11px] focus:bg-zinc-800"
+              className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
             >
               {t.label}
             </DropdownMenuItem>
@@ -448,7 +448,7 @@ function InnerChip({
         type="button"
         title={t("conditions.removeCondition")}
         onClick={onRemove}
-        className="rounded px-1 text-[10px] text-zinc-500 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100"
+        className="rounded px-1 text-[10px] text-[var(--ink-faint)] opacity-0 hover:bg-[var(--raised-2)] hover:text-[var(--ink)] group-hover:opacity-100"
       >
         ×
       </button>
@@ -468,17 +468,17 @@ function AppendChip({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded border border-zinc-700 border-dashed px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          className="rounded border border-[var(--line)] border-dashed px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
         >
           {joiner ? `+ ${joiner}` : "+ add"}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+      <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
         {TYPES.map((t) => (
           <DropdownMenuItem
             key={t.value}
             onSelect={() => onPick(t.value)}
-            className="cursor-pointer text-[11px] focus:bg-zinc-800"
+            className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
           >
             {t.label}
           </DropdownMenuItem>
@@ -498,7 +498,7 @@ function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => voi
   const label = op === "or" ? "OR" : "AND";
   if (!onToggle) {
     return (
-      <span className="select-none font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+      <span className="select-none font-mono text-[9px] uppercase tracking-wide text-[var(--ink-faint)]">
         {label}
       </span>
     );
@@ -511,8 +511,8 @@ function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => voi
       className={cx(
         "rounded px-1 font-mono text-[9px] uppercase tracking-wide transition-colors",
         op === "or"
-          ? "bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
-          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+          ? "bg-[var(--gold-soft)] text-[var(--gold)] hover:bg-[var(--gold)]/25"
+          : "bg-[var(--raised-2)] text-[var(--ink-2)] hover:bg-[var(--raised-2)]",
       )}
     >
       {label}

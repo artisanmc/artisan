@@ -47,7 +47,7 @@ export function ExpressionPreview({ expr }: ExpressionPreviewProps) {
     return <div className="text-[10px] text-rose-300">{t(key, params)}</div>;
   }
   return (
-    <div className="font-mono text-[10px] text-emerald-300">
+    <div className="font-mono text-[10px] text-[var(--terra)]">
       {t("conditions.exprPreviewValid", { display: state.display || '""' })}
     </div>
   );

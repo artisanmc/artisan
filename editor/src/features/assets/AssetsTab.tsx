@@ -53,8 +53,8 @@ export function AssetsTab({ packId }: { packId: PackId }) {
               className={cx(
                 "rounded-full border px-2 py-0.5 text-[10px] capitalize",
                 typeFilter === t
-                  ? "border-emerald-600 bg-emerald-600/10 text-emerald-300"
-                  : "border-zinc-700 text-zinc-400 hover:border-zinc-500",
+                  ? "border-[var(--terra)] bg-[var(--terra-soft)] text-[var(--terra)]"
+                  : "border-[var(--line)] text-[var(--ink-mut)] hover:border-[var(--line-strong)]",
               )}
             >
               {t}

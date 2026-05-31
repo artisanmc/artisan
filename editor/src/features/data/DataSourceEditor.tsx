@@ -88,18 +88,18 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
           type="text"
           value={source.name}
           onChange={(e) => renameDataSource({ packId, id: source.id, newName: e.target.value })}
-          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-zinc-100 outline-none focus:border-b focus:border-zinc-500"
+          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-[var(--ink)] outline-none focus:border-b focus:border-[var(--terra-line)]"
         />
         <button
           type="button"
           onClick={() => removeDataSource({ packId, id: source.id })}
-          className="shrink-0 rounded px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-800 hover:text-rose-300"
+          className="shrink-0 rounded px-2 py-1 text-[11px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-rose-300"
         >
           {t("dataSources.remove")}
         </button>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-zinc-800">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-[var(--line-soft)]">
         <CodeMirror
           value={localYaml}
           extensions={[yamlLang(), CM_THEME]}
@@ -113,7 +113,7 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
             indentOnInput: true,
             bracketMatching: true,
           }}
-          className="min-h-0 flex-1 overflow-auto bg-zinc-900 text-zinc-100"
+          className="min-h-0 flex-1 overflow-auto bg-[var(--card-surface)] text-[var(--ink)]"
           style={{ height: "100%" }}
         />
       </div>
@@ -122,7 +122,7 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
         {parseError ? (
           <span className="font-mono text-[11px] text-rose-400">{parseError}</span>
         ) : (
-          <span className="font-mono text-[11px] text-zinc-500">
+          <span className="font-mono text-[11px] text-[var(--ink-faint)]">
             {inferredType ?? "—"}
           </span>
         )}

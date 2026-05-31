@@ -48,7 +48,7 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-zinc-800 bg-zinc-950 p-3 text-zinc-200">
+      <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-[var(--line-soft)] bg-[var(--bg-deep)] p-3 text-[var(--ink)]">
         <DialogHeader>
           <DialogTitle className="text-sm">{title ?? `Pick a ${typeLabel}`}</DialogTitle>
         </DialogHeader>
@@ -66,7 +66,7 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
               onClick={() => { onPick(asset); onClose(); }}
               className={cx(
                 "group relative flex aspect-square cursor-pointer items-center justify-center",
-                "rounded border border-zinc-800 bg-zinc-900 hover:border-emerald-500 hover:bg-emerald-500/5",
+                "rounded-[8px] border border-[var(--line-soft)] bg-[var(--card-surface)] hover:border-[var(--terra)] hover:bg-[var(--terra-soft)]",
               )}
             >
               <img
@@ -79,7 +79,7 @@ export function AssetPicker({ open, onClose, typeFilter, onPick, title }: AssetP
             </button>
           ))}
           {matches.length === 0 && (
-            <div className="col-span-6 py-4 text-center text-xs text-zinc-500">
+            <div className="col-span-6 py-4 text-center text-xs text-[var(--ink-faint)]">
               No {typeLabel} assets found.
             </div>
           )}

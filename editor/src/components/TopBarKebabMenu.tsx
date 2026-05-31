@@ -28,17 +28,20 @@ export function TopBarKebabMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t("topbar.more")}
-        className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--ink-2)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       >
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+      <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={onExportZip}>{t("topbar.exportZip")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onImport}>{t("topbar.import")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onExport}>{t("topbar.export")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onOpenPatterns}>{t("patterns.title")}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onDelete} className="text-red-400 focus:text-red-300">
+        <DropdownMenuItem
+          onSelect={onDelete}
+          className="text-[var(--brick)] focus:text-[var(--brick)]"
+        >
           {t("topbar.deletePack")}
         </DropdownMenuItem>
       </DropdownMenuContent>

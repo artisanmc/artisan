@@ -73,7 +73,7 @@ export function AssetUploadDialog({ packId, open, onClose }: AssetUploadDialogPr
             <input type="file" accept="image/png"
                    onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button disabled={busy || !name || !file} onClick={onSubmit}>Upload</Button>

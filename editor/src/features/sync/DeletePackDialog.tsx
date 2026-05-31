@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 
 export interface DeletePackDialogProps {
   packName: string;
@@ -13,32 +14,47 @@ export function DeletePackDialog({ packName, onConfirm, onCancel }: DeletePackDi
   const confirmEnabled = typed === packName;
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl text-zinc-200">
-        <h2 className="text-lg font-semibold mb-3 text-zinc-100">
-          {t("sync.deletePackDialog.title", { name: packName })}
-        </h2>
-        <p className="text-sm text-zinc-400 mb-2">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-deep)]/85 p-4 backdrop-blur-sm"
+    >
+      <div
+        className="card w-full max-w-md p-7"
+        style={{ boxShadow: "var(--sh-3)" }}
+      >
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brick-soft)] text-[var(--brick)]">
+            <AlertTriangle className="size-[18px]" />
+          </span>
+          <h2
+            className="display text-[20px] tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {t("sync.deletePackDialog.title", { name: packName })}
+          </h2>
+        </div>
+        <p className="mb-2 text-[13.5px] leading-relaxed text-[var(--ink-2)]">
           {t("sync.deletePackDialog.warning")}
         </p>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="mb-5 text-[12.5px] leading-relaxed text-[var(--ink-mut)]">
           {t("sync.deletePackDialog.conflictWarning")}
         </p>
-        <label className="block text-sm font-medium mb-1 text-zinc-300">
-          {t("sync.deletePackDialog.typePrompt")}
+        <label className="mb-1.5 block">
+          <span className="field-label">{t("sync.deletePackDialog.typePrompt")}</span>
+          <input
+            type="text"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            className="input mt-1.5"
+            autoFocus
+          />
         </label>
-        <input
-          type="text"
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          className="border border-zinc-700 bg-zinc-900 text-zinc-100 w-full px-3 py-2 rounded mb-4 focus:border-zinc-500 focus:outline-none"
-          autoFocus
-        />
-        <div className="flex justify-end gap-2">
+        <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+            className="btn btn-ghost"
           >
             {t("sync.deletePackDialog.cancel")}
           </button>
@@ -46,7 +62,13 @@ export function DeletePackDialog({ packName, onConfirm, onCancel }: DeletePackDi
             type="button"
             onClick={onConfirm}
             disabled={!confirmEnabled}
-            className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn"
+            style={{
+              background: "var(--brick)",
+              color: "#fff",
+              borderColor: "transparent",
+              boxShadow: "0 8px 22px -12px rgba(232,87,88,.65)",
+            }}
           >
             {t("sync.deletePackDialog.confirm")}
           </button>

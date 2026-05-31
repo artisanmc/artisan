@@ -67,7 +67,7 @@ export function Edges({ pack, layout }: EdgesProps) {
           <Line
             key={e.id}
             points={[sx, sy, midX, sy, midX, ty, tx, ty]}
-            stroke={highlighted ? "#22c55e" : "#52525b"}
+            stroke={highlighted ? "#DF6B41" : "#573F35"}
             strokeWidth={highlighted ? 2.5 : 1.5}
             bezier
             tension={0.3}

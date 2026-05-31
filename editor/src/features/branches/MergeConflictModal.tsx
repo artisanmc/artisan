@@ -67,11 +67,11 @@ export function MergeConflictModal({
         </DialogHeader>
         <div className="flex flex-col gap-4">
           {plan.conflicts.length === 0 && (
-            <div className="text-xs text-emerald-400">All changes auto-merged. Click Confirm to commit.</div>
+            <div className="text-xs text-[var(--sage)]">All changes auto-merged. Click Confirm to commit.</div>
           )}
           <ul className="flex flex-col gap-3 max-h-96 overflow-y-auto">
             {plan.conflicts.map((c: Conflict) => (
-              <li key={c.conflictKey} className="border border-zinc-800 rounded p-2 text-xs">
+              <li key={c.conflictKey} className="border border-[var(--line-soft)] rounded p-2 text-xs">
                 <div className="font-mono mb-1">{c.conflictKey}</div>
                 <div className="text-muted-foreground mb-2">
                   {c.resolution === "modify-modify"
@@ -105,7 +105,7 @@ export function MergeConflictModal({
               </li>
             ))}
           </ul>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onCancel}>Cancel</Button>
             <Button

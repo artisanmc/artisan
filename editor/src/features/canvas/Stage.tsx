@@ -329,17 +329,25 @@ export function Stage({ packId }: StageProps) {
     useHoverStore.getState().setElement(null);
   }, []);
 
-  if (!pack) return <div className="p-8 text-zinc-500">Pack not found.</div>;
+  if (!pack) return <div className="p-8 text-[var(--ink-mut)]">Pack not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full bg-[var(--color-bg)]"
+      className="stage-bg-dots relative h-full w-full"
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 80% at 50% 0%, rgba(223,107,65,.05), transparent 60%)",
+        }}
+      />
       <ArmedBanner />
       <KonvaStage
         ref={stageRef}
@@ -492,7 +500,10 @@ function ArmedBanner() {
   const url = useTextureUrl(armed ?? "");
   if (!armed) return null;
   return (
-    <div className="-translate-x-1/2 absolute top-2 left-1/2 z-20 flex items-center gap-2 rounded-full border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-emerald-200 shadow-lg backdrop-blur">
+    <div
+      className="-translate-x-1/2 absolute top-3 left-1/2 z-20 flex items-center gap-2.5 rounded-full border border-[var(--terra-line)] bg-[var(--card-surface)]/95 px-3.5 py-1.5 text-[var(--ink)] backdrop-blur"
+      style={{ boxShadow: "var(--sh-2)" }}
+    >
       {url ? (
         <img
           src={url}
@@ -501,12 +512,14 @@ function ArmedBanner() {
           style={{ imageRendering: "pixelated" }}
         />
       ) : null}
-      <span className="font-mono text-[12px]">tap a slot to place {armed}</span>
+      <span className="text-[12.5px]">
+        <strong className="text-[var(--terra)] font-semibold">{armed}</strong> armé — clique une case pour le placer
+      </span>
       <button
         type="button"
         onClick={() => setArmed(null)}
         title="Cancel"
-        className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-emerald-200/80 hover:bg-emerald-500/20 hover:text-emerald-100"
+        className="flex h-6 w-6 items-center justify-center rounded-[10px] text-[14px] text-[var(--ink-mut)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       >
         ×
       </button>

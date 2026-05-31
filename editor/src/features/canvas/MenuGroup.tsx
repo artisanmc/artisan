@@ -685,18 +685,18 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         <Rect
           width={box.width}
           height={box.height}
-          stroke="#22c55e"
+          stroke="#DF6B41"
           strokeWidth={2}
           listening={false}
           perfectDrawEnabled={false}
         />
       ) : null}
-      {/* Edge-hover halo: amber border when this menu is the source of the hovered edge */}
+      {/* Edge-hover halo: gold border when this menu is the source of the hovered edge */}
       {hoveredEdge?.source === menu.id ? (
         <Rect
           width={box.width}
           height={box.height}
-          stroke="#f59e0b"
+          stroke="#E2A85A"
           strokeWidth={2}
           listening={false}
           perfectDrawEnabled={false}
@@ -892,7 +892,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 y={innerY - 1}
                 width={TEX_SLOT_INNER + 2}
                 height={TEX_SLOT_INNER + 2}
-                stroke={isFocusedSlot ? "#22c55e" : "#3b82f6"}
+                stroke={isFocusedSlot ? "#DF6B41" : "#F0DDB8"}
                 strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1.5}
                 listening={false}
                 perfectDrawEnabled={false}
@@ -904,7 +904,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 y={innerY - 2}
                 width={TEX_SLOT_INNER + 4}
                 height={TEX_SLOT_INNER + 4}
-                stroke="#f59e0b"
+                stroke="#E2A85A"
                 strokeWidth={2}
                 listening={false}
                 perfectDrawEnabled={false}
@@ -1013,7 +1013,7 @@ function PaginationControls({
         onClick={canPrev ? onPrev : undefined}
         onTap={canPrev ? onPrev : undefined}
       >
-        <Rect width={btnW} height={btnH} fill="#27272a" cornerRadius={3} />
+        <Rect width={btnW} height={btnH} fill="#271F1A" cornerRadius={3} />
         <Text
           x={0}
           y={0}
@@ -1021,13 +1021,13 @@ function PaginationControls({
           height={btnH}
           text="◀"
           fontSize={fontSize}
-          fill="#a1a1aa"
+          fill="#C9B7A3"
           align="center"
           verticalAlign="middle"
           listening={false}
         />
       </Group>
-      <Rect x={btnW + 4} width={labelW} height={btnH} fill="#18181b" cornerRadius={3} />
+      <Rect x={btnW + 4} width={labelW} height={btnH} fill="#14100D" cornerRadius={3} />
       <Text
         x={btnW + 4}
         y={0}
@@ -1035,7 +1035,7 @@ function PaginationControls({
         height={btnH}
         text={`Page ${page + 1} / ${totalPages}`}
         fontSize={fontSize}
-        fill="#a1a1aa"
+        fill="#C9B7A3"
         align="center"
         verticalAlign="middle"
         listening={false}
@@ -1047,7 +1047,7 @@ function PaginationControls({
         onClick={canNext ? onNext : undefined}
         onTap={canNext ? onNext : undefined}
       >
-        <Rect width={btnW} height={btnH} fill="#27272a" cornerRadius={3} />
+        <Rect width={btnW} height={btnH} fill="#271F1A" cornerRadius={3} />
         <Text
           x={0}
           y={0}
@@ -1055,7 +1055,7 @@ function PaginationControls({
           height={btnH}
           text="▶"
           fontSize={fontSize}
-          fill="#a1a1aa"
+          fill="#C9B7A3"
           align="center"
           verticalAlign="middle"
           listening={false}

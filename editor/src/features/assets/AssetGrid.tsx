@@ -66,10 +66,10 @@ export function AssetGrid({ assets, selectedId, onSelect }: AssetGridProps) {
                 title={asset.name}
                 style={{ width: TILE_SIZE, height: TILE_SIZE }}
                 className={cx(
-                  "shrink-0 rounded border bg-zinc-900 hover:border-zinc-400",
+                  "shrink-0 rounded-[8px] border bg-[var(--card-surface)] hover:border-[var(--line-strong)]",
                   selectedId === asset.id
-                    ? "border-emerald-500 ring-1 ring-emerald-500"
-                    : "border-zinc-700",
+                    ? "border-[var(--terra)] ring-1 ring-[var(--terra)]"
+                    : "border-[var(--line)]",
                 )}
               >
                 <img
