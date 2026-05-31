@@ -62,6 +62,12 @@ class ArtisanCommand(
                 plugin.menuProvider.openMenu(sender, menuId, lang.playerLang(sender))
             }
             "reload" -> {
+                // Re-read disk config + re-init LangManager so options like
+                // `per_player_language` and `language` pick up changes without
+                // needing a full server restart. Then reload the menu provider
+                // so disk-side YAML edits are picked up too.
+                plugin.reloadConfig()
+                plugin.reinit(PluginConfig.from(plugin.config))
                 plugin.menuProvider.unload()
                 plugin.menuProvider.load()
                 sender.sendMessage(lang.get("artisan.reloaded", sender))
@@ -123,7 +129,7 @@ class ArtisanCommand(
             return
         }
         val resolvedLang = langOverride ?: PluginConfig.from(plugin.config).language
-        val langMap = menu.langMaps[resolvedLang] ?: emptyMap()
+        val langMap = menu.langMapWithFallback(resolvedLang)
         val encoder = plugin.assetCatalog.offsetEncoder()
         val advances: Map<Char, Int> = encoder.advances()
 

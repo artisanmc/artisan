@@ -139,8 +139,14 @@ data class DialogYaml(
 data class BundleDialog(
     val yaml: DialogYaml,
     val langMaps: Map<String, Map<String, String>>,
+    /** Fallback language used when the player's locale isn't shipped by the pack. See [BundleMenu.defaultLang]. */
+    val defaultLang: String = "en",
 ) {
     val id: String get() = yaml.id
+
+    /** Same deterministic fallback chain as [BundleMenu.langMapWithFallback]. */
+    fun langMapWithFallback(lang: String): Map<String, String> =
+        langMaps[lang] ?: langMaps[defaultLang] ?: emptyMap()
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -182,8 +188,23 @@ data class BundleMenu(
      * Computed by [MenuTitleParser.parse] at compile time. Task 18's `TitleCompiler` consumes this list.
      */
     val title: List<MenuTitleLayer> = MenuTitleParser.parse(yaml.title),
+    /**
+     * Fallback language declared in the parent pack's manifest. Used when the
+     * player's client locale isn't in `langMaps` so we still resolve the i18n
+     * keys to *some* translation instead of leaking `{i18n:foo}` to chat.
+     */
+    val defaultLang: String = "en",
 ) {
     val id: String get() = yaml.id
+
+    /**
+     * Lang map with deterministic fallback chain — requested lang → pack default
+     * → empty. Renderers should use this instead of the raw `langMaps[lang]`
+     * lookup so a player on a locale not shipped by the pack still sees the
+     * translated text (in the default language).
+     */
+    fun langMapWithFallback(lang: String): Map<String, String> =
+        langMaps[lang] ?: langMaps[defaultLang] ?: emptyMap()
 
     /**
      * Legacy title resolver kept for backward-compat until Task 18 replaces it with `TitleCompiler.compileTitle`.

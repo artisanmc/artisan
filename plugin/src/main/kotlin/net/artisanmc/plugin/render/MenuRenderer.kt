@@ -35,11 +35,10 @@ object MenuRenderer {
         lookupAsset: (String) -> AssetEntry? = { null },
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
     ): MenuSession {
-        // Fallback chain: requested lang → any lang declared in the pack → empty.
-        // The pack's manifest may declare only a subset of MC client locales; without
-        // this fallback, players whose `sender.locale().language` is not in the manifest
-        // would see raw i18n keys instead of any translation at all.
-        val langMap = menu.langMaps[lang] ?: menu.langMaps.values.firstOrNull() ?: emptyMap()
+        // Deterministic fallback chain: requested lang → pack defaultLang → empty.
+        // Previously fell back to `langMaps.values.firstOrNull()` which is map-
+        // iteration-order dependent (non-deterministic across loads).
+        val langMap = menu.langMapWithFallback(lang)
         // Per-title placeholder interpolation: `{argName}` from the ExecutionContext
         // args, then `%papi%` via PlaceholderAPI. Same chain as resolveText() applies
         // to item title/lore.

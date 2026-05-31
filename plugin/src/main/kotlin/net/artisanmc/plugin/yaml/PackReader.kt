@@ -51,7 +51,7 @@ class PackReader(private val packsRoot: File, private val logger: Logger? = null
             val f = File(packDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             val menuYaml = mapper.readValue(f, MenuYaml::class.java)
             requireSchema(f, menuYaml.schema, "menu/v1")
-            BundleCompiler.compile(menuYaml, langMaps, logger)
+            BundleCompiler.compile(menuYaml, langMaps, logger, defaultLang = manifest.defaultLang)
         }
 
         val commands = manifest.files.commands.mapNotNull { cmdId ->
@@ -65,7 +65,7 @@ class PackReader(private val packsRoot: File, private val logger: Logger? = null
             val f = File(packDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             val dialogYaml = mapper.readValue(f, DialogYaml::class.java)
             requireSchema(f, dialogYaml.schema, "dialog/v1")
-            BundleDialog(dialogYaml, langMaps)
+            BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
         }
 
         return PackBundle(manifest.packId, manifest.defaultLang, manifest.languages, menus, commands, dialogs)
