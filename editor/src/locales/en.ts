@@ -438,6 +438,9 @@ export default {
     renameRejected: "Rename rejected",
   },
   layerEditForm: {
+    textPlaceholder: "<gold>Title text…",
+    textareaPlaceholder: "<gold>Line 1\nLine 2…",
+    plainPlaceholder: "Title text…",
     size: {
       label: "Size",
       align: "Match line height to size",
