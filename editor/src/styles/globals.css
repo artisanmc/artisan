@@ -423,12 +423,14 @@ body {
 
 /* Placeholder autocomplete ------------------------------------------------- */
 .placeholder-popup {
-  position: absolute;
-  z-index: 30;
+  /* Portaled to document.body — uses fixed positioning so overflow:hidden
+     ancestors (editor panels, scroll containers) cannot clip the popup. */
+  position: fixed;
+  z-index: 9000;
   min-width: 260px;
   max-height: 220px;
   overflow-y: auto;
-  margin: 4px 0 0;
+  margin: 0;
   padding: 4px;
   list-style: none;
   background: var(--card-surface);

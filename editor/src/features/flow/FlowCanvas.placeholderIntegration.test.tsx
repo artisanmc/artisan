@@ -116,4 +116,26 @@ describe("placeholder catalog → hook → PlaceholderInput integration", () => 
     expect(screen.getByRole("listbox")).toBeInTheDocument();
     expect(screen.getAllByText("player").length).toBeGreaterThanOrEqual(1);
   });
+
+  it("filters the popup: '{pl' matches player, no popup for a non-matching query", () => {
+    const location: FieldLocation = {
+      kind: "element",
+      menuId: MENU_ID,
+      elementId: ELEMENT_ID,
+    };
+
+    render(<TitleInput location={location} />);
+
+    const input = screen.getByRole("combobox");
+    // Partial query that matches "player"
+    fireEvent.change(input, { target: { value: "{pl" } });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getAllByText("player").length).toBeGreaterThanOrEqual(1);
+
+    // Now query that matches nothing — empty-match row appears, not "player"
+    fireEvent.change(input, { target: { value: "{zzz" } });
+    expect(screen.queryAllByText("player")).toHaveLength(0);
+    // Empty-match row contains the query text
+    expect(screen.getByText(/zzz/)).toBeInTheDocument();
+  });
 });
