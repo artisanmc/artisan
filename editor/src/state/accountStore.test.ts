@@ -332,7 +332,9 @@ describe("accountStore", () => {
     });
     const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
     const menu = pack.menus.find((m) => m.id === SHOP_MAIN)!;
-    const pasted = menu.layers[0]!.elements.find((el) => el.id === "el_pasted");
+    // addElement now renames the id following the material_N scheme (paste-friendly).
+    const pasted = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "GOLD_INGOT");
+    expect(pasted?.id).toMatch(/^gold_ingot_\d+$/);
     expect(pasted?.positions).toBe("5-6");
     // The DIRT element lost its only position and was pruned.
     const dirt = menu.layers[0]!.elements.find((el) => el.appearances[0]?.material === "DIRT");
@@ -359,7 +361,9 @@ describe("accountStore", () => {
 
     const state = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
     const stateMenu = state.menus.find((m) => m.id === SHOP_MAIN)!;
-    const pasted = stateMenu.layers[0]!.elements.find((el) => el.id === "el_pasted_clone")!;
+    // addElement renumbers the id by material; locate the just-added element
+    // by its new positions instead of the now-overwritten input id.
+    const pasted = stateMenu.layers[0]!.elements.find((el) => el.positions === "20")!;
     const pastedTitleKey = pasted.appearances[0]!.title?.key;
 
     // Pasted element must have a different key.

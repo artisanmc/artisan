@@ -38,6 +38,6 @@ describe("AccountPage", () => {
   it("shows setup CTA when no networks", async () => {
     vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
     render(<AccountPage />);
-    await waitFor(() => expect(screen.getByText(/set up your first server/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/accountPage\.firstServerTitle/i)).toBeTruthy());
   });
 });

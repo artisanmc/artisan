@@ -34,7 +34,7 @@ export function PackMiniPreview({ pack }: PackMiniPreviewProps) {
 
   if (boxes.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-600">
+      <div className="flex h-full w-full items-center justify-center text-[10px] text-[var(--ink-faint)]">
         empty
       </div>
     );

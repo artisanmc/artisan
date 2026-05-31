@@ -28,7 +28,7 @@ describe("SignupForm", () => {
     await userEvent.type(screen.getByLabelText(/password|mot de passe/i), "longenoughpw");
     await userEvent.type(screen.getByLabelText(/^name|^nom/i), "T");
     await userEvent.click(screen.getByRole("button", { name: /sign up|s'inscrire/i }));
-    expect(await screen.findByText(/already exists|déjà/i)).toBeInTheDocument();
+    expect(await screen.findByText(/existe déjà|already exists/i)).toBeInTheDocument();
   });
 });
 

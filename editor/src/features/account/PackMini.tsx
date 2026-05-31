@@ -17,10 +17,10 @@ const sourceLabelKey = (source: Pack["source"]): "sourceImported" | "sourceForke
 
 const sourceColor = (source: Pack["source"]) =>
   source === "imported"
-    ? "bg-blue-500/15 text-blue-300"
+    ? "bg-[var(--terra-soft)] text-[var(--terra)]"
     : source === "forked"
-      ? "bg-amber-500/15 text-amber-300"
-      : "bg-emerald-500/15 text-emerald-300";
+      ? "bg-[var(--gold-soft)] text-[var(--gold)]"
+      : "bg-[var(--sage-soft)] text-[var(--terra)]";
 
 export function PackMini({ pack, active }: PackMiniProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -40,10 +40,10 @@ export function PackMini({ pack, active }: PackMiniProps) {
       data-pack-id={pack.id}
       data-pack-mini="true"
       className={cx(
-        "group rounded-md border bg-zinc-950/60 p-2 transition-colors",
+        "group rounded-md border bg-[var(--bg-deep)]/60 p-2 transition-colors",
         active
-          ? "border-emerald-600 ring-1 ring-emerald-600/40"
-          : "border-zinc-800 hover:border-zinc-600",
+          ? "border-[var(--terra)] ring-1 ring-[var(--terra-line)]"
+          : "border-[var(--line-soft)] hover:border-[var(--line)]",
       )}
     >
       <Link
@@ -57,10 +57,10 @@ export function PackMini({ pack, active }: PackMiniProps) {
             {t(`packMini.${sourceLabelKey(pack.source)}`)}
           </span>
         </div>
-        <div className="h-16 overflow-hidden rounded border border-zinc-900 bg-[var(--color-bg)]">
+        <div className="h-16 overflow-hidden rounded border border-[var(--line-soft)] bg-[var(--color-bg)]">
           <PackMiniPreview pack={pack} />
         </div>
-        <div className="text-[10px] text-zinc-500">
+        <div className="text-[10px] text-[var(--ink-faint)]">
           {t("packMini.countMenusCommands", {
             menus: pack.menus.length,
             commands: pack.commands.length,
@@ -73,7 +73,7 @@ export function PackMini({ pack, active }: PackMiniProps) {
         aria-label={t("packMini.reorderPack")}
         {...attributes}
         {...listeners}
-        className="absolute -top-1 right-2 flex h-6 w-6 cursor-grab items-center justify-center rounded text-[12px] text-zinc-500 opacity-100 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
+        className="absolute -top-1 right-2 flex h-6 w-6 cursor-grab items-center justify-center rounded text-[12px] text-[var(--ink-faint)] opacity-100 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
       >
         ⠿
       </button>
