@@ -48,10 +48,10 @@ describe("Step2Pack", () => {
     const setState = vi.fn();
     render(<Step2Pack state={stateWithNetwork} setState={setState} />);
 
-    await waitFor(() => expect(screen.getByPlaceholderText(/new pack name/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByPlaceholderText(/my_pack/i)).toBeTruthy());
 
-    await userEvent.type(screen.getByPlaceholderText(/new pack name/i), "My New Pack");
-    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+    await userEvent.type(screen.getByPlaceholderText(/my_pack/i), "My New Pack");
+    await userEvent.click(screen.getByRole("button", { name: /créer|create/i }));
 
     await waitFor(() => expect(createSpy).toHaveBeenCalledWith("n1", "My New Pack"));
     expect(setState).toHaveBeenCalled();

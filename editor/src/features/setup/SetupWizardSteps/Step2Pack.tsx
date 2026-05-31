@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as networksApi from "@/lib/api/networks";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function Step2Pack({ state, setState }: Props) {
+  const { t } = useTranslation();
   const [packs, setPacks] = useState<PackSummary[]>([]);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -38,35 +40,54 @@ export function Step2Pack({ state, setState }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Step 2: Choose a Pack</h2>
+      <h2
+        className="display text-[20px] text-[var(--ink)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {t("setupWizard.step2.title")}
+      </h2>
 
       {packs.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {packs.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                onClick={() => setState((s) => ({ ...s, packId: p.id }))}
-                className={`w-full text-left p-3 border rounded hover:bg-muted ${
-                  state.packId === p.id ? "border-primary bg-muted" : ""
-                }`}
-              >
-                <div className="font-medium">{p.name}</div>
-              </button>
-            </li>
-          ))}
+          {packs.map((p) => {
+            const isActive = state.packId === p.id;
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => setState((s) => ({ ...s, packId: p.id }))}
+                  className={[
+                    "flex w-full items-center justify-between gap-3 rounded-[14px] border px-4 py-3 text-left transition-colors",
+                    isActive
+                      ? "border-[var(--terra-line)] bg-[var(--terra-soft)]"
+                      : "border-[var(--line)] bg-[var(--inset)] hover:border-[var(--line-strong)]",
+                  ].join(" ")}
+                >
+                  <span className="text-[13.5px] font-semibold text-[var(--ink)]">{p.name}</span>
+                  {isActive && (
+                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--terra)]">
+                      {t("setupWizard.selected")}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          placeholder="New pack name"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <Button onClick={handleCreate} disabled={creating || !newName.trim()}>
-          Create
-        </Button>
+      <div className="flex flex-col gap-1.5">
+        <span className="field-label">{t("setupWizard.step2.newLabel")}</span>
+        <div className="flex gap-2">
+          <Input
+            placeholder={t("setupWizard.step2.placeholder")}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Button variant="outline" onClick={handleCreate} disabled={creating || !newName.trim()}>
+            {t("setupWizard.step2.create")}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { WizardState } from "../SetupWizard";
 
 const WS_URL =
@@ -9,33 +10,57 @@ interface Props {
 }
 
 export function Step4Install({ state }: Props) {
+  const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-6">
-      <h2 className="text-lg font-semibold">Step 4: Install on your server</h2>
+    <div className="flex flex-col gap-5">
+      <h2
+        className="display text-[20px] text-[var(--ink)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {t("setupWizard.step4.title")}
+      </h2>
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">1. Add this to your Artisan config.yml</h3>
-        <pre className="bg-muted rounded px-4 py-3 text-sm font-mono whitespace-pre-wrap break-all">
+      <InstallStep n={1} label={t("setupWizard.step4.configStep")}>
+        <pre className="mono whitespace-pre-wrap break-all rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-2)]">
 {`server-key: "${state.serverKey ?? "<your-server-key>"}"
 backend-url: "${WS_URL}"`}
         </pre>
-      </section>
+      </InstallStep>
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">2. Your server key (save it safely)</h3>
-        <code className="block bg-muted rounded px-3 py-2 font-mono text-sm break-all">
-          {state.serverKey ?? "(no key generated)"}
+      <InstallStep n={2} label={t("setupWizard.step4.keyStep")}>
+        <code className="mono block break-all rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-3 py-2 text-[12.5px] text-[var(--sand)]">
+          {state.serverKey ?? t("setupWizard.step4.noKey")}
         </code>
-      </section>
+      </InstallStep>
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">3. Reload the plugin</h3>
-        <pre className="bg-muted rounded px-4 py-2 text-sm font-mono">/artisan reload</pre>
-        <p className="text-xs text-muted-foreground">
-          Run this command in-game or from console. The plugin will connect to the backend and
-          download your pack automatically.
-        </p>
-      </section>
+      <InstallStep n={3} label={t("setupWizard.step4.reloadStep")}>
+        <pre className="mono rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-4 py-2 text-[12.5px] text-[var(--ink-2)]">
+          /artisan reload
+        </pre>
+        <p className="text-[12px] text-[var(--ink-faint)]">{t("setupWizard.step4.reloadHint")}</p>
+      </InstallStep>
     </div>
+  );
+}
+
+function InstallStep({
+  n,
+  label,
+  children,
+}: {
+  n: number;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--terra-line)] bg-[var(--terra-soft)] text-[11px] font-bold text-[var(--terra)]">
+          {n}
+        </span>
+        <span className="text-[12.5px] font-semibold text-[var(--ink)]">{label}</span>
+      </div>
+      {children}
+    </section>
   );
 }

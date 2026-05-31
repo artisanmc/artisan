@@ -28,7 +28,7 @@ describe("Step3ServerKey", () => {
     const setState = vi.fn();
     render(<Step3ServerKey state={stateReady} setState={setState} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /generate server key/i }));
+    await userEvent.click(screen.getByRole("button", { name: /générer la server key|generate server key/i }));
 
     await waitFor(() => expect(createSpy).toHaveBeenCalledWith("n1"));
     expect(bindSpy).toHaveBeenCalledWith("n1", "p1", "sk-abc");
