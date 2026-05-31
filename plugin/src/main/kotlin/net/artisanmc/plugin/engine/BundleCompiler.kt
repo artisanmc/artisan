@@ -7,7 +7,12 @@ import java.util.logging.Logger
 
 object BundleCompiler {
 
-    fun compile(yaml: MenuYaml, langMaps: Map<String, Map<String, String>>, logger: Logger? = null): BundleMenu {
+    fun compile(
+        yaml: MenuYaml,
+        langMaps: Map<String, Map<String, String>>,
+        logger: Logger? = null,
+        defaultLang: String = "en",
+    ): BundleMenu {
         val compiledAppearances = mutableMapOf<String, List<CompiledAppearance>>()
         val slotToElement = mutableMapOf<Int, String>()
 
@@ -23,7 +28,7 @@ object BundleCompiler {
             }
         }
 
-        return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement)
+        return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
     }
 
     private fun compileAppearance(app: AppearanceYaml, menuId: String, elementId: String, logger: Logger?): CompiledAppearance? =

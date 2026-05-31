@@ -27,7 +27,7 @@ object DialogRenderer {
     private val mm = MiniMessage.miniMessage()
 
     fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
-        val langMap = dialog.langMaps[lang] ?: emptyMap()
+        val langMap = dialog.langMapWithFallback(lang)
         val ctxWithLang = ctx.copy(lang = lang, langMap = langMap)
 
         val bodyComponents: List<DialogBody> = dialog.yaml.body.mapNotNull { b ->
