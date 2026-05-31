@@ -13,7 +13,7 @@ describe("PlaceholderInput", () => {
   it("opens the popup when the user types {", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     expect(screen.getByRole("listbox")).toBeInTheDocument();
     // "player" appears in both the .name and .type spans of the first row —
     // use getAllByText and assert at least one match.
@@ -24,14 +24,14 @@ describe("PlaceholderInput", () => {
   it("filters entries by query substring", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{qu" } });
+    fireEvent.change(input, { target: { value: "{qu" } });
     expect(screen.queryByText("player")).not.toBeInTheDocument();
     expect(screen.getByText("quest.name")).toBeInTheDocument();
   });
 
   it("renders type + sample alongside the path", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
-    fireEvent.input(screen.getByRole("combobox"), { target: { value: "{" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "{" } });
     // "player" appears in .name and .type; Steve appears only in .sample
     expect(screen.getAllByText("player").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Steve")).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe("PlaceholderInput", () => {
       <PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} />,
     );
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={(v) => calls.push(v)} entries={entries} />);
     fireEvent.keyDown(input, { key: "Tab" });
     expect(calls).toContain("{player}");
@@ -56,7 +56,7 @@ describe("PlaceholderInput", () => {
       <PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} />,
     );
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={(v) => calls.push(v)} entries={entries} />);
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -67,7 +67,7 @@ describe("PlaceholderInput", () => {
     const calls: string[] = [];
     render(<PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(calls.at(-1)).toBe("{");
@@ -76,9 +76,9 @@ describe("PlaceholderInput", () => {
   it("typing } closes the popup without auto-insertion", () => {
     const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={() => {}} entries={entries} />);
-    fireEvent.input(input, { target: { value: "{}" } });
+    fireEvent.change(input, { target: { value: "{}" } });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
@@ -88,9 +88,9 @@ describe("PlaceholderInput", () => {
       <PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} />,
     );
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={(v) => calls.push(v)} entries={entries} />);
-    fireEvent.input(input, { target: { value: "{ " } });
+    fireEvent.change(input, { target: { value: "{ " } });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     // onChange was called with "{ " — the space stays as typed, no insertion
     expect(calls.at(-1)).toBe("{ ");
@@ -99,23 +99,23 @@ describe("PlaceholderInput", () => {
   it("backspacing past the original { closes the popup", () => {
     const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={() => {}} entries={entries} />);
-    fireEvent.input(input, { target: { value: "" } });
+    fireEvent.change(input, { target: { value: "" } });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
   it("shows the empty-match row when query filters all out", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{xyz" } });
+    fireEvent.change(input, { target: { value: "{xyz" } });
     expect(screen.getByText(/xyz/)).toBeInTheDocument();
   });
 
   it("shows the no-context message when there are zero entries to begin with", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={[]} />);
     const input = screen.getByRole("combobox");
-    fireEvent.input(input, { target: { value: "{" } });
+    fireEvent.change(input, { target: { value: "{" } });
     expect(screen.getByText(/disponible|available/i)).toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe("PlaceholderInput", () => {
 
   it("hides the hint while the popup is open", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
-    fireEvent.input(screen.getByRole("combobox"), { target: { value: "{" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "{" } });
     // The popup is open; the hint should disappear so we don't show both at once.
     expect(screen.queryAllByText(/ins[eé]rer|insert/i)).toHaveLength(0);
   });
@@ -144,7 +144,7 @@ describe("PlaceholderInput", () => {
         <div data-testid="outside">outside</div>
       </>,
     );
-    fireEvent.input(screen.getByRole("combobox"), { target: { value: "{" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "{" } });
     fireEvent.mouseDown(screen.getByTestId("outside"));
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
