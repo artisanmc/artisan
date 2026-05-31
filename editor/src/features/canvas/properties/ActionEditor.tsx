@@ -1,6 +1,8 @@
+import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Action, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
+import type { Action, ClickType, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
@@ -14,6 +16,11 @@ interface ActionEditorProps {
   packId: PackId;
   action: Action;
   onChange: (action: Action) => void;
+  /** Present when the action lives inside an element click handler. Used to
+   * compute placeholder entries for the action-scope catalog. */
+  menuId?: MenuId;
+  elementId?: ElementId;
+  clickType?: ClickType;
 }
 
 const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
@@ -53,11 +60,11 @@ export function usePlaceholders(): readonly PlaceholderInfo[] {
 
 const SOURCE_BADGE: Record<PlaceholderSource, string> = {
   "command-arg":
-    "border-blue-500/30 bg-blue-500/10 text-blue-200 hover:border-blue-500 hover:bg-blue-500/20",
+    "border-[var(--terra)]/30 bg-blue-500/10 text-blue-200 hover:border-[var(--terra)] hover:bg-blue-500/20",
   "menu-context":
     "border-purple-500/30 bg-purple-500/10 text-purple-200 hover:border-purple-500 hover:bg-purple-500/20",
   "click-implicit":
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-500/20",
+    "border-[var(--terra)]/30 bg-[var(--sage-soft)] text-[var(--terra)] hover:border-[var(--terra)] hover:bg-[var(--terra-soft)]",
 };
 
 const SOURCE_KEY: Record<PlaceholderSource, string> = {
@@ -72,7 +79,7 @@ export function ArgInsertBar({ onInsert }: { onInsert: (name: string) => void })
   if (placeholders.length === 0) return null;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1">
-      <span className="text-[9px] text-zinc-500 uppercase">{t("actionEditor.insertLabel")}</span>
+      <span className="text-[9px] text-[var(--ink-faint)] uppercase">{t("actionEditor.insertLabel")}</span>
       {placeholders.map((p) => (
         <button
           key={`${p.source}:${p.name}`}
@@ -97,19 +104,19 @@ export function ArgInsertBar({ onInsert }: { onInsert: (name: string) => void })
  * action's discriminator and call back with the new action object on every
  * edit (immer/zundo handles undo on the store side).
  */
-export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
+export function ActionEditor({ packId, action, onChange, menuId, elementId, clickType }: ActionEditorProps) {
   const { t } = useTranslation();
   switch (action.type) {
     case "open_menu":
       return <OpenMenuEditor packId={packId} action={action} onChange={onChange} />;
     case "close_menu":
-      return <div className="text-[11px] text-zinc-500">{t("actionEditor.closeMenuLabel")}</div>;
+      return <div className="text-[11px] text-[var(--ink-faint)]">{t("actionEditor.closeMenuLabel")}</div>;
     case "run_command":
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
-      return <SendMessageEditor packId={packId} action={action} />;
+      return <SendMessageEditor packId={packId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "show_title":
-      return <ShowTitleEditor packId={packId} action={action} onChange={onChange} />;
+      return <ShowTitleEditor packId={packId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "give_item":
       return <GiveItemEditor action={action} onChange={onChange} />;
     case "take_money":
@@ -124,12 +131,12 @@ export function ActionEditor({ packId, action, onChange }: ActionEditorProps) {
     case "open_dialog":
       return <OpenDialogEditor packId={packId} action={action} onChange={onChange} />;
     case "close_dialog":
-      return <div className="text-[11px] text-zinc-500">Ferme le dialogue actuel.</div>;
+      return <div className="text-[11px] text-[var(--ink-faint)]">Ferme le dialogue actuel.</div>;
   }
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-[10px] uppercase text-zinc-500">{children}</div>;
+  return <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{children}</div>;
 }
 
 function OpenMenuEditor({
@@ -165,7 +172,7 @@ function OpenMenuEditor({
         <select
           value={action.menuId}
           onChange={(e) => onChange({ ...action, menuId: e.target.value as MenuId })}
-          className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200"
+          className="w-full rounded border border-[var(--line-soft)] bg-[var(--card-surface)] px-2 py-1 font-mono text-xs text-[var(--ink)]"
         >
           {/* Allow keeping a value that no longer exists in the pack so the
               user can see the dangling ref instead of silently flipping to the
@@ -187,10 +194,10 @@ function OpenMenuEditor({
           <FieldLabel>{t("actionEditor.contextToPass")}</FieldLabel>
           <div className="flex flex-col gap-1.5">
             {targetInputs.map((input) => (
-              <div key={input.name} className="rounded border border-zinc-800 bg-zinc-900/40 p-1.5">
+              <div key={input.name} className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-1.5">
                 <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
                   <span className="text-purple-300">{input.name}</span>
-                  <span className="text-zinc-500">
+                  <span className="text-[var(--ink-faint)]">
                     : {input.kind === "primitive" ? input.type : "sourceRef"}
                   </span>
                 </div>
@@ -212,7 +219,7 @@ function OpenMenuEditor({
           </div>
         </div>
       ) : null}
-      <label className="flex items-center gap-2 text-[11px] text-zinc-300">
+      <label className="flex items-center gap-2 text-[11px] text-[var(--ink-2)]">
         <input
           type="checkbox"
           checked={Boolean(action.clearContext)}
@@ -242,7 +249,7 @@ function OpenDialogEditor({
         <select
           value={action.dialogId}
           onChange={(e) => onChange({ ...action, dialogId: e.target.value as DialogId })}
-          className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200"
+          className="w-full rounded border border-[var(--line-soft)] bg-[var(--card-surface)] px-2 py-1 font-mono text-xs text-[var(--ink)]"
         >
           {dialogs.some((d) => d.id === action.dialogId) ? null : (
             <option value={action.dialogId}>
@@ -256,7 +263,7 @@ function OpenDialogEditor({
           ))}
         </select>
       </div>
-      <label className="flex items-center gap-2 text-[11px] text-zinc-300">
+      <label className="flex items-center gap-2 text-[11px] text-[var(--ink-2)]">
         <input
           type="checkbox"
           checked={Boolean(action.clearContext)}
@@ -285,7 +292,7 @@ function RunCommandEditor({
           placeholder={t("actionEditor.commandPlaceholder")}
           onChange={(e) => onChange({ ...action, command: e.target.value })}
         />
-        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.commandHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--ink-faint)]">{t("actionEditor.commandHint")}</div>
         <ArgInsertBar
           onInsert={(name) => onChange({ ...action, command: `${action.command}{${name}}` })}
         />
@@ -302,8 +309,8 @@ function RunCommandEditor({
                 onClick={() => onChange({ ...action, as: mode })}
                 className={`flex-1 rounded border px-2 py-1 font-mono text-xs ${
                   active
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-100"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600"
+                    ? "border-[var(--terra)] bg-[var(--sage-soft)] text-emerald-100"
+                    : "border-[var(--line-soft)] bg-[var(--card-surface)] text-[var(--ink-2)] hover:border-[var(--line)]"
                 }`}
               >
                 {mode === "player" ? t("actionEditor.runAsPlayer") : t("actionEditor.runAsConsole")}
@@ -319,9 +326,15 @@ function RunCommandEditor({
 function SendMessageEditor({
   packId,
   action,
+  menuId,
+  elementId,
+  clickType,
 }: {
   packId: PackId;
   action: Extract<Action, { type: "send_message" }>;
+  menuId?: MenuId;
+  elementId?: ElementId;
+  clickType?: ClickType;
 }) {
   const { t } = useTranslation();
   // We don't go through the generic `onChange(action)` callback here:
@@ -332,6 +345,19 @@ function SendMessageEditor({
   const edit = useTextEdit(packId, action.text);
   const onTextChange = (value: string) =>
     setI18nValue({ packId, lt: action.text, lang: edit.lang, value });
+
+  const placeholderLocation = useMemo(
+    () =>
+      menuId && elementId && clickType
+        ? ({ kind: "action" as const, menuId, elementId, clickType })
+        : ({ kind: "menu" as const, menuId: "" as MenuId }),
+    [menuId, elementId, clickType],
+  );
+  const placeholderEntries = usePlaceholderEntries(
+    packId,
+    placeholderLocation,
+  );
+
   return (
     <div>
       <FieldLabel>
@@ -339,17 +365,17 @@ function SendMessageEditor({
           ? t("actionEditor.textLangFallback", { lang: edit.lang })
           : t("actionEditor.textLang", { lang: edit.lang })}
       </FieldLabel>
-      <textarea
-        className="w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
+      <PlaceholderInput
+        multiline
         rows={3}
         placeholder={t("actionEditor.textPlaceholder")}
         value={edit.value}
-        onChange={(e) => onTextChange(e.target.value)}
+        onChange={onTextChange}
+        entries={placeholderEntries}
       />
-      <ArgInsertBar onInsert={(name) => onTextChange(`${edit.value}{${name}}`)} />
       {looksLikeMiniMessage(edit.value) ? (
-        <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-          <span className="mr-2 text-[9px] uppercase text-zinc-600">
+        <div className="mt-1 rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+          <span className="mr-2 text-[9px] uppercase text-[var(--ink-faint)]">
             {t("menuProperties.preview")}
           </span>
           <MiniMessageInline source={edit.value} className="font-mono text-xs" />
@@ -363,16 +389,31 @@ function ShowTitleEditor({
   packId,
   action,
   onChange,
+  menuId,
+  elementId,
+  clickType,
 }: {
   packId: PackId;
   action: Extract<Action, { type: "show_title" }>;
   onChange: (a: Action) => void;
+  menuId?: MenuId;
+  elementId?: ElementId;
+  clickType?: ClickType;
 }) {
   const { t } = useTranslation();
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const titleEdit = useTextEdit(packId, action.title);
   const subtitleEdit = useTextEdit(packId, action.subtitle ?? { key: UNALLOCATED_LTEXT_KEY });
   const hasSubtitle = !!action.subtitle;
+
+  const placeholderLocation = useMemo(
+    () =>
+      menuId && elementId && clickType
+        ? ({ kind: "action" as const, menuId, elementId, clickType })
+        : ({ kind: "menu" as const, menuId: "" as MenuId }),
+    [menuId, elementId, clickType],
+  );
+  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
 
   const onTitleChange = (value: string) =>
     setI18nValue({ packId, lt: action.title, lang: titleEdit.lang, value });
@@ -408,17 +449,17 @@ function ShowTitleEditor({
             ? t("actionEditor.showTitleTitleLabelFallback", { lang: titleEdit.lang })
             : t("actionEditor.showTitleTitleLabel", { lang: titleEdit.lang })}
         </FieldLabel>
-        <textarea
-          className="w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
+        <PlaceholderInput
+          multiline
           rows={2}
           placeholder={t("actionEditor.showTitleTitlePlaceholder")}
           value={titleEdit.value}
-          onChange={(e) => onTitleChange(e.target.value)}
+          onChange={onTitleChange}
+          entries={placeholderEntries}
         />
-        <ArgInsertBar onInsert={(name) => onTitleChange(`${titleEdit.value}{${name}}`)} />
         {looksLikeMiniMessage(titleEdit.value) ? (
-          <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-            <span className="mr-2 text-[9px] uppercase text-zinc-600">
+          <div className="mt-1 rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+            <span className="mr-2 text-[9px] uppercase text-[var(--ink-faint)]">
               {t("menuProperties.preview")}
             </span>
             <MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />
@@ -433,17 +474,17 @@ function ShowTitleEditor({
               ? t("actionEditor.showTitleSubtitleLabelFallback", { lang: subtitleEdit.lang })
               : t("actionEditor.showTitleSubtitleLabel", { lang: subtitleEdit.lang })}
           </FieldLabel>
-          <textarea
-            className="w-full rounded border border-zinc-800 bg-zinc-900 p-2 font-mono text-xs"
+          <PlaceholderInput
+            multiline
             rows={2}
             placeholder={t("actionEditor.showTitleSubtitlePlaceholder")}
             value={subtitleEdit.value}
-            onChange={(e) => onSubtitleChange(e.target.value)}
+            onChange={onSubtitleChange}
+            entries={placeholderEntries}
           />
-          <ArgInsertBar onInsert={(name) => onSubtitleChange(`${subtitleEdit.value}{${name}}`)} />
           {looksLikeMiniMessage(subtitleEdit.value) ? (
-            <div className="mt-1 rounded border border-zinc-800 bg-[var(--color-bg)] px-2 py-1">
-              <span className="mr-2 text-[9px] uppercase text-zinc-600">
+            <div className="mt-1 rounded border border-[var(--line-soft)] bg-[var(--color-bg)] px-2 py-1">
+              <span className="mr-2 text-[9px] uppercase text-[var(--ink-faint)]">
                 {t("menuProperties.preview")}
               </span>
               <MiniMessageInline source={subtitleEdit.value} className="font-mono text-xs" />
@@ -452,7 +493,7 @@ function ShowTitleEditor({
           <button
             type="button"
             onClick={removeSubtitle}
-            className="mt-1 text-[10px] text-zinc-500 hover:text-rose-400"
+            className="mt-1 text-[10px] text-[var(--ink-faint)] hover:text-rose-400"
           >
             {t("actionEditor.showTitleSubtitleRemove")}
           </button>
@@ -461,7 +502,7 @@ function ShowTitleEditor({
         <button
           type="button"
           onClick={enableSubtitle}
-          className="self-start rounded border border-dashed border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 hover:border-emerald-500 hover:text-emerald-200"
+          className="self-start rounded border border-dashed border-[var(--line)] px-2 py-1 text-[11px] text-[var(--ink-mut)] hover:border-[var(--terra)] hover:text-[var(--terra)]"
         >
           {t("actionEditor.showTitleSubtitleEnable")}
         </button>
@@ -499,7 +540,7 @@ function ShowTitleEditor({
           />
         </div>
       </div>
-      <div className="text-[10px] text-zinc-500">{t("actionEditor.showTitleTicksHint")}</div>
+      <div className="text-[10px] text-[var(--ink-faint)]">{t("actionEditor.showTitleTicksHint")}</div>
     </div>
   );
 }
@@ -523,7 +564,7 @@ function GiveItemEditor({
               <button
                 type="button"
                 title={t("actionEditor.materialPick")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-800 bg-zinc-950 hover:border-emerald-500"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--line-soft)] bg-[var(--bg-deep)] hover:border-[var(--terra)]"
               >
                 {url ? (
                   <img
@@ -534,7 +575,7 @@ function GiveItemEditor({
                     style={{ imageRendering: "pixelated" }}
                   />
                 ) : (
-                  <span className="text-[8px] text-zinc-600">
+                  <span className="text-[8px] text-[var(--ink-faint)]">
                     {action.material.slice(0, 3) || "—"}
                   </span>
                 )}
@@ -644,8 +685,8 @@ function PaginateEditor({
                 onClick={() => onChange({ ...action, direction: dir })}
                 className={`flex-1 rounded border px-2 py-1 font-mono text-xs ${
                   active
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-100"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600"
+                    ? "border-[var(--terra)] bg-[var(--sage-soft)] text-emerald-100"
+                    : "border-[var(--line-soft)] bg-[var(--card-surface)] text-[var(--ink-2)] hover:border-[var(--line)]"
                 }`}
               >
                 {dir === "prev" ? t("actionEditor.directionPrev") : t("actionEditor.directionNext")}
@@ -664,7 +705,7 @@ function PaginateEditor({
               targetElementId: e.target.value === "" ? undefined : (e.target.value as ElementId),
             })
           }
-          className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200"
+          className="w-full rounded border border-[var(--line-soft)] bg-[var(--card-surface)] px-2 py-1 font-mono text-xs text-[var(--ink)]"
         >
           <option value="">{t("actionEditor.targetAllIterables")}</option>
           {targets.map((tgt) => (
@@ -673,7 +714,7 @@ function PaginateEditor({
             </option>
           ))}
         </select>
-        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.paginateHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--ink-faint)]">{t("actionEditor.paginateHint")}</div>
       </div>
     </div>
   );
@@ -706,7 +747,7 @@ function SetArgEditor({
           onChange={(e) => onChange({ ...action, value: e.target.value })}
           className="h-7 text-[11px] font-mono"
         />
-        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.setArgValueHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--ink-faint)]">{t("actionEditor.setArgValueHint")}</div>
       </div>
     </div>
   );
@@ -726,7 +767,7 @@ function SetArgCycleEditor({
       : "actionEditor.setArgCycleDirectionPrev";
   return (
     <div className="space-y-2">
-      <div className="text-[10px] uppercase text-zinc-500">{t(directionKey)}</div>
+      <div className="text-[10px] uppercase text-[var(--ink-faint)]">{t(directionKey)}</div>
       <div>
         <FieldLabel>{t("actionEditor.setArgArgLabel")}</FieldLabel>
         <Input
@@ -744,7 +785,7 @@ function SetArgCycleEditor({
           onChange={(e) => onChange({ ...action, list: e.target.value })}
           className="h-7 text-[11px] font-mono"
         />
-        <div className="mt-1 text-[10px] text-zinc-500">
+        <div className="mt-1 text-[10px] text-[var(--ink-faint)]">
           {t("actionEditor.setArgCycleListHint")}
         </div>
       </div>
