@@ -446,6 +446,9 @@ const fr: typeof en = {
     renameRejected: "Renommage refusé",
   },
   layerEditForm: {
+    textPlaceholder: "<gold>Texte du titre…",
+    textareaPlaceholder: "<gold>Ligne 1\nLigne 2…",
+    plainPlaceholder: "Texte du titre…",
     size: {
       label: "Taille",
       align: "Aligner à la taille",

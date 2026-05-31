@@ -270,14 +270,14 @@ describe("LayerEditForm — text layer", () => {
   });
 
   it("renders a textarea bound to the resolved text", () => {
-    render(<LayerEditForm packId={PACK_ID} />);
-    const textarea = screen.getByLabelText(/texte \(minimessage\)/i) as HTMLTextAreaElement;
+    const { container } = render(<LayerEditForm packId={PACK_ID} />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
     expect(textarea.value).toBe("Hello");
   });
 
   it("typing in the textarea writes via setI18nValue", () => {
-    render(<LayerEditForm packId={PACK_ID} />);
-    const textarea = screen.getByLabelText(/texte \(minimessage\)/i);
+    const { container } = render(<LayerEditForm packId={PACK_ID} />);
+    const textarea = container.querySelector("textarea")!;
     fireEvent.change(textarea, { target: { value: "<gold>Hi</gold>" } });
     expect(
       useAccountStore.getState().account.packs[0]!.i18nKeys[K("greet")]!.en,
@@ -395,8 +395,8 @@ describe("LayerEditForm — textarea layer", () => {
   });
 
   it("renders the multi-line textarea + line-height + alignment + font picker + xy inputs", () => {
-    render(<LayerEditForm packId={PACK_ID} />);
-    expect(screen.getByTestId("textarea-content")).toBeTruthy();
+    const { container } = render(<LayerEditForm packId={PACK_ID} />);
+    expect(container.querySelector("textarea")).toBeTruthy();
     expect(screen.getByTestId("textarea-line-height")).toBeTruthy();
     expect(screen.getByTestId("textarea-align-left")).toBeTruthy();
     expect(screen.getByTestId("textarea-align-center")).toBeTruthy();
@@ -407,8 +407,8 @@ describe("LayerEditForm — textarea layer", () => {
   });
 
   it("editing the content writes newlines to the i18n value", () => {
-    render(<LayerEditForm packId={PACK_ID} />);
-    const ta = screen.getByTestId("textarea-content") as HTMLTextAreaElement;
+    const { container } = render(<LayerEditForm packId={PACK_ID} />);
+    const ta = container.querySelector("textarea") as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: "line1\nline2\nline3" } });
     const updated = useAccountStore.getState().account.packs[0]!.i18nKeys.t1?.en;
     expect(updated).toBe("line1\nline2\nline3");
