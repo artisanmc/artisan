@@ -10,19 +10,23 @@ export function HistoryPanel({ networkId, packId, branch }: Props) {
     listCommits(networkId, packId, branch, 50).then(setCommits).catch(console.error);
   }, [networkId, packId, branch]);
 
-  if (commits === null) return <div className="p-2 text-xs text-muted-foreground">Loading…</div>;
-  if (commits.length === 0) return <div className="p-2 text-xs text-muted-foreground">No commits yet</div>;
+  if (commits === null)
+    return <div className="px-1 py-1 text-[11.5px] text-[var(--ink-mut)]">Loading…</div>;
+  if (commits.length === 0)
+    return <div className="px-1 py-1 text-[11.5px] text-[var(--ink-mut)]">No commits yet</div>;
 
   return (
-    <ul className="flex flex-col gap-1 p-2 text-xs">
-      {commits.map((c) => (
-        <li key={c.id} className="border-l-2 border-zinc-700 pl-2">
-          <div className="font-medium">{c.message || "(no message)"}</div>
-          <div className="text-muted-foreground font-mono text-[10px]">
-            {c.id.slice(0, 12)} · {new Date(c.createdAt).toLocaleString()}
-          </div>
-        </li>
+    <div className="flex items-center gap-2 overflow-x-auto">
+      {commits.slice(0, 8).map((c) => (
+        <span
+          key={c.id}
+          className="flex h-7 shrink-0 items-center gap-2 rounded-[999px] border border-[var(--line-soft)] bg-[var(--raised)] px-3 text-[11.5px] text-[var(--ink-mut)]"
+          title={`${c.id} · ${new Date(c.createdAt).toLocaleString()}`}
+        >
+          <span className="mono text-[10.5px] text-[var(--sand)]">{c.id.slice(0, 7)}</span>
+          <span className="truncate max-w-[180px] text-[var(--ink-2)]">{c.message || "(no message)"}</span>
+        </span>
       ))}
-    </ul>
+    </div>
   );
 }

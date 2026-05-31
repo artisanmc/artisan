@@ -22,7 +22,7 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[10px] uppercase text-zinc-500">
+      <label htmlFor={id} className="text-[10px] uppercase text-[var(--ink-faint)]">
         {t("layerEditForm.size.label")}
       </label>
       <select
@@ -32,7 +32,7 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
           const n = parseInt(e.target.value, 10) as TextSize;
           onChange(n === 8 ? undefined : n);
         }}
-        className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200"
+        className="h-8 w-full rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 text-xs text-[var(--ink)]"
       >
         <option value={8}>{t("layerEditForm.size.options.normal")}</option>
         <option value={12}>{t("layerEditForm.size.options.s")}</option>

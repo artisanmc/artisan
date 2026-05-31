@@ -42,7 +42,7 @@ export function Selection({ stageRef }: SelectionProps) {
       // underlying node and enables group-drag that moves all selected
       // entities together, even when only one was intended to be moved.
       listening={false}
-      borderStroke="#22c55e"
+      borderStroke="#DF6B41"
       borderStrokeWidth={1}
       borderDash={[4, 4]}
     />

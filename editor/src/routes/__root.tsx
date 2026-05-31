@@ -21,9 +21,9 @@ export function RootLayout() {
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   return (
-    <div className="h-full flex">
+    <div className="flex h-full">
       {user && (
-        <aside className="w-48 border-r border-zinc-800 bg-zinc-950 shrink-0">
+        <aside className="w-[216px] shrink-0 border-r border-[var(--line-soft)] bg-[var(--bg-deep)]">
           <WorkspaceSidebar />
         </aside>
       )}

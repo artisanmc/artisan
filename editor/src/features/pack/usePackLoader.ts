@@ -72,13 +72,23 @@ export function usePackLoader(packId: string): PackLoadResult {
           setNetworkId(res.networkId);
           // Mirror into accountStore so descendants (FlowCanvas, EditorPane,
           // PackProperties, …) that read from useAccountStore.account.packs
-          // can find it. In user-mode we only edit one workspace at a time
-          // so replacing the array is fine; the autosave hook in __root.tsx
-          // is a no-op without a session token, so no spurious saves fire.
+          // can find it. We MUST preserve the existing packs array + packOrder
+          // — overwriting them clobbered the sidebar's sort, which made every
+          // workspace click yank the visited pack to position 0.
+          const current = useAccountStore.getState().account;
+          const idx = current.packs.findIndex((p) => p.id === loaded.id);
+          const nextPacks =
+            idx === -1
+              ? [...current.packs, loaded]
+              : current.packs.map((p, i) => (i === idx ? loaded : p));
+          const loadedId = loaded.id as PackId;
+          const nextOrder = current.packOrder.includes(loadedId)
+            ? current.packOrder
+            : [...current.packOrder, loadedId];
           useAccountStore.getState().setAccount({
             id: res.networkId as Account["id"],
-            packs: [loaded],
-            packOrder: [loaded.id as PackId],
+            packs: nextPacks,
+            packOrder: nextOrder,
           });
         })
         .catch((e) => setError((e as Error).message));

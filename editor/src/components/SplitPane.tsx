@@ -83,14 +83,14 @@ export function SplitPane({
     isVertical ? "flex-col" : "flex-row",
   );
   const handleClass = cx(
-    "group relative flex shrink-0 touch-none items-center justify-center bg-zinc-900",
-    "border-zinc-800 transition-colors hover:bg-zinc-800",
+    "group relative flex shrink-0 touch-none items-center justify-center bg-[var(--bg)]",
+    "border-[var(--line-soft)] transition-colors hover:bg-[var(--raised)]",
     isVertical
       ? "h-3 cursor-row-resize border-t border-b"
       : "w-3 cursor-col-resize border-r border-l",
   );
   const gripClass = cx(
-    "rounded-full bg-zinc-700 transition-colors group-hover:bg-zinc-500",
+    "rounded-full bg-[var(--line)] transition-colors group-hover:bg-[var(--line-strong)]",
     isVertical ? "h-0.5 w-10" : "h-10 w-0.5",
   );
   const secondaryStyle = isVertical ? { height: secondarySize } : { width: secondarySize };

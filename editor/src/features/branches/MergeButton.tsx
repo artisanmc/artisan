@@ -50,15 +50,16 @@ export function MergeButton({ networkId, packId, sourceBranch, allBranches }: Pr
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>Merge…</Button>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Merge…</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Merge {sourceBranch} into …</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
-            <label className="text-xs">Target branch
+            <label className="flex flex-col gap-1.5">
+              <span className="field-label">Target branch</span>
               <select
                 aria-label="target branch"
-                className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm"
+                className="select"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
               >
@@ -73,11 +74,11 @@ export function MergeButton({ networkId, packId, sourceBranch, allBranches }: Pr
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-            {status && <div className="text-xs text-emerald-400">{status}</div>}
-            {error && <div className="text-xs text-red-400">{error}</div>}
-            <div className="flex justify-end gap-2">
+            {status && <div className="text-xs text-[var(--sage)]">{status}</div>}
+            {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
+            <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={onStart} disabled={busy || !target}>Start merge</Button>
+              <Button variant="primary" onClick={onStart} disabled={busy || !target}>Start merge</Button>
             </div>
           </div>
         </DialogContent>
