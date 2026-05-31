@@ -58,7 +58,7 @@ function collectMenuContextInputs(
 ): void {
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") {
-      const type = input.type as PlaceholderType;
+      const type = primitiveContextInputTypeToPlaceholderType(input.type);
       out.push({
         path: input.name,
         type,
@@ -107,14 +107,27 @@ function sampleFromScope(scope: ReturnType<typeof buildPreviewScope>, path: stri
   return renderSample(walkPath(scope, path));
 }
 
+/** Map a primitive contextInput's `type` string to a PlaceholderType, defaulting to "string". */
+function primitiveContextInputTypeToPlaceholderType(t: string): PlaceholderType {
+  switch (t) {
+    case "string":
+    case "integer":
+    case "number":
+    case "boolean":
+    case "player":
+      return t as PlaceholderType;
+    default:
+      return "string";
+  }
+}
+
 function typeOfSourceRef(ref: string, pack: Pack): FieldType | null {
-  const r = String(ref);
-  if (r.startsWith("pack:")) {
-    const id = r.slice("pack:".length);
+  if (ref.startsWith("pack:")) {
+    const id = ref.slice("pack:".length);
     const ds = pack.dataSources.find((d) => d.id === id);
     return ds?.type ?? null;
   }
-  const c = pack.importedConnectors.find((x) => x.ref === r);
+  const c = pack.importedConnectors.find((x) => x.ref === ref);
   return c?.type ?? null;
 }
 
