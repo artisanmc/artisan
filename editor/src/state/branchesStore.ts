@@ -23,3 +23,19 @@ export const useBranchesStore = create<State>((set, get) => ({
   setCurrentBranch: (currentBranch) => set({ currentBranch }),
   reset: () => set({ branches: [], currentBranch: null }),
 }));
+
+/**
+ * True when the live editor buffer diverges from the current branch's HEAD
+ * commit — i.e. there are edits worth committing. Pure derivation so any
+ * component can consume it without subscribing to the whole pack object.
+ *
+ * Empty headCommitHash means we can't tell (server response truncated or
+ * branch not yet loaded) — we surface that as "clean" to avoid false-alarms.
+ */
+export function selectIsDirty(packHash: string | undefined): boolean {
+  const { branches, currentBranch } = useBranchesStore.getState();
+  if (!packHash || !currentBranch) return false;
+  const head = branches.find((b) => b.name === currentBranch);
+  if (!head || !head.headCommitHash) return false;
+  return head.headCommitHash !== packHash;
+}
