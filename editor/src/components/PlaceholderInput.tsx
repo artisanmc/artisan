@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { getCaretCoordinates } from "@/lib/caretCoordinates";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
@@ -40,9 +41,11 @@ export function PlaceholderInput({
 
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  // Popup position in fixed viewport coordinates.
   const [popupPos, setPopupPos] = useState({ left: 0, top: 0 });
   // Position of the caret at the moment `{` was typed (i.e. the char right
   // after the opening brace). anchorPos === 0 means "not set".
@@ -52,12 +55,14 @@ export function PlaceholderInput({
     e.path.toLowerCase().includes(query.toLowerCase()),
   );
 
-  // Close on outside click.
+  // Close on outside click. The popup is portaled to document.body so it is
+  // no longer a DOM child of wrapperRef — we must check both refs separately.
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!wrapperRef.current) return;
-      if (wrapperRef.current.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (popupRef.current?.contains(target)) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -87,8 +92,15 @@ export function PlaceholderInput({
           requestAnimationFrame(() => {
             const el = ref.current;
             if (!el) return;
+            const rect = el.getBoundingClientRect();
             const c = getCaretCoordinates(el, el.selectionStart ?? next.length);
-            setPopupPos({ left: c.left, top: c.top + c.height + 2 });
+            // c.left / c.top are relative to the element's top-left content
+            // edge (the textarea/input origin). Add the viewport rect to get
+            // fixed coordinates that escape any overflow:hidden ancestor.
+            setPopupPos({
+              left: rect.left + c.left,
+              top: rect.top + c.top + c.height + 2,
+            });
           });
         }
       }
@@ -171,20 +183,10 @@ export function PlaceholderInput({
       open && filtered[highlight] ? rowId(filtered[highlight].path) : undefined,
   };
 
-  return (
-    <div ref={wrapperRef} style={{ position: "relative" }}>
-      {multiline ? (
-        <textarea
-          ref={ref as React.RefObject<HTMLTextAreaElement>}
-          rows={rows}
-          {...commonProps}
-        />
-      ) : (
-        <input ref={ref as React.RefObject<HTMLInputElement>} {...commonProps} />
-      )}
-
-      {open && (
+  const popup = open
+    ? createPortal(
         <ul
+          ref={popupRef}
           role="listbox"
           id={listboxId}
           className="placeholder-popup"
@@ -219,8 +221,24 @@ export function PlaceholderInput({
               </li>
             ))
           )}
-        </ul>
+        </ul>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div ref={wrapperRef}>
+      {multiline ? (
+        <textarea
+          ref={ref as React.RefObject<HTMLTextAreaElement>}
+          rows={rows}
+          {...commonProps}
+        />
+      ) : (
+        <input ref={ref as React.RefObject<HTMLInputElement>} {...commonProps} />
       )}
+
+      {popup}
 
       {showHint && !open && entries.length > 0 && (
         <p className="placeholder-hint text-[11px] text-[var(--ink-faint)]">
