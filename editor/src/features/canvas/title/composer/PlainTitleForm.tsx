@@ -33,17 +33,17 @@ export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
   if (!plainLayer || plainLayer.kind !== "plain") return null;
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-[var(--ink-2)]">
-      <div className="rounded border border-[var(--line)] bg-[var(--card-surface)]/60 px-2.5 py-2 text-[10px] text-[var(--ink-mut)] leading-snug">
+    <div className="flex flex-col gap-3 text-xs text-zinc-300">
+      <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
         Titre vanilla — aucun resource pack requis. MiniMessage supporté (
-        <code className="text-[var(--ink-2)]">{"<gold>"}</code>,{" "}
-        <code className="text-[var(--ink-2)]">{"<bold>"}</code>, etc.).
+        <code className="text-zinc-300">{"<gold>"}</code>,{" "}
+        <code className="text-zinc-300">{"<bold>"}</code>, etc.).
       </div>
 
       <div>
         <label
           htmlFor="plain-title-text"
-          className="mb-1 block text-[10px] uppercase text-[var(--ink-faint)]"
+          className="mb-1 block text-[10px] uppercase text-zinc-500"
         >
           Texte (MiniMessage) — {textEdit.lang}
         </label>
@@ -63,8 +63,8 @@ export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
         />
       </div>
 
-      <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">Aperçu</div>
+      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
+        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
         <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>
