@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragEndEvent, type Modifier, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+
+/** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { CSS } from "@dnd-kit/utilities";
+import { LayoutGrid, Settings, GripVertical, GitBranch } from "lucide-react";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { useBranchesStore } from "@/state/branchesStore";
+import { useUiStore } from "@/state/uiStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
 
@@ -20,24 +26,26 @@ export function WorkspaceSidebar() {
   const localPacks = useAccountStore((s) => s.account.packs);
   const packOrder = useAccountStore((s) => s.account.packOrder);
   const reorderPacks = useAccountStore((s) => s.reorderPacks);
+  // distance: 5 — small movement before drag activates. Click-on-the-row is
+  // safe because the drag handle is a sibling, not an overlay, so the row
+  // Link and the handle live in distinct hit areas.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
 
-  // Load networks once on mount if not already populated (covers user-mode
-  // visiting a workspace deeplink without going through /account first).
   useEffect(() => {
     if (networks.length === 0) {
       listNetworks().then(setNetworks).catch(() => {});
     }
   }, []);
 
-  // Active network = session network (set after /artisan setup), otherwise first
-  // network in the user's membership list. Null when the user has no networks
-  // at all (fresh signup before any setup).
+  // Active network = session network (set after /artisan setup), otherwise
+  // the user's picked one in the NetworkDropdown (persisted), otherwise the
+  // first owned network. Null when the user has no networks at all.
+  const browseActiveId = useNetworksStore((s) => s.activeId);
   const activeNetworkId = useMemo(
-    () => sessionNetworkId ?? networks[0]?.id ?? null,
-    [sessionNetworkId, networks],
+    () => sessionNetworkId ?? browseActiveId ?? networks[0]?.id ?? null,
+    [sessionNetworkId, browseActiveId, networks],
   );
 
   useEffect(() => {
@@ -61,16 +69,12 @@ export function WorkspaceSidebar() {
     };
   }, [activeNetworkId, refetchToken]);
 
-  // Server packs + local-only optimistic packs (just-created via session mode
-  // autosave, not yet flushed). User-mode pack creation goes through
-  // NewWorkspaceDialog → backend API → setRefetchToken bumps the effect.
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
     .filter((p) => !serverIds.has(p.id))
     .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
-  // Ordering: follow account.packOrder where possible, append remaining by updatedAt desc.
   const idToPack = new Map(allPacks.map((p) => [p.id, p]));
   const ordered: PackSummary[] = [];
   for (const id of packOrder) {
@@ -80,9 +84,11 @@ export function WorkspaceSidebar() {
       idToPack.delete(id);
     }
   }
-  const remaining = [...idToPack.values()].sort((a, b) =>
-    (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
-  );
+  // Sort packs that aren't in packOrder by id (stable, deterministic). We
+  // deliberately do NOT sort by updatedAt — that timestamp gets bumped on
+  // every navigation/autosave, which made workspaces yank to the top each
+  // time the user clicked them.
+  const remaining = [...idToPack.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -96,58 +102,75 @@ export function WorkspaceSidebar() {
   };
 
   return (
-    <nav className="flex h-full flex-col gap-3 p-2">
+    <nav className="flex h-full flex-col gap-3.5 px-3 py-3.5">
+      <div className="flex items-center gap-2.5 px-1.5 pt-1 pb-0.5">
+        <span className="pixel-mark">
+          <i /><i /><i /><i /><i /><i /><i /><i /><i />
+        </span>
+        <span className="font-display text-[17px] font-semibold text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+          {t("sidebar.brand")}
+        </span>
+      </div>
+
       <NetworkDropdown />
 
-      <div className="flex-1 overflow-auto">
-        <div>
-          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-zinc-500">
-            Mes Workspaces
-          </div>
-          <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-            <SortableContext items={finalList.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-              <ul className="flex flex-col gap-0.5">
-                {finalList.map((w) => (
-                  <SortableWorkspaceItem key={w.id} id={w.id} name={w.name} />
-                ))}
-              </ul>
-            </SortableContext>
-          </DndContext>
-          {activeNetworkId ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        {activeNetworkId ? (
+          <div className="flex flex-col">
+            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--ink-faint)]">
+              {t("sidebar.myWorkspaces")}
+            </div>
+            <DndContext
+              sensors={sensors}
+              onDragEnd={onDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <SortableContext
+                items={finalList.map((p) => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="flex flex-col">
+                  {finalList.map((w) => (
+                    <SortableWorkspaceItem key={w.id} id={w.id} name={w.name} />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
             <NewWorkspaceDialog
               networkId={activeNetworkId}
               onCreated={() => setRefetchToken((n) => n + 1)}
               trigger={
                 <button
                   type="button"
-                  className="mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200"
+                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--ink-mut)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
                 >
-                  + Nouveau workspace
+                  {t("sidebar.newWorkspace")}
                 </button>
               }
             />
-          ) : (
-            <div className="mt-1 px-2 py-1 text-[11px] text-zinc-500">
-              Crée un Network ou lance <code>/artisan setup</code> sur ton serveur pour commencer.
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3">
-          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-zinc-500">
-            Modules installés
           </div>
-          <div className="rounded border border-dashed border-zinc-800 px-2 py-2 text-[11px] text-zinc-500">
-            Aucun module installé.
+        ) : (
+          <div className="rounded-[14px] border border-dashed border-[var(--line)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--ink-mut)]">
+            {t("sidebar.noNetworkHint")}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-col">
+          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--ink-faint)]">
+            {t("sidebar.installedModules")}
+          </div>
+          <div className="rounded-[14px] border border-dashed border-[var(--line)] px-3 py-3 text-center text-[11px] text-[var(--ink-faint)]">
+            {t("sidebar.noModules")}
           </div>
         </div>
       </div>
 
       <Link
         to="/settings"
-        className="flex items-center gap-2 rounded px-2 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+        className="flex items-center gap-2.5 rounded-[10px] border-t border-[var(--line-soft)] px-2.5 py-2.5 text-[13px] text-[var(--ink-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        style={{ marginLeft: -4, marginRight: -4, borderRadius: 0 }}
       >
-        <span>⚙</span>
+        <Settings className="size-[15px] text-[var(--ink-faint)]" />
         <span>{t("sidebar.settings")}</span>
       </Link>
     </nav>
@@ -155,30 +178,63 @@ export function WorkspaceSidebar() {
 }
 
 function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  // Active pack on the workspace route + its current branch. We only surface
+  // a branch chip on the active item (we don't know what branch other
+  // workspaces are on from this sidebar alone). The chip hides when on main
+  // since that's the implicit default — only deviation deserves a callout.
+  const lastActivePackId = useUiStore((s) => s.lastActivePackId);
+  const currentBranch = useBranchesStore((s) => s.currentBranch);
+  const showBranchChip = id === lastActivePackId && currentBranch !== null && currentBranch !== "main";
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
   return (
-    <li ref={setNodeRef} style={style} className="group relative">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--hover)] has-[[data-status=active]]:bg-[var(--terra-soft)]"
+    >
       <Link
         to="/workspace/$workspaceId"
         params={{ workspaceId: id }}
-        className="block rounded px-2 py-1 pr-7 text-sm text-zinc-200 hover:bg-zinc-800"
-        activeProps={{ className: "block rounded bg-zinc-800 px-2 py-1 pr-7 text-sm text-zinc-100" }}
+        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
+        activeProps={{
+          className:
+            "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white",
+        }}
       >
-        {name}
+        <LayoutGrid className="size-[15px] shrink-0 text-[var(--ink-faint)] group-[.is-active]:text-[var(--terra)]" />
+        <span className="truncate flex-1">{name}</span>
+        {showBranchChip && currentBranch && (
+          <span
+            className="mono flex shrink-0 items-center gap-1 rounded-full bg-[var(--inset)] px-1.5 py-0.5 text-[9px] text-[var(--sand)]"
+            title={`branche : ${currentBranch}`}
+          >
+            <GitBranch className="size-[8px]" />
+            {currentBranch}
+          </span>
+        )}
       </Link>
       <button
         type="button"
         aria-label="Reorder workspace"
+        ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 cursor-grab items-center justify-center rounded text-[10px] text-zinc-500 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
+        className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--ink-faint)] transition-opacity hover:text-[var(--ink-2)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
       >
-        ⠿
+        <GripVertical className="size-3.5" />
       </button>
     </li>
   );
