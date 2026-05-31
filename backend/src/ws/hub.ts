@@ -62,6 +62,18 @@ export function cleanupConn(connId: string): void {
   }
 }
 
+/**
+ * Number of plugin instances currently authenticated against this server_key.
+ * A single server_key can be claimed by N physical Minecraft servers (on-demand
+ * scaling, blue/green deploys, …) so this is the right cardinality to surface
+ * in the editor's bindings panel.
+ */
+export function getInstanceCount(serverKeyId: string): number {
+  let n = 0;
+  for (const id of connToServerId.values()) if (id === serverKeyId) n++;
+  return n;
+}
+
 export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
