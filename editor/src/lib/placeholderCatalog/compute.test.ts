@@ -229,6 +229,22 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("action location returns the same scope as the parent element", () => {
     const pack = emptyPack();
+    // Provide a real dataSource so the iteration entries are non-empty and the
+    // assertion verifies genuine delegation rather than two empty arrays.
+    pack.dataSources.push({
+      id: "ds_list" as DataSourceId,
+      name: "list",
+      type: {
+        kind: "list",
+        of: {
+          kind: "object",
+          fields: [
+            { name: "label", type: { kind: "string" } },
+          ],
+        },
+      },
+      value: [{ label: "hello" }],
+    });
     pack.menus.push({
       id: "m1" as MenuId,
       packId: pack.id,
@@ -243,7 +259,9 @@ describe("PlaceholderCatalog.compute", () => {
           ],
         },
       ],
-      contextInputs: [],
+      contextInputs: [
+        { kind: "sourceRef", name: "list", ref: "pack:ds_list" as SourceRef },
+      ],
     });
     const elementOut = compute(pack, {
       kind: "element",
@@ -256,6 +274,8 @@ describe("PlaceholderCatalog.compute", () => {
       elementId: "e1" as ElementId,
       clickType: "left",
     });
+    // Both must include the iteration leaf (non-empty), confirming delegation.
+    expect(elementOut.some((e) => e.path === "item.label" && e.origin === "iteration")).toBe(true);
     expect(actionOut.map((e) => e.path)).toEqual(elementOut.map((e) => e.path));
   });
 
