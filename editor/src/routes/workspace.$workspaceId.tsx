@@ -14,6 +14,7 @@ import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
+import { ServersPanelContent } from "@/features/servers/ServersPanelContent";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
@@ -68,13 +69,13 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
 
-type WorkspaceSearch = { tab?: "overview" | "translations" | "data-sources" };
+type WorkspaceSearch = { tab?: "overview" | "translations" | "data-sources" | "servers" };
 
 export const Route = createFileRoute("/workspace/$workspaceId")({
   component: PackCanvasPage,
   validateSearch: (search: Record<string, unknown>): WorkspaceSearch => {
     const t = search.tab;
-    if (t === "translations" || t === "data-sources") return { tab: t };
+    if (t === "translations" || t === "data-sources" || t === "servers") return { tab: t };
     return { tab: "overview" };
   },
 });
@@ -88,7 +89,7 @@ function PackCanvasPage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
-  const setTab = (next: "overview" | "translations" | "data-sources") => {
+  const setTab = (next: "overview" | "translations" | "data-sources" | "servers") => {
     navigate({ search: { tab: next } });
   };
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
@@ -177,12 +178,19 @@ function PackCanvasPage() {
   // Session mode: bounce to /session so the cookie-based refresh can re-establish.
   // User mode: bounce to /login so the user can authenticate.
   if (!token && !currentUser) return <Navigate to="/session" replace />;
-  // Session mode only: accountStore is not persisted — empty after a page refresh.
-  if (token && packs.length === 0) return <Navigate to="/session" replace />;
-  // Session mode only: if the specific pack isn't in this session, pick the first available.
-  if (token && !sessionPack) return <Navigate to="/workspace/$workspaceId" params={{ workspaceId: packs[0]!.id }} replace />;
-  // User mode only: still loading the pack — render nothing while fetch is in flight.
-  if (!token && !pack) return null;
+  // Session mode only: accountStore is empty after a page refresh AND no user
+  // is logged in — bounce to re-establish the session token. With a logged-in
+  // user we fall through so the user-mode pack loader can pick up the slack.
+  if (token && packs.length === 0 && !currentUser) return <Navigate to="/session" replace />;
+  // Session mode: if the requested pack isn't bound to this session AND there's
+  // no logged-in user to fall back on, redirect to the first session pack.
+  // When the user IS logged in we let usePackLoader fetch the pack via the
+  // user-auth API instead of bouncing — without this the sidebar's workspace
+  // list (which spans the whole network) was un-navigable.
+  if (token && !sessionPack && !userPack && !currentUser)
+    return <Navigate to="/workspace/$workspaceId" params={{ workspaceId: packs[0]!.id }} replace />;
+  // Still loading the pack via the user-mode loader — render nothing while fetch is in flight.
+  if (!pack) return null;
 
   const onDragStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
@@ -236,9 +244,16 @@ function PackCanvasPage() {
       <div className="flex h-[100dvh] overflow-hidden">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Top bar — pack name. */}
-          <div className="flex h-12 shrink-0 items-center gap-2 border-zinc-800 border-b bg-zinc-950 px-2">
-            <div className="min-w-0 flex-1 truncate px-1 font-mono text-sm text-zinc-200">
-              {pack?.name ?? "—"}
+          <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  background: "var(--gold)",
+                  boxShadow: "0 0 8px var(--gold)",
+                }}
+              />
+              <span className="truncate">{pack?.name ?? "—"}</span>
             </div>
             {pack ? <LangSwitcher pack={pack} /> : null}
             <UndoRedoButtons />
@@ -274,21 +289,25 @@ function PackCanvasPage() {
                   badge: totalMissing(pack) > 0 ? totalMissing(pack) : undefined,
                 },
                 { id: "data-sources", label: t("workspace.tabs.dataSources") },
+                ...(networkId
+                  ? [{ id: "servers", label: t("workspace.tabs.servers") }]
+                  : []),
               ]}
               activeTab={tab ?? "overview"}
-              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources")}
+              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources" | "servers")}
             />
           )}
 
           {/* Branch toolbar — only shown when a networkId is resolved (user-auth mode or session mode). */}
-          {currentBranch && networkId && (
-            <div className="flex flex-col gap-2 border-b border-zinc-800 p-3">
+          {currentBranch && networkId && pack && (
+            <div className="flex flex-col gap-2.5 border-b border-[var(--line-soft)] bg-[var(--bg)] px-3.5 py-3">
               <div className="flex items-center gap-2">
                 <BranchSwitcher networkId={networkId} packId={pId} />
+                <DirtyBadge />
                 <button
                   type="button"
                   onClick={() => setCommitOpen(true)}
-                  className="flex h-7 items-center gap-1 rounded bg-zinc-700 px-2 text-xs font-medium text-zinc-100 hover:bg-zinc-600"
+                  className="btn btn-sm"
                 >
                   Commit
                 </button>
@@ -344,6 +363,11 @@ function PackCanvasPage() {
               <DataSourcesPanelContent packId={pId} />
             </div>
           )}
+          {tab === "servers" && pack && networkId && (
+            <div className="min-h-0 flex-1 overflow-auto">
+              <ServersPanelContent packId={pId} networkId={networkId} />
+            </div>
+          )}
         </main>
 
         {/* Patterns Gallery cheat sheet (right-side sheet). */}
@@ -351,12 +375,12 @@ function PackCanvasPage() {
 
         {/* Export-to-zip validation errors. */}
         <Dialog open={exportErrorsOpen} onOpenChange={setExportErrorsOpen}>
-          <DialogContent className="max-w-md border-zinc-800 bg-zinc-950 text-zinc-200">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t("export.errorTitle")}</DialogTitle>
             </DialogHeader>
-            <p className="mb-3 text-sm text-zinc-400">{t("export.errorSubtitle")}</p>
-            <ul className="space-y-1 text-sm text-red-400">
+            <p className="mb-3 text-[13px] text-[var(--ink-mut)]">{t("export.errorSubtitle")}</p>
+            <ul className="space-y-1 text-[13px] text-[var(--brick)]">
               {exportErrors.map((err, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable within a render
                 <li key={i} className="flex gap-2">
@@ -365,7 +389,7 @@ function PackCanvasPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs text-zinc-500">{t("export.overwriteWarning")}</p>
+            <p className="mt-4 text-[12px] text-[var(--ink-faint)]">{t("export.overwriteWarning")}</p>
           </DialogContent>
         </Dialog>
 
@@ -452,31 +476,29 @@ function LangSwitcher({ pack }: { pack: Pack }) {
         <button
           type="button"
           title={t("topbar.activeLanguage", { lang: activeLang })}
-          className="flex h-9 items-center gap-1 rounded px-2 font-mono text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+          className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--raised)] px-3 font-mono text-[12px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
         >
           <span className="uppercase">{activeLang}</span>
-          <span className="text-zinc-600">▾</span>
+          <span className="text-[var(--ink-faint)]">▾</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="border-zinc-700 bg-zinc-900 text-xs text-zinc-200"
+        className="text-xs"
       >
         {sortedLangs.map((lang) => (
           <DropdownMenuItem
             key={lang}
             onSelect={() => setActiveLang(lang)}
-            className="flex cursor-pointer items-center gap-2 focus:bg-zinc-800"
+            className="flex cursor-pointer items-center gap-2"
           >
             <span
-              className={`font-mono uppercase ${lang === activeLang ? "text-emerald-300" : ""}`}
+              className={`font-mono uppercase ${lang === activeLang ? "text-[var(--terra)]" : ""}`}
             >
               {lang}
             </span>
             {lang === pack.defaultLang ? (
-              <span className="rounded bg-zinc-800 px-1 py-0.5 text-[9px] text-zinc-400">
-                {t("langSwitcher.default")}
-              </span>
+              <span className="badge">{t("langSwitcher.default")}</span>
             ) : null}
             <span className="ml-auto flex items-center gap-1">
               {lang !== pack.defaultLang ? (
@@ -487,7 +509,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
                     e.stopPropagation();
                     setPackDefaultLang({ packId: pack.id, lang });
                   }}
-                  className="rounded px-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+                  className="rounded px-1 text-[11px] text-[var(--ink-faint)] hover:text-[var(--gold)]"
                 >
                   ★
                 </button>
@@ -500,7 +522,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
                     e.stopPropagation();
                     onRemove(lang);
                   }}
-                  className="rounded px-1 text-[10px] text-zinc-500 hover:text-red-300"
+                  className="rounded px-1 text-[11px] text-[var(--ink-faint)] hover:text-[var(--brick)]"
                 >
                   ×
                 </button>
@@ -508,10 +530,10 @@ function LangSwitcher({ pack }: { pack: Pack }) {
             </span>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator className="bg-zinc-800" />
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={onAdd}
-          className="cursor-pointer text-emerald-300 focus:bg-zinc-800"
+          className="cursor-pointer text-[var(--terra)]"
         >
           {t("langSwitcher.addLanguage")}
         </DropdownMenuItem>
@@ -550,6 +572,24 @@ function UndoRedoButtons() {
         <Redo2 className="h-4 w-4" />
       </TopBarIconButton>
     </div>
+  );
+}
+
+/**
+ * "Modifié" pill next to the BranchSwitcher when there are local edits not yet
+ * captured by a commit. We use the temporal undo stack as a cheap proxy: any
+ * undoable action since the pack was loaded counts as a pending edit. Resets
+ * naturally when the user undoes everything or when the pack is reloaded.
+ */
+function DirtyBadge() {
+  const isDirty = useStore(useAccountStore.temporal, (s) => s.pastStates.length > 0);
+  const { t } = useTranslation();
+  if (!isDirty) return null;
+  return (
+    <span className="badge badge-amber" title={t("branchBar.dirtyHint")}>
+      <span className="dot" style={{ background: "var(--gold)" }} />
+      {t("branchBar.dirty")}
+    </span>
   );
 }
 
@@ -612,12 +652,12 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
       for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
       const files = transform(cloned);
       await deployPack(token, pack, files);
-      toast.success("Déployé ✓");
+      toast.success(t("deploy.deployedToast"));
     } catch (e) {
       if (e instanceof DeployError && e.code === "session_not_trusted") {
         // Banner is shown automatically — no toast needed
       } else {
-        toast.error(e instanceof Error ? e.message : "Échec du déploiement");
+        toast.error(e instanceof Error ? e.message : t("deploy.deployFailed"));
       }
     } finally {
       setDeploying(false);
@@ -630,37 +670,37 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
     try {
       const deployed = await getDeployedPack(token, pack.id);
       if (!deployed) {
-        toast.info("Ce pack n'a jamais été déployé — rien à restaurer.");
+        toast.info(t("deploy.revertNothing"));
         return;
       }
       replacePack(deployed);
-      toast.success("Modifications annulées — version live restaurée.");
+      toast.success(t("deploy.reverted"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de la restauration");
+      toast.error(e instanceof Error ? e.message : t("deploy.revertFailed"));
     } finally {
       setReverting(false);
     }
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
         onClick={handleRevert}
         disabled={reverting}
-        title="Annuler les modifications (revenir à la version live)"
-        className="flex h-8 items-center gap-1 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        title={t("deploy.revertTitle")}
+        className="btn btn-sm btn-ghost"
       >
-        {reverting ? "…" : "Annuler"}
+        {reverting ? t("deploy.reverting") : t("deploy.revert")}
       </button>
       <button
         type="button"
         onClick={handleDeploy}
         disabled={isPublishDisabled}
-        title="Déployer — rendre les modifications visibles aux joueurs"
-        className="flex h-8 items-center gap-1 rounded bg-emerald-700 px-3 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+        title={t("deploy.deployTitle")}
+        className="btn btn-sm btn-deploy"
       >
-        {deploying ? "Déploiement…" : "Déployer"}
+        {deploying ? t("deploy.deploying") : t("deploy.deploy")}
       </button>
     </div>
   );
@@ -692,14 +732,14 @@ function TopBarIconButton({
       onClick={onClick}
       className={
         disabled
-          ? "relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded text-zinc-700"
-          : "relative flex h-9 w-9 items-center justify-center rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+          ? "relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-[10px] text-[var(--ink-faint)] opacity-40"
+          : "relative flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--ink-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       }
     >
       {children}
       {badge != null ? (
         typeof badge === "string" || typeof badge === "number" ? (
-          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[9px] text-zinc-950">
+          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 font-mono text-[9px] text-[#2A140C]">
             {badge}
           </span>
         ) : (
@@ -722,7 +762,10 @@ function LibraryDragOverlay() {
 function LibraryDragGhost({ material }: { material: string }) {
   const url = getTextureUrl(material);
   return (
-    <div className="pointer-events-none flex h-12 w-12 items-center justify-center rounded border-2 border-emerald-500/70 bg-zinc-900/95 shadow-2xl">
+    <div
+      className="pointer-events-none flex h-12 w-12 items-center justify-center rounded-[10px] border-2 border-[var(--terra)] bg-[var(--card-surface)]/95"
+      style={{ boxShadow: "var(--sh-3)" }}
+    >
       {url ? (
         <img
           src={url}
@@ -732,7 +775,7 @@ function LibraryDragGhost({ material }: { material: string }) {
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="font-mono text-[8px] text-zinc-300">{material.slice(0, 4)}</span>
+        <span className="font-mono text-[8px] text-[var(--ink-2)]">{material.slice(0, 4)}</span>
       )}
     </div>
   );

@@ -41,10 +41,13 @@ describe("NetworkDetailPage", () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Alpha", tier: "free" },
       packs: [],
-      serverKeys: [{ id: "sk_abc123", label: null }],
+      serverKeys: [{ id: "sk_abc123456789", label: null }],
     });
     render(<NetworkDetailPage />);
-    await screen.findByText(/sk_abc123/);
+    // The card now shows the id as the subtitle (full) and a truncated version
+    // as the title — assert at least one match.
+    const matches = await screen.findAllByText(/sk_abc12345/);
+    expect(matches.length).toBeGreaterThan(0);
   });
 
   it("calls deleteServerKey when delete button clicked and confirmed", async () => {
