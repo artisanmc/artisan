@@ -1,6 +1,19 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-export interface Branch { packId: string; name: string; headCommitId: string; createdAt: string; updatedAt: string; }
+export interface Branch {
+  packId: string;
+  name: string;
+  headCommitId: string;
+  /**
+   * content_hash of the head commit. Used by the editor to detect a divergence
+   * between the live WIP buffer (`pack.hash`) and the branch HEAD — i.e. is
+   * there anything to commit. "" when the head commit row isn't readable
+   * (shouldn't happen in practice).
+   */
+  headCommitHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface Commit { id: string; packId: string; parentId: string | null; contentHash: string; authorUserId: string | null; message: string; createdAt: string; }
 
 export async function listBranches(networkId: string, packId: string): Promise<Branch[]> {

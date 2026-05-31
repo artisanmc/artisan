@@ -78,10 +78,16 @@ export async function bindPackToServerKey(
   networkId: string,
   packId: string,
   serverKeyId: string,
+  branchName: string = "main",
 ): Promise<void> {
   const res = await fetch(
     `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
-    { method: "POST", credentials: "include" },
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ branch_name: branchName }),
+    },
   );
   if (!res.ok) throw new Error(`bind failed: ${res.status}`);
 }
@@ -96,6 +102,66 @@ export async function unbindPack(
     { method: "DELETE", credentials: "include" },
   );
   if (!res.ok) throw new Error(`unbind failed: ${res.status}`);
+}
+
+export interface PackBinding {
+  bindingId: string;
+  serverKeyId: string;
+  serverKeyLabel: string | null;
+  branchName: string;
+  createdAt: string;
+  lastMcVersion: string | null;
+  /** Number of plugin instances currently authenticated against this server_key. */
+  instanceCount: number;
+}
+
+export async function listPackBindings(
+  networkId: string,
+  packId: string,
+): Promise<PackBinding[]> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings`,
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`listPackBindings failed: ${res.status}`);
+  const data = (await res.json()) as {
+    bindings: Array<{
+      binding_id: string;
+      server_key_id: string;
+      server_key_label: string | null;
+      branch_name: string;
+      created_at: string;
+      last_mc_version: string | null;
+      instance_count: number;
+    }>;
+  };
+  return data.bindings.map((b) => ({
+    bindingId: b.binding_id,
+    serverKeyId: b.server_key_id,
+    serverKeyLabel: b.server_key_label,
+    branchName: b.branch_name,
+    createdAt: b.created_at,
+    lastMcVersion: b.last_mc_version,
+    instanceCount: b.instance_count,
+  }));
+}
+
+export async function updatePackBindingBranch(
+  networkId: string,
+  packId: string,
+  serverKeyId: string,
+  branchName: string,
+): Promise<void> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ branch_name: branchName }),
+    },
+  );
+  if (!res.ok) throw new Error(`updatePackBindingBranch failed: ${res.status}`);
 }
 
 // ─── Network transfer ──────────────────────────────────────────────────────
@@ -169,20 +235,45 @@ export class ClaimError extends Error {
   }
 }
 
+export interface ClaimLinkInput {
+  /** Existing network to attach the server_key to. XOR with `networkName`. */
+  networkId?: string;
+  /** When provided, a new network with this name is created + claimed. */
+  networkName?: string;
+  /** Existing pack to bind to the new server_key. XOR with `packName`. */
+  packId?: string;
+  /** When provided, a new pack with this name is created in the target network + bound. */
+  packName?: string;
+  /** Optional label for the generated server_key (e.g. "Survival-Main"). */
+  serverKeyLabel?: string;
+}
+
 export async function claimLinkCode(
   code: string,
-  networkId?: string,
-): Promise<{ server_key_id: string; network_id: string }> {
+  input: ClaimLinkInput = {},
+): Promise<{ server_key_id: string; network_id: string; pack_id: string | null }> {
+  const body: Record<string, string> = {};
+  if (input.networkId) body.network_id = input.networkId;
+  if (input.networkName) body.network_name = input.networkName;
+  if (input.packId) body.pack_id = input.packId;
+  if (input.packName) body.pack_name = input.packName;
+  if (input.serverKeyLabel) body.server_key_label = input.serverKeyLabel;
+
   const res = await fetch(`${API_URL}/api/v1/link/${code}/claim`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(networkId ? { network_id: networkId } : {}),
+    body: JSON.stringify(body),
   });
   if (res.ok) return res.json();
-  const body = await res.json().catch(() => ({})) as { error?: string };
-  const errorCode = body.error;
+  const errorBody = await res.json().catch(() => ({})) as { error?: string };
+  const errorCode = errorBody.error;
   if (res.status === 400 && errorCode === "must_choose_network") throw new ClaimError("must_choose_network");
+  if (res.status === 400 && errorCode === "ambiguous_network") throw new ClaimError("ambiguous_network");
+  if (res.status === 400 && errorCode === "ambiguous_pack") throw new ClaimError("ambiguous_pack");
+  if (res.status === 404 && errorCode === "pack_not_in_network") throw new ClaimError("pack_not_in_network");
+  if (res.status === 422 && errorCode === "invalid_network_name") throw new ClaimError("invalid_network_name");
+  if (res.status === 422 && errorCode === "invalid_pack_name") throw new ClaimError("invalid_pack_name");
   if (res.status === 401) throw new ClaimError("unauthorized");
   if (res.status === 403) throw new ClaimError("forbidden");
   if (res.status === 409) throw new ClaimError("already_claimed");

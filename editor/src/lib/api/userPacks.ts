@@ -34,3 +34,29 @@ export async function saveUserPack(
   });
   if (!res.ok) throw new Error(`saveUserPack failed: ${res.status}`);
 }
+
+// User-auth-mode item bundle endpoints. The vanilla bundle falls back to the
+// newest available items.json file when no MC version is known for any of the
+// pack's bindings (e.g., server hasn't connected yet) so the Library panel
+// always populates.
+import type { LibraryData, CustomItemsData } from "@/lib/packApi";
+
+export async function fetchUserItems(packId: string): Promise<LibraryData> {
+  const res = await fetch(`${API_URL}/api/v1/user/packs/${packId}/items`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`fetchUserItems failed: ${res.status}`);
+  return res.json() as Promise<LibraryData>;
+}
+
+export async function fetchUserCustomItems(packId: string): Promise<CustomItemsData> {
+  try {
+    const res = await fetch(`${API_URL}/api/v1/user/packs/${packId}/custom-items`, {
+      credentials: "include",
+    });
+    if (!res.ok) return { serverKeyId: "", items: [] };
+    return res.json() as Promise<CustomItemsData>;
+  } catch {
+    return { serverKeyId: "", items: [] };
+  }
+}

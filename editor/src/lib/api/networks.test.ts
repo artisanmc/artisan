@@ -282,7 +282,7 @@ describe("claimLinkCode", () => {
       new Response(JSON.stringify({ server_key_id: "sk", network_id: "n1" }), { status: 200 })
     );
     global.fetch = fetchSpy as never;
-    await claimLinkCode("ABC", "n1");
+    await claimLinkCode("ABC", { networkId: "n1" });
     const opts = (fetchSpy.mock.calls[0]![1]) as RequestInit;
     expect(JSON.parse(opts.body as string)).toEqual({ network_id: "n1" });
   });
