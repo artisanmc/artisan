@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, packBindings, serverKeys,
+  memberships, networks, packs, packBindings, serverKeys, serverKeyHelloes,
   editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
@@ -17,6 +17,7 @@ async function clearAll() {
   await db.delete(packs);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
+  await db.delete(serverKeyHelloes);
   await db.delete(serverKeys);
   await db.delete(memberships);
   await db.delete(networks);
@@ -365,6 +366,329 @@ describe("userNetworksRouter", () => {
 });
 
 // C4 tests
+describe("GET /api/v1/networks/:id/server-keys/:keyId/helloes", () => {
+  test("returns helloes ordered by hello_at desc, with default limit", async () => {
+    const { sessionId } = await seedUser(`u_hel_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "HelNet" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "h" }),
+    });
+    const { id: skId } = await skRes.json();
+
+    const now = Date.now();
+    const prefix = Math.random().toString(36).slice(2, 8);
+    await db.insert(serverKeyHelloes).values([
+      { id: `${prefix}_1`, serverKeyId: skId, ip: "1.1.1.1", mcVersion: "1.21.4", helloAt: new Date(now - 3000) },
+      { id: `${prefix}_2`, serverKeyId: skId, ip: "2.2.2.2", mcVersion: "1.21.4", helloAt: new Date(now - 2000) },
+      { id: `${prefix}_3`, serverKeyId: skId, ip: "3.3.3.3", mcVersion: "1.21.4", helloAt: new Date(now - 1000) },
+    ]);
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/helloes`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const { helloes } = await res.json();
+    expect(helloes).toHaveLength(3);
+    expect(helloes[0].ip).toBe("3.3.3.3"); // most recent first
+    expect(helloes[1].ip).toBe("2.2.2.2");
+    expect(helloes[2].ip).toBe("1.1.1.1");
+    expect(helloes[0]).toHaveProperty("hello_at");
+    expect(helloes[0]).toHaveProperty("mc_version", "1.21.4");
+  });
+
+  test("?limit=N caps result count", async () => {
+    const { sessionId } = await seedUser(`u_hellim_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "HelLimNet" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const now = Date.now();
+    const prefix = Math.random().toString(36).slice(2, 8);
+    await db.insert(serverKeyHelloes).values(
+      Array.from({ length: 5 }, (_, i) => ({
+        id: `${prefix}_${i}`, serverKeyId: skId, ip: `10.0.0.${i}`, mcVersion: "1.21.4",
+        helloAt: new Date(now - i * 1000),
+      })),
+    );
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/helloes?limit=2`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const { helloes } = await res.json();
+    expect(helloes).toHaveLength(2);
+  });
+
+  test("non-owner returns 403", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const { sessionId: sessA } = await seedUser(`uA_hel_${suffix}`);
+    const { sessionId: sessB } = await seedUser(`uB_hel_${suffix}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "HelForbid" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/helloes`, {
+      headers: { Cookie: `artisan_user_session=${sessB}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("key not in network returns 404", async () => {
+    const { sessionId } = await seedUser(`u_hel404_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hel404Net" }),
+    })).json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/does-not-exist/helloes`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET/PUT /api/v1/networks/:id/server-keys/:keyId/allowlist", () => {
+  async function setupKey() {
+    const { sessionId } = await seedUser(`u_al_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "AlNet" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+    return { sessionId, app, networkId: network.id, skId };
+  }
+
+  test("GET returns null when no allowlist set (default)", async () => {
+    const { sessionId, app, networkId, skId } = await setupKey();
+    const res = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.allowed_ips).toBeNull();
+  });
+
+  test("PUT sets the allowlist, GET returns it, dedup + trim applied", async () => {
+    const { sessionId, app, networkId, skId } = await setupKey();
+    const put = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: [" 1.2.3.4 ", "5.6.7.8", "1.2.3.4"] }),
+    });
+    expect(put.status).toBe(200);
+    expect((await put.json()).allowed_ips).toEqual(["1.2.3.4", "5.6.7.8"]);
+
+    const get = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect((await get.json()).allowed_ips).toEqual(["1.2.3.4", "5.6.7.8"]);
+  });
+
+  test("PUT with null clears the allowlist", async () => {
+    const { sessionId, app, networkId, skId } = await setupKey();
+    await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: ["1.2.3.4"] }),
+    });
+    const clear = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: null }),
+    });
+    expect(clear.status).toBe(200);
+    expect((await clear.json()).allowed_ips).toBeNull();
+  });
+
+  test("PUT with empty array is normalized to null", async () => {
+    const { sessionId, app, networkId, skId } = await setupKey();
+    const res = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: [] }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).allowed_ips).toBeNull();
+  });
+
+  test("PUT with invalid body (non-string entry) returns 422", async () => {
+    const { sessionId, app, networkId, skId } = await setupKey();
+    const res = await app.request(`/api/v1/networks/${networkId}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: ["1.2.3.4", 42] }),
+    });
+    expect(res.status).toBe(422);
+  });
+
+  test("non-owner returns 403 on GET and PUT", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const { sessionId: sessA } = await seedUser(`uA_al_${suffix}`);
+    const { sessionId: sessB } = await seedUser(`uB_al_${suffix}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "AlForbidNet" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+    const get = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/allowlist`, {
+      headers: { Cookie: `artisan_user_session=${sessB}` },
+    });
+    expect(get.status).toBe(403);
+    const put = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/allowlist`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: ["1.2.3.4"] }),
+    });
+    expect(put.status).toBe(403);
+  });
+});
+
+describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
+  async function sha256(input: string) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+    return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  test("owner rotates the key — preserves id/label/bindings, returns new plaintext, invalidates old hash", async () => {
+    const { sessionId } = await seedUser(`u_rot_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "RotNet" }),
+    })).json();
+
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "prod" }),
+    });
+    const { id: skId, key: oldKey } = await skRes.json();
+    const oldHash = await sha256(oldKey);
+
+    // Create a binding so we can verify it survives the rotation.
+    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "rot-pack" }),
+    });
+    const { pack } = await packRes.json();
+    await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+
+    const rotateRes = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(rotateRes.status).toBe(200);
+    const { id, key: newKey, label } = await rotateRes.json();
+
+    expect(id).toBe(skId);
+    expect(label).toBe("prod");
+    expect(newKey).not.toBe(oldKey);
+    expect(newKey).toMatch(/^sk_/);
+
+    const newHash = await sha256(newKey);
+    const row = (await db.select().from(serverKeys).where(eq(serverKeys.id, skId)))[0];
+    expect(row.hash).toBe(newHash);
+    expect(row.hash).not.toBe(oldHash);
+
+    const bindingsAfter = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
+    expect(bindingsAfter).toHaveLength(1);
+  });
+
+  test("non-owner returns 403", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const { sessionId: sessA } = await seedUser(`uA_rot_${suffix}`);
+    const { sessionId: sessB } = await seedUser(`uB_rot_${suffix}`);
+    const app = makeApp();
+
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "RotForbidNet" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessB}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("key not in network returns 404", async () => {
+    const { sessionId } = await seedUser(`u_rot404_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Rot404Net" }),
+    })).json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/does-not-exist/rotate`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("401 without cookie", async () => {
+    const app = makeApp();
+    const res = await app.request(`/api/v1/networks/anything/server-keys/anything/rotate`, { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
   test("owner can delete a server_key and cascade pack_bindings", async () => {
     const { sessionId } = await seedUser(`u_c4_${Math.random().toString(36).slice(2, 8)}`);

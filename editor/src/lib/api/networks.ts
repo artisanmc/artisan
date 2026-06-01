@@ -111,8 +111,8 @@ export interface PackBinding {
   branchName: string;
   createdAt: string;
   lastMcVersion: string | null;
-  /** Number of plugin instances currently authenticated against this server_key. */
-  instanceCount: number;
+  /** True iff a plugin is currently authenticated against this server_key. */
+  online: boolean;
 }
 
 export async function listPackBindings(
@@ -132,7 +132,7 @@ export async function listPackBindings(
       branch_name: string;
       created_at: string;
       last_mc_version: string | null;
-      instance_count: number;
+      online: boolean;
     }>;
   };
   return data.bindings.map((b) => ({
@@ -142,7 +142,7 @@ export async function listPackBindings(
     branchName: b.branch_name,
     createdAt: b.created_at,
     lastMcVersion: b.last_mc_version,
-    instanceCount: b.instance_count,
+    online: b.online,
   }));
 }
 
@@ -217,6 +217,79 @@ export async function deleteServerKey(networkId: string, keyId: string): Promise
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Server key delete failed (${res.status})`);
+}
+
+export async function rotateServerKey(
+  networkId: string,
+  keyId: string,
+): Promise<{ id: string; key: string; label: string | null }> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}/rotate`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Server key rotate failed (${res.status})`);
+  return res.json();
+}
+
+export interface ServerKeyHello {
+  id: string;
+  ip: string;
+  mcVersion: string | null;
+  helloAt: string;
+  /** null = accepted; non-null = rejected with this reason (e.g. "ip_not_allowed"). */
+  rejectedReason: string | null;
+}
+
+export async function listServerKeyHelloes(
+  networkId: string,
+  keyId: string,
+  limit = 30,
+): Promise<ServerKeyHello[]> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}/helloes?limit=${limit}`,
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`listServerKeyHelloes failed (${res.status})`);
+  const data = (await res.json()) as {
+    helloes: Array<{
+      id: string; ip: string; mc_version: string | null; hello_at: string;
+      rejected_reason: string | null;
+    }>;
+  };
+  return data.helloes.map((h) => ({
+    id: h.id, ip: h.ip, mcVersion: h.mc_version, helloAt: h.hello_at,
+    rejectedReason: h.rejected_reason,
+  }));
+}
+
+export async function getServerKeyAllowlist(
+  networkId: string,
+  keyId: string,
+): Promise<string[] | null> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}/allowlist`,
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`getServerKeyAllowlist failed (${res.status})`);
+  return ((await res.json()) as { allowed_ips: string[] | null }).allowed_ips;
+}
+
+export async function setServerKeyAllowlist(
+  networkId: string,
+  keyId: string,
+  allowedIps: string[] | null,
+): Promise<string[] | null> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}/allowlist`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_ips: allowedIps }),
+    },
+  );
+  if (!res.ok) throw new Error(`setServerKeyAllowlist failed (${res.status})`);
+  return ((await res.json()) as { allowed_ips: string[] | null }).allowed_ips;
 }
 
 // ─── Link claim (called from /link wizard) ─────────────────────────────────

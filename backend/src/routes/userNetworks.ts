@@ -2,8 +2,8 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { networks, memberships, serverKeys, packs, packBindings } from "../db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { networks, memberships, serverKeys, serverKeyHelloes, packs, packBindings } from "../db/schema";
+import { and, eq, inArray, desc } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
@@ -11,7 +11,7 @@ import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
 import { createBinding, deleteBinding } from "../lib/packBindingManager";
 import { getBranch } from "../lib/branchStorage";
-import { getInstanceCount } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -111,9 +111,8 @@ userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) =>
 
 // GET /api/networks/:id/packs/:packId/bindings — list bindings for a pack with
 // live server status. Each entry carries the bound server_key's label/version
-// plus how many Minecraft instances are currently authenticated against it,
-// so the editor's "Serveurs" panel can show one row per server_key with an
-// optional "× N instances" badge.
+// plus an `online` boolean (true iff a plugin is currently authenticated
+// against it), so the editor's "Serveurs" panel can show a connection dot.
 userNetworksRouter.get("/:id/packs/:packId/bindings", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -147,7 +146,7 @@ userNetworksRouter.get("/:id/packs/:packId/bindings", async (c: Context<{ Variab
     branch_name: r.branchName,
     created_at: r.createdAt.toISOString(),
     last_mc_version: r.lastMcVersion,
-    instance_count: getInstanceCount(r.serverKeyId),
+    online: getInstanceCount(r.serverKeyId) > 0,
   }));
 
   return c.json({ bindings });
@@ -212,6 +211,119 @@ userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Co
 
   await createBinding(skId, packId, branchName);
   return c.json({ ok: true }, 201);
+});
+
+// GET /api/networks/:id/server-keys/:keyId/helloes?limit=30 — owner only.
+// Audit timeline of plugin connections. The admin uses this to spot anomalies
+// (unexpected IPs, hellos at odd hours) and decide whether to rotate the key.
+userNetworksRouter.get("/:id/server-keys/:keyId/helloes", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  const sk = await db.select().from(serverKeys).where(and(
+    eq(serverKeys.id, keyId),
+    eq(serverKeys.networkId, networkId),
+  ));
+  if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+  const rawLimit = parseInt(c.req.query("limit") ?? "30", 10);
+  const limit = Math.min(Math.max(isFinite(rawLimit) ? rawLimit : 30, 1), 200);
+
+  const rows = await db
+    .select()
+    .from(serverKeyHelloes)
+    .where(eq(serverKeyHelloes.serverKeyId, keyId))
+    .orderBy(desc(serverKeyHelloes.helloAt))
+    .limit(limit);
+
+  return c.json({
+    helloes: rows.map((r) => ({
+      id: r.id,
+      ip: r.ip,
+      mc_version: r.mcVersion,
+      hello_at: r.helloAt.toISOString(),
+      rejected_reason: r.rejectedReason,
+    })),
+  });
+});
+
+// GET /api/networks/:id/server-keys/:keyId/allowlist — owner only.
+// Returns the optional source-IP allowlist. null/empty = no restriction.
+userNetworksRouter.get("/:id/server-keys/:keyId/allowlist", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  const sk = await db.select().from(serverKeys).where(and(
+    eq(serverKeys.id, keyId),
+    eq(serverKeys.networkId, networkId),
+  ));
+  if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+  return c.json({ allowed_ips: sk[0].allowedIps ?? null });
+});
+
+// PUT /api/networks/:id/server-keys/:keyId/allowlist — owner only.
+// Body `{ allowed_ips: string[] | null }`. Pass null (or omit) to remove the
+// restriction; pass an array to require source IP membership on hello.
+userNetworksRouter.put("/:id/server-keys/:keyId/allowlist", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  let body: { allowed_ips?: unknown } = {};
+  try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
+
+  let allowedIps: string[] | null;
+  if (body.allowed_ips === null || body.allowed_ips === undefined) {
+    allowedIps = null;
+  } else if (Array.isArray(body.allowed_ips) && body.allowed_ips.every((v) => typeof v === "string" && v.trim().length > 0)) {
+    // Dedup + trim. We don't validate IP syntax — admins may have IPv4, IPv6,
+    // x-forwarded-for chains, or "unknown" (proxied env without IP header).
+    allowedIps = Array.from(new Set((body.allowed_ips as string[]).map((s) => s.trim())));
+    if (allowedIps.length === 0) allowedIps = null;
+  } else {
+    return c.json({ error: "invalid_allowed_ips" }, 422);
+  }
+
+  const updated = await db
+    .update(serverKeys)
+    .set({ allowedIps })
+    .where(and(eq(serverKeys.id, keyId), eq(serverKeys.networkId, networkId)))
+    .returning({ id: serverKeys.id });
+  if (updated.length === 0) return c.json({ error: "not_found" }, 404);
+
+  return c.json({ allowed_ips: allowedIps });
+});
+
+// POST /api/networks/:id/server-keys/:keyId/rotate — owner only.
+// Generates a new plaintext key for the same row (id/label/bindings preserved),
+// invalidates the old hash, and forcefully drops the auth on any live plugin
+// connection still using the old key.
+userNetworksRouter.post("/:id/server-keys/:keyId/rotate", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
+
+  const existing = await db.select().from(serverKeys).where(and(
+    eq(serverKeys.id, keyId),
+    eq(serverKeys.networkId, networkId),
+  ));
+  if (existing.length === 0) return c.json({ error: "not_found" }, 404);
+
+  const { key, hash } = await generateServerKey();
+  await db.update(serverKeys).set({ hash }).where(eq(serverKeys.id, keyId));
+  disconnectServerKey(keyId);
+
+  return c.json({ id: keyId, key, label: existing[0].label });
 });
 
 // DELETE /api/networks/:id/server-keys/:keyId — owner only

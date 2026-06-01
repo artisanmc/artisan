@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBindings, packBranches, packCommits, packs, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBindings, packBranches, packCommits, packs, serverKeyHelloes, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
 import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
@@ -74,6 +74,27 @@ export function getInstanceCount(serverKeyId: string): number {
   return n;
 }
 
+/**
+ * Drop authentication for every live plugin connection bound to this server_key,
+ * and clear any active editor sessions tied to it. The underlying WS sockets
+ * remain open until the next ping timeout, but their messages will no longer
+ * resolve to this server_key — so a rotated/revoked key can't keep pushing
+ * `custom_items_bundle`, `local_push`, etc.
+ */
+export function disconnectServerKey(serverKeyId: string): number {
+  let n = 0;
+  for (const [connId, sId] of connToServerId) {
+    if (sId === serverKeyId) {
+      connToServerId.delete(connId);
+      n++;
+    }
+  }
+  for (const [sid, sId] of activeSessions) {
+    if (sId === serverKeyId) activeSessions.delete(sid);
+  }
+  return n;
+}
+
 export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
@@ -99,11 +120,12 @@ export function pushLinkConfirmed(code: string, serverKey: string): void {
   codeToConn.delete(code);
 }
 
-async function validateServerKey(rawKey: string): Promise<string | null> {
+async function validateServerKey(rawKey: string): Promise<{ id: string; allowedIps: string[] | null } | null> {
   const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
   const hash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
   const rows = await db.select().from(serverKeys).where(eq(serverKeys.hash, hash));
-  return rows.length > 0 ? rows[0].id : null;
+  if (rows.length === 0) return null;
+  return { id: rows[0].id, allowedIps: rows[0].allowedIps ?? null };
 }
 
 async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
@@ -121,6 +143,7 @@ async function handleCustomItemsHash(serverKeyId: string, incomingHash: string |
 export async function handlePluginMessage(
   connId: string,
   raw: string,
+  sourceIp: string = "unknown",
 ): Promise<{ reply: string | null; sessionId?: string; push?: string[] }> {
   let msg: { type: string };
   try { msg = JSON.parse(raw); } catch { return { reply: null }; }
@@ -129,14 +152,35 @@ export async function handlePluginMessage(
   if (msg.type === "hello") {
     if (typeof (msg as Record<string, unknown>).server_key !== "string") return { reply: null };
     const hello = msg as HelloMessage;
-    const keyId = await validateServerKey(hello.server_key);
-    if (!keyId) return { reply: null };
+    const validated = await validateServerKey(hello.server_key);
+    if (!validated) return { reply: null };
+    const keyId = validated.id;
+
+    // IP allowlist gate. Empty/null list = no restriction (default).
+    if (validated.allowedIps && validated.allowedIps.length > 0 && !validated.allowedIps.includes(sourceIp)) {
+      db.insert(serverKeyHelloes).values({
+        id: crypto.randomUUID(),
+        serverKeyId: keyId,
+        ip: sourceIp,
+        mcVersion: hello.minecraft_version,
+        helloAt: new Date(),
+        rejectedReason: "ip_not_allowed",
+      }).catch(() => {});
+      return { reply: null };
+    }
 
     const sessionId = crypto.randomUUID();
     activeSessions.set(sessionId, keyId);
     connToServerId.set(connId, keyId);
     serverIdToMcVersion.set(keyId, hello.minecraft_version);
     db.update(serverKeys).set({ lastMcVersion: hello.minecraft_version }).where(eq(serverKeys.id, keyId)).catch(() => {});
+    db.insert(serverKeyHelloes).values({
+      id: crypto.randomUUID(),
+      serverKeyId: keyId,
+      ip: sourceIp,
+      mcVersion: hello.minecraft_version,
+      helloAt: new Date(),
+    }).catch(() => {});
     handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
     if (!assetsDone(hello.minecraft_version)) {
       ensureAssets(hello.minecraft_version).catch((err) =>
