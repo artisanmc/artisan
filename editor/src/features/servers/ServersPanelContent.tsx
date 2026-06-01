@@ -110,7 +110,7 @@ export function ServersPanelContent({ packId, networkId }: ServersPanelContentPr
         <>
           <ul className="flex flex-col gap-2.5">
             {bindings.map((b) => {
-              const online = b.instanceCount > 0;
+              const online = b.online;
               return (
                 <li key={b.bindingId} className="card flex items-center gap-3 p-4">
                   <span
@@ -129,13 +129,9 @@ export function ServersPanelContent({ packId, networkId }: ServersPanelContentPr
                       {b.serverKeyId}
                     </span>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[var(--ink-mut)]">
-                      {b.instanceCount > 0 ? (
-                        <span className="badge badge-sage">
-                          {t("servers.instanceCount", { count: b.instanceCount })}
-                        </span>
-                      ) : (
-                        <span className="badge">{t("servers.offline")}</span>
-                      )}
+                      <span className={online ? "badge badge-sage" : "badge"}>
+                        {online ? t("servers.online") : t("servers.offline")}
+                      </span>
                       {b.lastMcVersion && (
                         <span className="text-[var(--ink-faint)]">v{b.lastMcVersion}</span>
                       )}

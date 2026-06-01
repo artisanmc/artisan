@@ -504,6 +504,10 @@ Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-a
 | `GET /api/networks/transfer/:token` | Returns `{networkId, networkName, packCount, serverKeyCount, expiresAt}`. 410 `expired` / `consumed`, 404 `not_found`. |
 | `POST /api/networks/transfer/:token/accept` | Login required. Swap memberships (clean break — ancien owner perd accès). 410 expired/consumed. |
 | `DELETE /api/networks/:id/server-keys/:keyId` | Owner-only. Delete server_key + cascade pack_bindings. Plugin perd la connexion au prochain hello. |
+| `POST /api/networks/:id/server-keys/:keyId/rotate` | Owner-only. Régénère la clé (id/label/bindings préservés), invalide l'ancien hash, drop l'auth des conns vivantes (le plugin doit re-hello avec la nouvelle clé). Returns `{id, key, label}` — plaintext une seule fois. |
+| `GET /api/networks/:id/server-keys/:keyId/helloes?limit=30` | Owner-only. Timeline d'audit des hellos plugin (table `server_key_helloes`). Ordonné desc par `hello_at`, `limit` clampé à [1, 200]. Chaque entrée a `rejected_reason: string \| null` (null = accepté ; non-null = rejeté, ex. `"ip_not_allowed"`). |
+| `GET /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Retourne `{ allowed_ips: string[] \| null }`. null/empty = aucune restriction (défaut). |
+| `PUT /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Body `{ allowed_ips: string[] \| null }`. Empty array normalisé en null. Dedup + trim appliqués. 422 `invalid_allowed_ips` si entrée non-string. Au prochain hello, l'IP source doit matcher (sinon rejected + logged dans helloes). |
 | `GET /api/editor-session/:token` | Étendu : retourne aussi `network_id` (le network du server_key behind la session). |
 
 ---

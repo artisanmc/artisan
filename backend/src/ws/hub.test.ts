@@ -16,6 +16,7 @@ import { db } from "../db/index";
 import {
   editorSessions,
   serverKeys,
+  serverKeyHelloes,
   packs,
   packBindings,
   networks,
@@ -38,6 +39,7 @@ async function clearAll() {
   await db.delete(packs);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
+  await db.delete(serverKeyHelloes);
   await db.delete(serverKeys);
   await db.delete(networks);
 }
@@ -107,6 +109,84 @@ describe("handlePluginMessage", () => {
     expect(ack.session_id).toBeDefined();
     expect(ack.tier).toBe("free");
     expect(ack.api_url).toBeDefined();
+  });
+
+  test("hello inserts a row into server_key_helloes (audit log) with the source IP", async () => {
+    const { id: keyId, key } = await seedServerKey();
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    await handlePluginMessage("test-conn-audit", JSON.stringify(hello), "203.0.113.42");
+    // The insert is fire-and-forget — wait a tick for it to land.
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ip).toBe("203.0.113.42");
+    expect(rows[0].mcVersion).toBe("1.21.4");
+    expect(rows[0].helloAt).toBeInstanceOf(Date);
+  });
+
+  test("hello with an unknown key does NOT insert an audit row", async () => {
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: "sk_bogus",
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    await handlePluginMessage("test-conn-noaudit", JSON.stringify(hello), "198.51.100.7");
+    await new Promise((r) => setTimeout(r, 50));
+    const rows = await db.select().from(serverKeyHelloes);
+    expect(rows).toHaveLength(0);
+  });
+
+  test("allowlist gate — IP in the list is accepted", async () => {
+    const { id: keyId, key } = await seedServerKey();
+    await db.update(serverKeys).set({ allowedIps: ["203.0.113.10"] }).where(eq(serverKeys.id, keyId));
+    const hello: HelloMessage = {
+      type: "hello", server_key: key, plugin_version: "1.0.0",
+      minecraft_version: "1.21.4", current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("conn-allow-ok", JSON.stringify(hello), "203.0.113.10");
+    expect(result.reply).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 50));
+    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].rejectedReason).toBeNull();
+  });
+
+  test("allowlist gate — IP NOT in the list is rejected and logged with rejected_reason", async () => {
+    const { id: keyId, key } = await seedServerKey();
+    await db.update(serverKeys).set({ allowedIps: ["203.0.113.10"] }).where(eq(serverKeys.id, keyId));
+    const hello: HelloMessage = {
+      type: "hello", server_key: key, plugin_version: "1.0.0",
+      minecraft_version: "1.21.4", current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("conn-allow-bad", JSON.stringify(hello), "198.51.100.99");
+    expect(result.reply).toBeNull();
+    // Conn should NOT be authenticated.
+    expect(connToServerId.get("conn-allow-bad")).toBeUndefined();
+    await new Promise((r) => setTimeout(r, 50));
+    const rows = await db.select().from(serverKeyHelloes).where(eq(serverKeyHelloes.serverKeyId, keyId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].rejectedReason).toBe("ip_not_allowed");
+    expect(rows[0].ip).toBe("198.51.100.99");
+  });
+
+  test("empty allowlist behaves like no restriction", async () => {
+    const { id: keyId, key } = await seedServerKey();
+    await db.update(serverKeys).set({ allowedIps: [] }).where(eq(serverKeys.id, keyId));
+    const hello: HelloMessage = {
+      type: "hello", server_key: key, plugin_version: "1.0.0",
+      minecraft_version: "1.21.4", current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("conn-allow-empty", JSON.stringify(hello), "1.2.3.4");
+    expect(result.reply).not.toBeNull();
   });
 
   test("hello_ack contains pack_hashes from branch → commit content hash", async () => {

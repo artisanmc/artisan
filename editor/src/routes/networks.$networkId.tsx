@@ -1,12 +1,17 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, GitBranch, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronRight, Copy, GitBranch, Key, Plus, RefreshCw, Shield, Trash2, X } from "lucide-react";
 import {
   getNetwork,
   deleteServerKey,
+  getServerKeyAllowlist,
   listPackBindings,
+  listServerKeyHelloes,
+  rotateServerKey,
+  setServerKeyAllowlist,
   type PackBinding,
+  type ServerKeyHello,
 } from "@/lib/api/networks";
 
 export const Route = createFileRoute("/networks/$networkId")({ component: NetworkDetailPage });
@@ -21,6 +26,8 @@ export function NetworkDetailPage() {
   const [detail, setDetail] = useState<NetworkDetail | null>(null);
   /** Indexed by serverKeyId for fast lookup when rendering the server-key cards. */
   const [bindingsByKey, setBindingsByKey] = useState<Record<string, BindingWithPackName[]>>({});
+  /** The plaintext of a freshly rotated key — shown once in a modal, never persisted. */
+  const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
 
   useEffect(() => {
     if (!networkId) return;
@@ -65,6 +72,12 @@ export function NetworkDetailPage() {
       ...detail,
       serverKeys: detail.serverKeys.filter((k) => k.id !== keyId),
     });
+  };
+
+  const handleRotateKey = async (keyId: string) => {
+    if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
+    const { key } = await rotateServerKey(networkId, keyId);
+    setRevealedKey({ keyId, key });
   };
 
   return (
@@ -126,13 +139,22 @@ export function NetworkDetailPage() {
                         {sk.id}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleDeleteKey(sk.id)}
-                      className="btn btn-sm btn-danger shrink-0"
-                    >
-                      <Trash2 className="size-[13px]" />
-                      {t("networkDetail.deleteKey")}
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => handleRotateKey(sk.id)}
+                        className="btn btn-sm btn-ghost"
+                      >
+                        <RefreshCw className="size-[13px]" />
+                        {t("networkDetail.rotateKey")}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteKey(sk.id)}
+                        className="btn btn-sm btn-danger"
+                      >
+                        <Trash2 className="size-[13px]" />
+                        {t("networkDetail.deleteKey")}
+                      </button>
+                    </div>
                   </div>
 
                   {bindingsByKey[sk.id]?.length ? (
@@ -160,6 +182,9 @@ export function NetworkDetailPage() {
                       {t("networkDetail.serverKeyNoPacks")}
                     </p>
                   )}
+
+                  <HelloAuditPanel networkId={networkId} keyId={sk.id} />
+                  <AllowlistPanel networkId={networkId} keyId={sk.id} />
                 </li>
               ))}
             </ul>
@@ -171,6 +196,257 @@ export function NetworkDetailPage() {
             {t("networkDetail.membersComingSoon")}
           </p>
         </Section>
+      </div>
+
+      {revealedKey && (
+        <RotatedKeyModal
+          plainKey={revealedKey.key}
+          onClose={() => setRevealedKey(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function HelloAuditPanel({ networkId, keyId }: { networkId: string; keyId: string }) {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [helloes, setHelloes] = useState<ServerKeyHello[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!open || helloes !== null) return;
+    listServerKeyHelloes(networkId, keyId)
+      .then(setHelloes)
+      .catch(() => setError(true));
+  }, [open, helloes, networkId, keyId]);
+
+  const fmt = (iso: string) => {
+    try { return new Date(iso).toLocaleString(i18n.language); } catch { return iso; }
+  };
+
+  return (
+    <div className="border-t border-[var(--line-soft)] pt-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-1.5 text-[11.5px] text-[var(--ink-mut)] hover:text-[var(--ink)]"
+      >
+        {open ? <ChevronDown className="size-[12px]" /> : <ChevronRight className="size-[12px]" />}
+        {t("networkDetail.helloAuditToggle")}
+      </button>
+      {open && (
+        <div className="mt-2">
+          {error ? (
+            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.helloAuditError")}</p>
+          ) : helloes === null ? (
+            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.loading")}</p>
+          ) : helloes.length === 0 ? (
+            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.helloAuditEmpty")}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {helloes.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[11.5px] text-[var(--ink-2)]"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="mono truncate text-[var(--ink-mut)]">{h.ip}</span>
+                    {h.rejectedReason && (
+                      <span className="badge badge-danger shrink-0 text-[9.5px]">
+                        {t(`networkDetail.helloRejected.${h.rejectedReason}`, h.rejectedReason)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {h.mcVersion && (
+                      <span className="text-[10.5px] text-[var(--ink-faint)]">MC {h.mcVersion}</span>
+                    )}
+                    <span className="text-[var(--ink-mut)]">{fmt(h.helloAt)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AllowlistPanel({ networkId, keyId }: { networkId: string; keyId: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [ips, setIps] = useState<string[] | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || loaded) return;
+    getServerKeyAllowlist(networkId, keyId)
+      .then((list) => { setIps(list); setLoaded(true); })
+      .catch(() => setError("load"));
+  }, [open, loaded, networkId, keyId]);
+
+  async function persist(next: string[] | null) {
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await setServerKeyAllowlist(networkId, keyId, next);
+      setIps(saved);
+    } catch {
+      setError("save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdd() {
+    const value = draft.trim();
+    if (!value) return;
+    const current = ips ?? [];
+    if (current.includes(value)) { setDraft(""); return; }
+    await persist([...current, value]);
+    setDraft("");
+  }
+
+  async function handleRemove(ip: string) {
+    const next = (ips ?? []).filter((x) => x !== ip);
+    await persist(next.length === 0 ? null : next);
+  }
+
+  const enabled = (ips?.length ?? 0) > 0;
+
+  return (
+    <div className="border-t border-[var(--line-soft)] pt-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-1.5 text-[11.5px] text-[var(--ink-mut)] hover:text-[var(--ink)]"
+      >
+        {open ? <ChevronDown className="size-[12px]" /> : <ChevronRight className="size-[12px]" />}
+        <Shield className="size-[12px]" />
+        {t("networkDetail.allowlistToggle")}
+        {loaded && (
+          <span className={`badge ml-auto text-[9.5px] ${enabled ? "badge-sage" : ""}`}>
+            {enabled ? t("networkDetail.allowlistOn", { count: ips!.length }) : t("networkDetail.allowlistOff")}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-col gap-2">
+          <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
+            {t("networkDetail.allowlistHelp")}
+          </p>
+          {!loaded ? (
+            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.loading")}</p>
+          ) : (
+            <>
+              {(ips ?? []).map((ip) => (
+                <div
+                  key={ip}
+                  className="flex items-center justify-between gap-2 rounded-[8px] border border-[var(--line-soft)] px-2 py-1.5"
+                >
+                  <span className="mono truncate text-[11.5px] text-[var(--ink-2)]">{ip}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(ip)}
+                    disabled={busy}
+                    className="btn btn-icon btn-sm btn-ghost"
+                    aria-label={t("networkDetail.allowlistRemove")}
+                  >
+                    <X className="size-[12px]" />
+                  </button>
+                </div>
+              ))}
+              <form
+                onSubmit={(e) => { e.preventDefault(); void handleAdd(); }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={t("networkDetail.allowlistPlaceholder")}
+                  disabled={busy}
+                  className="input mono h-[28px] flex-1 text-[11.5px]"
+                />
+                <button type="submit" disabled={busy || !draft.trim()} className="btn btn-sm">
+                  <Plus className="size-[12px]" /> {t("networkDetail.allowlistAdd")}
+                </button>
+              </form>
+              {error && (
+                <p className="text-[11px] text-[var(--danger)]">{t(`networkDetail.allowlistError.${error}`)}</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(plainKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="card flex w-full max-w-lg flex-col gap-4 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2
+          className="display text-[20px] text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {t("networkDetail.rotateRevealTitle")}
+        </h2>
+        <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
+          {t("networkDetail.rotateRevealHint")}
+        </p>
+        <div className="flex flex-col gap-2">
+          <span className="field-label flex items-center gap-2">
+            <Key className="size-[12px] text-[var(--gold)]" />
+            {t("networkDetail.rotateRevealKeyLabel")}
+            <span className="ml-1 rounded-full bg-[var(--gold-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--gold)]">
+              {t("networkDetail.rotateRevealShownOnce")}
+            </span>
+          </span>
+          <div className="relative">
+            <code className="mono block break-all rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--sand)]">
+              {plainKey}
+            </code>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="absolute right-1.5 top-1.5 btn btn-icon btn-sm btn-ghost"
+              aria-label={t("networkDetail.copy")}
+            >
+              {copied ? (
+                <Check className="size-[14px] text-[var(--sage)]" />
+              ) : (
+                <Copy className="size-[14px]" />
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button type="button" onClick={onClose} className="btn btn-sm btn-primary">
+            {t("networkDetail.close")}
+          </button>
+        </div>
       </div>
     </div>
   );
