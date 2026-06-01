@@ -15,6 +15,20 @@
       "when": 1779892320006,
       "tag": "0001_add_user_editor_language",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780301140717,
+      "tag": "0002_slim_blazing_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780302413220,
+      "tag": "0003_huge_the_phantom",
+      "breakpoints": true
     }
   ]
 }

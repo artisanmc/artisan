@@ -19,8 +19,31 @@ export const serverKeys = pgTable("server_keys", {
   createdAt: timestamp("created_at").notNull(),
   resourcePackHash: text("resource_pack_hash"),
   resourcePackUpdatedAt: timestamp("resource_pack_updated_at"),
+  // Optional IP allowlist. If null OR empty array → any source IP is accepted
+  // (default behaviour). Otherwise the hello must come from a listed IP, else
+  // it's rejected and the attempt is recorded in server_key_helloes with a
+  // non-null `rejected_reason`.
+  allowedIps: jsonb("allowed_ips").$type<string[] | null>(),
 }, (t) => [
   index("server_keys_network_idx").on(t.networkId),
+]);
+
+// Append-only audit log of plugin hellos. One row per successful `hello`,
+// so an admin can spot anomalies (unexpected IPs, hellos at odd hours) and
+// rotate the key if it looks compromised. This is the actual defense — the
+// key itself is a bearer secret and can't be made un-stealable.
+export const serverKeyHelloes = pgTable("server_key_helloes", {
+  id: text("id").primaryKey(),
+  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
+  ip: text("ip").notNull(),
+  mcVersion: text("mc_version"),
+  helloAt: timestamp("hello_at").notNull(),
+  // null = accepted; non-null = rejected with this reason (e.g. "ip_not_allowed").
+  // Surfacing rejections is what lets an admin diagnose a misconfigured allowlist
+  // (legit server suddenly "offline") without digging through plugin logs.
+  rejectedReason: text("rejected_reason"),
+}, (t) => [
+  index("server_key_helloes_key_time_idx").on(t.serverKeyId, t.helloAt),
 ]);
 
 export const linkCodes = pgTable("link_codes", {

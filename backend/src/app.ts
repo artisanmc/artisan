@@ -54,8 +54,9 @@ mountModules(app, [menusModule, commandsModule]);
 
 app.get(
   "/ws/plugin",
-  upgradeWebSocket(() => {
+  upgradeWebSocket((c) => {
     const connId = crypto.randomUUID();
+    const sourceIp = c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown";
     let sessionId: string | undefined;
     return {
       onOpen(_, ws) {
@@ -63,7 +64,7 @@ app.get(
       },
       async onMessage(evt, ws) {
         const raw = typeof evt.data === "string" ? evt.data : await (evt.data as Blob).text();
-        const result = await handlePluginMessage(connId, raw);
+        const result = await handlePluginMessage(connId, raw, sourceIp);
         if (result.reply) ws.send(result.reply);
         for (const msg of result.push ?? []) ws.send(msg);
         if (result.sessionId) sessionId = result.sessionId;
