@@ -16,6 +16,10 @@ const fr: typeof en = {
     export: "Exporter le pack",
     exportZip: "Exporter vers le serveur (.zip)",
   },
+  focusMode: {
+    unknownElement: "Cet élément n'existe plus.",
+    backToCanvas: "Retour au canvas",
+  },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
     addLanguagePrompt: "Code de langue (ex. fr, en, de) :",

@@ -14,6 +14,10 @@ export default {
     export: "Export pack",
     exportZip: "Export to server (.zip)",
   },
+  focusMode: {
+    unknownElement: "This element no longer exists.",
+    backToCanvas: "Back to canvas",
+  },
   langSwitcher: {
     addLanguage: "+ Add language…",
     addLanguagePrompt: "Language code (e.g. fr, en, de):",
