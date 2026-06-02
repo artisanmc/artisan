@@ -163,6 +163,8 @@ interface AccountState {
     value: string;
   }) => void;
   setCommandAliases: (input: { packId: PackId; commandId: CommandId; aliases: string[] }) => void;
+  /** Replace an entire command object in place (whole-command update). */
+  updateCommand: (input: { packId: PackId; command: Command }) => void;
   /** Append a new argument at the end of a command's argument list. */
   addCommandArg: (input: { packId: PackId; commandId: CommandId; arg?: CommandArg }) => void;
   /** Replace the argument at `index` (whole-arg replace; immer drafts handle the merge). */
@@ -1587,6 +1589,17 @@ export const useAccountStore = create<AccountState>()(
               const cmd = pack.commands.find((c) => c.id === cId);
               if (!cmd) return;
               cmd.aliases = aliases.length > 0 ? aliases : undefined;
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
+        updateCommand: ({ packId: pId, command }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const idx = pack.commands.findIndex((c) => c.id === command.id);
+              if (idx === -1) return;
+              pack.commands[idx] = command;
               pack.updatedAt = new Date().toISOString();
             }),
           ),

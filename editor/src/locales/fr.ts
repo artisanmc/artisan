@@ -882,6 +882,14 @@ const fr: typeof en = {
   actions: {
     empty: "Aucune action pour l'instant.",
   },
+  commandMeta: {
+    trigger: "Déclencheur",
+    aliases: "Alias (séparés par virgule)",
+    permission: "Permission",
+  },
+  commandEditor: {
+    actionsTitle: "Actions",
+  },
   addActionButton: {
     add: "Ajouter une action",
   },
