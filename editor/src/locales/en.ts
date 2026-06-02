@@ -835,6 +835,7 @@ export default {
     revertFailed: "Restore failed",
     deployTitle: "Deploy — make the changes visible to players",
     revertTitle: "Discard changes (revert to the live version)",
+    noSessionTitle: "Deploy / revert needs a trusted editor session. Use /artisan editor in your MC console to trust this browser, or use the Commit button to save to a branch.",
   },
   auth: {
     signupTitle: "Create your account",

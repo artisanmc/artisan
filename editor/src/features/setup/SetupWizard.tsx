@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { listNetworks } from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
 import { Step2Pack } from "./SetupWizardSteps/Step2Pack";
 import { Step3ServerKey } from "./SetupWizardSteps/Step3ServerKey";
@@ -54,11 +56,22 @@ export function SetupWizard() {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (!canNext(step, state)) return;
     if (step === totalSteps) {
-      // Final step: exit the wizard. Land on the pack the user just created
-      // (packId is guaranteed non-null by step 2's canNext gate).
+      // Final step: exit the wizard. The new network/pack/server_key were
+      // created via API but the cached `networksStore` was populated when the
+      // user landed on the wizard, so the sidebar wouldn't show the new ones
+      // until a hard reload. Refetch now, then navigate — no reload needed.
+      try {
+        const fresh = await listNetworks();
+        useNetworksStore.getState().setNetworks(fresh);
+        if (state.networkId) {
+          useNetworksStore.getState().setActiveId(state.networkId);
+        }
+      } catch {
+        // Navigation still proceeds; sidebar will refetch on its own eventually.
+      }
       if (state.packId) {
         navigate({ to: "/workspace/$workspaceId", params: { workspaceId: state.packId } });
       } else {

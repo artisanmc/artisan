@@ -373,10 +373,21 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
   const replacePack = useAccountStore((s) => s.replacePack);
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
-  const isPublishDisabled = deploying;
+  // Deploy/Revert use the session-scoped REST endpoints that require the
+  // editor_session access token (trust dance). Without a token, both are
+  // disabled — for user-auth mode, the Branch toolbar's "Commit" is the
+  // equivalent action.
+  const hasSession = Boolean(token);
+  const noSessionTitle = t("deploy.noSessionTitle");
+  const isPublishDisabled = deploying || !hasSession;
+  const isRevertDisabled = reverting || !hasSession;
 
   const handleDeploy = async () => {
-    if (!token || isPublishDisabled) return;
+    if (!token) {
+      toast.info(t("deploy.noSessionTitle"));
+      return;
+    }
+    if (isPublishDisabled) return;
     setDeploying(true);
     try {
       // Sync glyph ascents first (this rebuilds the RP for correct Y positions).
@@ -399,7 +410,11 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
   };
 
   const handleRevert = async () => {
-    if (!token || reverting) return;
+    if (!token) {
+      toast.info(t("deploy.noSessionTitle"));
+      return;
+    }
+    if (reverting) return;
     setReverting(true);
     try {
       const deployed = await getDeployedPack(token, pack.id);
@@ -421,8 +436,8 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
       <button
         type="button"
         onClick={handleRevert}
-        disabled={reverting}
-        title={t("deploy.revertTitle")}
+        disabled={isRevertDisabled}
+        title={hasSession ? t("deploy.revertTitle") : noSessionTitle}
         className="btn btn-sm btn-ghost"
       >
         {reverting ? t("deploy.reverting") : t("deploy.revert")}
@@ -431,7 +446,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
         type="button"
         onClick={handleDeploy}
         disabled={isPublishDisabled}
-        title={t("deploy.deployTitle")}
+        title={hasSession ? t("deploy.deployTitle") : noSessionTitle}
         className="btn btn-sm btn-deploy"
       >
         {deploying ? t("deploy.deploying") : t("deploy.deploy")}
