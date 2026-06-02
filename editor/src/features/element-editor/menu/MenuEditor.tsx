@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import type { Menu, Pack } from "@/domain/types";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
+import { Library } from "@/features/canvas/Library";
+import { AssetsTab } from "@/features/assets/AssetsTab";
+import { WorkspaceTabs } from "@/components/WorkspaceTabs";
+import { useIsDesktop } from "@/lib/useMediaQuery";
 import { SingleMenuStage } from "./SingleMenuStage";
 import { LibraryDrawer } from "./LibraryDrawer";
 import { AssetsDrawer } from "./AssetsDrawer";
@@ -12,6 +16,8 @@ interface Props {
   menu: Menu;
 }
 
+type MobileTab = "canvas" | "properties" | "layers" | "library" | "assets";
+
 /**
  * 3-column desktop layout for editing a single menu:
  *   1. SingleMenuStage  — Konva host, zoom-to-fit, full remaining width
@@ -19,12 +25,49 @@ interface Props {
  *   3. LayersPanel      — title layer editor (fixed 320px)
  *
  * Top toolbar exposes floating drawers for Library and Assets.
- * Mobile / responsive handling is deferred to Task 4.5.
+ * On mobile (< lg breakpoint): tabbed single-column layout replaces the
+ * 3-col grid and drawer affordances.
  */
 export function MenuEditor({ pack, menu }: Props) {
   const { t } = useTranslation();
+  const isDesktop = useIsDesktop();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
+
+  if (!isDesktop) {
+    const tabs = [
+      { id: "canvas", label: t("menuEditor.mobile.canvas") },
+      { id: "properties", label: t("menuEditor.mobile.properties") },
+      { id: "layers", label: t("menuEditor.mobile.layers") },
+      { id: "library", label: t("menuEditor.mobile.library") },
+      { id: "assets", label: t("menuEditor.mobile.assets") },
+    ];
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <WorkspaceTabs tabs={tabs} activeTab={mobileTab} onChange={(id) => setMobileTab(id as MobileTab)} />
+        <div className="min-h-0 flex-1 overflow-auto">
+          {mobileTab === "canvas" && <SingleMenuStage pack={pack} menu={menu} />}
+          {mobileTab === "properties" && (
+            <div className="p-3">
+              <MenuProperties packId={pack.id} menu={menu} />
+            </div>
+          )}
+          {mobileTab === "layers" && (
+            <div className="p-3">
+              <LayersPanel packId={pack.id} menuId={menu.id} />
+            </div>
+          )}
+          {mobileTab === "library" && (
+            <div className="p-3">
+              <Library />
+            </div>
+          )}
+          {mobileTab === "assets" && <AssetsTab packId={pack.id} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">

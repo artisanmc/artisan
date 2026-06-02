@@ -21,6 +21,13 @@ export default {
   menuEditor: {
     openLibrary: "Library",
     openAssets: "Assets",
+    mobile: {
+      canvas: "Canvas",
+      properties: "Properties",
+      layers: "Layers",
+      library: "Library",
+      assets: "Assets",
+    },
   },
   langSwitcher: {
     addLanguage: "+ Add language…",
