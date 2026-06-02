@@ -19,12 +19,35 @@ describe("fanoutElements", () => {
     expect(out.every((s) => s.material === "stone")).toBe(true);
   });
 
-  it("skips appearances with no material", () => {
+  it("includes appearances with no material as phantom entries with material=undefined", () => {
     const layer: Layer = {
       id: "L1" as any,
       name: "layer1",
       elements: [{ id: "E1" as any, positions: "0", appearances: [{}] }],
     };
+    const out = fanoutElements([layer]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      elementId: "E1",
+      position: 0,
+      material: undefined,
+      appearanceIndex: 0,
+    });
+  });
+
+  it("ignores iterates — elements with el.iterates are excluded from fanout", () => {
+    const layer: Layer = {
+      id: "L1" as any,
+      name: "layer1",
+      elements: [{
+        id: "E1" as any,
+        positions: "0-2",
+        appearances: [{ material: "diamond" }],
+        iterates: { source: "shop.items", alias: "item" } as any,
+      }],
+    };
+    // fanoutElements must not expand iterating elements — that path is handled
+    // by MenuGroup which has access to live data-source state.
     expect(fanoutElements([layer])).toEqual([]);
   });
 });
