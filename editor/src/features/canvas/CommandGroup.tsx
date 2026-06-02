@@ -5,6 +5,7 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { COMMAND_BOX } from "./menuLayout";
+import { useElementDblClickNav } from "./useElementDblClickNav";
 
 interface CommandGroupProps {
   packId: PackId;
@@ -38,6 +39,8 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
     [command.id],
   );
 
+  const onDblClick = useElementDblClickNav(command.id);
+
   return (
     <Group
       x={position.x}
@@ -47,6 +50,8 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={onDblClick}
+      onDblTap={onDblClick}
       name={`command:${command.id}`}
       id={command.id}
     >
