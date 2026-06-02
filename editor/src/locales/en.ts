@@ -881,4 +881,12 @@ export default {
   addActionButton: {
     add: "Add action",
   },
+  dialogMeta: {
+    title: "Title",
+    body: "Body",
+    buttons: "Buttons",
+    buttonLabel: "Label",
+    buttonActions: "Actions",
+    addButton: "Add button",
+  },
 };
