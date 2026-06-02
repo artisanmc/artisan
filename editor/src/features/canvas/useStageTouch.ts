@@ -1,6 +1,5 @@
 import type Konva from "konva";
 import { useCallback, useEffect, useRef } from "react";
-import type { ContextMenuState } from "./ContextMenu";
 
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE = 8;
