@@ -867,4 +867,7 @@ export default {
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },
+  actions: {
+    empty: "No action yet.",
+  },
 };
