@@ -4,7 +4,8 @@ import { parsePositions } from "@/lib/positions";
 export interface SlotEntry {
   elementId: ElementId;
   position: number;
-  material: string;
+  /** `undefined` when the element has no material — phantom-slot placeholder. */
+  material: string | undefined;
   count?: number;
   appearanceIndex: number;
 }
@@ -12,7 +13,9 @@ export interface SlotEntry {
 /**
  * Pure positional fanout: for each non-iterating element in the given layers,
  * expand its position string into one SlotEntry per slot. Elements with no
- * material in the first appearance are skipped.
+ * material in the first appearance are included as phantom-slot entries
+ * (`material: undefined`) so their positions still render as dashed-outline
+ * placeholders in the canvas.
  *
  * Elements that use `iterates` are intentionally excluded — their expansion
  * depends on live data-source state (store reads, placeholder resolution) and
@@ -24,14 +27,14 @@ export function fanoutElements(layers: Layer[]): SlotEntry[] {
     for (const el of layer.elements) {
       if (el.iterates) continue;
       const appearance = el.appearances[0];
-      if (!appearance?.material) continue;
+      if (!appearance) continue;
       const positions = parsePositions(el.positions);
       for (const pos of positions) {
         out.push({
           elementId: el.id,
           position: pos,
-          material: appearance.material,
-          count: appearance.count,
+          material: appearance.material || undefined,
+          count: appearance.material ? appearance.count : undefined,
           appearanceIndex: 0,
         });
       }
