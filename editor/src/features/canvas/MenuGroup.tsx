@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import useImage from "use-image";
 import { hitTestSlot } from "./hitTest";
 import { PaginationControls } from "./PaginationControls";
+import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
 import { SlotItem } from "./SlotItem";
 import { TitleRender } from "./title/composer/TitleRender";
@@ -56,7 +57,6 @@ interface MenuGroupProps {
  * + interaction targets.
  */
 export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
-  const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -82,54 +82,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const box = menuBoxSize(menu.rows);
 
-  const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    e.target.moveToTop();
-  }, []);
-
-  const onDragEnd = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      // TouchEvent has no clientX/Y — those live on changedTouches[0]. Without
-      // this branching the rect-check below short-circuits to "all conditions
-      // false" on touch, and the first pack-mini in the DOM (often hidden
-      // ones from the desktop sidebar) receives the menu by accident.
-      const evt = e.evt as unknown as MouseEvent & TouchEvent;
-      let cx: number;
-      let cy: number;
-      if (typeof evt.clientX === "number" && Number.isFinite(evt.clientX)) {
-        cx = evt.clientX;
-        cy = evt.clientY;
-      } else if (evt.changedTouches?.[0]) {
-        cx = evt.changedTouches[0].clientX;
-        cy = evt.changedTouches[0].clientY;
-      } else {
-        // No pointer info — just persist the new position in this pack.
-        setCanvasPosition({ packId, nodeId: menu.id, x: e.target.x(), y: e.target.y() });
-        return;
-      }
-
-      const minis = document.querySelectorAll<HTMLElement>("[data-pack-mini='true']");
-      for (const m of minis) {
-        const rect = m.getBoundingClientRect();
-        // Skip elements that are display:none / detached (zero rect).
-        if (rect.width === 0 && rect.height === 0) continue;
-        if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
-        const targetPackId = m.getAttribute("data-pack-id") as PackId | null;
-        if (!targetPackId || targetPackId === packId) continue;
-        e.target.position({ x: position.x, y: position.y });
-        try {
-          useAccountStore
-            .getState()
-            .moveMenuToPack({ menuId: menu.id, fromPackId: packId, toPackId: targetPackId });
-          toast.success(`Moved ${menu.id} to ${targetPackId}`);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "move failed");
-        }
-        return;
-      }
-      setCanvasPosition({ packId, nodeId: menu.id, x: e.target.x(), y: e.target.y() });
-    },
-    [packId, menu.id, position.x, position.y, setCanvasPosition],
-  );
+  const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
 
   const onClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -352,7 +305,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       y={position.y}
       draggable
       onDragStart={onMenuDragStart}
-      onDragEnd={onDragEnd}
+      onDragEnd={onMenuDragEnd}
       onClick={onClick}
       onTap={onClick}
       name={`menu:${menu.id}`}
