@@ -20,6 +20,10 @@ const fr: typeof en = {
     unknownElement: "Cet élément n'existe plus.",
     backToCanvas: "Retour au canvas",
   },
+  menuEditor: {
+    openLibrary: "Bibliothèque",
+    openAssets: "Assets",
+  },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
     addLanguagePrompt: "Code de langue (ex. fr, en, de) :",
