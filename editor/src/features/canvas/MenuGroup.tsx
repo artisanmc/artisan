@@ -14,7 +14,7 @@ import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { hitTestSlot } from "./hitTest";
-import { fanoutElements } from "./menuFanout";
+import { fanoutElements, type SlotEntry } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
 import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
@@ -151,22 +151,24 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     menuLayers: menu.layers,
   });
 
-  // Pure positional fanout for non-iterating elements: maps each element's
-  // position string to a SlotEntry[]. Memoised so parsePositions isn't called
-  // on every render. The iterates path is handled separately below because it
-  // depends on live data-source state (store reads + placeholder resolution).
-  const fannedSlots = useMemo(() => fanoutElements(menu.layers), [menu.layers]);
+  // Fanout: Map<elementId, SlotEntry[]> — single source of truth for both
+  // materialized and phantom (no-material) slots; O(1) per-element lookup.
+  const fannedSlotsByElement = useMemo(() => {
+    const map = new Map<string, SlotEntry[]>();
+    for (const entry of fanoutElements(menu.layers)) {
+      const key = entry.elementId as string;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(entry);
+    }
+    return map;
+  }, [menu.layers]);
 
-  // Fan out each element across every slot it occupies. Multi-position
-  // elements (e.g. positions: "0-8") render the same material in every cell.
-  // For elements with `iterates`, we *unroll* across positions: each position
-  // i binds the i-th item from the preview scope and resolves placeholders
-  // in material/title/count against that item-scoped context. Excess
-  // positions (more positions than items) stay empty.
   // Active language + pack ref so we can resolve `LText` refs (menu
   // title, appearance titles, lore lines) into the actually-displayed
   // string. Pack ref is stable thanks to immer; the resolver reads
   // `pack.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
+  // For `iterates` elements, positions are unrolled against the preview
+  // scope; each position i binds the i-th item with placeholder resolution.
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs are resolved against pack.dataSources /
@@ -222,9 +224,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     for (const el of layer.elements) {
       const appearance = el.appearances[0];
       if (!appearance) continue;
-      const positions = parsePositions(el.positions);
 
       if (el.iterates) {
+        const positions = parsePositions(el.positions);
         const list = lookupPath(sampleCtx, el.iterates.source);
         const items = Array.isArray(list) ? list : [];
         const perPage = Math.max(1, positions.length);
@@ -283,15 +285,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         continue;
       }
 
-      // Non-iterating: still resolve placeholders against enhancedCtx so
-      // `{player}`, `{pagination.page}`, etc. show preview values.
-      // For elements with a material, positions come from the pre-computed
-      // `fannedSlots` (pure fanout, avoids re-parsing the position string).
-      // Elements without a material are absent from `fannedSlots`; we parse
-      // positions directly so their slots still render as phantom dashed
-      // outlines (present but unfilled).
-      const elSlots = fannedSlots.filter((e) => e.elementId === el.id);
-      const slotPositions = elSlots.length > 0 ? elSlots.map((e) => e.position) : positions;
+      // Non-iterating: O(1) lookup from `fannedSlotsByElement` (pre-parsed,
+      // includes phantom entries so no-material slots render as dashed
+      // placeholders). Placeholders resolved against enhancedCtx.
+      const elSlots = fannedSlotsByElement.get(el.id as string) ?? [];
       const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
       const info = {
         material: appearance.material
@@ -300,10 +297,10 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
         count: appearance.count,
         elementId: el.id,
-        multiPos: slotPositions.length > 1,
+        multiPos: elSlots.length > 1,
       };
-      for (const p of slotPositions) {
-        elementsByPosition.set(p, info);
+      for (const s of elSlots) {
+        elementsByPosition.set(s.position, info);
       }
     }
   }
