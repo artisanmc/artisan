@@ -1,0 +1,127 @@
+import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import type Konva from "konva";
+import { useCallback, useState } from "react";
+import type { RefObject } from "react";
+import type { ContextMenuState, ContextMenuTarget } from "./ContextMenu";
+import { hitTestSlot, screenToWorld } from "./hitTest";
+import type { ViewportState } from "./usePanZoom";
+
+const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
+
+const slotIsFilled = (
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number],
+  menuId: string,
+  position: number,
+): boolean => {
+  const menu = pack.menus.find((m) => m.id === menuId);
+  if (!menu) return false;
+  const positionStr = String(position);
+  return menu.layers.some((l) =>
+    l.elements.some((el) => el.positions === positionStr && el.appearances[0]?.material),
+  );
+};
+
+interface UseStageContextMenuArgs {
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number] | undefined;
+  layout: Record<string, { x: number; y: number }>;
+  viewport: ViewportState;
+  wrapperRef: RefObject<HTMLDivElement | null>;
+  stageRef: RefObject<Konva.Stage | null>;
+}
+
+export function useStageContextMenu({
+  pack,
+  layout,
+  viewport,
+  wrapperRef,
+  stageRef,
+}: UseStageContextMenuArgs) {
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+    target: emptyTarget,
+  });
+
+  /**
+   * Open the context menu at a screen position, hit-testing through the
+   * stage to figure out whether it's a slot or entity context. Used by
+   * both right-click (mouse) and long-press (touch).
+   */
+  const openContextMenuAt = useCallback(
+    (clientX: number, clientY: number, konvaTarget?: Konva.Node) => {
+      if (!pack) return;
+      const wrapper = wrapperRef.current;
+      const stage = stageRef.current;
+      if (!wrapper || !stage) return;
+      const rect = wrapper.getBoundingClientRect();
+      const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
+      const world = screenToWorld(stagePoint, viewport);
+
+      // Slot path: manual hit-test in world coords (slots have listening=false
+      // so Konva's own target won't surface them).
+      const slotHit = hitTestSlot(pack, layout, world.x, world.y);
+      if (slotHit) {
+        setCtxMenu({
+          open: true,
+          x: clientX,
+          y: clientY,
+          target: {
+            kind: "slot",
+            menuId: slotHit.menuId,
+            position: slotHit.position,
+            filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
+          },
+        });
+        return;
+      }
+
+      // Entity path: nearest Group ancestor (menu or command).
+      let id: string | undefined;
+      if (konvaTarget && konvaTarget !== stage) {
+        id = konvaTarget.findAncestor("Group", true)?.id();
+      }
+      const ids = id ? [id] : [];
+      if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
+        useSelectionStore.getState().set(ids);
+      }
+      const currentSelection = [...useSelectionStore.getState().ids];
+      const effectiveSelection = ids.length > 0 ? ids : currentSelection;
+
+      // Truly empty area + nothing selected → "create here" affordances.
+      if (effectiveSelection.length === 0) {
+        setCtxMenu({
+          open: true,
+          x: clientX,
+          y: clientY,
+          target: { kind: "empty", world },
+        });
+        return;
+      }
+
+      setCtxMenu({
+        open: true,
+        x: clientX,
+        y: clientY,
+        target: { kind: "entity", selectedIds: effectiveSelection },
+      });
+    },
+    [pack, layout, viewport, wrapperRef, stageRef],
+  );
+
+  const onStageContextMenu = useCallback(
+    (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      openContextMenuAt(e.evt.clientX, e.evt.clientY, e.target);
+    },
+    [openContextMenuAt],
+  );
+
+  const closeCtxMenu = useCallback(
+    () => setCtxMenu((s) => ({ ...s, open: false })),
+    [],
+  );
+
+  return { ctxMenu, openContextMenuAt, onStageContextMenu, closeCtxMenu };
+}
