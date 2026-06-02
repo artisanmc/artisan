@@ -72,7 +72,7 @@ bun backend/scripts/gen-icons.ts [version]    # rend 750 PNGs → data/mc-assets
 cd editor
 npm install
 npm run dev             # Vite dev server sur port 5173
-npx vitest run          # 400 tests
+npm test                # 965 tests (126 fichiers)
 npm run build           # Build production
 ```
 
@@ -347,6 +347,62 @@ Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est cali
 - **Files supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ leurs tests).
 - **Runtime YAML** inchangé en v3 : seul l'éditeur évolue. Le plugin lit toujours le même format `MenuTitleLayer[]` (background / glyph / text / external_glyph).
 
+### Focus mode — per-element editing (depuis 2026-06-02)
+
+En plus du canvas multi-éléments existant, l'éditeur expose un mode focus
+plein-écran pour éditer UN seul élément (menu / commande / dialog).
+
+- **Entrée** : double-click sur un MenuGroup / CommandGroup / DialogGroup
+  du canvas, OU bouton "Focus / Éditer en grand" dans le panneau properties
+  (`FlowCanvas.tsx`).
+- **Sortie** : touche Esc OU bouton `← Retour au canvas` dans le top bar.
+- **Route** : `/workspace/$workspaceId/element/$elementId`.
+- **Composants** :
+  - `editor/src/routes/workspace.$workspaceId.element.$elementId.tsx` — la route.
+  - `editor/src/features/element-editor/ElementEditor.tsx` — dispatcher qui
+    résout l'élément par id (cherche dans `pack.menus`, puis `pack.commands`,
+    puis `pack.dialogs`) et délègue à l'éditeur du bon type.
+  - `editor/src/features/element-editor/menu/MenuEditor.tsx` — layout 3-col
+    desktop (canvas Konva | properties | layers) avec drawers flottants
+    Library/Assets ; tabs single-column en mobile.
+  - `editor/src/features/element-editor/command/CommandEditor.tsx` — two-col
+    desktop (meta | actions chain) + single-col mobile.
+  - `editor/src/features/element-editor/dialog/DialogEditor.tsx` — form
+    (title / body / buttons) + actions chain par bouton. Pas de preview MC en V1.
+  - `editor/src/features/element-editor/actions/` — `ActionBlock`,
+    `IfBlock`, `ActionsChainEditor`, `AddActionButton`. Renderers récursifs
+    pour les chaînes d'actions imbriquées (pseudo-code indenté).
+  - `editor/src/components/WorkspaceTopBarControls.tsx` — top-bar partagé
+    canvas/focus (LangSwitcher, UndoRedo, Branch toolbar, Deploy, kebab).
+    Le prop optionnel `leftSlot` permet à focus mode d'injecter son bouton
+    "← Retour" + l'élément en cours.
+
+V2 hors-scope (à ajouter quand un besoin émerge) : cross-element navigation
+(forward "Opens menu X" + reverse "Used by /shop" + backstack), preview
+Minecraft des dialogs, sidebar drill-in.
+
+### Canvas component layout (depuis 2026-06-02 refactor)
+
+`editor/src/features/canvas/MenuGroup.tsx` (1066 → 591 lignes) a été éclaté
+en sous-composants et hooks dédiés :
+- `SlotItem.tsx` — rendering d'un slot rempli (image + count).
+- `PaginationControls.tsx` — boutons de pagination iterates.
+- `menuFanout.ts` — fanout positionnel pur des éléments (testé).
+- `useMenuClick.ts` — handler de click menu (armed-material tap-to-place).
+- `useMenuDrag.ts` — drag du menu entier (cross-pack via pack-mini DOM walk).
+- `useSlotDrag.ts` — drag des slots individuels (selection drag + Alt).
+- `useElementDblClickNav.ts` — navigation focus mode partagée par les 3
+  composants Groups (Menu / Command / Dialog).
+
+`editor/src/features/canvas/Stage.tsx` (528 → 351 lignes) a été éclaté :
+- `ArmedBanner.tsx` — bandeau d'aide quand un item Library est armé.
+- `useStageTouch.ts` — long-press → context menu (touch).
+- `useStageContextMenu.ts` — state du context menu + hit-test.
+
+Note : les cibles de taille (≤400 / ≤250 lignes) n'ont pas été entièrement
+atteintes. MenuGroup reste à 591 lignes et Stage à 351 lignes — le gain de
+lisibilité est réel mais un split supplémentaire est différé.
+
 ---
 
 ## Custom Items — endpoints et cache
@@ -547,7 +603,7 @@ Both delegation modes own the `assets/artisan/` subtree only — entries outside
 |---|---|---|
 | Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, `conflictDiff.test.ts`, `conflicts.test.ts`, `auth.test.ts`, `passwordHasher.test.ts`, `sessionManager.test.ts`, `emailNormalizer.test.ts`, `userAuth.test.ts`, `discordOauth.test.ts` (lib + routes), etc. | ~365 total après Plan 1A accounts foundation |
 | Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest` (inclus `show_title` exec via Adventure `showTitle(Title)`), `ActionParserTest` (inclus `show_title` parse + timings + i18n), `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, `ManifestYamlIgnoresEditorLayoutTest`, `PackDeleterTest`, `PackDeletionIntegrationTest`, etc. | ~365 (recount après merge) |
-| Editor unit | Vitest, tests couvrant expr DSL, canvas, export (inclus `show_title` serializer + validate), i18n (inclus `showTitleKeyAt`/`showSubtitleKeyAt` + rekey + alloc), custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, `authStore.test.ts`, `LoginForm.test.tsx`, `SignupForm.test.tsx`, `LogoutButton.test.tsx`, etc. | ~720 (recount après merge) |
+| Editor unit | Vitest, tests couvrant expr DSL, canvas, export (inclus `show_title` serializer + validate), i18n (inclus `showTitleKeyAt`/`showSubtitleKeyAt` + rekey + alloc), custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, `authStore.test.ts`, `LoginForm.test.tsx`, `SignupForm.test.tsx`, `LogoutButton.test.tsx`, focus mode (ElementEditor dispatch, MenuEditor, CommandEditor, DialogEditor, ActionsChainEditor, useElementDblClickNav, focus route), canvas refactor (SlotItem, PaginationControls, menuFanout, useMenuClick, useMenuDrag, useSlotDrag, ArmedBanner, useStageTouch, useStageContextMenu), etc. | 965 (126 fichiers — recount 2026-06-02) |
 | E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
