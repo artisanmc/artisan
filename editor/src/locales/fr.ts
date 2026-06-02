@@ -893,5 +893,13 @@ const fr: typeof en = {
   addActionButton: {
     add: "Ajouter une action",
   },
+  dialogMeta: {
+    title: "Titre",
+    body: "Corps",
+    buttons: "Boutons",
+    buttonLabel: "Libellé",
+    buttonActions: "Actions",
+    addButton: "Ajouter un bouton",
+  },
 };
 export default fr;
