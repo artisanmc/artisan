@@ -870,6 +870,14 @@ export default {
   actions: {
     empty: "No action yet.",
   },
+  commandMeta: {
+    trigger: "Trigger",
+    aliases: "Aliases (comma-separated)",
+    permission: "Permission",
+  },
+  commandEditor: {
+    actionsTitle: "Actions",
+  },
   addActionButton: {
     add: "Add action",
   },
