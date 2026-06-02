@@ -1,7 +1,20 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { SignupForm } from "@/features/auth/SignupForm";
+import { useAuthStore } from "@/state/authStore";
 
-export const Route = createFileRoute("/signup")({ component: SignupPage });
+export const Route = createFileRoute("/signup")({
+  beforeLoad: ({ search }) => {
+    // Already-authenticated users have no business on /signup. Bounce them to
+    // their requested `?next=` target (if safe) or to /account.
+    const user = useAuthStore.getState().currentUser;
+    if (user) {
+      const next = (search as { next?: string } | undefined)?.next;
+      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+      throw redirect({ to: safeNext });
+    }
+  },
+  component: SignupPage,
+});
 
 function SignupPage() {
   const navigate = useNavigate();

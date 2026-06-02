@@ -847,6 +847,7 @@ const fr: typeof en = {
     revertFailed: "Échec de la restauration",
     deployTitle: "Déployer — rendre les modifications visibles aux joueurs",
     revertTitle: "Annuler les modifications (revenir à la version live)",
+    noSessionTitle: "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
   },
   auth: {
     signupTitle: "Créer ton compte",
