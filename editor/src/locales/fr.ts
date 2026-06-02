@@ -882,5 +882,8 @@ const fr: typeof en = {
   actions: {
     empty: "Aucune action pour l'instant.",
   },
+  addActionButton: {
+    add: "Ajouter une action",
+  },
 };
 export default fr;

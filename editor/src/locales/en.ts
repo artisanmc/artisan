@@ -870,4 +870,7 @@ export default {
   actions: {
     empty: "No action yet.",
   },
+  addActionButton: {
+    add: "Add action",
+  },
 };
