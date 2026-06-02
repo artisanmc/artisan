@@ -69,7 +69,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
   }, [isDragging]);
 
   const onSlotDragStart = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>, position: number, sourceElementId: ElementId) => {
+    (e: Konva.KonvaEventObject<DragEvent>, slotPosition: number, sourceElementId: ElementId) => {
       e.target.getParent()?.moveToTop();
       e.target.moveToTop();
       const altKey = (e.evt as MouseEvent).altKey;
@@ -102,7 +102,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
             const appearance = el.appearances[0];
             if (!appearance?.material) continue;
             for (const p of parsePositions(el.positions)) {
-              if (p === position) continue;
+              if (p === slotPosition) continue;
               siblings.push({
                 position: p,
                 material: appearance.material,
@@ -113,14 +113,14 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         }
         setDragState({
           kind: "selection",
-          sourcePosition: position,
+          sourcePosition: slotPosition,
           elementIds: [...sel.ids] as ElementId[],
           siblings,
           offset: { dx: 0, dy: 0 },
           altKey,
         });
       } else {
-        setDragState({ kind: "single", sourcePosition: position, altKey });
+        setDragState({ kind: "single", sourcePosition: slotPosition, altKey });
       }
     },
     [menuLayers],
