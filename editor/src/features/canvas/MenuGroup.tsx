@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import useImage from "use-image";
 import { fanoutElements, type SlotEntry } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
+import { useElementDblClickNav } from "./useElementDblClickNav";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
@@ -86,6 +87,8 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
 
   const { onClick } = useMenuClick({ packId, menu, layout });
+
+  const onDblClick = useElementDblClickNav(menu.id);
 
   const { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd } = useSlotDrag({
     packId,
@@ -263,6 +266,8 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
       onDragEnd={onMenuDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={onDblClick}
+      onDblTap={onDblClick}
       name={`menu:${menu.id}`}
       id={menu.id}
     >

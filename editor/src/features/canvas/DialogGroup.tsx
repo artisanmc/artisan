@@ -5,6 +5,7 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { DIALOG_BOX } from "./menuLayout";
+import { useElementDblClickNav } from "./useElementDblClickNav";
 
 interface DialogGroupProps {
   packId: PackId;
@@ -38,6 +39,8 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
     [dialog.id],
   );
 
+  const onDblClick = useElementDblClickNav(dialog.id);
+
   return (
     <Group
       x={position.x}
@@ -47,6 +50,8 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={onDblClick}
+      onDblTap={onDblClick}
       name={`dialog:${dialog.id}`}
       id={dialog.id}
     >
