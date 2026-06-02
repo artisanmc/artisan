@@ -1,12 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { SetupWizard } from "./SetupWizard";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { SetupWizard, type WizardState } from "./SetupWizard";
 import * as networksApi from "@/lib/api/networks";
 
-// Mock out the router so Link doesn't explode
+const navigate = vi.fn();
+
+// Mock out the router so Link / useNavigate don't explode
 vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
-  return { ...actual, Link: ({ children, ...props }: any) => <a {...props}>{children}</a> };
+  return {
+    ...actual,
+    Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+    useNavigate: () => navigate,
+  };
 });
 
 // Stub API so Step1Network's useEffect resolves silently
@@ -23,5 +29,34 @@ describe("SetupWizard", () => {
     render(<SetupWizard />);
     const nextBtn = screen.getByRole("button", { name: /next|suivant/i });
     expect(nextBtn).toBeDisabled();
+  });
+});
+
+/**
+ * Regression: the final "Terminé / Done" button used to stay disabled because
+ * `canNext(4, state)` returned false, and clicking it (had it been enabled)
+ * was a no-op — no exit handler.
+ */
+describe("SetupWizard — final step (canNext)", () => {
+  it("step 4 always allows Next regardless of state (so the Done button is enabled)", async () => {
+    const { canNext } = await import("./SetupWizard");
+    const empty: WizardState = { networkId: null, packId: null, serverKey: null, serverKeyId: null };
+    const full: WizardState = {
+      networkId: "n1", packId: "p1", serverKey: "sk_plain", serverKeyId: "sk1",
+    };
+    // The bug was: canNext(4, *) returned false. The fix: always true on step 4.
+    expect(canNext(4, empty)).toBe(true);
+    expect(canNext(4, full)).toBe(true);
+  });
+
+  it("steps 1-3 still gate on their respective fields", async () => {
+    const { canNext } = await import("./SetupWizard");
+    const empty: WizardState = { networkId: null, packId: null, serverKey: null, serverKeyId: null };
+    expect(canNext(1, empty)).toBe(false);
+    expect(canNext(2, empty)).toBe(false);
+    expect(canNext(3, empty)).toBe(false);
+    expect(canNext(1, { ...empty, networkId: "n1" })).toBe(true);
+    expect(canNext(2, { ...empty, packId: "p1" })).toBe(true);
+    expect(canNext(3, { ...empty, serverKeyId: "sk1" })).toBe(true);
   });
 });
