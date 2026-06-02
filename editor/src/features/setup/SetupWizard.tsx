@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
 import { Step2Pack } from "./SetupWizardSteps/Step2Pack";
@@ -13,15 +14,26 @@ export interface WizardState {
   serverKeyId: string | null;
 }
 
-function canNext(step: number, state: WizardState): boolean {
+/**
+ * Exported for direct test coverage of the per-step enablement contract —
+ * driving the full click-through to reach step 4 from RTL is exhaustive and
+ * brittle, while this predicate is what the bug was actually in.
+ */
+export function canNext(step: number, state: WizardState): boolean {
   if (step === 1) return state.networkId !== null;
   if (step === 2) return state.packId !== null;
   if (step === 3) return state.serverKeyId !== null;
+  // Step 4 is the final "Install" instruction screen. By the time we got here,
+  // all of networkId / packId / serverKeyId are populated (each prior step
+  // required them to move forward), so the "Terminé" button is always
+  // enabled — clicking it exits the wizard into the just-created workspace.
+  if (step === 4) return true;
   return false;
 }
 
 export function SetupWizard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const stepLabels = [
     t("setupWizard.stepLabels.network"),
     t("setupWizard.stepLabels.pack"),
@@ -43,7 +55,18 @@ export function SetupWizard() {
   }
 
   function handleNext() {
-    if (canNext(step, state)) setStep((s) => Math.min(totalSteps, s + 1));
+    if (!canNext(step, state)) return;
+    if (step === totalSteps) {
+      // Final step: exit the wizard. Land on the pack the user just created
+      // (packId is guaranteed non-null by step 2's canNext gate).
+      if (state.packId) {
+        navigate({ to: "/workspace/$workspaceId", params: { workspaceId: state.packId } });
+      } else {
+        navigate({ to: "/" });
+      }
+      return;
+    }
+    setStep((s) => Math.min(totalSteps, s + 1));
   }
 
   return (
