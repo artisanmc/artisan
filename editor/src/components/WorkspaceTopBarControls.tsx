@@ -51,6 +51,13 @@ export interface WorkspaceTopBarControlsProps {
   /** Display name shown in the left of the top bar. Defaults to `pack.name`. */
   packName?: string;
 
+  /**
+   * Optional slot that, when provided, completely replaces the default
+   * pack-name left section of the top bar. Used by the focus-mode route to
+   * render a "← Back to canvas" button + element ID in place of the pack name.
+   */
+  leftSlot?: React.ReactNode;
+
   // Kebab menu handlers (route-specific implementations).
   onImport?: () => void;
   onExport?: () => void;
@@ -76,6 +83,7 @@ export function WorkspaceTopBarControls({
   pack,
   packId,
   packName,
+  leftSlot,
   onImport,
   onExport,
   onExportZip,
@@ -94,13 +102,19 @@ export function WorkspaceTopBarControls({
     <>
       {/* Primary top bar row */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
-          />
-          <span className="truncate">{displayName}</span>
-        </div>
+        {leftSlot != null ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
+            {leftSlot}
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
+            />
+            <span className="truncate">{displayName}</span>
+          </div>
+        )}
         <LangSwitcher pack={pack} />
         <UndoRedoButtons />
         <DeployButtons pack={pack} packId={packId} />
