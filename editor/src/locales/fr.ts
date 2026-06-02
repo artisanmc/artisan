@@ -879,5 +879,8 @@ const fr: typeof en = {
     emptyMatch: "Aucune variable ne matche « {{query}} »",
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
+  actions: {
+    empty: "Aucune action pour l'instant.",
+  },
 };
 export default fr;
