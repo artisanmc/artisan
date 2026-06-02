@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { transform } from "@/features/export/transform";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { savePack } from "@/lib/packApi";
+import { saveUserPack } from "@/lib/api/userPacks";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -35,13 +36,18 @@ export function RootLayout() {
 }
 
 export function usePackAutoSave() {
+  // Subscribe whenever EITHER auth mode is live: session token (trust dance
+  // via `/artisan setup`) OR signed-in user (signup/login). Previously this
+  // hook only ran in session mode, so user-auth edits were silently dropped
+  // (real incident on 2026-06-02 — user wrote menus that never persisted).
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track which packs need saving: packId → Pack snapshot
   const pendingRef = useRef<Map<string, Pack>>(new Map());
 
   useEffect(() => {
-    if (!token) return;
+    if (!token && !user) return;
 
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
@@ -57,15 +63,26 @@ export function usePackAutoSave() {
       timerRef.current = setTimeout(async () => {
         const toSave = new Map(pendingRef.current);
         pendingRef.current.clear();
+        // Re-read auth state fresh — the user may have logged in / out
+        // between the change and the debounce firing.
         const currentToken = useSessionStore.getState().accessToken;
-        if (!currentToken) return;
+        const currentUser = useAuthStore.getState().currentUser;
+        if (!currentToken && !currentUser) return;
         for (const [, pack] of toSave) {
           try {
             const cloned = structuredClone(pack);
             for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
             for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
             const files = transform(cloned);
-            await savePack(currentToken, pack, files);
+            if (currentToken) {
+              // Session mode (trust dance): persist via the session-scoped
+              // endpoint that the editor_session token authorises.
+              await savePack(currentToken, pack, files);
+            } else {
+              // User-auth mode: cookie-based call to the user-scoped pack
+              // endpoint. Membership of the network is checked server-side.
+              await saveUserPack(pack.id, { hash: "", files, editor: pack });
+            }
           } catch {
             // silently ignore save errors — user will see stale "saving" indicator
           }
@@ -77,5 +94,5 @@ export function usePackAutoSave() {
       unsubscribe();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [token]);
+  }, [token, user]);
 }
