@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { CommandGroup } from "./CommandGroup";
-import { ContextMenu, type ContextMenuState, type ContextMenuTarget } from "./ContextMenu";
+import { ContextMenu } from "./ContextMenu";
 import { Edges } from "./Edges";
 import { EdgeTooltip } from "./EdgeTooltip";
 import { ItemTooltip } from "./ItemTooltip";
@@ -21,6 +21,7 @@ import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
+import { useStageContextMenu } from "./useStageContextMenu";
 import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
@@ -30,21 +31,6 @@ import { useStageTouch } from "./useStageTouch";
 interface StageProps {
   packId: PackId;
 }
-
-const slotIsFilled = (
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number],
-  menuId: string,
-  position: number,
-): boolean => {
-  const menu = pack.menus.find((m) => m.id === menuId);
-  if (!menu) return false;
-  const positionStr = String(position);
-  return menu.layers.some((l) =>
-    l.elements.some((el) => el.positions === positionStr && el.appearances[0]?.material),
-  );
-};
-
-const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 export function Stage({ packId }: StageProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
@@ -115,88 +101,13 @@ export function Stage({ packId }: StageProps) {
   const [pendingCommandPos, setPendingCommandPos] = useState<{ x: number; y: number } | null>(null);
   const [pendingDialogPos, setPendingDialogPos] = useState<{ x: number; y: number } | null>(null);
 
-  const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({
-    open: false,
-    x: 0,
-    y: 0,
-    target: emptyTarget,
+  const { ctxMenu, openContextMenuAt, onStageContextMenu, closeCtxMenu } = useStageContextMenu({
+    pack,
+    layout,
+    viewport,
+    wrapperRef,
+    stageRef,
   });
-
-  /**
-   * Open the context menu at a screen position, hit-testing through the
-   * stage to figure out whether it's a slot or entity context. Used by
-   * both right-click (mouse) and long-press (touch).
-   */
-  const openContextMenuAt = useCallback(
-    (clientX: number, clientY: number, konvaTarget?: Konva.Node) => {
-      if (!pack) return;
-      const wrapper = wrapperRef.current;
-      const stage = stageRef.current;
-      if (!wrapper || !stage) return;
-      const rect = wrapper.getBoundingClientRect();
-      const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
-      const world = screenToWorld(stagePoint, viewport);
-
-      // Slot path: manual hit-test in world coords (slots have listening=false
-      // so Konva's own target won't surface them).
-      const slotHit = hitTestSlot(pack, layout, world.x, world.y);
-      if (slotHit) {
-        setCtxMenu({
-          open: true,
-          x: clientX,
-          y: clientY,
-          target: {
-            kind: "slot",
-            menuId: slotHit.menuId,
-            position: slotHit.position,
-            filled: slotIsFilled(pack, slotHit.menuId, slotHit.position),
-          },
-        });
-        return;
-      }
-
-      // Entity path: nearest Group ancestor (menu or command).
-      let id: string | undefined;
-      if (konvaTarget && konvaTarget !== stage) {
-        id = konvaTarget.findAncestor("Group", true)?.id();
-      }
-      const ids = id ? [id] : [];
-      if (ids.length > 0 && !useSelectionStore.getState().ids.has(ids[0]!)) {
-        useSelectionStore.getState().set(ids);
-      }
-      const currentSelection = [...useSelectionStore.getState().ids];
-      const effectiveSelection = ids.length > 0 ? ids : currentSelection;
-
-      // Truly empty area + nothing selected → "create here" affordances.
-      if (effectiveSelection.length === 0) {
-        setCtxMenu({
-          open: true,
-          x: clientX,
-          y: clientY,
-          target: { kind: "empty", world },
-        });
-        return;
-      }
-
-      setCtxMenu({
-        open: true,
-        x: clientX,
-        y: clientY,
-        target: { kind: "entity", selectedIds: effectiveSelection },
-      });
-    },
-    [pack, layout, viewport],
-  );
-
-  const onStageContextMenu = useCallback(
-    (e: Konva.KonvaEventObject<PointerEvent>) => {
-      e.evt.preventDefault();
-      openContextMenuAt(e.evt.clientX, e.evt.clientY, e.target);
-    },
-    [openContextMenuAt],
-  );
-
-  const closeCtx = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
   const { onTouchStart: onStageTouchStart, onTouchMoveLocal: onStageTouchMove, onTouchEndLocal: onStageTouchEnd } = useStageTouch({
     openContextMenuAt,
@@ -366,18 +277,18 @@ export function Stage({ packId }: StageProps) {
       <ContextMenu
         packId={packId}
         state={ctxMenu}
-        onClose={closeCtx}
+        onClose={closeCtxMenu}
         onCopy={() => {
           void canvasClipboardActions.copySelection(packId, entityIds, (m) => toast.error(m));
-          closeCtx();
+          closeCtxMenu();
         }}
         onPaste={() => {
           void canvasClipboardActions.pasteFromClipboard(packId, (m) => toast.error(m));
-          closeCtx();
+          closeCtxMenu();
         }}
         onDuplicate={() => {
           canvasClipboardActions.duplicateSelection(packId, entityIds, (m) => toast.error(m));
-          closeCtx();
+          closeCtxMenu();
         }}
         onDelete={() => {
           if (entityIds.length === 0) return;
@@ -387,7 +298,7 @@ export function Stage({ packId }: StageProps) {
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "delete failed");
           }
-          closeCtx();
+          closeCtxMenu();
         }}
         onMoveTo={(toPackId) => {
           if (entityIds.length !== 1) return;
@@ -401,18 +312,18 @@ export function Stage({ packId }: StageProps) {
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "move failed");
           }
-          closeCtx();
+          closeCtxMenu();
         }}
         onCreateMenuAt={(world) => {
-          closeCtx();
+          closeCtxMenu();
           setPendingMenuPos(world);
         }}
         onCreateCommandAt={(world) => {
           setPendingCommandPos(world);
-          closeCtx();
+          closeCtxMenu();
         }}
         onCreateDialogAt={(world) => {
-          closeCtx();
+          closeCtxMenu();
           setPendingDialogPos(world);
         }}
       />
