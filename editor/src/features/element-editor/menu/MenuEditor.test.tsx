@@ -5,6 +5,8 @@ import { MenuEditor } from "./MenuEditor";
 vi.mock("./SingleMenuStage", () => ({ SingleMenuStage: () => <div>MENU_STAGE_STUB</div> }));
 vi.mock("@/features/canvas/title/composer/LayersPanel", () => ({ LayersPanel: () => <div>LAYERS_PANEL_STUB</div> }));
 vi.mock("@/features/canvas/properties/MenuProperties", () => ({ MenuProperties: () => <div>MENU_PROPERTIES_STUB</div> }));
+vi.mock("./LibraryDrawer", () => ({ LibraryDrawer: () => null }));
+vi.mock("./AssetsDrawer", () => ({ AssetsDrawer: () => null }));
 
 const pack = { id: "p1", menus: [], commands: [], dialogs: [], assets: [], defaultLang: "en", i18nKeys: {} } as any;
 const menu = { id: "m1", name: "Menu 1", rows: 3, layers: [], title: [] } as any;
