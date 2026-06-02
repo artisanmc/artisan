@@ -1,8 +1,7 @@
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
-import { useCallback, useState } from "react";
-import type { RefObject } from "react";
+import { useCallback, useState, type RefObject } from "react";
 import type { ContextMenuState, ContextMenuTarget } from "./ContextMenu";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import type { ViewportState } from "./usePanZoom";
