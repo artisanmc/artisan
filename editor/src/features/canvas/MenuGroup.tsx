@@ -14,6 +14,7 @@ import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { hitTestSlot } from "./hitTest";
+import { fanoutElements } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
 import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
@@ -150,6 +151,12 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
     menuLayers: menu.layers,
   });
 
+  // Pure positional fanout for non-iterating elements: maps each element's
+  // position string to a SlotEntry[]. Memoised so parsePositions isn't called
+  // on every render. The iterates path is handled separately below because it
+  // depends on live data-source state (store reads + placeholder resolution).
+  const fannedSlots = useMemo(() => fanoutElements(menu.layers), [menu.layers]);
+
   // Fan out each element across every slot it occupies. Multi-position
   // elements (e.g. positions: "0-8") render the same material in every cell.
   // For elements with `iterates`, we *unroll* across positions: each position
@@ -278,6 +285,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
       // Non-iterating: still resolve placeholders against enhancedCtx so
       // `{player}`, `{pagination.page}`, etc. show preview values.
+      // For elements with a material, positions come from the pre-computed
+      // `fannedSlots` (pure fanout, avoids re-parsing the position string).
+      // Elements without a material are absent from `fannedSlots`; we parse
+      // positions directly so their slots still render as phantom dashed
+      // outlines (present but unfilled).
+      const elSlots = fannedSlots.filter((e) => e.elementId === el.id);
+      const slotPositions = elSlots.length > 0 ? elSlots.map((e) => e.position) : positions;
       const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
       const info = {
         material: appearance.material
@@ -286,9 +300,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
         count: appearance.count,
         elementId: el.id,
-        multiPos: positions.length > 1,
+        multiPos: slotPositions.length > 1,
       };
-      for (const p of positions) {
+      for (const p of slotPositions) {
         elementsByPosition.set(p, info);
       }
     }
