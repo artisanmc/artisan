@@ -49,6 +49,8 @@ bun run dev             # Dev avec --watch sur port 3001
 bun run test            # ~175 tests, isolés dans la DB `artisan_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `artisan`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
 ```
 
+> ⚠️ **TOUJOURS** `bun run test` — **JAMAIS** `bun test` direct. Le wrapper `scripts/test.ts` redirige `DATABASE_URL` vers `artisan_test` avant de spawner vitest. `bun test` direct bypasse le wrapper, et les `beforeEach(clearAll)` des tests vident alors la DB dev `artisan` (incident réel le 2026-06-01 — toutes les données dev wipées). Si tu vois `bun test src/...` dans un terminal d'agent, c'est un bug.
+
 **Workflow migrations** :
 - `bun run db:push` — dev/test uniquement. Auto-sync `schema.ts` → DB. Pas de fichier migration produit.
 - `bun run db:generate` — quand un changement de schéma est prêt à shipper. Génère `backend/drizzle/NNNN_<name>.sql`. **Commit le fichier**.
