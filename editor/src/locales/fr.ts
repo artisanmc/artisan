@@ -19,6 +19,7 @@ const fr: typeof en = {
   focusMode: {
     unknownElement: "Cet élément n'existe plus.",
     backToCanvas: "Retour au canvas",
+    openFocus: "Focus / Éditer en grand",
   },
   menuEditor: {
     openLibrary: "Bibliothèque",

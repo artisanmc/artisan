@@ -17,6 +17,7 @@ export default {
   focusMode: {
     unknownElement: "This element no longer exists.",
     backToCanvas: "Back to canvas",
+    openFocus: "Focus / Edit in full screen",
   },
   menuEditor: {
     openLibrary: "Library",
