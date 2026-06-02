@@ -27,10 +27,13 @@ import { HistoryPanel } from "@/features/branches/HistoryPanel";
 import { PromoteButton } from "@/features/branches/PromoteButton";
 import { MergeButton } from "@/features/branches/MergeButton";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
+import { saveUserPack } from "@/lib/api/userPacks";
+import { createCommit } from "@/lib/api/branches";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { Pack, PackId } from "@/domain/types";
@@ -117,7 +120,7 @@ export function WorkspaceTopBarControls({
         )}
         <LangSwitcher pack={pack} />
         <UndoRedoButtons />
-        <DeployButtons pack={pack} packId={packId} />
+        <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} currentBranch={currentBranch ?? null} />
         <TopBarKebabMenu
           onImport={onImport ?? (() => {})}
           onExport={onExport ?? (() => {})}
@@ -367,36 +370,67 @@ async function syncGlyphAscents(pack: Pack, token: string, packId: string): Prom
   await Promise.all(patches);
 }
 
-function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
+function DeployButtons({
+  pack,
+  packId,
+  networkId,
+  currentBranch,
+}: {
+  pack: Pack;
+  packId: string;
+  networkId: string | null;
+  currentBranch: string | null;
+}) {
   const { t } = useTranslation();
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const replacePack = useAccountStore((s) => s.replacePack);
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
-  // Deploy/Revert use the session-scoped REST endpoints that require the
-  // editor_session access token (trust dance). Without a token, both are
-  // disabled — for user-auth mode, the Branch toolbar's "Commit" is the
-  // equivalent action.
-  const hasSession = Boolean(token);
-  const noSessionTitle = t("deploy.noSessionTitle");
-  const isPublishDisabled = deploying || !hasSession;
-  const isRevertDisabled = reverting || !hasSession;
+
+  // Deploy works in BOTH modes:
+  //   - Session mode: rekey + transform + deployPack (legacy session-scoped
+  //     endpoint that writes to a deployed snapshot on the editor_session).
+  //   - User-auth mode: rekey + transform + saveUserPack (so the WIP is
+  //     guaranteed fresh, since the debounced auto-save may not have fired
+  //     yet) + createCommit (snapshots the WIP, advances the branch,
+  //     broadcasts bundle_available to bound plugins).
+  // Revert only exists in session mode for now (no user-auth equivalent of
+  // "restore the deployed pack" until the branch history exposes a checkout).
+  const canDeploySession = Boolean(token);
+  const canDeployUserAuth = Boolean(user && networkId && currentBranch);
+  const canDeploy = canDeploySession || canDeployUserAuth;
+  const canRevert = canDeploySession;
+  const deployDisabledTitle = t("deploy.cannotDeployTitle");
+  const revertDisabledTitle = t("deploy.cannotRevertTitle");
+  const isPublishDisabled = deploying || !canDeploy;
+  const isRevertDisabled = reverting || !canRevert;
 
   const handleDeploy = async () => {
-    if (!token) {
-      toast.info(t("deploy.noSessionTitle"));
+    if (!canDeploy) {
+      toast.info(deployDisabledTitle);
       return;
     }
-    if (isPublishDisabled) return;
+    if (deploying) return;
     setDeploying(true);
     try {
-      // Sync glyph ascents first (this rebuilds the RP for correct Y positions).
-      await syncGlyphAscents(pack, token, packId);
       const cloned = structuredClone(pack);
       for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
       for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
       const files = transform(cloned);
-      await deployPack(token, pack, files);
+
+      if (token) {
+        // Session mode: sync glyph ascents (rebuilds RP for correct Y), then
+        // push the deployed snapshot.
+        await syncGlyphAscents(pack, token, packId);
+        await deployPack(token, pack, files);
+      } else if (user && networkId && currentBranch) {
+        // User-auth: persist the freshly-rekey'd WIP, then commit. The commit
+        // endpoint broadcasts bundle_available, so any plugin bound to this
+        // pack picks up the new content via the WS hub.
+        await saveUserPack(pack.id, { hash: "", files, editor: pack });
+        await createCommit(networkId, packId, currentBranch, "Deploy");
+      }
       toast.success(t("deploy.deployedToast"));
     } catch (e) {
       if (e instanceof DeployError && e.code === "session_not_trusted") {
@@ -411,7 +445,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
 
   const handleRevert = async () => {
     if (!token) {
-      toast.info(t("deploy.noSessionTitle"));
+      toast.info(revertDisabledTitle);
       return;
     }
     if (reverting) return;
@@ -437,7 +471,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
         type="button"
         onClick={handleRevert}
         disabled={isRevertDisabled}
-        title={hasSession ? t("deploy.revertTitle") : noSessionTitle}
+        title={canRevert ? t("deploy.revertTitle") : revertDisabledTitle}
         className="btn btn-sm btn-ghost"
       >
         {reverting ? t("deploy.reverting") : t("deploy.revert")}
@@ -446,7 +480,7 @@ function DeployButtons({ pack, packId }: { pack: Pack; packId: string }) {
         type="button"
         onClick={handleDeploy}
         disabled={isPublishDisabled}
-        title={hasSession ? t("deploy.deployTitle") : noSessionTitle}
+        title={canDeploy ? t("deploy.deployTitle") : deployDisabledTitle}
         className="btn btn-sm btn-deploy"
       >
         {deploying ? t("deploy.deploying") : t("deploy.deploy")}
