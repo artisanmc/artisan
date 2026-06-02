@@ -25,9 +25,7 @@ import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
-
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_MOVE_TOLERANCE = 8;
+import { useStageTouch } from "./useStageTouch";
 
 interface StageProps {
   packId: PackId;
@@ -54,9 +52,6 @@ export function Stage({ packId }: StageProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
-  // Long-press timer + start position (for touch-driven context menu).
-  const longPressTimerRef = useRef<number | null>(null);
-  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -203,57 +198,11 @@ export function Stage({ packId }: StageProps) {
 
   const closeCtx = useCallback(() => setCtxMenu((s) => ({ ...s, open: false })), []);
 
-  // ── Touch handling: long-press for context menu, pinch via usePanZoom ──
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimerRef.current !== null) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    longPressStartRef.current = null;
-  }, []);
-
-  const onStageTouchStart = useCallback(
-    (e: Konva.KonvaEventObject<TouchEvent>) => {
-      if (e.evt.touches.length !== 1) {
-        cancelLongPress();
-        return;
-      }
-      const touch = e.evt.touches[0]!;
-      const startX = touch.clientX;
-      const startY = touch.clientY;
-      const target = e.target;
-      longPressStartRef.current = { x: startX, y: startY };
-      longPressTimerRef.current = window.setTimeout(() => {
-        longPressTimerRef.current = null;
-        longPressStartRef.current = null;
-        openContextMenuAt(startX, startY, target);
-      }, LONG_PRESS_MS);
-    },
-    [cancelLongPress, openContextMenuAt],
-  );
-
-  const onStageTouchMove = useCallback(
-    (e: Konva.KonvaEventObject<TouchEvent>) => {
-      // Cancel long-press if touch moves too far or a second finger lands.
-      if (longPressStartRef.current && e.evt.touches.length === 1) {
-        const touch = e.evt.touches[0]!;
-        const dx = touch.clientX - longPressStartRef.current.x;
-        const dy = touch.clientY - longPressStartRef.current.y;
-        if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) cancelLongPress();
-      } else if (e.evt.touches.length > 1) {
-        cancelLongPress();
-      }
-      onTouchMove(e);
-    },
-    [cancelLongPress, onTouchMove],
-  );
-
-  const onStageTouchEnd = useCallback(() => {
-    cancelLongPress();
-    onTouchEnd();
-  }, [cancelLongPress, onTouchEnd]);
-
-  useEffect(() => () => cancelLongPress(), [cancelLongPress]);
+  const { onTouchStart: onStageTouchStart, onTouchMoveLocal: onStageTouchMove, onTouchEndLocal: onStageTouchEnd } = useStageTouch({
+    openContextMenuAt,
+    onTouchMove,
+    onTouchEnd,
+  });
 
   // Cross-platform Library drop: the top-level DndContext (in the pack
   // route) calls this with the release coords + material. We hit-test the
