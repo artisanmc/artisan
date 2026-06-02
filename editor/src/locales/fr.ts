@@ -23,6 +23,13 @@ const fr: typeof en = {
   menuEditor: {
     openLibrary: "Bibliothèque",
     openAssets: "Assets",
+    mobile: {
+      canvas: "Canvas",
+      properties: "Propriétés",
+      layers: "Layers",
+      library: "Bibliothèque",
+      assets: "Assets",
+    },
   },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
