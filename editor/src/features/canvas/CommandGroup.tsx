@@ -39,7 +39,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
     [command.id],
   );
 
-  const onDblClick = useElementDblClickNav(command.id);
+  const onDblClick = useElementDblClickNav(packId, command.id);
 
   return (
     <Group
