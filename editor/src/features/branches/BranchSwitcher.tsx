@@ -19,7 +19,7 @@ export function BranchSwitcher({ networkId, packId }: Props) {
     <div className="relative inline-flex items-center">
       <svg
         viewBox="0 0 24 24"
-        className="pointer-events-none absolute left-3 size-[13px] text-[var(--sage)]"
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-[13px] text-[var(--sage)]"
         fill="none"
         stroke="currentColor"
         strokeWidth={2}
