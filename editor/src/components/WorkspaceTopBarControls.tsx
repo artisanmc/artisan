@@ -28,7 +28,8 @@ import { PromoteButton } from "@/features/branches/PromoteButton";
 import { MergeButton } from "@/features/branches/MergeButton";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
 import { saveUserPack } from "@/lib/api/userPacks";
-import { createCommit } from "@/lib/api/branches";
+import { createCommit, getBranchHead } from "@/lib/api/branches";
+import type { Pack as PackType } from "@/domain/types";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
 import { useAssetStore } from "@/features/assets/assetStore";
@@ -388,19 +389,18 @@ function DeployButtons({
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
 
-  // Deploy works in BOTH modes:
-  //   - Session mode: rekey + transform + deployPack (legacy session-scoped
-  //     endpoint that writes to a deployed snapshot on the editor_session).
-  //   - User-auth mode: rekey + transform + saveUserPack (so the WIP is
-  //     guaranteed fresh, since the debounced auto-save may not have fired
-  //     yet) + createCommit (snapshots the WIP, advances the branch,
-  //     broadcasts bundle_available to bound plugins).
-  // Revert only exists in session mode for now (no user-auth equivalent of
-  // "restore the deployed pack" until the branch history exposes a checkout).
-  const canDeploySession = Boolean(token);
-  const canDeployUserAuth = Boolean(user && networkId && currentBranch);
-  const canDeploy = canDeploySession || canDeployUserAuth;
-  const canRevert = canDeploySession;
+  // Deploy AND Revert work in BOTH modes:
+  //   - Session mode: rekey + transform + deployPack (legacy deployed-snapshot
+  //     on the editor_session); Revert pulls that snapshot back via
+  //     getDeployedPack.
+  //   - User-auth mode: rekey + transform + saveUserPack (guarantees fresh
+  //     WIP) + createCommit (snapshots, advances branch, broadcasts
+  //     bundle_available); Revert pulls the branch's HEAD commit content
+  //     via getBranchHead and replaces local state.
+  const canSession = Boolean(token);
+  const canUserAuth = Boolean(user && networkId && currentBranch);
+  const canDeploy = canSession || canUserAuth;
+  const canRevert = canSession || canUserAuth;
   const deployDisabledTitle = t("deploy.cannotDeployTitle");
   const revertDisabledTitle = t("deploy.cannotRevertTitle");
   const isPublishDisabled = deploying || !canDeploy;
@@ -444,19 +444,40 @@ function DeployButtons({
   };
 
   const handleRevert = async () => {
-    if (!token) {
+    if (!canRevert) {
       toast.info(revertDisabledTitle);
       return;
     }
     if (reverting) return;
     setReverting(true);
     try {
-      const deployed = await getDeployedPack(token, pack.id);
-      if (!deployed) {
-        toast.info(t("deploy.revertNothing"));
-        return;
+      if (token) {
+        // Session mode: pull the deployed snapshot.
+        const deployed = await getDeployedPack(token, pack.id);
+        if (!deployed) {
+          toast.info(t("deploy.revertNothing"));
+          return;
+        }
+        replacePack(deployed);
+      } else if (user && networkId && currentBranch) {
+        // User-auth: pull the branch HEAD commit's editor state. If the WIP
+        // matches the HEAD already (no edits since the last commit), there's
+        // nothing to restore — same UX as session mode's "revertNothing".
+        const head = await getBranchHead(networkId, packId, currentBranch);
+        if (!head) {
+          toast.info(t("deploy.revertNothing"));
+          return;
+        }
+        // The backend returns `editor` as the raw EditorState JSON the
+        // commit captured. Merge with the current pack's identity fields
+        // (id, name) so replacePack receives a fully-typed Pack object.
+        const restored = {
+          ...(head.editor as Partial<PackType>),
+          id: pack.id,
+          name: pack.name,
+        } as PackType;
+        replacePack(restored);
       }
-      replacePack(deployed);
       toast.success(t("deploy.reverted"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("deploy.revertFailed"));
