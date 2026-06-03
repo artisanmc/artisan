@@ -946,5 +946,16 @@ const fr: typeof en = {
     empty: "Aucune connexion enregistrée pour le moment.",
     error: "Impossible de charger l'historique.",
   },
+  ipAllowlistModal: {
+    title: "Allowlist d'IP",
+    help: "Restreint les connexions à des IP spécifiques. Vide = aucune restriction.",
+    placeholder: "203.0.113.42",
+    add: "Ajouter",
+    remove: "Retirer",
+    loading: "Chargement…",
+    empty: "Aucune restriction d'IP. Le plugin peut se connecter depuis n'importe où.",
+    error: "Impossible de charger l'allowlist.",
+    close: "Fermer",
+  },
 };
 export default fr;
