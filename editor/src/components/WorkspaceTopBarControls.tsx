@@ -7,10 +7,9 @@
  *   - UndoRedoButtons
  *   - DeployButtons  (Deploy + Revert)
  *   - TopBarKebabMenu  (Import / Export / Patterns / Delete)
- *   - Branch toolbar  (BranchSwitcher + DirtyBadge + Commit + Promote + Merge + HistoryPanel)
  *
- * The branch toolbar is only rendered when `networkId` and `currentBranch`
- * are provided. All handlers that are route-specific (import, export, etc.)
+ * History/branch navigation lives in the History tab (HistoryTab component).
+ * All handlers that are route-specific (import, export, etc.)
  * are passed as props so the two routes can supply different implementations.
  */
 import {
@@ -22,15 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ServerStatusBadge } from "@/components/ServerStatusBadge";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
-import { BranchSwitcher } from "@/features/branches/BranchSwitcher";
-import { CommitDialog } from "@/features/branches/CommitDialog";
-import { HistoryPanel } from "@/features/branches/HistoryPanel";
-import { PromoteButton } from "@/features/branches/PromoteButton";
-import { MergeButton } from "@/features/branches/MergeButton";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
 import { saveUserPack } from "@/lib/api/userPacks";
-import { createCommit, getBranchHead, listBranches } from "@/lib/api/branches";
-import { useBranchesStore } from "@/state/branchesStore";
+import { createCommit, getBranchHead } from "@/lib/api/branches";
 import type { Pack as PackType } from "@/domain/types";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
@@ -41,7 +34,7 @@ import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { Pack, PackId } from "@/domain/types";
 import { Redo2, Undo2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -71,19 +64,17 @@ export interface WorkspaceTopBarControlsProps {
   onOpenPatterns?: () => void;
   onDelete?: () => void;
 
-  // Branch toolbar — only rendered when both are provided.
   networkId?: string | null;
-  currentBranch?: string | null;
-  allBranches?: string[];
 }
 
 /**
- * Full top-bar header area for a workspace/focus route. Renders:
- *  1. A 52px row with the pack name dot + name on the left and controls on the right.
- *  2. An optional branch toolbar row below (only when `networkId` + `currentBranch` provided).
+ * Full top-bar header area for a workspace/focus route. Renders a single
+ * 52px row with the pack name dot + name on the left and controls on the right.
+ *
+ * Branch / history navigation lives in the History tab (HistoryTab component).
  *
  * Mounted as a single component so both the canvas workspace route and the
- * upcoming focus-mode route can share identical chrome without duplication.
+ * focus-mode route can share identical chrome without duplication.
  */
 export function WorkspaceTopBarControls({
   pack,
@@ -96,101 +87,36 @@ export function WorkspaceTopBarControls({
   onOpenPatterns,
   onDelete,
   networkId,
-  currentBranch,
-  allBranches = [],
 }: WorkspaceTopBarControlsProps) {
-  const [commitOpen, setCommitOpen] = useState(false);
-
-  // Bootstrap branches the moment a networkId is known. Previously the only
-  // place that fetched branches was BranchSwitcher, which only mounts when
-  // `currentBranch` is already truthy — chicken-and-egg deadlock that left
-  // currentBranch null on fresh user-auth loads (Deploy / Commit / Revert
-  // all gated on currentBranch, so they stayed disabled forever).
-  // branchesStore.setBranches auto-picks `branches[0]?.name` when the prior
-  // selection isn't in the new list, so this single fetch is enough to bring
-  // the whole branch toolbar online.
-  const setBranches = useBranchesStore((s) => s.setBranches);
-  useEffect(() => {
-    if (!networkId) return;
-    let cancelled = false;
-    listBranches(networkId, packId)
-      .then((b) => { if (!cancelled) setBranches(b); })
-      .catch(() => { /* offline — branch bar stays empty, user can retry */ });
-    return () => { cancelled = true; };
-  }, [networkId, packId, setBranches]);
-
-  const showBranchBar = Boolean(currentBranch && networkId);
   const displayName = packName ?? pack.name;
 
   return (
-    <>
-      {/* Primary top bar row */}
-      <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
-        {leftSlot != null ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
-            {leftSlot}
-          </div>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
-            />
-            <span className="truncate">{displayName}</span>
-          </div>
-        )}
-        <ServerStatusBadge networkId={networkId} packId={packId} />
-        <LangSwitcher pack={pack} />
-        <UndoRedoButtons />
-        <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} currentBranch={currentBranch ?? null} />
-        <TopBarKebabMenu
-          onImport={onImport ?? (() => {})}
-          onExport={onExport ?? (() => {})}
-          onExportZip={onExportZip ?? (() => {})}
-          onOpenPatterns={onOpenPatterns ?? (() => {})}
-          onDelete={onDelete ?? (() => {})}
-        />
-      </div>
-
-      {/* Branch toolbar row — only when a network + branch are available */}
-      {showBranchBar && networkId && currentBranch && (
-        <>
-          <div className="flex flex-col gap-2.5 border-b border-[var(--line-soft)] bg-[var(--bg)] px-3.5 py-3">
-            <div className="flex items-center gap-2">
-              <BranchSwitcher networkId={networkId} packId={packId} />
-              <DirtyBadge />
-              <button
-                type="button"
-                onClick={() => setCommitOpen(true)}
-                className="btn btn-sm"
-              >
-                Commit
-              </button>
-              <PromoteButton
-                networkId={networkId}
-                packId={packId}
-                sourceBranch={currentBranch}
-                allBranches={allBranches}
-              />
-              <MergeButton
-                networkId={networkId}
-                packId={packId}
-                sourceBranch={currentBranch}
-                allBranches={allBranches}
-              />
-            </div>
-            <HistoryPanel networkId={networkId} packId={packId} branch={currentBranch} />
-          </div>
-          <CommitDialog
-            networkId={networkId}
-            packId={packId}
-            branch={currentBranch}
-            open={commitOpen}
-            onClose={() => setCommitOpen(false)}
+    <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
+      {leftSlot != null ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
+          {leftSlot}
+        </div>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
           />
-        </>
+          <span className="truncate">{displayName}</span>
+        </div>
       )}
-    </>
+      <ServerStatusBadge networkId={networkId} packId={packId} />
+      <LangSwitcher pack={pack} />
+      <UndoRedoButtons />
+      <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} />
+      <TopBarKebabMenu
+        onImport={onImport ?? (() => {})}
+        onExport={onExport ?? (() => {})}
+        onExportZip={onExportZip ?? (() => {})}
+        onOpenPatterns={onOpenPatterns ?? (() => {})}
+        onDelete={onDelete ?? (() => {})}
+      />
+    </div>
   );
 }
 
@@ -337,22 +263,6 @@ function UndoRedoButtons() {
 }
 
 /**
- * "Modifié" pill next to the BranchSwitcher when there are local edits not
- * yet captured by a commit. Uses the temporal undo stack as a cheap proxy.
- */
-function DirtyBadge() {
-  const isDirty = useStore(useAccountStore.temporal, (s) => s.pastStates.length > 0);
-  const { t } = useTranslation();
-  if (!isDirty) return null;
-  return (
-    <span className="badge badge-amber" title={t("branchBar.dirtyHint")}>
-      <span className="dot" style={{ background: "var(--gold)" }} />
-      {t("branchBar.dirty")}
-    </span>
-  );
-}
-
-/**
  * MC font rendering: glyph_top_ingame = 13 - ascent (empirically confirmed).
  * For editor layer.y to equal glyph_top_ingame:
  *   desiredAscent = 13 - layer.y = TITLE_LABEL_Y - layer.y.
@@ -396,12 +306,10 @@ function DeployButtons({
   pack,
   packId,
   networkId,
-  currentBranch,
 }: {
   pack: Pack;
   packId: string;
   networkId: string | null;
-  currentBranch: string | null;
 }) {
   const { t } = useTranslation();
   const token = useSessionStore((s) => s.accessToken);
@@ -419,7 +327,7 @@ function DeployButtons({
   //     bundle_available); Revert pulls the branch's HEAD commit content
   //     via getBranchHead and replaces local state.
   const canSession = Boolean(token);
-  const canUserAuth = Boolean(user && networkId && currentBranch);
+  const canUserAuth = Boolean(user && networkId);
   const canDeploy = canSession || canUserAuth;
   const canRevert = canSession || canUserAuth;
   const deployDisabledTitle = t("deploy.cannotDeployTitle");
@@ -445,12 +353,12 @@ function DeployButtons({
         // push the deployed snapshot.
         await syncGlyphAscents(pack, token, packId);
         await deployPack(token, pack, files);
-      } else if (user && networkId && currentBranch) {
+      } else if (user && networkId) {
         // User-auth: persist the freshly-rekey'd WIP, then commit. The commit
         // endpoint broadcasts bundle_available, so any plugin bound to this
         // pack picks up the new content via the WS hub.
         await saveUserPack(pack.id, { hash: "", files, editor: pack });
-        await createCommit(networkId, packId, currentBranch, "Deploy");
+        await createCommit(networkId, packId, "main", "Deploy");
       }
       toast.success(t("deploy.deployedToast"));
     } catch (e) {
@@ -480,11 +388,11 @@ function DeployButtons({
           return;
         }
         replacePack(deployed);
-      } else if (user && networkId && currentBranch) {
+      } else if (user && networkId) {
         // User-auth: pull the branch HEAD commit's editor state. If the WIP
         // matches the HEAD already (no edits since the last commit), there's
         // nothing to restore — same UX as session mode's "revertNothing".
-        const head = await getBranchHead(networkId, packId, currentBranch);
+        const head = await getBranchHead(networkId, packId, "main");
         if (!head) {
           toast.info(t("deploy.revertNothing"));
           return;

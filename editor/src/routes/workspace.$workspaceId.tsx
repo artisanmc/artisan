@@ -17,7 +17,6 @@ import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { totalMissing } from "@/lib/i18nUsages";
 import { getNetworkOfPack } from "@/lib/api/userPacks";
-import { useBranchesStore } from "@/state/branchesStore";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
@@ -92,10 +91,6 @@ function PackCanvasPage() {
     getNetworkOfPack(pId).then(setSessionNetworkId).catch(() => setSessionNetworkId(null));
   }, [pId, token]);
   const networkId = token ? sessionNetworkId : userPackNetworkId;
-
-  const currentBranch = useBranchesStore((s) => s.currentBranch);
-  const branches = useBranchesStore((s) => s.branches);
-  const branchNames = branches.map((b) => b.name);
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -242,8 +237,6 @@ function PackCanvasPage() {
               onOpenPatterns={() => setPatternsOpen(true)}
               onDelete={() => setShowDeleteDialog(true)}
               networkId={networkId}
-              currentBranch={currentBranch}
-              allBranches={branchNames}
             />
           ) : (
             <div className="flex h-[52px] shrink-0 items-center border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
