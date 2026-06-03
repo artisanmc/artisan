@@ -14,12 +14,11 @@ mock.module("../ws/hub", () => ({
 import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, packs, packBindings } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, packs } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { texturesRouter } from "./textures";
 import { assetsRouter } from "./assets";
-import { createBinding } from "../lib/packBindingManager";
 
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
 
@@ -30,7 +29,6 @@ app.route("/api/v1/editor-session", assetsRouter);
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -59,24 +57,25 @@ async function seedSession(): Promise<{ token: string; packId: string }> {
     updatedAt: new Date(),
   });
 
-  const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const now = new Date();
-  await db.insert(packs).values({
-    id: packId,
-    networkId,
-    name: "test-pack",
-    hash: "",
-    filesJson: "{}",
-    createdAt: now,
-    updatedAt: now,
-  });
-
   const serverKeyId = crypto.randomUUID();
+  const now = new Date();
   await db.insert(serverKeys).values({
     id: serverKeyId,
     networkId,
     hash: "h" + serverKeyId.slice(0, 8),
     createdAt: new Date(),
+  });
+
+  const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  await db.insert(packs).values({
+    id: packId,
+    networkId,
+    serverKeyId,
+    name: "test-pack",
+    hash: "",
+    filesJson: "{}",
+    createdAt: now,
+    updatedAt: now,
   });
 
   const token = crypto.randomUUID();
@@ -85,9 +84,6 @@ async function seedSession(): Promise<{ token: string; packId: string }> {
     expiresAt: new Date(now.getTime() + 3600_000),
     accessToken: token, accessExpiresAt: new Date(now.getTime() + 3600_000),
   });
-
-  // Create binding between serverKey and pack
-  await createBinding(serverKeyId, packId);
 
   return { token, packId };
 }

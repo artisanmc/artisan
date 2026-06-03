@@ -9,7 +9,6 @@ import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { findSession } from "../lib/sessionManager";
 import { createPack } from "../lib/packStorage";
-import { createBinding } from "../lib/packBindingManager";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
@@ -106,8 +105,12 @@ router.post("/:code/claim", async (c) => {
     return c.json({ error: "must_choose_network", networks: ownedNetworkIds }, 400);
   }
 
+  // Generate the server key id up-front so it can be embedded in the pack row
+  // (packs.serverKeyId is NOT NULL — pack creation requires an owning key).
+  const { id, key, hash } = await generateServerKey();
+
   // Resolve target pack: explicit id (within target network) > new (with name)
-  // > skip (no binding created, legacy behaviour).
+  // > skip (no pack created).
   let targetPackId: string | null = null;
   if (packIdInput) {
     const packRows = await db.select().from(packs).where(eq(packs.id, packIdInput));
@@ -121,13 +124,13 @@ router.post("/:code/claim", async (c) => {
     }
     const pack = await createPack({
       networkId: targetNetworkId,
+      serverKeyId: id,
       name: packNameInput,
       description: null,
     });
     targetPackId = pack.id;
   }
 
-  const { id, key, hash } = await generateServerKey();
   await db.transaction(async (tx) => {
     await tx.insert(serverKeys).values({
       id,
@@ -139,13 +142,6 @@ router.post("/:code/claim", async (c) => {
     await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id })
       .where(eq(linkCodes.code, code));
   });
-
-  // Bind the chosen pack to the freshly-minted server_key so the plugin starts
-  // syncing immediately on reconnect. Default branch = main (auto-created by
-  // createPack).
-  if (targetPackId) {
-    await createBinding(id, targetPackId, "main");
-  }
 
   // Push server_key to any plugin WS session waiting on this code.
   pushLinkConfirmed(code, key);

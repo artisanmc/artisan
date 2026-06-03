@@ -1,74 +1,7 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { db } from "../db/index";
-import { packBindings, packs, serverKeys, networks, editorSessions, linkCodes } from "../db/schema";
-import { eq } from "drizzle-orm";
-import {
-  createBinding, deleteBinding, listPacksForServerKey, listServerKeysForPack,
-} from "./packBindingManager";
-import { createNetwork } from "./networkManager";
-import { createPack } from "./packStorage";
+// Task 1.2: packBindingManager tests skipped — pack_bindings table dropped in P1 schema refactor.
+// These tests will be deleted in Task 1.5 when packBindingManager.ts is removed.
+import { describe, it } from "bun:test";
 
-describe("packBindingManager", () => {
-  let networkId: string, skId: string;
-  beforeEach(async () => {
-    await db.delete(packBindings);
-    await db.delete(packs);
-    await db.delete(editorSessions);
-    await db.delete(linkCodes);
-    await db.delete(serverKeys);
-    await db.delete(networks);
-    networkId = (await createNetwork("N")).id;
-    skId = "sk_" + crypto.randomUUID().slice(0, 8);
-    await db.insert(serverKeys).values({
-      id: skId, hash: "h", networkId, label: null, createdAt: new Date(),
-    });
-  });
-
-  it("createBinding inserts a row", async () => {
-    const pack = await createPack({ networkId, name: "main" });
-    await createBinding(skId, pack.id);
-    const rows = await db.select().from(packBindings);
-    expect(rows).toHaveLength(1);
-  });
-
-  it("listPacksForServerKey returns bound non-deleted packs", async () => {
-    const p1 = await createPack({ networkId, name: "a" });
-    const p2 = await createPack({ networkId, name: "b" });
-    await createBinding(skId, p1.id);
-    await createBinding(skId, p2.id);
-    const list = await listPacksForServerKey(skId);
-    expect(list.map((p) => p.id).sort()).toEqual([p1.id, p2.id].sort());
-  });
-
-  it("listServerKeysForPack returns all bound server keys", async () => {
-    const pack = await createPack({ networkId, name: "main" });
-    await createBinding(skId, pack.id);
-    const list = await listServerKeysForPack(pack.id);
-    expect(list).toEqual([skId]);
-  });
-
-  it("deleteBinding removes the row", async () => {
-    const pack = await createPack({ networkId, name: "main" });
-    await createBinding(skId, pack.id);
-    await deleteBinding(skId, pack.id);
-    expect(await db.select().from(packBindings)).toHaveLength(0);
-  });
-
-  it("createBinding accepts a custom branchName (default main)", async () => {
-    const pack = await createPack({ networkId, name: "p-branch" });
-
-    // Default branchName = "main"
-    await createBinding(skId, pack.id);
-    const rows = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
-    expect(rows).toHaveLength(1);
-    expect(rows[0].branchName).toBe("main");
-
-    await deleteBinding(skId, pack.id);
-
-    // Custom branchName = "dev"
-    await createBinding(skId, pack.id, "dev");
-    const rows2 = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
-    expect(rows2).toHaveLength(1);
-    expect(rows2[0].branchName).toBe("dev");
-  });
+describe.skip("packBindingManager", () => {
+  it("placeholder — skipped pending Task 1.5 cleanup", () => {});
 });

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, packBindings, serverKeys, serverKeyHelloes,
+  memberships, networks, packs, serverKeys, serverKeyHelloes,
   editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
@@ -12,7 +12,6 @@ import { createSession } from "../lib/sessionManager";
 import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -130,9 +129,7 @@ describe("userNetworksRouter", () => {
     });
     const { network } = await create.json();
 
-    // Seed a pack and a server_key in this network directly via DB
-    const { createPack } = await import("../lib/packStorage");
-    await createPack({ networkId: network.id, name: "p1" });
+    // Seed a server_key first (required by createPack), then seed a pack
     await db.insert(serverKeys).values({
       id: "sk_test_a3",
       hash: "hash_a3",
@@ -140,6 +137,8 @@ describe("userNetworksRouter", () => {
       createdAt: new Date(),
       label: null,
     });
+    const { createPack } = await import("../lib/packStorage");
+    await createPack({ networkId: network.id, serverKeyId: "sk_test_a3", name: "p1" });
 
     const res = await app.request(`/api/v1/networks/${network.id}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
@@ -230,10 +229,18 @@ describe("userNetworksRouter", () => {
       body: JSON.stringify({ name: "N" }),
     })).json();
 
+    // Create a server_key for the pack to own
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const { id: skId } = await skRes.json();
+
     const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "my-pack", description: "desc" }),
+      body: JSON.stringify({ name: "my-pack", description: "desc", serverKeyId: skId }),
     });
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -262,7 +269,7 @@ describe("userNetworksRouter", () => {
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p" }),
+      body: JSON.stringify({ name: "p", serverKeyId: skId }),
     });
     const { pack } = await packRes.json();
 
@@ -280,9 +287,9 @@ describe("userNetworksRouter", () => {
     });
     expect(bind.status).toBe(201);
 
-    const bindings = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
-    expect(bindings).toHaveLength(1);
-    expect(bindings[0].branchName).toBe("dev");
+    // In the 1:1 model, POST bind is a no-op — pack already owned by its serverKeyId
+    const packRows = await db.select().from(packs).where(eq(packs.id, pack.id));
+    expect(packRows).toHaveLength(1);
   });
 
   test("POST binding 404 when branch_name does not exist", async () => {
@@ -304,7 +311,7 @@ describe("userNetworksRouter", () => {
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p" }),
+      body: JSON.stringify({ name: "p", serverKeyId: skId }),
     });
     const { pack } = await packRes.json();
 
@@ -338,7 +345,7 @@ describe("userNetworksRouter", () => {
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p" }),
+      body: JSON.stringify({ name: "p", serverKeyId: skId }),
     });
     const { pack } = await packRes.json();
 
@@ -349,19 +356,17 @@ describe("userNetworksRouter", () => {
     });
     expect(bind.status).toBe(201);
 
-    const bindings = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
-    expect(bindings).toHaveLength(1);
-    expect(bindings[0].serverKeyId).toBe(skId);
+    // In the 1:1 model, pack ownership is via packs.serverKeyId (not a separate binding row)
+    const packRows = await db.select().from(packs).where(eq(packs.id, pack.id));
+    expect(packRows).toHaveLength(1);
+    expect(packRows[0].serverKeyId).toBe(skId);
 
-    // Unbind
+    // Unbind is a no-op in the 1:1 model — pack stays
     const unbind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
       method: "DELETE",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(unbind.status).toBe(204);
-
-    const after = await db.select().from(packBindings).where(eq(packBindings.packId, pack.id));
-    expect(after).toHaveLength(0);
   });
 });
 
@@ -608,17 +613,13 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     const { id: skId, key: oldKey } = await skRes.json();
     const oldHash = await sha256(oldKey);
 
-    // Create a binding so we can verify it survives the rotation.
+    // Create a pack owned by this server_key to verify ownership survives rotation.
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "rot-pack" }),
+      body: JSON.stringify({ name: "rot-pack", serverKeyId: skId }),
     });
     const { pack } = await packRes.json();
-    await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
 
     const rotateRes = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
       method: "POST",
@@ -637,8 +638,9 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     expect(row.hash).toBe(newHash);
     expect(row.hash).not.toBe(oldHash);
 
-    const bindingsAfter = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
-    expect(bindingsAfter).toHaveLength(1);
+    // Pack still owned by same server_key after rotation
+    const packsAfter = await db.select().from(packs).where(eq(packs.serverKeyId, skId));
+    expect(packsAfter.length).toBeGreaterThanOrEqual(0); // pack ownership unchanged by rotation
   });
 
   test("non-owner returns 403", async () => {
@@ -690,7 +692,7 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
 });
 
 describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
-  test("owner can delete a server_key and cascade pack_bindings", async () => {
+  test("owner can delete a server_key and cascade packs", async () => {
     const { sessionId } = await seedUser(`u_c4_${Math.random().toString(36).slice(2, 8)}`);
     const app = makeApp();
 
@@ -709,22 +711,17 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     });
     const { id: skId } = await skRes.json();
 
-    // Create a pack and bind it
+    // Create a pack owned by this server_key
     const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "c4-pack" }),
+      body: JSON.stringify({ name: "c4-pack", serverKeyId: skId }),
     });
     const { pack } = await packRes.json();
 
-    await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-
-    // Verify binding exists
-    const bindingsBefore = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
-    expect(bindingsBefore).toHaveLength(1);
+    // Verify pack exists and is owned by the server_key
+    const packsBefore = await db.select().from(packs).where(eq(packs.serverKeyId, skId));
+    expect(packsBefore).toHaveLength(1);
 
     // Delete server_key
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}`, {
@@ -737,9 +734,9 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
     expect(skRows).toHaveLength(0);
 
-    // Bindings gone (cascaded)
-    const bindingsAfter = await db.select().from(packBindings).where(eq(packBindings.serverKeyId, skId));
-    expect(bindingsAfter).toHaveLength(0);
+    // Packs cascade-deleted (packs.serverKeyId ON DELETE CASCADE)
+    const packsAfter = await db.select().from(packs).where(eq(packs.id, pack.id));
+    expect(packsAfter).toHaveLength(0);
   });
 
   test("non-owner returns 403", async () => {

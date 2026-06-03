@@ -18,7 +18,6 @@ import {
   serverKeys,
   serverKeyHelloes,
   packs,
-  packBindings,
   networks,
   linkCodes,
   assets,
@@ -27,14 +26,12 @@ import { generateEditorToken, generateServerKey, generateTrustCode } from "../li
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
-import { createBinding, listPacksForServerKey } from "../lib/packBindingManager";
 import { getPack } from "../lib/packStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 import { eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -62,8 +59,7 @@ async function seedBoundPack(
   editor: Record<string, unknown> = {},
   deleted = false,
 ): Promise<void> {
-  await createPack({ networkId, name: packId, id: packId });
-  await createBinding(serverKeyId, packId);
+  await createPack({ networkId, serverKeyId, name: packId, id: packId });
   await upsertPackContent(packId, {
     hash,
     filesJson: JSON.stringify(files),
@@ -264,8 +260,9 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    // Both packs are in bindings, so both hashes appear. Deleted pack is listed in deleted_pack_ids too.
-    expect(ack.pack_hashes).toEqual({ alive: emptyHash, dead: emptyHash });
+    // In the 1:1 model, deleted packs are excluded from pack_hashes (only non-deleted packs included).
+    // Deleted pack still appears in deleted_pack_ids so the plugin can trash it.
+    expect(ack.pack_hashes).toEqual({ alive: emptyHash });
     expect(ack.deleted_pack_ids).toEqual(["dead"]);
   });
 });
@@ -548,8 +545,8 @@ describe("local_push", () => {
     expect(pack!.networkId).toBe(networkId);
     expect(pack!.hash).toBe("abc123");
 
-    const bound = await listPacksForServerKey(keyId);
-    expect(bound.map((p) => p.id)).toContain("p_pushed");
+    // Verify pack is owned by the server_key (1:1 model)
+    expect(pack!.serverKeyId).toBe(keyId);
 
     // bundle_available should have been broadcast (received after the hello_ack push)
     const bundleMsg = received.map((m) => JSON.parse(m) as { type: string }).find((m) => m.type === "bundle_available");

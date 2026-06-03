@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { networks, memberships, packs, users } from "../db/schema";
+import { networks, memberships, packs, serverKeys, users } from "../db/schema";
 import { isMember, requireMember, getNetworkOfPack } from "./membershipGuard";
 import { createNetwork } from "./networkManager";
 import { addMembership } from "./membershipManager";
 import { createPack } from "./packStorage";
+import { generateServerKey } from "./auth";
 
 async function seedUser(id = "u1") {
   await db.insert(users).values({
@@ -18,6 +19,7 @@ describe("membershipGuard", () => {
     // FK-safe cleanup order: memberships (refs users+networks), packs (refs networks), networks, users
     await db.delete(memberships).catch(() => {});
     await db.delete(packs).catch(() => {});
+    await db.delete(serverKeys).catch(() => {});
     await db.delete(networks).catch(() => {});
     await db.delete(users).catch(() => {});
   });
@@ -66,7 +68,9 @@ describe("membershipGuard", () => {
   it("getNetworkOfPack returns the pack's network", async () => {
     await seedUser("u1");
     const net = await createNetwork("N");
-    const p = await createPack({ networkId: net.id, name: "main" });
+    const { id: skId, hash: skHash } = await generateServerKey();
+    await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
+    const p = await createPack({ networkId: net.id, serverKeyId: skId, name: "main" });
     expect(await getNetworkOfPack(p.id)).toBe(net.id);
   });
 

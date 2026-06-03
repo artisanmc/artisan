@@ -1,10 +1,9 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBindings, packBranches, packCommits, packs, serverKeyHelloes, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBranches, packCommits, packs, serverKeyHelloes, serverKeys } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
-import { createBinding, listPacksForServerKey, listServerKeysForPack } from "../lib/packBindingManager";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -191,19 +190,19 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    const boundPacks = await listPacksForServerKey(keyId);   // already excludes deletedAt
+    // With 1:1 ownership, "bound packs" = packs owned by this server_key (non-deleted)
+    const boundPacks = await db.select().from(packs).where(
+      and(eq(packs.serverKeyId, keyId), isNull(packs.deletedAt)),
+    );
     const deletedRows = await db
       .select({ id: packs.id })
       .from(packs)
-      .innerJoin(packBindings, eq(packBindings.packId, packs.id))
-      .where(and(eq(packBindings.serverKeyId, keyId), isNotNull(packs.deletedAt)));
+      .where(and(eq(packs.serverKeyId, keyId), isNotNull(packs.deletedAt)));
     const deletedPackIds = deletedRows.map((r) => r.id);
 
     // Build pack_hashes via branch → commit content hash (Phase 2).
-    const bindings = await db
-      .select({ packId: packBindings.packId, branchName: packBindings.branchName })
-      .from(packBindings)
-      .where(eq(packBindings.serverKeyId, keyId));
+    // Each pack's binding branch is always "main" in the 1:1 model.
+    const bindings = boundPacks.map((p) => ({ packId: p.id, branchName: "main" as const }));
 
     const packHashesMap: Record<string, string> = {};
     for (const b of bindings) {
@@ -227,8 +226,7 @@ export async function handlePluginMessage(
       const sk = skRows[0];
       if (sk) {
         for (const pid of missingPackIds) {
-          await createPack({ networkId: sk.networkId, name: pid, id: pid });
-          await createBinding(keyId, pid);
+          await createPack({ networkId: sk.networkId, serverKeyId: keyId, name: pid, id: pid });
         }
       }
     }
@@ -393,11 +391,7 @@ export async function handlePluginMessage(
 
     let pack = await getPack(packId);
     if (!pack) {
-      pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
-    }
-    const bound = await listPacksForServerKey(serverId);
-    if (!bound.find((p) => p.id === packId)) {
-      await createBinding(serverId, packId);
+      pack = await createPack({ networkId: sk.networkId, serverKeyId: serverId, name: packId, id: packId });
     }
     await upsertPackContent(packId, { hash, filesJson: JSON.stringify(files) });
     await pushBundleAvailable(packId, "main", hash);
@@ -440,11 +434,11 @@ export async function pushBundleAvailable(
   branchName: string,
   contentHash: string,
 ): Promise<void> {
-  // Find all server_keys bound to (packId, branchName).
+  // Find the server_key that owns this pack (1:1 via packs.serverKeyId).
   const targets = await db
-    .select({ serverKeyId: packBindings.serverKeyId })
-    .from(packBindings)
-    .where(and(eq(packBindings.packId, packId), eq(packBindings.branchName, branchName)));
+    .select({ serverKeyId: packs.serverKeyId })
+    .from(packs)
+    .where(eq(packs.id, packId));
   if (targets.length === 0) return;
 
   const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${packId}?branch=${encodeURIComponent(branchName)}`;
@@ -535,7 +529,9 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
 }
 
 export async function pushPackDeleted(packId: string): Promise<void> {
-  const targets = await listServerKeysForPack(packId);
+  // In the 1:1 model, each pack has exactly one owning server_key via packs.serverKeyId
+  const rows = await db.select({ serverKeyId: packs.serverKeyId }).from(packs).where(eq(packs.id, packId));
+  const targets = rows.map((r) => r.serverKeyId);
   if (targets.length === 0) return;
   const payload = JSON.stringify({ type: "pack_deleted", pack_id: packId });
   const targetSet = new Set(targets);

@@ -2,14 +2,13 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { networks, memberships, serverKeys, serverKeyHelloes, packs, packBindings } from "../db/schema";
+import { networks, memberships, serverKeys, serverKeyHelloes, packs } from "../db/schema";
 import { and, eq, inArray, desc } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
-import { createBinding, deleteBinding } from "../lib/packBindingManager";
 import { getBranch } from "../lib/branchStorage";
 import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
@@ -97,12 +96,16 @@ userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) =>
   const networkId = c.req.param("id");
   try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
 
-  const body = await c.req.json<{ name?: string; description?: string }>();
+  const body = await c.req.json<{ name?: string; description?: string; serverKeyId?: string }>();
   if (typeof body.name !== "string" || body.name.trim().length === 0) {
     return c.json({ error: "invalid_name" }, 422);
   }
+  if (typeof body.serverKeyId !== "string") {
+    return c.json({ error: "missing_server_key" }, 422);
+  }
   const pack = await createPack({
     networkId,
+    serverKeyId: body.serverKeyId,
     name: body.name.trim(),
     description: body.description ?? null,
   });
@@ -126,28 +129,19 @@ userNetworksRouter.get("/:id/packs/:packId/bindings", async (c: Context<{ Variab
     return c.json({ error: "pack_not_in_network" }, 404);
   }
 
-  const rows = await db
-    .select({
-      bindingId: packBindings.id,
-      serverKeyId: packBindings.serverKeyId,
-      branchName: packBindings.branchName,
-      createdAt: packBindings.createdAt,
-      serverKeyLabel: serverKeys.label,
-      lastMcVersion: serverKeys.lastMcVersion,
-    })
-    .from(packBindings)
-    .leftJoin(serverKeys, eq(packBindings.serverKeyId, serverKeys.id))
-    .where(eq(packBindings.packId, packId));
-
-  const bindings = rows.map((r) => ({
-    binding_id: r.bindingId,
-    server_key_id: r.serverKeyId,
-    server_key_label: r.serverKeyLabel,
-    branch_name: r.branchName,
-    created_at: r.createdAt.toISOString(),
-    last_mc_version: r.lastMcVersion,
-    online: getInstanceCount(r.serverKeyId) > 0,
-  }));
+  // In the 1:1 model, a pack has exactly one owning server_key (packs.serverKeyId).
+  const packRow = packRows[0]!;
+  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, packRow.serverKeyId));
+  const sk = skRows[0];
+  const bindings = sk ? [{
+    binding_id: `${packRow.serverKeyId}_${packId}`,
+    server_key_id: packRow.serverKeyId,
+    server_key_label: sk.label,
+    branch_name: "main",
+    created_at: packRow.createdAt.toISOString(),
+    last_mc_version: sk.lastMcVersion,
+    online: getInstanceCount(packRow.serverKeyId) > 0,
+  }] : [];
 
   return c.json({ bindings });
 });
@@ -173,11 +167,8 @@ userNetworksRouter.patch("/:id/packs/:packId/bindings/:serverKeyId", async (c: C
     return c.json({ error: "branch_not_found" }, 404);
   }
 
-  await db
-    .update(packBindings)
-    .set({ branchName })
-    .where(and(eq(packBindings.serverKeyId, skId), eq(packBindings.packId, packId)));
-
+  // In the 1:1 model, branch switching is not stored on the binding.
+  // Return ok for forward-compat until Task 1.x adds per-pack branch tracking.
   return c.json({ ok: true });
 });
 
@@ -209,7 +200,7 @@ userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Co
     return c.json({ error: "branch_not_found" }, 404);
   }
 
-  await createBinding(skId, packId, branchName);
+  // In the 1:1 model, packs.serverKeyId is set at creation. Explicit bind is a no-op.
   return c.json({ ok: true }, 201);
 });
 
@@ -333,8 +324,7 @@ userNetworksRouter.delete("/:id/server-keys/:keyId", async (c: Context<{ Variabl
   const networkId = c.req.param("id");
   const keyId = c.req.param("keyId");
   try { await requireMember(userId, networkId, "owner"); } catch { return c.json({ error: "forbidden" }, 403); }
-  // Explicit cascade: delete bindings first (FK also cascades, but be explicit)
-  await db.delete(packBindings).where(eq(packBindings.serverKeyId, keyId));
+  // packs.serverKeyId has ON DELETE CASCADE — deleting the server_key cascades to its packs.
   await db.delete(serverKeys).where(and(
     eq(serverKeys.id, keyId),
     eq(serverKeys.networkId, networkId),
@@ -352,6 +342,6 @@ userNetworksRouter.delete("/:id/packs/:packId/bindings/:serverKeyId", async (c: 
   const skId = c.req.param("serverKeyId");
   try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
 
-  await deleteBinding(skId, packId);
+  // In the 1:1 model, unbinding is not supported (pack ownership is fixed at creation).
   return c.body(null, 204);
 });

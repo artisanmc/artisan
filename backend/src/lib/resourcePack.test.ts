@@ -7,7 +7,6 @@ import {
   assets,
   serverKeys,
   packs,
-  packBindings,
   networks,
   editorSessions,
   linkCodes,
@@ -17,7 +16,6 @@ import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
 import { createNetwork } from "./networkManager";
 import { createPack } from "./packStorage";
-import { createBinding } from "./packBindingManager";
 import { join } from "path";
 
 const PNG_1x1 = new Uint8Array([
@@ -41,8 +39,7 @@ async function seedSetup(): Promise<{ serverKeyId: string; packId: string }> {
     networkId: net.id,
     createdAt: new Date(),
   });
-  const pack = await createPack({ networkId: net.id, name: "p" });
-  await createBinding(serverKeyId, pack.id);
+  const pack = await createPack({ networkId: net.id, serverKeyId, name: "p" });
   return { serverKeyId, packId: pack.id };
 }
 
@@ -62,7 +59,6 @@ let packId: string;
 
 beforeEach(async () => {
   // FK-safe cleanup
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -135,8 +131,7 @@ describe("rebuildResourcePack", () => {
     // The seedSetup fixture already created `packId` (pack A) for serverKeyId.
     // Add a second bound pack B with a glyph that collides at the same codepoint.
     const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0]!;
-    const packB = await createPack({ networkId: skRow.networkId, name: "pb" });
-    await createBinding(serverKeyId, packB.id);
+    const packB = await createPack({ networkId: skRow.networkId, serverKeyId, name: "pb" });
 
     const glyphAId = await seedGlyph(packId, "alpha", 0xE000);
     const glyphBId = await seedGlyph(packB.id, "beta", 0xE000);

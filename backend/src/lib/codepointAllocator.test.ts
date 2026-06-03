@@ -1,13 +1,16 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { assets, packs, networks } from "../db/schema";
+import { assets, packs, networks, serverKeys } from "../db/schema";
 import { allocateCodepoint, CODEPOINT_MIN, CODEPOINT_MAX } from "./codepointAllocator";
 import { createNetwork } from "./networkManager";
 import { createPack } from "./packStorage";
+import { generateServerKey } from "./auth";
 
 async function seedPack(): Promise<string> {
   const net = await createNetwork("N");
-  const pack = await createPack({ networkId: net.id, name: "p_" + crypto.randomUUID().slice(0, 6) });
+  const { id: skId, hash: skHash } = await generateServerKey();
+  await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
+  const pack = await createPack({ networkId: net.id, serverKeyId: skId, name: "p_" + crypto.randomUUID().slice(0, 6) });
   return pack.id;
 }
 

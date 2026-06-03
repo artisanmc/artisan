@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, packs, packBindings, linkCodes } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, packs, linkCodes } from "../db/schema";
 import { readFontGlyph, fontDirPaths } from "../lib/fontStorage";
 import { existsSync } from "fs";
 import { assetsRouter } from "./assets";
@@ -31,7 +31,6 @@ app.route("/api/v1/editor-session", assetsRouter);
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -84,16 +83,12 @@ async function seedSession(): Promise<{ token: string; serverKeyId: string; pack
   const serverKeyId = "sk_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(serverKeys).values({ id: serverKeyId, hash: "h" + serverKeyId.slice(0, 8), networkId, createdAt: new Date() });
 
-  // Pack
+  // Pack (serverKeyId stored directly — no separate binding row)
   const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(packs).values({
-    id: packId, networkId, name: "test-pack",
+    id: packId, networkId, serverKeyId, name: "test-pack",
     hash: "", filesJson: "{}", createdAt: new Date(), updatedAt: new Date(),
   });
-
-  // Binding
-  const bindId = "bind_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  await db.insert(packBindings).values({ id: bindId, serverKeyId, packId, createdAt: new Date() });
 
   // EditorSession (access token = token for simplicity)
   const token = "acc_" + crypto.randomUUID().replace(/-/g, "");
