@@ -934,4 +934,15 @@ export default {
     empty: "No connection logged yet.",
     error: "Failed to load the audit log.",
   },
+  ipAllowlistModal: {
+    title: "IP allowlist",
+    help: "Restrict server connections to specific IPs. Leave empty to accept any.",
+    placeholder: "203.0.113.42",
+    add: "Add",
+    remove: "Remove",
+    loading: "Loading…",
+    empty: "No IP restriction. Plugin may connect from any IP.",
+    error: "Failed to load the allowlist.",
+    close: "Close",
+  },
 };
