@@ -62,9 +62,9 @@ export async function createServerKey(
 
 export async function createPack(
   networkId: string,
+  serverKeyId: string,
   name: string,
   description?: string,
-  serverKeyId?: string,
 ): Promise<PackSummary> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs`, {
     method: "POST",
@@ -72,8 +72,8 @@ export async function createPack(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name,
+      serverKeyId,
       ...(description !== undefined && { description }),
-      ...(serverKeyId !== undefined && { server_key_id: serverKeyId }),
     }),
   });
   if (!res.ok) throw new Error(`createPack failed: ${res.status}`);
