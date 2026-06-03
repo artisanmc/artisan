@@ -131,6 +131,7 @@ export const memberships = pgTable("memberships", {
 export const packs = pgTable("packs", {
   id: text("id").primaryKey(),
   networkId: text("network_id").notNull().references(() => networks.id, { onDelete: "cascade" }),
+  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   hash: text("hash").notNull().default(""),
@@ -143,18 +144,7 @@ export const packs = pgTable("packs", {
 }, (t) => [
   index("packs_network_idx").on(t.networkId),
   index("packs_network_deleted_idx").on(t.networkId, t.deletedAt),
-]);
-
-export const packBindings = pgTable("pack_bindings", {
-  id: text("id").primaryKey(),
-  serverKeyId: text("server_key_id").notNull().references(() => serverKeys.id, { onDelete: "cascade" }),
-  packId: text("pack_id").notNull().references(() => packs.id, { onDelete: "cascade" }),
-  branchName: text("branch_name").notNull().default("main"),
-  createdAt: timestamp("created_at").notNull(),
-}, (t) => [
-  uniqueIndex("pack_bindings_uniq").on(t.serverKeyId, t.packId, t.branchName),
-  index("pack_bindings_pack_idx").on(t.packId),
-  index("pack_bindings_serverkey_idx").on(t.serverKeyId),
+  index("packs_server_key_idx").on(t.serverKeyId),
 ]);
 
 export const packCommits = pgTable("pack_commits", {
