@@ -72,7 +72,7 @@ export function NetworksPage() {
           to="/setup"
           className="self-start text-[12.5px] text-[var(--ink-mut)] underline-offset-2 hover:text-[var(--terra)] hover:underline"
         >
-          {t("networksPage.addServer")}
+          {t("networksPage.addNetwork")}
         </Link>
       </div>
     </div>

@@ -645,7 +645,7 @@ const fr: typeof en = {
     title: "Mes Networks",
     none: "Aucun Network. Lance {{cmd}} sur ton serveur Minecraft pour commencer.",
     createNetwork: "Créer un Network",
-    addServer: "+ Ajouter un serveur",
+    addNetwork: "+ Ajouter un network",
     tierLabel: "Tier",
   },
   networkDetail: {
