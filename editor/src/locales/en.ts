@@ -945,4 +945,13 @@ export default {
     error: "Failed to load the allowlist.",
     close: "Close",
   },
+  deleteServerDialog: {
+    title: 'Delete server "{{label}}" ?',
+    warning: "This action is irreversible. The plugin will lose access on its next hello.",
+    workspacesAlsoDeleted_one: "{{count}} workspace will also be deleted.",
+    workspacesAlsoDeleted_other: "{{count}} workspaces will also be deleted.",
+    confirmLabel: 'Type "{{label}}" to confirm:',
+    cancel: "Cancel",
+    confirm: "Delete server",
+  },
 };
