@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ServerKebabMenu } from "./ServerKebabMenu";
 
 interface Server { id: string; label: string | null; online: boolean; lastSeen?: string | null; }
 interface Workspace { id: string; name: string; }
@@ -29,15 +30,7 @@ export function ServerCard({ server, workspaces, onAction, onCreateWorkspace }: 
             {server.label ?? server.id.slice(0, 12)}
           </span>
         </div>
-        {/* Kebab menu — full implementation in Task 3.2 */}
-        <button
-          type="button"
-          className="btn btn-icon btn-sm btn-ghost"
-          onClick={() => onAction("show-key", server.id)}
-          aria-label="actions"
-        >
-          ⋮
-        </button>
+        <ServerKebabMenu serverId={server.id} onAction={onAction} />
       </div>
 
       <p className="text-[11.5px] text-[var(--ink-faint)]">
