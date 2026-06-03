@@ -128,6 +128,24 @@ export async function mergeBranches(
   return res.json();
 }
 
+/**
+ * Fetches the editor + files content of a specific commit by id. Used by the
+ * History tab Restore action to roll back the editor's WIP to any past commit.
+ */
+export async function getCommitContent(
+  networkId: string,
+  packId: string,
+  commitId: string,
+): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/commits/${commitId}/content`,
+    { credentials: "include" },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`getCommitContent failed: ${res.status}`);
+  return res.json();
+}
+
 export async function resolveMerge(
   networkId: string,
   packId: string,
