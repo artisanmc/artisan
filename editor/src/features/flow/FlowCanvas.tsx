@@ -49,7 +49,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
@@ -164,12 +164,9 @@ function EmptyHint({ label }: { label: string }) {
  * panel. Provides a discoverable entry point into focus mode, complementing
  * the existing double-click affordance on the canvas.
  */
-function FocusButton({ elementId, packId: _packId }: { elementId: ElementId; packId: PackId }) {
+function FocusButton({ elementId, packId }: { elementId: ElementId; packId: PackId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { workspaceId } = useParams({ strict: false }) as { workspaceId?: string };
-
-  if (!workspaceId) return null;
 
   return (
     <div className="shrink-0 border-zinc-800 border-b bg-zinc-900 px-3 py-2">
@@ -178,7 +175,7 @@ function FocusButton({ elementId, packId: _packId }: { elementId: ElementId; pac
         onClick={() =>
           navigate({
             to: "/workspace/$workspaceId/element/$elementId",
-            params: { workspaceId, elementId },
+            params: { workspaceId: packId, elementId },
           })
         }
         className="flex w-full items-center justify-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 hover:border-emerald-400 hover:bg-emerald-500/20 transition-colors"

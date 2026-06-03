@@ -135,7 +135,7 @@ describe("MenuGroup — onDblClick navigates to focus-mode route", () => {
     expect(navigate).toHaveBeenCalledOnce();
     expect(navigate).toHaveBeenCalledWith({
       to: "/workspace/$workspaceId/element/$elementId",
-      params: { workspaceId: "ws1", elementId: MENU_ID },
+      params: { workspaceId: PACK_ID, elementId: MENU_ID },
     });
   });
 });

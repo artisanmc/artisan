@@ -39,7 +39,7 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
     [dialog.id],
   );
 
-  const onDblClick = useElementDblClickNav(dialog.id);
+  const onDblClick = useElementDblClickNav(packId, dialog.id);
 
   return (
     <Group

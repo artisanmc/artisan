@@ -88,7 +88,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const { onClick } = useMenuClick({ packId, menu, layout });
 
-  const onDblClick = useElementDblClickNav(menu.id);
+  const onDblClick = useElementDblClickNav(packId, menu.id);
 
   const { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd } = useSlotDrag({
     packId,
