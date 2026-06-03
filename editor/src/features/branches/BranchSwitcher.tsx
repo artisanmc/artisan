@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { GitBranch } from "lucide-react";
 import { useBranchesStore } from "@/state/branchesStore";
 import { listBranches } from "@/lib/api/branches";
 
@@ -15,23 +16,15 @@ export function BranchSwitcher({ networkId, packId }: Props) {
   }, [networkId, packId, setBranches]);
 
   if (branches.length === 0) return null;
+  // Flex shell holds the border + background; the native <select> sits inside
+  // as transparent, so the icon and the selected-value text live in the same
+  // flex row — no absolute positioning hacks, no clash with the browser's
+  // native select padding quirks.
   return (
-    <div className="relative inline-flex items-center">
-      <svg
-        viewBox="0 0 24 24"
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-[13px] text-[var(--sage)]"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <circle cx="6" cy="6" r="3" />
-        <circle cx="6" cy="18" r="3" />
-        <path d="M6 9v6" />
-        <circle cx="18" cy="6" r="3" />
-        <path d="M18 9a9 9 0 0 1-9 9" />
-      </svg>
+    <label className="inline-flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--raised)] pl-3 pr-2 hover:border-[var(--line-strong)] focus-within:border-[var(--terra-line)]">
+      <GitBranch className="size-[13px] shrink-0 text-[var(--sage)]" />
       <select
-        className="select mono h-[34px] py-0 pl-[34px] pr-7 text-[12.5px]"
+        className="mono h-full appearance-none bg-transparent pr-3 font-mono text-[12.5px] text-[var(--ink-2)] outline-none"
         value={currentBranch ?? ""}
         onChange={(e) => setCurrentBranch(e.target.value)}
       >
@@ -39,6 +32,6 @@ export function BranchSwitcher({ networkId, packId }: Props) {
           <option key={b.name} value={b.name}>{b.name}</option>
         ))}
       </select>
-    </div>
+    </label>
   );
 }
