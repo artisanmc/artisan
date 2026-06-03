@@ -91,6 +91,47 @@ describe("userBranchesRouter — GET branches + commits", () => {
     });
     expect(res.status).toBe(403);
   });
+
+  test("GET /branches/:branch/head returns the head commit's editor + files (Revert payload)", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/networks/${networkId}/packs/${packId}/branches/main/head`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.commit?.id).toBeDefined();
+    expect(body.commit?.message).toBe("Initial commit");
+    expect(typeof body.editor).toBe("object");
+    expect(typeof body.files).toBe("object");
+  });
+
+  test("GET /branches/:branch/head returns 404 when branch unknown", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/networks/${networkId}/packs/${packId}/branches/does-not-exist/head`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("branch_not_found");
+  });
+
+  test("GET /branches/:branch/head returns 403 when not member", async () => {
+    const { networkId, packId } = await seedUserWithPack("uA");
+    await db.insert(users).values({
+      id: "uB2", email: "uB2@a.b", name: "uB2", passwordHash: null, avatarUrl: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const sessB = (await createSession("uB2")).id;
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/networks/${networkId}/packs/${packId}/branches/main/head`,
+      { headers: { Cookie: `artisan_user_session=${sessB}` } },
+    );
+    expect(res.status).toBe(403);
+  });
 });
 
 // ─── B2: POST /branches ─────────────────────────────────────────────────────

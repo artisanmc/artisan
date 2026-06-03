@@ -39,6 +39,25 @@ export async function listCommits(networkId: string, packId: string, branch: str
   return ((await res.json()) as { commits: Commit[] }).commits;
 }
 
+/**
+ * Fetches the editor + files content of a branch's HEAD commit. Used by the
+ * Revert / Discard action in user-auth mode to restore the last committed
+ * (deployed) state, replacing the editor's WIP.
+ */
+export async function getBranchHead(
+  networkId: string,
+  packId: string,
+  branch: string,
+): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/branches/${encodeURIComponent(branch)}/head`,
+    { credentials: "include" },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`getBranchHead failed: ${res.status}`);
+  return res.json();
+}
+
 export async function createCommit(networkId: string, packId: string, branch: string, message: string): Promise<Commit> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${packId}/commits`, {
     method: "POST",

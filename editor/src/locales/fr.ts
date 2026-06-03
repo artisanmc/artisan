@@ -848,7 +848,7 @@ const fr: typeof en = {
     deployTitle: "Déployer — rendre les modifications visibles aux joueurs",
     revertTitle: "Annuler les modifications (revenir à la version live)",
     cannotDeployTitle: "Déployer demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
-    cannotRevertTitle: "Annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur.",
+    cannotRevertTitle: "Annuler demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
     noSessionTitle: "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
   },
   auth: {
