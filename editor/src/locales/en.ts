@@ -560,7 +560,17 @@ export default {
       translations: "Translations",
       dataSources: "Data Sources",
       servers: "Servers",
+      history: "History",
     },
+  },
+  historyTab: {
+    title: "History",
+    loading: "Loading…",
+    empty: "No commits yet.",
+    restore: "Restore",
+    restoring: "Restoring…",
+    restored: "Restored ✓",
+    restoreFailed: "Restore failed",
   },
   branchBar: {
     dirty: "modified",

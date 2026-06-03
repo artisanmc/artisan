@@ -568,7 +568,17 @@ const fr: typeof en = {
       translations: "Traductions",
       dataSources: "Sources de données",
       servers: "Serveurs",
+      history: "Historique",
     },
+  },
+  historyTab: {
+    title: "Historique",
+    loading: "Chargement…",
+    empty: "Aucun commit pour le moment.",
+    restore: "Restaurer",
+    restoring: "Restauration…",
+    restored: "Restauré ✓",
+    restoreFailed: "Échec de la restauration",
   },
   branchBar: {
     dirty: "modifié",
