@@ -1,4 +1,6 @@
-import { listPacksForServerKey } from "./packBindingManager";
+import { and, eq, isNull } from "drizzle-orm";
+import { db } from "../db/index";
+import { packs } from "../db/schema";
 
 export async function computeBundleHash(files: Record<string, string>, packId: string): Promise<string> {
   const prefix = `plugins/Artisan/packs/${packId}/`;
@@ -15,7 +17,9 @@ export async function computeBundleHash(files: Record<string, string>, packId: s
 }
 
 export async function computeAllPacksHash(serverId: string): Promise<string> {
-  const boundPacks = await listPacksForServerKey(serverId);
+  const boundPacks = await db.select().from(packs).where(
+    and(eq(packs.serverKeyId, serverId), isNull(packs.deletedAt)),
+  );
 
   if (boundPacks.length === 0) return "";
 

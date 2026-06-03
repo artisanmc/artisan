@@ -10,7 +10,6 @@ import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, pushPackDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { readEditorLayoutFromFiles } from "../lib/packImport";
-import { listPacksForServerKey, createBinding } from "../lib/packBindingManager";
 import { getPack, upsertPackContent, createPack, softDeletePack } from "../lib/packStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
@@ -123,7 +122,9 @@ router.delete("/:token", async (c) => {
 router.get("/:token/packs", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const packList = await listPacksForServerKey(session.serverKeyId);
+  const packList = await db.select().from(packs).where(
+    and(eq(packs.serverKeyId, session.serverKeyId), isNull(packs.deletedAt)),
+  );
   return c.json({
     packs: packList.map((p) => ({
       pack_id: p.id,
@@ -152,8 +153,7 @@ router.put("/:token/packs/:packId", async (c) => {
 
   let pack = await getPack(packId);
   if (!pack) {
-    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
-    await createBinding(session.serverKeyId, packId);
+    pack = await createPack({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: packId, id: packId });
   } else if (pack.networkId !== sk.networkId) {
     return c.json({ error: "Cross-network pack" }, 403);
   }
@@ -187,8 +187,7 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
 
   let pack = await getPack(packId);
   if (!pack) {
-    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
-    await createBinding(session.serverKeyId, packId);
+    pack = await createPack({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: packId, id: packId });
   } else if (pack.networkId !== sk.networkId) {
     return c.json({ error: "Cross-network pack" }, 403);
   }

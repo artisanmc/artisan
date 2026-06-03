@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, packBindings, serverKeys,
+  memberships, networks, packs, serverKeys,
   editorSessions, linkCodes, packCommits, packBranches, assets,
   users, userSessions,
 } from "../db/schema";
@@ -14,9 +14,9 @@ import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { createPack } from "../lib/packStorage";
+import { generateServerKey } from "../lib/auth";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(packBranches);
   await db.delete(packCommits);
   await db.delete(assets);
@@ -38,7 +38,9 @@ async function seedUserWithPack(userId = "u1") {
   const sess = await createSession(userId);
   const net = await createNetwork("N");
   await addMembership(userId, net.id, "owner");
-  const pack = await createPack({ networkId: net.id, name: "p" });
+  const { id: skId, hash: skHash } = await generateServerKey();
+  await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
+  const pack = await createPack({ networkId: net.id, serverKeyId: skId, name: "p" });
   return { userId, sessionId: sess.id, networkId: net.id, packId: pack.id };
 }
 

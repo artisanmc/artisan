@@ -3,11 +3,10 @@ import { app } from "../app";
 import { db } from "../db/index";
 import {
   editorSessions, linkCodes, serverKeys, networks,
-  packBindings, packs, assets,
+  packs, assets,
 } from "../db/schema";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);

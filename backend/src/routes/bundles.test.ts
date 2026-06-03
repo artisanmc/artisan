@@ -2,11 +2,10 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { networks, serverKeys, packBindings, packs, editorSessions, linkCodes, packCommits, packBranches } from "../db/schema";
+import { networks, serverKeys, packs, editorSessions, linkCodes, packCommits, packBranches } from "../db/schema";
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
-import { createBinding } from "../lib/packBindingManager";
 import { createPack } from "../lib/packStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
@@ -36,7 +35,6 @@ async function seedServerKey(label: string): Promise<{ key: string; id: string; 
 }
 
 beforeEach(async () => {
-  await db.delete(packBindings);
   await db.delete(packs);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
@@ -84,9 +82,8 @@ describe("bundle upload/download", () => {
     const app = buildApp();
     const { key, id: skId, networkId } = await seedServerKey("c3-test");
 
-    // Create pack + binding via DB helpers (simulating Phase 2 flow)
-    const pack = await createPack({ networkId, name: "c3-pack", id: "p_c3" });
-    await createBinding(skId, pack.id);
+    // Create pack via DB helper (binding now implicit via serverKeyId column)
+    const pack = await createPack({ networkId, serverKeyId: skId, name: "c3-pack", id: "p_c3" });
 
     // Add a second commit with concrete files and advance main head
     const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
@@ -147,11 +144,9 @@ describe("bundle upload/download", () => {
     });
     expect(res2.status).toBe(200);
 
-    // Only one binding should exist
-    const bindings = await db.select().from(packBindings).where(
-      and(eq(packBindings.serverKeyId, serverKeyId), eq(packBindings.packId, "p_reuse"))
-    );
-    expect(bindings.length).toBe(1);
+    // Only one pack row should exist (no duplicate created on second POST)
+    const packRows = await db.select().from(packs).where(eq(packs.id, "p_reuse"));
+    expect(packRows.length).toBe(1);
 
     // GET serves branch head commit (initial empty commit) — NOT the WIP files from POST.
     const getRes = await app.request("/api/v1/bundles/p_reuse", {

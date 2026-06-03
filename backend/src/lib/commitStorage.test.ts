@@ -1,21 +1,25 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { packCommits, packBranches, packs, networks, users } from "../db/schema";
+import { packCommits, packBranches, packs, networks, serverKeys, users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import {
   createCommit, getCommit, listCommitsByPack, computeContentHash,
 } from "./commitStorage";
 import { createNetwork } from "./networkManager";
 import { createPack } from "./packStorage";
+import { generateServerKey } from "./auth";
 
 async function seedSetup() {
   await db.delete(packBranches);
   await db.delete(packCommits);
   await db.delete(packs);
+  await db.delete(serverKeys);
   await db.delete(networks);
   await db.delete(users);
   const net = await createNetwork("N");
-  const pack = await createPack({ networkId: net.id, name: "p" });
+  const { id: skId, hash: skHash } = await generateServerKey();
+  await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
+  const pack = await createPack({ networkId: net.id, serverKeyId: skId, name: "p" });
   return { networkId: net.id, packId: pack.id };
 }
 

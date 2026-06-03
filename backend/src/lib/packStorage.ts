@@ -36,6 +36,7 @@ function defaultEditorJson(id: string, name: string, now: Date): string {
 
 export async function createPack(input: {
   networkId: string;
+  serverKeyId: string;  // required: the server_key that owns this pack
   name: string;
   description?: string | null;
   id?: string;          // optional, default generated
@@ -46,6 +47,7 @@ export async function createPack(input: {
   await db.insert(packs).values({
     id,
     networkId: input.networkId,
+    serverKeyId: input.serverKeyId,
     name: input.name,
     description: input.description ?? null,
     hash: "",
