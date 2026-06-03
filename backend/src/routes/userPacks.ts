@@ -4,7 +4,7 @@ import type { Context } from "hono";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { packBindings } from "../db/schema";
+import { packs as packsTable } from "../db/schema";
 import { getMcVersion } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
 import { getPack, upsertPackContent } from "../lib/packStorage";
@@ -19,12 +19,12 @@ function getUserId(c: Context<{ Variables: Vars }>): string | null {
   return c.get("user")?.id ?? null;
 }
 
-/** Resolve a representative serverKeyId for the pack (first binding). */
+/** Resolve the serverKeyId for the pack (1:1 ownership via packs.serverKeyId). */
 async function getServerKeyIdForPack(packId: string): Promise<string | null> {
   const rows = await db
-    .select({ serverKeyId: packBindings.serverKeyId })
-    .from(packBindings)
-    .where(eq(packBindings.packId, packId))
+    .select({ serverKeyId: packsTable.serverKeyId })
+    .from(packsTable)
+    .where(eq(packsTable.id, packId))
     .limit(1);
   return rows[0]?.serverKeyId ?? null;
 }

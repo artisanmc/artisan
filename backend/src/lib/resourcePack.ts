@@ -1,12 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { db } from "../db/index";
-import { assets, serverKeys } from "../db/schema";
+import { assets, packs, serverKeys } from "../db/schema";
 import { assetPath } from "./assetStorage";
 import { fontDirPaths } from "./fontStorage";
-import { listPacksForServerKey } from "./packBindingManager";
 import { buildResourcePackZip, type FontMeta } from "./resourcePackBuilder";
 import {
   pruneOldResourcePacks,
@@ -38,7 +37,9 @@ export interface PackInfo {
 
 export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
   // Stable order: oldest pack first → its codepoints win in case of collisions.
-  const boundPacks = await listPacksForServerKey(serverKeyId);
+  const boundPacks = await db.select().from(packs).where(
+    and(eq(packs.serverKeyId, serverKeyId), isNull(packs.deletedAt)),
+  );
   boundPacks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
   // Aggregate assets across all bound packs, capturing per-pack glyph contributions

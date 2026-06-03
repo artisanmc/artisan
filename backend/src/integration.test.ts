@@ -139,10 +139,14 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
 
   test("GET /api/v1/bundles/:packId serves branch head commit content (not WIP)", async () => {
     const key = await createKey("integ-download");
+    // Use a unique pack id to avoid collision with other tests that also uploaded p_shop
+    const uniquePackId = "p_dl_" + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     // POST writes WIP only — GET serves the main branch head commit (initial empty commit).
-    await uploadBundle(key, "p_shop", PACK_FILES);
+    await uploadBundle(key, uniquePackId, {
+      [`plugins/Artisan/packs/${uniquePackId}/manifest.yaml`]: "schema: manifest/v1\n",
+    });
 
-    const downloadRes = await app.request("/api/v1/bundles/p_shop", {
+    const downloadRes = await app.request(`/api/v1/bundles/${uniquePackId}`, {
       headers: { Authorization: `Bearer ${key}` },
     });
     expect(downloadRes.status).toBe(200);

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, packBindings, serverKeys,
+  memberships, networks, packs, serverKeys,
   editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userPacksRouter } from "./userPacks";
@@ -12,9 +12,9 @@ import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { createPack, upsertPackContent } from "../lib/packStorage";
+import { generateServerKey } from "../lib/auth";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
@@ -39,7 +39,9 @@ async function seedUserWithPack(userId: string) {
   const session = await createSession(userId);
   const network = await createNetwork("N");
   await addMembership(userId, network.id, "owner");
-  const pack = await createPack({ networkId: network.id, name: "p" });
+  const { id: skId, hash: skHash } = await generateServerKey();
+  await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: network.id, createdAt: new Date() });
+  const pack = await createPack({ networkId: network.id, serverKeyId: skId, name: "p" });
   await upsertPackContent(pack.id, {
     hash: "h1",
     filesJson: '{"menus/m.yaml":"id: m"}',

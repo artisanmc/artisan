@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { strToU8 } from "fflate";
 import { readFile } from "fs/promises";
 import { db } from "../db/index";
-import { assets } from "../db/schema";
+import { assets, packs } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
 import { writeAssetFile, deleteAssetFile, assetPath } from "../lib/assetStorage";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
@@ -13,7 +13,6 @@ import { readPngDimensions, readPngContentWidth } from "../lib/pngDimensions";
 import { allocateCodepoint } from "../lib/codepointAllocator";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { pushResourcePackUpdated } from "../ws/hub";
-import { listPacksForServerKey } from "../lib/packBindingManager";
 
 export const assetsRouter = new Hono();
 
@@ -34,8 +33,11 @@ async function assertBound(
 ): Promise<BoundResult> {
   const session = await validateAccessToken(token);
   if (!session) return { ok: false, response: c.json({ error: "Unauthorized" }, 401) };
-  const bound = await listPacksForServerKey(session.serverKeyId);
-  if (!bound.find((p) => p.id === packId)) {
+  // In the 1:1 model, verify pack is owned by this session's server_key
+  const packRows = await db.select().from(packs).where(
+    and(eq(packs.id, packId), eq(packs.serverKeyId, session.serverKeyId)),
+  );
+  if (packRows.length === 0) {
     return { ok: false, response: c.json({ error: "Pack not bound" }, 403) };
   }
   return { ok: true, session };

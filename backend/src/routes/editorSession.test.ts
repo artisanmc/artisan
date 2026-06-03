@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, packBindings, packs, serverKeys, networks } from "../db/schema";
+import { editorSessions, packs, serverKeys, networks } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
 import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
@@ -16,7 +16,6 @@ app.route("/api/v1/editor-session", editorSessionRouter);
 // ─── Cleanup ───────────────────────────────────────────────────────────────
 // FK-safe cleanup order for each test
 beforeEach(async () => {
-  await db.delete(packBindings);
   await db.delete(packs);
   await db.delete(editorSessions);
   // linkCodes references serverKeys — omit if not used in this file
@@ -50,9 +49,7 @@ async function seedBoundPack(
   if (skRows.length === 0) throw new Error("seed: server_key absent");
   const networkId = skRows[0].networkId;
   const { createPack } = await import("../lib/packStorage");
-  const { createBinding } = await import("../lib/packBindingManager");
-  await createPack({ networkId, name: packId, id: packId });
-  await createBinding(serverKeyId, packId);
+  await createPack({ networkId, serverKeyId, name: packId, id: packId });
   const editorJson = extraEditorJson ? JSON.stringify(extraEditorJson) : JSON.stringify({ id: packId, name: packId });
   await db.update(packs)
     .set({ hash, filesJson: JSON.stringify(files), editorJson })
@@ -510,11 +507,9 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
       body: JSON.stringify({ pack: { id: "p_new_deploy", name: "New" }, files: { "manifest.yaml": "" } }),
     });
     expect(res.status).toBe(201);
-    // Pack and binding should now exist in DB
+    // Pack should now exist in DB with the correct server_key owner
     const packRows = await db.select().from(packs).where(eq(packs.id, "p_new_deploy"));
     expect(packRows.length).toBe(1);
-    const bindingRows = await db.select().from(packBindings).where(eq(packBindings.packId, "p_new_deploy"));
-    expect(bindingRows.length).toBe(1);
   });
 
   test("sets deployedEditorJson after deploy (not just editorJson)", async () => {

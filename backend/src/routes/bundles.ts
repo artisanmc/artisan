@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { serverKeys, packBindings, packBranches, packCommits } from "../db/schema";
+import { serverKeys, packs, packBranches, packCommits } from "../db/schema";
 import { validateServerKeyHeader } from "../lib/auth";
 import { computeBundleHash } from "../lib/hashUtils";
 import { getPack, createPack, upsertPackContent } from "../lib/packStorage";
-import { createBinding, listPacksForServerKey } from "../lib/packBindingManager";
 
 const router = new Hono();
 
@@ -23,14 +22,7 @@ router.post("/:packId", async (c) => {
 
   let pack = await getPack(packId);
   if (!pack) {
-    pack = await createPack({ networkId: sk.networkId, name: packId, id: packId });
-  }
-  // Ensure THIS server_key has a binding to the pack. The pack may have been
-  // created by a different server_key (e.g. multi-server-sync scenario); we
-  // still need the binding for `listPacksForServerKey` to surface it.
-  const bound = await listPacksForServerKey(serverKeyId);
-  if (!bound.find((p) => p.id === packId)) {
-    await createBinding(serverKeyId, packId);
+    pack = await createPack({ networkId: sk.networkId, serverKeyId: sk.id, name: packId, id: packId });
   }
   await upsertPackContent(packId, { hash, filesJson: JSON.stringify(body.files) });
   return c.json({ ok: true, hash });
@@ -42,14 +34,15 @@ router.get("/:packId", async (c) => {
 
   const packId = c.req.param("packId");
 
-  const binding = (await db.select().from(packBindings).where(and(
-    eq(packBindings.serverKeyId, serverKeyId),
-    eq(packBindings.packId, packId),
+  // Verify the pack belongs to this server_key (1:1 ownership via packs.serverKeyId)
+  const packRow = (await db.select().from(packs).where(and(
+    eq(packs.id, packId),
+    eq(packs.serverKeyId, serverKeyId),
   )))[0];
-  if (!binding) return c.json({ error: "Not bound" }, 404);
+  if (!packRow) return c.json({ error: "Not bound" }, 404);
 
   const branch = (await db.select().from(packBranches).where(and(
-    eq(packBranches.packId, packId), eq(packBranches.name, binding.branchName),
+    eq(packBranches.packId, packId), eq(packBranches.name, "main"),
   )))[0];
   if (!branch) return c.json({ error: "Branch not found" }, 404);
 

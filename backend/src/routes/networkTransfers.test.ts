@@ -4,12 +4,11 @@ import { app } from "../app";
 import { db } from "../db/index";
 import {
   users, userSessions, networks, memberships, networkTransfers,
-  serverKeys, linkCodes, packs, packBindings, assets, editorSessions,
+  serverKeys, linkCodes, packs, assets, editorSessions,
 } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
-  await db.delete(packBindings);
   await db.delete(assets);
   await db.delete(packs);
   await db.delete(editorSessions);
