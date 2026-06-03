@@ -9,12 +9,14 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import { CSS } from "@dnd-kit/utilities";
 import { LayoutGrid, Settings, GripVertical, GitBranch } from "lucide-react";
 import { NetworkDropdown } from "./NetworkDropdown";
+import { ServerDropdown } from "./ServerDropdown";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useBranchesStore } from "@/state/branchesStore";
 import { useUiStore } from "@/state/uiStore";
+import { useServersStore } from "@/state/serversStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
 
@@ -31,7 +33,9 @@ export function WorkspaceSidebar() {
   // Link and the handle live in distinct hit areas.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
+  const [networkServers, setNetworkServers] = useState<{ id: string; label: string | null }[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
+  const activeServerId = useServersStore((s) => s.activeServerId);
 
   useEffect(() => {
     if (networks.length === 0) {
@@ -51,16 +55,23 @@ export function WorkspaceSidebar() {
   useEffect(() => {
     if (!activeNetworkId) {
       setServerPacks([]);
+      setNetworkServers([]);
       return;
     }
     let cancelled = false;
     const refetch = () => {
       getNetwork(activeNetworkId)
         .then((d) => {
-          if (!cancelled) setServerPacks(d.packs);
+          if (!cancelled) {
+            setServerPacks(d.packs);
+            setNetworkServers(d.serverKeys.map((s) => ({ id: s.id, label: s.label })));
+          }
         })
         .catch(() => {
-          if (!cancelled) setServerPacks([]);
+          if (!cancelled) {
+            setServerPacks([]);
+            setNetworkServers([]);
+          }
         });
     };
     refetch();
@@ -75,7 +86,14 @@ export function WorkspaceSidebar() {
     .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
-  const idToPack = new Map(allPacks.map((p) => [p.id, p]));
+  // When a server is actively selected and the network has ≥2 servers, filter
+  // packs to only those owned by that server. Single-server networks show all.
+  const filteredServerPacks =
+    activeServerId && networkServers.length >= 2
+      ? allPacks.filter((p) => p.serverKeyId === activeServerId)
+      : allPacks;
+
+  const idToPack = new Map(filteredServerPacks.map((p) => [p.id, p]));
   const ordered: PackSummary[] = [];
   for (const id of packOrder) {
     const p = idToPack.get(id);
@@ -113,6 +131,7 @@ export function WorkspaceSidebar() {
       </div>
 
       <NetworkDropdown />
+      <ServerDropdown servers={networkServers} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {activeNetworkId ? (
