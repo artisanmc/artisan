@@ -928,4 +928,10 @@ export default {
     buttonActions: "Actions",
     addButton: "Add button",
   },
+  connectionHistoryModal: {
+    title: "Connection history",
+    loading: "Loading…",
+    empty: "No connection logged yet.",
+    error: "Failed to load the audit log.",
+  },
 };
