@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ServerStatusBadge } from "@/components/ServerStatusBadge";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
 import { BranchSwitcher } from "@/features/branches/BranchSwitcher";
 import { CommitDialog } from "@/features/branches/CommitDialog";
@@ -119,6 +120,7 @@ export function WorkspaceTopBarControls({
             <span className="truncate">{displayName}</span>
           </div>
         )}
+        <ServerStatusBadge networkId={networkId} packId={packId} />
         <LangSwitcher pack={pack} />
         <UndoRedoButtons />
         <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} currentBranch={currentBranch ?? null} />

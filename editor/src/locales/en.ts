@@ -605,6 +605,9 @@ export default {
     bindFailed: "Bind failed.",
     createKeyFailed: "Failed to create key.",
   },
+  serverStatusBadge: {
+    title: "{{online}} online · {{offline}} offline — click to open Servers",
+  },
   sidebar: {
     settings: "Settings",
     brand: "Artisan",
