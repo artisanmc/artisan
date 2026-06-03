@@ -29,7 +29,8 @@ import { PromoteButton } from "@/features/branches/PromoteButton";
 import { MergeButton } from "@/features/branches/MergeButton";
 import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
 import { saveUserPack } from "@/lib/api/userPacks";
-import { createCommit, getBranchHead } from "@/lib/api/branches";
+import { createCommit, getBranchHead, listBranches } from "@/lib/api/branches";
+import { useBranchesStore } from "@/state/branchesStore";
 import type { Pack as PackType } from "@/domain/types";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { transform } from "@/features/export/transform";
@@ -40,7 +41,7 @@ import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { Pack, PackId } from "@/domain/types";
 import { Redo2, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -99,6 +100,24 @@ export function WorkspaceTopBarControls({
   allBranches = [],
 }: WorkspaceTopBarControlsProps) {
   const [commitOpen, setCommitOpen] = useState(false);
+
+  // Bootstrap branches the moment a networkId is known. Previously the only
+  // place that fetched branches was BranchSwitcher, which only mounts when
+  // `currentBranch` is already truthy — chicken-and-egg deadlock that left
+  // currentBranch null on fresh user-auth loads (Deploy / Commit / Revert
+  // all gated on currentBranch, so they stayed disabled forever).
+  // branchesStore.setBranches auto-picks `branches[0]?.name` when the prior
+  // selection isn't in the new list, so this single fetch is enough to bring
+  // the whole branch toolbar online.
+  const setBranches = useBranchesStore((s) => s.setBranches);
+  useEffect(() => {
+    if (!networkId) return;
+    let cancelled = false;
+    listBranches(networkId, packId)
+      .then((b) => { if (!cancelled) setBranches(b); })
+      .catch(() => { /* offline — branch bar stays empty, user can retry */ });
+    return () => { cancelled = true; };
+  }, [networkId, packId, setBranches]);
 
   const showBranchBar = Boolean(currentBranch && networkId);
   const displayName = packName ?? pack.name;
