@@ -940,5 +940,11 @@ const fr: typeof en = {
     buttonActions: "Actions",
     addButton: "Ajouter un bouton",
   },
+  connectionHistoryModal: {
+    title: "Historique de connexion",
+    loading: "Chargement…",
+    empty: "Aucune connexion enregistrée pour le moment.",
+    error: "Impossible de charger l'historique.",
+  },
 };
 export default fr;
