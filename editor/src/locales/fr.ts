@@ -957,5 +957,14 @@ const fr: typeof en = {
     error: "Impossible de charger l'allowlist.",
     close: "Fermer",
   },
+  deleteServerDialog: {
+    title: "Supprimer le serveur « {{label}} » ?",
+    warning: "Cette action est irréversible. Le plugin perdra l'accès au prochain hello.",
+    workspacesAlsoDeleted_one: "{{count}} workspace sera aussi supprimé.",
+    workspacesAlsoDeleted_other: "{{count}} workspaces seront aussi supprimés.",
+    confirmLabel: "Tape « {{label}} » pour confirmer :",
+    cancel: "Annuler",
+    confirm: "Supprimer le serveur",
+  },
 };
 export default fr;
