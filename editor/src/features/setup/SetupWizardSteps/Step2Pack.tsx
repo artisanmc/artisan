@@ -29,7 +29,8 @@ export function Step2Pack({ state, setState }: Props) {
     if (!newName.trim() || !state.networkId) return;
     setCreating(true);
     try {
-      const p = await networksApi.createPack(state.networkId, newName.trim());
+      // serverKeyId is not yet available at Step2 (generated in Step3); P7 will wire this properly
+      const p = await networksApi.createPack(state.networkId, state.serverKeyId ?? "", newName.trim());
       setPacks((prev) => [...prev, p]);
       setState((s) => ({ ...s, packId: p.id }));
       setNewName("");
