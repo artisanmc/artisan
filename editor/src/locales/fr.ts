@@ -614,6 +614,9 @@ const fr: typeof en = {
     bindFailed: "Échec de la liaison.",
     createKeyFailed: "Échec de la création de la clé.",
   },
+  serverStatusBadge: {
+    title: "{{online}} en ligne · {{offline}} hors-ligne — clique pour ouvrir Serveurs",
+  },
   sidebar: {
     settings: "Paramètres",
     brand: "Artisan",
