@@ -70,7 +70,7 @@ export function ServerStatusBadge({ networkId, packId }: Props) {
       type="button"
       onClick={goToServers}
       title={t("serverStatusBadge.title", { online, offline })}
-      className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--raised)] px-2 font-mono text-[12px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+      className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--raised)] px-3 font-mono text-[12px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
     >
       {online > 0 && (
         <span className="flex items-center gap-1">
