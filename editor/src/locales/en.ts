@@ -634,7 +634,7 @@ export default {
     title: "My Networks",
     none: "No Network. Run {{cmd}} on your Minecraft server to start.",
     createNetwork: "Create a Network",
-    addServer: "+ Add a server",
+    addNetwork: "+ Add a network",
     tierLabel: "Tier",
   },
   networkDetail: {
