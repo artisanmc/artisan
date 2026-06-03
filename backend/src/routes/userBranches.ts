@@ -103,6 +103,29 @@ userBranchesRouter.get("/:id/packs/:packId/branches/:branch/head", async (c) => 
   });
 });
 
+// GET /:id/packs/:packId/commits/:commitId/content — used by the History
+// tab Restore action to fetch any past commit's editor + files JSON.
+userBranchesRouter.get("/:id/packs/:packId/commits/:commitId/content", async (c) => {
+  const networkId = c.req.param("id");
+  const packId = c.req.param("packId");
+  const commitId = c.req.param("commitId");
+  const access = await checkAccess(c, networkId, packId);
+  if (!access.ok) return c.json({ error: "denied" }, access.status);
+
+  const commit = await getCommit(commitId);
+  if (!commit || commit.packId !== packId) {
+    return c.json({ error: "commit_not_found" }, 404);
+  }
+
+  const editor = commit.editorJson ? JSON.parse(commit.editorJson) : {};
+  const files = commit.filesJson ? JSON.parse(commit.filesJson) : {};
+  return c.json({
+    commit: { id: commit.id, contentHash: commit.contentHash, message: commit.message, createdAt: commit.createdAt },
+    editor,
+    files,
+  });
+});
+
 // GET /:id/packs/:packId/commits — list commits for a pack (optional ?branch=, ?limit=)
 userBranchesRouter.get("/:id/packs/:packId/commits", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
