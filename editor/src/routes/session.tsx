@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { exchangeEditorSession, validateEditorSession, refreshEditorSession } from "@/lib/editorSession";
@@ -6,11 +6,24 @@ import { EditorWs } from "@/lib/editorWs";
 import { loadPacks, savePack } from "@/lib/packApi";
 import { transform } from "@/features/export/transform";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { TrustGatePage } from "@/features/trust/TrustGatePage";
 import type { PackId, AccountId } from "@/domain/types";
 
 export const Route = createFileRoute("/session")({
+  // A logged-in user-auth user who opens /session WITHOUT a token in the URL
+  // has nothing to do here — the "Session expirée" panel reads as a broken
+  // state when really they just never started the trust dance. Bounce them
+  // to /networks. If they DO have a token (?token=...), they're coming from
+  // /artisan editor in MC console and need to complete the trust dance, so
+  // we let the component mount in that case.
+  beforeLoad: ({ search }) => {
+    const hasToken = Boolean((search as { token?: string } | undefined)?.token);
+    if (hasToken) return;
+    const user = useAuthStore.getState().currentUser;
+    if (user) throw redirect({ to: "/networks" });
+  },
   component: SessionPage,
 });
 
