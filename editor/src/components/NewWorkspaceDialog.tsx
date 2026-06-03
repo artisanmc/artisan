@@ -40,7 +40,7 @@ export function NewWorkspaceDialog({ networkId, serverKeyId, onCreated, trigger 
     setSubmitting(true);
     setError(null);
     try {
-      const pack = await createPack(networkId, trimmed, undefined, serverKeyId ?? undefined);
+      const pack = await createPack(networkId, serverKeyId ?? "", trimmed);
       setName("");
       setOpen(false);
       onCreated?.(pack.id);

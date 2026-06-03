@@ -53,7 +53,8 @@ describe("Step2Pack", () => {
     await userEvent.type(screen.getByPlaceholderText(/my_pack/i), "My New Pack");
     await userEvent.click(screen.getByRole("button", { name: /créer|create/i }));
 
-    await waitFor(() => expect(createSpy).toHaveBeenCalledWith("n1", "My New Pack"));
+    // serverKeyId is null at Step2 (generated in Step3); passed as "" for now (P7 will wire properly)
+    await waitFor(() => expect(createSpy).toHaveBeenCalledWith("n1", "", "My New Pack"));
     expect(setState).toHaveBeenCalled();
     const updater = setState.mock.calls[0][0] as (s: WizardState) => WizardState;
     const newState = updater(stateWithNetwork);

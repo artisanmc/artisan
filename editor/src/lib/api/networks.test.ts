@@ -107,7 +107,7 @@ describe("networks API client", () => {
         { status: 201 }
       )
     );
-    const result = await createPack("n1", "new-pack");
+    const result = await createPack("n1", "sk1", "new-pack");
     expect(result.name).toBe("new-pack");
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/v1\/networks\/n1\/packs$/),

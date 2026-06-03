@@ -1,62 +1,40 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Check, ChevronDown, ChevronRight, Copy, GitBranch, Key, Plus, RefreshCw, Shield, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, Copy, Key } from "lucide-react";
 import {
   getNetwork,
+  createServerKey,
   deleteServerKey,
-  getServerKeyAllowlist,
-  listPackBindings,
-  listServerKeyHelloes,
   rotateServerKey,
-  setServerKeyAllowlist,
-  type PackBinding,
-  type ServerKeyHello,
+  createPack,
 } from "@/lib/api/networks";
+import { ServerCard } from "@/components/network-detail/ServerCard";
+import { NewServerModal } from "@/components/network-detail/NewServerModal";
+import { NewWorkspaceModal } from "@/components/network-detail/NewWorkspaceModal";
+import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHistoryModal";
+import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
+import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
 
 export const Route = createFileRoute("/networks/$networkId")({ component: NetworkDetailPage });
 
 type NetworkDetail = Awaited<ReturnType<typeof getNetwork>>;
 
-type BindingWithPackName = PackBinding & { packId: string; packName: string };
-
 export function NetworkDetailPage() {
   const { t } = useTranslation();
   const { networkId } = useParams({ strict: false }) as { networkId: string };
   const [detail, setDetail] = useState<NetworkDetail | null>(null);
-  /** Indexed by serverKeyId for fast lookup when rendering the server-key cards. */
-  const [bindingsByKey, setBindingsByKey] = useState<Record<string, BindingWithPackName[]>>({});
-  /** The plaintext of a freshly rotated key — shown once in a modal, never persisted. */
+  const [newServerOpen, setNewServerOpen] = useState(false);
+  const [newWsForServer, setNewWsForServer] = useState<string | null>(null);
+  const [historyServer, setHistoryServer] = useState<string | null>(null);
+  const [allowlistServer, setAllowlistServer] = useState<string | null>(null);
+  const [deleteServer, setDeleteServer] = useState<{ id: string; label: string; workspaceCount: number } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
 
   useEffect(() => {
     if (!networkId) return;
     getNetwork(networkId).then(setDetail).catch(console.error);
   }, [networkId]);
-
-  // Once we have the pack list, fan-out fetch the bindings so each server_key
-  // card can list the packs running on it (with their target branch).
-  useEffect(() => {
-    if (!detail) return;
-    let cancelled = false;
-    Promise.all(
-      detail.packs.map((p) =>
-        listPackBindings(networkId, p.id)
-          .then((bs) => bs.map((b) => ({ ...b, packId: p.id, packName: p.name })))
-          .catch(() => [] as BindingWithPackName[]),
-      ),
-    ).then((perPack) => {
-      if (cancelled) return;
-      const grouped: Record<string, BindingWithPackName[]> = {};
-      for (const list of perPack) {
-        for (const b of list) {
-          (grouped[b.serverKeyId] ??= []).push(b);
-        }
-      }
-      setBindingsByKey(grouped);
-    });
-    return () => { cancelled = true; };
-  }, [detail, networkId]);
 
   if (!detail)
     return (
@@ -65,19 +43,61 @@ export function NetworkDetailPage() {
       </div>
     );
 
-  const handleDeleteKey = async (keyId: string) => {
-    if (!window.confirm(t("networkDetail.confirmDeleteKey"))) return;
-    await deleteServerKey(networkId, keyId);
+  // Group packs by server (1:N).
+  const packsByServer = new Map<string, Array<{ id: string; name: string }>>();
+  for (const p of detail.packs) {
+    const skId = p.serverKeyId;
+    if (!skId) continue;
+    const list = packsByServer.get(skId) ?? [];
+    list.push({ id: p.id, name: p.name });
+    packsByServer.set(skId, list);
+  }
+
+  const handleAction = async (action: string, serverId: string) => {
+    if (action === "show-key") {
+      // V1: "Show key" generates a fresh one (only way to surface plaintext).
+      const result = await rotateServerKey(networkId, serverId);
+      setRevealedKey({ keyId: serverId, key: result.key });
+    } else if (action === "rotate") {
+      if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
+      const result = await rotateServerKey(networkId, serverId);
+      setRevealedKey({ keyId: serverId, key: result.key });
+    } else if (action === "history") {
+      setHistoryServer(serverId);
+    } else if (action === "allowlist") {
+      setAllowlistServer(serverId);
+    } else if (action === "delete") {
+      const sk = detail.serverKeys.find((k) => k.id === serverId);
+      if (!sk) return;
+      const count = (packsByServer.get(serverId) ?? []).length;
+      setDeleteServer({ id: serverId, label: sk.label ?? sk.id.slice(0, 12), workspaceCount: count });
+    }
+  };
+
+  const handleCreateServer = async (label: string) => {
+    const created = await createServerKey(networkId, label);
+    setRevealedKey({ keyId: created.id, key: created.key });
     setDetail({
       ...detail,
-      serverKeys: detail.serverKeys.filter((k) => k.id !== keyId),
+      serverKeys: [...detail.serverKeys, { id: created.id, label: created.label }],
     });
   };
 
-  const handleRotateKey = async (keyId: string) => {
-    if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
-    const { key } = await rotateServerKey(networkId, keyId);
-    setRevealedKey({ keyId, key });
+  const handleCreateWorkspace = async (input: { name: string; description?: string }) => {
+    if (!newWsForServer) return;
+    const created = await createPack(networkId, newWsForServer, input.name, input.description);
+    setDetail({ ...detail, packs: [...detail.packs, created] });
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteServer) return;
+    await deleteServerKey(networkId, deleteServer.id);
+    setDetail({
+      ...detail,
+      serverKeys: detail.serverKeys.filter((k) => k.id !== deleteServer.id),
+      packs: detail.packs.filter((p) => p.serverKeyId !== deleteServer.id),
+    });
+    setDeleteServer(null);
   };
 
   return (
@@ -99,97 +119,37 @@ export function NetworkDetailPage() {
           </Link>
         </header>
 
-        <Section title={t("networkDetail.packs")}>
-          {detail.packs.length === 0 ? (
-            <p className="text-[13px] text-[var(--ink-mut)]">{t("networkDetail.noPacks")}</p>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {detail.packs.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    to="/workspace/$workspaceId"
-                    params={{ workspaceId: p.id }}
-                    className="card flex items-center justify-between p-4 transition-colors hover:border-[var(--terra-line)]"
-                  >
-                    <span className="text-[14px] font-semibold text-[var(--ink)]">{p.name}</span>
-                    <ArrowRight className="size-[14px] text-[var(--ink-faint)]" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
-
-        <Section title={t("networkDetail.serverKeys")}>
+        <section className="flex flex-col gap-3">
           {detail.serverKeys.length === 0 ? (
-            <p className="text-[13px] text-[var(--ink-mut)]">{t("networkDetail.noServerKeys")}</p>
+            <div className="card flex flex-col gap-3 p-6">
+              <p className="text-[13.5px] text-[var(--ink-2)]">{t("networkDetail.noServers")}</p>
+              <button
+                onClick={() => setNewServerOpen(true)}
+                className="btn btn-sm btn-primary self-start"
+              >
+                {t("networkDetail.addServer")}
+              </button>
+            </div>
           ) : (
-            <ul className="flex flex-col gap-2.5">
+            <>
               {detail.serverKeys.map((sk) => (
-                <li
+                <ServerCard
                   key={sk.id}
-                  className="card flex flex-col gap-3 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-[13.5px] font-semibold text-[var(--ink)]">
-                        {sk.label ?? sk.id.slice(0, 12)}
-                      </span>
-                      <span className="mono truncate text-[11px] text-[var(--ink-faint)]">
-                        {sk.id}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        onClick={() => handleRotateKey(sk.id)}
-                        className="btn btn-sm btn-ghost"
-                      >
-                        <RefreshCw className="size-[13px]" />
-                        {t("networkDetail.rotateKey")}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteKey(sk.id)}
-                        className="btn btn-sm btn-danger"
-                      >
-                        <Trash2 className="size-[13px]" />
-                        {t("networkDetail.deleteKey")}
-                      </button>
-                    </div>
-                  </div>
-
-                  {bindingsByKey[sk.id]?.length ? (
-                    <ul className="flex flex-col gap-1 border-t border-[var(--line-soft)] pt-2.5">
-                      {bindingsByKey[sk.id]!.map((b) => (
-                        <li key={b.bindingId}>
-                          <Link
-                            to="/workspace/$workspaceId"
-                            params={{ workspaceId: b.packId }}
-                            className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--hover)]"
-                          >
-                            <span className="truncate text-[12.5px] text-[var(--ink-2)] group-hover:text-[var(--ink)]">
-                              {b.packName}
-                            </span>
-                            <span className="flex items-center gap-1.5 text-[11px] text-[var(--ink-mut)]">
-                              <GitBranch className="size-[11px]" />
-                              {b.branchName}
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="border-t border-[var(--line-soft)] pt-2.5 text-[11.5px] text-[var(--ink-faint)]">
-                      {t("networkDetail.serverKeyNoPacks")}
-                    </p>
-                  )}
-
-                  <HelloAuditPanel networkId={networkId} keyId={sk.id} />
-                  <AllowlistPanel networkId={networkId} keyId={sk.id} />
-                </li>
+                  server={{ id: sk.id, label: sk.label, online: false }}
+                  workspaces={packsByServer.get(sk.id) ?? []}
+                  onAction={handleAction}
+                  onCreateWorkspace={(serverId) => setNewWsForServer(serverId)}
+                />
               ))}
-            </ul>
+              <button
+                onClick={() => setNewServerOpen(true)}
+                className="btn btn-sm btn-ghost self-start"
+              >
+                + {t("networkDetail.addServer")}
+              </button>
+            </>
           )}
-        </Section>
+        </section>
 
         <Section title={t("networkDetail.members")}>
           <p className="text-[12px] text-[var(--ink-faint)]">
@@ -198,191 +158,44 @@ export function NetworkDetailPage() {
         </Section>
       </div>
 
-      {revealedKey && (
-        <RotatedKeyModal
-          plainKey={revealedKey.key}
-          onClose={() => setRevealedKey(null)}
+      <NewServerModal
+        open={newServerOpen}
+        onOpenChange={setNewServerOpen}
+        onCreate={handleCreateServer}
+      />
+      {newWsForServer && (
+        <NewWorkspaceModal
+          open
+          onOpenChange={(o) => !o && setNewWsForServer(null)}
+          serverLabel={detail.serverKeys.find((k) => k.id === newWsForServer)?.label ?? ""}
+          onCreate={handleCreateWorkspace}
         />
       )}
-    </div>
-  );
-}
-
-function HelloAuditPanel({ networkId, keyId }: { networkId: string; keyId: string }) {
-  const { t, i18n } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [helloes, setHelloes] = useState<ServerKeyHello[] | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!open || helloes !== null) return;
-    listServerKeyHelloes(networkId, keyId)
-      .then(setHelloes)
-      .catch(() => setError(true));
-  }, [open, helloes, networkId, keyId]);
-
-  const fmt = (iso: string) => {
-    try { return new Date(iso).toLocaleString(i18n.language); } catch { return iso; }
-  };
-
-  return (
-    <div className="border-t border-[var(--line-soft)] pt-2.5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1.5 text-[11.5px] text-[var(--ink-mut)] hover:text-[var(--ink)]"
-      >
-        {open ? <ChevronDown className="size-[12px]" /> : <ChevronRight className="size-[12px]" />}
-        {t("networkDetail.helloAuditToggle")}
-      </button>
-      {open && (
-        <div className="mt-2">
-          {error ? (
-            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.helloAuditError")}</p>
-          ) : helloes === null ? (
-            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.loading")}</p>
-          ) : helloes.length === 0 ? (
-            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.helloAuditEmpty")}</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {helloes.map((h) => (
-                <li
-                  key={h.id}
-                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[11.5px] text-[var(--ink-2)]"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="mono truncate text-[var(--ink-mut)]">{h.ip}</span>
-                    {h.rejectedReason && (
-                      <span className="badge badge-danger shrink-0 text-[9.5px]">
-                        {t(`networkDetail.helloRejected.${h.rejectedReason}`, h.rejectedReason)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    {h.mcVersion && (
-                      <span className="text-[10.5px] text-[var(--ink-faint)]">MC {h.mcVersion}</span>
-                    )}
-                    <span className="text-[var(--ink-mut)]">{fmt(h.helloAt)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {historyServer && (
+        <ConnectionHistoryModal
+          open
+          onOpenChange={(o) => !o && setHistoryServer(null)}
+          networkId={networkId}
+          serverId={historyServer}
+        />
       )}
-    </div>
-  );
-}
-
-function AllowlistPanel({ networkId, keyId }: { networkId: string; keyId: string }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [ips, setIps] = useState<string[] | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open || loaded) return;
-    getServerKeyAllowlist(networkId, keyId)
-      .then((list) => { setIps(list); setLoaded(true); })
-      .catch(() => setError("load"));
-  }, [open, loaded, networkId, keyId]);
-
-  async function persist(next: string[] | null) {
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await setServerKeyAllowlist(networkId, keyId, next);
-      setIps(saved);
-    } catch {
-      setError("save");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleAdd() {
-    const value = draft.trim();
-    if (!value) return;
-    const current = ips ?? [];
-    if (current.includes(value)) { setDraft(""); return; }
-    await persist([...current, value]);
-    setDraft("");
-  }
-
-  async function handleRemove(ip: string) {
-    const next = (ips ?? []).filter((x) => x !== ip);
-    await persist(next.length === 0 ? null : next);
-  }
-
-  const enabled = (ips?.length ?? 0) > 0;
-
-  return (
-    <div className="border-t border-[var(--line-soft)] pt-2.5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1.5 text-[11.5px] text-[var(--ink-mut)] hover:text-[var(--ink)]"
-      >
-        {open ? <ChevronDown className="size-[12px]" /> : <ChevronRight className="size-[12px]" />}
-        <Shield className="size-[12px]" />
-        {t("networkDetail.allowlistToggle")}
-        {loaded && (
-          <span className={`badge ml-auto text-[9.5px] ${enabled ? "badge-sage" : ""}`}>
-            {enabled ? t("networkDetail.allowlistOn", { count: ips!.length }) : t("networkDetail.allowlistOff")}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div className="mt-2 flex flex-col gap-2">
-          <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
-            {t("networkDetail.allowlistHelp")}
-          </p>
-          {!loaded ? (
-            <p className="text-[11.5px] text-[var(--ink-faint)]">{t("networkDetail.loading")}</p>
-          ) : (
-            <>
-              {(ips ?? []).map((ip) => (
-                <div
-                  key={ip}
-                  className="flex items-center justify-between gap-2 rounded-[8px] border border-[var(--line-soft)] px-2 py-1.5"
-                >
-                  <span className="mono truncate text-[11.5px] text-[var(--ink-2)]">{ip}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(ip)}
-                    disabled={busy}
-                    className="btn btn-icon btn-sm btn-ghost"
-                    aria-label={t("networkDetail.allowlistRemove")}
-                  >
-                    <X className="size-[12px]" />
-                  </button>
-                </div>
-              ))}
-              <form
-                onSubmit={(e) => { e.preventDefault(); void handleAdd(); }}
-                className="flex items-center gap-2"
-              >
-                <input
-                  type="text"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder={t("networkDetail.allowlistPlaceholder")}
-                  disabled={busy}
-                  className="input mono h-[28px] flex-1 text-[11.5px]"
-                />
-                <button type="submit" disabled={busy || !draft.trim()} className="btn btn-sm">
-                  <Plus className="size-[12px]" /> {t("networkDetail.allowlistAdd")}
-                </button>
-              </form>
-              {error && (
-                <p className="text-[11px] text-[var(--danger)]">{t(`networkDetail.allowlistError.${error}`)}</p>
-              )}
-            </>
-          )}
-        </div>
+      {allowlistServer && (
+        <IpAllowlistModal
+          open
+          onOpenChange={(o) => !o && setAllowlistServer(null)}
+          networkId={networkId}
+          serverId={allowlistServer}
+        />
+      )}
+      {deleteServer && (
+        <DeleteServerDialog
+          server={deleteServer}
+          onCancel={() => setDeleteServer(null)}
+          onConfirm={handleDeleteConfirmed}
+        />
+      )}
+      {revealedKey && (
+        <RotatedKeyModal plainKey={revealedKey.key} onClose={() => setRevealedKey(null)} />
       )}
     </div>
   );
