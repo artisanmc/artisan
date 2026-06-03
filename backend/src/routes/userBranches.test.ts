@@ -136,6 +136,43 @@ describe("userBranchesRouter — GET branches + commits", () => {
   });
 });
 
+// ─── B1b: GET /commits/:commitId/content ────────────────────────────────────
+
+describe("userBranchesRouter — GET /commits/:commitId/content", () => {
+  beforeEach(clearAll);
+
+  test("GET /commits/:commitId/content returns content for a known commit", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    // Get the initial commit's id via the branches list
+    const branchRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const { branches } = await branchRes.json();
+    const commitId = branches[0].headCommitId;
+
+    const res = await app.request(
+      `/api/v1/networks/${networkId}/packs/${packId}/commits/${commitId}/content`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.commit?.id).toBe(commitId);
+    expect(typeof body.editor).toBe("object");
+    expect(typeof body.files).toBe("object");
+  });
+
+  test("GET /commits/:commitId/content returns 404 when commit doesn't belong to pack", async () => {
+    const { sessionId, networkId, packId } = await seedUserWithPack();
+    const app = makeApp();
+    const res = await app.request(
+      `/api/v1/networks/${networkId}/packs/${packId}/commits/does-not-exist/content`,
+      { headers: { Cookie: `artisan_user_session=${sessionId}` } },
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
 // ─── B2: POST /branches ─────────────────────────────────────────────────────
 
 describe("userBranchesRouter — POST /branches", () => {
