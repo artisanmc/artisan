@@ -8,7 +8,6 @@ import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
-import { ServersPanelContent } from "@/features/servers/ServersPanelContent";
 import { HistoryTab } from "@/features/workspace/HistoryTab";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
@@ -48,13 +47,13 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-type WorkspaceSearch = { tab?: "overview" | "translations" | "data-sources" | "servers" | "history" };
+type WorkspaceSearch = { tab?: "overview" | "translations" | "data-sources" | "history" };
 
 export const Route = createFileRoute("/workspace/$workspaceId")({
   component: PackCanvasPage,
   validateSearch: (search: Record<string, unknown>): WorkspaceSearch => {
     const t = search.tab;
-    if (t === "translations" || t === "data-sources" || t === "servers" || t === "history") return { tab: t };
+    if (t === "translations" || t === "data-sources" || t === "history") return { tab: t };
     return { tab: "overview" };
   },
 });
@@ -68,7 +67,7 @@ function PackCanvasPage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
-  const setTab = (next: "overview" | "translations" | "data-sources" | "servers" | "history") => {
+  const setTab = (next: "overview" | "translations" | "data-sources" | "history") => {
     navigate({ search: { tab: next } });
   };
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
@@ -255,15 +254,10 @@ function PackCanvasPage() {
                   badge: totalMissing(pack) > 0 ? totalMissing(pack) : undefined,
                 },
                 { id: "data-sources", label: t("workspace.tabs.dataSources") },
-                ...(networkId
-                  ? [
-                      { id: "servers", label: t("workspace.tabs.servers") },
-                      { id: "history", label: t("workspace.tabs.history") },
-                    ]
-                  : []),
+                ...(networkId ? [{ id: "history", label: t("workspace.tabs.history") }] : []),
               ]}
               activeTab={tab ?? "overview"}
-              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources" | "servers" | "history")}
+              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources" | "history")}
             />
           )}
 
@@ -303,11 +297,6 @@ function PackCanvasPage() {
           {tab === "data-sources" && pack && (
             <div className="min-h-0 flex-1 overflow-auto">
               <DataSourcesPanelContent packId={pId} />
-            </div>
-          )}
-          {tab === "servers" && pack && networkId && (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <ServersPanelContent packId={pId} networkId={networkId} />
             </div>
           )}
           {tab === "history" && pack && networkId && (
