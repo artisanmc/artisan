@@ -2,15 +2,14 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { db } from "../db/index";
-import { networks, memberships, serverKeys, serverKeyHelloes, packs } from "../db/schema";
+import { networks, memberships, serverKeys, serverKeyHelloes } from "../db/schema";
 import { and, eq, inArray, desc } from "drizzle-orm";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
-import { getBranch } from "../lib/branchStorage";
-import { disconnectServerKey, getInstanceCount } from "../ws/hub";
+import { disconnectServerKey } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -88,7 +87,7 @@ userNetworksRouter.post("/:id/server-keys", async (c: Context<{ Variables: Vars 
   return c.json({ id, key, label }, 201);
 });
 
-// POST /api/networks/:id/packs — create pack in network
+// POST /api/networks/:id/packs — create pack in network (V1: pack belongs to one server_key)
 userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -100,9 +99,15 @@ userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) =>
   if (typeof body.name !== "string" || body.name.trim().length === 0) {
     return c.json({ error: "invalid_name" }, 422);
   }
-  if (typeof body.serverKeyId !== "string") {
+  if (typeof body.serverKeyId !== "string" || body.serverKeyId.length === 0) {
     return c.json({ error: "missing_server_key" }, 422);
   }
+  const skRows = await db.select().from(serverKeys).where(and(
+    eq(serverKeys.id, body.serverKeyId),
+    eq(serverKeys.networkId, networkId),
+  ));
+  if (skRows.length === 0) return c.json({ error: "server_key_not_in_network" }, 403);
+
   const pack = await createPack({
     networkId,
     serverKeyId: body.serverKeyId,
@@ -110,98 +115,6 @@ userNetworksRouter.post("/:id/packs", async (c: Context<{ Variables: Vars }>) =>
     description: body.description ?? null,
   });
   return c.json({ pack }, 201);
-});
-
-// GET /api/networks/:id/packs/:packId/bindings — list bindings for a pack with
-// live server status. Each entry carries the bound server_key's label/version
-// plus an `online` boolean (true iff a plugin is currently authenticated
-// against it), so the editor's "Serveurs" panel can show a connection dot.
-userNetworksRouter.get("/:id/packs/:packId/bindings", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
-  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
-
-  const packRows = await db.select().from(packs).where(eq(packs.id, packId));
-  if (packRows.length === 0 || packRows[0]?.networkId !== networkId) {
-    return c.json({ error: "pack_not_in_network" }, 404);
-  }
-
-  // In the 1:1 model, a pack has exactly one owning server_key (packs.serverKeyId).
-  const packRow = packRows[0]!;
-  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, packRow.serverKeyId));
-  const sk = skRows[0];
-  const bindings = sk ? [{
-    binding_id: `${packRow.serverKeyId}_${packId}`,
-    server_key_id: packRow.serverKeyId,
-    server_key_label: sk.label,
-    branch_name: "main",
-    created_at: packRow.createdAt.toISOString(),
-    last_mc_version: sk.lastMcVersion,
-    online: getInstanceCount(packRow.serverKeyId) > 0,
-  }] : [];
-
-  return c.json({ bindings });
-});
-
-// PATCH /api/networks/:id/packs/:packId/bindings/:serverKeyId — change the
-// branch a binding targets (e.g. switch this server from staging → main).
-userNetworksRouter.patch("/:id/packs/:packId/bindings/:serverKeyId", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
-  const skId = c.req.param("serverKeyId");
-  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
-
-  let body: { branch_name?: unknown } = {};
-  try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
-  if (typeof body.branch_name !== "string" || body.branch_name.length === 0) {
-    return c.json({ error: "invalid_branch_name" }, 422);
-  }
-  const branchName = body.branch_name;
-  if (!(await getBranch(packId, branchName))) {
-    return c.json({ error: "branch_not_found" }, 404);
-  }
-
-  // In the 1:1 model, branch switching is not stored on the binding.
-  // Return ok for forward-compat until Task 1.x adds per-pack branch tracking.
-  return c.json({ ok: true });
-});
-
-// POST /api/networks/:id/packs/:packId/bindings/:serverKeyId — bind
-userNetworksRouter.post("/:id/packs/:packId/bindings/:serverKeyId", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
-  const skId = c.req.param("serverKeyId");
-  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
-
-  // Verify pack and server_key both belong to this network
-  const packRows = await db.select().from(packs).where(eq(packs.id, packId));
-  if (packRows.length === 0 || packRows[0].networkId !== networkId) {
-    return c.json({ error: "pack_not_in_network" }, 404);
-  }
-  const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
-  if (skRows.length === 0 || skRows[0].networkId !== networkId) {
-    return c.json({ error: "server_key_not_in_network" }, 404);
-  }
-
-  let body: { branch_name?: unknown } = {};
-  try { body = await c.req.json(); } catch { /* empty body ok */ }
-  const branchName = typeof body.branch_name === "string" ? body.branch_name : "main";
-
-  if (!(await getBranch(packId, branchName))) {
-    return c.json({ error: "branch_not_found" }, 404);
-  }
-
-  // In the 1:1 model, packs.serverKeyId is set at creation. Explicit bind is a no-op.
-  return c.json({ ok: true }, 201);
 });
 
 // GET /api/networks/:id/server-keys/:keyId/helloes?limit=30 — owner only.
@@ -332,16 +245,3 @@ userNetworksRouter.delete("/:id/server-keys/:keyId", async (c: Context<{ Variabl
   return c.body(null, 204);
 });
 
-// DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId — unbind
-userNetworksRouter.delete("/:id/packs/:packId/bindings/:serverKeyId", async (c: Context<{ Variables: Vars }>) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-  const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
-  const skId = c.req.param("serverKeyId");
-  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
-
-  // In the 1:1 model, unbinding is not supported (pack ownership is fixed at creation).
-  return c.body(null, 204);
-});

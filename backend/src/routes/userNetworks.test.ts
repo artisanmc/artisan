@@ -249,9 +249,8 @@ describe("userNetworksRouter", () => {
     expect(body.pack.networkId).toBe(network.id);
   });
 
-  // C4 tests
-  test("POST binding with {branch_name: 'dev'} creates binding pointing to dev", async () => {
-    const { sessionId } = await seedUser();
+  test("POST /:id/packs returns 422 when serverKeyId is missing", async () => {
+    const { sessionId } = await seedUser(`u_p_${Math.random().toString(36).slice(2, 8)}`);
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
       method: "POST",
@@ -259,114 +258,40 @@ describe("userNetworksRouter", () => {
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ name: "p1" }),
     });
-    const { id: skId } = await skRes.json();
-
-    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p", serverKeyId: skId }),
-    });
-    const { pack } = await packRes.json();
-
-    // Create dev branch via the branches router
-    const { createBranch } = await import("../lib/branchStorage");
-    const { getBranch } = await import("../lib/branchStorage");
-    const mainBranch = await getBranch(pack.id, "main");
-    await createBranch(pack.id, "dev", mainBranch!.headCommitId);
-
-    // Bind with branch_name: "dev"
-    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ branch_name: "dev" }),
-    });
-    expect(bind.status).toBe(201);
-
-    // In the 1:1 model, POST bind is a no-op — pack already owned by its serverKeyId
-    const packRows = await db.select().from(packs).where(eq(packs.id, pack.id));
-    expect(packRows).toHaveLength(1);
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("missing_server_key");
   });
 
-  test("POST binding 404 when branch_name does not exist", async () => {
-    const { sessionId } = await seedUser();
+  test("POST /:id/packs returns 403 when serverKey is in another network", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const { sessionId: sessA } = await seedUser(`uA_p_${suffix}`);
+    const { sessionId: sessB } = await seedUser(`uB_p_${suffix}`);
     const app = makeApp();
-    const { network } = await (await app.request("/api/v1/networks", {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "N" }),
-    })).json();
 
-    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+    const { network: netA } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "NA" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${netA.id}/server-keys`, {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" }, body: "{}",
     });
     const { id: skId } = await skRes.json();
 
-    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p", serverKeyId: skId }),
-    });
-    const { pack } = await packRes.json();
-
-    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ branch_name: "ghost" }),
-    });
-    expect(bind.status).toBe(404);
-    const body = await bind.json();
-    expect(body.error).toBe("branch_not_found");
-  });
-
-  // A6 test
-  test("POST + DELETE bindings — bind/unbind a server_key to a pack", async () => {
-    const { sessionId } = await seedUser();
-    const app = makeApp();
-    const { network } = await (await app.request("/api/v1/networks", {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "N" }),
+    const { network: netB } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "NB" }),
     })).json();
-
-    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+    const res = await app.request(`/api/v1/networks/${netB.id}/packs`, {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "p1", serverKeyId: skId }),
     });
-    const { id: skId } = await skRes.json();
-
-    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "p", serverKeyId: skId }),
-    });
-    const { pack } = await packRes.json();
-
-    // Bind
-    const bind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "POST",
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-    expect(bind.status).toBe(201);
-
-    // In the 1:1 model, pack ownership is via packs.serverKeyId (not a separate binding row)
-    const packRows = await db.select().from(packs).where(eq(packs.id, pack.id));
-    expect(packRows).toHaveLength(1);
-    expect(packRows[0].serverKeyId).toBe(skId);
-
-    // Unbind is a no-op in the 1:1 model — pack stays
-    const unbind = await app.request(`/api/v1/networks/${network.id}/packs/${pack.id}/bindings/${skId}`, {
-      method: "DELETE",
-      headers: { Cookie: `artisan_user_session=${sessionId}` },
-    });
-    expect(unbind.status).toBe(204);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("server_key_not_in_network");
   });
 });
 
