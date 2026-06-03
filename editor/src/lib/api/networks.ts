@@ -64,12 +64,17 @@ export async function createPack(
   networkId: string,
   name: string,
   description?: string,
+  serverKeyId?: string,
 ): Promise<PackSummary> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, ...(description !== undefined && { description }) }),
+    body: JSON.stringify({
+      name,
+      ...(description !== undefined && { description }),
+      ...(serverKeyId !== undefined && { server_key_id: serverKeyId }),
+    }),
   });
   if (!res.ok) throw new Error(`createPack failed: ${res.status}`);
   return ((await res.json()) as { pack: PackSummary }).pack;

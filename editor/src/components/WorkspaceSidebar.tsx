@@ -157,6 +157,7 @@ export function WorkspaceSidebar() {
             </DndContext>
             <NewWorkspaceDialog
               networkId={activeNetworkId}
+              serverKeyId={activeServerId}
               onCreated={() => setRefetchToken((n) => n + 1)}
               trigger={
                 <button

@@ -14,6 +14,8 @@ import { createPack } from "@/lib/api/networks";
 interface NewWorkspaceDialogProps {
   /** Network the new workspace will be created in. When null, the trigger is disabled. */
   networkId: string | null;
+  /** Server key to associate the new pack with (forwarded to the backend). */
+  serverKeyId?: string | null;
   /** Called with the new workspace id after a successful create. */
   onCreated?: (id: string) => void;
   trigger?: ReactElement;
@@ -24,7 +26,7 @@ interface NewWorkspaceDialogProps {
  * in local state. Unlike the legacy NewPackDialog, the new workspace persists
  * across reloads and is bound to a real network.
  */
-export function NewWorkspaceDialog({ networkId, onCreated, trigger }: NewWorkspaceDialogProps) {
+export function NewWorkspaceDialog({ networkId, serverKeyId, onCreated, trigger }: NewWorkspaceDialogProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -38,7 +40,7 @@ export function NewWorkspaceDialog({ networkId, onCreated, trigger }: NewWorkspa
     setSubmitting(true);
     setError(null);
     try {
-      const pack = await createPack(networkId, trimmed);
+      const pack = await createPack(networkId, trimmed, undefined, serverKeyId ?? undefined);
       setName("");
       setOpen(false);
       onCreated?.(pack.id);
