@@ -19,14 +19,14 @@ export function DeleteServerDialog({ server, onCancel, onConfirm }: Props) {
         <DialogHeader>
           <DialogTitle>{t("deleteServerDialog.title", { label: server.label })}</DialogTitle>
         </DialogHeader>
-        <p className="mt-2 text-[13px] text-[var(--ink-2)]">{t("deleteServerDialog.warning")}</p>
+        <p className="mt-2 text-[13px] text-[var(--text-mut)]">{t("deleteServerDialog.warning")}</p>
         {server.workspaceCount > 0 && (
-          <p className="mt-2 text-[13px] text-[var(--brick)]">
+          <p className="mt-2 text-[13px] text-[var(--danger)]">
             {t("deleteServerDialog.workspacesAlsoDeleted", { count: server.workspaceCount })}
           </p>
         )}
         <label className="mt-3 flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--ink-mut)]">
+          <span className="text-[var(--text-mut)]">
             {t("deleteServerDialog.confirmLabel", { label: server.label })}
           </span>
           <input

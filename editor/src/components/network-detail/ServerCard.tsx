@@ -22,18 +22,18 @@ export function ServerCard({ server, workspaces, onAction, onCreateWorkspace }: 
           <span
             className="h-2 w-2 shrink-0 rounded-full"
             style={{
-              background: server.online ? "var(--sage)" : "var(--ink-faint)",
-              boxShadow: server.online ? "0 0 6px var(--sage)" : "none",
+              background: server.online ? "var(--success)" : "var(--text-faint)",
+              boxShadow: server.online ? "0 0 6px var(--success)" : "none",
             }}
           />
-          <span className="truncate text-[14px] font-semibold text-[var(--ink)]">
+          <span className="truncate text-[14px] font-semibold text-[var(--text)]">
             {server.label ?? server.id.slice(0, 12)}
           </span>
         </div>
         <ServerKebabMenu serverId={server.id} onAction={onAction} />
       </div>
 
-      <p className="text-[11.5px] text-[var(--ink-faint)]">
+      <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("serverCard.workspaceCount", { count: workspaces.length })}
         {!server.online && server.lastSeen && (
           <>
@@ -43,24 +43,24 @@ export function ServerCard({ server, workspaces, onAction, onCreateWorkspace }: 
         )}
       </p>
 
-      <div className="flex flex-col gap-1 border-t border-[var(--line-soft)] pt-2.5">
+      <div className="flex flex-col gap-1 border-t border-[var(--border-soft)] pt-2.5">
         {workspaces.map((w) => (
           <Link
             key={w.id}
             to="/workspace/$workspaceId"
             params={{ workspaceId: w.id }}
-            className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--hover)]"
+            className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--surface-hover)]"
           >
-            <span className="truncate text-[12.5px] text-[var(--ink-2)] group-hover:text-[var(--ink)]">
+            <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">
               📋 {w.name}
             </span>
-            <ArrowRight className="size-[13px] text-[var(--ink-faint)]" />
+            <ArrowRight className="size-[13px] text-[var(--text-faint)]" />
           </Link>
         ))}
         <button
           type="button"
           onClick={() => onCreateWorkspace(server.id)}
-          className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-left text-[12px] text-[var(--ink-mut)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+          className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-left text-[12px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         >
           + {t("serverCard.newWorkspace")}
         </button>

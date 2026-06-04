@@ -41,11 +41,11 @@ export function NewWorkspaceModal({ open, onOpenChange, serverLabel, onCreate }:
           </DialogTitle>
         </DialogHeader>
         <label className="mt-2 flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--ink-mut)]">{t("newWorkspaceModal.nameField")}</span>
+          <span className="text-[var(--text-mut)]">{t("newWorkspaceModal.nameField")}</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
         <label className="mt-2 flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--ink-mut)]">{t("newWorkspaceModal.descriptionField")}</span>
+          <span className="text-[var(--text-mut)]">{t("newWorkspaceModal.descriptionField")}</span>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
         <div className="mt-3 flex justify-end gap-2">

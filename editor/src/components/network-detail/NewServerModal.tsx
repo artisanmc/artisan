@@ -33,7 +33,7 @@ export function NewServerModal({ open, onOpenChange, onCreate }: Props) {
           <DialogTitle>{t("newServerModal.title")}</DialogTitle>
         </DialogHeader>
         <label className="flex flex-col gap-1 text-[12px]">
-          <span className="text-[var(--ink-mut)]">{t("newServerModal.labelField")}</span>
+          <span className="text-[var(--text-mut)]">{t("newServerModal.labelField")}</span>
           <input
             className="input"
             placeholder={t("newServerModal.labelPlaceholder")}
