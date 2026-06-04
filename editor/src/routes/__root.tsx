@@ -24,11 +24,11 @@ export function RootLayout() {
   return (
     <div className="flex h-full">
       {user && (
-        <aside className="m-3 mr-0 w-[216px] shrink-0 overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
+        <aside className="w-[216px] shrink-0">
           <WorkspaceSidebar />
         </aside>
       )}
-      <main className="flex-1 overflow-auto">
+      <main className="m-3 ml-0 flex flex-1 flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
         <Outlet />
       </main>
     </div>
