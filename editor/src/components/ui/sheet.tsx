@@ -16,7 +16,7 @@ const SheetOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-[var(--bg-deep)]/70 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-[var(--surface)]/70 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -50,16 +50,16 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex flex-col gap-2 border-[var(--line-soft)] bg-[var(--card-surface)] transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-200 data-[state=open]:duration-200",
+        "fixed z-50 flex flex-col gap-2 border-[var(--border-soft)] bg-[var(--surface-raised)] transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-200 data-[state=open]:duration-200",
         sideClasses[side],
         className,
       )}
-      style={{ boxShadow: "var(--sh-3)" }}
+      style={{ boxShadow: "var(--shadow-lg)" }}
       {...props}
     >
       {children}
       {hideClose ? null : (
-        <DialogPrimitive.Close className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--ink-mut)] hover:bg-[var(--hover)] hover:text-[var(--ink)]">
+        <DialogPrimitive.Close className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -72,7 +72,7 @@ SheetContent.displayName = DialogPrimitive.Content.displayName;
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex shrink-0 items-center justify-between border-b border-[var(--line-soft)] px-4 py-3 pr-12",
+      "flex shrink-0 items-center justify-between border-b border-[var(--border-soft)] px-4 py-3 pr-12",
       className,
     )}
     {...props}
@@ -86,7 +86,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("eyebrow text-[var(--ink-mut)]", className)}
+    className={cn("eyebrow text-[var(--text-mut)]", className)}
     {...props}
   />
 ));
