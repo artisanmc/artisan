@@ -25,7 +25,7 @@ export function EditorPane({ packId }: EditorPaneProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-l border-[var(--border-soft)] bg-[var(--surface-raised)]">
+    <div className="flex h-full min-h-0 flex-col border-l border-[var(--border-soft)]">
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as EditorTab)}

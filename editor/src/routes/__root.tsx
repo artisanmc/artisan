@@ -29,13 +29,7 @@ export function RootLayout() {
         </aside>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">
-        {user ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[var(--r-lg)] bg-[var(--surface-raised)]">
-            <Outlet />
-          </div>
-        ) : (
-          <Outlet />
-        )}
+        <Outlet />
       </main>
     </div>
   );
