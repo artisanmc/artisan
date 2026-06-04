@@ -271,18 +271,30 @@ function PackCanvasPage() {
               </div>
             )}
             {tab === "translations" && pack && (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <TranslationPanelContent packId={pId} />
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <div className="mx-auto flex h-full w-full max-w-5xl gap-4 p-6">
+                  <div className="card flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <TranslationPanelContent packId={pId} />
+                  </div>
+                </div>
               </div>
             )}
             {tab === "data-sources" && pack && (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <DataSourcesPanelContent packId={pId} />
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <div className="mx-auto flex h-full w-full max-w-5xl gap-4 p-6">
+                  <div className="card flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <DataSourcesPanelContent packId={pId} />
+                  </div>
+                </div>
               </div>
             )}
             {tab === "history" && pack && networkId && (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <HistoryTab pack={pack} networkId={networkId} />
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <div className="mx-auto flex h-full w-full max-w-3xl gap-4 p-6">
+                  <div className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8">
+                    <HistoryTab pack={pack} networkId={networkId} />
+                  </div>
+                </div>
               </div>
             )}
           </div>
