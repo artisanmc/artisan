@@ -31,7 +31,7 @@ export function EditorPane({ packId }: EditorPaneProps) {
         onValueChange={(v) => setTab(v as EditorTab)}
         className="flex h-full min-h-0 flex-col"
       >
-        <TabsList className="flex h-[44px] shrink-0 items-center justify-start gap-5 px-5">
+        <TabsList className="flex h-[48px] shrink-0 items-center justify-start gap-1 px-3">
           <TabsTrigger value="edit">{t("editorPane.tabEdit")}</TabsTrigger>
           <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>
           <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>
