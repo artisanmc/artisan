@@ -73,7 +73,7 @@ export function NewWorkspaceDialog({ networkId, serverKeyId, onCreated, trigger 
             autoFocus
           />
           {error && (
-            <div className="text-xs text-[var(--brick)]">{error}</div>
+            <div className="text-xs text-[var(--danger)]">{error}</div>
           )}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>

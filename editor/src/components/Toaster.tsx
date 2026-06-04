@@ -8,11 +8,11 @@ export function Toaster() {
       toastOptions={{
         classNames: {
           toast:
-            "border border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)] font-mono text-xs rounded-[14px]",
-          error: "border-[var(--brick-soft)] text-[var(--brick)]",
-          success: "border-[var(--sage-soft)] text-[var(--sage)]",
-          info: "border-[var(--line)] text-[var(--ink)]",
-          warning: "border-[var(--gold-soft)] text-[var(--gold)]",
+            "border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)] font-mono text-xs rounded-[14px]",
+          error: "border-[var(--danger-soft)] text-[var(--danger)]",
+          success: "border-[var(--success-soft)] text-[var(--success)]",
+          info: "border-[var(--border)] text-[var(--text)]",
+          warning: "border-[var(--warning-soft)] text-[var(--warning)]",
         },
       }}
     />
