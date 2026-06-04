@@ -40,16 +40,16 @@ export function HistoryTab({ pack, networkId }: Props) {
   };
 
   if (commits === null) {
-    return <p className="p-4 text-[12px] text-[var(--text-faint)]">{t("historyTab.loading")}</p>;
+    return <p className="text-[12px] text-[var(--text-faint)]">{t("historyTab.loading")}</p>;
   }
   if (commits.length === 0) {
-    return <p className="p-4 text-[12px] text-[var(--text-faint)]">{t("historyTab.empty")}</p>;
+    return <p className="text-[12px] text-[var(--text-faint)]">{t("historyTab.empty")}</p>;
   }
 
   const headId = commits[0]?.id;
 
   return (
-    <div className="flex flex-col gap-2 p-4">
+    <div className="flex flex-col gap-3">
       <h2 className="display text-[18px] text-[var(--text)]">{t("historyTab.title")}</h2>
       <ul className="flex flex-col gap-1.5">
         {commits.map((c, i) => {
