@@ -214,34 +214,32 @@ function PackCanvasPage() {
     >
       <div className="flex h-full overflow-hidden">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Top bar — sticky at top with frosted-glass blur so content scrolls underneath. */}
-          <div className="sticky top-0 z-10 shrink-0 backdrop-blur-md bg-[var(--surface-raised)]/70">
-            {pack ? (
-              <WorkspaceTopBarControls
-                pack={pack}
-                packId={pId}
-                onImport={handleImport}
-                onExport={() => exportPackToFile(pack)}
-                onExportZip={async () => {
-                  const res = await runExportZip(pack);
-                  if (!res.ok) {
-                    setExportErrors(res.errors);
-                    setExportErrorsOpen(true);
-                    return;
-                  }
-                  for (const w of res.warnings) toast.warning(w);
-                  toast.success(t("export.success"));
-                }}
-                onOpenPatterns={() => setPatternsOpen(true)}
-                onDelete={() => setShowDeleteDialog(true)}
-                networkId={networkId}
-              />
-            ) : (
-              <div className="flex h-[52px] items-center px-5">
-                <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
-              </div>
-            )}
-          </div>
+          {/* Top bar — flat row above the content area, same bg as body. */}
+          {pack ? (
+            <WorkspaceTopBarControls
+              pack={pack}
+              packId={pId}
+              onImport={handleImport}
+              onExport={() => exportPackToFile(pack)}
+              onExportZip={async () => {
+                const res = await runExportZip(pack);
+                if (!res.ok) {
+                  setExportErrors(res.errors);
+                  setExportErrorsOpen(true);
+                  return;
+                }
+                for (const w of res.warnings) toast.warning(w);
+                toast.success(t("export.success"));
+              }}
+              onOpenPatterns={() => setPatternsOpen(true)}
+              onDelete={() => setShowDeleteDialog(true)}
+              networkId={networkId}
+            />
+          ) : (
+            <div className="flex h-[52px] shrink-0 items-center px-5">
+              <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
+            </div>
+          )}
 
           {/* Tabs moved to sidebar — they appear as nested sub-items under the
               active workspace in WorkspaceSidebar. */}
