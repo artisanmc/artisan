@@ -30,6 +30,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { default: i18n } = await import("@/i18n");
       await i18n.changeLanguage(user.editorLanguage);
     }
+    // Apply server-side theme preference only if the user hasn't made a
+    // local choice yet. localStorage wins (checked by detectInitialTheme).
+    if (user?.theme) {
+      const hasLocalChoice = (() => {
+        try {
+          const raw = localStorage.getItem("artisan.theme");
+          if (!raw) return false;
+          const parsed = JSON.parse(raw) as { state?: { theme?: string } };
+          return parsed?.state?.theme === "dark" || parsed?.state?.theme === "light";
+        } catch {
+          return false;
+        }
+      })();
+      if (!hasLocalChoice) {
+        const { useThemeStore } = await import("./themeStore");
+        useThemeStore.getState().setTheme(user.theme as "dark" | "light");
+      }
+    }
   },
   async login(apiUrl, payload) {
     set({ isLoading: true, error: null });
