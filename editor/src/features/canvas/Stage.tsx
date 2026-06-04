@@ -189,7 +189,7 @@ export function Stage({ packId }: StageProps) {
     useHoverStore.getState().setElement(null);
   }, []);
 
-  if (!pack) return <div className="p-8 text-[var(--ink-mut)]">Pack not found.</div>;
+  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Pack not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 
