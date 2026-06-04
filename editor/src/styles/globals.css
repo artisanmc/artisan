@@ -26,13 +26,13 @@
   --gray-900: #181B22;
   --gray-950: #0F1115;
 
-  /* Brand accent — Emerald */
-  --emerald-300: #6EE7B7;
-  --emerald-400: #34D399;
-  --emerald-500: #10B981;
-  --emerald-600: #059669;
-  --emerald-700: #047857;
-  --emerald-800: #065F46;
+  /* Brand accent — custom green (anchors: 500 = #2ED573, 300 = #7BED9F) */
+  --emerald-300: #7BED9F;   /* light variant — tinted backgrounds, soft accents */
+  --emerald-400: #55E089;
+  --emerald-500: #2ED573;   /* main brand — CTAs, focus rings */
+  --emerald-600: #22B962;
+  --emerald-700: #179A4E;
+  --emerald-800: #0F7339;
 
   /* Status */
   --red-400: #F87171;
@@ -80,15 +80,15 @@
   --border-strong:    var(--gray-600);
 
   /* Brand */
-  --brand:            var(--emerald-500);
-  --brand-hover:      var(--emerald-600);
-  --brand-fg:         #FFFFFF;
-  --brand-soft:       rgba(16, 185, 129, 0.12);
-  --brand-line:       rgba(16, 185, 129, 0.48);
+  --brand:            var(--emerald-500);   /* #2ED573 */
+  --brand-hover:      var(--emerald-600);   /* #22B962 */
+  --brand-fg:         #0A1A12;              /* deep green-black on bright green */
+  --brand-soft:       rgba(123, 237, 159, 0.14);  /* lighter hue tint, #7BED9F base */
+  --brand-line:       rgba(46, 213, 115, 0.50);
 
   /* Status */
   --success:          var(--emerald-400);
-  --success-soft:     rgba(52, 211, 153, 0.14);
+  --success-soft:     rgba(85, 224, 137, 0.16);
   --warning:          var(--amber-500);
   --warning-soft:     rgba(245, 158, 11, 0.14);
   --danger:           var(--red-500);
@@ -123,16 +123,16 @@
   --border:           var(--gray-300);
   --border-strong:    var(--gray-400);
 
-  /* Brand (darker for white-bg AA contrast) */
-  --brand:            var(--emerald-600);
-  --brand-hover:      var(--emerald-700);
+  /* Brand (darker for white-bg AA contrast — emerald-500 #2ED573 fails AA) */
+  --brand:            var(--emerald-700);   /* #179A4E — AA pass on white */
+  --brand-hover:      var(--emerald-800);   /* #0F7339 */
   --brand-fg:         #FFFFFF;
-  --brand-soft:       rgba(5, 150, 105, 0.10);
-  --brand-line:       rgba(5, 150, 105, 0.40);
+  --brand-soft:       rgba(46, 213, 115, 0.12);
+  --brand-line:       rgba(34, 185, 98, 0.45);
 
   /* Status */
   --success:          var(--emerald-700);
-  --success-soft:     rgba(5, 150, 105, 0.10);
+  --success-soft:     rgba(34, 185, 98, 0.10);
   --warning:          var(--amber-600);
   --warning-soft:     rgba(217, 119, 6, 0.10);
   --danger:           var(--red-600);
