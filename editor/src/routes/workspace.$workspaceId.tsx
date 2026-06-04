@@ -244,49 +244,50 @@ function PackCanvasPage() {
           {/* Tabs moved to sidebar — they appear as nested sub-items under the
               active workspace in WorkspaceSidebar. */}
 
-          {/* Editor layout: vertical split (Stage on top, EditorPane bottom)
-              on mobile/tablet, horizontal split (Stage left, EditorPane as
-              sidebar right) on desktop. Sizes persist independently. */}
-          {tab === "overview" && (
-            <div className="min-h-0 flex-1">
-              {isDesktop ? (
-                <SplitPane
-                  orientation="horizontal"
-                  primary={<Stage packId={pId} />}
-                  secondary={<EditorPane packId={pId} />}
-                  secondarySize={editorPaneWidth}
-                  onSecondarySizeChange={setEditorPaneWidth}
-                  minSecondary={280}
-                  minPrimary={400}
-                />
-              ) : (
-                <SplitPane
-                  orientation="vertical"
-                  primary={<Stage packId={pId} />}
-                  secondary={<EditorPane packId={pId} />}
-                  secondarySize={flowCanvasHeight}
-                  onSecondarySizeChange={setFlowCanvasHeight}
-                  minSecondary={120}
-                  minPrimary={200}
-                />
-              )}
-            </div>
-          )}
-          {tab === "translations" && pack && (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <TranslationPanelContent packId={pId} />
-            </div>
-          )}
-          {tab === "data-sources" && pack && (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <DataSourcesPanelContent packId={pId} />
-            </div>
-          )}
-          {tab === "history" && pack && networkId && (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <HistoryTab pack={pack} networkId={networkId} />
-            </div>
-          )}
+          {/* Content card — rounded only at top-left (sidebar/topbar corner);
+              flush to viewport right & bottom edges. */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[var(--r-lg)] bg-[var(--surface-raised)]">
+            {tab === "overview" && (
+              <div className="min-h-0 flex-1">
+                {isDesktop ? (
+                  <SplitPane
+                    orientation="horizontal"
+                    primary={<Stage packId={pId} />}
+                    secondary={<EditorPane packId={pId} />}
+                    secondarySize={editorPaneWidth}
+                    onSecondarySizeChange={setEditorPaneWidth}
+                    minSecondary={280}
+                    minPrimary={400}
+                  />
+                ) : (
+                  <SplitPane
+                    orientation="vertical"
+                    primary={<Stage packId={pId} />}
+                    secondary={<EditorPane packId={pId} />}
+                    secondarySize={flowCanvasHeight}
+                    onSecondarySizeChange={setFlowCanvasHeight}
+                    minSecondary={120}
+                    minPrimary={200}
+                  />
+                )}
+              </div>
+            )}
+            {tab === "translations" && pack && (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <TranslationPanelContent packId={pId} />
+              </div>
+            )}
+            {tab === "data-sources" && pack && (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <DataSourcesPanelContent packId={pId} />
+              </div>
+            )}
+            {tab === "history" && pack && networkId && (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <HistoryTab pack={pack} networkId={networkId} />
+              </div>
+            )}
+          </div>
         </main>
 
         {/* Patterns Gallery cheat sheet (right-side sheet). */}
