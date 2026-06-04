@@ -882,6 +882,11 @@ const fr: typeof en = {
     cannotRevertTitle: "Annuler demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
     noSessionTitle: "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
   },
+  userMenu: {
+    anonymous: "Anonyme",
+    profile: "Profil",
+    signIn: "Se connecter",
+  },
   auth: {
     signupTitle: "Créer ton compte",
     loginTitle: "Connexion",
