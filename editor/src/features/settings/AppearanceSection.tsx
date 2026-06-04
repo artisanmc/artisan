@@ -18,7 +18,7 @@ export function AppearanceSection() {
         </p>
       </header>
 
-      <div className="card flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <span className="field-label">{t("settings.appearance.theme")}</span>
           <ThemeSwitcher />
