@@ -23,28 +23,32 @@ export function DataSourcesPanelContent({ packId }: { packId: PackId }) {
 
   const selected = pack && selectedId ? (pack.dataSources ?? []).find((d) => d.id === selectedId) : null;
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-[var(--border-soft)] px-4 py-3">
-        <div className="text-[var(--text)]">{t("dataSources.title")}</div>
+  if (!pack) {
+    return (
+      <div className="card flex min-h-0 flex-1 items-center justify-center p-6">
+        <p className="text-[var(--text-mut)]">{t("dataSources.packNotFound")}</p>
       </div>
-      {!pack ? (
-        <div className="p-4 text-[var(--text-mut)]">{t("dataSources.packNotFound")}</div>
-      ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <DataSourcesSidebar pack={pack} selectedId={selectedId} onSelect={setSelectedId} />
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            {selected ? (
-              <DataSourceEditor packId={packId} source={selected} />
-            ) : (
-              <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
-                {t("dataSources.selectHint")}
-              </div>
-            )}
+    );
+  }
+
+  return (
+    <>
+      {/* Left card — sources list */}
+      <div className="card flex w-[224px] shrink-0 flex-col overflow-hidden">
+        <DataSourcesSidebar pack={pack} selectedId={selectedId} onSelect={setSelectedId} />
+      </div>
+
+      {/* Right card — editor or empty state */}
+      <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8">
+        {selected ? (
+          <DataSourceEditor packId={packId} source={selected} />
+        ) : (
+          <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
+            {t("dataSources.selectHint")}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </main>
+    </>
   );
 }
 

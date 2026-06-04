@@ -272,8 +272,14 @@ function PackCanvasPage() {
             )}
             {tab === "translations" && pack && (
               <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="mx-auto flex h-full w-full max-w-5xl gap-4 p-6">
-                  <div className="card flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+                  <h1
+                    className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {t("workspace.tabs.translations")}
+                  </h1>
+                  <div className="flex min-h-0 flex-1 gap-4">
                     <TranslationPanelContent packId={pId} />
                   </div>
                 </div>
@@ -281,17 +287,29 @@ function PackCanvasPage() {
             )}
             {tab === "data-sources" && pack && (
               <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="mx-auto flex h-full w-full max-w-5xl gap-4 p-6">
-                  <div className="card flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+                  <h1
+                    className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {t("workspace.tabs.dataSources")}
+                  </h1>
+                  <div className="flex min-h-0 flex-1 gap-4">
                     <DataSourcesPanelContent packId={pId} />
                   </div>
                 </div>
               </div>
             )}
             {tab === "history" && pack && networkId && (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="mx-auto flex h-full w-full max-w-3xl gap-4 p-6">
-                  <div className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8">
+              <div className="min-h-0 flex-1 overflow-auto">
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
+                  <h1
+                    className="display text-[32px] tracking-tight text-[var(--text)]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {t("workspace.tabs.history")}
+                  </h1>
+                  <div className="card p-6 md:p-8">
                     <HistoryTab pack={pack} networkId={networkId} />
                   </div>
                 </div>

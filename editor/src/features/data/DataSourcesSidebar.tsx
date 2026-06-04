@@ -38,7 +38,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
   };
 
   return (
-    <div className="flex w-64 flex-col gap-4 border-r border-[var(--border-soft)] bg-[var(--surface)] p-3">
+    <div className="flex flex-1 flex-col gap-4 p-3">
       <section>
         <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
           {t("dataSources.sectionPack")}
