@@ -50,7 +50,6 @@ export function HistoryTab({ pack, networkId }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="display text-[18px] text-[var(--text)]">{t("historyTab.title")}</h2>
       <ul className="flex flex-col gap-1.5">
         {commits.map((c, i) => {
           const isCurrent = i === commits.length - 1 && c.parentId === null;
