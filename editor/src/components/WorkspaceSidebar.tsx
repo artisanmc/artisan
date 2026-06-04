@@ -214,18 +214,14 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
     <li
       ref={setNodeRef}
       style={style}
-      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--hover)] has-[[data-status=active]]:bg-[var(--terra-soft)]"
+      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--hover)] has-[[data-status=active]]:bg-[var(--terra-soft)] has-[[data-status=active]]:hover:bg-[var(--terra-soft)]"
     >
       <Link
         to="/workspace/$workspaceId"
         params={{ workspaceId: id }}
-        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
-        activeProps={{
-          className:
-            "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white",
-        }}
+        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--ink-2)] transition-colors hover:text-[var(--ink)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--terra)]"
       >
-        <LayoutGrid className="size-[15px] shrink-0 text-[var(--ink-faint)] group-[.is-active]:text-[var(--terra)]" />
+        <LayoutGrid className="size-[15px] shrink-0 text-[var(--ink-faint)]" />
         <span className="truncate flex-1">{name}</span>
       </Link>
       <button
