@@ -5,9 +5,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
+import { detectInitialTheme } from "@/state/themeStore";
 import { registerModule, listModules } from "./modules/api/registry";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
+
+// Apply data-theme to <html> before React mounts — prevents FOUC on reload.
+document.documentElement.dataset.theme = detectInitialTheme();
 
 if (listModules().length === 0) {
   registerModule(menusModule);
