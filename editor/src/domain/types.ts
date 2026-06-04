@@ -83,6 +83,7 @@ export interface Pack {
   source: PackSource;
   sourcePackId?: PackId;
   sourceVersion?: string;
+  serverKeyId?: string;
   createdAt: string;
   updatedAt: string;
   menus: Menu[];

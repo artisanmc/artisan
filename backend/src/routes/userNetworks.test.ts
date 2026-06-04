@@ -692,3 +692,23 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("GET /api/v1/networks/:id/server-keys/:keyId/status", () => {
+  test("returns online: false for unseen key", async () => {
+    const { sessionId } = await seedUser(`u_st_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+    const skRes = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST", headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" }, body: "{}",
+    });
+    const { id: skId } = await skRes.json();
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/status`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).online).toBe(false);
+  });
+});
