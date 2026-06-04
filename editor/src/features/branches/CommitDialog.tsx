@@ -40,7 +40,7 @@ export function CommitDialog({ networkId, packId, branch, open, onClose }: Props
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
-          {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
+          {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button variant="primary" onClick={onSubmit} disabled={busy || !message.trim()}>Commit</Button>

@@ -40,28 +40,28 @@ export function HistoryTab({ pack, networkId }: Props) {
   };
 
   if (commits === null) {
-    return <p className="p-4 text-[12px] text-[var(--ink-faint)]">{t("historyTab.loading")}</p>;
+    return <p className="p-4 text-[12px] text-[var(--text-faint)]">{t("historyTab.loading")}</p>;
   }
   if (commits.length === 0) {
-    return <p className="p-4 text-[12px] text-[var(--ink-faint)]">{t("historyTab.empty")}</p>;
+    return <p className="p-4 text-[12px] text-[var(--text-faint)]">{t("historyTab.empty")}</p>;
   }
 
   const headId = commits[0]?.id;
 
   return (
     <div className="flex flex-col gap-2 p-4">
-      <h2 className="display text-[18px] text-[var(--ink)]">{t("historyTab.title")}</h2>
+      <h2 className="display text-[18px] text-[var(--text)]">{t("historyTab.title")}</h2>
       <ul className="flex flex-col gap-1.5">
         {commits.map((c, i) => {
           const isCurrent = i === commits.length - 1 && c.parentId === null;
           return (
-            <li key={c.id} className="rounded-[8px] border border-[var(--line-soft)] p-3">
+            <li key={c.id} className="rounded-[8px] border border-[var(--border-soft)] p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col">
-                  <span className="text-[12.5px] text-[var(--ink)]">
+                  <span className="text-[12.5px] text-[var(--text)]">
                     {c.id === headId && "▣ HEAD · "}{c.message}
                   </span>
-                  <span className="text-[11px] text-[var(--ink-faint)]">{fmt(c.createdAt)}</span>
+                  <span className="text-[11px] text-[var(--text-faint)]">{fmt(c.createdAt)}</span>
                 </div>
                 {!isCurrent && (
                   <button
