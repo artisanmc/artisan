@@ -37,7 +37,7 @@ export function Step1Network({ state, setState }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <h2
-        className="display text-[20px] text-[var(--ink)]"
+        className="display text-[20px] text-[var(--text)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {t("setupWizard.step1.title")}
@@ -55,18 +55,18 @@ export function Step1Network({ state, setState }: Props) {
                   className={[
                     "flex w-full items-center justify-between gap-3 rounded-[14px] border px-4 py-3 text-left transition-colors",
                     isActive
-                      ? "border-[var(--terra-line)] bg-[var(--terra-soft)]"
-                      : "border-[var(--line)] bg-[var(--inset)] hover:border-[var(--line-strong)]",
+                      ? "border-[var(--brand-line)] bg-[var(--brand-soft)]"
+                      : "border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]",
                   ].join(" ")}
                 >
                   <div className="flex flex-col">
-                    <span className="text-[13.5px] font-semibold text-[var(--ink)]">{n.name}</span>
-                    <span className="text-[11px] text-[var(--ink-faint)]">
+                    <span className="text-[13.5px] font-semibold text-[var(--text)]">{n.name}</span>
+                    <span className="text-[11px] text-[var(--text-faint)]">
                       {t("setupWizard.step1.tierLabel")}: {n.tier}
                     </span>
                   </div>
                   {isActive && (
-                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--terra)]">
+                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--brand)]">
                       {t("setupWizard.selected")}
                     </span>
                   )}

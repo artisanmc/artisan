@@ -38,26 +38,26 @@ export function Step2Server({ state, setState }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <h2
-        className="display text-[20px] text-[var(--ink)]"
+        className="display text-[20px] text-[var(--text)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {t("setupWizard.step2.title")}
       </h2>
-      <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
+      <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
         {t("setupWizard.step2.description")}
       </p>
 
       {state.serverKey && (
         <div className="flex flex-col gap-2">
           <span className="field-label flex items-center gap-2">
-            <Key className="size-[12px] text-[var(--gold)]" />
+            <Key className="size-[12px] text-[var(--warning)]" />
             {t("setupWizard.step2.keyLabel")}
-            <span className="ml-1 rounded-full bg-[var(--gold-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--gold)]">
+            <span className="ml-1 rounded-full bg-[var(--warning-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--warning)]">
               {t("setupWizard.step2.shownOnce")}
             </span>
           </span>
           <div className="relative">
-            <code className="mono block break-all rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--sand)]">
+            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--text-mut)]">
               {state.serverKey}
             </code>
             <button
@@ -67,7 +67,7 @@ export function Step2Server({ state, setState }: Props) {
               aria-label={t("setupWizard.step2.copy")}
             >
               {copied ? (
-                <Check className="size-[14px] text-[var(--sage)]" />
+                <Check className="size-[14px] text-[var(--success)]" />
               ) : (
                 <Copy className="size-[14px]" />
               )}
