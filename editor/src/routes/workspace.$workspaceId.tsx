@@ -279,7 +279,7 @@ function PackCanvasPage() {
                   >
                     {t("workspace.tabs.translations")}
                   </h1>
-                  <div className="flex min-h-0 flex-1 gap-4">
+                  <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
                     <TranslationPanelContent packId={pId} />
                   </div>
                 </div>
@@ -294,7 +294,7 @@ function PackCanvasPage() {
                   >
                     {t("workspace.tabs.dataSources")}
                   </h1>
-                  <div className="flex min-h-0 flex-1 gap-4">
+                  <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
                     <DataSourcesPanelContent packId={pId} />
                   </div>
                 </div>

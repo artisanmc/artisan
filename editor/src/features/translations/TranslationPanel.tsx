@@ -97,7 +97,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
     <>
       {/* Left card — vertical language list */}
       <nav
-        className="card flex w-[224px] shrink-0 flex-col gap-1 p-3"
+        className="card flex shrink-0 flex-col gap-1 p-3 lg:w-[224px]"
         aria-label="Languages"
       >
         {langs.map((lang) => {
