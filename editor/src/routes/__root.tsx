@@ -7,6 +7,7 @@ import { saveUserPack } from "@/lib/api/userPacks";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { useSidebarStore } from "@/state/sidebarStore";
 import type { Pack } from "@/domain/types";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 
@@ -17,16 +18,31 @@ export const Route = createRootRoute({
 export function RootLayout() {
   usePackAutoSave();
   const user = useAuthStore((s) => s.currentUser);
+  const sidebarOpen = useSidebarStore((s) => s.isOpen);
+  const closeSidebar = useSidebarStore((s) => s.close);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       {user && (
-        <aside className="w-[216px] shrink-0">
-          <WorkspaceSidebar />
-        </aside>
+        <>
+          {sidebarOpen ? (
+            <div
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              onClick={closeSidebar}
+              aria-hidden
+            />
+          ) : null}
+          <aside
+            className={`fixed top-0 left-0 z-50 h-full w-[216px] shrink-0 bg-[var(--surface)] transition-transform duration-200 lg:relative lg:translate-x-0 ${
+              sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            }`}
+          >
+            <WorkspaceSidebar />
+          </aside>
+        </>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">
         <Outlet />

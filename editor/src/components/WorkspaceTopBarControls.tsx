@@ -33,7 +33,8 @@ import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { Pack, PackId } from "@/domain/types";
-import { Redo2, Undo2 } from "lucide-react";
+import { Menu, Redo2, Undo2 } from "lucide-react";
+import { useSidebarStore } from "@/state/sidebarStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -91,7 +92,15 @@ export function WorkspaceTopBarControls({
   const displayName = packName ?? pack.name;
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-2 px-5">
+    <div className="flex h-[52px] shrink-0 items-center gap-2 px-3 lg:px-5">
+      <button
+        type="button"
+        onClick={() => useSidebarStore.getState().open()}
+        aria-label="Open sidebar"
+        className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:hidden"
+      >
+        <Menu className="size-[18px]" />
+      </button>
       {leftSlot != null ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
           {leftSlot}

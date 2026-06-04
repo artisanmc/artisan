@@ -15,6 +15,7 @@ import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
+import { useSidebarStore } from "@/state/sidebarStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
 
@@ -221,6 +222,7 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
         <Link
           to="/workspace/$workspaceId"
           params={{ workspaceId: id }}
+          onClick={() => useSidebarStore.getState().close()}
           className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
         >
           <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
