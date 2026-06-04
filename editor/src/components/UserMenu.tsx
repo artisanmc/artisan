@@ -35,7 +35,7 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-2.5 rounded-[12px] px-2 py-2 text-left text-[13px] text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
+          className="flex w-full items-center gap-2.5 rounded-[12px] border border-[var(--border-soft)] px-2 py-2 text-left text-[13px] text-[var(--text)] transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-hover)]"
         >
           {user?.avatarUrl ? (
             <img
