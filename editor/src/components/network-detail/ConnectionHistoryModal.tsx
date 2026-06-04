@@ -36,20 +36,20 @@ export function ConnectionHistoryModal({ open, onOpenChange, networkId, serverId
         </DialogHeader>
         <div className="mt-2">
           {error ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("connectionHistoryModal.error")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("connectionHistoryModal.error")}</p>
           ) : helloes === null ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("connectionHistoryModal.loading")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("connectionHistoryModal.loading")}</p>
           ) : helloes.length === 0 ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("connectionHistoryModal.empty")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("connectionHistoryModal.empty")}</p>
           ) : (
             <ul className="flex max-h-[50vh] flex-col gap-1 overflow-auto">
               {helloes.map((h) => (
                 <li
                   key={h.id}
-                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[11.5px] text-[var(--ink-2)]"
+                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[11.5px] text-[var(--text-mut)]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="mono truncate text-[var(--ink-mut)]">{h.ip}</span>
+                    <span className="mono truncate text-[var(--text-mut)]">{h.ip}</span>
                     {h.rejectedReason && (
                       <span className="badge badge-danger shrink-0 text-[9.5px]">
                         {t(`networkDetail.helloRejected.${h.rejectedReason}`, h.rejectedReason)}
@@ -58,9 +58,9 @@ export function ConnectionHistoryModal({ open, onOpenChange, networkId, serverId
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     {h.mcVersion && (
-                      <span className="text-[10.5px] text-[var(--ink-faint)]">MC {h.mcVersion}</span>
+                      <span className="text-[10.5px] text-[var(--text-faint)]">MC {h.mcVersion}</span>
                     )}
-                    <span className="text-[var(--ink-mut)]">{fmt(h.helloAt)}</span>
+                    <span className="text-[var(--text-mut)]">{fmt(h.helloAt)}</span>
                   </span>
                 </li>
               ))}

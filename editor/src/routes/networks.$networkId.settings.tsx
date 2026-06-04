@@ -28,10 +28,10 @@ function SettingsRoute() {
   };
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--bg)]">
+    <div className="grain relative min-h-screen bg-[var(--surface)]">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
         <h1
-          className="display text-[36px] tracking-tight text-[var(--ink)]"
+          className="display text-[36px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {t("networkSettings.title")}
@@ -40,12 +40,12 @@ function SettingsRoute() {
         <section className="card flex flex-col gap-4 p-6">
           <header className="flex flex-col gap-1.5">
             <h2
-              className="display text-[19px] text-[var(--ink)]"
+              className="display text-[19px] text-[var(--text)]"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {t("networkSettings.transferOwnershipTitle")}
             </h2>
-            <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
+            <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
               {t("networkSettings.transferOwnershipDescription")}
             </p>
           </header>
@@ -72,7 +72,7 @@ function SettingsRoute() {
                 className="input mono text-[12px]"
               />
               {transferExpires && (
-                <p className="text-[12px] text-[var(--ink-faint)]">
+                <p className="text-[12px] text-[var(--text-faint)]">
                   {t("networkSettings.expiresAt", {
                     date: new Date(transferExpires).toLocaleString(),
                   })}
@@ -81,7 +81,7 @@ function SettingsRoute() {
             </div>
           )}
 
-          {error && <p className="text-[13px] text-[var(--brick)]">{error}</p>}
+          {error && <p className="text-[13px] text-[var(--danger)]">{error}</p>}
         </section>
       </div>
     </div>

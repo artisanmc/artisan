@@ -38,7 +38,7 @@ export function NetworkDetailPage() {
 
   if (!detail)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] p-8 text-[var(--ink-mut)]">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] p-8 text-[var(--text-mut)]">
         {t("networkDetail.loading")}
       </div>
     );
@@ -101,11 +101,11 @@ export function NetworkDetailPage() {
   };
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--bg)]">
+    <div className="grain relative min-h-screen bg-[var(--surface)]">
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-12">
         <header className="flex items-baseline justify-between">
           <h1
-            className="display text-[36px] tracking-tight text-[var(--ink)]"
+            className="display text-[36px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {detail.network.name}
@@ -113,7 +113,7 @@ export function NetworkDetailPage() {
           <Link
             to="/networks/$networkId/settings"
             params={{ networkId }}
-            className="flex items-center gap-1.5 text-[13px] text-[var(--ink-mut)] hover:text-[var(--terra)]"
+            className="flex items-center gap-1.5 text-[13px] text-[var(--text-mut)] hover:text-[var(--brand)]"
           >
             {t("networkDetail.settings")} <ArrowRight className="size-[14px]" />
           </Link>
@@ -122,7 +122,7 @@ export function NetworkDetailPage() {
         <section className="flex flex-col gap-3">
           {detail.serverKeys.length === 0 ? (
             <div className="card flex flex-col gap-3 p-6">
-              <p className="text-[13.5px] text-[var(--ink-2)]">{t("networkDetail.noServers")}</p>
+              <p className="text-[13.5px] text-[var(--text-mut)]">{t("networkDetail.noServers")}</p>
               <button
                 onClick={() => setNewServerOpen(true)}
                 className="btn btn-sm btn-primary self-start"
@@ -152,7 +152,7 @@ export function NetworkDetailPage() {
         </section>
 
         <Section title={t("networkDetail.members")}>
-          <p className="text-[12px] text-[var(--ink-faint)]">
+          <p className="text-[12px] text-[var(--text-faint)]">
             {t("networkDetail.membersComingSoon")}
           </p>
         </Section>
@@ -221,24 +221,24 @@ function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () 
         onClick={(e) => e.stopPropagation()}
       >
         <h2
-          className="display text-[20px] text-[var(--ink)]"
+          className="display text-[20px] text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {t("networkDetail.rotateRevealTitle")}
         </h2>
-        <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
+        <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
           {t("networkDetail.rotateRevealHint")}
         </p>
         <div className="flex flex-col gap-2">
           <span className="field-label flex items-center gap-2">
-            <Key className="size-[12px] text-[var(--gold)]" />
+            <Key className="size-[12px] text-[var(--warning)]" />
             {t("networkDetail.rotateRevealKeyLabel")}
-            <span className="ml-1 rounded-full bg-[var(--gold-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--gold)]">
+            <span className="ml-1 rounded-full bg-[var(--warning-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--warning)]">
               {t("networkDetail.rotateRevealShownOnce")}
             </span>
           </span>
           <div className="relative">
-            <code className="mono block break-all rounded-[14px] border border-[var(--line)] bg-[var(--inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--sand)]">
+            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--text-mut)]">
               {plainKey}
             </code>
             <button
@@ -248,7 +248,7 @@ function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () 
               aria-label={t("networkDetail.copy")}
             >
               {copied ? (
-                <Check className="size-[14px] text-[var(--sage)]" />
+                <Check className="size-[14px] text-[var(--success)]" />
               ) : (
                 <Copy className="size-[14px]" />
               )}
@@ -270,7 +270,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <h2 className="eyebrow">{title}</h2>
-        <span className="h-px flex-1 bg-[var(--line-soft)]" />
+        <span className="h-px flex-1 bg-[var(--border-soft)]" />
       </div>
       {children}
     </section>
