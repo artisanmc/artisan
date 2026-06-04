@@ -3,18 +3,18 @@ import { NewPackDialog } from "@/features/account/NewPackDialog";
 
 export function EmptyState() {
   return (
-    <div className="grain relative flex h-screen items-center justify-center bg-[var(--bg)]">
+    <div className="grain relative flex h-screen items-center justify-center bg-[var(--surface)]">
       <div className="card relative z-[1] flex max-w-sm flex-col gap-5 p-7 text-center">
         <div className="mx-auto pixel-mark">
           <i /><i /><i /><i /><i /><i /><i /><i /><i />
         </div>
         <h1
-          className="display text-[24px] tracking-tight text-[var(--ink)]"
+          className="display text-[24px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           Bienvenue sur Artisan
         </h1>
-        <p className="text-[13.5px] leading-relaxed text-[var(--ink-mut)]">
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">
           Aucun pack encore. Crée ton premier pack pour démarrer — tu pourras y empiler menus,
           commandes et templates depuis le canvas.
         </p>

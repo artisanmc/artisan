@@ -51,24 +51,24 @@ export function AddActionButton({ onAdd }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute left-0 z-10 mt-1 flex min-w-[180px] flex-col rounded-md border border-[var(--line)] bg-[var(--bg)] py-1 shadow-md"
+          className="absolute left-0 z-10 mt-1 flex min-w-[180px] flex-col rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-md"
         >
           {ACTION_TYPES.map((type) => (
             <button
               key={type}
               type="button"
               role="menuitem"
-              className="px-3 py-1 text-left text-[12px] hover:bg-[var(--hover)]"
+              className="px-3 py-1 text-left text-[12px] hover:bg-[var(--surface-hover)]"
               onClick={() => addAction(type)}
             >
               {type}
             </button>
           ))}
-          <div className="my-1 border-t border-[var(--line-soft)]" />
+          <div className="my-1 border-t border-[var(--border-soft)]" />
           <button
             type="button"
             role="menuitem"
-            className="px-3 py-1 text-left text-[12px] hover:bg-[var(--hover)]"
+            className="px-3 py-1 text-left text-[12px] hover:bg-[var(--surface-hover)]"
             onClick={addIf}
           >
             if

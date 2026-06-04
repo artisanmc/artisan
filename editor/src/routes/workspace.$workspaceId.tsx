@@ -238,8 +238,8 @@ function PackCanvasPage() {
               networkId={networkId}
             />
           ) : (
-            <div className="flex h-[52px] shrink-0 items-center border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
-              <span className="font-mono text-[13px] text-[var(--ink-faint)]">—</span>
+            <div className="flex h-[52px] shrink-0 items-center border-b border-[var(--border-soft)] bg-[var(--surface)] px-3.5">
+              <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
             </div>
           )}
 
@@ -315,8 +315,8 @@ function PackCanvasPage() {
             <DialogHeader>
               <DialogTitle>{t("export.errorTitle")}</DialogTitle>
             </DialogHeader>
-            <p className="mb-3 text-[13px] text-[var(--ink-mut)]">{t("export.errorSubtitle")}</p>
-            <ul className="space-y-1 text-[13px] text-[var(--brick)]">
+            <p className="mb-3 text-[13px] text-[var(--text-mut)]">{t("export.errorSubtitle")}</p>
+            <ul className="space-y-1 text-[13px] text-[var(--danger)]">
               {exportErrors.map((err, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable within a render
                 <li key={i} className="flex gap-2">
@@ -325,7 +325,7 @@ function PackCanvasPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-[12px] text-[var(--ink-faint)]">{t("export.overwriteWarning")}</p>
+            <p className="mt-4 text-[12px] text-[var(--text-faint)]">{t("export.overwriteWarning")}</p>
           </DialogContent>
         </Dialog>
 
@@ -373,8 +373,8 @@ function LibraryDragGhost({ material }: { material: string }) {
   const url = getTextureUrl(material);
   return (
     <div
-      className="pointer-events-none flex h-12 w-12 items-center justify-center rounded-[10px] border-2 border-[var(--terra)] bg-[var(--card-surface)]/95"
-      style={{ boxShadow: "var(--sh-3)" }}
+      className="pointer-events-none flex h-12 w-12 items-center justify-center rounded-[10px] border-2 border-[var(--brand)] bg-[var(--surface-raised)]/95"
+      style={{ boxShadow: "var(--shadow-lg)" }}
     >
       {url ? (
         <img
@@ -385,7 +385,7 @@ function LibraryDragGhost({ material }: { material: string }) {
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="font-mono text-[8px] text-[var(--ink-2)]">{material.slice(0, 4)}</span>
+        <span className="font-mono text-[8px] text-[var(--text-mut)]">{material.slice(0, 4)}</span>
       )}
     </div>
   );

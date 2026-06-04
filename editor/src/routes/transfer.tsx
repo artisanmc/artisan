@@ -54,25 +54,25 @@ function TransferRoute() {
       {typeof state === "object" && (
         <div className="card flex flex-col gap-4 p-7">
           <div className="flex items-center gap-2.5">
-            <span className="dot" style={{ background: "var(--terra)" }} />
-            <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+            <span className="dot" style={{ background: "var(--brand)" }} />
+            <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
               {t("transferPage.eyebrow")}
             </span>
           </div>
           <h1
-            className="display text-[24px] tracking-tight text-[var(--ink)]"
+            className="display text-[24px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {t("transferPage.title")}
           </h1>
-          <p className="text-[14px] leading-relaxed text-[var(--ink-2)]">
+          <p className="text-[14px] leading-relaxed text-[var(--text-mut)]">
             <Trans
               i18nKey="transferPage.body"
-              components={{ 1: <strong className="text-[var(--terra)]" /> }}
+              components={{ 1: <strong className="text-[var(--brand)]" /> }}
               values={{ name: state.networkName }}
             />
           </p>
-          <div className="flex items-center gap-2 text-[12px] text-[var(--ink-mut)]">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]">
             <span className="badge">
               {t("transferPage.packCount", { count: state.packCount })}
             </span>
@@ -111,7 +111,7 @@ function TransferRoute() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -135,24 +135,24 @@ function SimpleCard({
   tone?: "brick" | "sage";
 }) {
   const { t } = useTranslation();
-  const accent = tone === "sage" ? "var(--sage)" : tone === "brick" ? "var(--brick)" : "var(--ink-mut)";
+  const accent = tone === "sage" ? "var(--success)" : tone === "brick" ? "var(--danger)" : "var(--text-mut)";
   return (
     <div className="card flex flex-col gap-3 p-7">
       <div className="flex items-center gap-2.5">
         <span className="dot" style={{ background: accent }} />
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
           {t("transferPage.eyebrow")}
         </span>
       </div>
       {title && (
         <h1
-          className="display text-[22px] tracking-tight text-[var(--ink)]"
+          className="display text-[22px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
       )}
-      {label && <p className="text-[13.5px] text-[var(--ink-mut)]">{label}</p>}
+      {label && <p className="text-[13.5px] text-[var(--text-mut)]">{label}</p>}
     </div>
   );
 }

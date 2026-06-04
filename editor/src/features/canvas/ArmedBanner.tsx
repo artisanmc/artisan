@@ -13,8 +13,8 @@ export function ArmedBanner() {
   if (!armed) return null;
   return (
     <div
-      className="-translate-x-1/2 absolute top-3 left-1/2 z-20 flex items-center gap-2.5 rounded-full border border-[var(--terra-line)] bg-[var(--card-surface)]/95 px-3.5 py-1.5 text-[var(--ink)] backdrop-blur"
-      style={{ boxShadow: "var(--sh-2)" }}
+      className="-translate-x-1/2 absolute top-3 left-1/2 z-20 flex items-center gap-2.5 rounded-full border border-[var(--brand-line)] bg-[var(--surface-raised)]/95 px-3.5 py-1.5 text-[var(--text)] backdrop-blur"
+      style={{ boxShadow: "var(--shadow-md)" }}
     >
       {url ? (
         <img
@@ -25,13 +25,13 @@ export function ArmedBanner() {
         />
       ) : null}
       <span className="text-[12.5px]">
-        <strong className="text-[var(--terra)] font-semibold">{armed}</strong> armé — clique une case pour le placer
+        <strong className="text-[var(--brand)] font-semibold">{armed}</strong> armé — clique une case pour le placer
       </span>
       <button
         type="button"
         onClick={() => setArmed(null)}
         title="Cancel"
-        className="flex h-6 w-6 items-center justify-center rounded-[10px] text-[14px] text-[var(--ink-mut)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="flex h-6 w-6 items-center justify-center rounded-[10px] text-[14px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       >
         ×
       </button>

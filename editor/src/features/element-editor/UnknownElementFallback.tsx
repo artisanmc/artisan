@@ -6,7 +6,7 @@ export function UnknownElementFallback() {
   const { workspaceId } = useParams({ strict: false }) as { workspaceId: string };
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      <p className="text-[15px] text-[var(--ink)]">{t("focusMode.unknownElement")}</p>
+      <p className="text-[15px] text-[var(--text)]">{t("focusMode.unknownElement")}</p>
       <Link
         to="/workspace/$workspaceId"
         params={{ workspaceId }}

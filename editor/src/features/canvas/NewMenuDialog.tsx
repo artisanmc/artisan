@@ -62,12 +62,12 @@ export function NewMenuDialog({ packId, open, position, onOpenChange }: NewMenuD
               autoFocus
             />
             {prefixedId && !conflict && (
-              <span className="font-mono text-xs text-[var(--ink-mut)]">
-                {t("canvas.idPreviewLabel")} <span className="text-[var(--sand)]">{prefixedId}</span>
+              <span className="font-mono text-xs text-[var(--text-mut)]">
+                {t("canvas.idPreviewLabel")} <span className="text-[var(--text-mut)]">{prefixedId}</span>
               </span>
             )}
             {conflict && (
-              <span className="text-xs text-[var(--brick)]">{t("canvas.idConflict")}</span>
+              <span className="text-xs text-[var(--danger)]">{t("canvas.idConflict")}</span>
             )}
           </div>
           <div className="flex justify-end gap-2">

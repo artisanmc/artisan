@@ -14,7 +14,7 @@ export function ActionsChainEditor({ steps, packMenus, onChange }: Props) {
 
   if (steps.length === 0) {
     return (
-      <p className="text-[12px] text-[var(--ink-faint)]">{t("actions.empty")}</p>
+      <p className="text-[12px] text-[var(--text-faint)]">{t("actions.empty")}</p>
     );
   }
 

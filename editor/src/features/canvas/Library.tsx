@@ -74,8 +74,8 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
         "group relative flex shrink-0 select-none touch-none items-center justify-center",
         "rounded-[8px] border active:cursor-grabbing",
         armed
-          ? "border-[var(--terra)] bg-[var(--terra-soft)] ring-1 ring-[var(--terra)]"
-          : "border-[var(--line)] bg-[var(--inset)] cursor-grab hover:border-[var(--line-strong)]",
+          ? "border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)]"
+          : "border-[var(--border)] bg-[var(--surface-inset)] cursor-grab hover:border-[var(--border-strong)]",
       )}
       style={{ opacity: isDragging ? 0.4 : 1, width: TILE_SIZE, height: TILE_SIZE }}
     >
@@ -92,7 +92,7 @@ function ItemTile({ item, textureBase, version, isCustom, serverKeyId, bundleRea
       ) : (
         <span
           data-placeholder
-          className="flex h-full w-full items-center justify-center text-xs font-medium uppercase text-[var(--ink-mut)]"
+          className="flex h-full w-full items-center justify-center text-xs font-medium uppercase text-[var(--text-mut)]"
           aria-hidden="true"
         >
           {item.category.charAt(0)}
@@ -150,7 +150,7 @@ export function Library() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-[var(--ink-faint)]">
+      <div className="flex h-full items-center justify-center text-xs text-[var(--text-faint)]">
         {t("library.unavailable")}
       </div>
     );
@@ -180,10 +180,10 @@ export function Library() {
       </div>
 
       {allItems.length === 0 && !error && (
-        <div className="w-full py-4 text-center text-xs text-[var(--ink-faint)]">{t("library.loading")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">{t("library.loading")}</div>
       )}
       {allItems.length > 0 && filtered.length === 0 && (
-        <div className="w-full py-4 text-center text-xs text-[var(--ink-faint)]">{t("library.noMatch")}</div>
+        <div className="w-full py-4 text-center text-xs text-[var(--text-faint)]">{t("library.noMatch")}</div>
       )}
 
       <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto pb-2">

@@ -79,7 +79,7 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
             type="button"
             onClick={switchToForm}
             title={t("conditions.exprFormMode")}
-            className="rounded px-1 text-[9px] uppercase text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+            className="rounded px-1 text-[9px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
           >
             {t("conditions.exprFormModeShort")}
           </button>
@@ -102,17 +102,17 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink)] hover:bg-[var(--raised-2)]"
+              className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
             >
               {parts.op}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
+          <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
             {COMPARISON_OPS.map((op) => (
               <DropdownMenuItem
                 key={op}
                 onSelect={() => updateParts({ ...parts, op: op as ComparisonOp })}
-                className="cursor-pointer font-mono text-[11px] focus:bg-[var(--raised-2)]"
+                className="cursor-pointer font-mono text-[11px] focus:bg-[var(--surface-raised-2)]"
               >
                 {op}
               </DropdownMenuItem>
@@ -129,7 +129,7 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
           type="button"
           onClick={switchToFreetext}
           title={t("conditions.exprFreeTextMode")}
-          className="rounded px-1 text-[9px] uppercase text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+          className="rounded px-1 text-[9px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
         >
           {t("conditions.exprFreeTextModeShort")}
         </button>

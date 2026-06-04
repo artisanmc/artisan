@@ -161,7 +161,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
   return (
     <div
       data-testid="add-layer-controls"
-      className="flex gap-2 rounded border border-[var(--line-soft)] bg-[var(--bg-deep)] px-2 py-2"
+      className="flex gap-2 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-2"
     >
       <Button
         type="button"

@@ -91,8 +91,8 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
       className={cn(
         "group flex items-center gap-1.5 rounded border-l-2 px-1.5 py-1 text-xs transition-colors cursor-pointer",
         selected
-          ? "border-l-yellow-500 bg-[var(--raised-2)] text-[var(--ink)]"
-          : "border-l-transparent bg-[var(--bg-deep)] text-[var(--ink-2)] hover:bg-[var(--card-surface)]",
+          ? "border-l-yellow-500 bg-[var(--surface-raised-2)] text-[var(--text)]"
+          : "border-l-transparent bg-[var(--surface)] text-[var(--text-mut)] hover:bg-[var(--surface-raised)]",
       )}
     >
       <button
@@ -102,7 +102,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         onClick={onEyeClick}
         title={hidden ? "Afficher" : "Masquer"}
         aria-label={hidden ? "Afficher l'élément" : "Masquer l'élément"}
-        className="grid h-6 w-6 place-items-center rounded text-[var(--ink-mut)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+        className="grid h-6 w-6 place-items-center rounded text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       >
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>
@@ -113,7 +113,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         onClick={onDragHandleClick}
         title="Glisser pour réordonner"
         aria-label="Glisser pour réordonner"
-        className="grid h-6 w-4 cursor-grab place-items-center text-[var(--ink-faint)] hover:text-[var(--ink-2)]"
+        className="grid h-6 w-4 cursor-grab place-items-center text-[var(--text-faint)] hover:text-[var(--text-mut)]"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </span>
@@ -128,7 +128,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
         onClick={onDeleteClick}
         title="Supprimer"
         aria-label="Supprimer l'élément du titre"
-        className="grid h-6 w-6 place-items-center rounded text-[var(--ink-faint)] opacity-0 transition-opacity hover:bg-[var(--raised-2)] hover:text-[var(--brick)] focus:opacity-100 group-hover:opacity-100"
+        className="grid h-6 w-6 place-items-center rounded text-[var(--text-faint)] opacity-0 transition-opacity hover:bg-[var(--surface-raised-2)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>

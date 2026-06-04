@@ -24,7 +24,7 @@ export function ServerDropdown({ servers }: Props) {
 
   return (
     <select
-      className="mono h-[34px] w-full appearance-none rounded-[10px] border border-[var(--line)] bg-[var(--raised)] px-3 text-[12px] text-[var(--ink-2)] hover:border-[var(--line-strong)]"
+      className="mono h-[34px] w-full appearance-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)]"
       value={activeServerId ?? ""}
       onChange={(e) => setActiveServerId(e.target.value)}
     >

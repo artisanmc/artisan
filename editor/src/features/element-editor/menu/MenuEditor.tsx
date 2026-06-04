@@ -71,7 +71,7 @@ export function MenuEditor({ pack, menu }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-[36px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] px-3">
+      <div className="flex h-[36px] shrink-0 items-center gap-2 border-b border-[var(--border-soft)] px-3">
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setLibraryOpen(true)}>
           📚 {t("menuEditor.openLibrary")}
         </button>
@@ -80,10 +80,10 @@ export function MenuEditor({ pack, menu }: Props) {
         </button>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_320px_320px] gap-0">
-        <div className="min-h-0 overflow-hidden border-r border-[var(--line-soft)]">
+        <div className="min-h-0 overflow-hidden border-r border-[var(--border-soft)]">
           <SingleMenuStage pack={pack} menu={menu} />
         </div>
-        <div className="min-h-0 overflow-auto border-r border-[var(--line-soft)] p-3">
+        <div className="min-h-0 overflow-auto border-r border-[var(--border-soft)] p-3">
           <MenuProperties packId={pack.id} menu={menu} />
         </div>
         <div className="min-h-0 overflow-auto p-3">

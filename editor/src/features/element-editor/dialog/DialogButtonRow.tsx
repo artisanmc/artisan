@@ -22,10 +22,10 @@ export function DialogButtonRow({ pack, button, onChange, onRemove }: Props) {
   const steps: Step[] = button.steps;
 
   return (
-    <div className="rounded-[8px] border border-[var(--line-soft)] p-3">
+    <div className="rounded-[8px] border border-[var(--border-soft)] p-3">
       <div className="flex items-center justify-between gap-2">
         <label className="flex flex-1 flex-col gap-1 text-[12px]">
-          <span className="text-[var(--ink-mut)]">
+          <span className="text-[var(--text-mut)]">
             {t("dialogMeta.buttonLabel")}
           </span>
           <input

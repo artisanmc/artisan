@@ -69,7 +69,7 @@ export function ContextMenu({
       <DropdownMenuContent align="start" sideOffset={2}>
         {state.target.kind === "slot" ? (
           <DropdownMenuItem disabled>
-            <span className="text-[var(--ink-faint)]">No slot actions yet — drag a slot out to clear it</span>
+            <span className="text-[var(--text-faint)]">No slot actions yet — drag a slot out to clear it</span>
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>
@@ -97,30 +97,30 @@ export function ContextMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--ink-faint)]">⌘V</span>
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuItem onSelect={onCopy} disabled={state.target.selectedIds.length === 0}>
               Copy
-              <span className="ml-auto text-[10px] text-[var(--ink-faint)]">⌘C</span>
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘C</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--ink-faint)]">⌘V</span>
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={onDuplicate}
               disabled={state.target.selectedIds.length === 0}
             >
               Duplicate
-              <span className="ml-auto text-[10px] text-[var(--ink-faint)]">⌘D</span>
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘D</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onDelete} disabled={state.target.selectedIds.length === 0}>
               Delete
-              <span className="ml-auto text-[10px] text-[var(--ink-faint)]">⌫</span>
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌫</span>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger

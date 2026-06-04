@@ -20,10 +20,10 @@ export function IfBlock({ step, packMenus, onChange }: Props) {
     <div className="flex flex-col gap-1">
       {step.cases.map((c, i) => (
         <div key={i} className="flex flex-col gap-1">
-          <div className="text-[11px] font-mono text-[var(--ink-mut)]">
+          <div className="text-[11px] font-mono text-[var(--text-mut)]">
             {i === 0 ? "IF" : "ELSE IF"} {summarizeConditions(c.conditions, c.joins)}
           </div>
-          <div className="ml-4 border-l border-[var(--line-soft)] pl-3">
+          <div className="ml-4 border-l border-[var(--border-soft)] pl-3">
             <ActionsChainEditor
               steps={c.steps}
               packMenus={packMenus}
@@ -34,8 +34,8 @@ export function IfBlock({ step, packMenus, onChange }: Props) {
       ))}
       {step.else !== undefined && (
         <>
-          <div className="text-[11px] font-mono text-[var(--ink-mut)]">ELSE</div>
-          <div className="ml-4 border-l border-[var(--line-soft)] pl-3">
+          <div className="text-[11px] font-mono text-[var(--text-mut)]">ELSE</div>
+          <div className="ml-4 border-l border-[var(--border-soft)] pl-3">
             <ActionsChainEditor
               steps={step.else}
               packMenus={packMenus}

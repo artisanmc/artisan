@@ -13,7 +13,7 @@ export function CommandMetaForm({ pack: _pack, command, onChange }: Props) {
   return (
     <div className="flex flex-col gap-3 p-3">
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">{t("commandMeta.trigger")}</span>
+        <span className="text-[var(--text-mut)]">{t("commandMeta.trigger")}</span>
         <input
           className="input mono"
           value={command.name}
@@ -22,7 +22,7 @@ export function CommandMetaForm({ pack: _pack, command, onChange }: Props) {
       </label>
 
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">{t("commandMeta.aliases")}</span>
+        <span className="text-[var(--text-mut)]">{t("commandMeta.aliases")}</span>
         <input
           className="input mono"
           value={(command.aliases ?? []).join(", ")}
@@ -39,7 +39,7 @@ export function CommandMetaForm({ pack: _pack, command, onChange }: Props) {
       </label>
 
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">{t("commandMeta.permission")}</span>
+        <span className="text-[var(--text-mut)]">{t("commandMeta.permission")}</span>
         <input
           className="input mono"
           value={command.permission ?? ""}

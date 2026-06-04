@@ -126,10 +126,10 @@ function LinkRoute() {
           body={
             <>
               <p>{errorMessage?.startsWith("linkPage.") ? t(errorMessage) : (errorMessage ?? t("linkPage.unknownError"))}</p>
-              <p className="mt-2 text-[12.5px] text-[var(--ink-mut)]">
+              <p className="mt-2 text-[12.5px] text-[var(--text-mut)]">
                 <Trans
                   i18nKey="linkPage.retryHint"
-                  components={{ 1: <code className="mono rounded bg-[var(--inset)] px-1.5 py-0.5 text-[var(--sand)]" /> }}
+                  components={{ 1: <code className="mono rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-[var(--text-mut)]" /> }}
                   values={{ cmd: "/artisan setup" }}
                 />
               </p>
@@ -145,8 +145,8 @@ function LinkRoute() {
     <Shell>
       <div className="card flex flex-col gap-5 p-7">
         <div className="flex items-center gap-2.5">
-          <span className="dot" style={{ background: "var(--terra)" }} />
-          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+          <span className="dot" style={{ background: "var(--brand)" }} />
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
             {t("linkPage.eyebrow")}
           </span>
         </div>
@@ -208,10 +208,10 @@ function Stepper({ step }: { step: Step }) {
                 className={[
                   "flex h-7 w-7 items-center justify-center rounded-full text-[11.5px] font-semibold transition-colors",
                   isActive
-                    ? "border border-[var(--terra-line)] bg-[var(--terra-soft)] text-[var(--terra)]"
+                    ? "border border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand)]"
                     : isDone
-                      ? "bg-[var(--terra)] text-[#2A130A]"
-                      : "border border-[var(--line)] text-[var(--ink-faint)]",
+                      ? "bg-[var(--brand)] text-[#2A130A]"
+                      : "border border-[var(--border)] text-[var(--text-faint)]",
                 ].join(" ")}
               >
                 {isDone ? "✓" : i + 1}
@@ -219,7 +219,7 @@ function Stepper({ step }: { step: Step }) {
               <span
                 className={[
                   "text-[10.5px] font-semibold uppercase tracking-[.14em]",
-                  isActive ? "text-[var(--ink)]" : isDone ? "text-[var(--ink-2)]" : "text-[var(--ink-faint)]",
+                  isActive ? "text-[var(--text)]" : isDone ? "text-[var(--text-mut)]" : "text-[var(--text-faint)]",
                 ].join(" ")}
               >
                 {it.label}
@@ -228,7 +228,7 @@ function Stepper({ step }: { step: Step }) {
             {i < items.length - 1 && (
               <div
                 className="-mt-4 h-px flex-1"
-                style={{ background: isDone ? "var(--terra)" : "var(--line-soft)" }}
+                style={{ background: isDone ? "var(--brand)" : "var(--border-soft)" }}
               />
             )}
           </div>
@@ -255,7 +255,7 @@ function NetworkStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
         {t("linkPage.networkTitle")}
       </h2>
 
@@ -271,13 +271,13 @@ function NetworkStep({
                   className={[
                     "flex w-full items-center justify-between rounded-[14px] border px-4 py-3 text-left transition-colors",
                     isActive
-                      ? "border-[var(--terra-line)] bg-[var(--terra-soft)]"
-                      : "border-[var(--line)] bg-[var(--inset)] hover:border-[var(--line-strong)]",
+                      ? "border-[var(--brand-line)] bg-[var(--brand-soft)]"
+                      : "border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]",
                   ].join(" ")}
                 >
-                  <span className="text-[13.5px] font-semibold text-[var(--ink)]">{n.name}</span>
+                  <span className="text-[13.5px] font-semibold text-[var(--text)]">{n.name}</span>
                   {isActive && (
-                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--terra)]">
+                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--brand)]">
                       {t("linkPage.selected")}
                     </span>
                   )}
@@ -305,7 +305,7 @@ function NetworkStep({
         />
       </div>
 
-      <div className="flex justify-end border-t border-[var(--line-soft)] pt-4">
+      <div className="flex justify-end border-t border-[var(--border-soft)] pt-4">
         <button type="button" onClick={onNext} disabled={!canProceed} className="btn btn-primary">
           {t("linkPage.next")}
         </button>
@@ -336,12 +336,12 @@ function PackStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
         {t("linkPage.packTitle")}
       </h2>
 
       {isNewNetwork ? (
-        <p className="text-[12.5px] text-[var(--ink-mut)]">
+        <p className="text-[12.5px] text-[var(--text-mut)]">
           {t("linkPage.newNetworkHasNoPacks")}
         </p>
       ) : packs.length > 0 ? (
@@ -356,13 +356,13 @@ function PackStep({
                   className={[
                     "flex w-full items-center justify-between rounded-[14px] border px-4 py-3 text-left transition-colors",
                     isActive
-                      ? "border-[var(--terra-line)] bg-[var(--terra-soft)]"
-                      : "border-[var(--line)] bg-[var(--inset)] hover:border-[var(--line-strong)]",
+                      ? "border-[var(--brand-line)] bg-[var(--brand-soft)]"
+                      : "border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]",
                   ].join(" ")}
                 >
-                  <span className="text-[13.5px] font-semibold text-[var(--ink)]">{p.name}</span>
+                  <span className="text-[13.5px] font-semibold text-[var(--text)]">{p.name}</span>
                   {isActive && (
-                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--terra)]">
+                    <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[var(--brand)]">
                       {t("linkPage.selected")}
                     </span>
                   )}
@@ -372,7 +372,7 @@ function PackStep({
           })}
         </ul>
       ) : (
-        <p className="text-[12.5px] text-[var(--ink-mut)]">{t("linkPage.networkHasNoPacks")}</p>
+        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.networkHasNoPacks")}</p>
       )}
 
       {!isNewNetwork && packs.length > 0 && <div className="rule" />}
@@ -392,7 +392,7 @@ function PackStep({
         />
       </div>
 
-      <div className="flex justify-between border-t border-[var(--line-soft)] pt-4">
+      <div className="flex justify-between border-t border-[var(--border-soft)] pt-4">
         <button type="button" onClick={onBack} className="btn btn-ghost">{t("linkPage.back")}</button>
         <button type="button" onClick={onNext} disabled={!canProceed} className="btn btn-primary">
           {t("linkPage.next")}
@@ -433,11 +433,11 @@ function ConfirmStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
         {t("linkPage.confirmTitle")}
       </h2>
 
-      <dl className="flex flex-col gap-2 rounded-[14px] border border-[var(--line-soft)] bg-[var(--inset)] p-4">
+      <dl className="flex flex-col gap-2 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-4">
         <SummaryRow label={t("linkPage.summaryNetwork")} value={networkLabel} />
         <SummaryRow label={t("linkPage.summaryPack")} value={packLabel} />
       </dl>
@@ -450,10 +450,10 @@ function ConfirmStep({
           value={serverKeyLabel}
           onChange={(e) => onServerKeyLabelChange(e.target.value)}
         />
-        <span className="text-[11px] text-[var(--ink-faint)]">{t("linkPage.serverKeyLabelHint")}</span>
+        <span className="text-[11px] text-[var(--text-faint)]">{t("linkPage.serverKeyLabelHint")}</span>
       </div>
 
-      <div className="flex justify-between border-t border-[var(--line-soft)] pt-4">
+      <div className="flex justify-between border-t border-[var(--border-soft)] pt-4">
         <button type="button" onClick={onBack} className="btn btn-ghost">{t("linkPage.back")}</button>
         <button type="button" onClick={onConfirm} className="btn btn-primary">
           {t("linkPage.confirm")}
@@ -466,17 +466,17 @@ function ConfirmStep({
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-[10.5px] font-semibold uppercase tracking-[.14em] text-[var(--ink-faint)]">
+      <dt className="text-[10.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
         {label}
       </dt>
-      <dd className="truncate text-[13px] font-medium text-[var(--ink)]">{value}</dd>
+      <dd className="truncate text-[13px] font-medium text-[var(--text)]">{value}</dd>
     </div>
   );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -492,7 +492,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function CenterMessage({ label }: { label: string }) {
   return (
-    <div className="card flex items-center justify-center p-8 text-[var(--ink-mut)]">{label}</div>
+    <div className="card flex items-center justify-center p-8 text-[var(--text-mut)]">{label}</div>
   );
 }
 
@@ -508,22 +508,22 @@ function CardLayout({
   tone?: "sage" | "brick";
 }) {
   const dotColor =
-    tone === "sage" ? "var(--sage)" : tone === "brick" ? "var(--brick)" : "var(--terra)";
+    tone === "sage" ? "var(--success)" : tone === "brick" ? "var(--danger)" : "var(--brand)";
   return (
     <div className="card flex flex-col gap-5 p-7">
       <div className="flex items-center gap-2.5">
         <span className="dot" style={{ background: dotColor }} />
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
           {eyebrow}
         </span>
       </div>
       <h1
-        className="display text-[24px] tracking-tight text-[var(--ink)]"
+        className="display text-[24px] tracking-tight text-[var(--text)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {title}
       </h1>
-      <div className="text-[13.5px] leading-relaxed text-[var(--ink-2)]">{body}</div>
+      <div className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">{body}</div>
     </div>
   );
 }

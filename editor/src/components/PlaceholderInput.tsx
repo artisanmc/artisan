@@ -241,7 +241,7 @@ export function PlaceholderInput({
       {popup}
 
       {showHint && !open && entries.length > 0 && (
-        <p className="placeholder-hint text-[11px] text-[var(--ink-faint)]">
+        <p className="placeholder-hint text-[11px] text-[var(--text-faint)]">
           {t("placeholderInput.hint")}
         </p>
       )}
