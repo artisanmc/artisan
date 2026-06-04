@@ -41,13 +41,13 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
         <span className="pixel-mark">
           <i /><i /><i /><i /><i /><i /><i /><i /><i />
         </span>
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
           Artisan
         </span>
       </div>
 
       <h1
-        className="display text-[28px] text-[var(--ink)]"
+        className="display text-[28px] text-[var(--text)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {t("auth.loginTitle")}
@@ -79,25 +79,25 @@ export function LoginForm({ apiUrl, onSuccess }: Props) {
         </label>
       </div>
 
-      {errorMsg && <div className="text-sm text-[var(--brick)]">{errorMsg}</div>}
+      {errorMsg && <div className="text-sm text-[var(--danger)]">{errorMsg}</div>}
 
       <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
         {t("auth.loginSubmit")}
       </button>
 
-      <div className="flex items-center gap-3 text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-faint)]">
-        <span className="h-px flex-1 bg-[var(--line-soft)]" />
+      <div className="flex items-center gap-3 text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-faint)]">
+        <span className="h-px flex-1 bg-[var(--border-soft)]" />
         <span>ou</span>
-        <span className="h-px flex-1 bg-[var(--line-soft)]" />
+        <span className="h-px flex-1 bg-[var(--border-soft)]" />
       </div>
 
       <DiscordLoginButton apiUrl={apiUrl} />
 
-      <p className="text-center text-[13px] text-[var(--ink-mut)]">
+      <p className="text-center text-[13px] text-[var(--text-mut)]">
         {t("auth.noAccount")}{" "}
         <a
           href={`/signup${typeof window !== "undefined" ? window.location.search : ""}`}
-          className="text-[var(--terra)] underline-offset-2 hover:underline"
+          className="text-[var(--brand)] underline-offset-2 hover:underline"
         >
           {t("auth.signupLink")}
         </a>

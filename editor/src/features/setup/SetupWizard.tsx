@@ -83,7 +83,7 @@ export function SetupWizard() {
   }
 
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -99,7 +99,7 @@ export function SetupWizard() {
             <span className="pixel-mark">
               <i /><i /><i /><i /><i /><i /><i /><i /><i />
             </span>
-            <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+            <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
               {t("setupWizard.eyebrow")}
             </span>
           </div>
@@ -116,10 +116,10 @@ export function SetupWizard() {
                       className={[
                         "flex h-7 w-7 items-center justify-center rounded-full text-[11.5px] font-semibold transition-colors",
                         isActive
-                          ? "border border-[var(--terra-line)] bg-[var(--terra-soft)] text-[var(--terra)]"
+                          ? "border border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand)]"
                           : isDone
-                            ? "bg-[var(--terra)] text-[#2A140C]"
-                            : "border border-[var(--line)] text-[var(--ink-faint)]",
+                            ? "bg-[var(--brand)] text-[#2A140C]"
+                            : "border border-[var(--border)] text-[var(--text-faint)]",
                       ].join(" ")}
                     >
                       {isDone ? "✓" : n}
@@ -128,10 +128,10 @@ export function SetupWizard() {
                       className={[
                         "text-[10.5px] font-semibold uppercase tracking-[.14em]",
                         isActive
-                          ? "text-[var(--ink)]"
+                          ? "text-[var(--text)]"
                           : isDone
-                            ? "text-[var(--ink-2)]"
-                            : "text-[var(--ink-faint)]",
+                            ? "text-[var(--text-mut)]"
+                            : "text-[var(--text-faint)]",
                       ].join(" ")}
                     >
                       {label}
@@ -143,8 +143,8 @@ export function SetupWizard() {
                       style={{
                         background:
                           isDone
-                            ? "var(--terra)"
-                            : "var(--line-soft)",
+                            ? "var(--brand)"
+                            : "var(--border-soft)",
                       }}
                     />
                   )}
@@ -161,7 +161,7 @@ export function SetupWizard() {
           {step === 4 && <Step4Install state={state} setState={setState} />}
         </div>
 
-        <div className="flex items-center justify-between border-t border-[var(--line-soft)] pt-5">
+        <div className="flex items-center justify-between border-t border-[var(--border-soft)] pt-5">
           <Button variant="ghost" onClick={handleBack} disabled={step === 1}>
             {t("setupWizard.back")}
           </Button>
