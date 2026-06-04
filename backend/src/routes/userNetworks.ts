@@ -9,7 +9,7 @@ import { addMembership } from "../lib/membershipManager";
 import { requireMember } from "../lib/membershipGuard";
 import { listPacksForNetwork, createPack } from "../lib/packStorage";
 import { generateServerKey } from "../lib/auth";
-import { disconnectServerKey } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
@@ -228,6 +228,18 @@ userNetworksRouter.post("/:id/server-keys/:keyId/rotate", async (c: Context<{ Va
   disconnectServerKey(keyId);
 
   return c.json({ id: keyId, key, label: existing[0].label });
+});
+
+// GET /api/networks/:id/server-keys/:keyId/status — member access
+userNetworksRouter.get("/:id/server-keys/:keyId/status", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const networkId = c.req.param("id");
+  const keyId = c.req.param("keyId");
+  try { await requireMember(userId, networkId); } catch { return c.json({ error: "forbidden" }, 403); }
+  const sk = await db.select().from(serverKeys).where(and(eq(serverKeys.id, keyId), eq(serverKeys.networkId, networkId)));
+  if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+  return c.json({ online: getInstanceCount(keyId) > 0 });
 });
 
 // DELETE /api/networks/:id/server-keys/:keyId — owner only

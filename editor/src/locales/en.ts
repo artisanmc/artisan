@@ -616,7 +616,10 @@ export default {
     createKeyFailed: "Failed to create key.",
   },
   serverStatusBadge: {
-    title: "{{online}} online · {{offline}} offline — click to open Servers",
+    online: "online",
+    offline: "offline",
+    titleOnline: "Server is online — click to open Network",
+    titleOffline: "Server is offline — click to open Network",
   },
   sidebar: {
     settings: "Settings",

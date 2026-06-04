@@ -105,7 +105,7 @@ export function WorkspaceTopBarControls({
           <span className="truncate">{displayName}</span>
         </div>
       )}
-      <ServerStatusBadge networkId={networkId} packId={packId} />
+      <ServerStatusBadge networkId={networkId} serverKeyId={pack.serverKeyId ?? ""} packId={packId} />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
       <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} />
