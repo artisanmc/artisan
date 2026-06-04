@@ -28,7 +28,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
