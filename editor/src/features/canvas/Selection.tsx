@@ -1,4 +1,5 @@
 import { useSelectionStore } from "@/state/selectionStore";
+import { useCssVar } from "@/lib/themeColors";
 import type Konva from "konva";
 import { useEffect, useRef } from "react";
 import { Transformer } from "react-konva";
@@ -16,6 +17,7 @@ interface SelectionProps {
 export function Selection({ stageRef }: SelectionProps) {
   const transformerRef = useRef<Konva.Transformer>(null);
   const ids = useSelectionStore((s) => s.ids);
+  const brand = useCssVar("--brand");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids is the trigger; stageRef is stable
   useEffect(() => {
@@ -42,7 +44,7 @@ export function Selection({ stageRef }: SelectionProps) {
       // underlying node and enables group-drag that moves all selected
       // entities together, even when only one was intended to be moved.
       listening={false}
-      borderStroke="#DF6B41"
+      borderStroke={brand}
       borderStrokeWidth={1}
       borderDash={[4, 4]}
     />
