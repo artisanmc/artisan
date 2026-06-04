@@ -212,7 +212,7 @@ function PackCanvasPage() {
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <div className="flex h-[100dvh] overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Top bar + optional branch toolbar — fully owned by WorkspaceTopBarControls. */}
           {pack ? (
@@ -236,7 +236,7 @@ function PackCanvasPage() {
               networkId={networkId}
             />
           ) : (
-            <div className="mx-3 my-3 flex h-[52px] shrink-0 items-center rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] px-3.5 shadow-[var(--shadow-sm)]">
+            <div className="flex h-[52px] shrink-0 items-center px-5">
               <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
             </div>
           )}
