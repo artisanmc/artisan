@@ -568,6 +568,20 @@ Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-a
 | `PUT /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Body `{ allowed_ips: string[] \| null }`. Empty array normalisé en null. Dedup + trim appliqués. 422 `invalid_allowed_ips` si entrée non-string. Au prochain hello, l'IP source doit matcher (sinon rejected + logged dans helloes). |
 | `GET /api/editor-session/:token` | Étendu : retourne aussi `network_id` (le network du server_key behind la session). |
 
+### Servers UX simplification (depuis 2026-06-03)
+
+Modèle simplifié en V1 : **1 pack = 1 server_key** (relation 1:N, plus de M:N via `pack_bindings`). La table `pack_bindings` a été supprimée. `packs.serverKeyId` est NOT NULL avec FK cascade vers `server_keys.id`.
+
+- **UI** : `/networks/:id` présente une liste de `ServerCard`, chaque card a son kebab (rotate, show key, history, allowlist, delete). Les workspaces nichent visuellement sous leur server.
+- **Sidebar** : ajoute un `ServerDropdown` quand ≥2 servers existent dans le network, filtre les workspaces par activeServerId.
+- **Branches** : pas d'UI branches en V1 (toujours `"main"` côté backend). La toolbar branches (BranchSwitcher / Promote / Merge) a été retirée. Remplacée par un onglet `History` qui liste les commits et offre un bouton `Restore` par commit.
+- **Endpoints supprimés** : `GET/PATCH/POST/DELETE /networks/:id/packs/:packId/bindings/*` — `POST /packs` exige maintenant `serverKeyId` dans le body et vérifie qu'il appartient au network (403 sinon).
+- **Endpoint ajouté** : `GET /networks/:id/server-keys/:keyId/status` → `{ online }` pour `ServerStatusBadge`.
+- **Endpoint ajouté** : `GET /networks/:id/packs/:packId/commits/:commitId/content` → restore en lisant un commit passé.
+- **Setup wizard** : reordonné Network → Server → Workspace → Install. Step 2 crée le server_key (sans bind), Step 3 crée le workspace en passant `serverKeyId` acquis à Step 2.
+- **Dead code retiré** : `BranchSwitcher`, `PromoteButton`, `MergeButton`, `MergeConflictModal`, `branchesStore`, `ServersPanelContent`, `BindServerDialog`.
+- **Sync multi-serveur** : V2 (hors scope V1). Voir spec `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md`.
+
 ---
 
 ## Variables d'environnement (backend)
