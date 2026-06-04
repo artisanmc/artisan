@@ -552,6 +552,9 @@ export default {
     appearance: {
       title: "Appearance",
       editorLanguage: "Editor language",
+      theme: "Theme",
+      themeDark: "Dark",
+      themeLight: "Light",
     },
   },
   workspace: {
