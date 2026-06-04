@@ -11,7 +11,7 @@ interface Props {
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }
 
-export function Step2Pack({ state, setState }: Props) {
+export function Step3Workspace({ state, setState }: Props) {
   const { t } = useTranslation();
   const [packs, setPacks] = useState<PackSummary[]>([]);
   const [newName, setNewName] = useState("");
@@ -29,8 +29,7 @@ export function Step2Pack({ state, setState }: Props) {
     if (!newName.trim() || !state.networkId) return;
     setCreating(true);
     try {
-      // serverKeyId is not yet available at Step2 (generated in Step3); P7 will wire this properly
-      const p = await networksApi.createPack(state.networkId, state.serverKeyId ?? "", newName.trim());
+      const p = await networksApi.createPack(state.networkId, state.serverKeyId!, newName.trim());
       setPacks((prev) => [...prev, p]);
       setState((s) => ({ ...s, packId: p.id }));
       setNewName("");
@@ -45,7 +44,7 @@ export function Step2Pack({ state, setState }: Props) {
         className="display text-[20px] text-[var(--ink)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        {t("setupWizard.step2.title")}
+        {t("setupWizard.step3.title")}
       </h2>
 
       {packs.length > 0 && (
@@ -78,15 +77,15 @@ export function Step2Pack({ state, setState }: Props) {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <span className="field-label">{t("setupWizard.step2.newLabel")}</span>
+        <span className="field-label">{t("setupWizard.step3.newLabel")}</span>
         <div className="flex gap-2">
           <Input
-            placeholder={t("setupWizard.step2.placeholder")}
+            placeholder={t("setupWizard.step3.placeholder")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
           <Button variant="outline" onClick={handleCreate} disabled={creating || !newName.trim()}>
-            {t("setupWizard.step2.create")}
+            {t("setupWizard.step3.create")}
           </Button>
         </div>
       </div>

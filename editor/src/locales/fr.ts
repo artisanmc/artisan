@@ -746,9 +746,9 @@ const fr: typeof en = {
     eyebrow: "Setup wizard",
     stepLabels: {
       network: "Network",
-      pack: "Pack",
-      serverKey: "Server Key",
-      install: "Installation",
+      server: "Serveur",
+      workspace: "Workspace",
+      install: "Installer",
     },
     selected: "Sélectionné",
     back: "Retour",
@@ -762,13 +762,7 @@ const fr: typeof en = {
       tierLabel: "Tier",
     },
     step2: {
-      title: "Choisis un Pack",
-      newLabel: "Nouveau pack",
-      placeholder: "my_pack",
-      create: "Créer",
-    },
-    step3: {
-      title: "Génère la Server Key",
+      title: "Créer un serveur",
       description:
         "Cette clé authentifie ton serveur Minecraft auprès du backend Artisan. Génère-la puis copie-la — elle ne sera plus jamais affichée.",
       keyLabel: "Ta server key",
@@ -777,6 +771,12 @@ const fr: typeof en = {
       generating: "Génération…",
       generate: "Générer la server key",
       copy: "Copier",
+    },
+    step3: {
+      title: "Créer un workspace",
+      newLabel: "Nouveau workspace",
+      placeholder: "my_pack",
+      create: "Créer",
     },
     step4: {
       title: "Installe sur ton serveur",
