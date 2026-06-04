@@ -4,6 +4,7 @@ export interface AuthUserDto {
   name: string;
   avatarUrl: string | null;
   editorLanguage?: string | null;
+  theme?: "dark" | "light" | null;
 }
 
 export interface ApiOptions {
@@ -54,7 +55,7 @@ export async function getMe({ apiUrl }: ApiOptions): Promise<AuthUserDto | null>
 
 export async function patchMe(
   { apiUrl }: ApiOptions,
-  payload: { editor_language?: string | null },
+  payload: { editor_language?: string | null; theme?: "dark" | "light" | null },
 ): Promise<{ user: AuthUserDto } | { error: string }> {
   const res = await fetch(`${apiUrl}/api/v1/auth/me`, {
     method: "PATCH",

@@ -293,4 +293,67 @@ describe("PATCH /api/v1/auth/me — editor_language sync", () => {
 
     await cleanupByEmail(email);
   });
+
+  test("PATCH /me with theme: 'light' persists and returns theme", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Cookie": `artisan_user_session=${sessionId}` },
+      body: JSON.stringify({ theme: "light" }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: { theme: string | null } };
+    expect(body.user.theme).toBe("light");
+    await cleanupByEmail(email);
+  });
+
+  test("PATCH /me with theme: 'dark' persists and returns theme", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Cookie": `artisan_user_session=${sessionId}` },
+      body: JSON.stringify({ theme: "dark" }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: { theme: string | null } };
+    expect(body.user.theme).toBe("dark");
+    await cleanupByEmail(email);
+  });
+
+  test("PATCH /me with theme: null clears theme", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Cookie": `artisan_user_session=${sessionId}` },
+      body: JSON.stringify({ theme: null }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: { theme: string | null } };
+    expect(body.user.theme).toBeNull();
+    await cleanupByEmail(email);
+  });
+
+  test("PATCH /me with theme: 'invalid' returns 422", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Cookie": `artisan_user_session=${sessionId}` },
+      body: JSON.stringify({ theme: "invalid" }),
+    }));
+    expect(res.status).toBe(422);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("invalid_theme");
+    await cleanupByEmail(email);
+  });
+
+  test("GET /me includes theme field", async () => {
+    const { sessionId, email } = await seedAuthedUser();
+    const res = await app.fetch(new Request("http://x/api/v1/auth/me", {
+      headers: { "Cookie": `artisan_user_session=${sessionId}` },
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { user: Record<string, unknown> };
+    expect("theme" in body.user).toBe(true);
+    await cleanupByEmail(email);
+  });
 });

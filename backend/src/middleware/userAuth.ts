@@ -11,6 +11,7 @@ export interface AuthUser {
   name: string;
   avatarUrl: string | null;
   editorLanguage: string | null;
+  theme: string | null;
 }
 
 declare module "hono" {
@@ -42,6 +43,7 @@ export const userAuth = () => createMiddleware(async (c, next) => {
     name: row.name,
     avatarUrl: row.avatarUrl,
     editorLanguage: row.editorLanguage,
+    theme: row.theme ?? null,
   });
   await touchSession(sessionId);
   return next();
