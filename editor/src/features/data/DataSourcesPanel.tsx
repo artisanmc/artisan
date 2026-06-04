@@ -34,7 +34,7 @@ export function DataSourcesPanelContent({ packId }: { packId: PackId }) {
   return (
     <>
       {/* Left card — sources list */}
-      <div className="card flex w-[224px] shrink-0 flex-col overflow-hidden">
+      <div className="card flex shrink-0 flex-col overflow-hidden lg:w-[224px]">
         <DataSourcesSidebar pack={pack} selectedId={selectedId} onSelect={setSelectedId} />
       </div>
 
