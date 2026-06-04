@@ -8,10 +8,10 @@ export const Route = createFileRoute("/settings")({ component: SettingsRoute });
 export function SettingsRoute() {
   const { t } = useTranslation();
   return (
-    <div className="flex h-full bg-[var(--surface)]">
+    <div className="flex h-full">
       <nav
         aria-label="Settings sections"
-        className="w-[224px] shrink-0 border-r border-[var(--border-soft)] bg-[var(--surface)] p-3"
+        className="w-[224px] shrink-0 border-r border-[var(--border-soft)] p-3"
       >
         <div className="px-2 pt-1 pb-3 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
           {t("settingsPage.eyebrowSettings")}
