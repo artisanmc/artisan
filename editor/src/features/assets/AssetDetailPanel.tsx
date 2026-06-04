@@ -60,7 +60,7 @@ export function AssetDetailPanel({ packId }: { packId: PackId }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 border-l border-[var(--line-soft)] bg-[var(--bg-deep)] p-3 text-[var(--ink)]">
+    <div className="flex flex-col gap-3 border-l border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[var(--text)]">
       <img
         src={assetPreviewUrl(asset)}
         alt={asset.name}
@@ -70,7 +70,7 @@ export function AssetDetailPanel({ packId }: { packId: PackId }) {
       <label className="text-xs">Name
         <Input value={name} onChange={(e) => setName(e.target.value)} />
       </label>
-      <div className="text-xs text-[var(--ink-mut)]">
+      <div className="text-xs text-[var(--text-mut)]">
         Type: <span className="font-mono">{asset.type}</span><br />
         Dimensions: <span className="font-mono">{asset.width}×{asset.height}</span>
         {asset.codepoint !== null && (
@@ -82,7 +82,7 @@ export function AssetDetailPanel({ packId }: { packId: PackId }) {
           <Input type="number" value={ascent} onChange={(e) => setAscent(e.target.value)} />
         </label>
       )}
-      {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
+      {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
       <div className="flex justify-between">
         <Button variant="destructive" onClick={onDelete}>Delete</Button>
         <Button onClick={onSave}>Save</Button>
