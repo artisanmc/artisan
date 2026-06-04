@@ -38,9 +38,9 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
   };
 
   return (
-    <div className="flex w-64 flex-col gap-4 border-r border-[var(--line-soft)] bg-[var(--bg-deep)] p-3">
+    <div className="flex w-64 flex-col gap-4 border-r border-[var(--border-soft)] bg-[var(--surface)] p-3">
       <section>
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--ink-faint)]">
+        <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
           {t("dataSources.sectionPack")}
         </div>
         <ul className="flex flex-col gap-1">
@@ -51,13 +51,13 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
                 onClick={() => onSelect(d.id)}
                 className={
                   selectedId === d.id
-                    ? "flex w-full items-center gap-1 rounded bg-[var(--raised-2)] px-2 py-1 text-left text-[12px]"
-                    : "flex w-full items-center gap-1 rounded px-2 py-1 text-left text-[12px] text-[var(--ink-2)] hover:bg-[var(--card-surface)]"
+                    ? "flex w-full items-center gap-1 rounded bg-[var(--surface-raised-2)] px-2 py-1 text-left text-[12px]"
+                    : "flex w-full items-center gap-1 rounded px-2 py-1 text-left text-[12px] text-[var(--text-mut)] hover:bg-[var(--surface-raised)]"
                 }
               >
                 <span>{d.type.kind === "list" ? "🗂" : "📦"}</span>
                 <span className="truncate">{d.name}</span>
-                <span className="ml-auto text-[9px] text-[var(--ink-faint)]">
+                <span className="ml-auto text-[9px] text-[var(--text-faint)]">
                   {summarizeFieldType(d.type)}
                 </span>
               </button>
@@ -70,7 +70,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
             onClick={() => {
               addPackDataSource({ packId: pack.id });
             }}
-            className="w-full rounded border border-dashed border-[var(--line)] px-2 py-1 text-[11px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+            className="w-full rounded border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("dataSources.add")}
           </button>
@@ -78,11 +78,11 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
       </section>
 
       <section>
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--ink-faint)]">
+        <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
           {t("dataSources.sectionConnectors")}
         </div>
         {(pack.importedConnectors ?? []).length === 0 ? (
-          <div className="rounded border border-dashed border-[var(--line-soft)] bg-[var(--card-surface)]/40 px-2 py-2 text-[11px] text-[var(--ink-faint)]">
+          <div className="rounded border border-dashed border-[var(--border-soft)] bg-[var(--surface-raised)]/40 px-2 py-2 text-[11px] text-[var(--text-faint)]">
             {t("dataSources.noConnectors")}
           </div>
         ) : (
@@ -90,7 +90,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
             {(pack.importedConnectors ?? []).map((c) => (
               <li
                 key={c.ref}
-                className="group flex items-center gap-1 px-2 py-1 text-[12px] text-[var(--ink-mut)]"
+                className="group flex items-center gap-1 px-2 py-1 text-[12px] text-[var(--text-mut)]"
               >
                 <span>🔌</span>
                 <span className="flex-1 truncate font-mono">{c.ref}</span>
@@ -98,7 +98,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
                   type="button"
                   onClick={() => removeImportedConnector({ packId: pack.id, ref: c.ref })}
                   title={t("dataSources.removeConnector")}
-                  className="flex h-5 w-5 items-center justify-center rounded text-[12px] text-[var(--ink-faint)] opacity-100 hover:bg-[var(--raised-2)] hover:text-rose-300 lg:opacity-0 lg:group-hover:opacity-100"
+                  className="flex h-5 w-5 items-center justify-center rounded text-[12px] text-[var(--text-faint)] opacity-100 hover:bg-[var(--surface-raised-2)] hover:text-rose-300 lg:opacity-0 lg:group-hover:opacity-100"
                 >
                   ×
                 </button>
@@ -109,7 +109,7 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="mt-2 self-start rounded border border-[var(--line)] border-dashed px-2 py-1 text-[11px] text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+          className="mt-2 self-start rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {t("dataSources.importConnectors")}
         </button>

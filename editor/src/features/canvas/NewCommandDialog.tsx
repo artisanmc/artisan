@@ -77,8 +77,8 @@ export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCo
               autoFocus
             />
             {derivedId && (
-              <span className="font-mono text-xs text-[var(--ink-mut)]">
-                {t("canvas.idPreviewLabel")} <span className="text-[var(--sand)]">{derivedId}</span>
+              <span className="font-mono text-xs text-[var(--text-mut)]">
+                {t("canvas.idPreviewLabel")} <span className="text-[var(--text-mut)]">{derivedId}</span>
               </span>
             )}
           </div>

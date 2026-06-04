@@ -14,7 +14,7 @@ export function WorkspaceTabs({ tabs, activeTab, onChange }: WorkspaceTabsProps)
   return (
     <div
       role="tablist"
-      className="flex h-[44px] shrink-0 items-center gap-1 border-b border-[var(--line-soft)] bg-[var(--bg)] px-3.5"
+      className="flex h-[44px] shrink-0 items-center gap-1 border-b border-[var(--border-soft)] bg-[var(--surface)] px-3.5"
     >
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab;

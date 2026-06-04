@@ -23,8 +23,8 @@ export function AccountPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg)] p-8">
-        <p className="text-[var(--ink-mut)]">{t("accountPage.notSignedIn")}</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--surface)] p-8">
+        <p className="text-[var(--text-mut)]">{t("accountPage.notSignedIn")}</p>
         <Link to="/login" className="btn btn-primary">
           {t("auth.loginSubmit")}
         </Link>
@@ -33,38 +33,38 @@ export function AccountPage() {
   }
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--bg)]">
+    <div className="grain relative min-h-screen bg-[var(--surface)]">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
         <header className="flex flex-col gap-2">
           <h1
-            className="display text-[36px] tracking-tight text-[var(--ink)]"
+            className="display text-[36px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {t("auth.account.title")}
           </h1>
-          <p className="text-[14px] text-[var(--ink-mut)]">
+          <p className="text-[14px] text-[var(--text-mut)]">
             {t("auth.account.signedInAs")}{" "}
-            <strong className="text-[var(--ink-2)]">{user.name}</strong>{" "}
-            <span className="text-[var(--ink-faint)]">({user.email})</span>
+            <strong className="text-[var(--text-mut)]">{user.name}</strong>{" "}
+            <span className="text-[var(--text-faint)]">({user.email})</span>
           </p>
         </header>
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <h2 className="eyebrow">{t("accountPage.networksSection")}</h2>
-            <span className="h-px flex-1 bg-[var(--line-soft)]" />
+            <span className="h-px flex-1 bg-[var(--border-soft)]" />
           </div>
           {networks.length === 0 ? (
             <Link
               to="/setup"
-              className="card flex items-center gap-3 p-5 transition-colors hover:border-[var(--terra-line)]"
+              className="card flex items-center gap-3 p-5 transition-colors hover:border-[var(--brand-line)]"
             >
-              <Plus className="size-[18px] text-[var(--terra)]" />
+              <Plus className="size-[18px] text-[var(--brand)]" />
               <div className="flex flex-col">
-                <span className="text-[14px] font-semibold text-[var(--ink)]">
+                <span className="text-[14px] font-semibold text-[var(--text)]">
                   {t("accountPage.firstServerTitle")}
                 </span>
-                <span className="text-[12px] text-[var(--ink-mut)]">
+                <span className="text-[12px] text-[var(--text-mut)]">
                   {t("accountPage.firstServerHint")}
                 </span>
               </div>
@@ -76,10 +76,10 @@ export function AccountPage() {
                   <Link
                     to="/networks/$networkId"
                     params={{ networkId: n.id }}
-                    className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-[var(--terra-line)]"
+                    className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-[var(--brand-line)]"
                   >
-                    <span className="text-[14px] font-semibold text-[var(--ink)]">{n.name}</span>
-                    <span className="text-[11px] uppercase tracking-[.12em] text-[var(--ink-faint)]">
+                    <span className="text-[14px] font-semibold text-[var(--text)]">{n.name}</span>
+                    <span className="text-[11px] uppercase tracking-[.12em] text-[var(--text-faint)]">
                       {t("accountPage.networkBadge")}
                     </span>
                   </Link>
@@ -89,7 +89,7 @@ export function AccountPage() {
           )}
           <Link
             to="/setup"
-            className="self-start text-[12.5px] text-[var(--ink-mut)] underline-offset-2 hover:text-[var(--terra)] hover:underline"
+            className="self-start text-[12.5px] text-[var(--text-mut)] underline-offset-2 hover:text-[var(--brand)] hover:underline"
           >
             {t("accountPage.addAnotherServer")}
           </Link>

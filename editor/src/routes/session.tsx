@@ -203,17 +203,17 @@ function SessionPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--bg)]">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--surface)]">
       {draftNotice && (
         <div
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-[14px] border border-[var(--gold-soft)] bg-[var(--card-surface)] px-4 py-2.5 text-[13px] text-[var(--gold)]"
-          style={{ boxShadow: "var(--sh-2)" }}
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-[14px] border border-[var(--warning-soft)] bg-[var(--surface-raised)] px-4 py-2.5 text-[13px] text-[var(--warning)]"
+          style={{ boxShadow: "var(--shadow-md)" }}
         >
-          <span className="dot" style={{ background: "var(--gold)" }} />
+          <span className="dot" style={{ background: "var(--warning)" }} />
           {draftNotice}
         </div>
       )}
-      <p className="text-[var(--ink-mut)]">{t("sessionPage.loading")}</p>
+      <p className="text-[var(--text-mut)]">{t("sessionPage.loading")}</p>
     </div>
   );
 }
@@ -228,28 +228,28 @@ function SessionMessage({
   tone: "brick" | "gold";
 }) {
   const { t } = useTranslation();
-  const accent = tone === "brick" ? "var(--brick)" : "var(--gold)";
+  const accent = tone === "brick" ? "var(--danger)" : "var(--warning)";
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div className="card relative z-[1] flex w-full max-w-md flex-col gap-4 p-7">
         <div className="flex items-center gap-2.5">
           <span className="dot" style={{ background: accent }} />
-          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
             {t("sessionPage.eyebrow")}
           </span>
         </div>
         <h1
-          className="display text-[24px] tracking-tight text-[var(--ink)]"
+          className="display text-[24px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
-        <p className="text-[13.5px] leading-relaxed text-[var(--ink-mut)]">
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">
           <Trans
             i18nKey={hintKey}
             components={{
               1: (
-                <code className="mono rounded bg-[var(--inset)] px-1.5 py-0.5 text-[var(--sand)]" />
+                <code className="mono rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-[var(--text-mut)]" />
               ),
             }}
             values={{ cmd: "/artisan editor" }}
@@ -288,23 +288,23 @@ function EmptyState({
   };
 
   return (
-    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--bg)] p-8">
+    <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div className="card relative z-[1] flex w-full max-w-md flex-col gap-5 p-7">
         <div className="flex items-center gap-2.5">
           <span className="pixel-mark">
             <i /><i /><i /><i /><i /><i /><i /><i /><i />
           </span>
-          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--ink-mut)]">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
             {t("sessionPage.firstPackEyebrow")}
           </span>
         </div>
         <h1
-          className="display text-[24px] tracking-tight text-[var(--ink)]"
+          className="display text-[24px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {t("sessionPage.noPack")}
         </h1>
-        <p className="text-[13.5px] leading-relaxed text-[var(--ink-mut)]">
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">
           {t("sessionPage.noPackBody")}
         </p>
         <div className="flex flex-col gap-2">

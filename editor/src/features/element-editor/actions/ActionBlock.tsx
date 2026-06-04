@@ -13,16 +13,16 @@ export function ActionBlock({ action, packMenus, onChange }: Props) {
   return (
     <div
       data-testid="action-block-root"
-      className="rounded-[6px] border border-[var(--line-soft)] bg-[var(--inset)] p-2"
+      className="rounded-[6px] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-2"
     >
       {!expanded ? (
         <button
           type="button"
           data-testid="action-block-summary"
           onClick={() => setExpanded(true)}
-          className="w-full text-left text-[12px] text-[var(--ink)]"
+          className="w-full text-left text-[12px] text-[var(--text)]"
         >
-          <span className="font-mono text-[var(--ink-mut)]">{action.type}</span>
+          <span className="font-mono text-[var(--text-mut)]">{action.type}</span>
           {" · "}
           <ActionSummary action={action} packMenus={packMenus} />
         </button>
@@ -60,48 +60,48 @@ function ActionSummary({
     return <span>{target?.name ?? action.menuId ?? "—"}</span>;
   }
   if (action.type === "open_dialog") {
-    return <span className="text-[var(--ink-faint)]">{action.dialogId}</span>;
+    return <span className="text-[var(--text-faint)]">{action.dialogId}</span>;
   }
   if (action.type === "run_command") {
-    return <span className="text-[var(--ink-faint)]">/{action.command}</span>;
+    return <span className="text-[var(--text-faint)]">/{action.command}</span>;
   }
   if (action.type === "send_message") {
-    return <span className="text-[var(--ink-faint)]">message</span>;
+    return <span className="text-[var(--text-faint)]">message</span>;
   }
   if (action.type === "show_title") {
-    return <span className="text-[var(--ink-faint)]">title</span>;
+    return <span className="text-[var(--text-faint)]">title</span>;
   }
   if (action.type === "give_item") {
     return (
-      <span className="text-[var(--ink-faint)]">
+      <span className="text-[var(--text-faint)]">
         {action.count}× {action.material}
       </span>
     );
   }
   if (action.type === "take_money") {
-    return <span className="text-[var(--ink-faint)]">{action.amount}</span>;
+    return <span className="text-[var(--text-faint)]">{action.amount}</span>;
   }
   if (action.type === "paginate") {
-    return <span className="text-[var(--ink-faint)]">{action.direction}</span>;
+    return <span className="text-[var(--text-faint)]">{action.direction}</span>;
   }
   if (action.type === "set_arg") {
     return (
-      <span className="text-[var(--ink-faint)]">
+      <span className="text-[var(--text-faint)]">
         {action.arg} = {action.value}
       </span>
     );
   }
   if (action.type === "set_arg_cycle_next" || action.type === "set_arg_cycle_prev") {
-    return <span className="text-[var(--ink-faint)]">{action.arg}</span>;
+    return <span className="text-[var(--text-faint)]">{action.arg}</span>;
   }
-  return <span className="text-[var(--ink-faint)]">…</span>;
+  return <span className="text-[var(--text-faint)]">…</span>;
 }
 
 function ActionEditForm({ action, packMenus, onChange }: Props) {
   if (action.type === "open_menu") {
     return (
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">Target menu</span>
+        <span className="text-[var(--text-mut)]">Target menu</span>
         <select
           className="input"
           value={action.menuId ?? ""}
@@ -121,7 +121,7 @@ function ActionEditForm({ action, packMenus, onChange }: Props) {
   }
 
   return (
-    <p className="text-[12px] text-[var(--ink-faint)]">
+    <p className="text-[12px] text-[var(--text-faint)]">
       Form for {action.type} not yet implemented.
     </p>
   );
