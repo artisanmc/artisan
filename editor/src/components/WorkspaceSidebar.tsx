@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { DndContext, type DragEndEvent, type Modifier, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -210,30 +210,69 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const params = useParams({ strict: false }) as { workspaceId?: string };
+  const isActiveWorkspace = params.workspaceId === id;
   return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)] has-[[data-status=active]]:bg-[var(--brand-soft)] has-[[data-status=active]]:hover:bg-[var(--brand-soft)]"
-    >
-      <Link
-        to="/workspace/$workspaceId"
-        params={{ workspaceId: id }}
-        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
+    <li ref={setNodeRef} style={style} className="flex flex-col">
+      <div
+        data-active={isActiveWorkspace ? "true" : "false"}
+        className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)] data-[active=true]:bg-[var(--brand-soft)] data-[active=true]:hover:bg-[var(--brand-soft)]"
       >
-        <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
-        <span className="truncate flex-1">{name}</span>
-      </Link>
-      <button
-        type="button"
-        aria-label="Reorder workspace"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+        <Link
+          to="/workspace/$workspaceId"
+          params={{ workspaceId: id }}
+          className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
+        >
+          <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          <span className="truncate flex-1">{name}</span>
+        </Link>
+        <button
+          type="button"
+          aria-label="Reorder workspace"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+      </div>
+      {isActiveWorkspace && <WorkspaceSubTabs workspaceId={id} />}
     </li>
+  );
+}
+
+function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
+  const { t } = useTranslation();
+  const search = useSearch({ strict: false }) as { tab?: string } | undefined;
+  const currentTab = search?.tab ?? "overview";
+  const tabs = [
+    { id: "overview", label: t("workspace.tabs.overview") },
+    { id: "translations", label: t("workspace.tabs.translations") },
+    { id: "data-sources", label: t("workspace.tabs.dataSources") },
+    { id: "history", label: t("workspace.tabs.history") },
+  ] as const;
+  return (
+    <ul className="ml-9 mt-0.5 mb-1 flex flex-col">
+      {tabs.map((tab) => {
+        const isActive = currentTab === tab.id;
+        return (
+          <li key={tab.id}>
+            <Link
+              to="/workspace/$workspaceId"
+              params={{ workspaceId }}
+              search={{ tab: tab.id }}
+              className={
+                isActive
+                  ? "block rounded-[8px] px-2.5 py-1 text-[12px] font-medium text-[var(--brand)]"
+                  : "block rounded-[8px] px-2.5 py-1 text-[12px] text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+              }
+            >
+              {tab.label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -24,7 +24,7 @@ export function RootLayout() {
   return (
     <div className="flex h-full">
       {user && (
-        <aside className="w-[216px] shrink-0 border-r border-[var(--border-soft)] bg-[var(--surface)]">
+        <aside className="m-3 mr-0 w-[216px] shrink-0 overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
           <WorkspaceSidebar />
         </aside>
       )}
