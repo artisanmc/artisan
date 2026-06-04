@@ -560,6 +560,9 @@ const fr: typeof en = {
     appearance: {
       title: "Apparence",
       editorLanguage: "Langue de l'éditeur",
+      theme: "Thème",
+      themeDark: "Sombre",
+      themeLight: "Clair",
     },
   },
   workspace: {
