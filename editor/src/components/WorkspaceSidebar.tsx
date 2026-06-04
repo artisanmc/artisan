@@ -123,7 +123,7 @@ export function WorkspaceSidebar() {
         <span className="pixel-mark">
           <i /><i /><i /><i /><i /><i /><i /><i /><i />
         </span>
-        <span className="font-display text-[17px] font-semibold text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+        <span className="font-display text-[17px] font-semibold text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
           {t("sidebar.brand")}
         </span>
       </div>
@@ -134,7 +134,7 @@ export function WorkspaceSidebar() {
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {activeNetworkId ? (
           <div className="flex flex-col">
-            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--ink-faint)]">
+            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
               {t("sidebar.myWorkspaces")}
             </div>
             <DndContext
@@ -160,7 +160,7 @@ export function WorkspaceSidebar() {
               trigger={
                 <button
                   type="button"
-                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--ink-mut)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 >
                   {t("sidebar.newWorkspace")}
                 </button>
@@ -168,16 +168,16 @@ export function WorkspaceSidebar() {
             />
           </div>
         ) : (
-          <div className="rounded-[14px] border border-dashed border-[var(--line)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--ink-mut)]">
+          <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--text-mut)]">
             {t("sidebar.noNetworkHint")}
           </div>
         )}
 
         <div className="mt-4 flex flex-col">
-          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--ink-faint)]">
+          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.installedModules")}
           </div>
-          <div className="rounded-[14px] border border-dashed border-[var(--line)] px-3 py-3 text-center text-[11px] text-[var(--ink-faint)]">
+          <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
             {t("sidebar.noModules")}
           </div>
         </div>
@@ -185,10 +185,10 @@ export function WorkspaceSidebar() {
 
       <Link
         to="/settings"
-        className="flex items-center gap-2.5 rounded-[10px] border-t border-[var(--line-soft)] px-2.5 py-2.5 text-[13px] text-[var(--ink-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="flex items-center gap-2.5 rounded-[10px] border-t border-[var(--border-soft)] px-2.5 py-2.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         style={{ marginLeft: -4, marginRight: -4, borderRadius: 0 }}
       >
-        <Settings className="size-[15px] text-[var(--ink-faint)]" />
+        <Settings className="size-[15px] text-[var(--text-faint)]" />
         <span>{t("sidebar.settings")}</span>
       </Link>
     </nav>
@@ -214,14 +214,14 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
     <li
       ref={setNodeRef}
       style={style}
-      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--hover)] has-[[data-status=active]]:bg-[var(--terra-soft)] has-[[data-status=active]]:hover:bg-[var(--terra-soft)]"
+      className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)] has-[[data-status=active]]:bg-[var(--brand-soft)] has-[[data-status=active]]:hover:bg-[var(--brand-soft)]"
     >
       <Link
         to="/workspace/$workspaceId"
         params={{ workspaceId: id }}
-        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--ink-2)] transition-colors hover:text-[var(--ink)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--terra)]"
+        className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
       >
-        <LayoutGrid className="size-[15px] shrink-0 text-[var(--ink-faint)]" />
+        <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
         <span className="truncate flex-1">{name}</span>
       </Link>
       <button
@@ -230,7 +230,7 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--ink-faint)] transition-opacity hover:text-[var(--ink-2)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
+        className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
       >
         <GripVertical className="size-3.5" />
       </button>
