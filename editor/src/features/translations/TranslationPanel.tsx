@@ -94,33 +94,12 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-[var(--border-soft)] border-b px-4 py-3">
-        <div className="flex items-center gap-2 font-mono text-sm text-[var(--text)]">
-          {t("translations.title")}
-        </div>
-        <div className="flex items-center gap-3 text-[11px] text-[var(--text-mut)]">
-          <span>
-            {t("translations.statTranslated", {
-              translated: stats.translated,
-              total: stats.total,
-              lang: activeLang.toUpperCase(),
-            })}
-          </span>
-          {missing > 0 ? (
-            <span className="text-[var(--warning)]">
-              · {t("translations.statMissing", { count: missing })}
-            </span>
-          ) : (
-            <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Per-language tabs — one click switches both the panel view
-          and the global active language, so the canvas/editor below
-          stay in sync with what the user is translating. */}
-      <div className="flex items-center gap-1 overflow-x-auto border-[var(--border-soft)] border-b bg-[var(--surface)] px-2 py-1.5">
+    <>
+      {/* Left card — vertical language list */}
+      <nav
+        className="card flex w-[224px] shrink-0 flex-col gap-1 p-3"
+        aria-label="Languages"
+      >
         {langs.map((lang) => {
           const isActive = lang === activeLang;
           const isDefault = lang === pack.defaultLang;
@@ -132,11 +111,11 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
               onClick={() => setActiveLang(lang)}
               className={
                 isActive
-                  ? "flex shrink-0 items-center gap-1.5 rounded border border-[var(--brand-line)] bg-[var(--brand-soft)] px-2.5 py-1 font-mono text-[11px] text-[var(--brand)]"
-                  : "flex shrink-0 items-center gap-1.5 rounded border border-transparent px-2.5 py-1 font-mono text-[11px] text-[var(--text-mut)] hover:border-[var(--border)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+                  ? "flex items-center justify-between rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left text-[13px] font-semibold text-white"
+                  : "flex items-center justify-between rounded-[10px] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               }
             >
-              <span className="uppercase">{lang}</span>
+              <span className="font-mono uppercase">{lang}</span>
               {isDefault ? (
                 <span className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 text-[8px] uppercase tracking-wide text-[var(--text-mut)]">
                   src
@@ -155,65 +134,91 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
           type="button"
           onClick={onAddLang}
           title={t("translations.addLanguage")}
-          className="flex shrink-0 items-center gap-1 rounded border border-[var(--border-soft)] border-dashed px-2 py-1 text-[11px] text-[var(--text-faint)] hover:border-[var(--border)] hover:text-[var(--text-mut)]"
+          className="flex items-center gap-1.5 rounded-[10px] border border-dashed border-[var(--border)] px-2.5 py-2 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           <Plus className="h-3 w-3" />
+          <span>{t("translations.addLanguage")}</span>
         </button>
-      </div>
+      </nav>
 
-      {isOnDefault ? (
-        <div className="border-b border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2 text-[11px] text-[var(--warning)]">
-          {t("translations.onDefaultWarning", { lang: activeLang })}
+      {/* Right card — stats + mode/filter + body */}
+      <main className="card flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* Stats row */}
+        <div className="border-b border-[var(--border-soft)] px-5 py-3">
+          <div className="flex items-center gap-3 text-[12px] text-[var(--text-mut)]">
+            <span>
+              {t("translations.statTranslated", {
+                translated: stats.translated,
+                total: stats.total,
+                lang: activeLang.toUpperCase(),
+              })}
+            </span>
+            {missing > 0 ? (
+              <span className="text-[var(--warning)]">
+                · {t("translations.statMissing", { count: missing })}
+              </span>
+            ) : (
+              <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
+            )}
+          </div>
         </div>
-      ) : null}
 
-      {/* Mode switcher (segmented control). */}
-      <div className="flex items-center gap-2 border-[var(--border-soft)] border-b bg-[var(--surface)]/40 px-4 py-2">
-        <div className="flex overflow-hidden rounded border border-[var(--border)]">
-          <ModeTab active={mode === "visual"} onClick={() => setMode("visual")}>
-            {t("translations.modeVisual")}
-          </ModeTab>
-          <ModeTab active={mode === "yaml"} onClick={() => setMode("yaml")}>
-            {t("translations.modeYaml")}
-          </ModeTab>
-        </div>
-        {mode === "visual" ? (
-          <div className="ml-auto flex items-center gap-1">
-            <FilterTab active={filter === "missing"} onClick={() => setFilter("missing")}>
-              {t("translations.filterMissing")}
-              {missing > 0 ? ` (${missing})` : ""}
-            </FilterTab>
-            <FilterTab active={filter === "translated"} onClick={() => setFilter("translated")}>
-              {t("translations.filterTranslated", { count: stats.translated })}
-            </FilterTab>
-            <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
-              {t("translations.filterAll", { count: stats.total })}
-            </FilterTab>
+        {isOnDefault ? (
+          <div className="border-b border-[var(--warning-soft)] bg-[var(--warning-soft)] px-5 py-2 text-[11px] text-[var(--warning)]">
+            {t("translations.onDefaultWarning", { lang: activeLang })}
           </div>
         ) : null}
-      </div>
 
-      {/* Body */}
-      {mode === "visual" ? (
-        <VisualBody
-          activeLang={activeLang}
-          defaultLang={pack.defaultLang}
-          allRows={rows}
-          filter={filter}
-          onChange={(key, value) =>
-            setI18nValue({ packId, lt: { key }, lang: activeLang, value })
-          }
-        />
-      ) : (
-        <YamlBody
-          packId={packId}
-          activeLang={activeLang}
-          pack={pack}
-          rows={rows}
-          modeKey={mode}
-        />
-      )}
-    </div>
+        {/* Mode switcher (segmented control). */}
+        <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface)]/40 px-5 py-2">
+          <div className="flex overflow-hidden rounded border border-[var(--border)]">
+            <ModeTab active={mode === "visual"} onClick={() => setMode("visual")}>
+              {t("translations.modeVisual")}
+            </ModeTab>
+            <ModeTab active={mode === "yaml"} onClick={() => setMode("yaml")}>
+              {t("translations.modeYaml")}
+            </ModeTab>
+          </div>
+          {mode === "visual" ? (
+            <div className="ml-auto flex items-center gap-1">
+              <FilterTab active={filter === "missing"} onClick={() => setFilter("missing")}>
+                {t("translations.filterMissing")}
+                {missing > 0 ? ` (${missing})` : ""}
+              </FilterTab>
+              <FilterTab active={filter === "translated"} onClick={() => setFilter("translated")}>
+                {t("translations.filterTranslated", { count: stats.translated })}
+              </FilterTab>
+              <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
+                {t("translations.filterAll", { count: stats.total })}
+              </FilterTab>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Body */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {mode === "visual" ? (
+            <VisualBody
+              activeLang={activeLang}
+              defaultLang={pack.defaultLang}
+              allRows={rows}
+              filter={filter}
+              onChange={(key, value) =>
+                setI18nValue({ packId, lt: { key }, lang: activeLang, value })
+              }
+            />
+          ) : (
+            <YamlBody
+              packId={packId}
+              activeLang={activeLang}
+              pack={pack}
+              rows={rows}
+              modeKey={mode}
+            />
+          )}
+        </div>
+      </main>
+    </>
   );
 }
 
