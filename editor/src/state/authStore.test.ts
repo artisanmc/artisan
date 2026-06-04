@@ -85,3 +85,34 @@ describe("authStore.hydrate — editor_language sync", () => {
     expect(changeLang).not.toHaveBeenCalled();
   });
 });
+
+describe("authStore.hydrate — theme sync", () => {
+  test("hydrate applies user.theme when no localStorage choice exists", async () => {
+    localStorage.removeItem("artisan.theme");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ user: { id: "u1", email: "a@b.com", name: "A", avatarUrl: null, editorLanguage: null, theme: "light" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+
+    await useAuthStore.getState().hydrate(API);
+
+    // themeStore.setTheme should have set data-theme on the document element
+    expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  test("hydrate does NOT override theme when localStorage choice exists", async () => {
+    localStorage.setItem("artisan.theme", JSON.stringify({ state: { theme: "dark" }, version: 0 }));
+    document.documentElement.dataset.theme = "dark";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ user: { id: "u1", email: "a@b.com", name: "A", avatarUrl: null, editorLanguage: null, theme: "light" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+
+    await useAuthStore.getState().hydrate(API);
+
+    // localStorage had "dark" — backend "light" must NOT override it
+    expect(document.documentElement.dataset.theme).toBe("dark");
+
+    localStorage.removeItem("artisan.theme");
+  });
+});
