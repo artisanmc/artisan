@@ -107,7 +107,7 @@ export function AssetImportFontDialog({ packId, open, onClose }: AssetImportFont
               ))}
             </div>
           )}
-          {error && <div className="text-xs text-[var(--brick)]">{error}</div>}
+          {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button disabled={busy || !name || !file} onClick={onSubmit}>Import</Button>
