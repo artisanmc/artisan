@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { listNetworks } from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
-import { Step2Pack } from "./SetupWizardSteps/Step2Pack";
-import { Step3ServerKey } from "./SetupWizardSteps/Step3ServerKey";
+import { Step2Server } from "./SetupWizardSteps/Step2Server";
+import { Step3Workspace } from "./SetupWizardSteps/Step3Workspace";
 import { Step4Install } from "./SetupWizardSteps/Step4Install";
 
 export interface WizardState {
@@ -23,10 +23,10 @@ export interface WizardState {
  */
 export function canNext(step: number, state: WizardState): boolean {
   if (step === 1) return state.networkId !== null;
-  if (step === 2) return state.packId !== null;
-  if (step === 3) return state.serverKeyId !== null;
+  if (step === 2) return state.serverKeyId !== null;
+  if (step === 3) return state.packId !== null;
   // Step 4 is the final "Install" instruction screen. By the time we got here,
-  // all of networkId / packId / serverKeyId are populated (each prior step
+  // all of networkId / serverKeyId / packId are populated (each prior step
   // required them to move forward), so the "Terminé" button is always
   // enabled — clicking it exits the wizard into the just-created workspace.
   if (step === 4) return true;
@@ -38,8 +38,8 @@ export function SetupWizard() {
   const navigate = useNavigate();
   const stepLabels = [
     t("setupWizard.stepLabels.network"),
-    t("setupWizard.stepLabels.pack"),
-    t("setupWizard.stepLabels.serverKey"),
+    t("setupWizard.stepLabels.server"),
+    t("setupWizard.stepLabels.workspace"),
     t("setupWizard.stepLabels.install"),
   ];
   const [step, setStep] = useState(1);
@@ -156,8 +156,8 @@ export function SetupWizard() {
 
         <div className="flex flex-col gap-4">
           {step === 1 && <Step1Network state={state} setState={setState} />}
-          {step === 2 && <Step2Pack state={state} setState={setState} />}
-          {step === 3 && <Step3ServerKey state={state} setState={setState} />}
+          {step === 2 && <Step2Server state={state} setState={setState} />}
+          {step === 3 && <Step3Workspace state={state} setState={setState} />}
           {step === 4 && <Step4Install state={state} setState={setState} />}
         </div>
 
