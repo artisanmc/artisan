@@ -7,7 +7,8 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { CSS } from "@dnd-kit/utilities";
-import { LayoutGrid, Settings, GripVertical } from "lucide-react";
+import { LayoutGrid, GripVertical } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { ServerDropdown } from "./ServerDropdown";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
@@ -184,14 +185,7 @@ export function WorkspaceSidebar() {
         </div>
       </div>
 
-      <Link
-        to="/settings"
-        className="flex items-center gap-2.5 rounded-[10px] border-t border-[var(--border-soft)] px-2.5 py-2.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        style={{ marginLeft: -4, marginRight: -4, borderRadius: 0 }}
-      >
-        <Settings className="size-[15px] text-[var(--text-faint)]" />
-        <span>{t("sidebar.settings")}</span>
-      </Link>
+      <UserMenu />
     </nav>
   );
 }
