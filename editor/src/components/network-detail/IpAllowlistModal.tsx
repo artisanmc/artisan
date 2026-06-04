@@ -62,22 +62,22 @@ export function IpAllowlistModal({ open, onOpenChange, networkId, serverId }: Pr
         <DialogHeader>
           <DialogTitle>{t("ipAllowlistModal.title")}</DialogTitle>
         </DialogHeader>
-        <p className="mt-1 text-[12px] text-[var(--ink-faint)]">{t("ipAllowlistModal.help")}</p>
+        <p className="mt-1 text-[12px] text-[var(--text-faint)]">{t("ipAllowlistModal.help")}</p>
         <div className="mt-3">
           {error ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("ipAllowlistModal.error")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("ipAllowlistModal.error")}</p>
           ) : ips === null ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("ipAllowlistModal.loading")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("ipAllowlistModal.loading")}</p>
           ) : ips.length === 0 ? (
-            <p className="text-[12px] text-[var(--ink-faint)]">{t("ipAllowlistModal.empty")}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{t("ipAllowlistModal.empty")}</p>
           ) : (
             <ul className="mb-3 flex max-h-[30vh] flex-col gap-1 overflow-auto">
               {ips.map((ip) => (
                 <li
                   key={ip}
-                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[12px] text-[var(--ink-2)]"
+                  className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-[12px] text-[var(--text-mut)]"
                 >
-                  <span className="mono truncate text-[var(--ink-mut)]">{ip}</span>
+                  <span className="mono truncate text-[var(--text-mut)]">{ip}</span>
                   <button
                     className="btn btn-xs btn-ghost shrink-0 text-[11px]"
                     onClick={() => handleRemove(ip)}

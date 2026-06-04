@@ -27,7 +27,7 @@ export function ServerKebabMenu({ serverId, onAction }: Props) {
       key={action}
       type="button"
       role="menuitem"
-      className={`px-3 py-1.5 text-left text-[12px] hover:bg-[var(--hover)] ${danger ? "text-[var(--brick)]" : ""}`}
+      className={`px-3 py-1.5 text-left text-[12px] hover:bg-[var(--surface-hover)] ${danger ? "text-[var(--danger)]" : ""}`}
       onClick={() => {
         onAction(action, serverId);
         setOpen(false);
@@ -52,14 +52,14 @@ export function ServerKebabMenu({ serverId, onAction }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-10 mt-1 flex min-w-[200px] flex-col rounded-md border border-[var(--line)] bg-[var(--bg)] py-1 shadow-md"
+          className="absolute right-0 z-10 mt-1 flex min-w-[200px] flex-col rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-md"
         >
           {item("show-key", t("serverKebab.showKey"))}
           {item("rotate", t("serverKebab.rotate"))}
-          <div className="my-1 border-t border-[var(--line-soft)]" />
+          <div className="my-1 border-t border-[var(--border-soft)]" />
           {item("history", t("serverKebab.history"))}
           {item("allowlist", t("serverKebab.allowlist"))}
-          <div className="my-1 border-t border-[var(--line-soft)]" />
+          <div className="my-1 border-t border-[var(--border-soft)]" />
           {item("delete", t("serverKebab.delete"), true)}
         </div>
       )}
