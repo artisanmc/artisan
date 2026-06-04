@@ -91,16 +91,16 @@ export function WorkspaceTopBarControls({
   const displayName = packName ?? pack.name;
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--line-soft)] bg-[var(--bg-deep)] px-3.5">
+    <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface)] px-3.5">
       {leftSlot != null ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
           {leftSlot}
         </div>
       ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--ink)]">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
+            style={{ background: "var(--warning)", boxShadow: "0 0 8px var(--warning)" }}
           />
           <span className="truncate">{displayName}</span>
         </div>
@@ -176,10 +176,10 @@ function LangSwitcher({ pack }: { pack: Pack }) {
         <button
           type="button"
           title={t("topbar.activeLanguage", { lang: activeLang })}
-          className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--raised)] px-3 font-mono text-[12px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+          className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 font-mono text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           <span className="uppercase">{activeLang}</span>
-          <span className="text-[var(--ink-faint)]">▾</span>
+          <span className="text-[var(--text-faint)]">▾</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="text-xs">
@@ -190,7 +190,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
             className="flex cursor-pointer items-center gap-2"
           >
             <span
-              className={`font-mono uppercase ${lang === activeLang ? "text-[var(--terra)]" : ""}`}
+              className={`font-mono uppercase ${lang === activeLang ? "text-[var(--brand)]" : ""}`}
             >
               {lang}
             </span>
@@ -206,7 +206,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
                     e.stopPropagation();
                     setPackDefaultLang({ packId: pack.id, lang });
                   }}
-                  className="rounded px-1 text-[11px] text-[var(--ink-faint)] hover:text-[var(--gold)]"
+                  className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--warning)]"
                 >
                   ★
                 </button>
@@ -219,7 +219,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
                     e.stopPropagation();
                     onRemove(lang);
                   }}
-                  className="rounded px-1 text-[11px] text-[var(--ink-faint)] hover:text-[var(--brick)]"
+                  className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--danger)]"
                 >
                   ×
                 </button>
@@ -228,7 +228,7 @@ function LangSwitcher({ pack }: { pack: Pack }) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onAdd} className="cursor-pointer text-[var(--terra)]">
+        <DropdownMenuItem onSelect={onAdd} className="cursor-pointer text-[var(--brand)]">
           {t("langSwitcher.addLanguage")}
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -465,14 +465,14 @@ function TopBarIconButton({
       onClick={onClick}
       className={
         disabled
-          ? "relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-[10px] text-[var(--ink-faint)] opacity-40"
-          : "relative flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--ink-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+          ? "relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-[10px] text-[var(--text-faint)] opacity-40"
+          : "relative flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       }
     >
       {children}
       {badge != null ? (
         typeof badge === "string" || typeof badge === "number" ? (
-          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 font-mono text-[9px] text-[#2A140C]">
+          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]">
             {badge}
           </span>
         ) : (
