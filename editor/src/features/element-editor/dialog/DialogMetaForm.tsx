@@ -55,7 +55,7 @@ export function DialogMetaForm({ pack, dialog, onChange }: Props) {
           to persist title edits. This is intentional placeholder behaviour for
           V1; proper write-through is a V2 polish item. */}
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">{t("dialogMeta.title")}</span>
+        <span className="text-[var(--text-mut)]">{t("dialogMeta.title")}</span>
         <input
           className="input"
           value={titleText}
@@ -66,7 +66,7 @@ export function DialogMetaForm({ pack, dialog, onChange }: Props) {
       {/* Body field — same V1 stub: renders the first text body's i18n value.
           Use setDialogBodyText (accountStore) to persist body edits. */}
       <label className="flex flex-col gap-1 text-[12px]">
-        <span className="text-[var(--ink-mut)]">{t("dialogMeta.body")}</span>
+        <span className="text-[var(--text-mut)]">{t("dialogMeta.body")}</span>
         <textarea
           className="input"
           rows={3}

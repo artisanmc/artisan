@@ -25,13 +25,13 @@ export function EditorPane({ packId }: EditorPaneProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--raised)]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--surface-raised)]">
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as EditorTab)}
         className="flex h-full min-h-0 flex-col"
       >
-        <TabsList className="flex h-[42px] shrink-0 items-center justify-start gap-5 border-b border-[var(--line-soft)] px-4">
+        <TabsList className="flex h-[42px] shrink-0 items-center justify-start gap-5 border-b border-[var(--border-soft)] px-4">
           <TabsTrigger value="edit">{t("editorPane.tabEdit")}</TabsTrigger>
           <TabsTrigger value="library">{t("editorPane.tabLibrary")}</TabsTrigger>
           <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>

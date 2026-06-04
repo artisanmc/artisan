@@ -49,7 +49,7 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
           <DialogTitle className="text-base">{t("materialPicker.title")}</DialogTitle>
         </DialogHeader>
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--ink-faint)]" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
           <Input
             autoFocus
             placeholder={t("library.search")}
@@ -63,7 +63,7 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
             <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-6 py-4 text-center text-xs text-[var(--ink-faint)] sm:col-span-8">
+            <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)] sm:col-span-8">
               {t("library.noMatch")}
             </div>
           )}
@@ -82,7 +82,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
       title={label}
       className={cx(
         "group relative flex aspect-square cursor-pointer items-center justify-center",
-        "rounded-[8px] border border-[var(--line)] bg-[var(--inset)] hover:border-[var(--terra-line)] hover:bg-[var(--terra-soft)]",
+        "rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] hover:border-[var(--brand-line)] hover:bg-[var(--brand-soft)]",
       )}
     >
       {url ? (
@@ -94,7 +94,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[8px] text-[var(--ink-mut)]">{label.slice(0, 4)}</span>
+        <span className="text-[8px] text-[var(--text-mut)]">{label.slice(0, 4)}</span>
       )}
     </button>
   );

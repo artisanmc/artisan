@@ -19,10 +19,10 @@ const sourceLabelKey = (
 
 const sourceColor = (source: Pack["source"]) =>
   source === "imported"
-    ? "bg-[var(--terra-soft)] text-[var(--terra)]"
+    ? "bg-[var(--brand-soft)] text-[var(--brand)]"
     : source === "forked"
-      ? "bg-[var(--gold-soft)] text-[var(--gold)]"
-      : "bg-[var(--sage-soft)] text-[var(--terra)]";
+      ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+      : "bg-[var(--success-soft)] text-[var(--success)]";
 
 export function PackProperties({ pack }: PackPropertiesProps) {
   const setPackField = useAccountStore((s) => s.setPackField);
@@ -35,9 +35,9 @@ export function PackProperties({ pack }: PackPropertiesProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <div>
-          <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{t("packProperties.id")}</div>
+          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("packProperties.id")}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[var(--ink-mut)]">{pack.id}</span>
+            <span className="font-mono text-xs text-[var(--text-mut)]">{pack.id}</span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(pack.source)}`}>
               {t(`packProperties.${sourceLabelKey(pack.source)}`)}
             </span>
@@ -80,7 +80,7 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         onOpenChange={setCommandDialogOpen}
       />
 
-      <div className="text-[10px] text-[var(--ink-faint)]">
+      <div className="text-[10px] text-[var(--text-faint)]">
         {t("packProperties.countTemplatesAssets", {
           templates: pack.templates.length,
           templatesPlural: t(
@@ -95,11 +95,11 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         })}
       </div>
 
-      <div className="mt-2 border-t border-[var(--line-soft)] pt-4">
+      <div className="mt-2 border-t border-[var(--border-soft)] pt-4">
         <button
           type="button"
           onClick={() => setDeleteDialogOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-[var(--brick)] hover:border-red-700/60 hover:bg-red-900/20"
+          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-[var(--danger)] hover:border-red-700/60 hover:bg-red-900/20"
         >
           <Trash2 className="h-3 w-3" />
           {t("packProperties.deletePack")}
@@ -136,24 +136,24 @@ function ContentsSection({
     <div
       className={
         isEmpty
-          ? "flex flex-col gap-2 rounded border border-[var(--line-soft)] border-dashed bg-[var(--card-surface)]/40 p-3"
+          ? "flex flex-col gap-2 rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)]/40 p-3"
           : "flex items-center gap-2"
       }
     >
-      <div className="flex items-center gap-1.5 text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
+      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
         {icon}
         <span>
           {count} {label}
         </span>
       </div>
-      {isEmpty ? <p className="text-[11px] text-[var(--ink-mut)]">{emptyHint}</p> : null}
+      {isEmpty ? <p className="text-[11px] text-[var(--text-mut)]">{emptyHint}</p> : null}
       <button
         type="button"
         onClick={onCreate}
         className={
           isEmpty
-            ? "self-start inline-flex items-center gap-1 rounded border border-[var(--terra)]/60 bg-[var(--terra-soft)] px-2.5 py-1.5 text-[11px] text-[var(--terra)] hover:bg-[var(--terra)]/20"
-            : "ml-auto inline-flex items-center gap-1 rounded border border-[var(--line)] px-2 py-1 text-[10px] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:bg-[var(--raised-2)]"
+            ? "self-start inline-flex items-center gap-1 rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)] hover:bg-[var(--brand)]/20"
+            : "ml-auto inline-flex items-center gap-1 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised-2)]"
         }
       >
         <Plus className="h-3 w-3" />

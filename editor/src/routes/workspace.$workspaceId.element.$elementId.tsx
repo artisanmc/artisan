@@ -56,8 +56,8 @@ function ElementFocusPage() {
         <ArrowLeft className="size-[14px]" />
         {t("focusMode.backToCanvas")}
       </Link>
-      <span className="mx-2 h-4 w-px shrink-0 bg-[var(--line-soft)]" />
-      <span className="truncate font-mono text-[13px] text-[var(--ink)]">{elementId}</span>
+      <span className="mx-2 h-4 w-px shrink-0 bg-[var(--border-soft)]" />
+      <span className="truncate font-mono text-[13px] text-[var(--text)]">{elementId}</span>
     </>
   );
 

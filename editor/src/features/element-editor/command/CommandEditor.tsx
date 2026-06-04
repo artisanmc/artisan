@@ -42,7 +42,7 @@ export function CommandEditor({ pack, command }: Props) {
 
   if (isDesktop) {
     return (
-      <div className="grid h-full grid-cols-[42%_minmax(0,1fr)] divide-x divide-[var(--line-soft)]">
+      <div className="grid h-full grid-cols-[42%_minmax(0,1fr)] divide-x divide-[var(--border-soft)]">
         <div className="min-h-0 overflow-auto">{Meta}</div>
         <div className="min-h-0 overflow-auto">{Chain}</div>
       </div>
@@ -50,7 +50,7 @@ export function CommandEditor({ pack, command }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col divide-y divide-[var(--line-soft)] overflow-auto">
+    <div className="flex h-full flex-col divide-y divide-[var(--border-soft)] overflow-auto">
       {Meta}
       {Chain}
     </div>

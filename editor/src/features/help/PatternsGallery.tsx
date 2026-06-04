@@ -10,9 +10,9 @@ interface PatternsGalleryProps {
 }
 
 const KIND_BADGE: Record<PatternKind, string> = {
-  lore: "bg-[var(--sage-soft)] text-[var(--terra)] border-[var(--terra)]/30",
-  condition: "bg-[var(--gold-soft)] text-[var(--gold)] border-[var(--gold-soft)]",
-  action: "bg-[var(--terra-soft)] text-purple-200 border-purple-500/30",
+  lore: "bg-[var(--success-soft)] text-[var(--success)] border-[var(--success)]/30",
+  condition: "bg-[var(--warning-soft)] text-[var(--warning)] border-[var(--warning-soft)]",
+  action: "bg-[var(--brand-soft)] text-purple-200 border-purple-500/30",
 };
 
 export function PatternsGallery({ open, onOpenChange }: PatternsGalleryProps) {
@@ -21,12 +21,12 @@ export function PatternsGallery({ open, onOpenChange }: PatternsGalleryProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto sm:max-w-2xl border-[var(--line-soft)] bg-[var(--bg-deep)] text-[var(--ink)]"
+        className="w-full overflow-y-auto sm:max-w-2xl border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text)]"
       >
         <SheetHeader>
-          <SheetTitle className="text-[var(--ink)]">{t("patterns.title")}</SheetTitle>
+          <SheetTitle className="text-[var(--text)]">{t("patterns.title")}</SheetTitle>
         </SheetHeader>
-        <p className="mt-2 text-[12px] text-[var(--ink-mut)]">{t("patterns.intro")}</p>
+        <p className="mt-2 text-[12px] text-[var(--text-mut)]">{t("patterns.intro")}</p>
         <div className="mt-4 space-y-3">
           {PATTERNS.map((p) => (
             <PatternCard key={p.id} pattern={p} />
@@ -52,27 +52,27 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
   };
 
   return (
-    <div className="rounded border border-[var(--line-soft)] bg-[var(--card-surface)] p-3">
+    <div className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
       <div className="mb-1 flex items-center gap-2">
         <span
           className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase ${KIND_BADGE[pattern.kind]}`}
         >
           {pattern.kind}
         </span>
-        <span className="text-[12px] font-semibold text-[var(--ink)]">
+        <span className="text-[12px] font-semibold text-[var(--text)]">
           {t(`patterns.entries.${pattern.id}.name`)}
         </span>
       </div>
-      <p className="mb-2 text-[11px] text-[var(--ink-mut)]">{t(`patterns.entries.${pattern.id}.desc`)}</p>
+      <p className="mb-2 text-[11px] text-[var(--text-mut)]">{t(`patterns.entries.${pattern.id}.desc`)}</p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 break-all rounded bg-[var(--bg-deep)] px-2 py-1.5 font-mono text-[11px] text-[var(--ink)]">
+        <code className="flex-1 break-all rounded bg-[var(--surface)] px-2 py-1.5 font-mono text-[11px] text-[var(--text)]">
           {pattern.snippet}
         </code>
         <button
           type="button"
           onClick={copy}
           title={t(copied ? "patterns.copied" : "patterns.copy")}
-          className="flex h-7 w-7 items-center justify-center rounded border border-[var(--line)] bg-[var(--raised-2)] text-[var(--ink-2)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+          className="flex h-7 w-7 items-center justify-center rounded border border-[var(--border)] bg-[var(--surface-raised-2)] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>

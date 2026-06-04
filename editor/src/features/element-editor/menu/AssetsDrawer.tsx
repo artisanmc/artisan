@@ -17,10 +17,10 @@ export function AssetsDrawer({ open, onOpenChange, packId }: Props) {
         onClick={() => onOpenChange(false)}
       />
       <aside
-        className="fixed right-0 top-0 z-50 flex h-[100dvh] w-[360px] flex-col border-l border-[var(--line)] bg-[var(--bg)] shadow-xl"
+        className="fixed right-0 top-0 z-50 flex h-[100dvh] w-[360px] flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-[52px] shrink-0 border-b border-[var(--line-soft)] px-3 flex items-center font-mono text-[13px]">
+        <div className="h-[52px] shrink-0 border-b border-[var(--border-soft)] px-3 flex items-center font-mono text-[13px]">
           Assets
         </div>
         <div className="min-h-0 flex-1 overflow-auto">

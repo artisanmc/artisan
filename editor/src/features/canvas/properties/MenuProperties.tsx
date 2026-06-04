@@ -51,15 +51,15 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
   return (
     <div className="flex flex-col gap-3">
       {elementCount === 0 ? (
-        <div className="flex flex-col gap-2 rounded border border-[var(--terra)]/40 border-dashed bg-emerald-600/5 p-3">
-          <div className="font-mono text-[10px] text-[var(--terra)] uppercase tracking-wide">
+        <div className="flex flex-col gap-2 rounded border border-[var(--brand)]/40 border-dashed bg-emerald-600/5 p-3">
+          <div className="font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide">
             {t("menuProperties.emptyMenuTitle")}
           </div>
-          <p className="text-[11px] text-[var(--ink-2)]">{t("menuProperties.emptyMenuHint")}</p>
+          <p className="text-[11px] text-[var(--text-mut)]">{t("menuProperties.emptyMenuHint")}</p>
           <button
             type="button"
             onClick={() => setEditorTab("library")}
-            className="self-start inline-flex items-center gap-1 rounded border border-[var(--terra)]/60 bg-[var(--terra-soft)] px-2.5 py-1.5 text-[11px] text-[var(--terra)] hover:bg-[var(--terra)]/20"
+            className="self-start inline-flex items-center gap-1 rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)] hover:bg-[var(--brand)]/20"
           >
             <LibraryIcon className="h-3 w-3" />
             {t("menuProperties.openLibrary")}
@@ -68,7 +68,7 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
       ) : null}
       <MenuIdField packId={packId} menuId={menu.id} />
       <div className="flex flex-col gap-1.5" data-testid="menu-properties-title-section">
-        <div className="font-mono text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
+        <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
           {t("menuProperties.titleSection")}
         </div>
         <LayersPanel packId={packId} menuId={menu.id} />
@@ -80,7 +80,7 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         onChange={(v) => setMenuField({ packId, menuId: menu.id, field: "permission", value: v })}
       />
       <div>
-        <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{t("menuProperties.rows")}</div>
+        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("menuProperties.rows")}</div>
         <div className="flex gap-1">
           {ROWS_OPTIONS.map((r) => (
             <button
@@ -89,15 +89,15 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
               onClick={() => onRowsChange(r)}
               className={
                 r === menu.rows
-                  ? "rounded border border-[var(--terra)] bg-[var(--terra-soft)] px-2 py-1 text-xs"
-                  : "rounded border border-[var(--line)] px-2 py-1 text-xs hover:border-[var(--line-strong)]"
+                  ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
+                  : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
               }
             >
               {r}
             </button>
           ))}
         </div>
-        {rowsError && <div className="mt-1 text-[10px] text-[var(--brick)]">{rowsError}</div>}
+        {rowsError && <div className="mt-1 text-[10px] text-[var(--danger)]">{rowsError}</div>}
       </div>
       <ContextInputsEditor packId={packId} menu={menu} />
     </div>
@@ -130,7 +130,7 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{t("menuProperties.id")}</div>
+      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("menuProperties.id")}</div>
       <Input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -151,8 +151,8 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-[var(--brick)]">{error}</div> : null}
-      <div className="mt-1 text-[10px] text-[var(--ink-faint)]">
+      {error ? <div className="mt-1 text-[10px] text-[var(--danger)]">{error}</div> : null}
+      <div className="mt-1 text-[10px] text-[var(--text-faint)]">
         {t("menuProperties.idHint", { tag: "open_menu" })}
       </div>
     </div>
@@ -183,14 +183,14 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] text-[var(--ink-faint)] uppercase tracking-wide">
+      <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
         {t("menuProperties.contextInputs")}
       </div>
-      <p className="text-[10px] text-[var(--ink-faint)]">
+      <p className="text-[10px] text-[var(--text-faint)]">
         {t("menuProperties.contextInputsHint", { tag: "{name}" })}
       </p>
       {inputs.length === 0 ? (
-        <div className="rounded border border-[var(--line-soft)] border-dashed bg-[var(--card-surface)]/40 px-2 py-2 text-[11px] text-[var(--ink-faint)]">
+        <div className="rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)]/40 px-2 py-2 text-[11px] text-[var(--text-faint)]">
           {t("menuProperties.contextInputsEmpty")}
         </div>
       ) : (
@@ -203,7 +203,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
               className={
                 isInvalid
                   ? "flex flex-col gap-1 rounded border border-red-500/60 bg-red-500/5 p-1.5"
-                  : "flex flex-col gap-1 rounded border border-[var(--line-soft)] bg-[var(--card-surface)]/40 p-1.5"
+                  : "flex flex-col gap-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5"
               }
             >
               {input.kind === "primitive" ? (
@@ -222,7 +222,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
                 />
               )}
               {isInvalid ? (
-                <div className="text-[10px] text-[var(--brick)]">
+                <div className="text-[10px] text-[var(--danger)]">
                   {input.name === ""
                     ? t("menuProperties.inputNeedsName")
                     : t("menuProperties.inputNameDup", { name: input.name })}
@@ -236,21 +236,21 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="self-start rounded border border-[var(--line)] border-dashed px-3 py-1.5 text-xs text-[var(--ink-mut)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+            className="self-start rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("menuProperties.addInput")}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
+        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
           <DropdownMenuItem
             onSelect={() => addInput({ packId, menuId: menu.id, kind: "primitive" })}
-            className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
+            className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
           >
             Primitive (caller-passed)
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => addInput({ packId, menuId: menu.id, kind: "sourceRef" })}
-            className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
+            className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
           >
             Source ref (manual for now)
           </DropdownMenuItem>
@@ -293,7 +293,7 @@ function PrimitiveInputRow({
               type: e.target.value as Extract<ContextInput, { kind: "primitive" }>["type"],
             })
           }
-          className="h-8 rounded border border-[var(--line-soft)] bg-[var(--card-surface)] px-1.5 font-mono text-xs text-[var(--ink)]"
+          className="h-8 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)]"
         >
           {PRIMITIVE_TYPES.map((typeOption) => (
             <option key={typeOption} value={typeOption}>
@@ -305,7 +305,7 @@ function PrimitiveInputRow({
           type="button"
           title={t("menuProperties.removeInput")}
           onClick={onRemove}
-          className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
         >
           ×
         </button>
@@ -313,7 +313,7 @@ function PrimitiveInputRow({
       {/* Row 2: default value */}
       <div className="flex items-center gap-2 pl-0.5">
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-[var(--ink-faint)]">
+          <span className="font-mono text-[10px] text-[var(--text-faint)]">
             {t("menuProperties.inputDefault")}:
           </span>
           <Input
@@ -325,7 +325,7 @@ function PrimitiveInputRow({
           />
         </div>
         {input.type === "player" ? (
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--ink-mut)]">
+          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
             <input
               type="checkbox"
               checked={input.default === "{sender}"}
@@ -375,13 +375,13 @@ function SourceRefInputRow({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-[var(--line)] bg-[var(--card-surface)] px-2 py-0 font-mono text-xs text-[var(--ink)] hover:bg-[var(--raised-2)]"
+            className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-0 font-mono text-xs text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
           >
             <span className="truncate">{refLabel ?? t("menuProperties.refPickPlaceholder")}</span>
-            <span className="text-[var(--ink-faint)]">▾</span>
+            <span className="text-[var(--text-faint)]">▾</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--line)] bg-[var(--card-surface)] text-[var(--ink)]">
+        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
           {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -389,7 +389,7 @@ function SourceRefInputRow({
         type="button"
         title={t("menuProperties.removeInput")}
         onClick={onRemove}
-        className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--ink-faint)] hover:bg-[var(--raised-2)] hover:text-[var(--ink)]"
+        className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       >
         ×
       </button>
@@ -411,7 +411,7 @@ function SourcePickerOptions({
     <>
       {hasPackData ? (
         <>
-          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--ink-faint)]">
+          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
             {t("menuProperties.refSectionPackData")}
           </DropdownMenuLabel>
           {(pack.dataSources ?? []).map((d) => (
@@ -419,11 +419,11 @@ function SourcePickerOptions({
               key={d.id}
               onSelect={() => onPick(`pack:${d.id}` as SourceRef)}
               title={summarizeFieldType(d.type)}
-              className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
+              className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
             >
               <span className="mr-1">{d.type.kind === "list" ? "🗂" : "📦"}</span>
               <span className="font-mono">{d.name}</span>
-              <span className="ml-auto text-[9px] text-[var(--ink-faint)]">{summarizeFieldType(d.type)}</span>
+              <span className="ml-auto text-[9px] text-[var(--text-faint)]">{summarizeFieldType(d.type)}</span>
             </DropdownMenuItem>
           ))}
         </>
@@ -431,7 +431,7 @@ function SourcePickerOptions({
       {hasPackData && hasConnectors ? <DropdownMenuSeparator /> : null}
       {hasConnectors ? (
         <>
-          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--ink-faint)]">
+          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
             {t("menuProperties.refSectionConnectors")}
           </DropdownMenuLabel>
           {(pack.importedConnectors ?? []).map((c) => (
@@ -439,17 +439,17 @@ function SourcePickerOptions({
               key={c.ref}
               onSelect={() => onPick(c.ref as SourceRef)}
               title={summarizeFieldType(c.type)}
-              className="cursor-pointer text-[11px] focus:bg-[var(--raised-2)]"
+              className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
             >
               <span className="mr-1">🔌</span>
               <span className="font-mono">{c.ref}</span>
-              <span className="ml-auto text-[9px] text-[var(--ink-faint)]">{summarizeFieldType(c.type)}</span>
+              <span className="ml-auto text-[9px] text-[var(--text-faint)]">{summarizeFieldType(c.type)}</span>
             </DropdownMenuItem>
           ))}
         </>
       ) : null}
       {!hasPackData && !hasConnectors ? (
-        <DropdownMenuItem disabled className="cursor-not-allowed text-[11px] text-[var(--ink-faint)]">
+        <DropdownMenuItem disabled className="cursor-not-allowed text-[11px] text-[var(--text-faint)]">
           {t("menuProperties.refNoSources")}
         </DropdownMenuItem>
       ) : null}

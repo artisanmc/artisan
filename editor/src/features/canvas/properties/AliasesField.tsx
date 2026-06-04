@@ -28,7 +28,7 @@ export function AliasesField({ label, aliases, onChange }: AliasesFieldProps) {
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--ink-faint)]">{label}</div>
+      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{label}</div>
       <div
         className="flex min-h-10 w-full cursor-text flex-wrap items-center gap-1 rounded-md border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
         onClick={() => inputRef.current?.focus()}
@@ -36,14 +36,14 @@ export function AliasesField({ label, aliases, onChange }: AliasesFieldProps) {
         {aliases.map((alias) => (
           <span
             key={alias}
-            className="flex items-center gap-0.5 rounded bg-[var(--raised-2)] px-1.5 py-0.5 font-mono text-xs text-[var(--ink-2)]"
+            className="flex items-center gap-0.5 rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-mut)]"
           >
             {alias}
             <button
               type="button"
               aria-label={`remove ${alias}`}
               onClick={(e) => { e.stopPropagation(); remove(alias); }}
-              className="text-[var(--ink-faint)] hover:text-[var(--ink)]"
+              className="text-[var(--text-faint)] hover:text-[var(--text)]"
             >
               <X size={10} />
             </button>

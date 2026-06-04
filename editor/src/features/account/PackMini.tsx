@@ -17,10 +17,10 @@ const sourceLabelKey = (source: Pack["source"]): "sourceImported" | "sourceForke
 
 const sourceColor = (source: Pack["source"]) =>
   source === "imported"
-    ? "bg-[var(--terra-soft)] text-[var(--terra)]"
+    ? "bg-[var(--brand-soft)] text-[var(--brand)]"
     : source === "forked"
-      ? "bg-[var(--gold-soft)] text-[var(--gold)]"
-      : "bg-[var(--sage-soft)] text-[var(--terra)]";
+      ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+      : "bg-[var(--success-soft)] text-[var(--success)]";
 
 export function PackMini({ pack, active }: PackMiniProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -40,10 +40,10 @@ export function PackMini({ pack, active }: PackMiniProps) {
       data-pack-id={pack.id}
       data-pack-mini="true"
       className={cx(
-        "group rounded-md border bg-[var(--bg-deep)]/60 p-2 transition-colors",
+        "group rounded-md border bg-[var(--surface)]/60 p-2 transition-colors",
         active
-          ? "border-[var(--terra)] ring-1 ring-[var(--terra-line)]"
-          : "border-[var(--line-soft)] hover:border-[var(--line)]",
+          ? "border-[var(--brand)] ring-1 ring-[var(--brand-line)]"
+          : "border-[var(--border-soft)] hover:border-[var(--border)]",
       )}
     >
       <Link
@@ -57,10 +57,10 @@ export function PackMini({ pack, active }: PackMiniProps) {
             {t(`packMini.${sourceLabelKey(pack.source)}`)}
           </span>
         </div>
-        <div className="h-16 overflow-hidden rounded border border-[var(--line-soft)] bg-[var(--color-bg)]">
+        <div className="h-16 overflow-hidden rounded border border-[var(--border-soft)] bg-[var(--color-bg)]">
           <PackMiniPreview pack={pack} />
         </div>
-        <div className="text-[10px] text-[var(--ink-faint)]">
+        <div className="text-[10px] text-[var(--text-faint)]">
           {t("packMini.countMenusCommands", {
             menus: pack.menus.length,
             commands: pack.commands.length,
@@ -73,7 +73,7 @@ export function PackMini({ pack, active }: PackMiniProps) {
         aria-label={t("packMini.reorderPack")}
         {...attributes}
         {...listeners}
-        className="absolute -top-1 right-2 flex h-6 w-6 cursor-grab items-center justify-center rounded text-[12px] text-[var(--ink-faint)] opacity-100 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
+        className="absolute -top-1 right-2 flex h-6 w-6 cursor-grab items-center justify-center rounded text-[12px] text-[var(--text-faint)] opacity-100 active:cursor-grabbing lg:opacity-0 lg:group-hover:opacity-100"
       >
         ⠿
       </button>

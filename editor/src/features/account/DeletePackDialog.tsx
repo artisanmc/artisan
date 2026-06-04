@@ -62,13 +62,13 @@ export function DeletePackDialog({ packId, packName, open, onOpenChange }: Delet
           <DialogTitle>{t("deletePackDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-[var(--ink-2)]">
+          <p className="text-sm text-[var(--text-mut)]">
             {t("deletePackDialog.warning", { name: packName })}
           </p>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[var(--ink-faint)]">
+            <label className="text-xs text-[var(--text-faint)]">
               {t("deletePackDialog.confirmLabel")}{" "}
-              <code className="rounded bg-[var(--raised-2)] px-1 py-0.5 font-mono text-[var(--ink-2)]">
+              <code className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 font-mono text-[var(--text-mut)]">
                 {packId}
               </code>
             </label>

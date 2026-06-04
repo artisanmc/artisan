@@ -25,11 +25,11 @@ export function DataSourcesPanelContent({ packId }: { packId: PackId }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[var(--line-soft)] px-4 py-3">
-        <div className="text-[var(--ink)]">{t("dataSources.title")}</div>
+      <div className="border-b border-[var(--border-soft)] px-4 py-3">
+        <div className="text-[var(--text)]">{t("dataSources.title")}</div>
       </div>
       {!pack ? (
-        <div className="p-4 text-[var(--ink-mut)]">{t("dataSources.packNotFound")}</div>
+        <div className="p-4 text-[var(--text-mut)]">{t("dataSources.packNotFound")}</div>
       ) : (
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <DataSourcesSidebar pack={pack} selectedId={selectedId} onSelect={setSelectedId} />
@@ -37,7 +37,7 @@ export function DataSourcesPanelContent({ packId }: { packId: PackId }) {
             {selected ? (
               <DataSourceEditor packId={packId} source={selected} />
             ) : (
-              <div className="mt-8 text-center text-sm text-[var(--ink-faint)]">
+              <div className="mt-8 text-center text-sm text-[var(--text-faint)]">
                 {t("dataSources.selectHint")}
               </div>
             )}
