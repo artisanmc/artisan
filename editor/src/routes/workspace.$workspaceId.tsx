@@ -14,7 +14,6 @@ import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { totalMissing } from "@/lib/i18nUsages";
 import { getNetworkOfPack } from "@/lib/api/userPacks";
 import { deletePack } from "@/lib/api/packs";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -37,7 +36,6 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { WorkspaceTabs } from "@/components/WorkspaceTabs";
 import { Navigate, createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { useSessionStore } from "@/state/sessionStore";
@@ -238,28 +236,13 @@ function PackCanvasPage() {
               networkId={networkId}
             />
           ) : (
-            <div className="flex h-[52px] shrink-0 items-center border-b border-[var(--border-soft)] bg-[var(--surface)] px-3.5">
+            <div className="mx-3 my-3 flex h-[52px] shrink-0 items-center rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] px-3.5 shadow-[var(--shadow-sm)]">
               <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
             </div>
           )}
 
-          {/* Workspace tab strip */}
-          {pack && (
-            <WorkspaceTabs
-              tabs={[
-                { id: "overview", label: t("workspace.tabs.overview") },
-                {
-                  id: "translations",
-                  label: t("workspace.tabs.translations"),
-                  badge: totalMissing(pack) > 0 ? totalMissing(pack) : undefined,
-                },
-                { id: "data-sources", label: t("workspace.tabs.dataSources") },
-                ...(networkId ? [{ id: "history", label: t("workspace.tabs.history") }] : []),
-              ]}
-              activeTab={tab ?? "overview"}
-              onChange={(id) => setTab(id as "overview" | "translations" | "data-sources" | "history")}
-            />
-          )}
+          {/* Tabs moved to sidebar — they appear as nested sub-items under the
+              active workspace in WorkspaceSidebar. */}
 
           {/* Editor layout: vertical split (Stage on top, EditorPane bottom)
               on mobile/tablet, horizontal split (Stage left, EditorPane as

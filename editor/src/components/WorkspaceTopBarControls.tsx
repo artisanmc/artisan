@@ -91,7 +91,7 @@ export function WorkspaceTopBarControls({
   const displayName = packName ?? pack.name;
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface)] px-3.5">
+    <div className="mx-3 my-3 flex h-[52px] shrink-0 items-center gap-2 rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] px-3.5 shadow-[var(--shadow-sm)]">
       {leftSlot != null ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
           {leftSlot}
