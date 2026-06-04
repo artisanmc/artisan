@@ -28,7 +28,7 @@ export function RootLayout() {
           <WorkspaceSidebar />
         </aside>
       )}
-      <main className="m-3 ml-0 flex flex-1 flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--border-soft)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
+      <main className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
       </main>
     </div>
