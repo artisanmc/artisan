@@ -2,6 +2,7 @@ import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
+import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useHoverStore } from "@/state/hoverStore";
@@ -63,6 +64,9 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
   const hoveredEdge = useEdgeHoverStore((s) => s.edge);
+  const brand = useCssVar("--brand");
+  const borderStrong = useCssVar("--border-strong");
+  const warning = useCssVar("--warning");
   // Walk layers directly (not elementsByPosition) so out-of-range positions
   // still get highlighted — the element may have been moved outside the grid.
   const edgeTriggerPositions = useMemo(() => {
@@ -304,7 +308,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         <Rect
           width={box.width}
           height={box.height}
-          stroke="#DF6B41"
+          stroke={brand}
           strokeWidth={2}
           listening={false}
           perfectDrawEnabled={false}
@@ -315,7 +319,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         <Rect
           width={box.width}
           height={box.height}
-          stroke="#E2A85A"
+          stroke={warning}
           strokeWidth={2}
           listening={false}
           perfectDrawEnabled={false}
@@ -511,7 +515,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 y={innerY - 1}
                 width={TEX_SLOT_INNER + 2}
                 height={TEX_SLOT_INNER + 2}
-                stroke={isFocusedSlot ? "#DF6B41" : "#F0DDB8"}
+                stroke={isFocusedSlot ? brand : borderStrong}
                 strokeWidth={isFocusedSlot || isButtonMode ? 2 : 1.5}
                 listening={false}
                 perfectDrawEnabled={false}
@@ -523,7 +527,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
                 y={innerY - 2}
                 width={TEX_SLOT_INNER + 4}
                 height={TEX_SLOT_INNER + 4}
-                stroke="#E2A85A"
+                stroke={warning}
                 strokeWidth={2}
                 listening={false}
                 perfectDrawEnabled={false}

@@ -1,4 +1,5 @@
 import type { Pack } from "@/domain/types";
+import { useCssVar } from "@/lib/themeColors";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
@@ -47,6 +48,8 @@ export function Edges({ pack, layout }: EdgesProps) {
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
+  const brand = useCssVar("--brand");
+  const edgeIdle = useCssVar("--border");
 
   return (
     <>
@@ -67,7 +70,7 @@ export function Edges({ pack, layout }: EdgesProps) {
           <Line
             key={e.id}
             points={[sx, sy, midX, sy, midX, ty, tx, ty]}
-            stroke={highlighted ? "#DF6B41" : "#573F35"}
+            stroke={highlighted ? brand : edgeIdle}
             strokeWidth={highlighted ? 2.5 : 1.5}
             bezier
             tension={0.3}
