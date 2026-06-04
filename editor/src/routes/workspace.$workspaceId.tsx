@@ -36,7 +36,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { Navigate, createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { Navigate, Outlet, createFileRoute, useChildMatches, useNavigate, useParams } from "@tanstack/react-router";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAuthStore } from "@/state/authStore";
@@ -204,6 +204,12 @@ function PackCanvasPage() {
   };
 
   const onDragCancel = () => setActiveDragMaterial(null);
+
+  // If a child route (e.g. /element/$elementId focus mode) is matched, hand off
+  // rendering entirely to it via <Outlet />. Without this, the parent's UI
+  // fills the viewport because we don't include Outlet in the regular tree.
+  const childMatches = useChildMatches();
+  if (childMatches.length > 0) return <Outlet />;
 
   return (
     <DndContext
