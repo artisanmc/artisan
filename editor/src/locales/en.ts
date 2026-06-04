@@ -870,6 +870,11 @@ export default {
     cannotRevertTitle: "Discard needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the workspace's network + branch loaded.",
     noSessionTitle: "Deploy / revert needs a trusted editor session. Use /artisan editor in your MC console to trust this browser, or use the Commit button to save to a branch.",
   },
+  userMenu: {
+    anonymous: "Anonymous",
+    profile: "Profile",
+    signIn: "Sign in",
+  },
   auth: {
     signupTitle: "Create your account",
     loginTitle: "Sign in",
