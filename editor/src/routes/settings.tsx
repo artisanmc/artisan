@@ -21,10 +21,10 @@ export function SettingsRoute() {
             {t("settingsPage.appearanceHelp")}
           </p>
         </header>
-        <div className="flex gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row">
           <nav
             aria-label="Settings sections"
-            className="card w-[224px] shrink-0 p-3"
+            className="card shrink-0 p-3 lg:w-[224px]"
           >
             <div className="px-2 pt-1 pb-3 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
               {t("settingsPage.eyebrowSettings")}

@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Menu } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { transform } from "@/features/export/transform";
 import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
@@ -42,6 +43,14 @@ export function RootLayout() {
           >
             <WorkspaceSidebar />
           </aside>
+          <button
+            type="button"
+            onClick={() => useSidebarStore.getState().open()}
+            aria-label="Open sidebar"
+            className="fixed top-3 left-3 z-30 flex size-[38px] items-center justify-center rounded-[10px] bg-[var(--surface-raised)] text-[var(--text-mut)] shadow-[var(--shadow-sm)] hover:text-[var(--text)] lg:hidden"
+          >
+            <Menu className="size-[18px]" />
+          </button>
         </>
       )}
       <main className="flex flex-1 flex-col overflow-hidden">
