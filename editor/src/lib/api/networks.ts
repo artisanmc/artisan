@@ -237,6 +237,12 @@ export async function rotateServerKey(
   return res.json();
 }
 
+export async function getServerStatus(networkId: string, serverId: string): Promise<{ online: boolean }> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${serverId}/status`, { credentials: "include" });
+  if (!res.ok) throw new Error(`getServerStatus failed: ${res.status}`);
+  return res.json();
+}
+
 export interface ServerKeyHello {
   id: string;
   ip: string;

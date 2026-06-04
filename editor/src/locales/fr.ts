@@ -625,7 +625,10 @@ const fr: typeof en = {
     createKeyFailed: "Échec de la création de la clé.",
   },
   serverStatusBadge: {
-    title: "{{online}} en ligne · {{offline}} hors-ligne — clique pour ouvrir Serveurs",
+    online: "en ligne",
+    offline: "hors-ligne",
+    titleOnline: "Serveur en ligne — cliquer pour ouvrir le Network",
+    titleOffline: "Serveur hors-ligne — cliquer pour ouvrir le Network",
   },
   sidebar: {
     settings: "Paramètres",
