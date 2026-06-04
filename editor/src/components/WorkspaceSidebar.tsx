@@ -7,15 +7,13 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { CSS } from "@dnd-kit/utilities";
-import { LayoutGrid, Settings, GripVertical, GitBranch } from "lucide-react";
+import { LayoutGrid, Settings, GripVertical } from "lucide-react";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { ServerDropdown } from "./ServerDropdown";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { useBranchesStore } from "@/state/branchesStore";
-import { useUiStore } from "@/state/uiStore";
 import { useServersStore } from "@/state/serversStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
@@ -207,13 +205,6 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
     transition,
     isDragging,
   } = useSortable({ id });
-  // Active pack on the workspace route + its current branch. We only surface
-  // a branch chip on the active item (we don't know what branch other
-  // workspaces are on from this sidebar alone). The chip hides when on main
-  // since that's the implicit default — only deviation deserves a callout.
-  const lastActivePackId = useUiStore((s) => s.lastActivePackId);
-  const currentBranch = useBranchesStore((s) => s.currentBranch);
-  const showBranchChip = id === lastActivePackId && currentBranch !== null && currentBranch !== "main";
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -236,15 +227,6 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
       >
         <LayoutGrid className="size-[15px] shrink-0 text-[var(--ink-faint)] group-[.is-active]:text-[var(--terra)]" />
         <span className="truncate flex-1">{name}</span>
-        {showBranchChip && currentBranch && (
-          <span
-            className="mono flex shrink-0 items-center gap-1 rounded-full bg-[var(--inset)] px-1.5 py-0.5 text-[9px] text-[var(--sand)]"
-            title={`branche : ${currentBranch}`}
-          >
-            <GitBranch className="size-[8px]" />
-            {currentBranch}
-          </span>
-        )}
       </Link>
       <button
         type="button"
