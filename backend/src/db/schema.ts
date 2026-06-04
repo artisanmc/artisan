@@ -79,6 +79,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),       // null = Discord-only users
   avatarUrl: text("avatar_url"),
   editorLanguage: text("editor_language"),   // null = no preference set
+  theme: text("theme"),                       // "dark" | "light" | null
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (t) => [
