@@ -23,7 +23,7 @@ export function AccountPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--surface)] p-8">
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
         <p className="text-[var(--text-mut)]">{t("accountPage.notSignedIn")}</p>
         <Link to="/login" className="btn btn-primary">
           {t("auth.loginSubmit")}
@@ -33,7 +33,7 @@ export function AccountPage() {
   }
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--surface)]">
+    <div className="relative h-full overflow-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
         <header className="flex flex-col gap-2">
           <h1

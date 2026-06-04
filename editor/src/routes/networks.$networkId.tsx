@@ -38,7 +38,7 @@ export function NetworkDetailPage() {
 
   if (!detail)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] p-8 text-[var(--text-mut)]">
+      <div className="flex h-full items-center justify-center p-8 text-[var(--text-mut)]">
         {t("networkDetail.loading")}
       </div>
     );
@@ -101,7 +101,7 @@ export function NetworkDetailPage() {
   };
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--surface)]">
+    <div className="relative h-full overflow-auto">
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-12">
         <header className="flex items-baseline justify-between">
           <h1

@@ -28,7 +28,7 @@ function SettingsRoute() {
   };
 
   return (
-    <div className="grain relative min-h-screen bg-[var(--surface)]">
+    <div className="relative h-full overflow-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-8 py-12">
         <h1
           className="display text-[36px] tracking-tight text-[var(--text)]"
