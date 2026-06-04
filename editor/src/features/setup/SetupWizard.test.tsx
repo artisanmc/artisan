@@ -49,14 +49,16 @@ describe("SetupWizard — final step (canNext)", () => {
     expect(canNext(4, full)).toBe(true);
   });
 
-  it("steps 1-3 still gate on their respective fields", async () => {
+  it("steps 1-3 still gate on their respective fields (server before workspace)", async () => {
     const { canNext } = await import("./SetupWizard");
     const empty: WizardState = { networkId: null, packId: null, serverKey: null, serverKeyId: null };
     expect(canNext(1, empty)).toBe(false);
     expect(canNext(2, empty)).toBe(false);
     expect(canNext(3, empty)).toBe(false);
     expect(canNext(1, { ...empty, networkId: "n1" })).toBe(true);
-    expect(canNext(2, { ...empty, packId: "p1" })).toBe(true);
-    expect(canNext(3, { ...empty, serverKeyId: "sk1" })).toBe(true);
+    // Step 2 is now Server — gates on serverKeyId
+    expect(canNext(2, { ...empty, serverKeyId: "sk1" })).toBe(true);
+    // Step 3 is now Workspace — gates on packId
+    expect(canNext(3, { ...empty, packId: "p1" })).toBe(true);
   });
 });

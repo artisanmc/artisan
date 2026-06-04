@@ -735,9 +735,9 @@ export default {
     eyebrow: "Setup wizard",
     stepLabels: {
       network: "Network",
-      pack: "Pack",
-      serverKey: "Server Key",
-      install: "Installation",
+      server: "Server",
+      workspace: "Workspace",
+      install: "Install",
     },
     selected: "Selected",
     back: "Back",
@@ -751,13 +751,7 @@ export default {
       tierLabel: "Tier",
     },
     step2: {
-      title: "Pick a Pack",
-      newLabel: "New pack",
-      placeholder: "my_pack",
-      create: "Create",
-    },
-    step3: {
-      title: "Generate the Server Key",
+      title: "Create a server",
       description:
         "This key authenticates your Minecraft server with the Artisan backend. Generate it then copy it — it will never be shown again.",
       keyLabel: "Your server key",
@@ -766,6 +760,12 @@ export default {
       generating: "Generating…",
       generate: "Generate server key",
       copy: "Copy",
+    },
+    step3: {
+      title: "Create a workspace",
+      newLabel: "New workspace",
+      placeholder: "my_pack",
+      create: "Create",
     },
     step4: {
       title: "Install on your server",

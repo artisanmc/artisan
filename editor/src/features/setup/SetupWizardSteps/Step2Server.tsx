@@ -10,18 +10,17 @@ interface Props {
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }
 
-export function Step3ServerKey({ state, setState }: Props) {
+export function Step2Server({ state, setState }: Props) {
   const { t } = useTranslation();
   const [generating, setGenerating] = useState(false);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function handleGenerate() {
-    if (!state.networkId || !state.packId) return;
+    if (!state.networkId) return;
     setGenerating(true);
     try {
       const sk = await networksApi.createServerKey(state.networkId);
-      await networksApi.bindPackToServerKey(state.networkId, state.packId, sk.id);
       setState((s) => ({ ...s, serverKey: sk.key, serverKeyId: sk.id }));
       setDone(true);
     } finally {
@@ -42,19 +41,19 @@ export function Step3ServerKey({ state, setState }: Props) {
         className="display text-[20px] text-[var(--ink)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        {t("setupWizard.step3.title")}
+        {t("setupWizard.step2.title")}
       </h2>
       <p className="text-[13px] leading-relaxed text-[var(--ink-mut)]">
-        {t("setupWizard.step3.description")}
+        {t("setupWizard.step2.description")}
       </p>
 
       {state.serverKey && (
         <div className="flex flex-col gap-2">
           <span className="field-label flex items-center gap-2">
             <Key className="size-[12px] text-[var(--gold)]" />
-            {t("setupWizard.step3.keyLabel")}
+            {t("setupWizard.step2.keyLabel")}
             <span className="ml-1 rounded-full bg-[var(--gold-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--gold)]">
-              {t("setupWizard.step3.shownOnce")}
+              {t("setupWizard.step2.shownOnce")}
             </span>
           </span>
           <div className="relative">
@@ -65,7 +64,7 @@ export function Step3ServerKey({ state, setState }: Props) {
               type="button"
               onClick={handleCopy}
               className="absolute right-1.5 top-1.5 btn btn-icon btn-sm btn-ghost"
-              aria-label={t("setupWizard.step3.copy")}
+              aria-label={t("setupWizard.step2.copy")}
             >
               {copied ? (
                 <Check className="size-[14px] text-[var(--sage)]" />
@@ -83,10 +82,10 @@ export function Step3ServerKey({ state, setState }: Props) {
         disabled={generating || done}
       >
         {done
-          ? t("setupWizard.step3.generated")
+          ? t("setupWizard.step2.generated")
           : generating
-            ? t("setupWizard.step3.generating")
-            : t("setupWizard.step3.generate")}
+            ? t("setupWizard.step2.generating")
+            : t("setupWizard.step2.generate")}
       </Button>
     </div>
   );
