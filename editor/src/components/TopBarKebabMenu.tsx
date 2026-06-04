@@ -28,7 +28,7 @@ export function TopBarKebabMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t("topbar.more")}
-        className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--ink-2)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       >
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
@@ -40,7 +40,7 @@ export function TopBarKebabMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={onDelete}
-          className="text-[var(--brick)] focus:text-[var(--brick)]"
+          className="text-[var(--danger)] focus:text-[var(--danger)]"
         >
           {t("topbar.deletePack")}
         </DropdownMenuItem>
