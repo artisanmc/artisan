@@ -79,6 +79,9 @@ function PackCanvasPage() {
   const pack = token ? sessionPack : userPack;
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
+  // Hooks must come before any conditional return — keep here, near the other
+  // routing hooks, so React's call order stays stable across re-renders.
+  const childMatches = useChildMatches();
 
   // Network ID for branch API calls. In user-auth mode, comes from usePackLoader.
   // In session mode, fetched lazily via getNetworkOfPack.
@@ -205,10 +208,9 @@ function PackCanvasPage() {
 
   const onDragCancel = () => setActiveDragMaterial(null);
 
-  // If a child route (e.g. /element/$elementId focus mode) is matched, hand off
-  // rendering entirely to it via <Outlet />. Without this, the parent's UI
-  // fills the viewport because we don't include Outlet in the regular tree.
-  const childMatches = useChildMatches();
+  // Hand off rendering entirely to the focus-mode child route when matched.
+  // Declared early because hooks must precede any conditional return — the
+  // auth-gate Navigates above run AFTER this and the order is preserved.
   if (childMatches.length > 0) return <Outlet />;
 
   return (
