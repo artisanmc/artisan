@@ -11,9 +11,12 @@ interface CommandGroupProps {
   packId: PackId;
   command: Command;
   position: { x: number; y: number };
+  /** URL params for server-scoped focus-mode navigation. */
+  networkId?: string;
+  serverId?: string;
 }
 
-export function CommandGroup({ packId, command, position }: CommandGroupProps) {
+export function CommandGroup({ packId, command, position, networkId = "", serverId = "" }: CommandGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(command.id));
 
@@ -39,7 +42,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
     [command.id],
   );
 
-  const onDblClick = useElementDblClickNav(packId, command.id);
+  const onDblClick = useElementDblClickNav(packId, command.id, networkId, serverId);
 
   return (
     <Group
