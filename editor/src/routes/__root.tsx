@@ -19,15 +19,17 @@ export const Route = createRootRoute({
 export function RootLayout() {
   usePackAutoSave();
   const user = useAuthStore((s) => s.currentUser);
+  const sessionToken = useSessionStore((s) => s.accessToken);
   const sidebarOpen = useSidebarStore((s) => s.isOpen);
   const closeSidebar = useSidebarStore((s) => s.close);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
+  const showSidebar = !!user || !!sessionToken;
   return (
     <div className="relative flex h-full">
-      {user && (
+      {showSidebar && (
         <>
           {sidebarOpen ? (
             <div
