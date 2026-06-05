@@ -83,7 +83,14 @@ export function WorkspaceSidebar() {
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
     .filter((p) => !serverIds.has(p.id))
-    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt }));
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      hash: "",
+      updatedAt: p.updatedAt,
+      networkId: (p as unknown as { networkId?: string }).networkId ?? "",
+      serverKeyId: (p as unknown as { serverKeyId?: string }).serverKeyId ?? "",
+    }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
   // When a server is actively selected and the network has ≥2 servers, filter

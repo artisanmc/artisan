@@ -43,8 +43,8 @@ describe("WorkspaceSidebar", () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       packs: [
-        { id: "pack_b", name: "Menu principal", hash: "h2", updatedAt: "2026-05-26T10:00:00Z" },
-        { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z" },
+        { id: "pack_b", name: "Menu principal", hash: "h2", updatedAt: "2026-05-26T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
+        { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
       ],
       serverKeys: [],
     });
