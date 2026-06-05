@@ -76,10 +76,10 @@ describe("generateCode", () => {
 });
 
 describe("generateServerKey", () => {
-  test("returns sk_ key, UUID id, and matching SHA-256 hash", async () => {
+  test("returns sk_ key, sk_ prefixed id, and matching SHA-256 hash", async () => {
     const { id, key, hash } = await generateServerKey();
     expect(key).toMatch(/^sk_[0-9a-f]{64}$/);
-    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(id).toMatch(/^sk_[0-9a-f]{12}$/);
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
     const expected = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
     expect(hash).toBe(expected);
