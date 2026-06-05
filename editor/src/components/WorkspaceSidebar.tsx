@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { DndContext, type DragEndEvent, type Modifier, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -9,13 +9,11 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import { CSS } from "@dnd-kit/utilities";
 import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
 import { UserMenu } from "./UserMenu";
-import { NetworkDropdown } from "./NetworkDropdown";
-import { ServerDropdown } from "./ServerDropdown";
+import { ServerSelector, type ServerEntry } from "./ServerSelector";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { useSessionStore } from "@/state/sessionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
 import type { PackId } from "@/domain/types";
@@ -28,14 +26,16 @@ export function WorkspaceSidebar() {
   const localPacks = useAccountStore((s) => s.account.packs);
   const packOrder = useAccountStore((s) => s.account.packOrder);
   const reorderPacks = useAccountStore((s) => s.reorderPacks);
-  // distance: 5 — small movement before drag activates. Click-on-the-row is
-  // safe because the drag handle is a sibling, not an overlay, so the row
-  // Link and the handle live in distinct hit areas.
+  // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
-  const [networkServers, setNetworkServers] = useState<{ id: string; label: string | null }[]>([]);
+  const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
-  const activeServerId = useServersStore((s) => s.activeServerId);
+
+  // Active network + server driven by URL params as primary source.
+  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const activeNetworkId = urlParams.networkId ?? sessionNetworkId ?? networks[0]?.id ?? null;
+  const activeServerId = urlParams.serverId ?? null;
 
   useEffect(() => {
     if (networks.length === 0) {
@@ -43,42 +43,48 @@ export function WorkspaceSidebar() {
     }
   }, []);
 
-  // Active network = session network (set after /artisan setup), otherwise
-  // the user's picked one in the NetworkDropdown (persisted), otherwise the
-  // first owned network. Null when the user has no networks at all.
-  const browseActiveId = useNetworksStore((s) => s.activeId);
-  const activeNetworkId = useMemo(
-    () => sessionNetworkId ?? browseActiveId ?? networks[0]?.id ?? null,
-    [sessionNetworkId, browseActiveId, networks],
-  );
-
+  // Fetch all server entries across all networks + packs for the active network.
   useEffect(() => {
-    if (!activeNetworkId) {
+    if (networks.length === 0) {
+      setAllServerEntries([]);
       setServerPacks([]);
-      setNetworkServers([]);
       return;
     }
     let cancelled = false;
-    const refetch = () => {
-      getNetwork(activeNetworkId)
-        .then((d) => {
-          if (!cancelled) {
-            setServerPacks(d.packs);
-            setNetworkServers(d.serverKeys.map((s) => ({ id: s.id, label: s.label })));
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setServerPacks([]);
-            setNetworkServers([]);
-          }
-        });
-    };
-    refetch();
+    Promise.all(
+      networks.map((n) =>
+        getNetwork(n.id).then((d) => ({ network: n, serverKeys: d.serverKeys, packs: d.packs })),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const entries: ServerEntry[] = results.flatMap((r) =>
+          r.serverKeys.map((sk) => ({
+            serverId: sk.id,
+            serverLabel: sk.label ?? "",
+            networkId: r.network.id,
+            networkName: r.network.name,
+          })),
+        );
+        setAllServerEntries(entries);
+        // Update packs from the active network result
+        const activeResult = results.find((r) => r.network.id === activeNetworkId);
+        if (activeResult) {
+          setServerPacks(activeResult.packs);
+        } else {
+          setServerPacks([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAllServerEntries([]);
+          setServerPacks([]);
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [activeNetworkId, refetchToken]);
+  }, [networks, activeNetworkId, refetchToken]);
 
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
@@ -93,12 +99,10 @@ export function WorkspaceSidebar() {
     }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
-  // When a server is actively selected and the network has ≥2 servers, filter
-  // packs to only those owned by that server. Single-server networks show all.
-  const filteredServerPacks =
-    activeServerId && networkServers.length >= 2
-      ? allPacks.filter((p) => p.serverKeyId === activeServerId)
-      : allPacks;
+  // Always filter by active server (URL-driven).
+  const filteredServerPacks = activeServerId
+    ? allPacks.filter((p) => p.serverKeyId === activeServerId)
+    : allPacks;
 
   const idToPack = new Map(filteredServerPacks.map((p) => [p.id, p]));
   const ordered: PackSummary[] = [];
@@ -109,10 +113,6 @@ export function WorkspaceSidebar() {
       idToPack.delete(id);
     }
   }
-  // Sort packs that aren't in packOrder by id (stable, deterministic). We
-  // deliberately do NOT sort by updatedAt — that timestamp gets bumped on
-  // every navigation/autosave, which made workspaces yank to the top each
-  // time the user clicked them.
   const remaining = [...idToPack.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
 
@@ -137,8 +137,7 @@ export function WorkspaceSidebar() {
         </span>
       </div>
 
-      <NetworkDropdown />
-      <ServerDropdown servers={networkServers} />
+      <ServerSelector servers={allServerEntries} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {activeNetworkId ? (
@@ -157,7 +156,13 @@ export function WorkspaceSidebar() {
               >
                 <ul className="flex flex-col">
                   {finalList.map((w) => (
-                    <SortableWorkspaceItem key={w.id} id={w.id} name={w.name} />
+                    <SortableWorkspaceItem
+                      key={w.id}
+                      id={w.id}
+                      name={w.name}
+                      networkId={w.networkId || activeNetworkId}
+                      serverId={w.serverKeyId || activeServerId}
+                    />
                   ))}
                 </ul>
               </SortableContext>
@@ -197,7 +202,17 @@ export function WorkspaceSidebar() {
   );
 }
 
-function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
+function SortableWorkspaceItem({
+  id,
+  name,
+  networkId,
+  serverId,
+}: {
+  id: string;
+  name: string;
+  networkId: string | null;
+  serverId: string | null;
+}) {
   const {
     attributes,
     listeners,
@@ -214,6 +229,17 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
   };
   const params = useParams({ strict: false }) as { workspaceId?: string };
   const isActiveWorkspace = params.workspaceId === id;
+
+  // Build link target — prefer new URL when we have network+server context.
+  const linkTo =
+    networkId && serverId
+      ? "/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
+      : "/workspace/$workspaceId";
+  const linkParams =
+    networkId && serverId
+      ? { networkId, serverId, workspaceId: id }
+      : { workspaceId: id };
+
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
       <div
@@ -221,8 +247,8 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
         className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)] data-[active=true]:bg-[var(--brand-soft)] data-[active=true]:hover:bg-[var(--brand-soft)]"
       >
         <Link
-          to="/workspace/$workspaceId"
-          params={{ workspaceId: id }}
+          to={linkTo as any}
+          params={linkParams as any}
           onClick={() => useSidebarStore.getState().close()}
           className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
         >
@@ -240,12 +266,22 @@ function SortableWorkspaceItem({ id, name }: { id: string; name: string }) {
           <GripVertical className="size-3.5" />
         </button>
       </div>
-      {isActiveWorkspace && <WorkspaceSubTabs workspaceId={id} />}
+      {isActiveWorkspace && (
+        <WorkspaceSubTabs workspaceId={id} networkId={networkId} serverId={serverId} />
+      )}
     </li>
   );
 }
 
-function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
+function WorkspaceSubTabs({
+  workspaceId,
+  networkId,
+  serverId,
+}: {
+  workspaceId: string;
+  networkId: string | null;
+  serverId: string | null;
+}) {
   const { t } = useTranslation();
   const search = useSearch({ strict: false }) as { tab?: string } | undefined;
   const currentTab = search?.tab ?? "overview";
@@ -255,6 +291,16 @@ function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
     { id: "data-sources", label: t("workspace.tabs.dataSources"), Icon: Database },
     { id: "history", label: t("workspace.tabs.history"), Icon: History },
   ] as const;
+
+  const tabLinkTo =
+    networkId && serverId
+      ? "/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
+      : "/workspace/$workspaceId";
+  const tabLinkParams =
+    networkId && serverId
+      ? { networkId, serverId, workspaceId }
+      : { workspaceId };
+
   return (
     <ul className="ml-[17px] mt-1 mb-1 flex flex-col gap-0.5 border-l border-[var(--border-soft)] pl-[18px]">
       {tabs.map((tab) => {
@@ -263,9 +309,9 @@ function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
         return (
           <li key={tab.id}>
             <Link
-              to="/workspace/$workspaceId"
-              params={{ workspaceId }}
-              search={{ tab: tab.id }}
+              to={tabLinkTo as any}
+              params={tabLinkParams as any}
+              search={{ tab: tab.id } as any}
               className={
                 isActive
                   ? "flex items-center gap-2 rounded-[8px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--brand)]"

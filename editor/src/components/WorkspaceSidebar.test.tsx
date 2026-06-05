@@ -10,7 +10,7 @@ vi.mock("@tanstack/react-router", async () => {
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    useParams: () => ({}),
+    useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
     useSearch: () => ({}),
     Link: ({ children, to, params, ...props }: any) => (
       <a href={to} {...props}>
@@ -29,14 +29,15 @@ describe("WorkspaceSidebar", () => {
     useSessionStore.setState({ networkId: "net_1" } as any);
   });
 
-  it("renders the active network name (via NetworkDropdown)", () => {
+  it("renders ServerSelector (server label visible)", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       packs: [],
-      serverKeys: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<WorkspaceSidebar />);
-    expect(screen.getByText("Mon Network")).toBeInTheDocument();
+    // ServerSelector renders a button with sidebar.serverLabel text (mocked t returns key)
+    expect(await screen.findByText(/sidebar\.serverLabel|Serveur|Server/i)).toBeInTheDocument();
   });
 
   it("lists workspaces returned by getNetwork, sorted alphabetically by id", async () => {
@@ -46,13 +47,29 @@ describe("WorkspaceSidebar", () => {
         { id: "pack_b", name: "Menu principal", hash: "h2", updatedAt: "2026-05-26T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
         { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
       ],
-      serverKeys: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<WorkspaceSidebar />);
     const items = await screen.findAllByRole("link", { name: /Menu principal|Lobby/ });
     // Sort is by id (stable, deterministic), so pack_a comes before pack_b.
     expect(items[0]).toHaveTextContent("Lobby");
     expect(items[1]).toHaveTextContent("Menu principal");
+  });
+
+  it("workspace links use the server-scoped URL pattern", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [
+        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
+      ],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<WorkspaceSidebar />);
+    const link = await screen.findByRole("link", { name: /Lobby/ });
+    expect(link).toHaveAttribute(
+      "href",
+      "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+    );
   });
 
   it("renders the Modules empty state", async () => {
@@ -93,7 +110,5 @@ describe("WorkspaceSidebar", () => {
     });
     render(<WorkspaceSidebar />);
     await waitFor(() => expect(getNetwork).toHaveBeenCalledWith("net_1"));
-    useSessionStore.setState({ networkId: "net_2" } as any);
-    await waitFor(() => expect(getNetwork).toHaveBeenCalledWith("net_2"));
   });
 });

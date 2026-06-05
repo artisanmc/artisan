@@ -637,6 +637,9 @@ export default {
     noNetworkCta: "Create a Network",
     noNetworkHint: "Create a Network first to organize your packs.",
     createNetwork: "+ Create network",
+    serverLabel: "Server",
+    selectServer: "Select a server",
+    noServers: "No servers yet",
   },
   accountPage: {
     networksSection: "Networks",
