@@ -21,7 +21,9 @@ import type { PackId } from "@/domain/types";
 
 export function WorkspaceSidebar() {
   const { t } = useTranslation();
+  const sessionToken = useSessionStore((s) => s.accessToken);
   const sessionNetworkId = useSessionStore((s) => s.networkId);
+  const sessionServerKeyId = useSessionStore((s) => s.serverKeyId);
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
   const localPacks = useAccountStore((s) => s.account.packs);
@@ -33,19 +35,33 @@ export function WorkspaceSidebar() {
   const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
 
-  // Active network + server driven by URL params as primary source.
+  // Session mode = trusted plugin session (via /artisan editor) without a
+  // logged-in account. listNetworks / getNetwork would 401 in this mode
+  // (cookie-auth only), so we skip those fetches and source packs from the
+  // accountStore (populated by the WS sync) instead.
+  const isSessionMode = !!sessionToken;
+
+  // Active network + server: URL params first, then session bindings as
+  // fallback (the trust dance pre-populates sessionStore with both).
   const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
   const activeNetworkId = urlParams.networkId ?? sessionNetworkId ?? networks[0]?.id ?? null;
-  const activeServerId = urlParams.serverId ?? null;
+  const activeServerId = urlParams.serverId ?? sessionServerKeyId ?? null;
 
   useEffect(() => {
+    if (isSessionMode) return; // listNetworks needs cookie auth
     if (networks.length === 0) {
       listNetworks().then(setNetworks).catch(() => {});
     }
-  }, []);
+  }, [isSessionMode]);
 
   // Fetch all server entries across all networks + packs for the active network.
   useEffect(() => {
+    if (isSessionMode) {
+      // Session mode: no network listing available. Packs come from accountStore.
+      setAllServerEntries([]);
+      setServerPacks([]);
+      return;
+    }
     if (networks.length === 0) {
       setAllServerEntries([]);
       setServerPacks([]);
@@ -85,7 +101,7 @@ export function WorkspaceSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [networks, activeNetworkId, refetchToken]);
+  }, [networks, activeNetworkId, refetchToken, isSessionMode]);
 
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks
@@ -142,7 +158,7 @@ export function WorkspaceSidebar() {
         </span>
       </Link>
 
-      <ServerSelector servers={allServerEntries} />
+      {!isSessionMode && <ServerSelector servers={allServerEntries} />}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {activeNetworkId ? (
