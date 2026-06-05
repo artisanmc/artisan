@@ -9,6 +9,7 @@ import {
   rotateServerKey,
   createPack,
 } from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
 import { ServerCard } from "@/components/network-detail/ServerCard";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { NewWorkspaceModal } from "@/components/network-detail/NewWorkspaceModal";
@@ -72,7 +73,7 @@ export function NetworkDetailPage() {
       const sk = detail.serverKeys.find((k) => k.id === serverId);
       if (!sk) return;
       const count = (packsByServer.get(serverId) ?? []).length;
-      setDeleteServer({ id: serverId, label: sk.label ?? sk.id.slice(0, 12), workspaceCount: count });
+      setDeleteServer({ id: serverId, label: displayServerLabel(sk), workspaceCount: count });
     }
   };
 
@@ -170,7 +171,7 @@ export function NetworkDetailPage() {
         <NewWorkspaceModal
           open
           onOpenChange={(o) => !o && setNewWsForServer(null)}
-          serverLabel={detail.serverKeys.find((k) => k.id === newWsForServer)?.label ?? ""}
+          serverLabel={(() => { const sk = detail.serverKeys.find((k) => k.id === newWsForServer); return sk ? displayServerLabel(sk) : ""; })()}
           onCreate={handleCreateWorkspace}
         />
       )}

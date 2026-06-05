@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
+import { displayServerLabel } from "@/lib/serverLabel";
 
 export interface ServerEntry {
   serverId: string;
@@ -60,7 +61,7 @@ export function ServerSelector({ servers }: Props) {
   }
 
   const displayLabel = active
-    ? active.serverLabel || active.serverId.slice(0, 12)
+    ? displayServerLabel({ id: active.serverId, label: active.serverLabel || null })
     : t("sidebar.selectServer");
 
   // Only show network-name suffix when servers span multiple networks
@@ -98,7 +99,7 @@ export function ServerSelector({ servers }: Props) {
               className="flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left hover:bg-[var(--surface-hover)]"
             >
               <span className="text-[13px] text-[var(--text-mut)] hover:text-[var(--text)]">
-                {entry.serverLabel || entry.serverId.slice(0, 12)}
+                {displayServerLabel({ id: entry.serverId, label: entry.serverLabel || null })}
               </span>
               {multiNetwork && (
                 <span className="ml-2 text-[11px] text-[var(--text-faint)]">{entry.networkName}</span>
