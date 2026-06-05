@@ -16,7 +16,7 @@ vi.mock("@tanstack/react-router", async () => {
   return {
     ...actual,
     useNavigate: () => navigate,
-    useParams: () => ({ workspaceId: "ws1" }),
+    useParams: () => ({ networkId: "net_1", serverId: "sk_1", workspaceId: "ws1" }),
   };
 });
 
@@ -125,6 +125,8 @@ describe("MenuGroup — onDblClick navigates to focus-mode route", () => {
         menu={menu}
         position={{ x: 0, y: 0 }}
         layout={{ [MENU_ID]: { x: 0, y: 0 } }}
+        networkId="net_1"
+        serverId="sk_1"
       />,
     );
     const outer = screen
@@ -134,8 +136,8 @@ describe("MenuGroup — onDblClick navigates to focus-mode route", () => {
     fireEvent.dblClick(outer!);
     expect(navigate).toHaveBeenCalledOnce();
     expect(navigate).toHaveBeenCalledWith({
-      to: "/workspace/$workspaceId/element/$elementId",
-      params: { workspaceId: PACK_ID, elementId: MENU_ID },
+      to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+      params: { networkId: "net_1", serverId: "sk_1", workspaceId: PACK_ID, elementId: MENU_ID },
     });
   });
 });

@@ -11,9 +11,12 @@ interface DialogGroupProps {
   packId: PackId;
   dialog: Dialog;
   position: { x: number; y: number };
+  /** URL params for server-scoped focus-mode navigation. */
+  networkId?: string;
+  serverId?: string;
 }
 
-export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
+export function DialogGroup({ packId, dialog, position, networkId = "", serverId = "" }: DialogGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(dialog.id));
 
@@ -39,7 +42,7 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
     [dialog.id],
   );
 
-  const onDblClick = useElementDblClickNav(packId, dialog.id);
+  const onDblClick = useElementDblClickNav(packId, dialog.id, networkId, serverId);
 
   return (
     <Group
