@@ -105,6 +105,7 @@ userPacksRouter.get("/:packId", async (c: Context<{ Variables: Vars }>) => {
   return c.json({
     pack,
     networkId,
+    serverKeyId: pack.serverKeyId,
     files: JSON.parse(pack.filesJson),
     editor: pack.editorJson ? JSON.parse(pack.editorJson) : null,
   });

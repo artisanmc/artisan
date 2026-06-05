@@ -148,6 +148,8 @@ describe("userNetworksRouter", () => {
     expect(body.network.id).toBe(network.id);
     expect(body.packs).toHaveLength(1);
     expect(body.packs[0].name).toBe("p1");
+    expect(body.packs[0]).toHaveProperty("networkId");
+    expect(body.packs[0]).toHaveProperty("serverKeyId");
     expect(body.serverKeys).toHaveLength(1);
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
   });
