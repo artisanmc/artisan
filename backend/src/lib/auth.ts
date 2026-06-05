@@ -17,7 +17,10 @@ export async function generateServerKey(): Promise<{ id: string; key: string; ha
   const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
   const hash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
   const idBytes = crypto.getRandomValues(new Uint8Array(6));
-  const id = "sk_" + Array.from(idBytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  // `srv_` prefix (NOT `sk_`) so the row id is visually distinct from the
+  // plaintext key (`sk_<64 hex>`). URLs like /networks/.../servers/srv_xxx
+  // can't be mistaken for an exposed credential.
+  const id = "srv_" + Array.from(idBytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return { id, key, hash };
 }
 
