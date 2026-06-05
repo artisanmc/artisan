@@ -249,7 +249,7 @@ function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
     { id: "history", label: t("workspace.tabs.history"), Icon: History },
   ] as const;
   return (
-    <ul className="ml-6 mt-1 mb-1 flex flex-col gap-0.5 border-l border-[var(--border-soft)] pl-2">
+    <ul className="ml-[17px] mt-1 mb-1 flex flex-col gap-0.5 border-l border-[var(--border-soft)] pl-[18px]">
       {tabs.map((tab) => {
         const isActive = currentTab === tab.id;
         const Icon = tab.Icon;
