@@ -44,6 +44,9 @@ interface MenuGroupProps {
   /** Full pack-canvas layout — needed by the slot drag-out handler to
    *  resolve which menu (if any) the cursor was over on dragend. */
   layout: Record<string, { x: number; y: number }>;
+  /** URL params for server-scoped focus-mode navigation. */
+  networkId?: string;
+  serverId?: string;
 }
 
 /**
@@ -59,7 +62,7 @@ interface MenuGroupProps {
  * texture itself draws the visual slot wells; we just overlay material text
  * + interaction targets.
  */
-export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
+export function MenuGroup({ packId, menu, position, layout, networkId = "", serverId = "" }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -92,7 +95,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const { onClick } = useMenuClick({ packId, menu, layout });
 
-  const onDblClick = useElementDblClickNav(packId, menu.id);
+  const onDblClick = useElementDblClickNav(packId, menu.id, networkId, serverId);
 
   const { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd } = useSlotDrag({
     packId,

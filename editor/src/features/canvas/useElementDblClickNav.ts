@@ -5,25 +5,28 @@ import { useNavigate } from "@tanstack/react-router";
 
 /**
  * Returns an `onDblClick` / `onDblTap` handler that navigates to the
- * focus-mode route for the given element. Pass it to the root Konva
- * `<Group onDblClick={onDblClick} onDblTap={onDblClick}>`.
+ * focus-mode route for the given element.
  *
- * Takes `packId` explicitly instead of reading it from `useParams({ strict:
- * false })` — that loose introspection returns an empty object when called
- * from canvas components mounted under the workspace route, so navigate was
- * silently early-returning when `workspaceId` came back undefined.
+ * Takes all four URL params explicitly to avoid relying on loose
+ * `useParams({ strict: false })` which returns an empty object when called
+ * from canvas components mounted under the workspace route.
  */
-export function useElementDblClickNav(packId: PackId, elementId: ElementId) {
+export function useElementDblClickNav(
+  packId: PackId,
+  elementId: ElementId,
+  networkId: string,
+  serverId: string,
+) {
   const navigate = useNavigate();
 
   return useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       e.cancelBubble = true;
       navigate({
-        to: "/workspace/$workspaceId/element/$elementId",
-        params: { workspaceId: packId, elementId },
+        to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+        params: { networkId, serverId, workspaceId: packId, elementId },
       });
     },
-    [navigate, packId, elementId],
+    [navigate, packId, elementId, networkId, serverId],
   );
 }
