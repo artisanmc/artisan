@@ -49,7 +49,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
@@ -167,6 +167,9 @@ function EmptyHint({ label }: { label: string }) {
 function FocusButton({ elementId, packId }: { elementId: ElementId; packId: PackId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const networkId = urlParams.networkId ?? "";
+  const serverId = urlParams.serverId ?? "";
 
   return (
     <div className="shrink-0 border-zinc-800 border-b bg-zinc-900 px-3 py-2">
@@ -174,8 +177,8 @@ function FocusButton({ elementId, packId }: { elementId: ElementId; packId: Pack
         type="button"
         onClick={() =>
           navigate({
-            to: "/workspace/$workspaceId/element/$elementId",
-            params: { workspaceId: packId, elementId },
+            to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+            params: { networkId, serverId, workspaceId: packId, elementId },
           })
         }
         className="flex w-full items-center justify-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 hover:border-emerald-400 hover:bg-emerald-500/20 transition-colors"
