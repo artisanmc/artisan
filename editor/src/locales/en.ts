@@ -907,6 +907,13 @@ export default {
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },
+  serverDetail: {
+    workspaces: "Workspaces",
+    noWorkspaces: "No workspaces on this server yet.",
+  },
+  redirect: {
+    redirecting: "Redirecting…",
+  },
   actions: {
     empty: "No action yet.",
   },

@@ -967,5 +967,12 @@ const fr: typeof en = {
     cancel: "Annuler",
     confirm: "Supprimer le serveur",
   },
+  serverDetail: {
+    workspaces: "Espaces de travail",
+    noWorkspaces: "Aucun espace de travail sur ce serveur.",
+  },
+  redirect: {
+    redirecting: "Redirection en cours…",
+  },
 };
 export default fr;
