@@ -15,7 +15,7 @@ const navigate = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
-  useParams: () => ({ workspaceId: "pack-abc" }),
+  useParams: () => ({ networkId: "net_1", serverId: "sk_1", workspaceId: "pack-abc" }),
 }));
 
 // ── i18n mock ─────────────────────────────────────────────────────────────────
@@ -183,8 +183,8 @@ describe("FocusButton in FlowCanvas", () => {
     render(<FlowCanvas packId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /focusMode\.openFocus/i }));
     expect(navigate).toHaveBeenCalledWith({
-      to: "/workspace/$workspaceId/element/$elementId",
-      params: { workspaceId: "pack-abc", elementId: ELEMENT_ID },
+      to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+      params: { networkId: "net_1", serverId: "sk_1", workspaceId: "pack-abc", elementId: ELEMENT_ID },
     });
   });
 
@@ -193,8 +193,8 @@ describe("FocusButton in FlowCanvas", () => {
     render(<FlowCanvas packId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /focusMode\.openFocus/i }));
     expect(navigate).toHaveBeenCalledWith({
-      to: "/workspace/$workspaceId/element/$elementId",
-      params: { workspaceId: "pack-abc", elementId: COMMAND_ID },
+      to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+      params: { networkId: "net_1", serverId: "sk_1", workspaceId: "pack-abc", elementId: COMMAND_ID },
     });
   });
 });
