@@ -1,8 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface UserPackLoadResult {
-  pack: { id: string; name: string; hash: string };
+  pack: { id: string; name: string; hash: string; serverKeyId?: string };
   networkId: string;
+  serverKeyId: string;
   files: Record<string, string>;
   editor: unknown;
 }
