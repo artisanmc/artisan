@@ -18,25 +18,83 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-describe("NetworksPage", () => {
+// Mock NewServerModal to avoid its internal router/dialog deps
+vi.mock("@/components/network-detail/NewServerModal", () => ({
+  NewServerModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="new-server-modal" /> : null,
+}));
+
+describe("NetworksPage — hub layout", () => {
   beforeEach(() => {
     useNetworksStore.getState().reset();
     vi.restoreAllMocks();
   });
 
-  it("fetches and displays the user's networks", async () => {
+  it("renders each network as a section with its name", async () => {
     vi.spyOn(networksApi, "listNetworks").mockResolvedValue([
       { id: "n1", name: "Survival Network", tier: "free" },
       { id: "n2", name: "Creative Network", tier: "free" },
     ]);
+    vi.spyOn(networksApi, "getNetwork").mockImplementation(async (id) => ({
+      network: { id, name: id === "n1" ? "Survival Network" : "Creative Network", tier: "free" },
+      serverKeys: [],
+      packs: [],
+    }));
+
     render(<NetworksPage />);
+
     await waitFor(() => expect(screen.getByText("Survival Network")).toBeTruthy());
     expect(screen.getByText("Creative Network")).toBeTruthy();
   });
 
-  it("shows empty state with 'Create your first network' CTA", async () => {
-    vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
+  it("renders server rows inside each network section", async () => {
+    vi.spyOn(networksApi, "listNetworks").mockResolvedValue([
+      { id: "n1", name: "Survival", tier: "free" },
+    ]);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "n1", name: "Survival", tier: "free" },
+      serverKeys: [
+        { id: "sk_abcd1234efgh", label: "Main Server" },
+        { id: "sk_xyz987654321", label: null },
+      ],
+      packs: [
+        { id: "p1", name: "Pack A", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
+        { id: "p2", name: "Pack B", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
+      ],
+    });
+
     render(<NetworksPage />);
-    await waitFor(() => expect(screen.getByText(/Aucun Network/i)).toBeTruthy());
+
+    await waitFor(() => expect(screen.getByText("Main Server")).toBeTruthy());
+    // Unlabelled server should show friendly fallback
+    expect(screen.getByText("Server xyz9")).toBeTruthy();
+    // Workspace counts — bilingual: tests run in French but English form is accepted too
+    const workspaceCounts = screen.getAllByText(/\d+ workspaces?/i);
+    expect(workspaceCounts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows 'no server yet' state when network has no servers", async () => {
+    vi.spyOn(networksApi, "listNetworks").mockResolvedValue([
+      { id: "n1", name: "Empty Net", tier: "free" },
+    ]);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "n1", name: "Empty Net", tier: "free" },
+      serverKeys: [],
+      packs: [],
+    });
+
+    render(<NetworksPage />);
+
+    await waitFor(() => expect(screen.getByText("Empty Net")).toBeTruthy());
+    expect(screen.getByText(/No server yet|Aucun serveur/i)).toBeTruthy();
+  });
+
+  it("shows empty state when user has no networks", async () => {
+    vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({ network: { id: "", name: "", tier: "free" }, serverKeys: [], packs: [] });
+
+    render(<NetworksPage />);
+
+    await waitFor(() => expect(screen.getByText(/No network|Aucun network/i)).toBeTruthy());
   });
 });
