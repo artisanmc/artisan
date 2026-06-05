@@ -4,7 +4,10 @@ import { ServerCard } from "./ServerCard";
 
 vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
-  return { ...actual, Link: ({ children, ...p }: any) => <a {...p}>{children}</a> };
+  return {
+    ...actual,
+    Link: ({ children, to, params, ...p }: any) => <a href={to} {...p}>{children}</a>,
+  };
 });
 
 const server = { id: "sk1", label: "Survival", online: true } as any;
@@ -15,7 +18,7 @@ const workspaces = [
 
 describe("ServerCard", () => {
   it("shows label, online dot, workspaces, count, and 'new workspace' CTA", () => {
-    render(<ServerCard server={server} workspaces={workspaces} onAction={() => {}} onCreateWorkspace={() => {}} />);
+    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateWorkspace={() => {}} />);
     expect(screen.getByText("Survival")).toBeInTheDocument();
     expect(screen.getByText(/2 workspace/i)).toBeInTheDocument();
     // workspace links contain emoji + text — use regex
@@ -25,9 +28,19 @@ describe("ServerCard", () => {
     expect(screen.getByRole("button", { name: /workspace/i })).toBeInTheDocument();
   });
 
+  it("workspace links point to the server-scoped URL pattern", () => {
+    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateWorkspace={() => {}} />);
+    const links = screen.getAllByRole("link");
+    // Links use TanStack Router `to` pattern as href (mocked Link renders href=to)
+    expect(links[0]).toHaveAttribute(
+      "href",
+      "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+    );
+  });
+
   it("invokes onCreateWorkspace when CTA clicked", () => {
     const onCreate = vi.fn();
-    render(<ServerCard server={server} workspaces={[]} onAction={() => {}} onCreateWorkspace={onCreate} />);
+    render(<ServerCard networkId="net_1" server={server} workspaces={[]} onAction={() => {}} onCreateWorkspace={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: /workspace/i }));
     expect(onCreate).toHaveBeenCalledWith("sk1");
   });
