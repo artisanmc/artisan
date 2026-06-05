@@ -7,13 +7,14 @@ interface Server { id: string; label: string | null; online: boolean; lastSeen?:
 interface Workspace { id: string; name: string; }
 
 interface Props {
+  networkId: string;
   server: Server;
   workspaces: Workspace[];
   onAction: (action: "show-key" | "rotate" | "history" | "allowlist" | "delete", serverId: string) => void;
   onCreateWorkspace: (serverId: string) => void;
 }
 
-export function ServerCard({ server, workspaces, onAction, onCreateWorkspace }: Props) {
+export function ServerCard({ networkId, server, workspaces, onAction, onCreateWorkspace }: Props) {
   const { t } = useTranslation();
   return (
     <div className="card flex flex-col gap-3 p-4">
@@ -47,8 +48,8 @@ export function ServerCard({ server, workspaces, onAction, onCreateWorkspace }: 
         {workspaces.map((w) => (
           <Link
             key={w.id}
-            to="/workspace/$workspaceId"
-            params={{ workspaceId: w.id }}
+            to="/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
+            params={{ networkId, serverId: server.id, workspaceId: w.id }}
             className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">

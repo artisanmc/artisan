@@ -135,6 +135,7 @@ export function NetworkDetailPage() {
               {detail.serverKeys.map((sk) => (
                 <ServerCard
                   key={sk.id}
+                  networkId={networkId}
                   server={{ id: sk.id, label: sk.label, online: false }}
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
