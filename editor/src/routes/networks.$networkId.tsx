@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Copy, Key } from "lucide-react";
@@ -30,12 +30,14 @@ export function NetworkDetailPage() {
   const [allowlistServer, setAllowlistServer] = useState<string | null>(null);
   const [deleteServer, setDeleteServer] = useState<{ id: string; label: string; workspaceCount: number } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
+  const childMatches = useChildMatches();
 
   useEffect(() => {
     if (!networkId) return;
     getNetwork(networkId).then(setDetail).catch(console.error);
   }, [networkId]);
 
+  if (childMatches.length > 0) return <Outlet />;
   if (!detail)
     return (
       <div className="flex h-full items-center justify-center p-8 text-[var(--text-mut)]">

@@ -13,6 +13,7 @@ vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
+    useChildMatches: () => [],
     Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
   };
 });
