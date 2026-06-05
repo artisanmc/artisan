@@ -7,7 +7,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { CSS } from "@dnd-kit/utilities";
-import { LayoutGrid, GripVertical } from "lucide-react";
+import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 import { NetworkDropdown } from "./NetworkDropdown";
 import { ServerDropdown } from "./ServerDropdown";
@@ -243,15 +243,16 @@ function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
   const search = useSearch({ strict: false }) as { tab?: string } | undefined;
   const currentTab = search?.tab ?? "overview";
   const tabs = [
-    { id: "overview", label: t("workspace.tabs.overview") },
-    { id: "translations", label: t("workspace.tabs.translations") },
-    { id: "data-sources", label: t("workspace.tabs.dataSources") },
-    { id: "history", label: t("workspace.tabs.history") },
+    { id: "overview", label: t("workspace.tabs.overview"), Icon: LayoutGrid },
+    { id: "translations", label: t("workspace.tabs.translations"), Icon: Languages },
+    { id: "data-sources", label: t("workspace.tabs.dataSources"), Icon: Database },
+    { id: "history", label: t("workspace.tabs.history"), Icon: History },
   ] as const;
   return (
-    <ul className="ml-9 mt-0.5 mb-1 flex flex-col">
+    <ul className="ml-6 mt-1 mb-1 flex flex-col gap-0.5 border-l border-[var(--border-soft)] pl-2">
       {tabs.map((tab) => {
         const isActive = currentTab === tab.id;
+        const Icon = tab.Icon;
         return (
           <li key={tab.id}>
             <Link
@@ -260,10 +261,11 @@ function WorkspaceSubTabs({ workspaceId }: { workspaceId: string }) {
               search={{ tab: tab.id }}
               className={
                 isActive
-                  ? "block rounded-[8px] px-2.5 py-1 text-[12px] font-medium text-[var(--brand)]"
-                  : "block rounded-[8px] px-2.5 py-1 text-[12px] text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+                  ? "flex items-center gap-2 rounded-[8px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--brand)]"
+                  : "flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               }
             >
+              <Icon className="size-[13px] shrink-0" />
               {tab.label}
             </Link>
           </li>
