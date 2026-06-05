@@ -2,7 +2,6 @@ import { createFileRoute, useParams, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { loadUserPack, getNetworkOfPack } from "@/lib/api/userPacks";
-import { useAccountStore } from "@/state/accountStore";
 import { useSessionStore } from "@/state/sessionStore";
 
 export const Route = createFileRoute("/workspace/$workspaceId")({
@@ -14,34 +13,36 @@ export const Route = createFileRoute("/workspace/$workspaceId")({
 function WorkspaceRedirect() {
   const { workspaceId } = useParams({ from: "/workspace/$workspaceId" });
   const { t } = useTranslation();
-  const sessionPack = useAccountStore((s) =>
-    s.account.packs.find((p) => p.id === workspaceId),
-  );
+  const accessToken = useSessionStore((s) => s.accessToken);
   const sessionNetworkId = useSessionStore((s) => s.networkId);
+  const sessionServerKeyId = useSessionStore((s) => s.serverKeyId);
   const [dest, setDest] = useState<{ networkId: string; serverId: string } | null>(null);
 
   useEffect(() => {
-    // 1) Session mode: pack is in accountStore, network on the session.
-    if (sessionPack?.serverKeyId && sessionNetworkId) {
-      setDest({ networkId: sessionNetworkId, serverId: sessionPack.serverKeyId });
+    // Session mode: trust dance via `/artisan editor` populates sessionStore
+    // with serverKeyId + networkId — both are session-bound. No pack fetch
+    // needed; redirect immediately to the server-scoped URL.
+    if (accessToken && sessionNetworkId && sessionServerKeyId) {
+      setDest({ networkId: sessionNetworkId, serverId: sessionServerKeyId });
       return;
     }
-    // 2) User-auth mode: fetch the pack's network + server via cookie-auth API.
-    loadUserPack(workspaceId)
-      .then((res) => {
-        if (res.networkId && res.serverKeyId) {
-          setDest({ networkId: res.networkId, serverId: res.serverKeyId });
-          return;
-        }
-        // 3) Last resort: ask getNetworkOfPack (older endpoint that some routes still use).
-        return getNetworkOfPack(workspaceId).then((networkId) => {
-          if (networkId && res.serverKeyId) {
-            setDest({ networkId, serverId: res.serverKeyId });
+    // User-auth mode (cookie session): fetch the pack to discover its network + server.
+    if (!accessToken) {
+      loadUserPack(workspaceId)
+        .then((res) => {
+          if (res.networkId && res.serverKeyId) {
+            setDest({ networkId: res.networkId, serverId: res.serverKeyId });
+            return;
           }
-        });
-      })
-      .catch(console.error);
-  }, [workspaceId, sessionPack?.serverKeyId, sessionNetworkId]);
+          return getNetworkOfPack(workspaceId).then((networkId) => {
+            if (networkId && res.serverKeyId) {
+              setDest({ networkId, serverId: res.serverKeyId });
+            }
+          });
+        })
+        .catch(console.error);
+    }
+  }, [workspaceId, accessToken, sessionNetworkId, sessionServerKeyId]);
 
   if (!dest) {
     return (
