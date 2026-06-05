@@ -16,7 +16,8 @@ export async function generateServerKey(): Promise<{ id: string; key: string; ha
   const key = "sk_" + Array.from(rawBytes, (b) => b.toString(16).padStart(2, "0")).join("");
   const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
   const hash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
-  const id = crypto.randomUUID();
+  const idBytes = crypto.getRandomValues(new Uint8Array(6));
+  const id = "sk_" + Array.from(idBytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return { id, key, hash };
 }
 
