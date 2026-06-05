@@ -116,10 +116,14 @@ export function WorkspaceSidebar() {
     }));
   const allPacks = [...serverPacks, ...optimisticEntries];
 
-  // Always filter by active server (URL-driven).
-  const filteredServerPacks = activeServerId
-    ? allPacks.filter((p) => p.serverKeyId === activeServerId)
-    : allPacks;
+  // Filter by active server (URL-driven). In session mode, accountStore.packs
+  // is already implicitly scoped to the session's server (no other source) —
+  // skip the filter so packs that lack serverKeyId metadata still show.
+  const filteredServerPacks = isSessionMode
+    ? allPacks
+    : activeServerId
+      ? allPacks.filter((p) => p.serverKeyId === activeServerId)
+      : allPacks;
 
   const idToPack = new Map(filteredServerPacks.map((p) => [p.id, p]));
   const ordered: PackSummary[] = [];
