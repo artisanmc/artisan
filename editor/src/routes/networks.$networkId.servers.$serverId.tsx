@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getNetwork } from "@/lib/api/networks";
 import type { PackSummary } from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
 
 export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
   component: ServerDetailPage,
@@ -13,7 +14,7 @@ export default function ServerDetailPage() {
   const { networkId, serverId } = useParams({
     from: "/networks/$networkId/servers/$serverId",
   });
-  const [serverLabel, setServerLabel] = useState<string | null>(null);
+  const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<PackSummary[]>([]);
   const childMatches = useChildMatches();
 
@@ -22,7 +23,7 @@ export default function ServerDetailPage() {
     getNetwork(networkId)
       .then((d) => {
         const sk = d.serverKeys.find((k) => k.id === serverId);
-        setServerLabel(sk?.label ?? null);
+        setServerDisplayLabel(sk ? displayServerLabel(sk) : null);
         setWorkspaces(d.packs.filter((p) => p.serverKeyId === serverId));
       })
       .catch(console.error);
@@ -38,7 +39,7 @@ export default function ServerDetailPage() {
             className="display text-[32px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {serverLabel ?? serverId}
+            {serverDisplayLabel ?? serverId}
           </h1>
         </header>
 

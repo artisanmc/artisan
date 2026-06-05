@@ -16,6 +16,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
 import type { PackId } from "@/domain/types";
 
 export function WorkspaceSidebar() {
@@ -61,7 +62,7 @@ export function WorkspaceSidebar() {
         const entries: ServerEntry[] = results.flatMap((r) =>
           r.serverKeys.map((sk) => ({
             serverId: sk.id,
-            serverLabel: sk.label ?? "",
+            serverLabel: displayServerLabel(sk),
             networkId: r.network.id,
             networkName: r.network.name,
           })),
