@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ServerKebabMenu } from "./ServerKebabMenu";
+import { displayServerLabel } from "@/lib/serverLabel";
 
 interface Server { id: string; label: string | null; online: boolean; lastSeen?: string | null; }
 interface Workspace { id: string; name: string; }
@@ -28,7 +29,7 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreateWo
             }}
           />
           <span className="truncate text-[14px] font-semibold text-[var(--text)]">
-            {server.label ?? server.id.slice(0, 12)}
+            {displayServerLabel(server)}
           </span>
         </div>
         <ServerKebabMenu serverId={server.id} onAction={onAction} />
