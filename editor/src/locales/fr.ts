@@ -647,6 +647,9 @@ const fr: typeof en = {
     noNetworkHint:
       "Crée d'abord un Network pour ranger tes packs.",
     createNetwork: "+ Créer un network",
+    serverLabel: "Serveur",
+    selectServer: "Sélectionner un serveur",
+    noServers: "Aucun serveur",
   },
   accountPage: {
     networksSection: "Networks",
