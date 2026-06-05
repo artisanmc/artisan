@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getNetwork } from "@/lib/api/networks";
@@ -15,6 +15,7 @@ export default function ServerDetailPage() {
   });
   const [serverLabel, setServerLabel] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<PackSummary[]>([]);
+  const childMatches = useChildMatches();
 
   useEffect(() => {
     if (!networkId || !serverId) return;
@@ -26,6 +27,8 @@ export default function ServerDetailPage() {
       })
       .catch(console.error);
   }, [networkId, serverId]);
+
+  if (childMatches.length > 0) return <Outlet />;
 
   return (
     <div className="relative h-full overflow-auto">

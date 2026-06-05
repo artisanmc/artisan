@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { useNetworksStore } from "@/state/networksStore";
@@ -10,10 +10,13 @@ export function NetworksPage() {
   const { t } = useTranslation();
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
+  const childMatches = useChildMatches();
 
   useEffect(() => {
     listNetworks().then(setNetworks).catch(console.error);
   }, [setNetworks]);
+
+  if (childMatches.length > 0) return <Outlet />;
 
   return (
     <div className="grain relative min-h-screen bg-[var(--surface)]">

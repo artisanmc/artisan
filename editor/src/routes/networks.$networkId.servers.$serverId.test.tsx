@@ -5,6 +5,7 @@ vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
+    useChildMatches: () => [],
     useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
     useNavigate: () => vi.fn(),
     Navigate: () => null,
