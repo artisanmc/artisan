@@ -8,6 +8,8 @@ import { transform } from "@/features/export/transform";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { useUiStore } from "@/state/uiStore";
+import { pickReturnPack } from "@/features/pack/pickReturnPack";
 import { TrustGatePage } from "@/features/trust/TrustGatePage";
 import type { PackId, AccountId } from "@/domain/types";
 
@@ -140,12 +142,16 @@ function SessionPage() {
           setSession(newToken, info.server_key_id, info.network_id, trustCode, useSessionStore.getState().trusted);
         }, 4 * 60 * 1000);
 
-        const firstPack = packs[0];
+        // Restore the pack the user was last editing instead of always
+        // landing on packs[0]. A page refresh bounces through /session
+        // (sessionStore is in-memory), so without this every reload kicked the
+        // user back to the first pack. Falls back to packs[0].
+        const targetPack = pickReturnPack(packs, useUiStore.getState().lastActivePackId);
         if (!info.trusted) {
-          pendingPackIdRef.current = firstPack?.id ?? null;
+          pendingPackIdRef.current = targetPack?.id ?? null;
           setState("trust_gate");
-        } else if (firstPack) {
-          await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: firstPack.id } });
+        } else if (targetPack) {
+          await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: targetPack.id } });
         } else {
           setState("empty");
         }
