@@ -9,7 +9,7 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/architecture/ws-protocol.md` |
 | Endpoints REST (`backend/src/routes/*.ts`) | `docs/architecture/rest-endpoints.md` (index — pointe vers le fichier de route) |
 | Schéma DB (`backend/src/db/schema.ts`) | migration dans `backend/drizzle/` (`db:generate`) + `docs/architecture/entities.md` |
-| Internals éditeur / rendu titre (title composer, focus mode, canvas, SchemaForm) | `docs/architecture/editor-internals.md` |
+| Internals éditeur / rendu titre (title composer, canvas, édition d'élément, SchemaForm) | `docs/architecture/editor-internals.md` |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
 | Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Commandes + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
@@ -32,7 +32,7 @@ Ce fichier garde l'**opérationnel** (commandes, invariants, env vars) + l'**ori
 | `docs/architecture/rest-endpoints.md` | Index des routes REST (quel fichier ouvrir) + conventions + flux non-évidents. La source de vérité = `backend/src/routes/*.ts`. |
 | `docs/architecture/ws-protocol.md` | Table des messages WS plugin ↔ backend + flux de données. |
 | `docs/architecture/entities.md` | Modèle de données (Pack/Network/ServerKey/commits/branches/merge), auth, transferts, historique des phases. |
-| `docs/architecture/editor-internals.md` | Title composer (YAML, pixel offsets, fonts), focus mode, canvas layout, `<SchemaForm>`, UI shell. |
+| `docs/architecture/editor-internals.md` | Title composer (YAML, pixel offsets, fonts), édition d'élément (onglet Edit / FlowCanvas), canvas layout, `<SchemaForm>`, UI shell. |
 | `docs/architecture/modules.md` | Modular monolith — comment ajouter un module. |
 | `docs/architecture/versioning.md` / `api-surface.md` | Disciplines de versioning + surface API publique stable. |
 | `CONTEXT.md` | Glossaire domaine (source de vérité des termes). |
@@ -254,7 +254,7 @@ Couverture par couche (zones, pas liste de fichiers — `glob **/*.test.*` donne
 |---|---|---|
 | Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, editor-session, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), conflicts, pack import. |
 | Plugin (~45 fichiers) | `./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, pack deleter, local push. |
-| Éditeur (≥126 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + focus mode, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
+| Éditeur (≥120 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + édition d'élément, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
 | E2E éditeur | `npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |
 
 > ⚠️ **`bun run test` — JAMAIS `bun test` direct** (le wrapper redirige vers `artisan_test` ; le direct wipe la DB dev — cf. section Commandes Backend).

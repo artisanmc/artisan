@@ -49,7 +49,6 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
@@ -102,22 +101,16 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   const command = pack.commands.find((c) => c.id === id);
   if (command)
     return (
-      <div className="flex h-full flex-col">
-        <FocusButton elementId={id} packId={packId} />
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <CommandEditor packId={packId} command={command} />
-        </div>
+      <div className="h-full overflow-hidden">
+        <CommandEditor packId={packId} command={command} />
       </div>
     );
 
   const dialog = pack.dialogs.find((d) => d.id === id);
   if (dialog)
     return (
-      <div className="flex h-full flex-col">
-        <FocusButton elementId={id} packId={packId} />
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <DialogEditor packId={packId} dialog={dialog} />
-        </div>
+      <div className="h-full overflow-hidden">
+        <DialogEditor packId={packId} dialog={dialog} />
       </div>
     );
 
@@ -126,11 +119,8 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
       const el = layer.elements.find((e) => e.id === id);
       if (el)
         return (
-          <div className="flex h-full flex-col">
-            <FocusButton elementId={id} packId={packId} />
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ElementEditor packId={packId} menu={menu} element={el} />
-            </div>
+          <div className="h-full overflow-hidden">
+            <ElementEditor packId={packId} menu={menu} element={el} />
           </div>
         );
     }
@@ -139,11 +129,8 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   const menu = pack.menus.find((m) => m.id === id);
   if (menu) {
     return (
-      <div className="flex h-full flex-col">
-        <FocusButton elementId={id} packId={packId} />
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <MenuProperties packId={packId} menu={menu} />
-        </div>
+      <div className="h-full overflow-y-auto p-3">
+        <MenuProperties packId={packId} menu={menu} />
       </div>
     );
   }
@@ -155,37 +142,6 @@ function EmptyHint({ label }: { label: string }) {
   return (
     <div className="flex h-full items-center justify-center bg-zinc-950 text-xs text-zinc-500">
       {label}
-    </div>
-  );
-}
-
-/**
- * A prominent button rendered at the top of any single-selection properties
- * panel. Provides a discoverable entry point into focus mode, complementing
- * the existing double-click affordance on the canvas.
- */
-function FocusButton({ elementId, packId }: { elementId: ElementId; packId: PackId }) {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const networkId = urlParams.networkId ?? "";
-  const serverId = urlParams.serverId ?? "";
-
-  return (
-    <div className="shrink-0 border-zinc-800 border-b bg-zinc-900 px-3 py-2">
-      <button
-        type="button"
-        onClick={() =>
-          navigate({
-            to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
-            params: { networkId, serverId, workspaceId: packId, elementId },
-          })
-        }
-        className="flex w-full items-center justify-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 hover:border-emerald-400 hover:bg-emerald-500/20 transition-colors"
-      >
-        <span>⛶</span>
-        {t("focusMode.openFocus")}
-      </button>
     </div>
   );
 }

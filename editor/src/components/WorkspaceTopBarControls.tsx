@@ -1,16 +1,14 @@
 /**
  * WorkspaceTopBarControls
  *
- * Shared top-bar control strip used by both the standard workspace canvas
- * route and the upcoming focus-mode route (Task 3.4). Encapsulates:
+ * Top-bar control strip for the workspace route. Encapsulates:
  *   - LangSwitcher  (content language for the pack)
  *   - UndoRedoButtons
  *   - DeployButtons  (Deploy + Revert)
  *   - TopBarKebabMenu  (Import / Export / Patterns / Delete)
  *
  * History/branch navigation lives in the History tab (HistoryTab component).
- * All handlers that are route-specific (import, export, etc.)
- * are passed as props so the two routes can supply different implementations.
+ * Route-specific handlers (import, export, etc.) are passed as props.
  */
 import {
   DropdownMenu,
@@ -50,13 +48,6 @@ export interface WorkspaceTopBarControlsProps {
   /** Display name shown in the left of the top bar. Defaults to `pack.name`. */
   packName?: string;
 
-  /**
-   * Optional slot that, when provided, completely replaces the default
-   * pack-name left section of the top bar. Used by the focus-mode route to
-   * render a "← Back to canvas" button + element ID in place of the pack name.
-   */
-  leftSlot?: React.ReactNode;
-
   // Kebab menu handlers (route-specific implementations).
   onImport?: () => void;
   onExport?: () => void;
@@ -68,19 +59,15 @@ export interface WorkspaceTopBarControlsProps {
 }
 
 /**
- * Full top-bar header area for a workspace/focus route. Renders a single
+ * Full top-bar header area for the workspace route. Renders a single
  * 52px row with the pack name dot + name on the left and controls on the right.
  *
  * Branch / history navigation lives in the History tab (HistoryTab component).
- *
- * Mounted as a single component so both the canvas workspace route and the
- * focus-mode route can share identical chrome without duplication.
  */
 export function WorkspaceTopBarControls({
   pack,
   packId,
   packName,
-  leftSlot,
   onImport,
   onExport,
   onExportZip,
@@ -92,19 +79,13 @@ export function WorkspaceTopBarControls({
 
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-2 pl-14 pr-3 lg:px-5">
-      {leftSlot != null ? (
-        <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
-          {leftSlot}
-        </div>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: "var(--warning)", boxShadow: "0 0 8px var(--warning)" }}
-          />
-          <span className="truncate">{displayName}</span>
-        </div>
-      )}
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: "var(--warning)", boxShadow: "0 0 8px var(--warning)" }}
+        />
+        <span className="truncate">{displayName}</span>
+      </div>
       <ServerStatusBadge networkId={networkId} serverKeyId={pack.serverKeyId ?? ""} packId={packId} />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
