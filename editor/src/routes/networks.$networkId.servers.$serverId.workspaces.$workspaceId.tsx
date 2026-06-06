@@ -117,9 +117,12 @@ export function PackCanvasPage() {
   );
 
   useEffect(() => {
-    const current = useUiStore.getState().lastActivePackId;
-    if (current !== pId) useUiStore.getState().setLastActivePackId(pId);
-  }, [pId]);
+    const ui = useUiStore.getState();
+    if (ui.lastActivePackId !== pId) ui.setLastActivePackId(pId);
+    // Persist the tab too so a reload (which bounces through /session) can
+    // restore the exact view, not just the pack.
+    if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab);
+  }, [pId, tab]);
 
   // Keep the access token alive while the pack page is open.
   useEffect(() => {

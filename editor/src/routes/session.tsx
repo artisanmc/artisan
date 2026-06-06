@@ -110,6 +110,28 @@ function SessionPage() {
 
         setSession(accessToken, info.server_key_id, info.network_id, trustCode, info.trusted);
 
+        // Where to land after restoring: navigate server-scoped (we have the
+        // network + server from the session) and carry the last tab so a
+        // reload returns to the exact view, not just the pack. Falls back to
+        // the legacy route when network_id is absent (older sessions).
+        const WS_TABS = ["overview", "translations", "data-sources", "history"] as const;
+        const lastTab = useUiStore.getState().lastActiveTab ?? "";
+        const restoreTab = (WS_TABS as readonly string[]).includes(lastTab)
+          ? (lastTab as (typeof WS_TABS)[number])
+          : "overview";
+        const goToWorkspace = (packId: string) =>
+          info.network_id
+            ? navigate({
+                to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+                params: {
+                  networkId: info.network_id,
+                  serverId: info.server_key_id,
+                  workspaceId: packId,
+                },
+                search: { tab: restoreTab },
+              })
+            : navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
+
         wsRef.current = new EditorWs(
           accessToken,
           (_packId, menuId, _menuYaml, _updatedBy) => {
@@ -127,7 +149,7 @@ function SessionPage() {
             setTrusted(true);
             const packId = pendingPackIdRef.current;
             if (packId) {
-              navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
+              goToWorkspace(packId);
             } else {
               setState("empty");
             }
@@ -151,7 +173,7 @@ function SessionPage() {
           pendingPackIdRef.current = targetPack?.id ?? null;
           setState("trust_gate");
         } else if (targetPack) {
-          await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: targetPack.id } });
+          await goToWorkspace(targetPack.id);
         } else {
           setState("empty");
         }
