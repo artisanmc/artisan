@@ -267,15 +267,16 @@ function SortableWorkspaceItem({
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
-      <div
-        data-active={isActiveWorkspace ? "true" : "false"}
-        className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)] data-[active=true]:bg-[var(--brand-soft)] data-[active=true]:hover:bg-[var(--brand-soft)]"
-      >
+      <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <Link
           to={linkTo as any}
           params={linkParams as any}
           onClick={() => useSidebarStore.getState().close()}
-          className="flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)] data-[status=active]:font-semibold data-[status=active]:text-white data-[status=active]:[&_svg]:text-[var(--brand)]"
+          className={
+            isActiveWorkspace
+              ? "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              : "flex flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+          }
         >
           <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           <span className="truncate flex-1">{name}</span>
@@ -327,7 +328,7 @@ function WorkspaceSubTabs({
       : { workspaceId };
 
   return (
-    <ul className="ml-[17px] mt-1 mb-1 flex flex-col gap-0.5 border-l border-[var(--border-soft)] pl-[18px]">
+    <ul className="mt-0.5 mb-1 flex flex-col gap-0.5">
       {tabs.map((tab) => {
         const isActive = currentTab === tab.id;
         const Icon = tab.Icon;
@@ -339,8 +340,8 @@ function WorkspaceSubTabs({
               search={{ tab: tab.id } as any}
               className={
                 isActive
-                  ? "flex items-center gap-2 rounded-[8px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--brand)]"
-                  : "flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  ? "flex items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] py-2 pl-6 pr-2.5 text-[13px] font-semibold text-[var(--brand)]"
+                  : "flex items-center gap-2 rounded-[10px] py-2 pl-6 pr-2.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               }
             >
               <Icon className="size-[13px] shrink-0" />
