@@ -1,22 +1,19 @@
 import type { Command, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { COMMAND_BOX } from "./menuLayout";
-import { useElementDblClickNav } from "./useElementDblClickNav";
 
 interface CommandGroupProps {
   packId: PackId;
   command: Command;
   position: { x: number; y: number };
-  /** URL params for server-scoped focus-mode navigation. */
-  networkId?: string;
-  serverId?: string;
 }
 
-export function CommandGroup({ packId, command, position, networkId = "", serverId = "" }: CommandGroupProps) {
+export function CommandGroup({ packId, command, position }: CommandGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(command.id));
 
@@ -38,11 +35,12 @@ export function CommandGroup({ packId, command, position, networkId = "", server
       const { ids, set, toggle } = useSelectionStore.getState();
       if (additive) toggle(command.id);
       else if (!ids.has(command.id) || ids.size > 1) set([command.id]);
+      // Selecting on the canvas opens the Edit tab so the chosen element is
+      // immediately editable — no manual tab switch.
+      if (!additive) useUiStore.getState().setEditorTab("edit");
     },
     [command.id],
   );
-
-  const onDblClick = useElementDblClickNav(packId, command.id, networkId, serverId);
 
   return (
     <Group
@@ -53,8 +51,6 @@ export function CommandGroup({ packId, command, position, networkId = "", server
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={onDblClick}
-      onDblTap={onDblClick}
       name={`command:${command.id}`}
       id={command.id}
     >

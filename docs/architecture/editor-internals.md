@@ -1,7 +1,7 @@
 # Editor & rendering internals
 
 > Détails d'implémentation éditeur + pipeline de rendu du titre. Consulté quand on touche
-> au title composer, au focus mode, au canvas, ou au `<SchemaForm>`.
+> au title composer, au canvas / à l'édition d'élément, ou au `<SchemaForm>`.
 
 ## `<SchemaForm>` — générateur de formulaires depuis JSON Schema
 
@@ -93,25 +93,23 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 - **Fichiers v3** sous `editor/src/features/canvas/title/composer/` : `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `ResizeHandles.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts` ; `stageGeometry.ts` (dans `features/canvas/`).
 - **Supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ tests).
 
-## Focus mode — per-element editing (depuis 2026-06-02)
+## Édition d'un élément — onglet « Edit » du `EditorPane`
 
-Mode focus plein-écran pour éditer UN seul élément (menu / commande / dialog), en plus du canvas multi-éléments.
+Il n'y a **pas** de mode focus plein-écran (retiré 2026-06-06 : c'était un doublon de l'onglet Edit + une source de bugs de routing — `features/element-editor/`, les routes `.../element/$elementId`, `useElementDblClickNav` et le bouton `FocusButton` ont été supprimés). On édite l'élément sélectionné dans le panneau de droite.
 
-- **Entrée** : double-click sur un MenuGroup/CommandGroup/DialogGroup, OU bouton "Focus / Éditer en grand" (`FlowCanvas.tsx`). **Sortie** : Esc ou `← Retour au canvas`.
-- **Route** : `/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId` (route canonique server-scoped ; les anciennes `/workspace/$workspaceId/element/$elementId` et `/pack/$packId` redirigent vers ce format).
-- **Composants** :
-  - `routes/networks.$networkId.servers.$serverId.workspaces.$workspaceId.element.$elementId.tsx` — la route (l'ancienne `workspace.$workspaceId.element.$elementId.tsx` n'est plus qu'un redirect).
-  - `features/element-editor/ElementEditor.tsx` — dispatcher : résout l'élément par id (menus → commands → dialogs) et délègue.
-  - `features/element-editor/menu/MenuEditor.tsx` — 3-col desktop (canvas | properties | layers) + drawers Library/Assets ; tabs single-col mobile.
-  - `features/element-editor/command/CommandEditor.tsx` — two-col (meta | actions chain) + mobile single-col.
-  - `features/element-editor/dialog/DialogEditor.tsx` — form (title/body/buttons) + actions chain par bouton. Pas de preview MC en V1.
-  - `features/element-editor/actions/` — `ActionBlock`, `IfBlock`, `ActionsChainEditor`, `AddActionButton`. Renderers récursifs (pseudo-code indenté).
-  - `components/WorkspaceTopBarControls.tsx` — top-bar partagé (LangSwitcher, UndoRedo, Deploy, kebab). Prop `leftSlot` pour injecter le bouton "← Retour" en focus.
-- **V2 hors-scope** : cross-element navigation (forward/reverse + backstack), preview MC des dialogs, sidebar drill-in.
+- **`features/canvas/EditorPane.tsx`** — `Tabs` à 3 onglets : **Edit / Library / Assets** (`uiStore.editorTab`). L'onglet `edit` rend `<FlowCanvas>`.
+- **`features/flow/FlowCanvas.tsx`** — éditeur unifié de la sélection courante (`useSelectionStore`). Route par type :
+  - 0 sélection → `PackProperties`
+  - menu → `MenuProperties` (+ `LayersPanel` titre)
+  - élément (slot) → state cards (material / title / lore / conditions + click handlers en pseudo-code)
+  - command → identité + args + step tree
+  - dialog → title / body / buttons + actions par bouton
+  - multi-sélection → "select one item" (multi-edit hors V1)
+- **Sélection → onglet Edit** (depuis 2026-06-06) : cliquer un menu / slot / command / dialog sur le canvas bascule `uiStore.editorTab` sur `"edit"` (dans `useMenuClick` + les handlers de slot de `MenuGroup` + l'`onClick` de `CommandGroup`/`DialogGroup`), pour que l'élément soit éditable sans changer d'onglet à la main. Le placement d'item « armé » et la multi-sélection (shift) ne basculent pas.
 
 ## Canvas component layout (refactor 2026-06-02)
 
-`features/canvas/MenuGroup.tsx` (1066 → 591 lignes) éclaté : `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (fanout positionnel pur, testé), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-pack via pack-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt), `useElementDblClickNav.ts` (nav focus partagée par les 3 Groups).
+`features/canvas/MenuGroup.tsx` (1066 → 591 lignes) éclaté : `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (fanout positionnel pur, testé), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-pack via pack-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt).
 
 `features/canvas/Stage.tsx` (528 → 351 lignes) éclaté : `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
 

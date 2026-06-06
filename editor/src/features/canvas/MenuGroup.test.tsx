@@ -8,18 +8,6 @@ import { useUiStore } from "@/state/uiStore";
 
 import { MenuGroup } from "./MenuGroup";
 
-const navigate = vi.fn();
-vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>(
-    "@tanstack/react-router",
-  );
-  return {
-    ...actual,
-    useNavigate: () => navigate,
-    useParams: () => ({ networkId: "net_1", serverId: "sk_1", workspaceId: "ws1" }),
-  };
-});
-
 // Stub react-konva so MenuGroup renders to plain DOM. We expose `name`
 // (a Konva-only attribute Konva itself uses to identify nodes) as
 // data-name so tests can pick the right Group out of the tree, and forward
@@ -113,33 +101,6 @@ beforeEach(() => {
     activeLang: "en",
   } as any);
   useSelectionStore.setState({ ids: new Set(), focusedSlot: null } as any);
-});
-
-describe("MenuGroup — onDblClick navigates to focus-mode route", () => {
-  it("double-clicking the outer Group calls navigate with the focus-mode route", () => {
-    navigate.mockClear();
-    const menu = useAccountStore.getState().account.packs[0]!.menus[0]!;
-    render(
-      <MenuGroup
-        packId={PACK_ID}
-        menu={menu}
-        position={{ x: 0, y: 0 }}
-        layout={{ [MENU_ID]: { x: 0, y: 0 } }}
-        networkId="net_1"
-        serverId="sk_1"
-      />,
-    );
-    const outer = screen
-      .getAllByTestId("konva-group")
-      .find((g) => g.getAttribute("data-name") === `menu:${MENU_ID}`);
-    expect(outer).toBeDefined();
-    fireEvent.dblClick(outer!);
-    expect(navigate).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith({
-      to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
-      params: { networkId: "net_1", serverId: "sk_1", workspaceId: PACK_ID, elementId: MENU_ID },
-    });
-  });
 });
 
 describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {

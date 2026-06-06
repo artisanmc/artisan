@@ -16,22 +16,6 @@ const fr: typeof en = {
     export: "Exporter le pack",
     exportZip: "Exporter vers le serveur (.zip)",
   },
-  focusMode: {
-    unknownElement: "Cet élément n'existe plus.",
-    backToCanvas: "Retour au canvas",
-    openFocus: "Focus / Éditer en grand",
-  },
-  menuEditor: {
-    openLibrary: "Bibliothèque",
-    openAssets: "Assets",
-    mobile: {
-      canvas: "Canvas",
-      properties: "Propriétés",
-      layers: "Layers",
-      library: "Bibliothèque",
-      assets: "Assets",
-    },
-  },
   langSwitcher: {
     addLanguage: "+ Ajouter une langue…",
     addLanguagePrompt: "Code de langue (ex. fr, en, de) :",

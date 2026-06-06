@@ -1,4 +1,4 @@
-import type { ElementId, Menu, MenuId, PackId } from "@/domain/types";
+import type { ElementId, Menu, PackId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
@@ -9,14 +9,12 @@ import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import type Konva from "konva";
 import { useMemo } from "react";
-import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
+import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { fanoutElements, type SlotEntry } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
-import { useElementDblClickNav } from "./useElementDblClickNav";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
@@ -27,7 +25,6 @@ import {
   TEX_SCALE,
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
-  TEX_SLOT_STRIDE,
   TEX_URL,
   bottomPieceCrop,
   bottomPieceY,
@@ -44,9 +41,6 @@ interface MenuGroupProps {
   /** Full pack-canvas layout — needed by the slot drag-out handler to
    *  resolve which menu (if any) the cursor was over on dragend. */
   layout: Record<string, { x: number; y: number }>;
-  /** URL params for server-scoped focus-mode navigation. */
-  networkId?: string;
-  serverId?: string;
 }
 
 /**
@@ -62,7 +56,7 @@ interface MenuGroupProps {
  * texture itself draws the visual slot wells; we just overlay material text
  * + interaction targets.
  */
-export function MenuGroup({ packId, menu, position, layout, networkId = "", serverId = "" }: MenuGroupProps) {
+export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -94,8 +88,6 @@ export function MenuGroup({ packId, menu, position, layout, networkId = "", serv
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
 
   const { onClick } = useMenuClick({ packId, menu, layout });
-
-  const onDblClick = useElementDblClickNav(packId, menu.id, networkId, serverId);
 
   const { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd } = useSlotDrag({
     packId,
@@ -273,8 +265,6 @@ export function MenuGroup({ packId, menu, position, layout, networkId = "", serv
       onDragEnd={onMenuDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={onDblClick}
-      onDblTap={onDblClick}
       name={`menu:${menu.id}`}
       id={menu.id}
     >
@@ -405,6 +395,9 @@ export function MenuGroup({ packId, menu, position, layout, networkId = "", serv
                       sel.set(next, null);
                       return;
                     }
+                    // Non-additive slot click → reveal the Edit tab so the
+                    // selected element is immediately editable.
+                    useUiStore.getState().setEditorTab("edit");
                     // Single-pos elements: button mode and instance mode
                     // would render identically (only one slot to outline),
                     // so the toggle is just visual noise. Always pick
@@ -446,6 +439,7 @@ export function MenuGroup({ packId, menu, position, layout, networkId = "", serv
                       return;
                     }
                     if (!el?.elementId) return;
+                    useUiStore.getState().setEditorTab("edit");
                     const sel = useSelectionStore.getState();
                     if (!el.multiPos) {
                       sel.set([el.elementId], i);

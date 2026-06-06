@@ -12,7 +12,6 @@ import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
-import { useParams } from "@tanstack/react-router";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
 import { Edges } from "./Edges";
@@ -35,9 +34,6 @@ interface StageProps {
 
 export function Stage({ packId }: StageProps) {
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
-  const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const networkId = urlParams.networkId ?? "";
-  const serverId = urlParams.serverId ?? "";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -249,8 +245,6 @@ export function Stage({ packId }: StageProps) {
               menu={menu}
               position={layout[menu.id] ?? { x: 0, y: 0 }}
               layout={layout}
-              networkId={networkId}
-              serverId={serverId}
             />
           ))}
         </Layer>
@@ -263,8 +257,6 @@ export function Stage({ packId }: StageProps) {
               packId={packId}
               command={command}
               position={layout[command.id] ?? { x: 0, y: 0 }}
-              networkId={networkId}
-              serverId={serverId}
             />
           ))}
           {pack.dialogs.map((dialog) => (
@@ -273,8 +265,6 @@ export function Stage({ packId }: StageProps) {
               packId={packId}
               dialog={dialog}
               position={layout[dialog.id] ?? { x: 0, y: 0 }}
-              networkId={networkId}
-              serverId={serverId}
             />
           ))}
         </Layer>
