@@ -36,6 +36,13 @@ interface UiState {
   lastActivePackId: PackId | null;
   setLastActivePackId: (id: PackId | null) => void;
   /**
+   * Last workspace tab the user viewed (overview / translations /
+   * data-sources / history). Persisted so a page reload — which bounces
+   * through /session — can return to the same tab, not just the same pack.
+   */
+  lastActiveTab: string | null;
+  setLastActiveTab: (tab: string | null) => void;
+  /**
    * Currently displayed/edited language across the editor — drives
    * `getText` resolution in canvas/tooltips and `setI18nValue` writes
    * from text inputs. Persisted so a user's preferred lang sticks
@@ -130,6 +137,8 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       lastActivePackId: null,
       setLastActivePackId: (id) => set({ lastActivePackId: id }),
+      lastActiveTab: null,
+      setLastActiveTab: (tab) => set({ lastActiveTab: tab }),
       activeLang: detectInitialLang(),
       setActiveLang: (lang) => set({ activeLang: lang }),
       editorLang: detectEditorLang(),
@@ -269,6 +278,7 @@ export const useUiStore = create<UiState>()(
       // ephemeral UI state; never persisted.
       partialize: (state) => ({
         lastActivePackId: state.lastActivePackId,
+        lastActiveTab: state.lastActiveTab,
         activeLang: state.activeLang,
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
