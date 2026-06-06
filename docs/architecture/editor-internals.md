@@ -82,7 +82,7 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 ## Title Composer UX v3
 
 - **Édition in-place** : les layers sont édités **directement sur le pack canvas** via une 3ᵉ colonne (`LayersPanel`, ~280 px, toujours visible). Plus de focus mode dédié au titre.
-- **Layout 3 colonnes** : Pack canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Route `pack.$packId.tsx`.
+- **Layout 3 colonnes** : Pack canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendu dans l'onglet `overview` du workspace (route server-scoped ci-dessous ; `pack.$packId.tsx` n'est plus qu'un redirect legacy).
 - **`LayersPanel`** = Header + `AddLayerControls` (`+ Image` / `+ Text`) + liste drag-reorderable de `LayerListItem` + `LayerEditForm`.
 - **Sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` ; `uiStore.lastSelectedMenuId` sticky (le panel survit aux clics dans le vide).
 - **Types UI** : 2 visibles — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, Image se split runtime en `background`/`glyph`. Glyphs externes : branche propre, pas de bouton dédié en v3.
@@ -98,9 +98,9 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 Mode focus plein-écran pour éditer UN seul élément (menu / commande / dialog), en plus du canvas multi-éléments.
 
 - **Entrée** : double-click sur un MenuGroup/CommandGroup/DialogGroup, OU bouton "Focus / Éditer en grand" (`FlowCanvas.tsx`). **Sortie** : Esc ou `← Retour au canvas`.
-- **Route** : `/workspace/$workspaceId/element/$elementId`.
+- **Route** : `/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId` (route canonique server-scoped ; les anciennes `/workspace/$workspaceId/element/$elementId` et `/pack/$packId` redirigent vers ce format).
 - **Composants** :
-  - `routes/workspace.$workspaceId.element.$elementId.tsx` — la route.
+  - `routes/networks.$networkId.servers.$serverId.workspaces.$workspaceId.element.$elementId.tsx` — la route (l'ancienne `workspace.$workspaceId.element.$elementId.tsx` n'est plus qu'un redirect).
   - `features/element-editor/ElementEditor.tsx` — dispatcher : résout l'élément par id (menus → commands → dialogs) et délègue.
   - `features/element-editor/menu/MenuEditor.tsx` — 3-col desktop (canvas | properties | layers) + drawers Library/Assets ; tabs single-col mobile.
   - `features/element-editor/command/CommandEditor.tsx` — two-col (meta | actions chain) + mobile single-col.
@@ -121,7 +121,7 @@ Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 59
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — Network dropdown + section Workspaces (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom.
-- **`/workspace/$workspaceId`** — onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline).
+- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
+- **`/networks/$networkId/servers/$serverId/workspaces/$workspaceId`** — route canonique server-scoped (`/workspace/$workspaceId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
 - **Top bar** : pack name, `LangSwitcher` (contenu pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
