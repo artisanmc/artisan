@@ -28,7 +28,7 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 
 ```bash
 cd plugin
-./gradlew test          # ~206 tests (unit + intégration MockWebServer)
+./gradlew test          # suite plugin (unit + intégration MockWebServer), ~45 fichiers
 ./gradlew shadowJar     # → build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
 ```
 
@@ -46,7 +46,7 @@ bun run db:push         # Applique le schéma Drizzle sur PostgreSQL (DATABASE_U
 bun run db:generate     # Génère un fichier de migration dans drizzle/ depuis schema.ts (à committer)
 bun run db:migrate      # Applique les fichiers drizzle/ en ordre — utilisé en prod et dans Docker compose
 bun run dev             # Dev avec --watch sur port 3001
-bun run test            # ~175 tests, isolés dans la DB `artisan_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `artisan`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
+bun run test            # suite backend (~47 fichiers), isolés dans la DB `artisan_test` via `scripts/test.ts` (auto-create + migrate) — ne touche jamais ta DB dev `artisan`. Override admin URL via ADMIN_DATABASE_URL si Postgres n'est pas sur postgres/postgres@localhost:5432.
 ```
 
 > ⚠️ **TOUJOURS** `bun run test` — **JAMAIS** `bun test` direct. Le wrapper `scripts/test.ts` redirige `DATABASE_URL` vers `artisan_test` avant de spawner vitest. `bun test` direct bypasse le wrapper, et les `beforeEach(clearAll)` des tests vident alors la DB dev `artisan` (incident réel le 2026-06-01 — toutes les données dev wipées). Si tu vois `bun test src/...` dans un terminal d'agent, c'est un bug.
@@ -74,7 +74,7 @@ bun backend/scripts/gen-icons.ts [version]    # rend 750 PNGs → data/mc-assets
 cd editor
 npm install
 npm run dev             # Vite dev server sur port 5173
-npm test                # 965 tests (126 fichiers)
+npm test                # suite éditeur (≥126 fichiers)
 npm run build           # Build production
 ```
 
@@ -208,7 +208,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 | Message | Sens | Contenu clé |
 |---|---|---|
 | `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
-| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants. **Phase 2** : `pack_hashes[packId]` = `branch.head_commit.contentHash` (le binding détermine la branche). |
+| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants. **Phase 2** : `pack_hashes[packId]` = `branch.head_commit.contentHash` (branche `"main"` en V1 ; le pack est résolu via `packs.serverKeyId`). |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
 | `editor_session_request` | plugin → backend | `sender` |
@@ -427,9 +427,7 @@ lisibilité est réel mais un split supplémentaire est différé.
 | `POST /api/networks` | Crée un Network + Membership owner. Body `{name}`. 201 / 422 invalid_name. |
 | `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
 | `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key (only once). |
-| `POST /api/networks/:id/packs` | Crée un pack. Body `{name, description?}`. |
-| `POST /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Bind pack ↔ server_key. Body `{branch_name?}` (default `"main"`). 201 ou 404 `branch_not_found` si la branche cible n'existe pas. |
-| `DELETE /api/networks/:id/packs/:packId/bindings/:serverKeyId` | Unbind. 204. |
+| `POST /api/networks/:id/packs` | Crée un pack. Body `{name, serverKeyId, description?}` — `serverKeyId` requis (modèle 1:N depuis 2026-06-03). 201 / 422 `invalid_name` / 422 `missing_server_key` / 403 `server_key_not_in_network`. |
 | `GET /api/networks/:id/packs/:packId/branches` | Liste les branches du pack. |
 | `POST /api/networks/:id/packs/:packId/branches` | Body `{name, from}`. 201 / 409 `branch_exists` / 404 `source_branch_not_found` / 422 `invalid_name`. Le name doit matcher `/^[a-zA-Z0-9_\-./]+$/`. |
 | `GET /api/networks/:id/packs/:packId/commits?branch=&limit=` | Liste les commits récents (desc createdAt). `limit` clampé à 200, défaut 50. Le `branch` query param est accepté mais pas filtré pour MVP. |
@@ -452,6 +450,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json
 
 ## Modèle d'entités (Plan 1B + Phase 2 + Phase 3)
 
+> ⚠️ **Cette section décrit l'évolution historique (Plan 1B → Phase 2 → Phase 3).** Le modèle `PackBinding` M:N décrit ci-dessous a été **remplacé** le 2026-06-03 par un modèle **1:N** (`packs.serverKeyId` NOT NULL, FK cascade). La table `pack_bindings` n'existe plus. Voir la section **"Servers UX simplification"** plus bas pour le modèle courant. Les notes Plan 1B/Phase 2 restent pour contexte (DAG commits/branches toujours d'actualité côté backend).
+
 ```
 User (Plan 1A) ── Membership ──┐
                                 ▼
@@ -459,12 +459,10 @@ User (Plan 1A) ── Membership ──┐
                               │ owns
                   ┌───────────┼───────────┐
                   ▼                       ▼
-              ServerKey (N)            Pack (N, first-class)
-                  │                       │
-                  └── PackBinding ────────┘
-                       (server_key_id, pack_id, branchName="main")
-                       many-to-many
-                  
+              ServerKey (1) ───────────► Pack (N, first-class)
+                                         packs.serverKeyId (NOT NULL, FK cascade)
+                                         1 server_key → N packs (1:N depuis 2026-06-03)
+
                                          Pack → PackBranch ← PackCommit
                                          (branches + commits)
 ```
@@ -472,11 +470,11 @@ User (Plan 1A) ── Membership ──┐
 ### Plan 1B — Multi-server networks
 
 - **Pack** : entité first-class avec `id`, `networkId`, `name`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. Plus de scope par `server_key`.
-- **PackBinding** : table `pack_bindings(server_key_id, pack_id, branchName)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC). Chaque binding vise une branche spécifique (default `"main"`).
+- ~~**PackBinding** : table `pack_bindings(server_key_id, pack_id, branchName)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC). Chaque binding vise une branche spécifique (default `"main"`).~~ **SUPPRIMÉ 2026-06-03** — remplacé par `packs.serverKeyId` 1:N (voir "Servers UX simplification").
 - **Assets per-pack** : `assets.packId` (au lieu de `assets.serverKeyId`). Codepoint allocator scopé au pack. Chemins disque `data/assets/{packId}/...`.
 - **Resource pack build multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs bindés au server_key et merge les codepoints à la volée (premier pack arrivé garde son codepoint, collisions ré-allouées). Voir `lib/rpCodepointMerger.ts`.
 - **Server keys belongs to Network** : `server_keys.networkId` NOT NULL. À la création (`/api/link/claim` ou `/api/server-keys` ou WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
-- **WS hub** : `hello_ack.pack_hashes` et `pushBundleAvailable(packId, hash)` résolvent les targets via `packBindings`. `pushPackDeleted(packId)` idem.
+- **WS hub** : `hello_ack.pack_hashes` et `pushBundleAvailable(packId, hash)` résolvent les targets via `packs.serverKeyId` (1:N depuis 2026-06-03 ; était `packBindings`). `pushPackDeleted(packId)` idem.
 - **Plugin protocole inchangé** : aucun changement de code plugin nécessaire ; seule la source des données côté backend bouge.
 
 Tables Drizzle ajoutées en Plan 1B : `networks`, `memberships`, `packs`, `pack_bindings`. Table supprimée : `pack_bundles` (son contenu fusionne dans `packs`).
@@ -507,7 +505,7 @@ Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
 
 - **Claim link auth** : `/artisan setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `artisan_user_session` et choisit le network destination via smart count (auto-crée "Mon Réseau" si 0, utilise si 1, picker modale si 2+).
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Tokens partageables 24h pour transférer la propriété d'un Network entier. Memberships swap clean break — ancien owner perd accès.
-- **Server key deletion** : `/api/networks/:id/server-keys/:keyId` (owner-only) suppress la clé + cascade pack_bindings. Le plugin perd la connexion au prochain hello.
+- **Server key deletion** : `/api/networks/:id/server-keys/:keyId` (owner-only) suppress la clé + cascade les packs liés (`packs.serverKeyId` FK cascade). Le plugin perd la connexion au prochain hello.
 - **Bootstrap plugin auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push`. Plus de `/artisan pushLocal` manuel pour le first-time setup.
 - **Désaffectation d'un serveur sans transfert** : delete la server_key dans `/networks/:id`, puis re-setup côté plugin → l'auto-push recharge les packs dans le nouveau network. Pas de mutation cross-account.
 
@@ -561,7 +559,7 @@ Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-a
 | `POST /api/networks/:id/transfer/init` | Owner-only. Crée un transfer token (TTL 24h). Returns `{url, expiresAt}`. |
 | `GET /api/networks/transfer/:token` | Returns `{networkId, networkName, packCount, serverKeyCount, expiresAt}`. 410 `expired` / `consumed`, 404 `not_found`. |
 | `POST /api/networks/transfer/:token/accept` | Login required. Swap memberships (clean break — ancien owner perd accès). 410 expired/consumed. |
-| `DELETE /api/networks/:id/server-keys/:keyId` | Owner-only. Delete server_key + cascade pack_bindings. Plugin perd la connexion au prochain hello. |
+| `DELETE /api/networks/:id/server-keys/:keyId` | Owner-only. Delete server_key + cascade les packs liés (`packs.serverKeyId` FK cascade). Plugin perd la connexion au prochain hello. |
 | `POST /api/networks/:id/server-keys/:keyId/rotate` | Owner-only. Régénère la clé (id/label/bindings préservés), invalide l'ancien hash, drop l'auth des conns vivantes (le plugin doit re-hello avec la nouvelle clé). Returns `{id, key, label}` — plaintext une seule fois. |
 | `GET /api/networks/:id/server-keys/:keyId/helloes?limit=30` | Owner-only. Timeline d'audit des hellos plugin (table `server_key_helloes`). Ordonné desc par `hello_at`, `limit` clampé à [1, 200]. Chaque entrée a `rejected_reason: string \| null` (null = accepté ; non-null = rejeté, ex. `"ip_not_allowed"`). |
 | `GET /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Retourne `{ allowed_ips: string[] \| null }`. null/empty = aucune restriction (défaut). |
@@ -615,11 +613,15 @@ Both delegation modes own the `assets/artisan/` subtree only — entries outside
 
 ## Tests — ce qui est couvert
 
-| Scope | Fichiers | Count |
+Couverture par couche (zones, pas liste de fichiers — `glob **/*.test.*` donne la liste exacte et à jour) :
+
+| Couche | Lancer | Zones couvertes |
 |---|---|---|
-| Backend unit + intégration | `hub.test.ts`, `bundles.test.ts`, `serverKeys.test.ts`, `app.test.ts`, `editorSession.test.ts`, `integration.test.ts`, `customItems.test.ts`, `models.test.ts`, `assets.test.ts` (PATCH height + POST duplicate inclus), `codepointAllocator.test.ts`, `assetStorage.test.ts`, `pngDimensions.test.ts`, `textures.assets.test.ts`, `resourcePackBuilder.test.ts`, `fontJsonBuilder.test.ts`, `assetIndexBuilder.test.ts`, `spaceOffsets.test.ts`, `mcFontsParser.test.ts`, `fontStorage.test.ts`, `resourcePackStorage.test.ts`, `resourcePack.test.ts`, `routes/resourcePack.test.ts`, `packImport.test.ts`, `conflictDiff.test.ts`, `conflicts.test.ts`, `auth.test.ts`, `passwordHasher.test.ts`, `sessionManager.test.ts`, `emailNormalizer.test.ts`, `userAuth.test.ts`, `discordOauth.test.ts` (lib + routes), etc. | ~365 total après Plan 1A accounts foundation |
-| Plugin unit + intégration | `BundleHasherTest`, `ConflictDetectionTest`, `BundleDownloaderTest`, `CustomItemsManagerTest`, `ActionExecutorTest` (inclus `show_title` exec via Adventure `showTitle(Title)`), `ActionParserTest` (inclus `show_title` parse + timings + i18n), `FullSyncIntegrationTest`, `ResourcePackManagerTest`, `PluginConfigTest`, `ResourcePackInfoTest`, `MenuTitleParserTest` (textarea parser tests), `AssetCatalogTest`, `TitleCompilerTest` (textarea compiler tests), `OffsetEncoderTest`, `ManifestYamlIgnoresEditorLayoutTest`, `PackDeleterTest`, `PackDeletionIntegrationTest`, etc. | ~365 (recount après merge) |
-| Editor unit | Vitest, tests couvrant expr DSL, canvas, export (inclus `show_title` serializer + validate), i18n (inclus `showTitleKeyAt`/`showSubtitleKeyAt` + rekey + alloc), custom items Library, mcModelRenderer, assets Library, AssetUploadDialog, AssetImportFontDialog, AssetDetailPanel, AssetsTab, title composer v3 (TitleRender interactif / LayersPanel / LayerListItem / LayerEditForm / AddLayerControls / ResizeHandles / useTitleLayerDrag / dragPlacement / attachLayerAtCursor / screenToCanvasCoords / stageGeometry / uiLayerMapping / snap), McFontText, fontGlyphUrl, textarea layer (TextareaLayerForm / TextAreaText / WidthResizeHandle / wrapLine), text-size (`TextSizeSelector`, `LayerEditForm` size field), conflictsStore, DeletePackDialog, ConflictBanner, ConflictResolutionModal, `authStore.test.ts`, `LoginForm.test.tsx`, `SignupForm.test.tsx`, `LogoutButton.test.tsx`, focus mode (ElementEditor dispatch, MenuEditor, CommandEditor, DialogEditor, ActionsChainEditor, useElementDblClickNav, focus route), canvas refactor (SlotItem, PaginationControls, menuFanout, useMenuClick, useMenuDrag, useSlotDrag, ArmedBanner, useStageTouch, useStageContextMenu), etc. | 965 (126 fichiers — recount 2026-06-02) |
-| E2E editor | `smoke.spec.ts` (Playwright) — canvas charge, sidebar visible | 1 |
+| Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, editor-session, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), conflicts, pack import. |
+| Plugin (~45 fichiers) | `./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, pack deleter, local push. |
+| Éditeur (≥126 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + focus mode, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
+| E2E éditeur | `npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |
+
+> ⚠️ **`bun run test` — JAMAIS `bun test` direct** (le wrapper redirige vers `artisan_test` ; le direct wipe la DB dev — cf. section Commandes Backend).
 
 E2E cross-stack (editor → backend → plugin en bout en bout) : **non automatisé**, test manuel via Docker.
