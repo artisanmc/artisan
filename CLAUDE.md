@@ -6,19 +6,36 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 
 | Tu touches | Tu mets à jour |
 |---|---|
-| Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/specs/` section protocole |
+| Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/architecture/ws-protocol.md` |
+| Endpoints REST (`backend/src/routes/*.ts`) | `docs/architecture/rest-endpoints.md` (index — pointe vers le fichier de route) |
+| Schéma DB (`backend/src/db/schema.ts`) | migration dans `backend/drizzle/` (`db:generate`) + `docs/architecture/entities.md` |
+| Internals éditeur / rendu titre (title composer, focus mode, canvas, SchemaForm) | `docs/architecture/editor-internals.md` |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
-| Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Plugin ci-dessous + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
+| Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Commandes + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
 | Variables d'environnement | `.env.example` + ce fichier |
-| Endpoints API | Ce fichier, section Backend |
 | Config plugin (`config.yml`, defaults) | `docs-site/src/content/docs/getting-started/install-admin.md` (sections Config / Reference) |
 | Resource pack distribution modes (`ResourcePackDelegator.kt`) | `docs-site/src/content/docs/getting-started/install-admin.md` (section Resource pack) + ce fichier |
+| API publique modules (`net.artisanmc.modules.api.*`) | `docs/architecture/api-surface.md` + `CHANGELOG.md` `[Unreleased]` |
 | UI éditeur visible user (nouveau bouton/flow user-facing) | `docs-site/src/content/docs/editor/<feature>.md` (créer si nécessaire) |
 
 Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 
 **Discipline same-commit vs `/sync-docs`** — Quand un commit touche du code marqué dans le tableau, la doc correspondante doit être mise à jour dans le même commit si l'update reste petit (changement ciblé d'une ou deux sections existantes, typiquement ≤30 lignes diff de doc). Si l'update doc dépasse ce volume ou nécessite des screenshots / refonte, invoquer le skill `/sync-docs` à la fin de la feature pour traiter la dette doc en un commit séparé. Ne jamais merger une PR avec dette doc non-listée. La source de vérité fine du mapping est `.claude/skills/sync-docs/doc-impact-map.yaml` ; la table ci-dessus en est un résumé humain.
+
+## Docs de référence
+
+Ce fichier garde l'**opérationnel** (commandes, invariants, env vars) + l'**orientation**. Le détail vit dans `docs/architecture/` — à lire quand la tâche y touche :
+
+| Doc | Contenu |
+|---|---|
+| `docs/architecture/rest-endpoints.md` | Index des routes REST (quel fichier ouvrir) + conventions + flux non-évidents. La source de vérité = `backend/src/routes/*.ts`. |
+| `docs/architecture/ws-protocol.md` | Table des messages WS plugin ↔ backend + flux de données. |
+| `docs/architecture/entities.md` | Modèle de données (Pack/Network/ServerKey/commits/branches/merge), auth, transferts, historique des phases. |
+| `docs/architecture/editor-internals.md` | Title composer (YAML, pixel offsets, fonts), focus mode, canvas layout, `<SchemaForm>`, UI shell. |
+| `docs/architecture/modules.md` | Modular monolith — comment ajouter un module. |
+| `docs/architecture/versioning.md` / `api-surface.md` | Disciplines de versioning + surface API publique stable. |
+| `CONTEXT.md` | Glossaire domaine (source de vérité des termes). |
 
 ---
 
@@ -30,6 +47,7 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 cd plugin
 ./gradlew test          # suite plugin (unit + intégration MockWebServer), ~45 fichiers
 ./gradlew shadowJar     # → build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
+./gradlew deploy        # compile + redémarre le container (JAR monté depuis build/libs/)
 ```
 
 **Commandes plugin** — `/artisan` subcommands:
@@ -85,12 +103,6 @@ cp .env.example .env    # puis renseigner ARTISAN_SERVER_KEY
 docker compose up       # backend:3001 + editor:5173 + minecraft:25565
 ```
 
-**Déployer un nouveau JAR plugin (workflow normal) :**
-```bash
-cd plugin
-./gradlew deploy        # compile + redémarre le container (le JAR est monté directement depuis build/libs/)
-```
-
 ---
 
 ## Architecture
@@ -103,6 +115,7 @@ docker/          Config serveur Minecraft (itzg/minecraft-server, Paper géré p
 docker-compose.yml
 docs-site/       Astro Starlight — public user docs (EN)
 docs/
+  architecture/          ← modules, versioning, api-surface, ws-protocol, rest-endpoints, entities, editor-internals
   decisions/             ← ADRs (stack, state model)
   specs/                 ← specs produit et éditeur (web-editor.md, main-spec.md)
   schema/                ← JSON schemas menu/pack/command/translations
@@ -123,68 +136,23 @@ Communication cross-module via deux registries plugin-side : `DataSourceRegistry
 
 V1 modules : `menus`, `commands`. V1.5+ : `shop`. Le code menus/commands existant reste dans `net.artisanmc.plugin.engine` / `command` ; les classes `MenusModule` / `CommandsModule` sont des wrappers fins. Move physique différé jusqu'au 3ᵉ module (voir `docs/architecture/modules.md` §13).
 
-**Quand ajouter un module :**
-1. Spec dans `docs/architecture/modules.md` (ajouter section "Module {id}")
-2. Layer plugin : nouvelle classe sous `net.artisanmc.modules.{id}/` impl `ArtisanModule`, register dans `ArtisanPlugin.defaultModules()`
-3. Layer backend : nouveau dir `modules/{id}/index.ts` exporte un `BackendModule`, register dans `app.ts` (`mountModules` array)
-4. Layer éditeur : `editor/src/modules/{id}/index.ts` exporte `FrontendModule`, `registerModule(...)` dans `main.tsx`
-5. Schema JSON dans `modules/{id}/schemas/` si form-based — utiliser `<SchemaForm>`
+**Règle d'import modules** : un `ArtisanModule` n'importe **que** depuis `net.artisanmc.modules.api.*` (annoté `@Stable`/`@Beta`/`@Internal`/`@Sunset` — cf. `api-surface.md`). Jamais depuis `net.artisanmc.plugin.*` (implicitement `@Internal`).
 
-### `<SchemaForm>` — générateur de formulaires depuis JSON Schema
+**Quand ajouter un module** (détail dans `docs/architecture/modules.md`) :
+1. Spec dans `modules.md` (section "Module {id}")
+2. Plugin : classe sous `net.artisanmc.modules.{id}/` impl `ArtisanModule`, register dans `ArtisanPlugin.defaultModules()`
+3. Backend : `modules/{id}/index.ts` exporte un `BackendModule`, register dans `app.ts` (`mountModules`)
+4. Éditeur : `editor/src/modules/{id}/index.ts` exporte `FrontendModule`, `registerModule(...)` dans `main.tsx`
+5. Schema JSON dans `modules/{id}/schemas/` si form-based — utiliser `<SchemaForm>` (cf. `editor-internals.md`)
 
-`editor/src/components/SchemaForm/` génère des formulaires React depuis un JSON Schema. Couvre `string` (texte / textarea via `format: "long"` / select via `enum`), `number`/`integer`, `boolean`, `object` (nesting), `array` (avec + / −).
+### Versioning — les 4 disciplines (depuis 2026-05-25)
 
-**Pour ajouter un widget custom** (color picker, asset picker, MiniMessage editor, etc.) :
-
-```ts
-import { SchemaForm } from "@/components/SchemaForm/SchemaForm";
-import { ColorPicker } from "@/components/widgets/ColorPicker";
-
-<SchemaForm
-  schema={schema}
-  value={value}
-  onChange={setValue}
-  widgets={{ color: ColorPicker }}
-/>
-```
-
-Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", format: "color" }`).
-
-**Hors scope V1 :** `oneOf` / `anyOf` / `if/then/else` / `$ref` resolution. À ajouter quand un module en a besoin.
-
-### Stability annotations (depuis 2026-05-25)
-
-Le package `net.artisanmc.modules.api.*` est annoté avec `@Stable` (depuis `net.artisanmc.modules.api.annotations`). Convention :
-
-| Annotation | Signification | Quand |
-|---|---|---|
-| `@Stable` | Couvert par SemVer. Pas de breaking change dans un même major. | Tout `modules/api/*` après stabilisation. |
-| `@Beta` | Expérimental, peut changer en minor. | API nouvelle avant ship public. |
-| `@Internal` | Usage interne uniquement. Modules tiers ne doivent pas en dépendre. | Tout `net.artisanmc.plugin.*` (implicite par convention de package). |
-| `@Sunset(reason, removeInVersion, replacement)` | Sera retiré au prochain major. | À l'annonce de dépréciation. |
-
-**Règle d'import pour les modules** : un `ArtisanModule` n'importe **que** depuis `net.artisanmc.modules.api.*`. Jamais depuis `net.artisanmc.plugin.*` (qui est implicitement `@Internal`).
-
-Cf. `docs/architecture/versioning.md` section 3.
-
-### Versioning (depuis 2026-05-25)
-
-Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `docs/architecture/api-surface.md`.
-
-**Les 4 disciplines à respecter** :
+Cible : `docs/architecture/versioning.md`. Surface stable : `docs/architecture/api-surface.md`.
 
 1. **CHANGELOG** : tout commit qui touche `net.artisanmc.modules.api.*` ou un endpoint REST ajoute une entrée dans `[Unreleased]` de `CHANGELOG.md`.
-2. **Nouveau schema version = nouveau dossier** : on ne modifie jamais un `menu/v1` après ship. On crée `menu/v2` séparé et on écrit `MenuV1ToV2 : SchemaMigration` qu'on register via `api.schemas.register(...)`.
-3. **DB forward-only** : tout changement de `schema.ts` génère via `bun run db:generate` un fichier dans `backend/drizzle/` qui doit être committé. Pas de `db:push` en prod (Docker tourne `db:migrate`).
-4. **REST URL versionné** : tout endpoint est sous `/api/v1/`. Pour breaking change inévitable, créer `/api/v2/<name>` à côté et garder v1 6-12 mois.
-
-**Annotations de stabilité** (cf. `api-surface.md`) :
-- `@Stable` couvert par SemVer
-- `@Beta` peut bouger en minor
-- `@Internal` ne pas utiliser depuis un module
-- `@Sunset(reason, removeInVersion, replacement)` planifié pour retrait
-
-**Protocol WS** : `hello` carries `protocol_version: "1"` + `core_version`. Unknown message types are logged + ignored (forward-compat).
+2. **Nouveau schema version = nouveau dossier** : on ne modifie jamais un `menu/v1` après ship. On crée `menu/v2` séparé + `MenuV1ToV2 : SchemaMigration` register via `api.schemas.register(...)`.
+3. **DB forward-only** : tout changement de `schema.ts` génère via `bun run db:generate` un fichier `backend/drizzle/` committé. Pas de `db:push` en prod (Docker tourne `db:migrate`).
+4. **REST URL versionné** : tout endpoint sous `/api/v1/`. Breaking change inévitable → `/api/v2/<name>` à côté, garder v1 6-12 mois.
 
 ### Flux de données
 
@@ -203,28 +171,7 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
    └ écrit sur disque → hot-reload menus
 ```
 
-### Protocole WS plugin ↔ backend
-
-| Message | Sens | Contenu clé |
-|---|---|---|
-| `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?` |
-| `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants. **Phase 2** : `pack_hashes[packId]` = `branch.head_commit.contentHash` (branche `"main"` en V1 ; le pack est résolu via `packs.serverKeyId`). |
-| `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
-| `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
-| `editor_session_request` | plugin → backend | `sender` |
-| `editor_session_ready` | backend → plugin | `url`, `expires_at`, `trust_code` |
-| `editor_session_revoke` | plugin → backend | `{}` |
-| `editor_trust_request` | plugin → backend | `trust_code` |
-| `session_trusted` | backend → éditeur WS | `{}` |
-| `session_expired` | backend → éditeur WS | `{}` |
-| `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
-| `resource_pack_updated` | backend → plugin | `{ url, hash }` — broadcast après chaque rebuild |
-| `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
-| `custom_items_request` | backend → plugin | `{}` — demande le bundle complet |
-| `custom_items_bundle` | plugin → backend | `{ hash, data }` — `data = base64(gzip(zip))` |
-| `pack_divergence_detected` | plugin → backend | `{ pack_id, disk_files, disk_hash, last_synced_hash }` — **Plan 1C: handler is now a no-op for backward compat; new plugins log WARN instead** |
-| `pack_deleted` | backend → plugin | `{ pack_id }` — pack supprimé côté éditeur, le plugin move-to-trash |
-| `local_push` | plugin → backend | `{ pack_id, files, hash }` — used by `/artisan pushLocal`. Backend creates pack + binding if missing, upserts content, broadcasts `bundle_available`. |
+Détail des messages WS : `docs/architecture/ws-protocol.md`. `hello` porte `protocol_version: "1"` + `core_version` ; les types inconnus sont loggés + ignorés (forward-compat).
 
 ---
 
@@ -248,6 +195,8 @@ Architecture cible : `docs/architecture/versioning.md`. Surface API publique : `
 
 **Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.artisan*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
 
+**Custom items hash inline** — `CustomItemsManager.buildBundle()` calcule le hash en inline à partir des items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) pour garantir la cohérence hash ↔ data.
+
 ---
 
 ## Structure des packs sur disque
@@ -264,321 +213,7 @@ plugins/Artisan/packs/
 
 `.artisan-sync.yaml` est exclu du hash (préfixe `.artisan` filtré dans `BundleHasher`).
 
-### Format menu YAML — champ `title`
-
-Depuis la sub-project "title composer" (SP3), `title` est un tableau de couches typées (`MenuTitleLayer[]`). Format legacy (chaîne brute ou `{i18n:key}`) toléré au parsing plugin pour rétro-compat.
-
-```yaml
-title:
-  - kind: background
-    asset_id: asset_a1b2c3
-  - kind: glyph
-    asset_id: asset_d4e5f6
-    x: 32
-    y: 4
-  - kind: text
-    value:
-      key: i18nKey_xyz
-    x: 8
-    y: 5
-    color: "#FFAA00"     # optionnel
-    font_asset_id: ...   # optionnel (Sub-project 4)
-  - kind: textarea
-    value:
-      key: i18nKey_block
-    x: 8
-    y: 6
-    width: 168
-    line_height: 10
-    alignment: left      # left | center | right
-    font_asset_id: ...   # optionnel (Sub-project 4)
-  - kind: external_glyph
-    provider: oraxen     # nexo | oraxen | itemsadder
-    glyph_name: my_glyph
-    x: 50
-    y: 5
-```
-
-Le kind `textarea` (SP5) est un bloc de texte multi-ligne. La string i18n est split sur `\n` au runtime, puis chaque ligne est word-wrappée pour tenir dans `width` (px). Chaque sous-ligne est rendue à `(x, y + i * line_height)` avec l'`alignment` (`left`/`center`/`right`) partagé. La police optionnelle `font_asset_id` s'applique à toutes les lignes. Mots plus larges que `width` débordent (soft constraint).
-
-Le plugin embarque un `assets/artisan/asset-index.json` (schéma **v2**) dans le zip resource pack pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance). Le `TitleCompiler` enveloppe tout le titre dans `<font:artisan:default>…</font>` et insère, entre chaque couche, une séquence de chars "space" (du provider `space` embarqué dans `font/default.json`) pour positionner précisément chaque layer à son `x` cible. Voir section "Title Composer — pixel offsets" plus bas.
-
-### Title Composer — pixel offsets (spaces font)
-
-Pour positionner chaque layer du titre à son `x` exact, le backend embarque dans `assets/artisan/font/default.json` un provider de type `space` (MC 1.20+) qui mappe 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1 / ±2 / ±4 / … / ±256, soit une portée naturelle de ±511 px par décomposition gourmande, et **plus avec réutilisation** des mêmes chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes (caractères chinois) qui empêcheraient le `space` provider de s'appliquer.
-
-Pipeline :
-
-1. **Backend** — `backend/src/lib/spaceOffsets.ts` est la source de vérité de la table. `buildDefaultFontJson` ajoute le provider `space` après les bitmaps. `buildAssetIndex` (v2) émet aussi le champ `offsets` (codepoint hex uppercase → advance) + un `width` par entrée pour permettre au plugin de mesurer la largeur rendue d'une layer image.
-2. **Plugin** — `AssetCatalog` parse `offsets` à chaque update du resource pack et construit un `OffsetEncoder` (`net.artisanmc.plugin.render.OffsetEncoder`). `TitleCompiler.compileTitle` track `currentX`, insère `offsetEncoder.encode(targetX - currentX)` avant chaque body de layer, et avance `currentX = targetX + estimateBodyWidth(layer)`.
-3. **Estimation de largeur** — best-effort : Image (background/glyph) → `AssetEntry.width` (fallback 16) ; Text → `length * 6` (heuristique du width par défaut MC, imprécis pour les caractères très étroits/larges) ; ExternalGlyph → 8 px.
-
-**Système de coordonnées x** : `layer.x` est exprimé en pixels depuis le bord gauche du coffre (`chest-x 0`). Le titre MC est dessiné à `titleLabelX = 8` (bord gauche du coffre + 8 px). `TitleCompiler` initialise `currentX = TITLE_LABEL_X = 8` pour absorber ce décalage : une layer à `x=8` produit un offset nul (position naturelle du titre), une layer à `x=0` produit un offset `-8` (bord gauche du coffre).
-
-L'encoder du plugin est lenient : il ne lève **jamais** d'exception, retourne `""` quand la table est vide (catalog pas encore chargé), et fait du best-effort hors plage. Côté backend, `encodeOffset` est strict (throw) pour attraper les bugs à la source.
-
-### Custom fonts (SP4)
-
-Les utilisateurs importent des fonts au format MCFonts via le bouton "Import font" dans l'AssetsTab : drop d'un `.zip` contenant `font.json` + glyph PNGs. Le backend parse, valide, stocke sur disque (`data/assets/{sk}/fonts/{asset_id}/`) et crée une row `Asset` avec `type=font` + `fontMeta = { namespace, glyphMap }`. À la prochaine régénération du resource pack, `assets/artisan/font/<name>.json` + `assets/artisan/textures/font/<name>/*.png` sont embarqués dans le zip. Côté éditeur, `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
-
-Background = "gros glyph" : l'utilisateur upload un glyph dont l'ascent est calibré pour couvrir la zone souhaitée. Le `LayerEditForm` pour les layers Background expose un bouton "Calibrer pour coffre" qui set `ascent = -11` (couvre la zone des slots, en-dessous de la barre de titre). Pour couvrir depuis le haut du coffre (y=0), utiliser `ascent = 6`. Formule : `ascent = titleLabelY(6) - targetY`. Le pack canvas affiche les menus en forme finale (toutes layers + items dessus) en édition directe — `MenuGroup` rend `TitleRender` interactif (drag layers, resize handles, sélection).
-
-### Title Composer UX v3
-
-- **Édition in-place** : les layers d'un titre sont édités **directement sur le pack canvas** via une 3ᵉ colonne (`LayersPanel`, toujours visible, ~280 px). Plus de focus mode dédié — l'édition se fait au même endroit que la vue d'ensemble du pack.
-- **Layout 3 colonnes** : Pack canvas (gauche) | `MenuProperties` (centre, rows / permission / actions) | `LayersPanel` (droite). Route principale `pack.$packId.tsx`.
-- **Composition du `LayersPanel`** : Header + `AddLayerControls` (boutons `+ Image` / `+ Text`) + liste drag-reorderable de `LayerListItem` + `LayerEditForm` pour le layer sélectionné.
-- **Modèle de sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` désigne un layer unique sélectionné ; `uiStore.lastSelectedMenuId` reste sticky pour que le panel survive aux clics dans le vide (pas de "tout désélectionner par accident").
-- **Types de layers en UI** : **2 visibles** — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, la couche Image se split en runtime entre `background` / `glyph` (`MenuTitleLayer`). Les glyphs externes (Oraxen / Nexo / ItemsAdder) ont leur propre branche, mais l'UI v3 ne les expose pas encore comme bouton dédié.
-- **Texte** = MiniMessage tags inline (`<gold>`, `<bold>`, etc.) ; preview live dans `LayerEditForm` + rendu live sur le canvas. Pas de champ `color` per-layer (coloring 100% par tags, hérité de v2).
-- **Manipulation directe** : drag d'un layer sur le canvas pour repositionner ; corner-drag (`ResizeHandles`) pour redimensionner (aspect-locked par défaut ; shift = no-op en v3, scope futur si PNG resample est implémenté).
-- **Sémantique du resize — IMPORTANT** : redimensionner un glyph mute l'**asset** lui-même (pas juste la couche). Tous les menus qui référencent le même asset voient la nouvelle taille. Pour avoir une taille per-menu, utiliser le bouton **"Duplicate glyph"** dans `LayerEditForm` — crée une copie de l'asset (nouveau `codepoint`, PNG copié) et repointe le layer courant vers le nouvel asset.
-- **Cursor-based new-layer attach** : drag depuis le bouton `+ Image` / `+ Text` → le curseur suit le geste → drop près d'un menu → la couche s'attache au menu le plus proche (seuil 200 px). Click sans drag → attache au last-selected menu.
-- **Nouveaux fichiers v3** sous `editor/src/features/canvas/title/composer/` :
-  - `LayersPanel.tsx` (composition de la 3ᵉ colonne)
-  - `LayerListItem.tsx`
-  - `LayerEditForm.tsx`
-  - `AddLayerControls.tsx`
-  - `ResizeHandles.tsx`
-  - `TitleRender.tsx` (interactif, plus de split compact/edit)
-  - `useTitleLayerDrag.ts`
-  - `dragPlacement.ts`
-  - `attachLayerAtCursor.ts`
-  - `screenToCanvasCoords.ts`
-  - `stageGeometry.ts` (dans `editor/src/features/canvas/`)
-- **Files supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ leurs tests).
-- **Runtime YAML** inchangé en v3 : seul l'éditeur évolue. Le plugin lit toujours le même format `MenuTitleLayer[]` (background / glyph / text / external_glyph).
-
-### Focus mode — per-element editing (depuis 2026-06-02)
-
-En plus du canvas multi-éléments existant, l'éditeur expose un mode focus
-plein-écran pour éditer UN seul élément (menu / commande / dialog).
-
-- **Entrée** : double-click sur un MenuGroup / CommandGroup / DialogGroup
-  du canvas, OU bouton "Focus / Éditer en grand" dans le panneau properties
-  (`FlowCanvas.tsx`).
-- **Sortie** : touche Esc OU bouton `← Retour au canvas` dans le top bar.
-- **Route** : `/workspace/$workspaceId/element/$elementId`.
-- **Composants** :
-  - `editor/src/routes/workspace.$workspaceId.element.$elementId.tsx` — la route.
-  - `editor/src/features/element-editor/ElementEditor.tsx` — dispatcher qui
-    résout l'élément par id (cherche dans `pack.menus`, puis `pack.commands`,
-    puis `pack.dialogs`) et délègue à l'éditeur du bon type.
-  - `editor/src/features/element-editor/menu/MenuEditor.tsx` — layout 3-col
-    desktop (canvas Konva | properties | layers) avec drawers flottants
-    Library/Assets ; tabs single-column en mobile.
-  - `editor/src/features/element-editor/command/CommandEditor.tsx` — two-col
-    desktop (meta | actions chain) + single-col mobile.
-  - `editor/src/features/element-editor/dialog/DialogEditor.tsx` — form
-    (title / body / buttons) + actions chain par bouton. Pas de preview MC en V1.
-  - `editor/src/features/element-editor/actions/` — `ActionBlock`,
-    `IfBlock`, `ActionsChainEditor`, `AddActionButton`. Renderers récursifs
-    pour les chaînes d'actions imbriquées (pseudo-code indenté).
-  - `editor/src/components/WorkspaceTopBarControls.tsx` — top-bar partagé
-    canvas/focus (LangSwitcher, UndoRedo, Branch toolbar, Deploy, kebab).
-    Le prop optionnel `leftSlot` permet à focus mode d'injecter son bouton
-    "← Retour" + l'élément en cours.
-
-V2 hors-scope (à ajouter quand un besoin émerge) : cross-element navigation
-(forward "Opens menu X" + reverse "Used by /shop" + backstack), preview
-Minecraft des dialogs, sidebar drill-in.
-
-### Canvas component layout (depuis 2026-06-02 refactor)
-
-`editor/src/features/canvas/MenuGroup.tsx` (1066 → 591 lignes) a été éclaté
-en sous-composants et hooks dédiés :
-- `SlotItem.tsx` — rendering d'un slot rempli (image + count).
-- `PaginationControls.tsx` — boutons de pagination iterates.
-- `menuFanout.ts` — fanout positionnel pur des éléments (testé).
-- `useMenuClick.ts` — handler de click menu (armed-material tap-to-place).
-- `useMenuDrag.ts` — drag du menu entier (cross-pack via pack-mini DOM walk).
-- `useSlotDrag.ts` — drag des slots individuels (selection drag + Alt).
-- `useElementDblClickNav.ts` — navigation focus mode partagée par les 3
-  composants Groups (Menu / Command / Dialog).
-
-`editor/src/features/canvas/Stage.tsx` (528 → 351 lignes) a été éclaté :
-- `ArmedBanner.tsx` — bandeau d'aide quand un item Library est armé.
-- `useStageTouch.ts` — long-press → context menu (touch).
-- `useStageContextMenu.ts` — state du context menu + hit-test.
-
-Note : les cibles de taille (≤400 / ≤250 lignes) n'ont pas été entièrement
-atteintes. MenuGroup reste à 591 lignes et Stage à 351 lignes — le gain de
-lisibilité est réel mais un split supplémentaire est différé.
-
----
-
-## Custom Items — endpoints et cache
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/editor-session/:token/custom-items` | Retourne `{ serverKeyId, items[] }` depuis le cache disque. `items: []` si pas encore synchronisé. |
-| `GET /api/textures/:version/:path*` | Sert les PNG vanilla depuis `data/mc-assets/{version}/textures/{path}.png`. |
-| `GET /api/textures/custom/:serverKeyId/:path*` | Sert les PNG custom depuis `data/custom-items/{serverKeyId}/textures/{path}.png`. |
-| `GET /api/models/:version/:path*` | Sert les JSON de modèles vanilla depuis `data/mc-assets/{version}/models/{path}.json`. |
-| `GET /api/models/custom/:serverKeyId/:path*` | Sert les JSON de modèles custom depuis `data/custom-items/{serverKeyId}/models/{path}.json`. |
-| `POST /api/editor-session/:token/packs/:packId/assets` | Upload PNG asset (multipart). Body: `type`, `name`, `ascent?`, `file`. Returns `{ asset }`. Dedup par contentHash + packId, alloc codepoint pour glyph. 403 si le pack n'est pas bindé au server_key de la session. |
-| `GET /api/editor-session/:token/packs/:packId/assets` | Liste les assets du pack. Query `type=&search=`. |
-| `GET /api/editor-session/:token/packs/:packId/assets/:id` | Détail d'un asset. 404 si autre pack. |
-| `PATCH /api/editor-session/:token/packs/:packId/assets/:id` | Renommer / changer ascent / changer height (glyph). Body JSON `{ name?, ascent?, height? }`. Validation `height` : entier, 1 ≤ height ≤ 256, applicable uniquement aux assets `type=glyph`. Après update : rebuild RP + broadcast `resource_pack_updated`. |
-| `POST /api/editor-session/:token/packs/:packId/assets/:id/duplicate` | Duplique un asset glyph. Crée un nouvel id, alloue un nouveau codepoint (`codepointAllocator`), nom suffixé `_copy` (puis `_copy2`, `_copy3`, … si conflit), copie le PNG sur disque. Returns `{ asset }`. Rebuild RP + broadcast. |
-| `DELETE /api/editor-session/:token/packs/:packId/assets/:id` | Supprime (DB + fichier disque). 204. |
-| `DELETE /api/editor-session/:token/packs/:packId` | Soft-delete du pack (sets `deletedAt`), auto-résolution de tout conflit ouvert en "editor", broadcast `pack_deleted` au plugin et aux autres éditeurs. 200 `{deleted: true}` ou 404. |
-| `GET /api/networks` | Liste les Networks de l'utilisateur connecté. Cookie `artisan_user_session` requis. |
-| `POST /api/networks` | Crée un Network + Membership owner. Body `{name}`. 201 / 422 invalid_name. |
-| `GET /api/networks/:id` | Détail (network + packs + serverKeys). 403 si pas membre. |
-| `POST /api/networks/:id/server-keys` | Crée un server_key dans le Network. Body `{label?}`. Returns plaintext key (only once). |
-| `POST /api/networks/:id/packs` | Crée un pack. Body `{name, serverKeyId, description?}` — `serverKeyId` requis (modèle 1:N depuis 2026-06-03). 201 / 422 `invalid_name` / 422 `missing_server_key` / 403 `server_key_not_in_network`. |
-| `GET /api/networks/:id/packs/:packId/branches` | Liste les branches du pack. |
-| `POST /api/networks/:id/packs/:packId/branches` | Body `{name, from}`. 201 / 409 `branch_exists` / 404 `source_branch_not_found` / 422 `invalid_name`. Le name doit matcher `/^[a-zA-Z0-9_\-./]+$/`. |
-| `GET /api/networks/:id/packs/:packId/commits?branch=&limit=` | Liste les commits récents (desc createdAt). `limit` clampé à 200, défaut 50. Le `branch` query param est accepté mais pas filtré pour MVP. |
-| `POST /api/networks/:id/packs/:packId/commits` | Body `{branch, message}`. Crée un commit depuis le WIP courant (`packs.filesJson` + `editorJson`) + avance la branche + broadcast `bundle_available`. Dedup par `(packId, contentHash)`. 404 si branche n'existe pas. |
-| `POST /api/networks/:id/packs/:packId/branches/:src/promote/:dst` | Fast-forward only. 200 `{ok, advanced}` ou 409 `not_fast_forward` si la cible a divergé. 400 `same_branch` si src===dst. |
-| `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst` | Tente un merge sémantique de `src` dans `dst`. Body `{message?}`. Returns `{kind: "already_merged" | "fast_forward" | "auto" | "conflicts", ...}`. Le cas `fast_forward` avance `dst.head` directement et broadcast `bundle_available`. Les cas `auto` / `conflicts` ne créent pas de commit — le client doit poster vers `/resolve` ensuite (en passant le `mergedFilesJson` / `mergedEditorJson` qu'il a calculé côté éditeur). 400 `same_branch` si src===dst. 404 si branche inconnue. |
-| `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst/resolve` | Body `{resolutions, lcaCommitId, srcCommitId, dstCommitId, mergedFilesJson, mergedEditorJson, message?}`. Crée le merge commit avec `parentId = dst.head` et `parentId2 = src.head`, avance la branche `dst`, broadcast `bundle_available`. 409 `stale_merge` si les heads ont bougé depuis le `/merge-into`. 400 `missing_resolutions` / `extra_resolutions` / `invalid_resolution_value` si le mapping conflit→choix est inconsistant. |
-| `GET /api/user/packs/:packId` | Lecture pack (user-auth, membership check). |
-| `PUT /api/user/packs/:packId` | Écriture pack (user-auth). Broadcast `bundle_available`. |
-| `GET /api/textures/asset/:packId/:assetId` | Sert le PNG d'un asset (texture/glyph) depuis `data/assets/{packId}/{assetId}.png`. |
-| `GET /api/textures/asset-font/:assetId/:path*` | Sert un glyph PNG d'un asset font depuis `data/assets/{packId}/fonts/{assetId}/{path}`. Lookup par assetId (le packId est lu en DB). 404 si pas un asset font ou path traversal. |
-| `GET /api/resource-pack/:server_key_id/:hash.zip` | Sert le zip du resource pack généré. `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"`. 404 si hash inconnu. |
-| `POST /api/editor-session/:token/resource-pack/rebuild` | Force la régénération du resource pack pour le server_key de la session. Returns `{ url, hash }` et broadcast `resource_pack_updated`. |
-
-Cache disque : `backend/data/custom-items/{server_key_id}/hash.txt`, `items.json`, `textures/`.
-
-**Invariant custom items hash** — `CustomItemsManager.buildBundle()` calcule le hash en inline à partir des items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) pour garantir la cohérence hash ↔ data.
-
----
-
-## Modèle d'entités (Plan 1B + Phase 2 + Phase 3)
-
-> ⚠️ **Cette section décrit l'évolution historique (Plan 1B → Phase 2 → Phase 3).** Le modèle `PackBinding` M:N décrit ci-dessous a été **remplacé** le 2026-06-03 par un modèle **1:N** (`packs.serverKeyId` NOT NULL, FK cascade). La table `pack_bindings` n'existe plus. Voir la section **"Servers UX simplification"** plus bas pour le modèle courant. Les notes Plan 1B/Phase 2 restent pour contexte (DAG commits/branches toujours d'actualité côté backend).
-
-```
-User (Plan 1A) ── Membership ──┐
-                                ▼
-                            Network (id, name, tier="free")
-                              │ owns
-                  ┌───────────┼───────────┐
-                  ▼                       ▼
-              ServerKey (1) ───────────► Pack (N, first-class)
-                                         packs.serverKeyId (NOT NULL, FK cascade)
-                                         1 server_key → N packs (1:N depuis 2026-06-03)
-
-                                         Pack → PackBranch ← PackCommit
-                                         (branches + commits)
-```
-
-### Plan 1B — Multi-server networks
-
-- **Pack** : entité first-class avec `id`, `networkId`, `name`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. Plus de scope par `server_key`.
-- ~~**PackBinding** : table `pack_bindings(server_key_id, pack_id, branchName)` — un même pack peut être lié à plusieurs server_keys (multi-server sync), un server_key peut binder plusieurs packs (multi-pack sur un même serveur MC). Chaque binding vise une branche spécifique (default `"main"`).~~ **SUPPRIMÉ 2026-06-03** — remplacé par `packs.serverKeyId` 1:N (voir "Servers UX simplification").
-- **Assets per-pack** : `assets.packId` (au lieu de `assets.serverKeyId`). Codepoint allocator scopé au pack. Chemins disque `data/assets/{packId}/...`.
-- **Resource pack build multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs bindés au server_key et merge les codepoints à la volée (premier pack arrivé garde son codepoint, collisions ré-allouées). Voir `lib/rpCodepointMerger.ts`.
-- **Server keys belongs to Network** : `server_keys.networkId` NOT NULL. À la création (`/api/link/claim` ou `/api/server-keys` ou WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
-- **WS hub** : `hello_ack.pack_hashes` et `pushBundleAvailable(packId, hash)` résolvent les targets via `packs.serverKeyId` (1:N depuis 2026-06-03 ; était `packBindings`). `pushPackDeleted(packId)` idem.
-- **Plugin protocole inchangé** : aucun changement de code plugin nécessaire ; seule la source des données côté backend bouge.
-
-Tables Drizzle ajoutées en Plan 1B : `networks`, `memberships`, `packs`, `pack_bindings`. Table supprimée : `pack_bundles` (son contenu fusionne dans `packs`).
-
-### Phase 2 — branches + commits
-
-- **pack_commits** : `(id, packId, parentId, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(packId, contentHash)`. `parentId` est nullable pour le commit racine (auto-créé à `createPack`).
-- **pack_branches** : `(packId, name, headCommitId, createdAt, updatedAt)`. Pointeur vers un commit. Unique par `(packId, name)`.
-- **pack_bindings.branchName** (default `"main"`) : un binding cible une branche spécifique. Unique par `(serverKeyId, packId, branchName)` — un même server_key peut binder le même pack sur des branches différentes (cas rare mais possible).
-- **WIP vs commit** : `packs.filesJson` / `packs.editorJson` / `packs.hash` reste le buffer éditeur live (Plan 1B/1C). Les plugins lisent UNIQUEMENT les commits via le `branchName` du binding → `pack_branches.headCommitId` → `pack_commits.filesJson`.
-- **Promotion** : fast-forward only. Le backend refuse en 409 `not_fast_forward` si la cible a divergé. Merge sémantique = Phase 3.
-
-Tables Drizzle ajoutées en Phase 2 : `pack_commits`, `pack_branches`. Column ajoutée : `pack_bindings.branchName`.
-
-### Phase 3 — merge sémantique par item
-
-- **pack_commits.parentId2** (nullable) : 2ᵉ parent sur les merge commits, `null` sur les commits linéaires. Le DAG résultant supporte LCA via `branchStorage.findLCA(a, b)` — BFS bidirectionnel borné à 10 000 steps qui walk `parentId` + `parentId2`.
-- **Granularité du merge** : par item top-level uniquement (`menus`, `commands`, `dialogs`, `templates`, `dataSources` indexés par `id` ; `i18nKeys`, `canvasLayout` en map ; scalaires `defaultLang` / `name` / `description`). Pas de merge field-level intra-item — un menu/dialog/etc. conflictuel est résolu en entier ("use src" ou "use dst").
-- **Auto-merge** : changements non-collisionnels (un seul côté a touché l'item depuis le LCA) → la valeur de ce côté entre dans `mergedState`, pas de conflit émis.
-- **Conflit** : item modifié des 2 côtés différemment (modify-modify) OU supprimé d'un côté et modifié de l'autre (delete-modify). Clés conflit : `"<collection>:<id>"` ou `"scalar:<field>"`. User choisit `src` ou `dst` par conflit via `MergeConflictModal`.
-- **mergeEngine.merge** est pur (pas de DB) — opère sur `EditorState` désérialisé. Retourne `{ mergedState, conflicts[] }`. Sur conflit, `mergedState` garde la valeur `dst` par défaut (état renderable même avant résolution).
-- **`assets[]` et `importedConnectors[]`** sont SKIP du merge (gérés via leurs propres APIs, scope per-pack). Le merge commit hérite des valeurs de `dst` pour ces champs.
-- **contentHash collision** : 2 merges avec exactement les mêmes fichiers résolus violeraient `pack_commits_pack_content_uniq`. Workaround : la route `/resolve` ajoute un marker `merge-meta` (lcaCommitId + srcCommitId + dstCommitId) au contentHash pour différencier.
-
-Column ajoutée en Phase 3 : `pack_commits.parentId2` (nullable).
-
-### Plan accounts × networks UX — flow setup logged-in
-
-- **Claim link auth** : `/artisan setup` requiert maintenant un compte user. Le claim `/api/link/:code/claim` exige cookie `artisan_user_session` et choisit le network destination via smart count (auto-crée "Mon Réseau" si 0, utilise si 1, picker modale si 2+).
-- **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Tokens partageables 24h pour transférer la propriété d'un Network entier. Memberships swap clean break — ancien owner perd accès.
-- **Server key deletion** : `/api/networks/:id/server-keys/:keyId` (owner-only) suppress la clé + cascade les packs liés (`packs.serverKeyId` FK cascade). Le plugin perd la connexion au prochain hello.
-- **Bootstrap plugin auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push`. Plus de `/artisan pushLocal` manuel pour le first-time setup.
-- **Désaffectation d'un serveur sans transfert** : delete la server_key dans `/networks/:id`, puis re-setup côté plugin → l'auto-push recharge les packs dans le nouveau network. Pas de mutation cross-account.
-
----
-
-## Auth — endpoints
-
-| Endpoint | Description |
-|---|---|
-| `POST /api/auth/signup` | Crée un user (email+password+name). Body JSON. 201 + Set-Cookie `artisan_user_session`. Erreurs : 400 invalid_body, 409 email_taken, 422 invalid_email / weak_password. |
-| `POST /api/auth/login` | Authentifie email+password. 200 + Set-Cookie. Erreur : 401 invalid_credentials. |
-| `POST /api/auth/logout` | Détruit la session courante (si présente), clear le cookie. Toujours 204. |
-| `GET /api/auth/me` | Retourne le user courant (`{ user: { id, email, name, avatarUrl, editorLanguage } }`) ou 401 si pas de session. |
-| `PATCH /api/auth/me` | Body `{ editor_language?: string \| null }`. Update les préférences utilisateur. Retourne `{ user }`. 401 sans session. |
-| `GET /api/auth/discord/start` | Redirige vers Discord pour OAuth (set cookie `artisan_oauth_state`). 500 si Discord pas configuré. |
-| `GET /api/auth/discord/callback?code&state` | Callback OAuth : exchange code, fetch user Discord, crée/lien user + session, redirige vers `${EDITOR_URL}/account`. |
-
-Cookies utilisés :
-- `artisan_user_session` (HttpOnly, 30 jours) — référence la row `user_sessions.id`.
-- `artisan_oauth_state` (HttpOnly, 10 min) — anti-CSRF pour le flow Discord.
-
-Tables Drizzle ajoutées : `users`, `user_sessions`, `discord_accounts`.
-
-Distinct du flow trust dance existant (server_keys + editor_sessions) — les deux cookies (`artisan_user_session` et `artisan_refresh`) coexistent.
-
-### Préférences utilisateur (depuis 2026-05-27)
-
-`users.editor_language` (TEXT nullable) stocke la langue UI préférée de l'utilisateur connecté. Source de vérité côté client = `localStorage["i18nextLng"]`. Si logged-in, sync avec backend :
-- **Au boot** : `authStore.hydrate()` lit `editor_language` depuis `GET /me`, appelle `i18n.changeLanguage()` si présent.
-- **Au changement** (via `EditorLangSwitcher` dans `/settings`) : `uiStore.setEditorLang()` PATCH `editor_language` en fire-and-forget si `useAuthStore.currentUser` existe.
-
-Anonymous → localStorage uniquement. Backend wins au boot (écrase localStorage si différent).
-
-### UI shell — Workspace + Settings (depuis 2026-05-27)
-
-Layout global éditeur (cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`) :
-
-- **`WorkspaceSidebar`** (sticky `editor/src/routes/__root.tsx`) — Network dropdown en haut + section Workspaces (drag-and-drop reorder via `account.packOrder`) + section Modules (empty state V1) + bouton ⚙ Settings sticky bottom.
-- **`/workspace/$workspaceId`** — shell à onglets via `?tab=` query param :
-  - `overview` (default) = canvas Konva
-  - `translations` = `TranslationPanelContent` inline (extraite du modal historique)
-  - `data-sources` = `DataSourcesPanelContent` inline (idem)
-- **Top bar** simplifié : pack name, `LangSwitcher` (contenu du pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
-- **`/settings`** — sidebar de sections (V1 = Apparence) + main content. La section Apparence héberge `EditorLangSwitcher`.
-
-### Plan accounts × networks UX — endpoints signup/login → network
-
-| Endpoint | Description |
-|---|---|
-| `POST /api/link/:code/claim` | **Login required** (cookie `artisan_user_session`). Body `{network_id?}`. Smart count : 0 networks chez l'user → auto-crée "Mon Réseau", 1 → use it, 2+ → 400 `must_choose_network`. 401 sans cookie, 403 si pas membre du network demandé. Réécrit le legacy claim anonyme. |
-| `POST /api/networks/:id/transfer/init` | Owner-only. Crée un transfer token (TTL 24h). Returns `{url, expiresAt}`. |
-| `GET /api/networks/transfer/:token` | Returns `{networkId, networkName, packCount, serverKeyCount, expiresAt}`. 410 `expired` / `consumed`, 404 `not_found`. |
-| `POST /api/networks/transfer/:token/accept` | Login required. Swap memberships (clean break — ancien owner perd accès). 410 expired/consumed. |
-| `DELETE /api/networks/:id/server-keys/:keyId` | Owner-only. Delete server_key + cascade les packs liés (`packs.serverKeyId` FK cascade). Plugin perd la connexion au prochain hello. |
-| `POST /api/networks/:id/server-keys/:keyId/rotate` | Owner-only. Régénère la clé (id/label/bindings préservés), invalide l'ancien hash, drop l'auth des conns vivantes (le plugin doit re-hello avec la nouvelle clé). Returns `{id, key, label}` — plaintext une seule fois. |
-| `GET /api/networks/:id/server-keys/:keyId/helloes?limit=30` | Owner-only. Timeline d'audit des hellos plugin (table `server_key_helloes`). Ordonné desc par `hello_at`, `limit` clampé à [1, 200]. Chaque entrée a `rejected_reason: string \| null` (null = accepté ; non-null = rejeté, ex. `"ip_not_allowed"`). |
-| `GET /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Retourne `{ allowed_ips: string[] \| null }`. null/empty = aucune restriction (défaut). |
-| `PUT /api/networks/:id/server-keys/:keyId/allowlist` | Owner-only. Body `{ allowed_ips: string[] \| null }`. Empty array normalisé en null. Dedup + trim appliqués. 422 `invalid_allowed_ips` si entrée non-string. Au prochain hello, l'IP source doit matcher (sinon rejected + logged dans helloes). |
-| `GET /api/editor-session/:token` | Étendu : retourne aussi `network_id` (le network du server_key behind la session). |
-
-### Servers UX simplification (depuis 2026-06-03)
-
-Modèle simplifié en V1 : **1 pack = 1 server_key** (relation 1:N, plus de M:N via `pack_bindings`). La table `pack_bindings` a été supprimée. `packs.serverKeyId` est NOT NULL avec FK cascade vers `server_keys.id`.
-
-- **UI** : `/networks/:id` présente une liste de `ServerCard`, chaque card a son kebab (rotate, show key, history, allowlist, delete). Les workspaces nichent visuellement sous leur server.
-- **Sidebar** : ajoute un `ServerDropdown` quand ≥2 servers existent dans le network, filtre les workspaces par activeServerId.
-- **Branches** : pas d'UI branches en V1 (toujours `"main"` côté backend). La toolbar branches (BranchSwitcher / Promote / Merge) a été retirée. Remplacée par un onglet `History` qui liste les commits et offre un bouton `Restore` par commit.
-- **Endpoints supprimés** : `GET/PATCH/POST/DELETE /networks/:id/packs/:packId/bindings/*` — `POST /packs` exige maintenant `serverKeyId` dans le body et vérifie qu'il appartient au network (403 sinon).
-- **Endpoint ajouté** : `GET /networks/:id/server-keys/:keyId/status` → `{ online }` pour `ServerStatusBadge`.
-- **Endpoint ajouté** : `GET /networks/:id/packs/:packId/commits/:commitId/content` → restore en lisant un commit passé.
-- **Setup wizard** : reordonné Network → Server → Workspace → Install. Step 2 crée le server_key (sans bind), Step 3 crée le workspace en passant `serverKeyId` acquis à Step 2.
-- **Dead code retiré** : `BranchSwitcher`, `PromoteButton`, `MergeButton`, `MergeConflictModal`, `branchesStore`, `ServersPanelContent`, `BindServerDialog`.
-- **Sync multi-serveur** : V2 (hors scope V1). Voir spec `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md`.
+Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text / textarea / external_glyph) — format YAML + pipeline de rendu pixel-perfect (pixel offsets, fonts custom) documentés dans `docs/architecture/editor-internals.md`.
 
 ---
 
