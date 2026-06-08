@@ -17,10 +17,9 @@
       "description": "Identifiant stable du menu, utilisé en /menu open <id>. Lowercase + underscore."
     },
     "title": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 256,
-      "description": "Titre affiché en haut de l'inventaire. Format MiniMessage. Supporte placeholders et {i18n:key}."
+      "type": "array",
+      "items": { "$ref": "#/$defs/MenuTitleLayer" },
+      "description": "Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md."
     },
     "size": {
       "type": "integer",
@@ -40,7 +39,7 @@
       "$ref": "#/$defs/Appearance",
       "description": "Apparence par défaut des positions Minecraft non couvertes par un Element visible."
     },
-    "contextInputs": {
+    "context_inputs": {
       "type": "array",
       "items": { "$ref": "#/$defs/ContextInput" },
       "description": "Slots nommées exposées par le menu. Peuplées à l'ouverture par auto-binding par nom (cf. §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte."
@@ -281,44 +280,65 @@
       }
     },
     "ClickHandler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+      }
+    },
+    "Step": {
       "oneOf": [
-        { "$ref": "#/$defs/StandardClick" },
-        { "$ref": "#/$defs/ComponentClick" }
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "action"],
+          "properties": {
+            "kind": { "const": "action" },
+            "action": { "$ref": "#/$defs/Action" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "cases"],
+          "properties": {
+            "kind": { "const": "if" },
+            "cases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["conditions", "steps"],
+                "properties": {
+                  "conditions": { "type": "array", "items": { "$ref": "#/$defs/Condition" } },
+                  "joins": { "type": "array", "items": { "type": "string", "enum": ["and", "or"] } },
+                  "steps": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+                }
+              }
+            },
+            "else": { "type": "array", "items": { "$ref": "#/$defs/Step" } }
+          }
+        }
       ]
     },
-    "StandardClick": {
+    "LText": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actions"],
-      "properties": {
-        "requirements": { "type": "array", "items": { "$ref": "#/$defs/Condition" } },
-        "actions":      { "type": "array", "items": { "$ref": "#/$defs/Action" } },
-        "fallback":     { "type": "array", "items": { "$ref": "#/$defs/Action" } },
-        "cooldown":     { "$ref": "#/$defs/Cooldown" }
-      }
+      "required": ["key"],
+      "properties": { "key": { "type": "string" } },
+      "description": "Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. (Note: les title-layers utilisent cette forme {key} ; les autres champs texte utilisent la string {i18n:key} — harmonisation future.)"
     },
-    "ComponentClick": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["use_component_default"],
-      "properties": {
-        "use_component_default": { "const": true },
-        "then_actions": { "type": "array", "items": { "$ref": "#/$defs/Action" } },
-        "requirements": { "type": "array", "items": { "$ref": "#/$defs/Condition" } },
-        "fallback":     { "type": "array", "items": { "$ref": "#/$defs/Action" } },
-        "cooldown":     { "$ref": "#/$defs/Cooldown" }
-      }
-    },
-    "Cooldown": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "duration_seconds"],
-      "properties": {
-        "id": { "type": "string" },
-        "duration_seconds": { "type": "integer", "minimum": 1 },
-        "scope": { "type": "string", "enum": ["player", "server"], "default": "player" },
-        "message": { "type": "string" }
-      }
+    "MenuTitleLayer": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id"], "properties": { "kind": { "const": "background" }, "asset_id": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id", "x", "y"], "properties": { "kind": { "const": "glyph" }, "asset_id": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y"], "properties": { "kind": { "const": "text" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "color": { "type": "string" }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "plain" }, "value": { "$ref": "#/$defs/LText" }, "color": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y", "width", "line_height", "alignment"], "properties": { "kind": { "const": "textarea" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer" }, "line_height": { "type": "integer" }, "alignment": { "type": "string", "enum": ["left", "center", "right"] }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "provider", "glyph_name", "x", "y"], "properties": { "kind": { "const": "external_glyph" }, "provider": { "type": "string", "enum": ["oraxen", "nexo", "itemsadder"] }, "glyph_name": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } }
+      ]
     },
     "TemplateRef": {
       "type": "object",
@@ -348,7 +368,13 @@
         { "additionalProperties": false, "required": ["type", "sound"], "properties": { "type": { "const": "play_sound" }, "sound": { "type": "string" }, "volume": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }, "pitch": { "type": "number", "minimum": 0, "maximum": 2, "default": 1 } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "teleport" }, "world": { "type": "string" }, "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" }, "yaw": { "type": "number" }, "pitch": { "type": "number" }, "warp_name": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_next" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_prev" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } }
+        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_prev" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
+        { "additionalProperties": false, "required": ["type", "title"], "properties": { "type": { "const": "show_title" }, "title": { "type": "string" }, "subtitle": { "type": "string" }, "fade_in": { "type": "integer", "minimum": 0 }, "stay": { "type": "integer", "minimum": 0 }, "fade_out": { "type": "integer", "minimum": 0 } } },
+        { "additionalProperties": false, "required": ["type", "dialog_id"], "properties": { "type": { "const": "open_dialog" }, "dialog_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "context": { "type": "object", "additionalProperties": { "type": "string" } }, "clear_context": { "type": "boolean", "default": false } } },
+        { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "close_dialog" } } },
+        { "additionalProperties": false, "required": ["type", "arg", "value"], "properties": { "type": { "const": "set_arg" }, "arg": { "type": "string" }, "value": { "type": "string" } } },
+        { "additionalProperties": false, "required": ["type", "arg", "list"], "properties": { "type": { "const": "set_arg_cycle_next" }, "arg": { "type": "string" }, "list": { "type": "string" } } },
+        { "additionalProperties": false, "required": ["type", "arg", "list"], "properties": { "type": { "const": "set_arg_cycle_prev" }, "arg": { "type": "string" }, "list": { "type": "string" } } }
       ]
     },
     "Condition": {
@@ -371,7 +397,8 @@
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_at_last" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
         { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "not" }, "of": { "$ref": "#/$defs/Condition" } } },
         { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "and" }, "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Condition" } } } },
-        { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "or" }, "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Condition" } } } }
+        { "additionalProperties": false, "required": ["type", "of"], "properties": { "type": { "const": "or" }, "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Condition" } } } },
+        { "additionalProperties": false, "required": ["type", "expr"], "properties": { "type": { "const": "expression" }, "expr": { "type": "string" } } }
       ]
     }
   }
