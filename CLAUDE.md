@@ -9,6 +9,7 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Protocole WS (`hub.ts`, `protocol.ts`, `WsClient.kt`) | `docs/architecture/ws-protocol.md` |
 | Endpoints REST (`backend/src/routes/*.ts`) | `docs/architecture/rest-endpoints.md` (index — pointe vers le fichier de route) |
 | Schéma DB (`backend/src/db/schema.ts`) | migration dans `backend/drizzle/` (`db:generate`) + `docs/architecture/entities.md` |
+| Schéma (`docs/schema/*/v1/schema.json`) | aligner les types à la main (éditeur `types.ts` + plugin) + exemples/fixtures verts (`editor/src/schema/validateMenuV1`) + `docs/architecture/schemas-codegen.md` |
 | Internals éditeur / rendu titre (title composer, canvas, édition d'élément, SchemaForm) | `docs/architecture/editor-internals.md` |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
 | Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
