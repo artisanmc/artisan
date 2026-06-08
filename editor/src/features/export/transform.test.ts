@@ -1072,73 +1072,43 @@ describe("transform — appearance conditions", () => {
     return menu.layers[0].elements[0].appearances[0];
   };
 
-  it("single condition is written as a map, not an array", () => {
+  it("single condition is written as a one-element array", () => {
     const pack = makePack({ menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])] });
     const app = getApp(transform(pack));
-    expect(Array.isArray(app.if)).toBe(false);
-    expect(app.if).toEqual({ type: "has_permission", perm: "vip" });
+    expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }]);
   });
 
-  it("two conditions with 'and' join are wrapped in { type: 'and', all: [...] }", () => {
-    const pack = makePack({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_money", amount: 100 } as Condition,
-            ],
-            ifJoins: ["and"],
-          },
-        ]),
-      ],
-    });
+  it("AND-joined conditions are an ANDed array", () => {
+    const pack = makePack({ menus: [baseMenu([{
+      if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_money", amount: 100 } as Condition],
+      ifJoins: ["and"],
+    }])] });
     const app = getApp(transform(pack));
-    expect(app.if).toEqual({
-      type: "and",
-      all: [{ type: "has_permission", perm: "vip" }, { type: "has_money", amount: 100 }],
-    });
-    expect(app.if_joins).toBeUndefined();
+    expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }, { type: "has_money", amount: 100 }]);
   });
 
-  it("two conditions with 'or' join are wrapped in { type: 'or', any: [...] }", () => {
-    const pack = makePack({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_permission", perm: "admin" } as Condition,
-            ],
-            ifJoins: ["or"],
-          },
-        ]),
-      ],
-    });
+  it("OR-joined conditions are wrapped in a single { type: 'or', of: [...] }", () => {
+    const pack = makePack({ menus: [baseMenu([{
+      if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_permission", perm: "admin" } as Condition],
+      ifJoins: ["or"],
+    }])] });
     const app = getApp(transform(pack));
-    expect(app.if).toEqual({
-      type: "or",
-      any: [{ type: "has_permission", perm: "vip" }, { type: "has_permission", perm: "admin" }],
-    });
+    expect(app.if).toEqual([{ type: "or", of: [{ type: "has_permission", perm: "vip" }, { type: "has_permission", perm: "admin" }] }]);
   });
 
-  it("composite 'and' condition uses 'all' key, not 'of'", () => {
+  it("composite 'and' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({
-      menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])],
-    });
+    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
     const app = getApp(transform(pack));
-    expect(app.if.all).toBeDefined();
-    expect(app.if.of).toBeUndefined();
+    expect(app.if[0].of).toBeDefined();
+    expect(app.if[0].all).toBeUndefined();
   });
 
-  it("composite 'or' condition uses 'any' key, not 'of'", () => {
+  it("composite 'or' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({
-      menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])],
-    });
+    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
     const app = getApp(transform(pack));
-    expect(app.if.any).toBeDefined();
-    expect(app.if.of).toBeUndefined();
+    expect(app.if[0].of).toBeDefined();
+    expect(app.if[0].any).toBeUndefined();
   });
 });

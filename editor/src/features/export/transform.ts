@@ -28,17 +28,22 @@ const i18nRef = (key: string): string => `{i18n:${key}}`;
 
 function serializeCondition(c: Condition): unknown {
   if (c.type === "not") return { type: "not", of: serializeCondition(c.of) };
-  if (c.type === "and") return { type: "and", all: (c.of as Condition[]).map(serializeCondition) };
-  if (c.type === "or") return { type: "or", any: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "and") return { type: "and", of: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "or") return { type: "or", of: (c.of as Condition[]).map(serializeCondition) };
   return c;
 }
 
-function collapseConditions(conditions: Condition[], joins?: ("and" | "or")[]): unknown {
-  // biome-ignore lint/style/noNonNullAssertion: length === 1 guarantees [0] exists
-  if (conditions.length === 1) return serializeCondition(conditions[0]!);
-  const op = joins?.[0] ?? "and";
+/**
+ * Canonical appearance `if` is a Condition[] (ANDed). We mirror the prior
+ * single-join semantics: one join op governs the whole list. A pure-OR list
+ * becomes a single wrapped `or`; otherwise the array is emitted as-is (ANDed).
+ */
+function serializeIfArray(conditions: Condition[], joins?: ("and" | "or")[]): unknown[] {
+  // biome-ignore lint/style/noNonNullAssertion: length === 1 guarantees [0]
+  if (conditions.length === 1) return [serializeCondition(conditions[0]!)];
   const items = conditions.map(serializeCondition);
-  return op === "or" ? { type: "or", any: items } : { type: "and", all: items };
+  if ((joins?.[0] ?? "and") === "or") return [{ type: "or", of: items }];
+  return items;
 }
 
 // ─── action serialization ────────────────────────────────────────────────────
@@ -121,7 +126,7 @@ function serializeSteps(steps: Step[], pack: Pack): unknown[] {
 
 function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (app.if && app.if.length > 0) out.if = collapseConditions(app.if, app.ifJoins);
+  if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
   if (app.count !== undefined) out.count = app.count;
   if (app.title) out.title = i18nRef(app.title.key);
