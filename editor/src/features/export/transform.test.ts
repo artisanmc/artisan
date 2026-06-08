@@ -539,6 +539,13 @@ describe("transform — title layers", () => {
       ],
     });
 
+  it("emits a plain-only title as a one-layer array (no legacy string shortcut)", () => {
+    const files = transform(menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]));
+    const menu = parse(files["plugins/Artisan/packs/p_test/menus/shop.yaml"]!);
+    expect(Array.isArray(menu.title)).toBe(true);
+    expect(menu.title).toEqual([{ kind: "plain", value: { key: "k_plain" } }]);
+  });
+
   it("serializes a background layer to { kind, asset_id }", () => {
     const files = transform(
       menuWithTitle([{ kind: "background", assetId: "asset_a1b2c3" as AssetId }]),
