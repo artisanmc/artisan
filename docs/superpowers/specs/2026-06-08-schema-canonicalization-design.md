@@ -1,6 +1,6 @@
 # Canonicalisation des schémas — un modèle, généré et enforced sur toutes les couches
 
-**Statut :** design approuvé, prêt pour le plan d'implémentation
+**Statut :** design approuvé — **P1.0 en cours**. ⚠️ **MAJ 2026-06-08 :** le codegen **quicktype est écarté** (spike NO-GO : il aplatit nos unions discriminées en god-objects, pas de `sealed class` — cf. `docs/schema/CODEGEN.md`). Approche retenue : **types écrits à la main** (sealed Kotlin + unions TS) conformes au `schema.json` (source de vérité), **drift garanti par CI ajv + fixtures** (pas de génération). Les mentions « codegen / quicktype » ci-dessous se lisent désormais « types à la main + CI drift ».
 **Auteur :** brainstorm 2026-06-08
 **Déclencheur :** dérive découverte en préparant la feature IA (`2026-06-08-ai-assistant-design.md`).
 **Code lié :** `docs/schema/*/v1/`, `editor/src/features/export/transform.ts` + `editor/src/domain/types.ts`, `plugin/src/main/kotlin/net/artisanmc/plugin/{engine,model}/`.
@@ -29,7 +29,7 @@ Conséquence : le contrat est implicite, non documenté fidèlement, non enforce
 | Périmètre | **Maximal** : canonicaliser tous les schémas (menu, command, dialog, translations, manifest/pack, template) + **codegen plugin**. |
 | Garde-fou | Canonicalisation = **format / types / codegen / CI**. **Pas** de nouveaux comportements runtime. |
 | Source de vérité | `docs/schema/<name>/v1/schema.json` (JSON Schema 2020-12), une par schéma. |
-| Codegen | **quicktype** : un `schema.json` → `sealed class` Kotlin (plugin) + types TS (éditeur). |
+| Types depuis le schéma | ~~quicktype~~ → **écrits à la main** (sealed Kotlin + unions TS) conformes au `schema.json` ; drift par CI ajv + fixtures *(spike NO-GO 2026-06-08, cf. `docs/schema/CODEGEN.md`)*. |
 | Domain éditeur | **Reste écrit à la main** (projection d'édition + sidecars i18n / canvas). |
 | Phasage | **P1 = menu/v1** (débloque l'IA + le test prod), puis P2 (autres schémas), P3 (CI globale + retrait legacy). |
 
