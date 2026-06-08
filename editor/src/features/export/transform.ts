@@ -358,17 +358,10 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
 // ─── menu serialization ──────────────────────────────────────────────────────
 
 function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
-  // Plain (vanilla) mode: export as legacy string format so any server can use
-  // it without a resource pack. Single plain layer → "{i18n:key}" string.
-  const plainOnly = menu.title.length > 0 && menu.title.every((l) => l.kind === "plain");
-  const titleField = plainOnly
-    ? i18nRef((menu.title[0] as Extract<(typeof menu.title)[number], { kind: "plain" }>).value.key)
-    : menu.title.map(serializeTitleLayer);
-
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: titleField,
+    title: menu.title.map(serializeTitleLayer),
     size: menu.rows * 9,
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
