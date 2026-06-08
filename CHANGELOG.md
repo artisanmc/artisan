@@ -30,8 +30,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - L'export éditeur (`editor/src/features/export/transform.ts`) émet désormais la forme canonique `menu/v1` : conditions composites en `of` (au lieu de `all`/`any`), `if` d'appearance en tableau `Condition[]`, `title` toujours en tableau de layers (plus de raccourci string plain-only), action `paginate` → `pagination_next` / `pagination_prev`.
   - Oracle de conformité ajv « golden pack → export → validate » (`editor/src/features/export/canonical.test.ts`).
   - Miroir de types à la main `docs/schema/menu/v1/types.ts` aligné sur le schéma canonique.
+- Schema canonicalisation P1.2 — conformité plugin (`docs/architecture/schemas-codegen.md`) :
+  - Oracle cross-stack « exemples éditeur compilent dans le plugin » (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) : parse `docs/schema/menu/v1/examples/canonical-*.json` à travers `BundleCompiler` sans erreur.
 
 ### Changed
+- `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
 - **BREAKING (pre-1.0)** REST API now under `/api/v1/*` instead of `/api/*`. Plugin + editor clients updated in the same release. Legacy `/api/*` paths return 404 — no compatibility alias.
 
 ### Deprecated
