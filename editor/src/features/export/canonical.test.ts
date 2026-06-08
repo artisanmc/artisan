@@ -1,9 +1,9 @@
-import { menuId, packId, layerId, elementId } from "@/domain/ids";
+import { elementId, layerId, menuId, packId } from "@/domain/ids";
 import type { I18nKey, Pack } from "@/domain/types";
-import { parse } from "yaml";
-import { describe, expect, it } from "vitest";
-import { transform } from "./transform";
 import { validateMenuV1 } from "@/schema/validateMenuV1";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import { transform } from "./transform";
 
 // A pack exercising: plain + text title layers, multi-appearance element with
 // AND and OR `if`, click step-tree with an if-case, and a spread of actions.
@@ -53,14 +53,29 @@ function goldenPack(): Pack {
                             cases: [
                               {
                                 conditions: [{ type: "has_money", amount: 50 }],
-                                steps: [{ kind: "action", action: { type: "take_money", amount: 50 } }],
+                                steps: [
+                                  { kind: "action", action: { type: "take_money", amount: 50 } },
+                                ],
                               },
                             ],
                             else: [
-                              { kind: "action", action: { type: "send_message", text: { key: "t.buy.msg" as I18nKey } } },
+                              {
+                                kind: "action",
+                                action: {
+                                  type: "send_message",
+                                  text: { key: "t.buy.msg" as I18nKey },
+                                },
+                              },
                             ],
                           },
-                          { kind: "action", action: { type: "open_menu", menuId: menuId("shop"), clearContext: true } },
+                          {
+                            kind: "action",
+                            action: {
+                              type: "open_menu",
+                              menuId: menuId("shop"),
+                              clearContext: true,
+                            },
+                          },
                           { kind: "action", action: { type: "paginate", direction: "next" } },
                         ],
                       },
