@@ -22,8 +22,8 @@ object ConditionParser {
             "pagination_at_first"-> Condition.PaginationAtFirst(raw["element_id"] as? String)
             "pagination_at_last" -> Condition.PaginationAtLast(raw["element_id"] as? String)
             "not"                -> Condition.Not(parse(raw["of"] as Map<String, Any>))
-            "and"                -> Condition.And((raw["all"] as List<*>).map { parse(it as Map<String, Any>) })
-            "or"                 -> Condition.Or((raw["any"] as List<*>).map { parse(it as Map<String, Any>) })
+            "and"                -> Condition.And((raw["of"] as List<*>).map { parse(it as Map<String, Any>) })
+            "or"                 -> Condition.Or((raw["of"] as List<*>).map { parse(it as Map<String, Any>) })
             else                 -> throw IllegalArgumentException("Unknown condition type: $type")
         }
     }

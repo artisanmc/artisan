@@ -89,7 +89,7 @@ class ConditionParserTest {
     @Test fun `parse and combines list`() {
         val c = ConditionParser.parse(mapOf(
             "type" to "and",
-            "all"  to listOf(
+            "of"   to listOf(
                 mapOf("type" to "has_level", "level" to 5),
                 mapOf("type" to "has_xp",    "amount" to 100),
             ),
@@ -100,7 +100,7 @@ class ConditionParserTest {
     @Test fun `parse or combines list`() {
         val c = ConditionParser.parse(mapOf(
             "type" to "or",
-            "any"  to listOf(mapOf("type" to "world_is", "world" to "end")),
+            "of"   to listOf(mapOf("type" to "world_is", "world" to "end")),
         ))
         assertEquals(Condition.Or(listOf(Condition.WorldIs("end"))), c)
     }
