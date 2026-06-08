@@ -1,25 +1,33 @@
-import { newI18nKey } from "@/lib/i18n";
 import type {
-  Action as DomainAction,
-  Appearance as DomainAppearance,
+  AssetId,
   ClickHandler,
   ClickMap,
   ClickType,
-  Condition as DomainCondition,
   DialogId,
+  Action as DomainAction,
+  Appearance as DomainAppearance,
+  Condition as DomainCondition,
+  ContextInput as DomainContextInput,
   Element as DomainElement,
+  Layer as DomainLayer,
+  Menu as DomainMenu,
+  Step as DomainStep,
   ElementId,
   I18nKey,
-  Layer as DomainLayer,
   LText,
-  Menu as DomainMenu,
   MenuId,
+  MenuTitleLayer,
   PackId,
-  Step as DomainStep,
+  TextSize,
 } from "@/domain/types";
+import { newI18nKey } from "@/lib/i18n";
 
 const CLICK_TYPES: ClickType[] = ["left", "right", "shift_left", "shift_right", "middle"];
+const TEXT_SIZES: TextSize[] = [8, 12, 16, 20, 24, 32];
 
+// The menu/v1 wire object is parsed YAML (snake_case, loosely typed). We model
+// it as a bag and reconcile each field explicitly into the domain shapes.
+// biome-ignore lint/suspicious/noExplicitAny: untyped wire object — fields read by snake name
 type Json = Record<string, any>;
 
 export interface ImportResult {
@@ -214,9 +222,84 @@ export function menuV1ToDomain(
     if (a.material) out.material = a.material;
     if (a.count !== undefined) out.count = a.count;
     if (a.title !== undefined) out.title = text(a.title);
+    const lore = loreText(a.lore);
+    if (lore !== undefined) out.lore = lore;
     const click = clickMap(a.click);
     if (click) out.click = click;
     return out;
+  }
+
+  // menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by
+  // `\n`). A single `{i18n:}` line references that key; otherwise the literal
+  // lines are joined and allocated a fresh key.
+  function loreText(lore: unknown): LText | undefined {
+    if (!Array.isArray(lore) || lore.length === 0) return undefined;
+    if (lore.length === 1) return text(String(lore[0]));
+    return text(lore.map(String).join("\n"));
+  }
+
+  // ── title layers (inverse of serializeTitleLayer) ─────────────────────────
+  function titleLayer(l: Json): MenuTitleLayer | null {
+    switch (l.kind) {
+      case "background":
+        return { kind: "background", assetId: l.asset_id as AssetId };
+      case "glyph":
+        return { kind: "glyph", assetId: l.asset_id as AssetId, x: l.x, y: l.y };
+      case "text": {
+        const out: MenuTitleLayer = {
+          kind: "text",
+          value: ref(l.value.key),
+          x: l.x,
+          y: l.y,
+        };
+        if (l.color !== undefined) out.color = l.color;
+        if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id as AssetId;
+        if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size as TextSize;
+        return out;
+      }
+      case "plain": {
+        const out: MenuTitleLayer = { kind: "plain", value: ref(l.value.key) };
+        if (l.color !== undefined) out.color = l.color;
+        return out;
+      }
+      case "textarea": {
+        const out: MenuTitleLayer = {
+          kind: "textarea",
+          value: ref(l.value.key),
+          x: l.x,
+          y: l.y,
+          width: l.width,
+          lineHeight: l.line_height,
+          alignment: l.alignment,
+        };
+        if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id as AssetId;
+        if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size as TextSize;
+        return out;
+      }
+      case "external_glyph":
+        return {
+          kind: "external_glyph",
+          provider: l.provider,
+          glyphName: l.glyph_name,
+          x: l.x,
+          y: l.y,
+        };
+      default:
+        unsupported.push(`title layer: ${l.kind}`);
+        return null;
+    }
+  }
+
+  function contextInput(ci: Json): DomainContextInput {
+    if (ci.ref !== undefined) {
+      return { kind: "sourceRef", name: ci.name, ref: ci.ref };
+    }
+    return {
+      kind: "primitive",
+      name: ci.name,
+      type: ci.type,
+      ...(ci.default !== undefined ? { default: ci.default } : {}),
+    };
   }
 
   function element(el: Json): DomainElement {
@@ -238,13 +321,16 @@ export function menuV1ToDomain(
   }
 
   const rows = (src.size / 9) as 1 | 2 | 3 | 4 | 5 | 6;
+  const title = ((src.title as Json[]) ?? []).map(titleLayer).filter(Boolean) as MenuTitleLayer[];
+  const contextInputs = (src.context_inputs as Json[] | undefined)?.map(contextInput);
   const menu: DomainMenu = {
     id: src.id as MenuId,
     packId: opts.packId,
-    title: [],
+    title,
     rows,
     layers: (src.layers as Json[]).map(layer),
     ...(src.permission ? { permission: src.permission } : {}),
+    ...(contextInputs && contextInputs.length > 0 ? { contextInputs } : {}),
   };
 
   return { menu, i18nKeys, unsupported };
