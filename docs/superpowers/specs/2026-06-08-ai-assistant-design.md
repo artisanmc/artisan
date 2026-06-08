@@ -66,7 +66,10 @@ Nouveau module **`assistant`** suivant le pattern modular monolith (`docs/archit
 Le backend **ne connaît jamais le domain model de l'éditeur**. Toute la conversion vit côté client :
 
 - **domain → menu/v1** (seed de la working-copy) : *existe déjà* (pipeline export de l'éditeur). Réutilisé tel quel.
-- **menu/v1 → domain** (application des writes) : **à construire, côté éditeur** (`editor/src/modules/assistant/import/`). Alloue les i18nKeys/`LText`, monte les step-trees depuis les actions, construit `MenuTitleLayer[]` depuis le `title`. C'est le plus gros morceau de code déterministe du projet, et il est réutilisable (import de fichiers `menu/v1` en général).
+- **menu/v1 → domain** (application des writes) : **à construire, côté éditeur** (`editor/src/modules/assistant/import/`). C'est le plus gros morceau de code déterministe du projet, et il est réutilisable (import de fichiers `menu/v1` en général). Il fait :
+  - **pont i18n** : un champ texte `menu/v1` est un `string` qui est soit un littéral, soit une réf inline `{i18n:KEY}`. Cas littéral → **allouer une clé**, ranger le littéral sous la langue active dans `pack.i18nKeys`, produire un `LText { key }`. Cas `{i18n:KEY}` → `LText { key: KEY }` + importer les valeurs depuis le `translations/v1` accompagnant dans `pack.i18nKeys`. (Côté domain le texte est **toujours** un `LText`, jamais un littéral inline.)
+  - **structure** : monte les step-trees depuis les `actions[]` plats, construit `MenuTitleLayer[]` depuis le `title`, convertit `size` → `rows`.
+- **Côté IA** : elle émet du **texte littéral lisible** (MiniMessage + placeholders PAPI préservés) ; c'est le convertisseur qui gère le keying i18n. L'IA ne manipule jamais de clés.
 - **Validation** côté backend : `ajv` contre `docs/schema/menu/v1/schema.json` + `validateMenuLayout` (importé de `docs/schema/menu/v1/types.ts`, TS framework-agnostic). **Exactement le même validateur que l'éditeur** → cohérence garantie.
 
 Conséquence : la working-copy serveur est un objet `menu/v1`, les tools lisent/écrivent du `menu/v1`, la validation tourne sur du `menu/v1`. Aucun convertisseur côté serveur.
