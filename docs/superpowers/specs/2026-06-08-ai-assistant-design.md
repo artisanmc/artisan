@@ -1,6 +1,6 @@
 # Assistant IA — génération de menus en langage naturel + migration zmenu/DeluxeMenus
 
-**Statut :** design approuvé, prêt pour le plan d'implémentation
+**Statut :** design approuvé — **parqué derrière la P1 de la canonicalisation des schémas** (`2026-06-08-schema-canonicalization-design.md`). Une fois `menu/v1` canonique + codegen + CI en place : le contrat émis par l'IA = `menu/v1` **canonique**, le gate = `ajv(menu/v1/schema.json)` + checks cross-field, et le convertisseur `menu/v1 → domain` se réduit au pont i18n + projection (canvas/rows). **Ne pas démarrer le convertisseur avant la P1.**
 **Auteur :** brainstorm 2026-06-08
 **Code lié (à créer) :** `backend/src/modules/assistant/`, `editor/src/modules/assistant/`
 **Code lié (réutilisé) :** `docs/schema/menu/v1/{schema.json,types.ts}` (validation), pipeline export domain→menu/v1 de l'éditeur, modèle commits (`pack_commits`, onglet History/Restore), `editor/src/state/accountStore.ts`.
