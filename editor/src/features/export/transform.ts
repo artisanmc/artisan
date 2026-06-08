@@ -28,17 +28,21 @@ const i18nRef = (key: string): string => `{i18n:${key}}`;
 
 function serializeCondition(c: Condition): unknown {
   if (c.type === "not") return { type: "not", of: serializeCondition(c.of) };
-  if (c.type === "and") return { type: "and", all: (c.of as Condition[]).map(serializeCondition) };
-  if (c.type === "or") return { type: "or", any: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "and") return { type: "and", of: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "or") return { type: "or", of: (c.of as Condition[]).map(serializeCondition) };
   return c;
 }
 
-function collapseConditions(conditions: Condition[], joins?: ("and" | "or")[]): unknown {
-  // biome-ignore lint/style/noNonNullAssertion: length === 1 guarantees [0] exists
-  if (conditions.length === 1) return serializeCondition(conditions[0]!);
-  const op = joins?.[0] ?? "and";
+/**
+ * Canonical appearance `if` is a Condition[] (ANDed). We mirror the prior
+ * single-join semantics: one join op governs the whole list. A pure-OR list
+ * becomes a single wrapped `or`; otherwise the array is emitted as-is (ANDed).
+ */
+function serializeIfArray(conditions: Condition[], joins?: ("and" | "or")[]): unknown[] {
+  if (conditions.length === 1) return [serializeCondition(conditions[0]!)];
   const items = conditions.map(serializeCondition);
-  return op === "or" ? { type: "or", any: items } : { type: "and", all: items };
+  if ((joins?.[0] ?? "and") === "or") return [{ type: "or", of: items }];
+  return items;
 }
 
 // ─── action serialization ────────────────────────────────────────────────────
@@ -70,8 +74,9 @@ function serializeAction(action: Action): unknown {
     case "take_money":
       return { type: "take_money", amount: action.amount };
     case "paginate": {
-      const out: Record<string, unknown> = { type: "paginate", direction: action.direction };
-      if (action.targetElementId) out.target_element_id = action.targetElementId;
+      const type = action.direction === "next" ? "pagination_next" : "pagination_prev";
+      const out: Record<string, unknown> = { type };
+      if (action.targetElementId) out.element_id = action.targetElementId;
       return out;
     }
     case "set_arg":
@@ -121,7 +126,7 @@ function serializeSteps(steps: Step[], pack: Pack): unknown[] {
 
 function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (app.if && app.if.length > 0) out.if = collapseConditions(app.if, app.ifJoins);
+  if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
   if (app.count !== undefined) out.count = app.count;
   if (app.title) out.title = i18nRef(app.title.key);
@@ -182,9 +187,9 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
     return out;
   }
   if (layer.kind === "plain") {
-    // Plain layers are serialized as arrays when mixed with other layers,
-    // but serializeMenu short-circuits to legacy string format when the
-    // title is plain-only (see serializeMenu). This path is a fallback.
+    // Plain (vanilla) layers serialize to a { kind, value } map like every
+    // other layer; the title is always emitted as a layer array (canonical
+    // menu/v1 — no legacy plain-only string shortcut).
     const out: Record<string, unknown> = { kind: "plain", value: { key: layer.value.key } };
     if (layer.color !== undefined) out.color = layer.color;
     return out;
@@ -276,7 +281,11 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "text": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+      if (
+        value &&
+        typeof value === "object" &&
+        typeof (value as { key?: unknown }).key === "string"
+      ) {
         key = (value as { key: string }).key as I18nKey;
       }
       if (!key) return null;
@@ -296,7 +305,11 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "plain": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+      if (
+        value &&
+        typeof value === "object" &&
+        typeof (value as { key?: unknown }).key === "string"
+      ) {
         key = (value as { key: string }).key as I18nKey;
       }
       if (!key) return null;
@@ -307,7 +320,11 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "textarea": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (value && typeof value === "object" && typeof (value as { key?: unknown }).key === "string") {
+      if (
+        value &&
+        typeof value === "object" &&
+        typeof (value as { key?: unknown }).key === "string"
+      ) {
         key = (value as { key: string }).key as I18nKey;
       }
       if (!key) return null;
@@ -353,17 +370,10 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
 // ─── menu serialization ──────────────────────────────────────────────────────
 
 function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
-  // Plain (vanilla) mode: export as legacy string format so any server can use
-  // it without a resource pack. Single plain layer → "{i18n:key}" string.
-  const plainOnly = menu.title.length > 0 && menu.title.every((l) => l.kind === "plain");
-  const titleField = plainOnly
-    ? i18nRef((menu.title[0] as Extract<(typeof menu.title)[number], { kind: "plain" }>).value.key)
-    : menu.title.map(serializeTitleLayer);
-
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: titleField,
+    title: menu.title.map(serializeTitleLayer),
     size: menu.rows * 9,
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
@@ -421,7 +431,11 @@ function serializeDialogBody(body: DialogBody): Record<string, unknown> {
 }
 
 function serializeDialogInput(input: DialogInput): Record<string, unknown> {
-  const out: Record<string, unknown> = { id: input.id, type: input.type, label: i18nRef(input.label.key) };
+  const out: Record<string, unknown> = {
+    id: input.id,
+    type: input.type,
+    label: i18nRef(input.label.key),
+  };
   if (input.type === "text") {
     out.default = input.default;
     out.max_length = input.maxLength;
@@ -519,7 +533,11 @@ function collectReferencedKeys(pack: Pack): Set<string> {
   return keys;
 }
 
-function serializeLang(pack: Pack, lang: string, referencedKeys: Set<string>): Record<string, string> {
+function serializeLang(
+  pack: Pack,
+  lang: string,
+  referencedKeys: Set<string>,
+): Record<string, string> {
   const out: Record<string, string> = {};
   // Iterate `referencedKeys` (not `pack.i18nKeys`) so we always emit *every*
   // key the runtime will look up — even ones that have never been assigned a
@@ -554,17 +572,11 @@ export function transform(pack: Pack): Record<string, string> {
   const base = `plugins/Artisan/packs/${pack.id}`;
 
   for (const menu of pack.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(
-      serializeMenu(menu, pack),
-      yamlOpts,
-    );
+    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenu(menu, pack), yamlOpts);
   }
 
   for (const cmd of pack.commands) {
-    files[`${base}/commands/${cmd.id}.yaml`] = stringify(
-      serializeCommand(cmd, pack),
-      yamlOpts,
-    );
+    files[`${base}/commands/${cmd.id}.yaml`] = stringify(serializeCommand(cmd, pack), yamlOpts);
   }
 
   for (const dialog of pack.dialogs) {
@@ -574,7 +586,10 @@ export function transform(pack: Pack): Record<string, string> {
   const langs = listLanguages(pack);
   const referencedKeys = collectReferencedKeys(pack);
   for (const lang of langs) {
-    files[`${base}/lang/${lang}.yaml`] = stringify(serializeLang(pack, lang, referencedKeys), yamlOpts);
+    files[`${base}/lang/${lang}.yaml`] = stringify(
+      serializeLang(pack, lang, referencedKeys),
+      yamlOpts,
+    );
   }
 
   const liveIds = new Set<string>([

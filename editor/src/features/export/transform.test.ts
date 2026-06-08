@@ -362,6 +362,28 @@ describe("transform", () => {
     expect(action.menuId).toBeUndefined();
   });
 
+  it("serializes paginate to pagination_next/prev with element_id", () => {
+    const pack = makePack({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("shop"), packId: packId("p_test"), rows: 3,
+        title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+        layers: [{ id: layerId("l1"), name: "default", elements: [{
+          id: elementId("nav"), positions: "0",
+          appearances: [{ click: { left: { steps: [
+            { kind: "action", action: { type: "paginate", direction: "next" } },
+            { kind: "action", action: { type: "paginate", direction: "prev", targetElementId: elementId("grid") } },
+          ] } } }],
+        }] }],
+      }],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/packs/p_test/menus/shop.yaml"]!);
+    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    expect(steps[0].action).toEqual({ type: "pagination_next" });
+    expect(steps[1].action).toEqual({ type: "pagination_prev", element_id: "grid" });
+  });
+
   it("emits a command yaml", () => {
     const pack = makePack({
       commands: [
@@ -538,6 +560,13 @@ describe("transform — title layers", () => {
         },
       ],
     });
+
+  it("emits a plain-only title as a one-layer array (no legacy string shortcut)", () => {
+    const files = transform(menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]));
+    const menu = parse(files["plugins/Artisan/packs/p_test/menus/shop.yaml"]!);
+    expect(Array.isArray(menu.title)).toBe(true);
+    expect(menu.title).toEqual([{ kind: "plain", value: { key: "k_plain" } }]);
+  });
 
   it("serializes a background layer to { kind, asset_id }", () => {
     const files = transform(
@@ -1072,73 +1101,43 @@ describe("transform — appearance conditions", () => {
     return menu.layers[0].elements[0].appearances[0];
   };
 
-  it("single condition is written as a map, not an array", () => {
+  it("single condition is written as a one-element array", () => {
     const pack = makePack({ menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])] });
     const app = getApp(transform(pack));
-    expect(Array.isArray(app.if)).toBe(false);
-    expect(app.if).toEqual({ type: "has_permission", perm: "vip" });
+    expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }]);
   });
 
-  it("two conditions with 'and' join are wrapped in { type: 'and', all: [...] }", () => {
-    const pack = makePack({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_money", amount: 100 } as Condition,
-            ],
-            ifJoins: ["and"],
-          },
-        ]),
-      ],
-    });
+  it("AND-joined conditions are an ANDed array", () => {
+    const pack = makePack({ menus: [baseMenu([{
+      if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_money", amount: 100 } as Condition],
+      ifJoins: ["and"],
+    }])] });
     const app = getApp(transform(pack));
-    expect(app.if).toEqual({
-      type: "and",
-      all: [{ type: "has_permission", perm: "vip" }, { type: "has_money", amount: 100 }],
-    });
-    expect(app.if_joins).toBeUndefined();
+    expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }, { type: "has_money", amount: 100 }]);
   });
 
-  it("two conditions with 'or' join are wrapped in { type: 'or', any: [...] }", () => {
-    const pack = makePack({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_permission", perm: "admin" } as Condition,
-            ],
-            ifJoins: ["or"],
-          },
-        ]),
-      ],
-    });
+  it("OR-joined conditions are wrapped in a single { type: 'or', of: [...] }", () => {
+    const pack = makePack({ menus: [baseMenu([{
+      if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_permission", perm: "admin" } as Condition],
+      ifJoins: ["or"],
+    }])] });
     const app = getApp(transform(pack));
-    expect(app.if).toEqual({
-      type: "or",
-      any: [{ type: "has_permission", perm: "vip" }, { type: "has_permission", perm: "admin" }],
-    });
+    expect(app.if).toEqual([{ type: "or", of: [{ type: "has_permission", perm: "vip" }, { type: "has_permission", perm: "admin" }] }]);
   });
 
-  it("composite 'and' condition uses 'all' key, not 'of'", () => {
+  it("composite 'and' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({
-      menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])],
-    });
+    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
     const app = getApp(transform(pack));
-    expect(app.if.all).toBeDefined();
-    expect(app.if.of).toBeUndefined();
+    expect(app.if[0].of).toBeDefined();
+    expect(app.if[0].all).toBeUndefined();
   });
 
-  it("composite 'or' condition uses 'any' key, not 'of'", () => {
+  it("composite 'or' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({
-      menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])],
-    });
+    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
     const app = getApp(transform(pack));
-    expect(app.if.any).toBeDefined();
-    expect(app.if.of).toBeUndefined();
+    expect(app.if[0].of).toBeDefined();
+    expect(app.if[0].any).toBeUndefined();
   });
 });
