@@ -362,6 +362,28 @@ describe("transform", () => {
     expect(action.menuId).toBeUndefined();
   });
 
+  it("serializes paginate to pagination_next/prev with element_id", () => {
+    const pack = makePack({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+      menus: [{
+        id: menuId("shop"), packId: packId("p_test"), rows: 3,
+        title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+        layers: [{ id: layerId("l1"), name: "default", elements: [{
+          id: elementId("nav"), positions: "0",
+          appearances: [{ click: { left: { steps: [
+            { kind: "action", action: { type: "paginate", direction: "next" } },
+            { kind: "action", action: { type: "paginate", direction: "prev", targetElementId: elementId("grid") } },
+          ] } } }],
+        }] }],
+      }],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/packs/p_test/menus/shop.yaml"]!);
+    const steps = menu.layers[0].elements[0].appearances[0].click.left.steps;
+    expect(steps[0].action).toEqual({ type: "pagination_next" });
+    expect(steps[1].action).toEqual({ type: "pagination_prev", element_id: "grid" });
+  });
+
   it("emits a command yaml", () => {
     const pack = makePack({
       commands: [
