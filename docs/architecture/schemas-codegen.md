@@ -22,7 +22,7 @@ La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par vali
 - CI : `.github/workflows/schema.yml` valide les exemples contre `schema.json` sur chaque PR (pas de step de codegen-drift — la vérité = schéma + ajv).
 
 > **Côté éditeur (P1.1 ✅)** : l'export émet la forme canonique `menu/v1` et un oracle « golden pack → export → ajv » (`editor/src/features/export/canonical.test.ts`) prouve la conformité ; `docs/schema/menu/v1/types.ts` est aligné sur le schéma.
-> **À venir (P1.2)** : côté plugin, aligner les types Kotlin et ajouter un round-trip « fixture → parse dans le type à la main » pour attraper aussi les divergences que le schéma seul ne voit pas.
+> **Côté plugin (P1.2 ✅)** : le parsing est conforme au canonique. Seul écart introduit par P1.1 corrigé : `ConditionParser` lit désormais `of` (et non `all`/`any`) pour les conditions composites `and`/`or`. Un oracle cross-stack (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) parse les exemples canoniques de l'éditeur (`docs/schema/menu/v1/examples/canonical-button.json`, `canonical-conditional.json`) à travers `BundleCompiler` sans erreur. Le parsing reste tolérant en lecture (title string-ou-array, `if` map-ou-array).
 
 ## Règle de modification
 
@@ -49,5 +49,5 @@ Le schéma les décrit (l'éditeur peut les produire/valider), mais le runtime p
 |---|---|---|
 | **P1.0** | `menu/v1` : schéma canonique + validateur ajv + CI | ✅ fait |
 | **P1.1** | Conformité éditeur (export `menu/v1` canonique + `types.ts` aligné sur le schéma + oracle ajv `editor/src/features/export/canonical.test.ts`) | ✅ fait |
-| **P1.2** | Conformité plugin (types Kotlin alignés sur le schéma) | à faire |
+| **P1.2** | Conformité plugin (`ConditionParser` lit `of` pour `and`/`or` + oracle cross-stack « exemples éditeur compilent dans le plugin ») | ✅ fait |
 | **P2** | `command` / `dialog` / `translations` / `manifest` / `template` (même traitement) | à faire |
