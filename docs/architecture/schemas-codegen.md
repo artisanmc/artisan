@@ -21,7 +21,8 @@ La cohérence types ↔ schéma n'est **pas** garantie par codegen mais par vali
 - Exemples canoniques : `docs/schema/menu/v1/examples/*.json` (au moins un par variante d'union + menus complets).
 - CI : `.github/workflows/schema.yml` valide les exemples contre `schema.json` sur chaque PR (pas de step de codegen-drift — la vérité = schéma + ajv).
 
-> **À venir (P1.1/P1.2)** : quand les types à la main seront alignés, ajouter un round-trip « fixture → parse dans le type à la main » (TS côté éditeur, Kotlin côté plugin) pour attraper aussi les divergences que le schéma seul ne voit pas.
+> **Côté éditeur (P1.1 ✅)** : l'export émet la forme canonique `menu/v1` et un oracle « golden pack → export → ajv » (`editor/src/features/export/canonical.test.ts`) prouve la conformité ; `docs/schema/menu/v1/types.ts` est aligné sur le schéma.
+> **À venir (P1.2)** : côté plugin, aligner les types Kotlin et ajouter un round-trip « fixture → parse dans le type à la main » pour attraper aussi les divergences que le schéma seul ne voit pas.
 
 ## Règle de modification
 
@@ -47,6 +48,6 @@ Le schéma les décrit (l'éditeur peut les produire/valider), mais le runtime p
 | Phase | Portée | Statut |
 |---|---|---|
 | **P1.0** | `menu/v1` : schéma canonique + validateur ajv + CI | ✅ fait |
-| **P1.1** | Conformité éditeur (export + types TS alignés sur le schéma) | à faire |
+| **P1.1** | Conformité éditeur (export `menu/v1` canonique + `types.ts` aligné sur le schéma + oracle ajv `editor/src/features/export/canonical.test.ts`) | ✅ fait |
 | **P1.2** | Conformité plugin (types Kotlin alignés sur le schéma) | à faire |
 | **P2** | `command` / `dialog` / `translations` / `manifest` / `template` (même traitement) | à faire |
