@@ -27,7 +27,8 @@
 export interface Menu {
   schema: "menu/v1";
   id: string;
-  title: string;
+  /** Couches de titre, ordonnées. Vide = pas de titre. Format pixel-perfect (offsets, fonts) documenté dans editor-internals.md. */
+  title: MenuTitleLayer[];
   size: 9 | 18 | 27 | 36 | 45 | 54;
   permission?: string;
   /** Notes internes de l'admin (jamais rendues aux joueurs). Round-trip-safe JSON ↔ YAML. */
@@ -35,13 +36,47 @@ export interface Menu {
   /** Apparence par défaut des positions non couvertes par un Element visible (fall-through ultime). */
   background?: Appearance;
   /** Slots nommées que le menu expose. Peuplées à l'ouverture par auto-binding par nom (cf. main-spec §15.4) ou par un ConnectorBinding (cf. §14). Référencées via {name} dans tout champ texte du menu. */
-  contextInputs?: ContextInput[];
+  context_inputs?: ContextInput[];
   open_requirements?: Condition[];
   open_actions?: Action[];
   close_actions?: Action[];
   layers: Layer[];
   metadata?: MenuMetadata;
 }
+
+// ============================================================================
+// TITLE LAYERS
+// ============================================================================
+
+/** Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. */
+export interface LText {
+  key: string;
+}
+
+/** Taille de police autorisée pour les title-layers text/textarea. */
+export type TitleFontSize = 8 | 12 | 16 | 20 | 24 | 32;
+
+/**
+ * Couche de titre. Format pixel-perfect (pixel offsets, fonts custom) documenté
+ * dans editor-internals.md. Le titre d'un menu est un tableau ordonné de ces couches.
+ */
+export type MenuTitleLayer =
+  | { kind: "background"; asset_id: string }
+  | { kind: "glyph"; asset_id: string; x: number; y: number }
+  | { kind: "text"; value: LText; x: number; y: number; color?: string; font_asset_id?: string; size?: TitleFontSize }
+  | { kind: "plain"; value: LText; color?: string }
+  | {
+      kind: "textarea";
+      value: LText;
+      x: number;
+      y: number;
+      width: number;
+      line_height: number;
+      alignment: "left" | "center" | "right";
+      font_asset_id?: string;
+      size?: TitleFontSize;
+    }
+  | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder"; glyph_name: string; x: number; y: number };
 
 // ============================================================================
 // CONTEXT INPUTS
@@ -151,32 +186,26 @@ export interface ClickMap {
   middle?: ClickHandler;
 }
 
-export type ClickHandler = StandardClick | ComponentClick;
-
-export interface StandardClick {
-  requirements?: Condition[];
-  actions: Action[];
-  fallback?: Action[];
-  cooldown?: Cooldown;
+/** Un handler de clic est une séquence ordonnée de Steps (actions + branches if). */
+export interface ClickHandler {
+  steps: Step[];
 }
 
-export interface ComponentClick {
-  use_component_default: true;
-  then_actions?: Action[];
-  requirements?: Condition[];
-  fallback?: Action[];
-  cooldown?: Cooldown;
+/** Un cas conditionnel dans un Step `if`. */
+export interface IfCase {
+  conditions: Condition[];
+  /** Opérateurs de jonction entre conditions (par défaut tout ANDé). */
+  joins?: ("and" | "or")[];
+  steps: Step[];
 }
 
-export interface Cooldown {
-  id: string;
-  duration_seconds: number;
-  scope?: "player" | "server";
-  message?: string;
-}
+/** Une étape d'un handler de clic : soit une action, soit une branche conditionnelle. */
+export type Step =
+  | { kind: "action"; action: Action }
+  | { kind: "if"; cases: IfCase[]; else?: Step[] };
 
 // ============================================================================
-// ACTIONS (15)
+// ACTIONS (21)
 // ============================================================================
 
 export type Action =
@@ -186,7 +215,10 @@ export type Action =
   | GiveXpAction | GiveLevelAction
   | SendMessageAction | BroadcastAction
   | PlaySoundAction | TeleportAction
-  | PaginationNextAction | PaginationPrevAction;
+  | PaginationNextAction | PaginationPrevAction
+  | ShowTitleAction
+  | OpenDialogAction | CloseDialogAction
+  | SetArgAction | SetArgCycleNextAction | SetArgCyclePrevAction;
 
 export interface RunCommandAction { type: "run_command"; command: string; as?: "player" | "console"; }
 export interface OpenMenuAction   {
@@ -215,9 +247,20 @@ export interface PlaySoundAction  { type: "play_sound"; sound: string; volume?: 
 export interface TeleportAction   { type: "teleport"; world?: string; x?: number; y?: number; z?: number; yaw?: number; pitch?: number; warp_name?: string; }
 export interface PaginationNextAction { type: "pagination_next"; element_id?: string; }
 export interface PaginationPrevAction { type: "pagination_prev"; element_id?: string; }
+export interface ShowTitleAction  { type: "show_title"; title: string; subtitle?: string; fade_in?: number; stay?: number; fade_out?: number; }
+export interface OpenDialogAction {
+  type: "open_dialog";
+  dialog_id: string;
+  context?: Record<string, string>;
+  clear_context?: boolean;
+}
+export interface CloseDialogAction { type: "close_dialog"; }
+export interface SetArgAction          { type: "set_arg"; arg: string; value: string; }
+export interface SetArgCycleNextAction { type: "set_arg_cycle_next"; arg: string; list: string; }
+export interface SetArgCyclePrevAction { type: "set_arg_cycle_prev"; arg: string; list: string; }
 
 // ============================================================================
-// CONDITIONS (17)
+// CONDITIONS (18)
 // ============================================================================
 
 export type Condition =
@@ -228,7 +271,8 @@ export type Condition =
   | WorldIsCondition | TimeIsCondition
   | RandomChanceCondition | PlayerInRegionCondition
   | PaginationAtFirstCondition | PaginationAtLastCondition
-  | NotCondition | AndCondition | OrCondition;
+  | NotCondition | AndCondition | OrCondition
+  | ExpressionCondition;
 
 export interface HasPermissionCondition     { type: "has_permission"; perm: string; }
 export interface HasMoneyCondition          { type: "has_money"; amount: number; currency?: string; }
@@ -252,6 +296,7 @@ export interface PaginationAtLastCondition  { type: "pagination_at_last"; elemen
 export interface NotCondition { type: "not"; of: Condition; }
 export interface AndCondition { type: "and"; of: Condition[]; }
 export interface OrCondition  { type: "or"; of: Condition[]; }
+export interface ExpressionCondition { type: "expression"; expr: string; }
 
 // ============================================================================
 // TEMPLATES (stockés à part)
@@ -274,10 +319,6 @@ export interface TemplateVariable {
 // HELPERS
 // ============================================================================
 
-export function isComponentClick(c: ClickHandler): c is ComponentClick {
-  return (c as ComponentClick).use_component_default === true;
-}
-
 export const ACTION_TYPES = [
   "run_command", "open_menu", "close_menu",
   "give_item", "take_item",
@@ -286,6 +327,9 @@ export const ACTION_TYPES = [
   "send_message", "broadcast",
   "play_sound", "teleport",
   "pagination_next", "pagination_prev",
+  "show_title",
+  "open_dialog", "close_dialog",
+  "set_arg", "set_arg_cycle_next", "set_arg_cycle_prev",
 ] as const satisfies ReadonlyArray<Action["type"]>;
 
 export const CONDITION_TYPES = [
@@ -297,6 +341,7 @@ export const CONDITION_TYPES = [
   "random_chance", "player_in_region",
   "pagination_at_first", "pagination_at_last",
   "not", "and", "or",
+  "expression",
 ] as const satisfies ReadonlyArray<Condition["type"]>;
 
 export const CLICK_TYPES = ["left", "right", "shift_left", "shift_right", "middle"] as const;
@@ -336,13 +381,13 @@ export interface LayoutCheck {
  * Overlap intra-layer = warning (last-placed-wins, pas une erreur).
  * Cross-layer overlap = OK (pattern fall-through intentionnel).
  */
-export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "contextInputs">): LayoutCheck {
+export function validateMenuLayout(menu: Pick<Menu, "size" | "layers" | "context_inputs">): LayoutCheck {
   const errors: string[] = [];
   const warnings: string[] = [];
   const seenElementIds = new Set<string>();
   const seenLayerIds = new Set<string>();
   const inputsByName = new Map<string, ContextInput>();
-  for (const ci of menu.contextInputs ?? []) inputsByName.set(ci.name, ci);
+  for (const ci of menu.context_inputs ?? []) inputsByName.set(ci.name, ci);
 
   for (const layer of menu.layers) {
     if (seenLayerIds.has(layer.id)) {
