@@ -75,8 +75,9 @@ function serializeAction(action: Action): unknown {
     case "take_money":
       return { type: "take_money", amount: action.amount };
     case "paginate": {
-      const out: Record<string, unknown> = { type: "paginate", direction: action.direction };
-      if (action.targetElementId) out.target_element_id = action.targetElementId;
+      const type = action.direction === "next" ? "pagination_next" : "pagination_prev";
+      const out: Record<string, unknown> = { type };
+      if (action.targetElementId) out.element_id = action.targetElementId;
       return out;
     }
     case "set_arg":
