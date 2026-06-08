@@ -22,6 +22,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - `DataSourceRegistry`, `CommandRegistry`, `ModuleEventBus` (plugin) + cross-module event bus on editor side via WS `module_event`.
   - `<SchemaForm>` JSON-Schema→React-form generator (`editor/src/components/SchemaForm/`).
   - `menus` and `commands` modules wrap existing engine code without rewrite.
+- Schema canonicalisation P1.0 (`docs/architecture/schemas-codegen.md`) :
+  - `menu/v1` canonicalisé : `title` en tableau de layers, `click` en step-tree, `context_inputs` en snake_case, nouvelles actions `show_title` / `open_dialog` / `close_dialog` / `set_arg*`, nouvelle condition `expression`.
+  - Validateur ajv `menu/v1` (`editor/src/schema/validateMenuV1.ts`) + exemples canoniques (`docs/schema/menu/v1/examples/`) + CI de validation (`.github/workflows/schema.yml`).
+  - Codegen quicktype évalué et écarté (NO-GO — aplatit les unions discriminées en god-objects ; cf. `docs/schema/CODEGEN.md`) → types écrits à la main, `schema.json` source de vérité.
 
 ### Changed
 - **BREAKING (pre-1.0)** REST API now under `/api/v1/*` instead of `/api/*`. Plugin + editor clients updated in the same release. Legacy `/api/*` paths return 404 — no compatibility alias.
@@ -30,7 +34,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - Nothing yet.
 
 ### Removed
-- Nothing yet.
+- `menu/v1` schema: retrait des types `StandardClick` / `ComponentClick` (remplacés par le step-tree de `click`) et de la condition `Cooldown`.
 
 ### Fixed
 - Race condition in editor: `/`, `/link`, `/transfer` routes no longer redirect to `/login` before `authStore.hydrate()` completes. `isLoading` now starts `true` and routes gate on it.
