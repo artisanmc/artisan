@@ -4,9 +4,11 @@
 
 **Goal:** Faire de `docs/schema/menu/v1/schema.json` la définition canonique honnête d'un menu, la rendre validable par `ajv`, vérifier que **quicktype** génère des types exploitables (Kotlin + TS), et câbler la génération — **sans** toucher l'export éditeur ni le parseur plugin (ce sera P1.1 / P1.2).
 
-**Architecture:** Le `schema.json` (JSON Schema 2020-12) devient la source de vérité. Un validateur `ajv` (côté éditeur, réutilisable par la future feature IA) valide des **exemples canoniques authored**. Un spike quicktype valide la qualité des `sealed class` Kotlin sur nos unions discriminées, puis un script `schema:gen` génère types TS + Kotlin avec un drift-check en CI. Les conditions sont déjà canoniques dans le schéma actuel ; les deltas portent sur `title`, `click`, `context_inputs` et l'ajout de quelques actions + la condition `expression`.
+**Architecture:** Le `schema.json` (JSON Schema 2020-12) devient la source de vérité. Un validateur `ajv` (côté éditeur, réutilisable par la future feature IA) valide des **exemples canoniques authored**. Le spike (Task 1) a tranché : quicktype = NO-GO → les types restent **écrits à la main**, conformes au schéma, avec un drift garanti par CI (ajv sur exemples/fixtures). Les conditions sont déjà canoniques dans le schéma actuel ; les deltas portent sur `title`, `click`, `context_inputs` et l'ajout de quelques actions + la condition `expression`.
 
-**Tech Stack:** JSON Schema 2020-12, `ajv` + `ajv-formats` (éditeur, vitest), `quicktype` (CLI via npx), Node script de génération, GitHub Actions (introduit ici).
+**Tech Stack:** JSON Schema 2020-12, `ajv` + `ajv-formats` (éditeur, vitest), GitHub Actions (introduit ici).
+
+> **MAJ 2026-06-08 (après Task 1) :** spike quicktype = **NO-GO** (aplatit nos unions discriminées en god-objects, pas de `sealed class`, + crash sur un `const` booléen). Décision retenue : **types écrits à la main** (sealed Kotlin + unions TS) conformes au `schema.json` (source de vérité), drift garanti par CI ajv + fixtures. **Task 4 (câblage quicktype) ANNULÉE.** L'alignement des types à la main est traité en **P1.1** (TS) / **P1.2** (Kotlin).
 
 ---
 
@@ -441,9 +443,11 @@ git commit -m "feat(schema): ajv validator for canonical menu/v1 + canonical exa
 
 ---
 
-### Task 4 : Câbler `schema:gen` (quicktype → TS + Kotlin)
+### Task 4 : ~~Câbler `schema:gen` (quicktype → TS + Kotlin)~~ — **ANNULÉE** (spike NO-GO)
 
-But : un script qui génère les types depuis `schema.json` + un drift-check. (P1.0 : on génère et on **commit** les fichiers générés ; leur *consommation* par l'éditeur/plugin = P1.1/P1.2.)
+> Quicktype écarté (Task 1 : aplatit nos unions, pas de `sealed class`). Types **écrits à la main**, conformes au schéma, alignés en **P1.1** (TS `types.ts`) / **P1.2** (Kotlin). **Ignorer tous les steps ci-dessous de cette tâche.** Le drift est garanti côté CI (Task 5) par ajv sur les exemples/fixtures, et — quand les types main seront alignés (P1.1/P1.2) — par un round-trip « fixture → parse dans le type main ».
+
+But (obsolète) : un script qui génère les types depuis `schema.json` + un drift-check. (P1.0 : on génère et on **commit** les fichiers générés ; leur *consommation* par l'éditeur/plugin = P1.1/P1.2.)
 
 **Files:**
 - Create: `tools/schema-gen.mjs`
@@ -542,11 +546,6 @@ jobs:
       - name: install editor deps
         working-directory: editor
         run: npm ci
-      - name: codegen drift
-        working-directory: editor
-        run: |
-          npm run schema:gen
-          git diff --exit-code editor/src/schema plugin/src/main/kotlin/net/artisanmc/plugin/schema
       - name: ajv validation
         working-directory: editor
         run: npx vitest run src/schema/validateMenuV1.test.ts
@@ -554,7 +553,7 @@ jobs:
 
 - [ ] **Step 2 : Vérifier localement les commandes du job**
 
-Run (working_directory `editor`): `npm ci && npm run schema:gen && git diff --exit-code editor/src/schema plugin/src/main/kotlin/net/artisanmc/plugin/schema && npx vitest run src/schema/validateMenuV1.test.ts`
+Run (working_directory `editor`): `npm ci && npx vitest run src/schema/validateMenuV1.test.ts`
 Expected : tout vert, exit 0.
 
 - [ ] **Step 3 : Commit**
