@@ -5,6 +5,7 @@ export interface AuthUserDto {
   avatarUrl: string | null;
   editorLanguage?: string | null;
   theme?: "dark" | "light" | null;
+  isAdmin?: boolean;
 }
 
 export interface ApiOptions {

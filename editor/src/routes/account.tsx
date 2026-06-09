@@ -95,6 +95,15 @@ export function AccountPage() {
           </Link>
         </section>
 
+        {user.isAdmin && (
+          <Link
+            to="/admin"
+            className="self-start text-[12.5px] text-[var(--text-mut)] underline-offset-2 hover:text-[var(--brand)] hover:underline"
+          >
+            {t("accountPage.adminLink")}
+          </Link>
+        )}
+
         <div className="rule" />
 
         <LogoutButton apiUrl={apiUrl} />
