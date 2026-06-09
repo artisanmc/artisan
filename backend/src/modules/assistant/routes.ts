@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateAccessToken } from "../../lib/auth";
-import { resolveProviderConfig, createProvider } from "./provider/config";
+import { createProvider } from "./provider/config";
+import { loadAssistantProviderConfig } from "./provider/dbConfig";
 import type { LlmProvider } from "./provider/types";
 import { runTurn } from "./loop";
 import { ConversationStore } from "./conversations";
@@ -9,12 +10,12 @@ import { ConversationStore } from "./conversations";
 const store = new ConversationStore();
 
 let providerOverride: LlmProvider | null = null;
-/** Test hook: inject a fake provider (and skip env resolution). */
+/** Test hook: inject a fake provider (and skip config resolution). */
 export function __setProviderForTests(p: LlmProvider | null): void { providerOverride = p; }
 
-function resolve(): { provider: LlmProvider; model: string } | null {
+async function resolve(): Promise<{ provider: LlmProvider; model: string } | null> {
   if (providerOverride) return { provider: providerOverride, model: "test-model" };
-  const cfg = resolveProviderConfig(process.env as Record<string, string | undefined>);
+  const cfg = await loadAssistantProviderConfig();
   return cfg ? { provider: createProvider(cfg), model: cfg.model } : null;
 }
 
@@ -43,7 +44,7 @@ export function buildAssistantRouter(): Hono {
     if (!conv || conv.serverKeyId !== (c.get("serverKeyId") as string)) return c.json({ error: "Not found" }, 404);
     const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
     if (Array.isArray((body as any).menus)) store.reseed(conv, (body as any).menus, (body as any).attachments ?? {});
-    const pm = resolve();
+    const pm = await resolve();
     if (!pm) return c.json({ error: "Assistant disabled: no provider configured (set ASSISTANT_API_KEY)." }, 503);
 
     conv.messages.push({ role: "user", content: typeof (body as any).text === "string" ? (body as any).text : "" });
