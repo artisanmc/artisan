@@ -792,7 +792,7 @@ plugin/
 
 ## 14. Module assistant (feature IA — backend-only)
 
-> **Statut** : en cours de construction (sous-plans 2a–2d). Cette section est une **ébauche** — l'API publique et les endpoints SSE seront stabilisés en 2d. Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un module business standard ; le panel éditeur arrive en sous-plan 4).
+> **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un module business standard ; le panel éditeur arrive en sous-plan 4).
 
 L'assistant est l'agent IA qui édite les menus d'un pack en langage naturel. Le cœur est **entièrement backend** et **testable sans réseau** (provider mocké). Il s'appuie sur le format canonique `menu/v1` (`docs/schema/menu/v1/`) comme contrat d'écriture.
 
@@ -812,9 +812,34 @@ L'assistant est l'agent IA qui édite les menus d'un pack en langage naturel. Le
 - le **métering crédits** (sous-plan 3) — débit sur les events `usage` ;
 - le **panel éditeur** (sous-plan 4) — applique `menu_written` / `menu_deleted` via le convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`).
 
-### 14.3 À venir
+### 14.3 Endpoints SSE + état conversation (2d — `routes.ts` + `conversations.ts` + `index.ts`)
 
-- **2d — endpoints SSE + état conversation** : `POST /api/v1/assistant/conversations|messages`, working-copy par conversation, met `buildSystemPrompt()` (2c) en tête des messages, auth editor-session.
+- **`ConversationStore` (`conversations.ts`)** : état **en mémoire** — `Map<id, { serverKeyId, messages, wc }>`. `create()` alloue un UUID, seede la conversation avec le system prompt (`buildSystemPrompt`, 2c) en 1er message + une `WorkingCopy(menus, attachments)`. `reseed()` remplace la working-copy (le client peut renvoyer l'état du pack avant un message). Pas de persistance DB (cf. non-goals spec).
+- **Routes (`routes.ts`)** : sous-routeur Hono monté sous `/api/v1/assistant` via `assistantModule` (`index.ts`, enregistré dans `mountModules` de `app.ts`). Middleware auth = `validateAccessToken` (Bearer access token editor-session) → `serverKeyId` ; 401 sinon.
+  - `POST /conversations` → `store.create(...)`, renvoie `{conversationId}`.
+  - `POST /conversations/:id/messages` → 404 si conversation inconnue **ou** d'un autre `serverKeyId` ; re-seed optionnel (`menus` dans le body) ; pousse le message user ; 503 si aucun provider configuré (`resolveProviderConfig` null) ; sinon **réponse SSE** (`streamSSE`) : chaque `EngineEvent` de `runTurn` → `event:` = `ev.type`, `data:` = JSON de l'event.
+- **Provider injectable** : `__setProviderForTests(p)` court-circuite `resolveProviderConfig`/`createProvider` → tests hermétiques sans réseau. En prod, le provider vient de l'env (`ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_MODEL`).
+
+#### Test réel au curl
+
+Avec un provider configuré (`.env` : `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY`, `ASSISTANT_MODEL`) et un access token editor-session valide (`$ACCESS`) :
+
+```bash
+curl -sN -X POST localhost:3001/api/v1/assistant/conversations \
+  -H "Authorization: Bearer $ACCESS" -H 'Content-Type: application/json' \
+  -d '{"menus":[],"attachments":{}}'
+# -> {"conversationId":"..."}
+
+curl -sN -X POST localhost:3001/api/v1/assistant/conversations/$CID/messages \
+  -H "Authorization: Bearer $ACCESS" -H 'Content-Type: application/json' \
+  -d '{"text":"Crée un menu shop 3 lignes avec un bouton diamant qui ouvre le menu spawn"}'
+# -> flux SSE: text..., menu_written, done
+```
+
+### 14.4 À venir
+
+- **3 — crédits** : ledger + débit sur les events `usage` (pré-check avant le tour, blocage à zéro) + octroi admin.
+- **4 — panel éditeur** : chat + file-drop + client SSE → applique `menu_written` / `menu_deleted` via `menuV1ToDomain` + checkpoint/undo.
 
 ---
 
