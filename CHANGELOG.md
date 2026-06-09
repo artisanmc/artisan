@@ -40,6 +40,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - Adaptateur unique `OpenAICompatibleProvider` (SDK `openai`, client injectable pour les tests) : mapping messages/tools + normalisation du streaming et des tool-calls fragmentés.
   - Resolver de presets piloté par l'env (`config.ts`) : `openai` (défaut) / `deepseek` / `mistral` / `openrouter` / `local`, avec overrides `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL`. Feature désactivée (renvoie `null`) sans clé sauf base URL locale. Aucun SDK Anthropic — multi-provider via le protocole OpenAI-compatible.
   - Variables d'environnement `ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL` (documentées dans `.env.example`).
+- Cœur agentique de l'assistant (feature IA, sous-plan 2b — `backend/src/modules/assistant/`) :
+  - Gate de validation `menu/v1` backend (`validate.ts`) — `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (importé de `docs/schema/menu/v1/types.ts`). **Exactement le même contrat que l'éditeur** : un menu invalide ne peut pas entrer dans la working-copy ; les erreurs sont renvoyées au modèle pour auto-correction.
+  - Working-copy en mémoire (`workingCopy.ts`) : `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`.
+  - Tools que l'IA appelle (`tools.ts`) : `list_menus` / `get_menu` / `upsert_menu` (passe par le gate) / `delete_menu` / `read_attachment`, avec `TOOL_DEFS` (JSON-Schema) + `executeTool` émettant des `EngineEvent` (`menu_written` / `menu_deleted` / `tool` / …).
+  - Boucle agentique manuelle (`loop.ts`) : `runTurn` — `streamTurn` → exécute les tools → renvoie les résultats (role `tool`) → re-`streamTurn`, jusqu'à fin ou cap d'itérations (défaut 25), avec auto-correction (upsert invalide → erreurs → upsert corrigé) et garde anti-boucle-infinie. Surface `EngineEvent` consommée par l'endpoint SSE (2d) et le métering crédits (3, sur `usage`).
 
 ### Changed
 - `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
