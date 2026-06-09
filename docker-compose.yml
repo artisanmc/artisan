@@ -20,6 +20,9 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+      # The assistant module imports the canonical schema from docs/ at runtime
+      # (single source of truth); mount it so the relative import resolves to /docs.
+      - ./docs:/docs
     ports:
       - "3001:3001"
     environment:
@@ -51,6 +54,8 @@ services:
     working_dir: /app
     volumes:
       - ./editor:/app
+      # Editor schema tooling / converter reference docs/ types at the repo root.
+      - ./docs:/docs
     ports:
       - "5173:5173"
     command: >
