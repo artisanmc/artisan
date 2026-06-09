@@ -36,3 +36,8 @@ export function resolveProviderConfig(env: Env): ProviderConfig | null {
 export function createProvider(cfg: ProviderConfig): LlmProvider {
   return new OpenAICompatibleProvider(cfg);
 }
+
+/** Default base URL for a provider preset (falls back to openai). */
+export function presetBaseUrl(provider: string | undefined): string {
+  return (PRESETS[provider ?? "openai"] ?? PRESETS.openai).baseURL;
+}
