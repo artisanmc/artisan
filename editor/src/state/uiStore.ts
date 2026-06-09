@@ -130,6 +130,12 @@ interface UiState {
    */
   draggingNewLayer: DraggingNewLayer | null;
   setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
+  /**
+   * AI assistant overlay — whether the right-side chat Sheet is open.
+   * Transient session state: deliberately NOT persisted (see partialize).
+   */
+  assistantPanelOpen: boolean;
+  setAssistantPanelOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -269,6 +275,8 @@ export const useUiStore = create<UiState>()(
         }),
       draggingNewLayer: null,
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
+      assistantPanelOpen: false,
+      setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
     }),
     {
       name: "artisan:ui",
