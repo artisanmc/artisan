@@ -12,6 +12,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   editorLanguage: string | null;
   theme: string | null;
+  isAdmin: boolean;
 }
 
 declare module "hono" {
@@ -37,6 +38,19 @@ export const userAuth = () => createMiddleware(async (c, next) => {
     return next();
   }
   const row = rows[0];
+
+  // Super-admin bootstrap: any user whose email is in ADMIN_BOOTSTRAP_EMAILS is
+  // promoted to admin on first authenticated request. The DB write is guarded by
+  // `!isAdmin`, so it happens at most once per user (covers all auth paths:
+  // login / signup / Discord, and retroactively for existing users).
+  const bootstrap = (process.env.ADMIN_BOOTSTRAP_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  let isAdmin = row.isAdmin ?? false;
+  if (!isAdmin && bootstrap.includes(row.email.toLowerCase())) {
+    await db.update(users).set({ isAdmin: true }).where(eq(users.id, row.id));
+    isAdmin = true;
+  }
+
   c.set("user", {
     id: row.id,
     email: row.email,
@@ -44,6 +58,7 @@ export const userAuth = () => createMiddleware(async (c, next) => {
     avatarUrl: row.avatarUrl,
     editorLanguage: row.editorLanguage,
     theme: row.theme ?? null,
+    isAdmin,
   });
   await touchSession(sessionId);
   return next();
