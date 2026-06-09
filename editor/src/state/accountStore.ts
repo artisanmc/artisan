@@ -56,6 +56,7 @@ import {
 } from "@/lib/i18nKeys";
 import { migratePackToI18n } from "@/lib/i18nMigration";
 import { migrateTitle } from "@/domain/migrateTitle";
+import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
 import {
   addPosition,
   formatPositions,
@@ -83,6 +84,8 @@ interface AccountState {
    */
   importPack: (input: { pack: Pack }) => PackId;
   replacePack: (pack: Pack) => void;
+  /** Apply an AI-generated menu/v1: convert to domain, insert/replace in the pack, merge i18n. */
+  applyAssistantMenu: (input: { packId: PackId; menuV1: Record<string, unknown>; lang: string }) => void;
   /**
    * Create a new menu in `packId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
@@ -894,6 +897,27 @@ export const useAccountStore = create<AccountState>()(
             }),
           );
         },
+        applyAssistantMenu: ({ packId: pId, menuV1, lang }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const { menu, i18nKeys } = menuV1ToDomain(menuV1, { packId: pId, lang });
+              // The converter already stamps menu.packId from opts.packId; keep
+              // this as a safety net so the domain Menu always carries the id.
+              menu.packId = pId;
+              for (const [key, langs] of Object.entries(i18nKeys)) {
+                pack.i18nKeys[key as I18nKey] = {
+                  ...(pack.i18nKeys[key as I18nKey] ?? {}),
+                  ...langs,
+                };
+              }
+              const idx = pack.menus.findIndex((m) => m.id === menu.id);
+              if (idx >= 0) pack.menus[idx] = menu;
+              else pack.menus.push(menu);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          ),
         createMenu: ({ packId: pId, id: rawId, rows, position }) => {
           const id = rawId as MenuId;
           set(
