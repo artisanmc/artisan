@@ -17,6 +17,8 @@ import { networkTransfersRouter } from "./routes/networkTransfers";
 import { userPacksRouter } from "./routes/userPacks";
 import { userBranchesRouter } from "./routes/userBranches";
 import { userAuth } from "./middleware/userAuth";
+import { requireAdmin } from "./middleware/requireAdmin";
+import { buildAssistantAdminRouter } from "./modules/assistant/adminRoutes";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 import { mountModules } from "./modules/api/moduleRegistry";
@@ -50,6 +52,10 @@ app.route("/api/v1/networks", userNetworksRouter);
 app.route("/api/v1/networks", userBranchesRouter);
 app.use("/api/v1/user/packs/*", userAuth());
 app.route("/api/v1/user/packs", userPacksRouter);
+
+app.use("/api/v1/admin/*", userAuth());
+app.use("/api/v1/admin/*", requireAdmin());
+app.route("/api/v1/admin", buildAssistantAdminRouter());
 
 mountModules(app, [menusModule, commandsModule, assistantModule]);
 
