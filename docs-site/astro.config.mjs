@@ -20,6 +20,12 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Admin',
+          items: [
+            { label: 'Admin console', slug: 'admin/console' },
+          ],
+        },
+        {
           label: 'Contributing',
           items: [
             { label: 'Overview', slug: 'contributing' },
