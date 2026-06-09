@@ -10,7 +10,7 @@
 - Tout endpoint est sous **`/api/v1/`** (versioning : breaking change → `/api/v2/<name>` à côté, garder v1 6-12 mois).
 - **Deux systèmes d'auth distincts**, cookies coexistants :
   - **Trust dance** (server_key + `editor_session` token dans l'URL) → routes `editor-session/:token/*`. Pas de compte user requis (session-mode).
-  - **User session** (cookie `artisan_user_session`, HttpOnly 30j → row `user_sessions.id`) → routes `networks/*`, `user/packs/*`, `auth/*`.
+  - **User session** (cookie `artisan_user_session`, HttpOnly 30j → row `user_sessions.id`) → routes `networks/*`, `user/packs/*`, `auth/*`, `admin/*`. Les routes `admin/*` ajoutent `requireAdmin` après `userAuth` (403 si `!user.isAdmin`).
 - Style d'erreur : `c.json({ error: "snake_case_reason" }, <status>)`.
 
 ## Index par fichier de routes
@@ -32,6 +32,7 @@
 | `models.ts` / `modelBundle.ts` | Sert JSON modèles : vanilla (`models/:version/*`), custom (`models/custom/:sk/*`). |
 | `resourcePack.ts` | `resource-pack/:server_key_id/:hash.zip` — `Cache-Control: immutable`, `ETag`. 404 si hash inconnu. |
 | `modules/assistant/routes.ts` | `assistant/conversations` (POST — seed working-copy depuis `menus`/`attachments`, renvoie `{conversationId}`), `assistant/conversations/:id/messages` (POST — **réponse SSE**, flux d'`EngineEvent`). Auth **editor-session** (`Authorization: Bearer <access token>`, `validateAccessToken`). Monté via `assistantModule` (cf. `mountModules` dans `app.ts`). |
+| `modules/assistant/adminRoutes.ts` | `admin/assistant-config` (GET — renvoie `{provider, baseUrl, model, keySet}`, **jamais la clé** ; PUT — upsert `{provider, baseUrl, model, apiKey?}` chiffré dans `app_settings`, renvoie `keySet`), `admin/assistant-config/test` (POST — teste un provider, renvoie `{ok}`). Auth **super-admin** (`userAuth` + `requireAdmin` sur `/api/v1/admin/*` dans `app.ts`). |
 
 ## Flux non-évidents
 
@@ -43,6 +44,7 @@
 - **Custom items** : `editor-session/:token/custom-items` lit le **cache disque** (`data/custom-items/{sk}/{hash.txt,items.json,textures/}`), peuplé par le plugin via WS `custom_items_bundle`. `items: []` si pas encore synchronisé.
 - **Resource pack multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs du server_key et merge les codepoints (`lib/rpCodepointMerger.ts`).
 - **server_key security** : `rotate` invalide l'ancien hash et drop l'auth des conns vivantes (re-hello requis) ; `allowlist` (IP) rejette au hello suivant + log dans `helloes`.
+- **Config IA admin (DB→env)** : `admin/assistant-config` stocke la config provider dans `app_settings["assistant"]` (`StoredAssistantConfig`, clé API chiffrée AES-256-GCM via `secretBox`). Le moteur (`assistant/routes.ts` → `resolve()`) lit via `loadAssistantProviderConfig()` : **config DB déchiffrée si présente & utilisable** (model + (clé ou base locale), `CONFIG_ENC_KEY` requis), sinon fallback `resolveProviderConfig(env)`. Une modif admin prend donc effet **sans redeploy**. La clé en clair n'est **jamais** renvoyée : GET expose `keySet: boolean` ; PUT avec `apiKey` vide **préserve** la clé stockée (l'admin peut changer model/provider sans re-saisir la clé) ; PUT renvoie `503 encryption_not_configured` si on tente d'écrire une clé sans `CONFIG_ENC_KEY`. `/test` n'inclut jamais la clé dans son erreur.
 - **Assistant IA (SSE)** : `POST assistant/conversations` crée une conversation **en mémoire** (pas de persistance DB) scopée au `serverKeyId` de la session ; elle est seedée avec le system prompt (`buildSystemPrompt`) + une working-copy des `menus`/`attachments` fournis. `POST assistant/conversations/:id/messages` (404 si conversation inconnue ou cross-`serverKeyId`) optionnellement re-seede la working-copy (`menus` dans le body), pousse le message user, puis stream les `EngineEvent` de `runTurn` en **SSE** (`event:` = type d'event : `text`/`tool`/`menu_written`/`menu_deleted`/`usage`/`error`/`done`, `data:` = JSON de l'event). `503` si aucun provider n'est configuré (`ASSISTANT_API_KEY` absent et base non-locale).
 
 ## Endpoints supprimés (ne pas réintroduire)
