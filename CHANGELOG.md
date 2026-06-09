@@ -35,6 +35,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - Convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`) — inverse de l'export domain→menu/v1 (feature IA, sous-plan 1) :
   - Fonction pure `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }` : pont i18n (littéral → nouvelle clé allouée ; `{i18n:KEY}` → réf + copie de la traduction fournie), un-snake (`asset_id`→`assetId`, `menu_id`→`menuId`, `line_height`→`lineHeight`…), `size`→`rows`, `pagination_*`→`paginate{direction}`. Mappe explicitement le **sous-ensemble domain** du vocab actions/conditions ; tout construct hors domain est listé dans `unsupported` (pas de crash). Aucune mutation de pack — les clés i18n allouées sont retournées.
   - Oracle round-trip domain↔menu/v1 (`editor/src/schema/menuV1ToDomain.roundtrip.test.ts`) : domain → `transform` → parse YAML → `menuV1ToDomain` → assertions structure + texte résolu.
+- Abstraction `LLMProvider` OpenAI-compatible (feature IA, sous-plan 2a — `backend/src/modules/assistant/provider/`) :
+  - Interface neutre `LlmProvider.streamTurn` (`types.ts`) émettant des `LlmStreamEvent` (`text` / `tool_use` / `usage` / `done`) — indépendante du SDK et du fournisseur.
+  - Adaptateur unique `OpenAICompatibleProvider` (SDK `openai`, client injectable pour les tests) : mapping messages/tools + normalisation du streaming et des tool-calls fragmentés.
+  - Resolver de presets piloté par l'env (`config.ts`) : `openai` (défaut) / `deepseek` / `mistral` / `openrouter` / `local`, avec overrides `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL`. Feature désactivée (renvoie `null`) sans clé sauf base URL locale. Aucun SDK Anthropic — multi-provider via le protocole OpenAI-compatible.
+  - Variables d'environnement `ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL` (documentées dans `.env.example`).
 
 ### Changed
 - `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
