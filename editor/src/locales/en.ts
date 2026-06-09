@@ -962,4 +962,17 @@ export default {
     cancel: "Cancel",
     confirm: "Delete server",
   },
+  assistant: {
+    title: "AI Assistant",
+    open: "AI Assistant",
+    placeholder: "Describe a menu, or drop a zmenu/DeluxeMenus file…",
+    send: "Send",
+    thinking: "Thinking…",
+    menuCreated: "Created / updated: {{id}}",
+    menuDeleted: "Deleted: {{id}}",
+    dropHint: "Drop files to attach",
+    errorGeneric: "Something went wrong. Try again.",
+    disabled: "Assistant not configured.",
+    attach: "{{count}} file(s) attached",
+  },
 };
