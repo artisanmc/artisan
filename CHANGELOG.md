@@ -10,6 +10,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- Socle console super-admin (plan 1 — `docs/superpowers/plans/2026-06-09-admin-1-access-secrets.md`) :
+  - `users.is_admin` (BOOLEAN, migration 0006) + amorçage env `ADMIN_BOOTSTRAP_EMAILS` (CSV) dans `userAuth` (promotion une fois, guard `!isAdmin`). `GET /me` expose `isAdmin`.
+  - Middleware `requireAdmin()` (`backend/src/middleware/requireAdmin.ts`) — 403 si non-admin (assume `userAuth` en amont ; câblé aux routes en plan 2).
+  - Table générique `app_settings` (`key`/`value` JSON/`updated_at`/`updated_by`, migration 0006) pour les settings plateforme.
+  - `secretBox` (`backend/src/lib/secretBox.ts`) — AES-256-GCM (`CONFIG_ENC_KEY`), `encryptSecret` / `decryptSecret` / `isSecretsConfigured`.
 - Versioning foundations (`docs/architecture/versioning.md`):
   - Stability annotations under `net.artisanmc.modules.api.annotations` — `@Stable`, `@Beta`, `@Internal`, `@Sunset(reason, removeInVersion, replacement)`. (`@Sunset` replaces `@Deprecated` in the spec to avoid clashing with `kotlin.Deprecated`.)
   - Schema migration framework: `SchemaMigration<T>` interface + `SchemaRegistry<T>.loadToCurrent()` chained migrator + `UnsupportedSchemaVersionException` / `CircularMigrationException`. Wired via `ArtisanAPI.schemas`.
