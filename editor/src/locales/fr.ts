@@ -974,5 +974,18 @@ const fr: typeof en = {
   redirect: {
     redirecting: "Redirection en cours…",
   },
+  assistant: {
+    title: "Assistant IA",
+    open: "Assistant IA",
+    placeholder: "Décris un menu, ou dépose un fichier zmenu/DeluxeMenus…",
+    send: "Envoyer",
+    thinking: "Réflexion…",
+    menuCreated: "Créé / modifié : {{id}}",
+    menuDeleted: "Supprimé : {{id}}",
+    dropHint: "Dépose des fichiers pour les joindre",
+    errorGeneric: "Une erreur est survenue. Réessaie.",
+    disabled: "Assistant non configuré.",
+    attach: "{{count}} fichier(s) joint(s)",
+  },
 };
 export default fr;

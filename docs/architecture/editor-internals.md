@@ -142,3 +142,13 @@ La logique qui relie le moteur backend SSE à l'éditeur (avant l'UI 4b) tient e
 - **Apply** (`state/accountStore.ts` → `applyAssistantMenu`) : à réception d'un event `menu_written`, l'UI appelle l'action qui convertit le `menu/v1` via `menuV1ToDomain`, merge les clés i18n retournées dans `pack.i18nKeys`, et insert/replace le menu par id. La suppression (`menu_deleted`) réutilise `deleteFromPack` existant — pas de nouvelle action.
 
 Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssistant` → `menuV1ToDomain` → `applyAssistantMenu`.
+
+## Panel chat de l'assistant (sous-plan 4b — l'UI)
+
+`features/assistant/AssistantPanel.tsx` est l'UI qui consomme la logique 4a. C'est un **overlay**, pas une route : un `Sheet` (radix dialog, `side="right"`, couvre le petit viewport sur mobile) dont l'ouverture est pilotée par le flag transitoire `uiStore.assistantPanelOpen` (jamais persisté — absent du `partialize`).
+
+- **Ouverture** : bouton `Sparkles` (`lucide-react`) dans `WorkspaceTopBarControls` (`AssistantButton`) → `setAssistantPanelOpen(true)`. Le panel est monté inconditionnellement dans la route workspace (à côté de `DeletePackDialog`) avec le pack actif (`pId`) ; le `Sheet` gère sa propre visibilité.
+- **Composer** : `<textarea>` (Enter = envoyer, Shift+Enter = nouvelle ligne) + bouton Envoyer (désactivé tant que vide / pendant le stream). Drag-drop de fichiers sur le panel → `file.text()` est stocké dans l'état `attachments` (`{ [filename]: contenu }`), un compteur s'affiche. Les `attachments` sont ré-envoyés à chaque message.
+- **Boucle SSE** : `send()` résout le pack via `useAccountStore.getState()`, calcule `menus = packToMenuV1(pack)` + `lang = pack.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromPack` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
+
+Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le pack entre deux messages.
