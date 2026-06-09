@@ -31,6 +31,7 @@
 | `textures.ts` / `textures.assets` | Sert PNG : vanilla (`textures/:version/*`), custom (`textures/custom/:sk/*`), asset (`textures/asset/:packId/:assetId`), asset-font (`textures/asset-font/:assetId/*`). |
 | `models.ts` / `modelBundle.ts` | Sert JSON modèles : vanilla (`models/:version/*`), custom (`models/custom/:sk/*`). |
 | `resourcePack.ts` | `resource-pack/:server_key_id/:hash.zip` — `Cache-Control: immutable`, `ETag`. 404 si hash inconnu. |
+| `modules/assistant/routes.ts` | `assistant/conversations` (POST — seed working-copy depuis `menus`/`attachments`, renvoie `{conversationId}`), `assistant/conversations/:id/messages` (POST — **réponse SSE**, flux d'`EngineEvent`). Auth **editor-session** (`Authorization: Bearer <access token>`, `validateAccessToken`). Monté via `assistantModule` (cf. `mountModules` dans `app.ts`). |
 
 ## Flux non-évidents
 
@@ -42,6 +43,7 @@
 - **Custom items** : `editor-session/:token/custom-items` lit le **cache disque** (`data/custom-items/{sk}/{hash.txt,items.json,textures/}`), peuplé par le plugin via WS `custom_items_bundle`. `items: []` si pas encore synchronisé.
 - **Resource pack multi-pack** : `rebuildResourcePack(serverKeyId)` collecte les assets de tous les packs du server_key et merge les codepoints (`lib/rpCodepointMerger.ts`).
 - **server_key security** : `rotate` invalide l'ancien hash et drop l'auth des conns vivantes (re-hello requis) ; `allowlist` (IP) rejette au hello suivant + log dans `helloes`.
+- **Assistant IA (SSE)** : `POST assistant/conversations` crée une conversation **en mémoire** (pas de persistance DB) scopée au `serverKeyId` de la session ; elle est seedée avec le system prompt (`buildSystemPrompt`) + une working-copy des `menus`/`attachments` fournis. `POST assistant/conversations/:id/messages` (404 si conversation inconnue ou cross-`serverKeyId`) optionnellement re-seede la working-copy (`menus` dans le body), pousse le message user, puis stream les `EngineEvent` de `runTurn` en **SSE** (`event:` = type d'event : `text`/`tool`/`menu_written`/`menu_deleted`/`usage`/`error`/`done`, `data:` = JSON de l'event). `503` si aucun provider n'est configuré (`ASSISTANT_API_KEY` absent et base non-locale).
 
 ## Endpoints supprimés (ne pas réintroduire)
 

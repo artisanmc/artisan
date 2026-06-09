@@ -22,6 +22,7 @@ import { validateAccessToken } from "./lib/auth";
 import { mountModules } from "./modules/api/moduleRegistry";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
+import { assistantModule } from "./modules/assistant";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
@@ -50,7 +51,7 @@ app.route("/api/v1/networks", userBranchesRouter);
 app.use("/api/v1/user/packs/*", userAuth());
 app.route("/api/v1/user/packs", userPacksRouter);
 
-mountModules(app, [menusModule, commandsModule]);
+mountModules(app, [menusModule, commandsModule, assistantModule]);
 
 app.get(
   "/ws/plugin",
