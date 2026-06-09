@@ -230,6 +230,8 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `DISCORD_CLIENT_ID` | (vide) | OAuth Discord — laisser vide désactive le bouton "Continue with Discord" |
 | `DISCORD_CLIENT_SECRET` | (vide) | OAuth Discord |
 | `DISCORD_REDIRECT_URI` | `http://localhost:3001/api/auth/discord/callback` | URI de callback configurée dans la Discord Developer Portal |
+| `ADMIN_BOOTSTRAP_EMAILS` | (vide) | CSV d'emails promus super-admin (`users.is_admin=true`) à leur prochaine requête authentifiée. Écriture une seule fois (guard `!isAdmin`), couvre login/signup/Discord. |
+| `CONFIG_ENC_KEY` | (vide) | Clé hex 32 bytes (64 chars) pour `secretBox` (AES-256-GCM) — chiffre les secrets stockés en DB (`app_settings`). Vide = stockage DB des secrets désactivé (fallback env). Générer : `openssl rand -hex 32`. |
 
 ### Resource pack distribution modes
 
