@@ -52,6 +52,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - `ConversationStore` en mémoire (`conversations.ts`) : `Map<id, { serverKeyId, messages, wc }>`, chaque conversation seedée avec le system prompt (`buildSystemPrompt`) + une working-copy ; `reseed()` remplace la working-copy.
   - `POST /api/v1/assistant/conversations` (seed depuis `menus`/`attachments`, renvoie `{conversationId}`) et `POST /api/v1/assistant/conversations/:id/messages` (**réponse SSE** : map chaque `EngineEvent` de `runTurn` → `event:` (type) + `data:` (JSON)). Auth **editor-session** (`Authorization: Bearer <access token>`, `validateAccessToken`) ; conversation scopée au `serverKeyId` (404 cross-scope) ; `503` si aucun provider configuré. Provider injectable en test (`__setProviderForTests`).
   - Module `assistantModule` (`BackendModule`) enregistré dans `mountModules` (`app.ts`).
+- Logique éditeur du panel IA (feature IA, sous-plan 4a — avant l'UI 4b) :
+  - Seed export : `serializeMenuToV1(menu, pack)` (extraction publique de l'ancien `serializeMenu` privé) + `packToMenuV1(pack)` dans `editor/src/features/export/transform.ts` — produit les objets canoniques `menu/v1` qui seedent une conversation backend (validés ajv). `transform()` réutilise la fonction exportée (forme wire single-sourcée).
+  - Client SSE `editor/src/lib/api/assistant.ts` : `openConversation(token, body)` + `streamAssistant(token, conversationId, body)` (async generator). L'endpoint étant **POST**, `EventSource` est inutilisable → client `fetch` qui bufferise `response.body` et découpe les frames SSE sur la ligne vide (`\n\n`), parsant chaque paire `event:`/`data:`.
+  - Action store `applyAssistantMenu({ packId, menuV1, lang })` (`editor/src/state/accountStore.ts`) : convertit via `menuV1ToDomain`, merge les clés i18n allouées dans le pack, insert/replace le menu par id. Undoable (zundo capture le `produce`).
 
 ### Changed
 - `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
