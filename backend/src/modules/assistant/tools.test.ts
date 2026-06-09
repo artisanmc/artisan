@@ -1,0 +1,80 @@
+import { describe, expect, it } from "bun:test";
+import { TOOL_DEFS, executeTool } from "./tools";
+import { WorkingCopy } from "./workingCopy";
+
+const validMenu = {
+  schema: "menu/v1", id: "shop", title: [{ kind: "plain", value: { key: "k" } }], size: 27,
+  layers: [{ id: "l1", name: "default", elements: [{ id: "e1", positions: "0", appearances: [{ material: "STONE" }] }] }],
+};
+
+describe("TOOL_DEFS", () => {
+  it("declares the 5 tools with JSON-Schema parameters", () => {
+    const names = TOOL_DEFS.map((t) => t.name).sort();
+    expect(names).toEqual(["delete_menu", "get_menu", "list_menus", "read_attachment", "upsert_menu"]);
+    for (const t of TOOL_DEFS) {
+      expect(typeof t.description).toBe("string");
+      expect(t.parameters).toMatchObject({ type: "object" });
+    }
+  });
+});
+
+describe("executeTool", () => {
+  it("upsert_menu rejects an invalid menu (gate) and does not write", () => {
+    const wc = new WorkingCopy();
+    const r = executeTool("upsert_menu", { menu: { ...validMenu, size: 13 } }, wc);
+    expect(r.ok).toBe(false);
+    expect(r.event).toBeUndefined();
+    expect(r.content).toMatch(/size/);
+    expect(wc.get("shop")).toBeUndefined();
+  });
+
+  it("upsert_menu accepts a valid menu, emits menu_written, and stores it", () => {
+    const wc = new WorkingCopy();
+    const r = executeTool("upsert_menu", { menu: validMenu }, wc);
+    expect(r.ok).toBe(true);
+    expect(r.event).toEqual({ type: "menu_written", menu: validMenu });
+    expect(wc.get("shop")).toEqual(validMenu);
+  });
+
+  it("get_menu returns the menu JSON or an error when missing", () => {
+    const wc = new WorkingCopy([validMenu]);
+    const hit = executeTool("get_menu", { id: "shop" }, wc);
+    expect(hit.ok).toBe(true);
+    expect(JSON.parse(hit.content)).toEqual(validMenu);
+    const miss = executeTool("get_menu", { id: "nope" }, wc);
+    expect(miss.ok).toBe(false);
+    expect(miss.content).toMatch(/nope/);
+  });
+
+  it("list_menus returns id/title/size for each menu", () => {
+    const wc = new WorkingCopy([validMenu]);
+    const r = executeTool("list_menus", {}, wc);
+    expect(r.ok).toBe(true);
+    expect(JSON.parse(r.content)).toEqual([{ id: "shop", title: validMenu.title, size: 27 }]);
+  });
+
+  it("delete_menu removes a menu and emits menu_deleted, or errors when missing", () => {
+    const wc = new WorkingCopy([validMenu]);
+    const r = executeTool("delete_menu", { id: "shop" }, wc);
+    expect(r.ok).toBe(true);
+    expect(r.event).toEqual({ type: "menu_deleted", id: "shop" });
+    expect(wc.get("shop")).toBeUndefined();
+    const again = executeTool("delete_menu", { id: "shop" }, wc);
+    expect(again.ok).toBe(false);
+  });
+
+  it("read_attachment returns raw text or an error when missing", () => {
+    const wc = new WorkingCopy([], { "f1": "menus:\n  shop: {}" });
+    const hit = executeTool("read_attachment", { file_id: "f1" }, wc);
+    expect(hit.ok).toBe(true);
+    expect(hit.content).toBe("menus:\n  shop: {}");
+    const miss = executeTool("read_attachment", { file_id: "f2" }, wc);
+    expect(miss.ok).toBe(false);
+  });
+
+  it("returns an error for an unknown tool", () => {
+    const r = executeTool("nope", {}, new WorkingCopy());
+    expect(r.ok).toBe(false);
+    expect(r.content).toMatch(/Unknown tool/);
+  });
+});
