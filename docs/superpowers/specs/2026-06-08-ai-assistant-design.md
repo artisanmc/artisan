@@ -81,30 +81,32 @@ Conséquence : la working-copy serveur est un objet `menu/v1`, les tools lisent/
 Interface neutre, dans `backend/src/modules/assistant/provider/`:
 
 ```ts
-interface LlmUsage { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; }
+interface LlmUsage { inputTokens: number; outputTokens: number; cachedInputTokens?: number; }
 type LlmStreamEvent =
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string; input: unknown }
   | { type: "usage"; usage: LlmUsage }
   | { type: "done"; stopReason: string };
 
+type LlmMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string | null; toolCalls?: { id: string; name: string; arguments: string }[] }
+  | { role: "tool"; toolCallId: string; content: string };
+interface ToolDef { name: string; description: string; parameters: object; } // JSON Schema des params
+
 interface LlmProvider {
-  /** Lance un tour : system (cacheable) + messages + tools → flux d'events. Le caller exécute les tools et renvoie les tool_results au tour suivant. */
-  streamTurn(args: {
-    system: SystemBlock[];        // préfixe grounding + tool-context, marqué cacheable
-    messages: LlmMessage[];       // historique conversation + tool_results
-    tools: ToolDef[];
-    model: string;
-  }): AsyncIterable<LlmStreamEvent>;
+  /** Un tour : messages (le system est le 1er message) + tools → flux d'events. Le caller exécute les tools et renvoie les tool results (role "tool") au tour suivant. */
+  streamTurn(args: { messages: LlmMessage[]; tools: ToolDef[]; model: string }): AsyncIterable<LlmStreamEvent>;
 }
 ```
 
-- Impl défaut **`ClaudeProvider`** (`@anthropic-ai/sdk`) :
-  - Modèle **configurable** — défaut `claude-opus-4-8` (fiabilité du mapping), palier moins cher `claude-sonnet-4-6` possible via env.
-  - `thinking: { type: "adaptive" }`, `output_config.effort` configurable (défaut `high`).
-  - **Prompt caching** : `cache_control: { type: "ephemeral" }` sur le dernier bloc system (cache tools + grounding ensemble). Ordre des tools déterministe (tri par nom) pour ne pas invalider le cache.
-  - Streaming + `tool_use` via la boucle manuelle (cf. ci-dessous).
-- L'interface est volontairement neutre pour qu'un provider OpenAI-compatible futur s'insère sans toucher le moteur.
+- Impl **unique `OpenAICompatibleProvider`** (SDK `openai`) — **décision 2026-06-09 : provider-agnostique via le protocole OpenAI-compatible, pas Anthropic-only.**
+  - Configurée par **`baseURL` + `model` + `apiKey`** → couvre **OpenAI, DeepSeek, Mistral, OpenRouter, Ollama local…**. Preset sélectionné par env (`ASSISTANT_PROVIDER`) ou override explicite (`ASSISTANT_BASE_URL`/`ASSISTANT_MODEL`/`ASSISTANT_API_KEY`). **Changer de provider = changer la conf, pas le code.**
+  - Tool calling via le function-calling OpenAI (`tools`/`tool_calls`) ; streaming `stream:true` avec accumulation des deltas `tool_calls` (`id`/`name`/`arguments`) → normalisé en `LlmStreamEvent`.
+  - Prompt caching : **transparent côté provider** (OpenAI auto-cache, DeepSeek context cache) — aucune config client ; `cachedInputTokens` remonté dans l'usage si le provider le fournit.
+  - Anthropic/Claude **non inclus** comme adaptateur natif en v1 — joignable via son endpoint OpenAI-compat ou OpenRouter si besoin. (Le skill `claude-api` ne s'applique donc pas à ce moteur.)
+- L'interface reste neutre : un éventuel adaptateur natif (Anthropic, Google…) s'insère plus tard sans toucher la boucle/tools/grounding.
 
 ### Tools (exécutés serveur, sur la working-copy `menu/v1`)
 
@@ -203,10 +205,10 @@ Toutes les routes (sauf admin) sont sous l'auth editor-session existante ; les c
 
 | Variable | Défaut | Usage |
 |---|---|---|
-| `ASSISTANT_PROVIDER` | `anthropic` | Provider actif (`LLMProvider` à charger). |
+| `ASSISTANT_PROVIDER` | `openai` | Preset OpenAI-compatible : `openai` / `deepseek` / `mistral` / `openrouter` / `local` (résout `baseURL`). Vide/override possible via `ASSISTANT_BASE_URL`. |
+| `ASSISTANT_BASE_URL` | (selon preset) | Override explicite de l'URL OpenAI-compatible (ex: `http://localhost:11434/v1`). |
 | `ASSISTANT_API_KEY` | (vide) | Clé du provider. Vide → feature désactivée. |
-| `ASSISTANT_MODEL` | `claude-opus-4-8` | Modèle. |
-| `ASSISTANT_EFFORT` | `high` | `output_config.effort`. |
+| `ASSISTANT_MODEL` | (selon preset) | Modèle (ex: `gpt-4.1-mini`, `deepseek-chat`, `mistral-large-latest`). |
 | `ASSISTANT_CREDIT_DIVISOR` + `ASSISTANT_CREDIT_W_*` | calibrés à l'impl | Poids/diviseur de conversion tokens→crédits (selon pricing provider). |
 | `ASSISTANT_MAX_ITERATIONS` | `25` | Cap d'itérations par tour. |
 | `ASSISTANT_TURN_BUDGET` | calibré à l'impl | Cap de crédits par tour (selon coût moyen d'une migration menu). |
