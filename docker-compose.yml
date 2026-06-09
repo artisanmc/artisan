@@ -33,6 +33,13 @@ services:
       # from the player's machine (NOT from inside the Docker network). Default:
       # API_BASE_URL fallback chain. Override for remote/public servers.
       RESOURCE_PACK_BASE_URL: ${RESOURCE_PACK_BASE_URL:-}
+      # Super-admin console + AI assistant (passed through from .env)
+      ADMIN_BOOTSTRAP_EMAILS: ${ADMIN_BOOTSTRAP_EMAILS:-}
+      CONFIG_ENC_KEY: ${CONFIG_ENC_KEY:-}
+      ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-}
+      ASSISTANT_BASE_URL: ${ASSISTANT_BASE_URL:-}
+      ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-}
     command: >
       sh -c "bun install && bun run db:migrate && bun run start"
     depends_on:
