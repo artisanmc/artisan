@@ -31,7 +31,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { Pack, PackId } from "@/domain/types";
-import { Redo2, Undo2 } from "lucide-react";
+import { Redo2, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -89,6 +89,7 @@ export function WorkspaceTopBarControls({
       <ServerStatusBadge networkId={networkId} serverKeyId={pack.serverKeyId ?? ""} packId={packId} />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
+      <AssistantButton />
       <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
@@ -240,6 +241,20 @@ function UndoRedoButtons() {
         <Redo2 className="h-4 w-4" />
       </TopBarIconButton>
     </div>
+  );
+}
+
+/**
+ * Top-bar AI assistant toggle. Opens the right-side chat Sheet (rendered in
+ * the workspace route) by flipping `uiStore.assistantPanelOpen`.
+ */
+function AssistantButton() {
+  const { t } = useTranslation();
+  const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
+  return (
+    <TopBarIconButton title={t("assistant.open")} onClick={() => setOpen(true)}>
+      <Sparkles className="h-4 w-4" />
+    </TopBarIconButton>
   );
 }
 
@@ -442,6 +457,7 @@ function TopBarIconButton({
     <button
       type="button"
       title={title}
+      aria-label={title}
       disabled={disabled}
       onClick={onClick}
       className={
