@@ -369,7 +369,13 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
 
 // ─── menu serialization ──────────────────────────────────────────────────────
 
-function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
+/**
+ * Serialize a single Menu into a canonical `menu/v1` object (snake_case,
+ * `{i18n:key}` refs, title-as-layer-array). This is the public seed used by
+ * the AI assistant (`packToMenuV1`) *and* the internal file exporter
+ * (`transform()`), so the wire shape stays single-sourced.
+ */
+export function serializeMenuToV1(menu: Menu, pack: Pack): { id: string } & Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
@@ -388,7 +394,12 @@ function serializeMenu(menu: Menu, pack: Pack): Record<string, unknown> {
       return { name: ci.name, ref: ci.ref };
     });
   }
-  return out;
+  return out as { id: string } & Record<string, unknown>;
+}
+
+/** Serialize every menu in a pack to canonical `menu/v1` objects (one per menu). */
+export function packToMenuV1(pack: Pack): ({ id: string } & Record<string, unknown>)[] {
+  return pack.menus.map((m) => serializeMenuToV1(m, pack));
 }
 
 // ─── command serialization ───────────────────────────────────────────────────
@@ -572,7 +583,7 @@ export function transform(pack: Pack): Record<string, string> {
   const base = `plugins/Artisan/packs/${pack.id}`;
 
   for (const menu of pack.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenu(menu, pack), yamlOpts);
+    files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, pack), yamlOpts);
   }
 
   for (const cmd of pack.commands) {
