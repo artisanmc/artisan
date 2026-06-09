@@ -1,0 +1,366 @@
+import { assetId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
+import type {
+  Appearance,
+  Element,
+  I18nKey,
+  Layer,
+  Menu,
+  MenuTitleLayer,
+  Pack,
+  SourceRef,
+} from "@/domain/types";
+import { transform } from "@/features/export/transform";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import { menuV1ToDomain } from "./menuV1ToDomain";
+
+/**
+ * Round-trip oracle: domain Menu → export (menu/v1 YAML) → re-import → assert
+ * the re-imported menu is structurally and semantically equivalent.
+ *
+ * Constraints (per the converter contract):
+ *  - Appearance `if` uses AND-joins only. An OR appearance `if` does NOT
+ *    round-trip structurally: the export wraps a pure-OR list into a single
+ *    `{type:"or", of:[...]}` condition, so re-import yields one composite
+ *    condition with `ifJoins` all "and". We keep AND-joins in the fixture so
+ *    the structure round-trips exactly.
+ *  - Only domain-subset actions/conditions appear, so `unsupported` stays empty.
+ *  - `translations` is fed `pack.i18nKeys` so the export's `{i18n:}` refs
+ *    re-resolve to the same keys + values.
+ */
+
+const PACK = packId("p_rt");
+const LANG = "en";
+
+function lt(pack: Pack, value: string): { key: I18nKey } {
+  const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
+  pack.i18nKeys[key] = { en: value };
+  return { key };
+}
+
+function buildPack(): Pack {
+  const pack: Pack = {
+    id: PACK,
+    name: "Round-trip",
+    source: "user_created",
+    createdAt: "2026-06-08T00:00:00.000Z",
+    updatedAt: "2026-06-08T00:00:00.000Z",
+    menus: [],
+    commands: [],
+    templates: [],
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: LANG,
+    dialogs: [],
+    canvasLayout: {},
+  };
+
+  const titleLayers: MenuTitleLayer[] = [
+    { kind: "background", assetId: assetId("bg") },
+    { kind: "glyph", assetId: assetId("g"), x: 4, y: 6 },
+    {
+      kind: "text",
+      value: lt(pack, "Shop Title"),
+      x: 8,
+      y: 5,
+      color: "#ffffff",
+      fontAssetId: assetId("font"),
+      size: 16,
+    },
+    {
+      kind: "textarea",
+      value: lt(pack, "Line A\nLine B"),
+      x: 0,
+      y: 20,
+      width: 168,
+      lineHeight: 10,
+      alignment: "center",
+    },
+    { kind: "external_glyph", provider: "nexo", glyphName: "deco", x: 2, y: 2 },
+  ];
+
+  // Element 1: multi-appearance with AND-joined `if`, title + lore + click.
+  const buttonAppearances: Appearance[] = [
+    {
+      if: [
+        { type: "has_permission", perm: "vip" },
+        { type: "has_money", amount: 100 },
+      ],
+      ifJoins: ["and"],
+      material: "DIAMOND",
+      count: 1,
+      title: lt(pack, "VIP Button"),
+      lore: lt(pack, "Costs money"),
+      click: {
+        left: {
+          steps: [
+            {
+              kind: "if",
+              cases: [
+                {
+                  conditions: [{ type: "placeholder_equals", placeholder: "%foo%", value: "bar" }],
+                  steps: [
+                    { kind: "action", action: { type: "take_money", amount: 100 } },
+                    {
+                      kind: "action",
+                      action: { type: "send_message", text: lt(pack, "Purchased!") },
+                    },
+                  ],
+                },
+              ],
+              else: [{ kind: "action", action: { type: "close_menu" } }],
+            },
+            {
+              kind: "action",
+              action: { type: "open_menu", menuId: menuId("other"), clearContext: true },
+            },
+          ],
+        },
+        right: {
+          steps: [
+            {
+              kind: "action",
+              action: {
+                type: "show_title",
+                title: lt(pack, "Hi"),
+                subtitle: lt(pack, "There"),
+                fadeIn: 5,
+                stay: 20,
+                fadeOut: 5,
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
+      material: "STONE",
+      title: lt(pack, "Fallback"),
+    },
+  ];
+
+  // Element 2: iterating grid with pagination + nested condition action.
+  const gridAppearances: Appearance[] = [
+    {
+      if: [{ type: "expression", expr: "1 == 1" }],
+      material: "PAPER",
+      title: lt(pack, "{item.name}"),
+      lore: lt(pack, "Multi\nLine\nLore"),
+      click: {
+        left: {
+          steps: [
+            {
+              kind: "action",
+              action: { type: "paginate", direction: "next", targetElementId: elementId("grid") },
+            },
+            { kind: "action", action: { type: "set_arg", arg: "page", value: "2" } },
+            { kind: "action", action: { type: "run_command", command: "say hi", as: "console" } },
+            { kind: "action", action: { type: "open_dialog", dialogId: dialogId("confirm") } },
+          ],
+        },
+      },
+    },
+  ];
+
+  const elements: Element[] = [
+    { id: elementId("button"), positions: "0", appearances: buttonAppearances, tags: ["featured"] },
+    {
+      id: elementId("grid"),
+      positions: "9-17",
+      appearances: gridAppearances,
+      iterates: { source: "items", alias: "item" },
+    },
+  ];
+
+  const layers: Layer[] = [{ id: layerId("main"), name: "Main", elements }];
+
+  const menu: Menu = {
+    id: menuId("shop"),
+    packId: PACK,
+    title: titleLayers,
+    rows: 3,
+    permission: "menu.shop",
+    layers,
+    contextInputs: [
+      { kind: "primitive", name: "page", type: "integer", default: "0" },
+      { kind: "sourceRef", name: "items", ref: "pack:shop_items" as SourceRef },
+    ],
+  };
+
+  pack.menus.push(menu);
+  return pack;
+}
+
+/** Resolve an LText key against the import result's keys, then the pack's. */
+function resolve(
+  importedKeys: Record<string, Record<string, string>>,
+  packKeys: Record<string, Record<string, string>>,
+  key: string,
+): string | undefined {
+  return importedKeys[key]?.[LANG] ?? packKeys[key]?.[LANG];
+}
+
+describe("menuV1ToDomain — round-trip oracle", () => {
+  const pack = buildPack();
+  const original = pack.menus[0]!;
+  const files = transform(pack);
+  const menuYaml = files[`plugins/Artisan/packs/${PACK}/menus/shop.yaml`]!;
+  const wire = parse(menuYaml) as Record<string, unknown>;
+  const result = menuV1ToDomain(wire, {
+    packId: PACK,
+    lang: LANG,
+    translations: pack.i18nKeys as Record<string, Record<string, string>>,
+  });
+  const imported = result.menu;
+
+  it("produces no unsupported constructs", () => {
+    expect(result.unsupported).toEqual([]);
+  });
+
+  it("round-trips top-level menu fields", () => {
+    expect(imported.id).toBe(original.id);
+    expect(imported.rows).toBe(original.rows);
+    expect(imported.permission).toBe(original.permission);
+    expect(imported.layers).toHaveLength(original.layers.length);
+  });
+
+  it("round-trips context inputs", () => {
+    expect(imported.contextInputs).toEqual(original.contextInputs);
+  });
+
+  it("round-trips title layer structure (kinds + non-i18n fields)", () => {
+    expect(imported.title.map((l) => l.kind)).toEqual(original.title.map((l) => l.kind));
+    // Spot-check a few un-snaked fields.
+    const txt = imported.title.find((l) => l.kind === "text") as Extract<
+      MenuTitleLayer,
+      { kind: "text" }
+    >;
+    expect(txt.x).toBe(8);
+    expect(txt.color).toBe("#ffffff");
+    expect(txt.fontAssetId).toBe("font");
+    expect(txt.size).toBe(16);
+    const area = imported.title.find((l) => l.kind === "textarea") as Extract<
+      MenuTitleLayer,
+      { kind: "textarea" }
+    >;
+    expect(area.lineHeight).toBe(10);
+    expect(area.alignment).toBe("center");
+    const ext = imported.title.find((l) => l.kind === "external_glyph") as Extract<
+      MenuTitleLayer,
+      { kind: "external_glyph" }
+    >;
+    expect(ext.glyphName).toBe("deco");
+  });
+
+  it("round-trips element structure (ids, positions, iterates, tags)", () => {
+    const oel = original.layers[0]!.elements;
+    const iel = imported.layers[0]!.elements;
+    expect(iel.map((e) => e.id)).toEqual(oel.map((e) => e.id));
+    expect(iel.map((e) => e.positions)).toEqual(oel.map((e) => e.positions));
+    expect(iel[1]!.iterates).toEqual(oel[1]!.iterates);
+    expect(iel[0]!.tags).toEqual(oel[0]!.tags);
+  });
+
+  it("round-trips appearance conditions and ifJoins (AND-only)", () => {
+    const oapp = original.layers[0]!.elements[0]!.appearances[0]!;
+    const iapp = imported.layers[0]!.elements[0]!.appearances[0]!;
+    expect(iapp.if).toEqual(oapp.if);
+    expect(iapp.ifJoins).toEqual(oapp.ifJoins);
+    expect(iapp.material).toBe("DIAMOND");
+    expect(iapp.count).toBe(1);
+  });
+
+  it("round-trips click step-trees including if-case + else", () => {
+    const oclick = original.layers[0]!.elements[0]!.appearances[0]!.click!;
+    const iclick = imported.layers[0]!.elements[0]!.appearances[0]!.click!;
+    // Strip LText keys (they're identity, asserted separately) by comparing the
+    // structural skeleton of the left handler's first (if) step.
+    const oif = oclick.left!.steps[0]!;
+    const iif = iclick.left!.steps[0]!;
+    expect(iif.kind).toBe("if");
+    expect(oif.kind).toBe("if");
+    if (iif.kind === "if" && oif.kind === "if") {
+      expect(iif.cases[0]!.conditions).toEqual(oif.cases[0]!.conditions);
+      expect(iif.cases[0]!.steps.map((s) => s.kind)).toEqual(
+        oif.cases[0]!.steps.map((s) => s.kind),
+      );
+      expect(iif.else?.map((s) => s.kind)).toEqual(oif.else?.map((s) => s.kind));
+    }
+    // The trailing open_menu action round-trips exactly.
+    expect(iclick.left!.steps[1]).toEqual(oclick.left!.steps[1]);
+  });
+
+  it("round-trips the grid pagination / set_arg / run_command / open_dialog actions", () => {
+    const ihandler = imported.layers[0]!.elements[1]!.appearances[0]!.click!.left!;
+    const ohandler = original.layers[0]!.elements[1]!.appearances[0]!.click!.left!;
+    expect(ihandler.steps).toEqual(ohandler.steps);
+  });
+
+  it("resolves every imported LText to the original literal value", () => {
+    // Walk the imported menu's text-bearing fields and assert each resolves to
+    // the same string the original pack stored under that domain key.
+    const pairs: Array<[string, string]> = [];
+
+    function collectTitle(layers: MenuTitleLayer[], srcLayers: MenuTitleLayer[]) {
+      for (let i = 0; i < layers.length; i++) {
+        const l = layers[i]!;
+        const s = srcLayers[i]!;
+        if ("value" in l && "value" in s) {
+          const want = resolve(
+            {},
+            pack.i18nKeys as Record<string, Record<string, string>>,
+            s.value.key,
+          )!;
+          const got = resolve(
+            result.i18nKeys,
+            pack.i18nKeys as Record<string, Record<string, string>>,
+            l.value.key,
+          )!;
+          pairs.push([got, want]);
+        }
+      }
+    }
+    collectTitle(imported.title, original.title);
+
+    function collectApp(iapp: Appearance, oapp: Appearance) {
+      if (iapp.title && oapp.title) {
+        pairs.push([
+          resolve(
+            result.i18nKeys,
+            pack.i18nKeys as Record<string, Record<string, string>>,
+            iapp.title.key,
+          )!,
+          resolve({}, pack.i18nKeys as Record<string, Record<string, string>>, oapp.title.key)!,
+        ]);
+      }
+      if (iapp.lore && oapp.lore) {
+        pairs.push([
+          resolve(
+            result.i18nKeys,
+            pack.i18nKeys as Record<string, Record<string, string>>,
+            iapp.lore.key,
+          )!,
+          resolve({}, pack.i18nKeys as Record<string, Record<string, string>>, oapp.lore.key)!,
+        ]);
+      }
+    }
+    for (let li = 0; li < imported.layers.length; li++) {
+      const iels = imported.layers[li]!.elements;
+      const oels = original.layers[li]!.elements;
+      for (let ei = 0; ei < iels.length; ei++) {
+        const iapps = iels[ei]!.appearances;
+        const oapps = oels[ei]!.appearances;
+        for (let ai = 0; ai < iapps.length; ai++) {
+          collectApp(iapps[ai]!, oapps[ai]!);
+        }
+      }
+    }
+
+    expect(pairs.length).toBeGreaterThan(0);
+    for (const [got, want] of pairs) {
+      expect(got).toBe(want);
+    }
+  });
+});
