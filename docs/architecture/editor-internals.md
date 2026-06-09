@@ -123,6 +123,7 @@ Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 - **`/networks/$networkId/servers/$serverId/workspaces/$workspaceId`** — route canonique server-scoped (`/workspace/$workspaceId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
 - **Top bar** : pack name, `LangSwitcher` (contenu pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
+- **`/admin`** (`routes/admin.tsx`) — console super-admin, shell à onglets (V1 = onglet « IA », `AssistantConfigForm`). **Gardée côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
 
 ## Import `menu/v1 → domain` (inverse de l'export)
 
