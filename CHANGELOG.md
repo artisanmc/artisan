@@ -15,6 +15,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - Middleware `requireAdmin()` (`backend/src/middleware/requireAdmin.ts`) — 403 si non-admin (assume `userAuth` en amont ; câblé aux routes en plan 2).
   - Table générique `app_settings` (`key`/`value` JSON/`updated_at`/`updated_by`, migration 0006) pour les settings plateforme.
   - `secretBox` (`backend/src/lib/secretBox.ts`) — AES-256-GCM (`CONFIG_ENC_KEY`), `encryptSecret` / `decryptSecret` / `isSecretsConfigured`.
+- Config IA en DB éditable par l'admin (plan 2 — `docs/superpowers/plans/2026-06-09-admin-2-config-backend.md`) :
+  - Store générique `getSetting` / `setSetting` (`backend/src/lib/appSettings.ts`) — clé → valeur JSON dans `app_settings`, upsert avec `updatedBy`.
+  - `loadAssistantProviderConfig()` (`backend/src/modules/assistant/provider/dbConfig.ts`) — lit `app_settings["assistant"]` (clé API déchiffrée via `secretBox`) si présente & utilisable, sinon fallback `resolveProviderConfig(env)` (inchangé). Le moteur SSE (`routes.ts`) résout désormais via ce loader → une modif admin prend effet **sans redeploy**.
+  - Endpoints super-admin `GET` / `PUT` `/api/v1/admin/assistant-config` + `POST /api/v1/admin/assistant-config/test` (`backend/src/modules/assistant/adminRoutes.ts`), gardés `userAuth` + `requireAdmin` (montés sur `/api/v1/admin/*` dans `app.ts`). GET expose `keySet: boolean` (jamais la clé) ; PUT chiffre la clé et la **préserve** quand `apiKey` est vide ; `/test` valide un provider sans persister.
 - Versioning foundations (`docs/architecture/versioning.md`):
   - Stability annotations under `net.artisanmc.modules.api.annotations` — `@Stable`, `@Beta`, `@Internal`, `@Sunset(reason, removeInVersion, replacement)`. (`@Sunset` replaces `@Deprecated` in the spec to avoid clashing with `kotlin.Deprecated`.)
   - Schema migration framework: `SchemaMigration<T>` interface + `SchemaRegistry<T>.loadToCurrent()` chained migrator + `UnsupportedSchemaVersionException` / `CircularMigrationException`. Wired via `ArtisanAPI.schemas`.
