@@ -7,6 +7,7 @@ import { Stage } from "@/features/canvas/Stage";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { HistoryTab } from "@/features/workspace/HistoryTab";
 import { runExportZip } from "@/features/export/runExportZip";
@@ -359,6 +360,11 @@ export function PackCanvasPage() {
           }}
         />
       )}
+
+      {/* AI assistant chat overlay — opened by the top-bar Sparkles button
+          via uiStore.assistantPanelOpen. Always mounted; the Sheet controls
+          its own visibility. */}
+      <AssistantPanel packId={pId} />
     </DndContext>
   );
 }
