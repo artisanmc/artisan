@@ -32,6 +32,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - Miroir de types à la main `docs/schema/menu/v1/types.ts` aligné sur le schéma canonique.
 - Schema canonicalisation P1.2 — conformité plugin (`docs/architecture/schemas-codegen.md`) :
   - Oracle cross-stack « exemples éditeur compilent dans le plugin » (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) : parse `docs/schema/menu/v1/examples/canonical-*.json` à travers `BundleCompiler` sans erreur.
+- Convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`) — inverse de l'export domain→menu/v1 (feature IA, sous-plan 1) :
+  - Fonction pure `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }` : pont i18n (littéral → nouvelle clé allouée ; `{i18n:KEY}` → réf + copie de la traduction fournie), un-snake (`asset_id`→`assetId`, `menu_id`→`menuId`, `line_height`→`lineHeight`…), `size`→`rows`, `pagination_*`→`paginate{direction}`. Mappe explicitement le **sous-ensemble domain** du vocab actions/conditions ; tout construct hors domain est listé dans `unsupported` (pas de crash). Aucune mutation de pack — les clés i18n allouées sont retournées.
+  - Oracle round-trip domain↔menu/v1 (`editor/src/schema/menuV1ToDomain.roundtrip.test.ts`) : domain → `transform` → parse YAML → `menuV1ToDomain` → assertions structure + texte résolu.
 
 ### Changed
 - `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
