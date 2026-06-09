@@ -1,0 +1,520 @@
+import { packId } from "@/domain/ids";
+import { describe, expect, it } from "vitest";
+import { menuV1ToDomain } from "./menuV1ToDomain";
+
+const opts = { packId: packId("p"), lang: "en" };
+
+describe("menuV1ToDomain — i18n + conditions", () => {
+  it("allocates a fresh key for literal text and stores the value", () => {
+    const src = minimalMenu({ appTitle: "Shop" });
+    const r = menuV1ToDomain(src, opts);
+    const app = r.menu.layers[0]!.elements[0]!.appearances[0]!;
+    const key = app.title!.key;
+    expect(r.i18nKeys[key]).toEqual({ en: "Shop" });
+  });
+
+  it("references an existing {i18n:KEY} without allocating", () => {
+    const src = minimalMenu({ appTitle: "{i18n:menus.x.title}" });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.title!.key).toBe("menus.x.title");
+    expect(Object.keys(r.i18nKeys)).toHaveLength(0);
+  });
+
+  it("copies translation for {i18n:KEY} when provided", () => {
+    const src = minimalMenu({ appTitle: "{i18n:menus.x.title}" });
+    const r = menuV1ToDomain(src, {
+      ...opts,
+      translations: { "menus.x.title": { en: "Shop", fr: "Boutique" } },
+    });
+    expect(r.i18nKeys["menus.x.title"]).toEqual({ en: "Shop", fr: "Boutique" });
+  });
+
+  it("maps and/or with of, preserving 'of'", () => {
+    const src = minimalMenu({
+      if: [
+        {
+          type: "and",
+          of: [
+            { type: "has_permission", perm: "vip" },
+            { type: "has_money", amount: 100 },
+          ],
+        },
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    const cond = r.menu.layers[0]!.elements[0]!.appearances[0]!.if![0] as {
+      type: string;
+      of: unknown[];
+    };
+    expect(cond.type).toBe("and");
+    expect(cond.of).toHaveLength(2);
+  });
+
+  it("drops fields the domain condition type does not carry (has_money currency)", () => {
+    const src = minimalMenu({
+      if: [{ type: "has_money", amount: 50, currency: "tokens" }],
+    });
+    const r = menuV1ToDomain(src, opts);
+    const cond = r.menu.layers[0]!.elements[0]!.appearances[0]!.if![0] as Record<string, unknown>;
+    expect(cond).toEqual({ type: "has_money", amount: 50 });
+  });
+
+  it("maps not to the domain shape", () => {
+    const src = minimalMenu({
+      if: [{ type: "not", of: { type: "has_permission", perm: "vip" } }],
+    });
+    const r = menuV1ToDomain(src, opts);
+    const cond = r.menu.layers[0]!.elements[0]!.appearances[0]!.if![0] as {
+      type: string;
+      of: { type: string; perm: string };
+    };
+    expect(cond.type).toBe("not");
+    expect(cond.of).toEqual({ type: "has_permission", perm: "vip" });
+  });
+
+  it("maps placeholder_equals / placeholder_match / expression explicitly", () => {
+    const src = minimalMenu({
+      if: [
+        { type: "placeholder_equals", placeholder: "%foo%", value: "bar", extra: "x" },
+        { type: "placeholder_match", placeholder: "%foo%", regex: "b.*", extra: "x" },
+        { type: "expression", expr: "1 == 1", extra: "x" },
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    const ifs = r.menu.layers[0]!.elements[0]!.appearances[0]!.if! as Record<string, unknown>[];
+    expect(ifs[0]).toEqual({ type: "placeholder_equals", placeholder: "%foo%", value: "bar" });
+    expect(ifs[1]).toEqual({ type: "placeholder_match", placeholder: "%foo%", regex: "b.*" });
+    expect(ifs[2]).toEqual({ type: "expression", expr: "1 == 1" });
+  });
+
+  it("sets ifJoins to all 'and' for a multi-condition appearance if", () => {
+    const src = minimalMenu({
+      if: [
+        { type: "has_permission", perm: "a" },
+        { type: "has_permission", perm: "b" },
+        { type: "has_permission", perm: "c" },
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.ifJoins).toEqual(["and", "and"]);
+  });
+
+  it("flags unsupported conditions instead of crashing", () => {
+    const src = minimalMenu({ if: [{ type: "has_item", material: "DIRT", count: 1 }] });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.unsupported.join(" ")).toMatch(/has_item/);
+  });
+});
+
+describe("menuV1ToDomain — actions + steps", () => {
+  it("un-snakes open_menu (menu_id, clear_context, context)", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [
+        actionStep({
+          type: "open_menu",
+          menu_id: "target",
+          clear_context: true,
+          context: { player: "{player}" },
+        }),
+      ]),
+      opts,
+    );
+    const act = clickAction(r);
+    expect(act).toEqual({
+      type: "open_menu",
+      menuId: "target",
+      clearContext: true,
+      context: { player: "{player}" },
+    });
+  });
+
+  it("open_menu without clear_context/context omits those keys", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "open_menu", menu_id: "target" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({ type: "open_menu", menuId: "target" });
+  });
+
+  it("send_message maps text string → LText and stores the value", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "send_message", text: "Hello" })]),
+      opts,
+    );
+    const act = clickAction(r) as { type: string; text: { key: string } };
+    expect(act.type).toBe("send_message");
+    expect(r.i18nKeys[act.text.key]).toEqual({ en: "Hello" });
+  });
+
+  it("show_title un-snakes fade_in/stay/fade_out and maps title/subtitle to LText", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [
+        actionStep({
+          type: "show_title",
+          title: "T",
+          subtitle: "S",
+          fade_in: 5,
+          stay: 10,
+          fade_out: 15,
+        }),
+      ]),
+      opts,
+    );
+    const act = clickAction(r) as {
+      type: string;
+      title: { key: string };
+      subtitle: { key: string };
+      fadeIn: number;
+      stay: number;
+      fadeOut: number;
+    };
+    expect(act.type).toBe("show_title");
+    expect(act.fadeIn).toBe(5);
+    expect(act.stay).toBe(10);
+    expect(act.fadeOut).toBe(15);
+    expect(r.i18nKeys[act.title.key]).toEqual({ en: "T" });
+    expect(r.i18nKeys[act.subtitle.key]).toEqual({ en: "S" });
+  });
+
+  it("run_command defaults as to player when absent", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "run_command", command: "say hi" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({ type: "run_command", command: "say hi", as: "player" });
+  });
+
+  it("pagination_next → paginate{direction:'next', targetElementId?}", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "pagination_next", element_id: "grid" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({
+      type: "paginate",
+      direction: "next",
+      targetElementId: "grid",
+    });
+  });
+
+  it("pagination_prev without element_id omits targetElementId", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "pagination_prev" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({ type: "paginate", direction: "prev" });
+  });
+
+  it("set_arg passes arg/value through", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "set_arg", arg: "page", value: "2" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({ type: "set_arg", arg: "page", value: "2" });
+  });
+
+  it("open_dialog un-snakes dialog_id", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "open_dialog", dialog_id: "confirm" })]),
+      opts,
+    );
+    expect(clickAction(r)).toEqual({ type: "open_dialog", dialogId: "confirm" });
+  });
+
+  it("round-trips an if-step (cases + else)", () => {
+    const step = {
+      kind: "if",
+      cases: [
+        {
+          conditions: [{ type: "has_permission", perm: "vip" }],
+          steps: [actionStep({ type: "close_menu" })],
+        },
+      ],
+      else: [actionStep({ type: "run_command", command: "say no", as: "console" })],
+    };
+    const r = menuV1ToDomain(menuWithClick("left", [step]), opts);
+    // biome-ignore lint/suspicious/noExplicitAny: deep structural read of an if-step
+    const steps = clickSteps(r) as Array<Record<string, any>>;
+    expect(steps[0]!.kind).toBe("if");
+    expect(steps[0]!.cases[0].conditions[0]).toEqual({ type: "has_permission", perm: "vip" });
+    expect(steps[0]!.cases[0].steps[0]).toEqual({ kind: "action", action: { type: "close_menu" } });
+    expect(steps[0]!.else[0]).toEqual({
+      kind: "action",
+      action: { type: "run_command", command: "say no", as: "console" },
+    });
+  });
+
+  it("flags unsupported action (give_money) and drops it", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "give_money", amount: 100 })]),
+      opts,
+    );
+    expect(r.unsupported.join(" ")).toMatch(/give_money/);
+    expect(clickSteps(r)).toHaveLength(0);
+  });
+});
+
+describe("menuV1ToDomain — title layers + menu assembly", () => {
+  it("maps size to rows (27 → 3)", () => {
+    const r = menuV1ToDomain({ schema: "menu/v1", id: "s", title: [], size: 27, layers: [] }, opts);
+    expect(r.menu.rows).toBe(3);
+  });
+
+  it("un-snakes background/glyph title layers", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [
+        { kind: "background", asset_id: "bg" },
+        { kind: "glyph", asset_id: "g", x: 4, y: 6 },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toEqual({ kind: "background", assetId: "bg" });
+    expect(r.menu.title[1]).toEqual({ kind: "glyph", assetId: "g", x: 4, y: 6 });
+  });
+
+  it("un-snakes text title layer and references value.key (no allocation)", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [
+        {
+          kind: "text",
+          value: { key: "menus.s.t" },
+          x: 8,
+          y: 5,
+          color: "#fff",
+          font_asset_id: "f",
+          size: 16,
+        },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toEqual({
+      kind: "text",
+      value: { key: "menus.s.t" },
+      x: 8,
+      y: 5,
+      color: "#fff",
+      fontAssetId: "f",
+      size: 16,
+    });
+    expect(Object.keys(r.i18nKeys)).toHaveLength(0);
+  });
+
+  it("un-snakes textarea title layer (line_height → lineHeight)", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [
+        {
+          kind: "textarea",
+          value: { key: "k" },
+          x: 0,
+          y: 0,
+          width: 168,
+          line_height: 10,
+          alignment: "center",
+          font_asset_id: "f",
+          size: 12,
+        },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toEqual({
+      kind: "textarea",
+      value: { key: "k" },
+      x: 0,
+      y: 0,
+      width: 168,
+      lineHeight: 10,
+      alignment: "center",
+      fontAssetId: "f",
+      size: 12,
+    });
+  });
+
+  it("un-snakes external_glyph title layer (glyph_name → glyphName)", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [{ kind: "external_glyph", provider: "nexo", glyph_name: "icon", x: 2, y: 3 }],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toEqual({
+      kind: "external_glyph",
+      provider: "nexo",
+      glyphName: "icon",
+      x: 2,
+      y: 3,
+    });
+  });
+
+  it("maps plain title layer", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [{ kind: "plain", value: { key: "k" }, color: "#abc" }],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.title[0]).toEqual({ kind: "plain", value: { key: "k" }, color: "#abc" });
+  });
+
+  it("maps context_inputs to contextInputs (primitive + sourceRef)", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 27,
+      layers: [],
+      title: [],
+      context_inputs: [
+        { name: "page", type: "integer", default: "0" },
+        { name: "items", ref: "pack:shop" },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.contextInputs).toEqual([
+      { kind: "primitive", name: "page", type: "integer", default: "0" },
+      { kind: "sourceRef", name: "items", ref: "pack:shop" },
+    ]);
+  });
+
+  it("maps a single literal lore line to an LText", () => {
+    const src = menuWithAppearance({ material: "STONE", lore: ["A line"] });
+    const r = menuV1ToDomain(src, opts);
+    const lore = r.menu.layers[0]!.elements[0]!.appearances[0]!.lore!;
+    expect(r.i18nKeys[lore.key]).toEqual({ en: "A line" });
+  });
+
+  it("joins multi-line literal lore with newlines into one LText", () => {
+    const src = menuWithAppearance({ material: "STONE", lore: ["L1", "L2"] });
+    const r = menuV1ToDomain(src, opts);
+    const lore = r.menu.layers[0]!.elements[0]!.appearances[0]!.lore!;
+    expect(r.i18nKeys[lore.key]).toEqual({ en: "L1\nL2" });
+  });
+
+  it("references a single {i18n:} lore line without allocating", () => {
+    const src = menuWithAppearance({ material: "STONE", lore: ["{i18n:menus.s.lore}"] });
+    const r = menuV1ToDomain(src, opts);
+    const lore = r.menu.layers[0]!.elements[0]!.appearances[0]!.lore!;
+    expect(lore.key).toBe("menus.s.lore");
+    expect(Object.keys(r.i18nKeys)).toHaveLength(0);
+  });
+
+  it("leaves lore undefined when absent", () => {
+    const src = menuWithAppearance({ material: "STONE" });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.lore).toBeUndefined();
+  });
+
+  it("carries permission and element iterates/tags through", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "s",
+      size: 54,
+      permission: "menu.use",
+      title: [],
+      layers: [
+        {
+          id: "l1",
+          name: "main",
+          elements: [
+            {
+              id: "grid",
+              positions: "0-8",
+              iterates: { source: "items", alias: "item" },
+              tags: ["a"],
+              appearances: [{ material: "STONE" }],
+            },
+          ],
+        },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.permission).toBe("menu.use");
+    expect(r.menu.rows).toBe(6);
+    expect(r.menu.layers[0]!.elements[0]!.iterates).toEqual({ source: "items", alias: "item" });
+    expect(r.menu.layers[0]!.elements[0]!.tags).toEqual(["a"]);
+  });
+});
+
+function menuWithAppearance(appearance: Record<string, unknown>): Record<string, unknown> {
+  return {
+    schema: "menu/v1",
+    id: "shop",
+    title: [],
+    size: 27,
+    layers: [
+      {
+        id: "l1",
+        name: "default",
+        elements: [{ id: "e1", positions: "0", appearances: [appearance] }],
+      },
+    ],
+  };
+}
+
+function actionStep(action: Record<string, unknown>): Record<string, unknown> {
+  return { kind: "action", action };
+}
+
+function menuWithClick(clickType: string, steps: unknown[]): Record<string, unknown> {
+  return {
+    schema: "menu/v1",
+    id: "shop",
+    title: [],
+    size: 27,
+    layers: [
+      {
+        id: "l1",
+        name: "default",
+        elements: [
+          {
+            id: "e1",
+            positions: "0",
+            appearances: [{ material: "STONE", click: { [clickType]: { steps } } }],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function clickSteps(r: ReturnType<typeof menuV1ToDomain>): unknown[] {
+  return r.menu.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps;
+}
+
+function clickAction(r: ReturnType<typeof menuV1ToDomain>): unknown {
+  const steps = clickSteps(r) as { kind: string; action: unknown }[];
+  return steps[0]!.action;
+}
+
+function minimalMenu(p: { appTitle?: string; if?: unknown[] }): Record<string, unknown> {
+  const appearance: Record<string, unknown> = {};
+  if (p.appTitle) appearance.title = p.appTitle;
+  if (p.if) appearance.if = p.if;
+  appearance.material = "STONE";
+  return {
+    schema: "menu/v1",
+    id: "shop",
+    title: [],
+    size: 27,
+    layers: [
+      {
+        id: "l1",
+        name: "default",
+        elements: [{ id: "e1", positions: "0", appearances: [appearance] }],
+      },
+    ],
+  };
+}
