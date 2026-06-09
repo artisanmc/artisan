@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex, integer, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uniqueIndex, integer, jsonb, index, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const networks = pgTable("networks", {
@@ -80,6 +80,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   editorLanguage: text("editor_language"),   // null = no preference set
   theme: text("theme"),                       // "dark" | "light" | null
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (t) => [
@@ -197,3 +198,13 @@ export const assets = pgTable("assets", {
     .where(sql`codepoint IS NOT NULL`),
   index("assets_pack_type_idx").on(t.packId, t.type),
 ]);
+
+// Generic platform-wide key/value store for super-admin settings (e.g. the AI
+// assistant provider config). Values are JSON-stringified; secrets within are
+// encrypted via secretBox before being stored.
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),       // JSON stringifié
+  updatedAt: timestamp("updated_at").notNull(),
+  updatedBy: text("updated_by").references(() => users.id),
+});
