@@ -790,4 +790,32 @@ plugin/
 
 ---
 
+## 14. Module assistant (feature IA — backend-only)
+
+> **Statut** : en cours de construction (sous-plans 2a–2d). Cette section est une **ébauche** — l'API publique et les endpoints SSE seront stabilisés en 2d. Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un module business standard ; le panel éditeur arrive en sous-plan 4).
+
+L'assistant est l'agent IA qui édite les menus d'un pack en langage naturel. Le cœur est **entièrement backend** et **testable sans réseau** (provider mocké). Il s'appuie sur le format canonique `menu/v1` (`docs/schema/menu/v1/`) comme contrat d'écriture.
+
+### 14.1 Composants (sous-plans 2a–2b)
+
+- **Provider (2a — `provider/`)** : abstraction `LlmProvider.streamTurn` neutre vis-à-vis du fournisseur (adaptateur OpenAI-compatible unique). Émet des `LlmStreamEvent` (`text` / `tool_use` / `usage` / `done`). Cf. `CHANGELOG` 2a.
+- **Gate (`validate.ts`)** : `validateMenuV1(menu)` = `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (`docs/schema/menu/v1/types.ts`). **Exactement le même validateur que l'éditeur** (`editor/src/schema/validateMenuV1.ts`) → cohérence garantie. Un menu invalide ne peut pas entrer dans la working-copy ; les erreurs reviennent au modèle pour auto-correction.
+- **Working-copy (`workingCopy.ts`)** : état en mémoire du pack en cours d'édition — `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`. Une instance par conversation (seeding + persistance en 2d).
+- **Tools (`tools.ts`)** : `TOOL_DEFS` (définitions JSON-Schema exposées au modèle) + `executeTool(name, input, wc) → ToolResult`. Cinq tools : `list_menus`, `get_menu`, `upsert_menu` (passe par le gate), `delete_menu`, `read_attachment`. Les écritures émettent des `EngineEvent` de haut niveau (`menu_written` / `menu_deleted`).
+- **Boucle agentique (`loop.ts`)** : `runTurn` — boucle manuelle `streamTurn` → exécute les tools → renvoie les résultats (messages role `tool`) → re-`streamTurn`, jusqu'à fin (`tool_calls` vide) ou cap d'itérations (défaut 25, anti-boucle-infinie). Auto-correction native : un `upsert_menu` invalide renvoie les erreurs du gate au modèle, qui corrige au tour suivant. Émet un flux d'`EngineEvent`.
+
+### 14.2 EngineEvent — surface de sortie
+
+`runTurn` produit un `AsyncIterable<EngineEvent>` : `text`, `tool` (ok/detail), `menu_written`, `menu_deleted`, `usage`, `error`, `done`. C'est la surface consommée par :
+- l'endpoint **SSE** (2d) — map `EngineEvent` → événements SSE pour le panel éditeur ;
+- le **métering crédits** (sous-plan 3) — débit sur les events `usage` ;
+- le **panel éditeur** (sous-plan 4) — applique `menu_written` / `menu_deleted` via le convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`).
+
+### 14.3 À venir
+
+- **2c — grounding** : guides `menu/v1` + références zmenu/DeluxeMenus assemblés en message system de tête.
+- **2d — endpoints SSE + état conversation** : `POST /api/v1/assistant/conversations|messages`, working-copy par conversation, auth editor-session.
+
+---
+
 **Cette architecture est l'étoile polaire d'Artisan.** Tu peux y revenir à chaque décision pour vérifier que ce que tu shipes va dans la bonne direction. Mais tu ne shipes pas tout d'un coup — tu shipes module par module, en respectant le pattern.
