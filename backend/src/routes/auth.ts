@@ -97,7 +97,7 @@ router.get("/me", userAuth(), (c) => {
     user: {
       id: user.id, email: user.email, name: user.name,
       avatarUrl: user.avatarUrl, editorLanguage: user.editorLanguage,
-      theme: user.theme,
+      theme: user.theme, isAdmin: user.isAdmin,
     },
   });
 });
@@ -129,7 +129,7 @@ router.patch("/me", userAuth(), async (c) => {
       user: {
         id: user.id, email: user.email, name: user.name,
         avatarUrl: user.avatarUrl, editorLanguage: user.editorLanguage,
-        theme: user.theme,
+        theme: user.theme, isAdmin: user.isAdmin,
       },
     });
   }
@@ -140,7 +140,7 @@ router.patch("/me", userAuth(), async (c) => {
     user: {
       id: row.id, email: row.email, name: row.name,
       avatarUrl: row.avatarUrl, editorLanguage: row.editorLanguage,
-      theme: row.theme,
+      theme: row.theme, isAdmin: row.isAdmin,
     },
   });
 });
