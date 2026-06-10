@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as networksApi from "@/lib/api/networks";
 import type { PackSummary } from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { WizardState } from "../SetupWizard";
 
 interface Props {
@@ -30,6 +31,7 @@ export function Step3Workspace({ state, setState }: Props) {
     setCreating(true);
     try {
       const p = await networksApi.createPack(state.networkId, state.serverKeyId!, newName.trim());
+      useNetworksStore.getState().bumpRefresh(); // sync the sidebar
       setPacks((prev) => [...prev, p]);
       setState((s) => ({ ...s, packId: p.id }));
       setNewName("");

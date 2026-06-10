@@ -95,6 +95,7 @@ export function NetworksPage() {
   const handleCreateServer = async (label: string) => {
     if (!addingServerTo) return;
     const created = await createServerKey(addingServerTo, label);
+    useNetworksStore.getState().bumpRefresh(); // sync the sidebar
     setRevealedKey(created.key);
     // Refresh that network's data
     setNetworkData((prev) =>

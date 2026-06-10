@@ -119,7 +119,7 @@ Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 59
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de packs ; `ServerSelector` matche pareillement `serverId|serverSlug`. En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
+- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de packs ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
 - **`/networks/$networkId/servers/$serverId/workspaces/$workspaceId`** — route canonique server-scoped (`/workspace/$workspaceId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
 - **Top bar** : pack name, `LangSwitcher` (contenu pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
@@ -156,3 +156,16 @@ L'assistant a deux présentations, toutes deux pilotées par le flag transitoire
 - **Boucle SSE** : `send()` résout le pack via `useAccountStore.getState()`, calcule `menus = packToMenuV1(pack)` + `lang = pack.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromPack` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
 
 Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le pack entre deux messages.
+
+## Design system (tokens + composants)
+
+Source de vérité visuelle de l'éditeur, visualisable en live sur **`/admin/design`** (route `admin_.design.tsx`, gate admin, page `features/design-system/DesignSystemPage.tsx`).
+
+**Règle pour tout nouveau développement UI** : passer en priorité par le design system — d'abord les composants `components/ui/` (Button, Input, Card, Dialog, Sheet, Tabs, DropdownMenu) ou les classes utilitaires de `styles/globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`, `.rule`…) ; si un composant manque, le **créer dans `components/ui/`** puis ajouter son spécimen à la page `/admin/design` dans le même commit. Jamais de hex/rgba en dur (toujours `var(--token)`) — exception : le canvas Konva, non thémable par CSS.
+
+Structure des tokens (`styles/globals.css`) en 3 couches :
+1. **Palette brute** : `--gray-*`, `--emerald-*`, `--red-*`, `--amber-*`, fonts (`--font-display` Spectral / `--font-body` Hanken Grotesque / `--font-mono` IBM Plex Mono), radii `--r-xs…--r-pill`.
+2. **Tokens sémantiques** (théméd dark défaut / light via `[data-theme]`) : `--surface*`, `--text*`, `--border*`, `--brand*`, `--success/--warning/--danger` (+ variantes `-soft`), `--shadow-sm/md/lg`.
+3. **Aliases shadcn** (`--background`, `--primary`, `--accent`…) mappés sur la couche 2, + bridge Tailwind `@theme`.
+
+Les composants ne référencent **que** la couche 2 (ou les aliases couche 3 pour les primitives shadcn).

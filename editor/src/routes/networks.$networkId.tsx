@@ -12,6 +12,7 @@ import {
   rotateServerKey,
 } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useNetworksStore } from "@/state/networksStore";
 import {
   Link,
   Outlet,
@@ -98,6 +99,7 @@ export function NetworkDetailPage() {
 
   const handleCreateServer = async (label: string) => {
     const created = await createServerKey(detail.network.id, label);
+    useNetworksStore.getState().bumpRefresh(); // sync the sidebar
     setRevealedKey({ keyId: created.id, key: created.key });
     setDetail({
       ...detail,
@@ -117,11 +119,13 @@ export function NetworkDetailPage() {
       input.description,
     );
     setDetail({ ...detail, packs: [...detail.packs, created] });
+    useNetworksStore.getState().bumpRefresh(); // sync the sidebar
   };
 
   const handleDeleteConfirmed = async () => {
     if (!deleteServer) return;
     await deleteServerKey(detail.network.id, deleteServer.id);
+    useNetworksStore.getState().bumpRefresh(); // sync the sidebar
     setDetail({
       ...detail,
       serverKeys: detail.serverKeys.filter((k) => k.id !== deleteServer.id),
