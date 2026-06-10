@@ -5,6 +5,11 @@ const port = Number(process.env.PORT ?? 3001);
 
 export default {
   port,
+  // Bun's default idleTimeout is 10s, which kills the assistant's SSE stream
+  // mid-flight whenever the LLM takes >10s between tokens (common) → the client
+  // sees ERR_INCOMPLETE_CHUNKED_ENCODING. 255s is Bun's max; each SSE write
+  // resets the idle clock, so this only needs to cover the largest token gap.
+  idleTimeout: 255,
   fetch: app.fetch,
   websocket,
 };
