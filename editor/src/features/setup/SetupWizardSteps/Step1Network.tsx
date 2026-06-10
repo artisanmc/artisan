@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as networksApi from "@/lib/api/networks";
 import type { NetworkSummary } from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { WizardState } from "../SetupWizard";
 
 interface Props {
@@ -26,6 +27,7 @@ export function Step1Network({ state, setState }: Props) {
     setCreating(true);
     try {
       const n = await networksApi.createNetwork(newName.trim());
+      useNetworksStore.getState().bumpRefresh(); // sync the sidebar
       setNetworks((prev) => [...prev, n]);
       setState((s) => ({ ...s, networkId: n.id }));
       setNewName("");

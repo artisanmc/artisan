@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useNetworksStore } from "./networksStore";
 
 describe("networksStore", () => {
@@ -23,5 +23,18 @@ describe("networksStore", () => {
     useNetworksStore.getState().setNetworks([{ id: "n1", name: "N1", tier: "free" }]);
     useNetworksStore.getState().reset();
     expect(useNetworksStore.getState().networks).toHaveLength(0);
+  });
+
+  it("bumpRefresh increments the refresh token", () => {
+    expect(useNetworksStore.getState().refreshToken).toBe(0);
+    useNetworksStore.getState().bumpRefresh();
+    useNetworksStore.getState().bumpRefresh();
+    expect(useNetworksStore.getState().refreshToken).toBe(2);
+  });
+
+  it("reset clears the refresh token", () => {
+    useNetworksStore.getState().bumpRefresh();
+    useNetworksStore.getState().reset();
+    expect(useNetworksStore.getState().refreshToken).toBe(0);
   });
 });

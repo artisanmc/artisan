@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as networksApi from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
 import { Check, Copy, Key } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +24,7 @@ export function Step2Server({ state, setState }: Props) {
     setGenerating(true);
     try {
       const sk = await networksApi.createServerKey(state.networkId, name.trim());
+      useNetworksStore.getState().bumpRefresh(); // sync the sidebar
       setState((s) => ({ ...s, serverKey: sk.key, serverKeyId: sk.id }));
       setDone(true);
     } finally {
