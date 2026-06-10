@@ -31,10 +31,11 @@ your normal edit history, so you can **undo** it like any other change.
 ## Importing from zmenu / DeluxeMenus
 
 Have an existing menu from another plugin? **Drag the `.yml` file onto the chat
-panel.** The file is attached to your next message (a counter shows how many
-files are attached), and the assistant uses it as the basis for the menu it
-builds. This is the fastest way to migrate a DeluxeMenus or zmenu layout into
-Artisan.
+panel**, or click the **📎 (paperclip)** button next to the message box to pick
+files. Attached files are listed above the composer with their name and size;
+click the **×** on a file to remove it. The assistant reads the attached files
+and uses them as the basis for the menus it builds. This is the fastest way to
+migrate a DeluxeMenus or zmenu layout into Artisan.
 
 ## Requirements
 
