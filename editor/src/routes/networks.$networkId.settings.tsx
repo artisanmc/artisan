@@ -1,7 +1,7 @@
+import { getNetwork, initNetworkTransfer } from "@/lib/api/networks";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { initNetworkTransfer } from "@/lib/api/networks";
 
 export const Route = createFileRoute("/networks/$networkId/settings")({ component: SettingsRoute });
 
@@ -17,7 +17,10 @@ function SettingsRoute() {
     setError(null);
     setGenerating(true);
     try {
-      const r = await initNetworkTransfer(networkId);
+      // networkId param is the network slug — resolve to the real id (getNetwork
+      // accepts either) before the id-scoped transfer call.
+      const detail = await getNetwork(networkId);
+      const r = await initNetworkTransfer(detail.network.id);
       setTransferUrl(r.url);
       setTransferExpires(r.expiresAt);
     } catch {
@@ -51,14 +54,8 @@ function SettingsRoute() {
           </header>
 
           <div>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="btn btn-primary"
-            >
-              {generating
-                ? t("networkSettings.generating")
-                : t("networkSettings.generateLink")}
+            <button onClick={handleGenerate} disabled={generating} className="btn btn-primary">
+              {generating ? t("networkSettings.generating") : t("networkSettings.generateLink")}
             </button>
           </div>
 
