@@ -629,7 +629,7 @@ const fr: typeof en = {
     manageNetworks: "Gérer les networks →",
     noNetworkCta: "Créer un Network",
     noNetworkHint:
-      "Crée d'abord un Network pour ranger tes packs.",
+      "Crée d'abord un Network pour ranger tes workspaces.",
     createNetwork: "+ Créer un network",
     serverLabel: "Serveur",
     selectServer: "Sélectionner un serveur",
@@ -638,8 +638,6 @@ const fr: typeof en = {
   accountPage: {
     networksSection: "Networks",
     firstServerTitle: "Configure ton premier serveur",
-    firstServerHint:
-      "Lance le wizard pour créer un Network et lier un serveur Minecraft.",
     addAnotherServer: "+ Ajouter un autre serveur",
     networkBadge: "Network",
     notSignedIn: "Pas connecté ?",
