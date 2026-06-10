@@ -2,11 +2,10 @@ import { packId } from "@/domain/ids";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
-import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssistantPanel } from "./AssistantPanel";
+import { AssistantChat } from "./AssistantChat";
 
 // Scripted SSE: two text chunks (must coalesce into ONE assistant entry),
 // then a written menu, then done.
@@ -43,28 +42,24 @@ function setup() {
     packOrder: [],
   } as never);
   useAccountStore.getState().createPack({ id: "p" });
-  useUiStore.getState().setAssistantPanelOpen(true);
 }
 
 afterEach(() => {
   vi.clearAllMocks();
-  useUiStore.getState().setAssistantPanelOpen(false);
   useAuthStore.setState({ currentUser: null } as never);
 });
 
-describe("AssistantPanel", () => {
-  it("renders SheetContent when the panel is open (radix portals to body)", () => {
+describe("AssistantChat", () => {
+  it("renders the transcript and composer", () => {
     setup();
-    render(<AssistantPanel packId={packId("p")} />);
-    // The composer textarea lives inside SheetContent — its presence proves
-    // the controlled `open` Sheet actually mounts the portaled content.
+    render(<AssistantChat packId={packId("p")} />);
     expect(screen.getByTestId("assistant-panel")).toBeTruthy();
     expect(screen.getByRole("textbox")).toBeTruthy();
   });
 
   it("streams assistant text and applies a written menu to the pack", async () => {
     setup();
-    render(<AssistantPanel packId={packId("p")} />);
+    render(<AssistantChat packId={packId("p")} />);
 
     const input = screen.getByRole("textbox");
     await userEvent.type(input, "fais un shop");
@@ -81,9 +76,6 @@ describe("AssistantPanel", () => {
       expect(pack?.menus.find((m) => m.id === "shop")).toBeTruthy();
     });
 
-    // The "created" card references the menu id ("Créé / modifié : shop" /
-    // "Created / updated: shop"). Matched precisely so it doesn't collide with
-    // the user's own "fais un shop" message in the transcript.
     expect(screen.getByText(/(modifié|updated)\s*:?\s*shop/i)).toBeTruthy();
   });
 
@@ -92,7 +84,7 @@ describe("AssistantPanel", () => {
     // Web-login mode: no editor-session token, auth rides the user cookie.
     useSessionStore.setState({ accessToken: null } as never);
     useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
-    render(<AssistantPanel packId={packId("p")} />);
+    render(<AssistantChat packId={packId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais un shop");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -104,7 +96,7 @@ describe("AssistantPanel", () => {
 
   it("attaching a dropped file shows the attachment count", async () => {
     setup();
-    render(<AssistantPanel packId={packId("p")} />);
+    render(<AssistantChat packId={packId("p")} />);
 
     const panel = screen.getByTestId("assistant-panel");
     const file = new File(["name: '&8Menu'\nsize: 54"], "menu.yml", { type: "text/yaml" });

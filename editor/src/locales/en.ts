@@ -985,6 +985,7 @@ export default {
   assistant: {
     title: "AI Assistant",
     open: "AI Assistant",
+    close: "Close",
     placeholder: "Describe a menu, or drop a zmenu/DeluxeMenus file…",
     send: "Send",
     thinking: "Thinking…",

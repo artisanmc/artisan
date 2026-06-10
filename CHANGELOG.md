@@ -74,6 +74,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
   - Flag transitoire `uiStore.assistantPanelOpen` / `setAssistantPanelOpen` (non persisté), bouton top-bar `Sparkles` (`WorkspaceTopBarControls`), montage `<AssistantPanel packId>` dans la route workspace. Namespace i18n `assistant.*` (en + fr). Pas de module sidebar (overlay, pas de route).
 
 ### Changed
+- Assistant IA : sur desktop (≥lg) le panneau s'ouvre en **pane latéral droit redimensionnable** (réutilise `SplitPane`, largeur persistée `uiStore.assistantPaneWidth`) au lieu d'une modale par-dessus le canvas ; sur mobile il reste un drawer (`Sheet`). Logique chat extraite dans `AssistantChat`, partagée par `AssistantPane` (desktop) et `AssistantPanel` (drawer mobile, gated `!isDesktop`). Le bouton top-bar ✨ devient un toggle.
+- Entrée « Console admin » ajoutée au menu utilisateur (bas-gauche, `UserMenu`), visible seulement si `currentUser.isAdmin` — raccourci vers `/admin` (en plus du lien sur la page compte).
 - `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
 - **BREAKING (pre-1.0)** REST API now under `/api/v1/*` instead of `/api/*`. Plugin + editor clients updated in the same release. Legacy `/api/*` paths return 404 — no compatibility alias.
 

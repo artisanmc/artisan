@@ -1,31 +1,36 @@
 import { SplitPane } from "@/components/SplitPane";
 import { WorkspaceTopBarControls } from "@/components/WorkspaceTopBarControls";
-import type { ElementId, MenuId, PackId } from "@/domain/types";
-import { EditorPane } from "@/features/canvas/EditorPane";
-import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
-import { Stage } from "@/features/canvas/Stage";
-import { getTextureUrl } from "@/features/canvas/textureStore";
-import { tryStageDrop } from "@/features/canvas/stageDropTarget";
-import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
-import { AssistantPanel } from "@/features/assistant/AssistantPanel";
-import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
-import { HistoryTab } from "@/features/workspace/HistoryTab";
-import { runExportZip } from "@/features/export/runExportZip";
-import { PatternsGallery } from "@/features/help/PatternsGallery";
-import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
-import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { deletePack } from "@/lib/api/packs";
-import { useIsDesktop } from "@/lib/useMediaQuery";
-import { useAccountStore } from "@/state/accountStore";
-import { useSelectionStore } from "@/state/selectionStore";
-import { useUiStore } from "@/state/uiStore";
-import { useWsStore } from "@/state/wsStore";
+import type { ElementId, MenuId, PackId } from "@/domain/types";
 import {
   exportPackToFile,
   importPackFromFile,
   pickPackFileForImport,
 } from "@/features/account/packFileIo";
+import { AssistantPane } from "@/features/assistant/AssistantPane";
+import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import { EditorPane } from "@/features/canvas/EditorPane";
+import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
+import { Stage } from "@/features/canvas/Stage";
+import { tryStageDrop } from "@/features/canvas/stageDropTarget";
+import { getTextureUrl } from "@/features/canvas/textureStore";
+import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
+import { runExportZip } from "@/features/export/runExportZip";
+import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { PatternsGallery } from "@/features/help/PatternsGallery";
+import { usePackLoader } from "@/features/pack/usePackLoader";
+import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
+import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
+import { HistoryTab } from "@/features/workspace/HistoryTab";
+import { deletePack } from "@/lib/api/packs";
+import { refreshEditorSession } from "@/lib/editorSession";
+import { useIsDesktop } from "@/lib/useMediaQuery";
+import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useSessionStore } from "@/state/sessionStore";
+import { useUiStore } from "@/state/uiStore";
+import { useWsStore } from "@/state/wsStore";
 import {
   DndContext,
   type DragEndEvent,
@@ -36,11 +41,14 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { Navigate, Outlet, createFileRoute, useChildMatches, useNavigate, useParams } from "@tanstack/react-router";
-import { refreshEditorSession } from "@/lib/editorSession";
-import { useSessionStore } from "@/state/sessionStore";
-import { useAuthStore } from "@/state/authStore";
-import { usePackLoader } from "@/features/pack/usePackLoader";
+import {
+  Navigate,
+  Outlet,
+  createFileRoute,
+  useChildMatches,
+  useNavigate,
+  useParams,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -59,7 +67,11 @@ export const Route = createFileRoute(
 });
 
 export function PackCanvasPage() {
-  const { networkId, serverId, workspaceId: packId } = useParams({
+  const {
+    networkId,
+    serverId,
+    workspaceId: packId,
+  } = useParams({
     from: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
   });
   const pId = packId as PackId;
@@ -76,6 +88,9 @@ export function PackCanvasPage() {
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
+  const assistantOpen = useUiStore((s) => s.assistantPanelOpen);
+  const assistantPaneWidth = useUiStore((s) => s.assistantPaneWidth);
+  const setAssistantPaneWidth = useUiStore((s) => s.setAssistantPaneWidth);
   const packs = useAccountStore((s) => s.account.packs);
   // In user-auth mode (no session token), load the pack directly from the user API.
   const { pack: userPack } = usePackLoader(pId);
@@ -128,11 +143,18 @@ export function PackCanvasPage() {
   // Keep the access token alive while the pack page is open.
   useEffect(() => {
     if (!token) return;
-    const id = setInterval(async () => {
-      const newToken = await refreshEditorSession();
-      if (!newToken) { clearSession(); navigate({ to: "/session", replace: true }); return; }
-      setAccessToken(newToken);
-    }, 4 * 60 * 1000);
+    const id = setInterval(
+      async () => {
+        const newToken = await refreshEditorSession();
+        if (!newToken) {
+          clearSession();
+          navigate({ to: "/session", replace: true });
+          return;
+        }
+        setAccessToken(newToken);
+      },
+      4 * 60 * 1000,
+    );
     return () => clearInterval(id);
   }, [token, setAccessToken, clearSession, navigate]);
 
@@ -206,6 +228,109 @@ export function PackCanvasPage() {
   // Hand off rendering entirely to the focus-mode child route when matched.
   if (childMatches.length > 0) return <Outlet />;
 
+  const mainContent = (
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {pack ? (
+        <WorkspaceTopBarControls
+          pack={pack}
+          packId={pId}
+          onImport={handleImport}
+          onExport={() => exportPackToFile(pack)}
+          onExportZip={async () => {
+            const res = await runExportZip(pack);
+            if (!res.ok) {
+              setExportErrors(res.errors);
+              setExportErrorsOpen(true);
+              return;
+            }
+            for (const w of res.warnings) toast.warning(w);
+            toast.success(t("export.success"));
+          }}
+          onOpenPatterns={() => setPatternsOpen(true)}
+          onDelete={() => setShowDeleteDialog(true)}
+          networkId={networkId}
+        />
+      ) : (
+        <div className="flex h-[52px] shrink-0 items-center px-5">
+          <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {tab === "overview" && (
+          <div className="min-h-0 flex-1">
+            {isDesktop ? (
+              <SplitPane
+                orientation="horizontal"
+                primary={<Stage packId={pId} />}
+                secondary={<EditorPane packId={pId} />}
+                secondarySize={editorPaneWidth}
+                onSecondarySizeChange={setEditorPaneWidth}
+                minSecondary={280}
+                minPrimary={400}
+              />
+            ) : (
+              <SplitPane
+                orientation="vertical"
+                primary={<Stage packId={pId} />}
+                secondary={<EditorPane packId={pId} />}
+                secondarySize={flowCanvasHeight}
+                onSecondarySizeChange={setFlowCanvasHeight}
+                minSecondary={120}
+                minPrimary={200}
+              />
+            )}
+          </div>
+        )}
+        {tab === "translations" && pack && (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+              <h1
+                className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {t("workspace.tabs.translations")}
+              </h1>
+              <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+                <TranslationPanelContent packId={pId} />
+              </div>
+            </div>
+          </div>
+        )}
+        {tab === "data-sources" && pack && (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+              <h1
+                className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {t("workspace.tabs.dataSources")}
+              </h1>
+              <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+                <DataSourcesPanelContent packId={pId} />
+              </div>
+            </div>
+          </div>
+        )}
+        {tab === "history" && pack && networkId && (
+          <div className="min-h-0 flex-1 overflow-auto">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
+              <h1
+                className="display text-[32px] tracking-tight text-[var(--text)]"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {t("workspace.tabs.history")}
+              </h1>
+              <div className="card p-6 md:p-8">
+                <HistoryTab pack={pack} networkId={networkId} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+
   return (
     <DndContext
       sensors={sensors}
@@ -214,106 +339,23 @@ export function PackCanvasPage() {
       onDragCancel={onDragCancel}
     >
       <div className="flex h-full overflow-hidden">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {pack ? (
-            <WorkspaceTopBarControls
-              pack={pack}
-              packId={pId}
-              onImport={handleImport}
-              onExport={() => exportPackToFile(pack)}
-              onExportZip={async () => {
-                const res = await runExportZip(pack);
-                if (!res.ok) {
-                  setExportErrors(res.errors);
-                  setExportErrorsOpen(true);
-                  return;
-                }
-                for (const w of res.warnings) toast.warning(w);
-                toast.success(t("export.success"));
-              }}
-              onOpenPatterns={() => setPatternsOpen(true)}
-              onDelete={() => setShowDeleteDialog(true)}
-              networkId={networkId}
+        {/* Assistant docks as a resizable right pane on desktop (same level as
+            the canvas); on mobile it stays a drawer (<AssistantPanel/> below). */}
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {assistantOpen && isDesktop ? (
+            <SplitPane
+              orientation="horizontal"
+              primary={mainContent}
+              secondary={<AssistantPane packId={pId} />}
+              secondarySize={assistantPaneWidth}
+              onSecondarySizeChange={setAssistantPaneWidth}
+              minSecondary={320}
+              minPrimary={480}
             />
           ) : (
-            <div className="flex h-[52px] shrink-0 items-center px-5">
-              <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
-            </div>
+            mainContent
           )}
-
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {tab === "overview" && (
-              <div className="min-h-0 flex-1">
-                {isDesktop ? (
-                  <SplitPane
-                    orientation="horizontal"
-                    primary={<Stage packId={pId} />}
-                    secondary={<EditorPane packId={pId} />}
-                    secondarySize={editorPaneWidth}
-                    onSecondarySizeChange={setEditorPaneWidth}
-                    minSecondary={280}
-                    minPrimary={400}
-                  />
-                ) : (
-                  <SplitPane
-                    orientation="vertical"
-                    primary={<Stage packId={pId} />}
-                    secondary={<EditorPane packId={pId} />}
-                    secondarySize={flowCanvasHeight}
-                    onSecondarySizeChange={setFlowCanvasHeight}
-                    minSecondary={120}
-                    minPrimary={200}
-                  />
-                )}
-              </div>
-            )}
-            {tab === "translations" && pack && (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-                  <h1
-                    className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {t("workspace.tabs.translations")}
-                  </h1>
-                  <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-                    <TranslationPanelContent packId={pId} />
-                  </div>
-                </div>
-              </div>
-            )}
-            {tab === "data-sources" && pack && (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-                  <h1
-                    className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {t("workspace.tabs.dataSources")}
-                  </h1>
-                  <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-                    <DataSourcesPanelContent packId={pId} />
-                  </div>
-                </div>
-              </div>
-            )}
-            {tab === "history" && pack && networkId && (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
-                  <h1
-                    className="display text-[32px] tracking-tight text-[var(--text)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {t("workspace.tabs.history")}
-                  </h1>
-                  <div className="card p-6 md:p-8">
-                    <HistoryTab pack={pack} networkId={networkId} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
+        </div>
 
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
 
@@ -332,10 +374,11 @@ export function PackCanvasPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-[12px] text-[var(--text-faint)]">{t("export.overwriteWarning")}</p>
+            <p className="mt-4 text-[12px] text-[var(--text-faint)]">
+              {t("export.overwriteWarning")}
+            </p>
           </DialogContent>
         </Dialog>
-
       </div>
 
       <LibraryDragOverlay />
@@ -361,9 +404,9 @@ export function PackCanvasPage() {
         />
       )}
 
-      {/* AI assistant chat overlay — opened by the top-bar Sparkles button
-          via uiStore.assistantPanelOpen. Always mounted; the Sheet controls
-          its own visibility. */}
+      {/* Mobile assistant drawer. On desktop the assistant is the resizable
+          right pane above (<AssistantPane/>); this Sheet self-gates on
+          !isDesktop so the two presentations never show at once. */}
       <AssistantPanel packId={pId} />
     </DndContext>
   );
