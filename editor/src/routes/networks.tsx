@@ -1,12 +1,12 @@
-import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { NewServerModal } from "@/components/network-detail/NewServerModal";
+import { createServerKey, getNetwork, listNetworks } from "@/lib/api/networks";
+import type { NetworkSummary, PackSummary, ServerKeySummary } from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
+import { useNetworksStore } from "@/state/networksStore";
+import { Link, Outlet, createFileRoute, useChildMatches } from "@tanstack/react-router";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight } from "lucide-react";
-import { useNetworksStore } from "@/state/networksStore";
-import { listNetworks, getNetwork, createServerKey } from "@/lib/api/networks";
-import type { NetworkSummary, ServerKeySummary, PackSummary } from "@/lib/api/networks";
-import { NewServerModal } from "@/components/network-detail/NewServerModal";
-import { displayServerLabel } from "@/lib/serverLabel";
 
 export const Route = createFileRoute("/networks")({ component: NetworksPage });
 
@@ -104,7 +104,7 @@ export function NetworksPage() {
               ...nd,
               serverKeys: [
                 ...nd.serverKeys,
-                { id: created.id, label: created.label },
+                { id: created.id, label: created.label, slug: created.slug },
               ],
             }
           : nd,
@@ -124,19 +124,14 @@ export function NetworksPage() {
           >
             {t("networksPage.title")}
           </h1>
-          <Link
-            to="/setup"
-            className="btn btn-sm btn-primary shrink-0"
-          >
+          <Link to="/setup" className="btn btn-sm btn-primary shrink-0">
             {t("networksHub.createNetwork")}
           </Link>
         </header>
 
         {networks.length === 0 ? (
           <div className="card flex flex-col gap-3 p-6">
-            <p className="text-[14px] text-[var(--text-mut)]">
-              {t("networksHub.noNetworks")}
-            </p>
+            <p className="text-[14px] text-[var(--text-mut)]">{t("networksHub.noNetworks")}</p>
             <Link to="/setup" className="btn btn-primary self-start">
               {t("networksHub.createNetwork")}
             </Link>
@@ -164,7 +159,7 @@ export function NetworksPage() {
                     </h2>
                     <Link
                       to="/networks/$networkId/settings"
-                      params={{ networkId: nd.network.id }}
+                      params={{ networkId: nd.network.slug ?? nd.network.id }}
                       className="flex items-center gap-1 text-[12px] text-[var(--text-faint)] hover:text-[var(--brand)]"
                     >
                       {t("networksHub.networkSettings")}
@@ -196,7 +191,10 @@ export function NetworksPage() {
                           <li key={sk.id}>
                             <Link
                               to="/networks/$networkId/servers/$serverId"
-                              params={{ networkId: nd.network.id, serverId: sk.id }}
+                              params={{
+                                networkId: nd.network.slug ?? nd.network.id,
+                                serverId: sk.slug ?? sk.id,
+                              }}
                               className="card flex items-center justify-between gap-3 p-4 hover:border-[var(--brand-line)]"
                             >
                               <div className="flex flex-1 flex-col gap-0.5">

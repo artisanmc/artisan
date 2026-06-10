@@ -30,9 +30,10 @@ export default function ServerDetailPage() {
     if (!networkId || !serverId) return;
     getNetwork(networkId)
       .then((d) => {
-        const sk = d.serverKeys.find((k) => k.id === serverId);
+        // serverId param is the server slug (old links may still pass the id).
+        const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
         setServerDisplayLabel(sk ? displayServerLabel(sk) : null);
-        setWorkspaces(d.packs.filter((p) => p.serverKeyId === serverId));
+        setWorkspaces(sk ? d.packs.filter((p) => p.serverKeyId === sk.id) : []);
       })
       .catch((e: Error & { status?: number }) => {
         if (e?.status === 403 || e?.status === 404) navigate({ to: "/networks", replace: true });

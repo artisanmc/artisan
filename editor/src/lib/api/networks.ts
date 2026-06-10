@@ -3,17 +3,21 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 export interface NetworkSummary {
   id: string;
   name: string;
+  /** URL slug. Optional for resilience — callers fall back to `id` if absent. */
+  slug?: string;
   tier: string;
 }
 
 export interface ServerKeySummary {
   id: string;
   label: string | null;
+  slug?: string;
 }
 
 export interface PackSummary {
   id: string;
   name: string;
+  slug?: string;
   hash: string;
   updatedAt?: string;
   networkId: string;
@@ -56,7 +60,7 @@ export async function getNetwork(id: string): Promise<{
 export async function createServerKey(
   networkId: string,
   label?: string,
-): Promise<{ id: string; key: string; label: string | null }> {
+): Promise<{ id: string; key: string; label: string | null; slug?: string }> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys`, {
     method: "POST",
     credentials: "include",

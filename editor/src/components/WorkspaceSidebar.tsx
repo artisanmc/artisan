@@ -1,23 +1,35 @@
-import { useEffect, useState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  type Modifier,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DndContext, type DragEndEvent, type Modifier, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
-import { CSS } from "@dnd-kit/utilities";
-import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
-import { UserMenu } from "./UserMenu";
-import { ServerSelector, type ServerEntry } from "./ServerSelector";
-import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
-import { useSessionStore } from "@/state/sessionStore";
+import type { PackId } from "@/domain/types";
+import { type PackSummary, getNetwork, listNetworks } from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
-import { getNetwork, listNetworks, type PackSummary } from "@/lib/api/networks";
-import { displayServerLabel } from "@/lib/serverLabel";
-import type { PackId } from "@/domain/types";
+import { CSS } from "@dnd-kit/utilities";
+import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
+import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
+import { type ServerEntry, ServerSelector } from "./ServerSelector";
+import { UserMenu } from "./UserMenu";
 
 export function WorkspaceSidebar() {
   const { t } = useTranslation();
@@ -50,7 +62,9 @@ export function WorkspaceSidebar() {
   useEffect(() => {
     if (isSessionMode) return; // listNetworks needs cookie auth
     if (networks.length === 0) {
-      listNetworks().then(setNetworks).catch(() => {});
+      listNetworks()
+        .then(setNetworks)
+        .catch(() => {});
     }
   }, [isSessionMode]);
 
@@ -109,6 +123,7 @@ export function WorkspaceSidebar() {
     .map((p) => ({
       id: p.id,
       name: p.name,
+      slug: "", // optimistic local entry; slug not used for the sidebar link (id-based)
       hash: "",
       updatedAt: p.updatedAt,
       networkId: (p as unknown as { networkId?: string }).networkId ?? "",
@@ -155,9 +170,20 @@ export function WorkspaceSidebar() {
         className="flex items-center gap-2.5 rounded-[10px] px-1.5 pt-1 pb-0.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
         <span className="pixel-mark">
-          <i /><i /><i /><i /><i /><i /><i /><i /><i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
         </span>
-        <span className="font-display text-[17px] font-semibold text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
+        <span
+          className="font-display text-[17px] font-semibold text-[var(--text)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           {t("sidebar.brand")}
         </span>
       </Link>
@@ -261,9 +287,7 @@ function SortableWorkspaceItem({
       ? "/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
       : "/workspace/$workspaceId";
   const linkParams =
-    networkId && serverId
-      ? { networkId, serverId, workspaceId: id }
-      : { workspaceId: id };
+    networkId && serverId ? { networkId, serverId, workspaceId: id } : { workspaceId: id };
 
   return (
     <li ref={setNodeRef} style={style} className="flex flex-col">
@@ -323,9 +347,7 @@ function WorkspaceSubTabs({
       ? "/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
       : "/workspace/$workspaceId";
   const tabLinkParams =
-    networkId && serverId
-      ? { networkId, serverId, workspaceId }
-      : { workspaceId };
+    networkId && serverId ? { networkId, serverId, workspaceId } : { workspaceId };
 
   return (
     <ul className="mt-0.5 mb-1 flex flex-col gap-0.5">
