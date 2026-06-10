@@ -1,6 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
-import { LogOut, Settings as SettingsIcon, UserIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +7,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/state/authStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { Link } from "@tanstack/react-router";
+import { LogOut, Settings as SettingsIcon, Shield, UserIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function getInitial(name: string | null | undefined): string {
   if (!name) return "?";
@@ -69,8 +69,19 @@ export function UserMenu() {
                 {t("sidebar.settings")}
               </Link>
             </DropdownMenuItem>
+            {user.isAdmin && (
+              <DropdownMenuItem asChild>
+                <Link to="/admin" onClick={closeSidebar} className="flex items-center gap-2.5">
+                  <Shield className="size-[14px]" />
+                  {t("userMenu.admin")}
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogout} className="flex items-center gap-2.5 text-[var(--danger)]">
+            <DropdownMenuItem
+              onClick={onLogout}
+              className="flex items-center gap-2.5 text-[var(--danger)]"
+            >
               <LogOut className="size-[14px]" />
               {t("auth.logout")}
             </DropdownMenuItem>
