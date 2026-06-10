@@ -4,9 +4,10 @@ description: Manage platform-wide settings — including the AI provider — fro
 ---
 
 The **admin console** is a web page at `/admin` in the editor, reserved for
-platform administrators. In v1 it hosts a single tab — **AI** — where you
-configure the provider that powers the in-editor assistant, without redeploying
-the backend.
+platform administrators. Its sidebar currently hosts two sections: **AI**,
+where you configure the provider that powers the in-editor assistant without
+redeploying the backend, and **Users**, where you manage the platform's
+accounts.
 
 > **Who can access it?**
 > Only users flagged as admins. The console (and the link to it) is hidden for
@@ -25,6 +26,18 @@ The first time a listed user signs in, their account is promoted (`is_admin`
 flips to `true` in the database) and stays an admin afterward — you can remove
 the email from the variable once promotion has happened. An **Admin console**
 link then appears on your account page, and `/admin` becomes accessible.
+
+## Managing users
+
+The **Users** section lists every account on the platform, with a search box
+(matches name or email). Click a user to open their profile:
+
+- **Editable fields** — name, email, and the **Administrator** flag. Only the
+  fields you change are saved. Emails must stay unique, and you can't remove
+  your own admin access (so you can't lock yourself out).
+- **Read-only facts** — how the account signs in (email + password vs Discord
+  only), when it was created, and the networks the user belongs to with their
+  role in each.
 
 ## Configuring the AI provider
 
