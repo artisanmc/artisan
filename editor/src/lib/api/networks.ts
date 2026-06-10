@@ -43,7 +43,13 @@ export async function getNetwork(id: string): Promise<{
   serverKeys: ServerKeySummary[];
 }> {
   const res = await fetch(`${API_URL}/api/v1/networks/${id}`, { credentials: "include" });
-  if (!res.ok) throw new Error(`getNetwork failed: ${res.status}`);
+  if (!res.ok) {
+    // Attach the HTTP status so callers can react (e.g. 403/404 → redirect to
+    // the user's own networks list rather than loop a broken page).
+    const err = new Error(`getNetwork failed: ${res.status}`) as Error & { status: number };
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
@@ -85,7 +91,7 @@ export async function bindPackToServerKey(
   networkId: string,
   packId: string,
   serverKeyId: string,
-  branchName: string = "main",
+  branchName = "main",
 ): Promise<void> {
   const res = await fetch(
     `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings/${serverKeyId}`,
@@ -122,14 +128,10 @@ export interface PackBinding {
   online: boolean;
 }
 
-export async function listPackBindings(
-  networkId: string,
-  packId: string,
-): Promise<PackBinding[]> {
-  const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings`,
-    { credentials: "include" },
-  );
+export async function listPackBindings(networkId: string, packId: string): Promise<PackBinding[]> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${packId}/bindings`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error(`listPackBindings failed: ${res.status}`);
   const data = (await res.json()) as {
     bindings: Array<{
@@ -198,10 +200,12 @@ export async function initNetworkTransfer(networkId: string): Promise<TransferIn
 }
 
 export async function getNetworkTransfer(token: string): Promise<TransferState> {
-  const res = await fetch(`${API_URL}/api/v1/networks/transfer/${token}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks/transfer/${token}`, {
+    credentials: "include",
+  });
   if (res.status === 404) return "not_found";
   if (res.status === 410) {
-    const body = await res.json().catch(() => ({})) as { error?: string };
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
     return body.error === "consumed" ? "consumed" : "expired";
   }
   if (!res.ok) throw new Error(`Transfer fetch failed (${res.status})`);
@@ -214,7 +218,7 @@ export async function acceptNetworkTransfer(token: string): Promise<{ networkId:
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Transfer accept failed (${res.status})`);
-  const body = await res.json() as { ok: boolean; networkId: string };
+  const body = (await res.json()) as { ok: boolean; networkId: string };
   return { networkId: body.networkId };
 }
 
@@ -238,8 +242,14 @@ export async function rotateServerKey(
   return res.json();
 }
 
-export async function getServerStatus(networkId: string, serverId: string): Promise<{ online: boolean }> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${serverId}/status`, { credentials: "include" });
+export async function getServerStatus(
+  networkId: string,
+  serverId: string,
+): Promise<{ online: boolean }> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/server-keys/${serverId}/status`,
+    { credentials: "include" },
+  );
   if (!res.ok) throw new Error(`getServerStatus failed: ${res.status}`);
   return res.json();
 }
@@ -265,12 +275,18 @@ export async function listServerKeyHelloes(
   if (!res.ok) throw new Error(`listServerKeyHelloes failed (${res.status})`);
   const data = (await res.json()) as {
     helloes: Array<{
-      id: string; ip: string; mc_version: string | null; hello_at: string;
+      id: string;
+      ip: string;
+      mc_version: string | null;
+      hello_at: string;
       rejected_reason: string | null;
     }>;
   };
   return data.helloes.map((h) => ({
-    id: h.id, ip: h.ip, mcVersion: h.mc_version, helloAt: h.hello_at,
+    id: h.id,
+    ip: h.ip,
+    mcVersion: h.mc_version,
+    helloAt: h.hello_at,
     rejectedReason: h.rejected_reason,
   }));
 }
@@ -352,14 +368,19 @@ export async function claimLinkCode(
     body: JSON.stringify(body),
   });
   if (res.ok) return res.json();
-  const errorBody = await res.json().catch(() => ({})) as { error?: string };
+  const errorBody = (await res.json().catch(() => ({}))) as { error?: string };
   const errorCode = errorBody.error;
-  if (res.status === 400 && errorCode === "must_choose_network") throw new ClaimError("must_choose_network");
-  if (res.status === 400 && errorCode === "ambiguous_network") throw new ClaimError("ambiguous_network");
+  if (res.status === 400 && errorCode === "must_choose_network")
+    throw new ClaimError("must_choose_network");
+  if (res.status === 400 && errorCode === "ambiguous_network")
+    throw new ClaimError("ambiguous_network");
   if (res.status === 400 && errorCode === "ambiguous_pack") throw new ClaimError("ambiguous_pack");
-  if (res.status === 404 && errorCode === "pack_not_in_network") throw new ClaimError("pack_not_in_network");
-  if (res.status === 422 && errorCode === "invalid_network_name") throw new ClaimError("invalid_network_name");
-  if (res.status === 422 && errorCode === "invalid_pack_name") throw new ClaimError("invalid_pack_name");
+  if (res.status === 404 && errorCode === "pack_not_in_network")
+    throw new ClaimError("pack_not_in_network");
+  if (res.status === 422 && errorCode === "invalid_network_name")
+    throw new ClaimError("invalid_network_name");
+  if (res.status === 422 && errorCode === "invalid_pack_name")
+    throw new ClaimError("invalid_pack_name");
   if (res.status === 401) throw new ClaimError("unauthorized");
   if (res.status === 403) throw new ClaimError("forbidden");
   if (res.status === 409) throw new ClaimError("already_claimed");
