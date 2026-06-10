@@ -1,3 +1,5 @@
+import { ServerStatusBadge } from "@/components/ServerStatusBadge";
+import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
 /**
  * WorkspaceTopBarControls
  *
@@ -17,20 +19,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ServerStatusBadge } from "@/components/ServerStatusBadge";
-import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
-import { deployPack, getDeployedPack, updateAsset, DeployError } from "@/lib/packApi";
-import { saveUserPack } from "@/lib/api/userPacks";
-import { createCommit, getBranchHead } from "@/lib/api/branches";
 import type { Pack as PackType } from "@/domain/types";
-import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
-import { transform } from "@/features/export/transform";
+import type { Pack, PackId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { transform } from "@/features/export/transform";
+import { createCommit, getBranchHead } from "@/lib/api/branches";
+import { saveUserPack } from "@/lib/api/userPacks";
+import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
+import { DeployError, deployPack, getDeployedPack, updateAsset } from "@/lib/packApi";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
-import type { Pack, PackId } from "@/domain/types";
 import { Redo2, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -86,7 +86,11 @@ export function WorkspaceTopBarControls({
         />
         <span className="truncate">{displayName}</span>
       </div>
-      <ServerStatusBadge networkId={networkId} serverKeyId={pack.serverKeyId ?? ""} packId={packId} />
+      <ServerStatusBadge
+        networkId={networkId}
+        serverKeyId={pack.serverKeyId ?? ""}
+        packId={packId}
+      />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
       <AssistantButton />
@@ -250,9 +254,10 @@ function UndoRedoButtons() {
  */
 function AssistantButton() {
   const { t } = useTranslation();
+  const open = useUiStore((s) => s.assistantPanelOpen);
   const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
   return (
-    <TopBarIconButton title={t("assistant.open")} onClick={() => setOpen(true)}>
+    <TopBarIconButton title={t("assistant.open")} onClick={() => setOpen(!open)}>
       <Sparkles className="h-4 w-4" />
     </TopBarIconButton>
   );
