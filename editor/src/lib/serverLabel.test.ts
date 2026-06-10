@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { displayServerLabel } from "./serverLabel";
 
 describe("displayServerLabel", () => {
@@ -33,5 +33,10 @@ describe("displayServerLabel", () => {
   it("uses chars 3-7 (4 chars) after sk_ prefix", () => {
     // "sk_XYZ1234..." → short = "XYZ1"
     expect(displayServerLabel({ id: "sk_XYZ1somemore", label: null })).toBe("Server XYZ1");
+  });
+
+  it("strips the srv_ prefix (real server-key row ids) before shortening", () => {
+    // Real ids are "srv_<12 hex>" (backend auth.ts) — never show "Server srv_".
+    expect(displayServerLabel({ id: "srv_276b8aecfe69", label: null })).toBe("Server 276b");
   });
 });
