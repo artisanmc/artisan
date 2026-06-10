@@ -126,6 +126,19 @@ export function buildAssistantRouter(): Hono {
 		const wc = new WorkingCopy(menus, attachments);
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";
+		// The model can only discover attachments through this note: read_attachment
+		// takes a file_id, but nothing else in the turn says which ids exist.
+		const attachedNames = Object.keys(attachments);
+		if (attachedNames.length > 0) {
+			conv.messages.push({
+				role: "system",
+				content:
+					`Fichiers joints par l'utilisateur à ce message : ${attachedNames
+						.map((n) => `\`${n}\``)
+						.join(", ")}. ` +
+					"Lis leur contenu avec le tool read_attachment (file_id = nom exact ci-dessus) avant de répondre. Ne demande jamais à l'utilisateur de re-déposer ses fichiers.",
+			});
+		}
 		conv.messages.push({ role: "user", content: text });
 		// Title the conversation from its first user message.
 		const title = conv.title || text.slice(0, 60);
