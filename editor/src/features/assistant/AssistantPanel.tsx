@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { PackId } from "@/domain/types";
-import { AssistantChat } from "@/features/assistant/AssistantChat";
+import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
@@ -29,7 +29,7 @@ export function AssistantPanel({ packId }: { packId: PackId }) {
         <SheetHeader>
           <SheetTitle>{t("assistant.title")}</SheetTitle>
         </SheetHeader>
-        <AssistantChat packId={packId} />
+        <AssistantBody packId={packId} />
       </SheetContent>
     </Sheet>
   );

@@ -20,7 +20,7 @@ function authHeaders(token: string | null): HeadersInit {
 
 export async function openConversation(
   token: string | null,
-  body: { menus: unknown[]; attachments?: Record<string, string> },
+  body: { packId: string },
 ): Promise<string> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations`, {
     method: "POST",
@@ -31,6 +31,53 @@ export async function openConversation(
   if (!res.ok) throw new Error(`openConversation failed: ${res.status}`);
   const json = (await res.json()) as { conversationId: string };
   return json.conversationId;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
+/** List a workspace's conversations (newest first) — titles + timestamps only. */
+export async function listConversations(
+  token: string | null,
+  packId: string,
+): Promise<ConversationSummary[]> {
+  const res = await fetch(
+    `${apiUrl()}/api/v1/assistant/conversations?packId=${encodeURIComponent(packId)}`,
+    { headers: authHeaders(token), credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`listConversations failed: ${res.status}`);
+  const json = (await res.json()) as { conversations: ConversationSummary[] };
+  return json.conversations;
+}
+
+/** A persisted LLM message; only user/assistant text is rendered on resume. */
+export interface ConversationMessage {
+  role: string;
+  content?: string | null;
+  [k: string]: unknown;
+}
+export interface ConversationDetail {
+  id: string;
+  packId: string;
+  title: string;
+  messages: ConversationMessage[];
+  updatedAt: string;
+}
+
+/** Fetch one conversation's full transcript (to resume it). */
+export async function getConversation(
+  token: string | null,
+  id: string,
+): Promise<ConversationDetail> {
+  const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${id}`, {
+    headers: authHeaders(token),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`getConversation failed: ${res.status}`);
+  return (await res.json()) as ConversationDetail;
 }
 
 /** Stream EngineEvents from a message. Parses SSE frames from the POST response body. */

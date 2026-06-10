@@ -32,6 +32,17 @@ vi.mock("@/lib/api/assistant", () => ({
     };
     yield { type: "done", stopReason: "end_turn" };
   }),
+  getConversation: vi.fn(async () => ({
+    id: "c1",
+    packId: "p",
+    title: "Hi",
+    messages: [
+      { role: "system", content: "sys" },
+      { role: "user", content: "salut" },
+      { role: "assistant", content: "bonjour" },
+    ],
+    updatedAt: "2026-06-10T00:00:00Z",
+  })),
 }));
 
 function setup() {
@@ -92,6 +103,16 @@ describe("AssistantChat", () => {
     await waitFor(() =>
       expect(screen.getByTestId("assistant-transcript").textContent).toMatch(/Voici le menu\./),
     );
+  });
+
+  it("resumes a conversation: loads its transcript on mount", async () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} conversationId="c1" />);
+    await waitFor(() => {
+      const text = screen.getByTestId("assistant-transcript").textContent ?? "";
+      expect(text).toMatch(/salut/);
+      expect(text).toMatch(/bonjour/);
+    });
   });
 
   it("attaching a dropped file shows the attachment count", async () => {

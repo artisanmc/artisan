@@ -1,5 +1,5 @@
 import type { PackId } from "@/domain/types";
-import { AssistantChat } from "@/features/assistant/AssistantChat";
+import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { useUiStore } from "@/state/uiStore";
 import { Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ export function AssistantPane({ packId }: { packId: PackId }) {
           <X className="h-4 w-4" />
         </button>
       </div>
-      <AssistantChat packId={packId} />
+      <AssistantBody packId={packId} />
     </div>
   );
 }
