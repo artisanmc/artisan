@@ -78,11 +78,11 @@ export function NetworkDetailPage() {
   const handleAction = async (action: string, serverId: string) => {
     if (action === "show-key") {
       // V1: "Show key" generates a fresh one (only way to surface plaintext).
-      const result = await rotateServerKey(networkId, serverId);
+      const result = await rotateServerKey(detail.network.id, serverId);
       setRevealedKey({ keyId: serverId, key: result.key });
     } else if (action === "rotate") {
       if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
-      const result = await rotateServerKey(networkId, serverId);
+      const result = await rotateServerKey(detail.network.id, serverId);
       setRevealedKey({ keyId: serverId, key: result.key });
     } else if (action === "history") {
       setHistoryServer(serverId);
@@ -97,23 +97,31 @@ export function NetworkDetailPage() {
   };
 
   const handleCreateServer = async (label: string) => {
-    const created = await createServerKey(networkId, label);
+    const created = await createServerKey(detail.network.id, label);
     setRevealedKey({ keyId: created.id, key: created.key });
     setDetail({
       ...detail,
-      serverKeys: [...detail.serverKeys, { id: created.id, label: created.label }],
+      serverKeys: [
+        ...detail.serverKeys,
+        { id: created.id, label: created.label, slug: created.slug },
+      ],
     });
   };
 
   const handleCreateWorkspace = async (input: { name: string; description?: string }) => {
     if (!newWsForServer) return;
-    const created = await createPack(networkId, newWsForServer, input.name, input.description);
+    const created = await createPack(
+      detail.network.id,
+      newWsForServer,
+      input.name,
+      input.description,
+    );
     setDetail({ ...detail, packs: [...detail.packs, created] });
   };
 
   const handleDeleteConfirmed = async () => {
     if (!deleteServer) return;
-    await deleteServerKey(networkId, deleteServer.id);
+    await deleteServerKey(detail.network.id, deleteServer.id);
     setDetail({
       ...detail,
       serverKeys: detail.serverKeys.filter((k) => k.id !== deleteServer.id),
@@ -157,8 +165,8 @@ export function NetworkDetailPage() {
               {detail.serverKeys.map((sk) => (
                 <ServerCard
                   key={sk.id}
-                  networkId={networkId}
-                  server={{ id: sk.id, label: sk.label, online: false }}
+                  networkId={detail.network.id}
+                  server={{ id: sk.id, slug: sk.slug, label: sk.label, online: false }}
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
                   onCreateWorkspace={(serverId) => setNewWsForServer(serverId)}

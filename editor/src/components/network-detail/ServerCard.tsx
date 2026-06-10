@@ -1,17 +1,31 @@
+import { displayServerLabel } from "@/lib/serverLabel";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ServerKebabMenu } from "./ServerKebabMenu";
-import { displayServerLabel } from "@/lib/serverLabel";
 
-interface Server { id: string; label: string | null; online: boolean; lastSeen?: string | null; }
-interface Workspace { id: string; name: string; }
+interface Server {
+  id: string;
+  slug: string;
+  label: string | null;
+  online: boolean;
+  lastSeen?: string | null;
+}
+interface Workspace {
+  id: string;
+  name: string;
+}
 
 interface Props {
+  /** Real network id — workspace links stay id-based (the canvas route + its
+   *  deploy/history children need the real id, not a slug — see phase 4b). */
   networkId: string;
   server: Server;
   workspaces: Workspace[];
-  onAction: (action: "show-key" | "rotate" | "history" | "allowlist" | "delete", serverId: string) => void;
+  onAction: (
+    action: "show-key" | "rotate" | "history" | "allowlist" | "delete",
+    serverId: string,
+  ) => void;
   onCreateWorkspace: (serverId: string) => void;
 }
 
