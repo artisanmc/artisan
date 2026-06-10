@@ -71,6 +71,7 @@ const fr: typeof en = {
     sourceImported: "imp",
     sourceForked: "fork",
     countMenusCommands: "{{menus}}m · {{commands}}c",
+    emptyPreview: "vide",
   },
   newPackDialog: {
     title: "Nouveau workspace",
@@ -102,7 +103,8 @@ const fr: typeof en = {
   },
   deletePackDialog: {
     title: "Supprimer le workspace",
-    warning: "Cela supprimera définitivement « {{name}} » ainsi que tous ses menus, commandes et données. Cette action est irréversible.",
+    warning:
+      "Cela supprimera définitivement « {{name}} » ainsi que tous ses menus, commandes et données. Cette action est irréversible.",
     confirmLabel: "Tapez l'ID du workspace pour confirmer :",
     cancel: "Annuler",
     delete: "Supprimer",
@@ -220,7 +222,8 @@ const fr: typeof en = {
     showTitleFadeInLabel: "fade in (ticks)",
     showTitleStayLabel: "durée (ticks)",
     showTitleFadeOutLabel: "fade out (ticks)",
-    showTitleTicksHint: "20 ticks = 1 seconde. Laissez vide pour utiliser les valeurs par défaut (10/70/20).",
+    showTitleTicksHint:
+      "20 ticks = 1 seconde. Laissez vide pour utiliser les valeurs par défaut (10/70/20).",
   },
   flow: {
     headerStateOne: "{{count}} état",
@@ -465,8 +468,10 @@ const fr: typeof en = {
   sync: {
     deletePackDialog: {
       title: "Supprimer le workspace «{{name}}» ?",
-      warning: "Cette action supprimera tous les menus, dialogs et traductions du workspace sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.",
-      conflictWarning: "Si un conflit existe pour ce workspace, il sera ignoré et l'éditeur deviendra autoritaire.",
+      warning:
+        "Cette action supprimera tous les menus, dialogs et traductions du workspace sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.",
+      conflictWarning:
+        "Si un conflit existe pour ce workspace, il sera ignoré et l'éditeur deviendra autoritaire.",
       typePrompt: "Pour confirmer, tape le nom du workspace :",
       cancel: "Annuler",
       confirm: "Supprimer",
@@ -569,8 +574,7 @@ const fr: typeof en = {
   },
   branchBar: {
     dirty: "modifié",
-    dirtyHint:
-      "Des changements n'ont pas encore été enregistrés dans un commit sur cette branche.",
+    dirtyHint: "Des changements n'ont pas encore été enregistrés dans un commit sur cette branche.",
   },
   servers: {
     title: "Serveurs liés",
@@ -582,8 +586,7 @@ const fr: typeof en = {
     online: "en ligne",
     offline: "hors-ligne",
     unbind: "Délier",
-    confirmUnbind:
-      "Délier ce serveur ? Il ne recevra plus de mises à jour de ce pack.",
+    confirmUnbind: "Délier ce serveur ? Il ne recevra plus de mises à jour de ce pack.",
     unbound: "Serveur délié.",
     unbindFailed: "Échec du déliage.",
     branchSwitched: "Branche du binding mise à jour.",
@@ -628,8 +631,7 @@ const fr: typeof en = {
     networkLabel: "Network",
     manageNetworks: "Gérer les networks →",
     noNetworkCta: "Créer un Network",
-    noNetworkHint:
-      "Crée d'abord un Network pour ranger tes workspaces.",
+    noNetworkHint: "Crée d'abord un Network pour ranger tes workspaces.",
     createNetwork: "+ Créer un network",
     serverLabel: "Serveur",
     selectServer: "Sélectionner un serveur",
@@ -645,7 +647,12 @@ const fr: typeof en = {
   },
   admin: {
     title: "Admin",
-    tabs: { ai: "IA" },
+    nav: {
+      back: "Retour à l'éditeur",
+      section: "Console admin",
+      ai: "IA",
+      design: "Design system",
+    },
     forbidden: "Réservé aux admins.",
     ai: {
       heading: "Provider IA",
@@ -660,6 +667,48 @@ const fr: typeof en = {
       testOk: "Connexion OK.",
       testFail: "Échec : {{error}}",
       saveFail: "Échec de l'enregistrement.",
+    },
+  },
+  adminDesign: {
+    title: "Design system",
+    intro:
+      "Source de vérité du langage visuel de l'éditeur. Toute nouvelle UI doit passer d'abord par ces tokens, classes utilitaires et composants — étendre cette librairie (et cette page) plutôt que styler en ad-hoc.",
+    themeHint: "Les tokens s'adaptent au thème actif :",
+    bodySample: "Hanken Grotesque — corps de texte, contrôles, labels.",
+    guidelines: {
+      heading: "Règles",
+      rule1:
+        "Couleurs uniquement via var(--token) — jamais de hex ou rgba en dur dans les composants (canvas Konva excepté).",
+      rule2:
+        "Boutons, inputs, dialogs… viennent de components/ui ou des classes utilitaires .btn/.input/.card.",
+      rule3:
+        "Composant manquant ? Le créer dans components/ui, puis ajouter son spécimen à cette page dans le même commit.",
+      rule4: "Toute string visible utilisateur passe par l'i18n (en + fr dans le même commit).",
+      rule5:
+        "Espacements, radius et ombres viennent de l'échelle de tokens (--r-*, --shadow-*), pas de valeurs arbitraires.",
+    },
+    sections: {
+      colors: "Tokens couleur",
+      typography: "Typographie",
+      radiiShadows: "Radius & ombres",
+      cssUtilities: "Classes utilitaires CSS",
+      primitives: "Primitives React (components/ui)",
+      appComponents: "Composants partagés de l'app",
+    },
+    groups: {
+      surfaces: "Surfaces",
+      text: "Texte",
+      borders: "Bordures",
+      brand: "Brand",
+      status: "Statut",
+    },
+    demo: {
+      dialogTitle: "Titre du dialog",
+      dialogBody: "Corps du dialog — utiliser DialogFooter pour les actions.",
+      cancel: "Annuler",
+      confirm: "Confirmer",
+      sheetTitle: "Titre du sheet",
+      sheetBody: "Corps du sheet latéral — utilisé pour les drawers mobile et panneaux de détail.",
     },
   },
   networksPage: {
@@ -679,7 +728,8 @@ const fr: typeof en = {
     workspaceCount: "{{count}} workspaces",
     networkSettings: "Paramètres du network",
     serverCreated: "Clé serveur créée",
-    serverCreatedHint: "Copie cette clé maintenant et colle-la dans config.yml. Elle ne sera plus affichée.",
+    serverCreatedHint:
+      "Copie cette clé maintenant et colle-la dans config.yml. Elle ne sera plus affichée.",
     close: "Fermer",
   },
   networkDetail: {
@@ -692,9 +742,11 @@ const fr: typeof en = {
     deleteServer: "Supprimer",
     rotateKey: "Renouveler",
     loading: "Chargement…",
-    confirmRotateKey: "Renouveler cette clé ? L'ancienne valeur cesse de fonctionner immédiatement ; il faudra coller la nouvelle dans le config.yml du serveur.",
+    confirmRotateKey:
+      "Renouveler cette clé ? L'ancienne valeur cesse de fonctionner immédiatement ; il faudra coller la nouvelle dans le config.yml du serveur.",
     rotateRevealTitle: "Nouvelle clé générée",
-    rotateRevealHint: "Copie la clé maintenant et colle-la dans le config.yml du serveur. Pour des raisons de sécurité, elle ne sera plus jamais affichée.",
+    rotateRevealHint:
+      "Copie la clé maintenant et colle-la dans le config.yml du serveur. Pour des raisons de sécurité, elle ne sera plus jamais affichée.",
     rotateRevealKeyLabel: "Clé serveur",
     rotateRevealShownOnce: "Affichée une fois",
     copy: "Copier",
@@ -836,8 +888,7 @@ const fr: typeof en = {
     summaryPack: "Pack",
     serverKeyLabel: "Étiquette du server_key",
     serverKeyLabelPlaceholder: "Survival-Main",
-    serverKeyLabelHint:
-      "Optionnel — sert juste à reconnaître ce serveur dans l'éditeur.",
+    serverKeyLabelHint: "Optionnel — sert juste à reconnaître ce serveur dans l'éditeur.",
     errors: {
       ambiguous_network: "Tu ne peux pas à la fois choisir et créer un network.",
       ambiguous_pack: "Tu ne peux pas à la fois choisir et créer un pack.",
@@ -898,9 +949,12 @@ const fr: typeof en = {
     revertFailed: "Échec de la restauration",
     deployTitle: "Déployer — rendre les modifications visibles aux joueurs",
     revertTitle: "Annuler les modifications (revenir à la version live)",
-    cannotDeployTitle: "Déployer demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
-    cannotRevertTitle: "Annuler demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
-    noSessionTitle: "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
+    cannotDeployTitle:
+      "Déployer demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
+    cannotRevertTitle:
+      "Annuler demande soit une session éditeur trustée (/artisan editor dans la console MC), soit un compte connecté avec le network + la branche du workspace chargés.",
+    noSessionTitle:
+      "Déployer / annuler demande une session éditeur trustée. Tape /artisan editor dans la console MC pour truster ce navigateur, ou utilise le bouton Commit pour sauvegarder sur une branche.",
   },
   userMenu: {
     anonymous: "Anonyme",
@@ -918,6 +972,7 @@ const fr: typeof en = {
     loginSubmit: "Se connecter",
     logout: "Déconnexion",
     discordButton: "Continuer avec Discord",
+    orSeparator: "ou",
     noAccount: "Pas encore de compte ?",
     signupLink: "Créer un compte",
     haveAccount: "Déjà un compte ?",
