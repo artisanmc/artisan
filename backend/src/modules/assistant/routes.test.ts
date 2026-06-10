@@ -233,6 +233,72 @@ describe("assistant routes", () => {
 		expect(await res.text()).toContain("event: done");
 	});
 
+	it("tells the model which files are attached (system note before the user message)", async () => {
+		// Capture the exact messages the provider receives.
+		let seen: { role: string; content: string | null }[] = [];
+		__setProviderForTests({
+			async *streamTurn({ messages }) {
+				seen = messages.map((m) => ({
+					role: m.role,
+					content: "content" in m ? (m.content as string | null) : null,
+				}));
+				yield { type: "text", text: "ok" };
+				yield { type: "done", stopReason: "end_turn" };
+			},
+		});
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: auth,
+				body: JSON.stringify({ packId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: auth,
+					body: JSON.stringify({
+						text: "migre ces fichiers",
+						attachments: { "menu.yml": "size: 54", "kits.yml": "size: 27" },
+					}),
+				},
+			);
+			expect(res.status).toBe(200);
+			await res.text();
+
+			const sysIdx = seen.findIndex(
+				(m) =>
+					m.role === "system" &&
+					!!m.content?.includes("menu.yml") &&
+					!!m.content?.includes("kits.yml"),
+			);
+			const userIdx = seen.findIndex(
+				(m) => m.role === "user" && m.content === "migre ces fichiers",
+			);
+			expect(sysIdx).toBeGreaterThan(0); // present, and not the head system prompt
+			expect(userIdx).toBeGreaterThan(sysIdx); // announced before the user message
+			expect(seen[sysIdx]?.content).toContain("read_attachment");
+
+			// No attachments → no extra system note for that turn.
+			const res2 = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: auth,
+					body: JSON.stringify({ text: "merci" }),
+				},
+			);
+			await res2.text();
+			const notes = seen.filter(
+				(m, i) => i > 0 && m.role === "system" && m.content?.includes("read_attachment"),
+			);
+			expect(notes.length).toBe(1);
+		} finally {
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
 	it("does not leak a cookie-owned conversation to a Bearer owner", async () => {
 		const cookie = {
 			Cookie: `artisan_user_session=${userSessionId}`,

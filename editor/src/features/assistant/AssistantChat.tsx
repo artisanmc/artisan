@@ -10,7 +10,7 @@ import {
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FileText, Paperclip, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -18,6 +18,14 @@ import { toast } from "sonner";
 type Entry =
   | { role: "user" | "assistant"; text: string }
   | { role: "card"; kind: "written" | "deleted"; id: string };
+
+/** Human-readable byte size of an attachment's text content (UTF-8). */
+function formatBytes(text: string): string {
+  const n = new TextEncoder().encode(text).length;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /** Rebuild display bubbles from a persisted transcript (skip system/tool/empty). */
 function messagesToEntries(messages: ConversationMessage[]): Entry[] {
@@ -141,15 +149,23 @@ export function AssistantChat({
     }
   }
 
-  async function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer?.files ?? []);
+  async function addFiles(files: File[]) {
     if (files.length === 0) return;
     const next: Record<string, string> = { ...attachments };
     for (const file of files) next[file.name] = await file.text();
     setAttachments(next);
   }
 
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    await addFiles(Array.from(e.dataTransfer?.files ?? []));
+  }
+
+  function removeAttachment(name: string) {
+    setAttachments(({ [name]: _, ...rest }) => rest);
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentCount = Object.keys(attachments).length;
 
   return (
@@ -212,12 +228,49 @@ export function AssistantChat({
       </div>
 
       {attachmentCount > 0 && (
-        <div className="shrink-0 px-4 text-[12px] text-[var(--text-mut)]">
-          {t("assistant.attach", { count: attachmentCount })}
+        <div
+          data-testid="assistant-attachments"
+          className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
+        >
+          {Object.entries(attachments).map(([name, content]) => (
+            <span key={name} className="chip cursor-default gap-1.5">
+              <FileText className="h-3 w-3 shrink-0 text-[var(--text-mut)]" />
+              <span className="max-w-[160px] truncate">{name}</span>
+              <span className="text-[var(--text-faint)]">{formatBytes(content)}</span>
+              <button
+                type="button"
+                aria-label={t("assistant.attachRemove", { name })}
+                onClick={() => removeAttachment(name)}
+                className="rounded-[4px] text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
         </div>
       )}
 
       <div className="flex shrink-0 items-end gap-2 border-[var(--border-soft)] border-t p-3">
+        <input
+          ref={fileInputRef}
+          data-testid="assistant-file-input"
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          aria-label={t("assistant.attachFiles")}
+          title={t("assistant.attachFiles")}
+          onClick={() => fileInputRef.current?.click()}
+          className="btn btn-sm btn-ghost btn-icon shrink-0"
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -236,7 +289,7 @@ export function AssistantChat({
           type="button"
           disabled={busy || input.trim().length === 0}
           onClick={() => void send()}
-          className="btn btn-sm btn-deploy shrink-0"
+          className="btn btn-sm btn-primary shrink-0"
         >
           {t("assistant.send")}
         </button>

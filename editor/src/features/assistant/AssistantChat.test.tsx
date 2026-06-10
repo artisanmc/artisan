@@ -122,14 +122,64 @@ describe("AssistantChat", () => {
     });
   });
 
-  it("attaching a dropped file shows the attachment count", async () => {
+  it("lists dropped files with name and size", async () => {
     setup();
     render(<AssistantChat packId={packId("p")} />);
 
     const panel = screen.getByTestId("assistant-panel");
-    const file = new File(["name: '&8Menu'\nsize: 54"], "menu.yml", { type: "text/yaml" });
+    const content = "name: '&8Menu'\nsize: 54";
+    const file = new File([content], "menu.yml", { type: "text/yaml" });
     fireEvent.drop(panel, { dataTransfer: { files: [file] } });
 
-    await waitFor(() => expect(screen.getByText(/1 file|1 fichier/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("menu.yml")).toBeTruthy());
+    expect(screen.getByText(`${content.length} B`)).toBeTruthy();
+  });
+
+  it("removes an attachment from the list", async () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} />);
+
+    const panel = screen.getByTestId("assistant-panel");
+    fireEvent.drop(panel, {
+      dataTransfer: { files: [new File(["a: 1"], "menu.yml", { type: "text/yaml" })] },
+    });
+    await waitFor(() => expect(screen.getByText("menu.yml")).toBeTruthy());
+
+    await userEvent.click(screen.getByRole("button", { name: /menu\.yml/ }));
+    await waitFor(() => expect(screen.queryByText("menu.yml")).toBeNull());
+  });
+
+  it("attaches files via the file picker button", async () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} />);
+
+    const input = screen.getByTestId("assistant-file-input");
+    fireEvent.change(input, {
+      target: { files: [new File(["kit: x"], "kits.yml", { type: "text/yaml" })] },
+    });
+
+    await waitFor(() => expect(screen.getByText("kits.yml")).toBeTruthy());
+  });
+
+  it("sends the attached file contents with the message", async () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} />);
+
+    fireEvent.drop(screen.getByTestId("assistant-panel"), {
+      dataTransfer: { files: [new File(["size: 54"], "menu.yml", { type: "text/yaml" })] },
+    });
+    await waitFor(() => expect(screen.getByText("menu.yml")).toBeTruthy());
+
+    await userEvent.type(screen.getByRole("textbox"), "migre ce fichier");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    await waitFor(() =>
+      expect(streamAssistant).toHaveBeenCalledWith(
+        "tok",
+        "c1",
+        expect.objectContaining({ attachments: { "menu.yml": "size: 54" } }),
+      ),
+    );
   });
 });
