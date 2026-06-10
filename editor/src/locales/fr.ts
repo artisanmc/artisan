@@ -762,6 +762,7 @@ const fr: typeof en = {
   },
   serverKebab: {
     actions: "Actions du serveur",
+    edit: "Modifier le serveur…",
     showKey: "Voir la clé du serveur…",
     rotate: "Renouveler la clé…",
     history: "Historique de connexion",
@@ -784,8 +785,29 @@ const fr: typeof en = {
     create: "Créer",
     creating: "Création…",
   },
+  editServerModal: {
+    title: "Modifier le serveur",
+    labelField: "Nom",
+    slugField: "Slug d'URL",
+    slugHint: "Utilisé dans les URLs de l'éditeur. Le changer casse les liens enregistrés.",
+    cancel: "Annuler",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    slugTaken: "Ce slug est déjà utilisé par un autre serveur de ce network.",
+    saveFailed: "Échec de l'enregistrement.",
+  },
   networkSettings: {
     title: "Settings",
+    generalTitle: "Général",
+    generalDescription: "Nom du network et slug d'URL.",
+    nameField: "Nom",
+    slugField: "Slug d'URL",
+    slugHint: "Utilisé dans les URLs de l'éditeur. Le changer casse les liens enregistrés.",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    saved: "Enregistré.",
+    slugTaken: "Ce slug est déjà utilisé par un autre network.",
+    saveFailed: "Échec de l'enregistrement.",
     transferOwnershipTitle: "Transférer la propriété",
     transferOwnershipDescription:
       "Génère un lien à partager avec le nouvel owner. TTL 24 h. Une fois accepté, tu perdras tous tes droits sur ce Network.",
@@ -1067,7 +1089,8 @@ const fr: typeof en = {
     dropHint: "Dépose des fichiers pour les joindre",
     errorGeneric: "Une erreur est survenue. Réessaie.",
     disabled: "Assistant non configuré.",
-    attach: "{{count}} fichier(s) joint(s)",
+    attachFiles: "Joindre des fichiers",
+    attachRemove: "Retirer {{name}}",
   },
 };
 export default fr;

@@ -71,6 +71,46 @@ export async function createServerKey(
   return res.json();
 }
 
+/**
+ * PATCH name/slug. Throws the backend error code ("slug_taken",
+ * "invalid_slug"…) as the Error message so the UI can map it to a string.
+ */
+export async function updateNetwork(
+  networkId: string,
+  updates: { name?: string; slug?: string },
+): Promise<NetworkSummary> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `updateNetwork failed: ${res.status}`);
+  }
+  return ((await res.json()) as { network: NetworkSummary }).network;
+}
+
+/** PATCH label/slug of a server key. Error contract mirrors updateNetwork. */
+export async function updateServerKey(
+  networkId: string,
+  keyId: string,
+  updates: { label?: string; slug?: string },
+): Promise<{ id: string; label: string | null; slug?: string }> {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys/${keyId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `updateServerKey failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function createPack(
   networkId: string,
   serverKeyId: string,

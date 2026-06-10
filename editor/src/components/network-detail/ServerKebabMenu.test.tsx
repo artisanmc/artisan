@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ServerKebabMenu } from "./ServerKebabMenu";
 
 describe("ServerKebabMenu", () => {
@@ -8,8 +8,10 @@ describe("ServerKebabMenu", () => {
     render(<ServerKebabMenu serverId="sk1" onAction={onAction} />);
     // trigger open — aria-label is translated, match both locales
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
-    // 5 menu items must be present
-    expect(screen.getAllByRole("menuitem")).toHaveLength(5);
+    // 6 menu items must be present
+    expect(screen.getAllByRole("menuitem")).toHaveLength(6);
+    // "Edit server…" / "Modifier le serveur…"
+    expect(screen.getByRole("menuitem", { name: /edit|modifier/i })).toBeInTheDocument();
     // "Rotate key…" / "Renouveler la clé…"
     expect(screen.getByRole("menuitem", { name: /rotate|renouveler/i })).toBeInTheDocument();
     // "Connection history" / "Historique de connexion"
