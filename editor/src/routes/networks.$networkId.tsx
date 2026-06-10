@@ -1,21 +1,28 @@
-import { createFileRoute, Link, Outlet, useChildMatches, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { ArrowRight, Check, Copy, Key } from "lucide-react";
-import {
-  getNetwork,
-  createServerKey,
-  deleteServerKey,
-  rotateServerKey,
-  createPack,
-} from "@/lib/api/networks";
-import { displayServerLabel } from "@/lib/serverLabel";
-import { ServerCard } from "@/components/network-detail/ServerCard";
+import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHistoryModal";
+import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
+import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { NewWorkspaceModal } from "@/components/network-detail/NewWorkspaceModal";
-import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHistoryModal";
-import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
-import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
+import { ServerCard } from "@/components/network-detail/ServerCard";
+import {
+  createPack,
+  createServerKey,
+  deleteServerKey,
+  getNetwork,
+  rotateServerKey,
+} from "@/lib/api/networks";
+import { displayServerLabel } from "@/lib/serverLabel";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useChildMatches,
+  useNavigate,
+  useParams,
+} from "@tanstack/react-router";
+import { ArrowRight, Check, Copy, Key } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/networks/$networkId")({ component: NetworkDetailPage });
 
@@ -24,19 +31,31 @@ type NetworkDetail = Awaited<ReturnType<typeof getNetwork>>;
 export function NetworkDetailPage() {
   const { t } = useTranslation();
   const { networkId } = useParams({ strict: false }) as { networkId: string };
+  const navigate = useNavigate();
   const [detail, setDetail] = useState<NetworkDetail | null>(null);
   const [newServerOpen, setNewServerOpen] = useState(false);
   const [newWsForServer, setNewWsForServer] = useState<string | null>(null);
   const [historyServer, setHistoryServer] = useState<string | null>(null);
   const [allowlistServer, setAllowlistServer] = useState<string | null>(null);
-  const [deleteServer, setDeleteServer] = useState<{ id: string; label: string; workspaceCount: number } | null>(null);
+  const [deleteServer, setDeleteServer] = useState<{
+    id: string;
+    label: string;
+    workspaceCount: number;
+  } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
   const childMatches = useChildMatches();
 
   useEffect(() => {
     if (!networkId) return;
-    getNetwork(networkId).then(setDetail).catch(console.error);
-  }, [networkId]);
+    getNetwork(networkId)
+      .then(setDetail)
+      .catch((e: Error & { status?: number }) => {
+        // Stale/inaccessible network (e.g. a URL left over from another account)
+        // → bounce to the user's own networks list, don't loop a broken page.
+        if (e?.status === 403 || e?.status === 404) navigate({ to: "/networks", replace: true });
+        else console.error(e);
+      });
+  }, [networkId, navigate]);
 
   if (childMatches.length > 0) return <Outlet />;
   if (!detail)
@@ -171,7 +190,10 @@ export function NetworkDetailPage() {
         <NewWorkspaceModal
           open
           onOpenChange={(o) => !o && setNewWsForServer(null)}
-          serverLabel={(() => { const sk = detail.serverKeys.find((k) => k.id === newWsForServer); return sk ? displayServerLabel(sk) : ""; })()}
+          serverLabel={(() => {
+            const sk = detail.serverKeys.find((k) => k.id === newWsForServer);
+            return sk ? displayServerLabel(sk) : "";
+          })()}
           onCreate={handleCreateWorkspace}
         />
       )}

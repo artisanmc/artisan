@@ -1,9 +1,16 @@
-import { createFileRoute, Link, Outlet, useChildMatches, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { getNetwork } from "@/lib/api/networks";
 import type { PackSummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useChildMatches,
+  useNavigate,
+  useParams,
+} from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
   component: ServerDetailPage,
@@ -14,6 +21,7 @@ export default function ServerDetailPage() {
   const { networkId, serverId } = useParams({
     from: "/networks/$networkId/servers/$serverId",
   });
+  const navigate = useNavigate();
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<PackSummary[]>([]);
   const childMatches = useChildMatches();
@@ -26,8 +34,11 @@ export default function ServerDetailPage() {
         setServerDisplayLabel(sk ? displayServerLabel(sk) : null);
         setWorkspaces(d.packs.filter((p) => p.serverKeyId === serverId));
       })
-      .catch(console.error);
-  }, [networkId, serverId]);
+      .catch((e: Error & { status?: number }) => {
+        if (e?.status === 403 || e?.status === 404) navigate({ to: "/networks", replace: true });
+        else console.error(e);
+      });
+  }, [networkId, serverId, navigate]);
 
   if (childMatches.length > 0) return <Outlet />;
 
