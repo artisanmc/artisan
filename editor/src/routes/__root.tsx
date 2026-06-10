@@ -1,16 +1,13 @@
-import { Outlet, createRootRoute } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { transform } from "@/features/export/transform";
-import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
-import { savePack } from "@/lib/packApi";
-import { saveUserPack } from "@/lib/api/userPacks";
+import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
+import type { Pack } from "@/domain/types";
+import { persistPack } from "@/features/pack/persistPack";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
-import type { Pack } from "@/domain/types";
-import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
+import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Menu } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -96,23 +93,8 @@ export function usePackAutoSave() {
         const currentUser = useAuthStore.getState().currentUser;
         if (!currentToken && !currentUser) return;
         for (const [, pack] of toSave) {
-          try {
-            const cloned = structuredClone(pack);
-            for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
-            for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
-            const files = transform(cloned);
-            if (currentToken) {
-              // Session mode (trust dance): persist via the session-scoped
-              // endpoint that the editor_session token authorises.
-              await savePack(currentToken, pack, files);
-            } else {
-              // User-auth mode: cookie-based call to the user-scoped pack
-              // endpoint. Membership of the network is checked server-side.
-              await saveUserPack(pack.id, { hash: "", files, editor: pack });
-            }
-          } catch {
-            // silently ignore save errors — user will see stale "saving" indicator
-          }
+          // Silently ignore save errors — the user sees a stale "saving" indicator.
+          await persistPack(pack, currentToken, !!currentUser).catch(() => {});
         }
       }, 2000);
     });
