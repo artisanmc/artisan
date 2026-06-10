@@ -1,3 +1,4 @@
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import type { Pack } from "@/domain/types";
 import { persistPack } from "@/features/pack/persistPack";
@@ -5,7 +6,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -24,6 +25,10 @@ export function RootLayout() {
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
   const showSidebar = !!user || !!sessionToken;
+  // Admin area swaps the workspace sidebar for the admin section nav.
+  // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdminArea = pathname.startsWith("/admin") && !!user?.isAdmin;
   return (
     <div className="relative flex h-full">
       {showSidebar && (
@@ -40,7 +45,7 @@ export function RootLayout() {
               sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <WorkspaceSidebar />
+            {isAdminArea ? <AdminSidebar /> : <WorkspaceSidebar />}
           </aside>
           <button
             type="button"

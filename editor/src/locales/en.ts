@@ -67,6 +67,7 @@ export default {
     sourceImported: "imp",
     sourceForked: "fork",
     countMenusCommands: "{{menus}}m · {{commands}}c",
+    emptyPreview: "empty",
   },
   newPackDialog: {
     title: "New workspace",
@@ -97,7 +98,8 @@ export default {
   },
   deletePackDialog: {
     title: "Delete workspace",
-    warning: "This will permanently delete \"{{name}}\" and all its menus, commands, and data. This cannot be undone.",
+    warning:
+      'This will permanently delete "{{name}}" and all its menus, commands, and data. This cannot be undone.',
     confirmLabel: "Type the workspace ID to confirm:",
     cancel: "Cancel",
     delete: "Delete",
@@ -457,8 +459,10 @@ export default {
   sync: {
     deletePackDialog: {
       title: "Delete workspace «{{name}}»?",
-      warning: "This action will remove all menus, dialogs and translations of the workspace from every connected Minecraft server. The files will be moved to `plugins/Artisan/.artisan-trash/` server-side in case you need to recover them.",
-      conflictWarning: "If a conflict exists for this workspace, it will be ignored and the editor will become authoritative.",
+      warning:
+        "This action will remove all menus, dialogs and translations of the workspace from every connected Minecraft server. The files will be moved to `plugins/Artisan/.artisan-trash/` server-side in case you need to recover them.",
+      conflictWarning:
+        "If a conflict exists for this workspace, it will be ignored and the editor will become authoritative.",
       typePrompt: "To confirm, type the workspace name:",
       cancel: "Cancel",
       confirm: "Delete",
@@ -565,16 +569,14 @@ export default {
   },
   servers: {
     title: "Bound servers",
-    subtitle:
-      "Each row is a server_key — the identity one Minecraft server uses to authenticate.",
+    subtitle: "Each row is a server_key — the identity one Minecraft server uses to authenticate.",
     empty: "This pack isn't bound to any server yet.",
     bindCta: "Bind to a server",
     branchLabel: "branch",
     online: "online",
     offline: "offline",
     unbind: "Unbind",
-    confirmUnbind:
-      "Unbind this server? It will stop receiving updates for this pack.",
+    confirmUnbind: "Unbind this server? It will stop receiving updates for this pack.",
     unbound: "Server unbound.",
     unbindFailed: "Unbind failed.",
     branchSwitched: "Binding branch updated.",
@@ -635,7 +637,12 @@ export default {
   },
   admin: {
     title: "Admin",
-    tabs: { ai: "AI" },
+    nav: {
+      back: "Back to editor",
+      section: "Admin console",
+      ai: "AI",
+      design: "Design system",
+    },
     forbidden: "Admins only.",
     ai: {
       heading: "AI provider",
@@ -650,6 +657,48 @@ export default {
       testOk: "Connection OK.",
       testFail: "Connection failed: {{error}}",
       saveFail: "Save failed.",
+    },
+  },
+  adminDesign: {
+    title: "Design system",
+    intro:
+      "Single source of truth for the editor's visual language. Any new UI must go through these tokens, utility classes and components first — extend this library (and this page) rather than styling ad-hoc.",
+    themeHint: "Tokens adapt to the active theme:",
+    bodySample: "Hanken Grotesque — body text, controls, labels.",
+    guidelines: {
+      heading: "Rules",
+      rule1:
+        "Colors only via var(--token) — never raw hex or rgba in components (Konva canvas excepted).",
+      rule2:
+        "Buttons, inputs, dialogs… come from components/ui or the .btn/.input/.card utility classes.",
+      rule3:
+        "Missing component? Create it in components/ui, then add its specimen to this page in the same commit.",
+      rule4: "Every user-visible string goes through i18n (en + fr in the same commit).",
+      rule5:
+        "Spacing, radii and shadows come from the token scale (--r-*, --shadow-*), not arbitrary values.",
+    },
+    sections: {
+      colors: "Color tokens",
+      typography: "Typography",
+      radiiShadows: "Radii & shadows",
+      cssUtilities: "CSS utility classes",
+      primitives: "React primitives (components/ui)",
+      appComponents: "Shared app components",
+    },
+    groups: {
+      surfaces: "Surfaces",
+      text: "Text",
+      borders: "Borders",
+      brand: "Brand",
+      status: "Status",
+    },
+    demo: {
+      dialogTitle: "Dialog title",
+      dialogBody: "Dialog body text — use DialogFooter for actions.",
+      cancel: "Cancel",
+      confirm: "Confirm",
+      sheetTitle: "Sheet title",
+      sheetBody: "Side sheet body — used for mobile drawers and detail panels.",
     },
   },
   networksPage: {
@@ -669,7 +718,8 @@ export default {
     workspaceCount: "{{count}} workspaces",
     networkSettings: "Network settings",
     serverCreated: "Server key created",
-    serverCreatedHint: "Copy this key now and paste it into config.yml. It will never be shown again.",
+    serverCreatedHint:
+      "Copy this key now and paste it into config.yml. It will never be shown again.",
     close: "Close",
   },
   networkDetail: {
@@ -682,9 +732,11 @@ export default {
     deleteServer: "Delete",
     rotateKey: "Rotate",
     loading: "Loading…",
-    confirmRotateKey: "Rotate this key? The current value will stop working immediately and you'll need to paste the new one into the server's config.yml.",
+    confirmRotateKey:
+      "Rotate this key? The current value will stop working immediately and you'll need to paste the new one into the server's config.yml.",
     rotateRevealTitle: "New key generated",
-    rotateRevealHint: "Copy this key now and paste it into the server's config.yml. For security, it will never be shown again.",
+    rotateRevealHint:
+      "Copy this key now and paste it into the server's config.yml. For security, it will never be shown again.",
     rotateRevealKeyLabel: "Server key",
     rotateRevealShownOnce: "Shown once",
     copy: "Copy",
@@ -715,7 +767,7 @@ export default {
     creating: "Creating…",
   },
   newWorkspaceModal: {
-    title: "New workspace on \"{{server}}\"",
+    title: 'New workspace on "{{server}}"',
     nameField: "Name",
     descriptionField: "Description (optional)",
     cancel: "Cancel",
@@ -887,9 +939,12 @@ export default {
     revertFailed: "Restore failed",
     deployTitle: "Deploy — make the changes visible to players",
     revertTitle: "Discard changes (revert to the live version)",
-    cannotDeployTitle: "Deploy needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the workspace's network + branch loaded.",
-    cannotRevertTitle: "Discard needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the workspace's network + branch loaded.",
-    noSessionTitle: "Deploy / revert needs a trusted editor session. Use /artisan editor in your MC console to trust this browser, or use the Commit button to save to a branch.",
+    cannotDeployTitle:
+      "Deploy needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the workspace's network + branch loaded.",
+    cannotRevertTitle:
+      "Discard needs either a trusted editor session (/artisan editor in MC console) or a signed-in account with the workspace's network + branch loaded.",
+    noSessionTitle:
+      "Deploy / revert needs a trusted editor session. Use /artisan editor in your MC console to trust this browser, or use the Commit button to save to a branch.",
   },
   userMenu: {
     anonymous: "Anonymous",
@@ -907,6 +962,7 @@ export default {
     loginSubmit: "Sign in",
     logout: "Sign out",
     discordButton: "Continue with Discord",
+    orSeparator: "or",
     noAccount: "No account yet?",
     signupLink: "Sign up",
     haveAccount: "Already have an account?",
