@@ -38,4 +38,23 @@ describe("assistant SSE client", () => {
     expect(events.map((e) => e.type)).toEqual(["text", "menu_written", "done"]);
     expect(events[1].menu).toEqual({ id: "shop" });
   });
+  it("user-auth mode (null token) omits the Bearer header but sends cookie credentials", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ conversationId: "c2" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await openConversation(null, { menus: [] });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.credentials).toBe("include");
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+  it("session mode (token) sets the Bearer header", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ conversationId: "c3" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await openConversation("tok", { menus: [] });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+  });
 });

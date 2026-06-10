@@ -23,6 +23,7 @@ import type { PackId } from "@/domain/types";
 import { packToMenuV1 } from "@/features/export/transform";
 import { openConversation, streamAssistant } from "@/lib/api/assistant";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useRef, useState } from "react";
@@ -37,7 +38,11 @@ export function AssistantPanel({ packId }: { packId: PackId }) {
   const { t } = useTranslation();
   const open = useUiStore((s) => s.assistantPanelOpen);
   const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
+  // Session token (plugin trust-dance) OR a logged-in web user (cookie auth):
+  // the panel lives in the user-auth web editor, so `token` is usually null and
+  // the request rides the `artisan_user_session` cookie instead.
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
@@ -62,7 +67,7 @@ export function AssistantPanel({ packId }: { packId: PackId }) {
 
   async function send() {
     const text = input.trim();
-    if (!token || !text || busy) return;
+    if ((!token && !user) || !text || busy) return;
     setInput("");
     setEntries((e) => [...e, { role: "user", text }]);
     setBusy(true);
