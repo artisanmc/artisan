@@ -766,6 +766,8 @@ const fr: typeof en = {
       title: "Créer un serveur",
       description:
         "Cette clé authentifie ton serveur Minecraft auprès du backend Artisan. Génère-la puis copie-la — elle ne sera plus jamais affichée.",
+      nameLabel: "Nom du serveur",
+      namePlaceholder: "ex. Lobby, Survie…",
       keyLabel: "Ta server key",
       shownOnce: "une seule fois",
       generated: "✓ Générée",
