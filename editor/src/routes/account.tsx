@@ -64,9 +64,6 @@ export function AccountPage() {
                 <span className="text-[14px] font-semibold text-[var(--text)]">
                   {t("accountPage.firstServerTitle")}
                 </span>
-                <span className="text-[12px] text-[var(--text-mut)]">
-                  {t("accountPage.firstServerHint")}
-                </span>
               </div>
             </Link>
           ) : (

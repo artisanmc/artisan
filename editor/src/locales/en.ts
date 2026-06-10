@@ -619,7 +619,7 @@ export default {
     networkLabel: "Network",
     manageNetworks: "Manage networks →",
     noNetworkCta: "Create a Network",
-    noNetworkHint: "Create a Network first to organize your packs.",
+    noNetworkHint: "Create a Network first to organize your workspaces.",
     createNetwork: "+ Create network",
     serverLabel: "Server",
     selectServer: "Select a server",
@@ -628,7 +628,6 @@ export default {
   accountPage: {
     networksSection: "Networks",
     firstServerTitle: "Set up your first server",
-    firstServerHint: "Launch the wizard to create a Network and bind a Minecraft server.",
     addAnotherServer: "+ Add another server",
     networkBadge: "Network",
     notSignedIn: "Not signed in?",
