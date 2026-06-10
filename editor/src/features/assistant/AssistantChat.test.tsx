@@ -1,4 +1,5 @@
 import { packId } from "@/domain/ids";
+import { persistPack } from "@/features/pack/persistPack";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -6,6 +7,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChat } from "./AssistantChat";
+
+vi.mock("@/features/pack/persistPack", () => ({ persistPack: vi.fn(async () => {}) }));
 
 // Scripted SSE: two text chunks (must coalesce into ONE assistant entry),
 // then a written menu, then done.
@@ -88,6 +91,10 @@ describe("AssistantChat", () => {
     });
 
     expect(screen.getByText(/(modifié|updated)\s*:?\s*shop/i)).toBeTruthy();
+
+    // The generated menu is persisted immediately (not only via the debounced
+    // auto-save) so a reload right after can't lose it.
+    await waitFor(() => expect(persistPack).toHaveBeenCalled());
   });
 
   it("sends in user-auth mode: no session token but a logged-in user", async () => {

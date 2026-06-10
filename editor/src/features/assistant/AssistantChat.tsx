@@ -1,5 +1,6 @@
 import type { PackId } from "@/domain/types";
 import { packToMenuV1 } from "@/features/export/transform";
+import { persistPack } from "@/features/pack/persistPack";
 import {
   type ConversationMessage,
   getConversation,
@@ -110,6 +111,7 @@ export function AssistantChat({
       if (!convId.current) {
         convId.current = await openConversation(token, { packId });
       }
+      let dirty = false;
       for await (const ev of streamAssistant(token, convId.current, { text, menus, attachments })) {
         if (ev.type === "text") {
           appendAssistant(String(ev.text ?? ""));
@@ -117,12 +119,20 @@ export function AssistantChat({
           const menu = ev.menu as Record<string, unknown>;
           useAccountStore.getState().applyAssistantMenu({ packId, menuV1: menu, lang });
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(menu.id) }]);
+          dirty = true;
         } else if (ev.type === "menu_deleted") {
           useAccountStore.getState().deleteFromPack({ packId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
+          dirty = true;
         } else if (ev.type === "error") {
           toast.error(String(ev.message ?? t("assistant.errorGeneric")));
         }
+      }
+      // AI writes must be durable immediately: the debounced auto-save would
+      // lose a just-generated menu on a reload within its 2s window.
+      if (dirty) {
+        const updated = useAccountStore.getState().account.packs.find((p) => p.id === packId);
+        if (updated) await persistPack(updated, token, !!user).catch(() => {});
       }
     } catch {
       toast.error(t("assistant.errorGeneric"));
