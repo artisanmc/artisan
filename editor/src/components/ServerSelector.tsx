@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { ChevronDown, Plus } from "lucide-react";
-import { useSidebarStore } from "@/state/sidebarStore";
-import { Link } from "@tanstack/react-router";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useSidebarStore } from "@/state/sidebarStore";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
+import { ChevronDown, Plus } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface ServerEntry {
   serverId: string;
+  /** URL slug — the serverId URL param may carry it instead of the id. */
+  serverSlug?: string;
   serverLabel: string;
   networkId: string;
   networkName: string;
@@ -23,14 +25,17 @@ export function ServerSelector({ servers }: Props) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  // Active server = URL param (strict: false so it works on any nested route)
+  // Active server = URL param (strict: false so it works on any nested route).
+  // Slug routes (phase 4a) put the slug in the param, old links the id — match both.
   const params = useParams({ strict: false }) as {
     networkId?: string;
     serverId?: string;
   };
   const activeServerId = params.serverId ?? null;
 
-  const active = servers.find((s) => s.serverId === activeServerId);
+  const active = servers.find(
+    (s) => s.serverId === activeServerId || (s.serverSlug && s.serverSlug === activeServerId),
+  );
 
   const handleSelect = (entry: ServerEntry) => {
     setOpen(false);
@@ -78,7 +83,9 @@ export function ServerSelector({ servers }: Props) {
           <span className="text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.serverLabel")}
           </span>
-          <span className="mt-0.5 text-[13.5px] font-medium text-[var(--text)]">{displayLabel}</span>
+          <span className="mt-0.5 text-[13.5px] font-medium text-[var(--text)]">
+            {displayLabel}
+          </span>
         </div>
         <ChevronDown
           data-testid="server-selector-caret"
@@ -102,7 +109,9 @@ export function ServerSelector({ servers }: Props) {
                 {displayServerLabel({ id: entry.serverId, label: entry.serverLabel || null })}
               </span>
               {multiNetwork && (
-                <span className="ml-2 text-[11px] text-[var(--text-faint)]">{entry.networkName}</span>
+                <span className="ml-2 text-[11px] text-[var(--text-faint)]">
+                  {entry.networkName}
+                </span>
               )}
             </button>
           ))}

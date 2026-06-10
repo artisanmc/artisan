@@ -119,7 +119,7 @@ Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 59
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
+- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de packs ; `ServerSelector` matche pareillement `serverId|serverSlug`. En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
 - **`/networks/$networkId/servers/$serverId/workspaces/$workspaceId`** — route canonique server-scoped (`/workspace/$workspaceId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
 - **Top bar** : pack name, `LangSwitcher` (contenu pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
@@ -146,7 +146,10 @@ Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssista
 
 ## Panel chat de l'assistant (sous-plan 4b — l'UI)
 
-`features/assistant/AssistantPanel.tsx` est l'UI qui consomme la logique 4a. C'est un **overlay**, pas une route : un `Sheet` (radix dialog, `side="right"`, couvre le petit viewport sur mobile) dont l'ouverture est pilotée par le flag transitoire `uiStore.assistantPanelOpen` (jamais persisté — absent du `partialize`).
+L'assistant a deux présentations, toutes deux pilotées par le flag transitoire `uiStore.assistantPanelOpen` (jamais persisté — absent du `partialize`) et partageant le même corps `AssistantChat` :
+
+- **Desktop (≥lg)** : `features/assistant/AssistantPane.tsx`, pane inline redimensionnable monté par la route workspace via `SplitPane`, docké **sous la topbar** au même niveau que le canvas et son pane properties (la topbar reste pleine largeur). Largeur persistée (`uiStore.assistantPaneWidth`).
+- **Mobile (<lg)** : `features/assistant/AssistantPanel.tsx`, un **overlay** : `Sheet` (radix dialog, `side="right"`, couvre le petit viewport). `open` est gaté sur `!isDesktop` pour ne jamais montrer les deux présentations à la fois.
 
 - **Ouverture** : bouton `Sparkles` (`lucide-react`) dans `WorkspaceTopBarControls` (`AssistantButton`) → `setAssistantPanelOpen(true)`. Le panel est monté inconditionnellement dans la route workspace (à côté de `DeletePackDialog`) avec le pack actif (`pId`) ; le `Sheet` gère sa propre visibilité.
 - **Composer** : `<textarea>` (Enter = envoyer, Shift+Enter = nouvelle ligne) + bouton Envoyer (désactivé tant que vide / pendant le stream). Drag-drop de fichiers sur le panel → `file.text()` est stocké dans l'état `attachments` (`{ [filename]: contenu }`), un compteur s'affiche. Les `attachments` sont ré-envoyés à chaque message.
