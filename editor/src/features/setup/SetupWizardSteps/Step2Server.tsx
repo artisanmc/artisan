@@ -1,8 +1,9 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import * as networksApi from "@/lib/api/networks";
+import { Check, Copy, Key } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Key, Copy, Check } from "lucide-react";
-import * as networksApi from "@/lib/api/networks";
 import type { WizardState } from "../SetupWizard";
 
 interface Props {
@@ -12,15 +13,16 @@ interface Props {
 
 export function Step2Server({ state, setState }: Props) {
   const { t } = useTranslation();
+  const [name, setName] = useState("");
   const [generating, setGenerating] = useState(false);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function handleGenerate() {
-    if (!state.networkId) return;
+    if (!state.networkId || name.trim().length === 0) return;
     setGenerating(true);
     try {
-      const sk = await networksApi.createServerKey(state.networkId);
+      const sk = await networksApi.createServerKey(state.networkId, name.trim());
       setState((s) => ({ ...s, serverKey: sk.key, serverKeyId: sk.id }));
       setDone(true);
     } finally {
@@ -46,6 +48,16 @@ export function Step2Server({ state, setState }: Props) {
       <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
         {t("setupWizard.step2.description")}
       </p>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="field-label">{t("setupWizard.step2.nameLabel")}</span>
+        <Input
+          placeholder={t("setupWizard.step2.namePlaceholder")}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={done}
+        />
+      </div>
 
       {state.serverKey && (
         <div className="flex flex-col gap-2">
@@ -79,7 +91,7 @@ export function Step2Server({ state, setState }: Props) {
       <Button
         variant={done ? "outline" : "primary"}
         onClick={handleGenerate}
-        disabled={generating || done}
+        disabled={generating || done || name.trim().length === 0}
       >
         {done
           ? t("setupWizard.step2.generated")

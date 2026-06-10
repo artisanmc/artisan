@@ -756,6 +756,8 @@ export default {
       title: "Create a server",
       description:
         "This key authenticates your Minecraft server with the Artisan backend. Generate it then copy it — it will never be shown again.",
+      nameLabel: "Server name",
+      namePlaceholder: "e.g. Lobby, Survival…",
       keyLabel: "Your server key",
       shownOnce: "shown once",
       generated: "✓ Generated",
