@@ -996,6 +996,7 @@ const fr: typeof en = {
   assistant: {
     title: "Assistant IA",
     open: "Assistant IA",
+    close: "Fermer",
     placeholder: "Décris un menu, ou dépose un fichier zmenu/DeluxeMenus…",
     send: "Envoyer",
     thinking: "Réflexion…",

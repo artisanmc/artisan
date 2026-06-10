@@ -136,6 +136,9 @@ interface UiState {
    */
   assistantPanelOpen: boolean;
   setAssistantPanelOpen: (open: boolean) => void;
+  /** Width (px) of the AI assistant pane when docked on the right (desktop). */
+  assistantPaneWidth: number;
+  setAssistantPaneWidth: (w: number) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -162,7 +165,7 @@ export const useUiStore = create<UiState>()(
           import("@/lib/api/auth").then(({ patchMe }) =>
             patchMe({ apiUrl }, { editor_language: lang }).catch(() => {
               console.warn("editor_language sync to backend failed (offline?)");
-            })
+            }),
           );
         });
       },
@@ -277,6 +280,8 @@ export const useUiStore = create<UiState>()(
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
       assistantPanelOpen: false,
       setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
+      assistantPaneWidth: 380,
+      setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
     }),
     {
       name: "artisan:ui",
@@ -291,6 +296,7 @@ export const useUiStore = create<UiState>()(
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
+        assistantPaneWidth: state.assistantPaneWidth,
         editorTab: state.editorTab,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
@@ -299,7 +305,8 @@ export const useUiStore = create<UiState>()(
       // uses the right locale (avoids an EN flash when the user is on FR).
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<UiState>;
-        const t: EditorTab = p.editorTab === "library" ? "library" : p.editorTab === "assets" ? "assets" : "edit";
+        const t: EditorTab =
+          p.editorTab === "library" ? "library" : p.editorTab === "assets" ? "assets" : "edit";
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }
