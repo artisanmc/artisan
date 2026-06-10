@@ -229,7 +229,10 @@ export function PackCanvasPage() {
   if (childMatches.length > 0) return <Outlet />;
 
   const mainContent = (
-    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+    // `h-full` (not just `flex-1`) so it fills both its flex parent (assistant
+    // closed) and the SplitPane's block wrapper (assistant open) — otherwise the
+    // main area collapses to content height and the surface shows through below.
+    <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {pack ? (
         <WorkspaceTopBarControls
           pack={pack}
