@@ -1,0 +1,437 @@
+import { SplitPane } from "@/components/SplitPane";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Inbox, Pencil, Plus, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+/**
+ * Living style guide rendered at /admin/design. Every token, utility class
+ * and ui/ primitive of the editor is shown live here — when adding a new
+ * component or token, add its specimen to this page in the same commit.
+ *
+ * Specimen labels (token names, class names, variant names) are code
+ * identifiers, intentionally NOT translated; page chrome goes through i18n.
+ */
+
+const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
+  {
+    key: "surfaces",
+    tokens: [
+      "--surface",
+      "--surface-raised",
+      "--surface-raised-2",
+      "--surface-inset",
+      "--surface-hover",
+    ],
+  },
+  { key: "text", tokens: ["--text", "--text-mut", "--text-faint", "--text-on-accent"] },
+  { key: "borders", tokens: ["--border-soft", "--border", "--border-strong"] },
+  {
+    key: "brand",
+    tokens: ["--brand", "--brand-hover", "--brand-fg", "--brand-soft", "--brand-line"],
+  },
+  {
+    key: "status",
+    tokens: [
+      "--success",
+      "--success-soft",
+      "--warning",
+      "--warning-soft",
+      "--danger",
+      "--danger-soft",
+    ],
+  },
+];
+
+const RADII = ["--r-xs", "--r-sm", "--r-md", "--r-lg", "--r-xl", "--r-pill"];
+const SHADOWS = ["--shadow-sm", "--shadow-md", "--shadow-lg"];
+
+const BUTTON_VARIANTS = ["default", "primary", "destructive", "outline", "ghost"] as const;
+const BTN_CLASSES = [
+  "btn",
+  "btn btn-primary",
+  "btn btn-outline",
+  "btn btn-ghost",
+  "btn btn-danger",
+  "btn btn-discord",
+];
+const BADGE_VARIANTS = ["amber", "sage", "terra", "brick"] as const;
+const BADGE_CLASSES = ["badge-amber", "badge-sage", "badge-terra", "badge-brick"];
+
+function Section({
+  id,
+  title,
+  children,
+}: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section data-testid={`ds-section-${id}`} className="flex flex-col gap-4">
+      <h2 className="eyebrow">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Swatch({ token }: { token: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className="size-9 shrink-0 rounded-[var(--r-sm)] border border-[var(--border-soft)]"
+        style={{ background: `var(${token})` }}
+      />
+      <span className="mono text-[11.5px] text-[var(--text-mut)]">{token}</span>
+    </div>
+  );
+}
+
+export function DesignSystemPage() {
+  const { t } = useTranslation();
+  const [splitSize, setSplitSize] = useState(160);
+
+  return (
+    <div className="flex flex-col gap-10">
+      {/* ── Rules ─────────────────────────────────────────────────────── */}
+      <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
+        <div className="card p-5">
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[13px] text-[var(--text-mut)]">
+            {(["rule1", "rule2", "rule3", "rule4", "rule5"] as const).map((k) => (
+              <li key={k}>{t(`adminDesign.guidelines.${k}`)}</li>
+            ))}
+          </ul>
+        </div>
+      </Section>
+
+      {/* ── Color tokens ──────────────────────────────────────────────── */}
+      <Section id="colors" title={t("adminDesign.sections.colors")}>
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] text-[var(--text-mut)]">{t("adminDesign.themeHint")}</span>
+          <ThemeSwitcher />
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {COLOR_GROUPS.map((group) => (
+            <div key={group.key} className="card flex flex-col gap-3 p-5">
+              <span className="text-[12px] font-semibold text-[var(--text)]">
+                {t(`adminDesign.groups.${group.key}`)}
+              </span>
+              {group.tokens.map((token) => (
+                <Swatch key={token} token={token} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Typography ────────────────────────────────────────────────── */}
+      <Section id="typography" title={t("adminDesign.sections.typography")}>
+        <div className="card flex flex-col gap-5 p-5">
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              .display / --font-display
+            </span>
+            <span className="display text-[28px] text-[var(--text)]">Artisan — Menus & Packs</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">--font-body</span>
+            <span className="text-[13.5px] text-[var(--text)]">{t("adminDesign.bodySample")}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.mono / --font-mono</span>
+            <span className="mono text-[12.5px] text-[var(--text)]">
+              pack_id · menu.yaml · %player_name%
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.eyebrow</span>
+            <span className="eyebrow">Section label</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.field-label</span>
+            <span className="field-label">Field label</span>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Radii & shadows ───────────────────────────────────────────── */}
+      <Section id="radii-shadows" title={t("adminDesign.sections.radiiShadows")}>
+        <div className="card flex flex-col gap-6 p-5">
+          <div className="flex flex-wrap items-end gap-5">
+            {RADII.map((token) => (
+              <div key={token} className="flex flex-col items-center gap-2">
+                <span
+                  className="size-14 border border-[var(--border)] bg-[var(--surface-raised-2)]"
+                  style={{ borderRadius: `var(${token})` }}
+                />
+                <span className="mono text-[10.5px] text-[var(--text-faint)]">{token}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-8">
+            {SHADOWS.map((token) => (
+              <div key={token} className="flex flex-col items-center gap-2">
+                <span
+                  className="size-14 rounded-[var(--r-md)] bg-[var(--surface-raised)]"
+                  style={{ boxShadow: `var(${token})` }}
+                />
+                <span className="mono text-[10.5px] text-[var(--text-faint)]">{token}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── CSS utility classes ───────────────────────────────────────── */}
+      <Section id="css-utilities" title={t("adminDesign.sections.cssUtilities")}>
+        <div className="card flex flex-col gap-6 p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            {BTN_CLASSES.map((cls) => (
+              <button key={cls} type="button" className={cls}>
+                {cls.replace("btn ", "")}
+              </button>
+            ))}
+            <button type="button" className="btn btn-sm">
+              btn-sm
+            </button>
+            <button type="button" className="btn btn-icon" aria-label="btn-icon">
+              <Plus className="size-[16px]" />
+            </button>
+          </div>
+          <div className="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col">
+              <span className="field-label">.input</span>
+              <input className="input" placeholder="Placeholder" />
+            </label>
+            <label className="flex flex-col">
+              <span className="field-label">.select</span>
+              <select className="select">
+                <option>Option A</option>
+                <option>Option B</option>
+              </select>
+            </label>
+            <label className="flex flex-col sm:col-span-2">
+              <span className="field-label">.textarea</span>
+              <textarea className="textarea" placeholder="Multiline…" />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="chip">.chip</span>
+            <span className="chip is-active">.chip.is-active</span>
+            {BADGE_CLASSES.map((cls) => (
+              <span key={cls} className={`badge ${cls}`}>
+                {cls}
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5 text-[12px] text-[var(--text-mut)]">
+              <span className="dot" style={{ background: "var(--success)" }} /> .dot
+            </span>
+          </div>
+          <hr className="rule" />
+          <div className="tabstrip">
+            <button type="button" className="tab is-active">
+              .tab.is-active
+            </button>
+            <button type="button" className="tab">
+              .tab
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── React primitives (components/ui) ──────────────────────────── */}
+      <Section id="primitives" title={t("adminDesign.sections.primitives")}>
+        <div className="card flex flex-col gap-6 p-5">
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<Button variant size>"}
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {BUTTON_VARIANTS.map((variant) => (
+                <Button key={variant} variant={variant}>
+                  {variant}
+                </Button>
+              ))}
+              <Button size="sm">sm</Button>
+              <Button size="icon" aria-label="icon">
+                <Pencil className="size-[15px]" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Input>"}</span>
+            <Input className="max-w-xs" placeholder="Placeholder" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<FormField label hint>"}
+            </span>
+            <FormField label="Label" hint="Hint" className="max-w-xs">
+              <Input placeholder="Placeholder" />
+            </FormField>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Badge variant>"}</span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {BADGE_VARIANTS.map((variant) => (
+                <Badge key={variant} variant={variant}>
+                  {variant}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<EmptyState icon title hint action>"}
+            </span>
+            <div className="max-w-sm rounded-[var(--r-md)] border border-[var(--border-soft)]">
+              <EmptyState
+                icon={Inbox}
+                title="EmptyState title"
+                hint="EmptyState hint"
+                action={
+                  <Button variant="outline" size="sm">
+                    action
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Tabs>"}</span>
+            <Tabs defaultValue="one" className="max-w-md">
+              <TabsList>
+                <TabsTrigger value="one">Tab one</TabsTrigger>
+                <TabsTrigger value="two">Tab two</TabsTrigger>
+              </TabsList>
+              <TabsContent value="one" className="pt-2 text-[13px] text-[var(--text-mut)]">
+                TabsContent — one
+              </TabsContent>
+              <TabsContent value="two" className="pt-2 text-[13px] text-[var(--text-mut)]">
+                TabsContent — two
+              </TabsContent>
+            </Tabs>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">{"<Dialog>"}</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>{t("adminDesign.demo.dialogTitle")}</DialogTitle>
+                </DialogHeader>
+                <DialogDescription>{t("adminDesign.demo.dialogBody")}</DialogDescription>
+                <DialogFooter>
+                  <Button variant="ghost" size="sm">
+                    {t("adminDesign.demo.cancel")}
+                  </Button>
+                  <Button variant="primary" size="sm">
+                    {t("adminDesign.demo.confirm")}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline">{"<Sheet>"}</Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <SheetHeader>
+                  <SheetTitle>{t("adminDesign.demo.sheetTitle")}</SheetTitle>
+                </SheetHeader>
+                <SheetBody>
+                  <p className="text-[13px] text-[var(--text-mut)]">
+                    {t("adminDesign.demo.sheetBody")}
+                  </p>
+                </SheetBody>
+              </SheetContent>
+            </Sheet>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">{"<DropdownMenu>"}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem>
+                  <Sparkles className="size-[14px]" /> Item one
+                </DropdownMenuItem>
+                <DropdownMenuItem>Item two</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Item three</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Card>"}</span>
+            <Card className="max-w-sm">
+              <CardHeader>
+                <CardTitle>CardTitle</CardTitle>
+                <CardDescription>CardDescription</CardDescription>
+              </CardHeader>
+              <CardContent className="text-[13px] text-[var(--text-mut)]">CardContent</CardContent>
+            </Card>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Shared app components ─────────────────────────────────────── */}
+      <Section id="app-components" title={t("adminDesign.sections.appComponents")}>
+        <div className="card flex flex-col gap-6 p-5">
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<ThemeSwitcher>"}</span>
+            <ThemeSwitcher />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<SplitPane>"}</span>
+            <div className="h-40 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)]">
+              <SplitPane
+                orientation="horizontal"
+                primary={
+                  <div className="flex h-full items-center justify-center text-[12px] text-[var(--text-faint)]">
+                    primary
+                  </div>
+                }
+                secondary={
+                  <div className="flex h-full items-center justify-center text-[12px] text-[var(--text-faint)]">
+                    secondary
+                  </div>
+                }
+                secondarySize={splitSize}
+                onSecondarySizeChange={setSplitSize}
+                minSecondary={80}
+                minPrimary={120}
+              />
+            </div>
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
