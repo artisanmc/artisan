@@ -714,3 +714,168 @@ describe("GET /api/v1/networks/:id/server-keys/:keyId/status", () => {
     expect((await res.json()).online).toBe(false);
   });
 });
+
+describe("PATCH /api/v1/networks/:id", () => {
+  beforeEach(clearAll);
+
+  async function setup() {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "My Network" }),
+    })).json();
+    return { app, headers, network };
+  }
+
+  test("renames the network (name only) — slug unchanged", async () => {
+    const { app, headers, network } = await setup();
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ name: "Renamed" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.network.name).toBe("Renamed");
+    expect(body.network.slug).toBe(network.slug);
+  });
+
+  test("updates the slug — URL resolution by old slug still works for the call", async () => {
+    const { app, headers, network } = await setup();
+    const res = await app.request(`/api/v1/networks/${network.slug}`, {
+      method: "PATCH", headers, body: JSON.stringify({ slug: "new-slug" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.network.slug).toBe("new-slug");
+    const rows = await db.select().from(networks).where(eq(networks.id, network.id));
+    expect(rows[0].slug).toBe("new-slug");
+  });
+
+  test("409 when the slug is taken by another network", async () => {
+    const { app, headers, network } = await setup();
+    const { network: other } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "Other" }),
+    })).json();
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ slug: other.slug }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("slug_taken");
+  });
+
+  test("422 on invalid slug (not slugified)", async () => {
+    const { app, headers, network } = await setup();
+    for (const bad of ["Has Spaces", "UPPER", "été", ""]) {
+      const res = await app.request(`/api/v1/networks/${network.id}`, {
+        method: "PATCH", headers, body: JSON.stringify({ slug: bad }),
+      });
+      expect(res.status).toBe(422);
+    }
+  });
+
+  test("422 on empty name / empty body", async () => {
+    const { app, headers, network } = await setup();
+    const res1 = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ name: "  " }),
+    });
+    expect(res1.status).toBe(422);
+    const res2 = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({}),
+    });
+    expect(res2.status).toBe(422);
+  });
+
+  test("403 for non-member", async () => {
+    const { app, network } = await setup();
+    const { sessionId: sessB } = await seedUser("u2");
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hack" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("401 without cookie", async () => {
+    const { app, network } = await setup();
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "X" }),
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("PATCH /api/v1/networks/:id/server-keys/:keyId", () => {
+  beforeEach(clearAll);
+
+  async function setup() {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "N" }),
+    })).json();
+    const sk = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST", headers, body: JSON.stringify({ label: "Survie" }),
+    })).json();
+    return { app, headers, network, sk };
+  }
+
+  test("updates label and slug", async () => {
+    const { app, headers, network, sk } = await setup();
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ label: "Creatif", slug: "creatif" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(sk.id);
+    expect(body.label).toBe("Creatif");
+    expect(body.slug).toBe("creatif");
+    const rows = await db.select().from(serverKeys).where(eq(serverKeys.id, sk.id));
+    expect(rows[0].label).toBe("Creatif");
+    expect(rows[0].slug).toBe("creatif");
+  });
+
+  test("409 when slug taken by another key in the same network", async () => {
+    const { app, headers, network, sk } = await setup();
+    const other = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST", headers, body: JSON.stringify({ label: "Lobby" }),
+    })).json();
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ slug: other.slug }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("slug_taken");
+  });
+
+  test("422 on invalid slug or empty body", async () => {
+    const { app, headers, network, sk } = await setup();
+    const res1 = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({ slug: "Not Valid" }),
+    });
+    expect(res1.status).toBe(422);
+    const res2 = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH", headers, body: JSON.stringify({}),
+    });
+    expect(res2.status).toBe(422);
+  });
+
+  test("404 unknown key", async () => {
+    const { app, headers, network } = await setup();
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/nope`, {
+      method: "PATCH", headers, body: JSON.stringify({ label: "X" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("403 for non-member", async () => {
+    const { app, network, sk } = await setup();
+    const { sessionId: sessB } = await seedUser("u2");
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "Hack" }),
+    });
+    expect(res.status).toBe(403);
+  });
+});

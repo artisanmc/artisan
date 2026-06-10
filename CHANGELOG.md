@@ -10,6 +10,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- Édition des networks et serveurs (nom + slug) :
+  - Endpoints REST `PATCH /api/v1/networks/:id` (name/slug) et `PATCH /api/v1/networks/:id/server-keys/:keyId` (label/slug) — membre requis, `:id` réseau accepte id ou slug, slug canonique exigé (422 `invalid_slug`), unicité (409 `slug_taken` ; scope global pour les networks, par network pour les serveurs).
+  - Éditeur : section « Général » (nom + slug) dans les settings réseau (navigation automatique vers la nouvelle URL après changement de slug) ; action « Modifier le serveur… » dans le kebab des cartes serveur (`EditServerModal`, label + slug). Helper `editor/src/lib/slug.ts` (miroir du `slugify` backend) ; clients API `updateNetwork` / `updateServerKey`.
 - Historique des conversations de l'assistant IA — **persistées en DB** (`assistant_conversations`, migration 0007), scopées par workspace (`ownerKey` + `packId`). Le panneau ouvre sur une **liste** (titre auto depuis le 1er message + date) avec « Nouvelle conversation » ; cliquer une conversation **recharge son transcript** et on continue dessus. Backend : repo `conversationRepo.ts` + endpoints `GET /assistant/conversations?packId=` (liste) et `GET /assistant/conversations/:id` (transcript), persistance du transcript après chaque tour SSE. Front : `AssistantBody` (liste ↔ chat), `AssistantConversations` (liste), `AssistantChat` reprend via `conversationId`.
 - Socle console super-admin (plan 1 — `docs/superpowers/plans/2026-06-09-admin-1-access-secrets.md`) :
   - `users.is_admin` (BOOLEAN, migration 0006) + amorçage env `ADMIN_BOOTSTRAP_EMAILS` (CSV) dans `userAuth` (promotion une fois, guard `!isAdmin`). `GET /me` expose `isAdmin`.

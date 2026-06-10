@@ -1,6 +1,6 @@
 // backend/src/routes/userNetworks.ts
 
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { db } from "../db/index";
@@ -15,6 +15,7 @@ import { requireMember } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, listPacksForNetwork } from "../lib/packStorage";
+import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
 import { disconnectServerKey, getInstanceCount } from "../ws/hub";
@@ -95,6 +96,146 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 		.where(eq(serverKeys.networkId, network.id));
 	return c.json({ network, packs: packsList, serverKeys: skList });
 });
+
+// PATCH /api/networks/:id — update name and/or slug (member required)
+userNetworksRouter.patch("/:id", async (c: Context<{ Variables: Vars }>) => {
+	const userId = getUserId(c);
+	if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+	const param = c.req.param("id");
+	// Resolve by id OR slug, like GET /:id — callers may hold either.
+	const netRows = await db
+		.select()
+		.from(networks)
+		.where(or(eq(networks.id, param), eq(networks.slug, param)));
+	if (netRows.length === 0) return c.json({ error: "not_found" }, 404);
+	const network = netRows[0];
+	try {
+		await requireMember(userId, network.id);
+	} catch {
+		return c.json({ error: "forbidden" }, 403);
+	}
+
+	let body: { name?: unknown; slug?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid_body" }, 400);
+	}
+
+	const updates: { name?: string; slug?: string; updatedAt: Date } = {
+		updatedAt: new Date(),
+	};
+	if (body.name !== undefined) {
+		if (typeof body.name !== "string" || body.name.trim().length === 0) {
+			return c.json({ error: "invalid_name" }, 422);
+		}
+		updates.name = body.name.trim();
+	}
+	if (body.slug !== undefined) {
+		// Slug must already be in canonical form — the UI slugifies as the user
+		// types; accepting raw input here would silently rewrite the URL.
+		if (
+			typeof body.slug !== "string" ||
+			body.slug.length === 0 ||
+			slugify(body.slug) !== body.slug
+		) {
+			return c.json({ error: "invalid_slug" }, 422);
+		}
+		const taken = await db
+			.select({ id: networks.id })
+			.from(networks)
+			.where(and(eq(networks.slug, body.slug), ne(networks.id, network.id)));
+		if (taken.length > 0) return c.json({ error: "slug_taken" }, 409);
+		updates.slug = body.slug;
+	}
+	if (updates.name === undefined && updates.slug === undefined) {
+		return c.json({ error: "no_fields" }, 422);
+	}
+
+	const [updated] = await db
+		.update(networks)
+		.set(updates)
+		.where(eq(networks.id, network.id))
+		.returning();
+	return c.json({ network: updated });
+});
+
+// PATCH /api/networks/:id/server-keys/:keyId — update label and/or slug
+userNetworksRouter.patch(
+	"/:id/server-keys/:keyId",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+		const param = c.req.param("id");
+		const netRows = await db
+			.select()
+			.from(networks)
+			.where(or(eq(networks.id, param), eq(networks.slug, param)));
+		if (netRows.length === 0) return c.json({ error: "not_found" }, 404);
+		const network = netRows[0];
+		try {
+			await requireMember(userId, network.id);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const keyId = c.req.param("keyId");
+		const keyRows = await db
+			.select()
+			.from(serverKeys)
+			.where(and(eq(serverKeys.id, keyId), eq(serverKeys.networkId, network.id)));
+		if (keyRows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		let body: { label?: unknown; slug?: unknown };
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "invalid_body" }, 400);
+		}
+
+		const updates: { label?: string; slug?: string } = {};
+		if (body.label !== undefined) {
+			if (typeof body.label !== "string" || body.label.trim().length === 0) {
+				return c.json({ error: "invalid_label" }, 422);
+			}
+			updates.label = body.label.trim();
+		}
+		if (body.slug !== undefined) {
+			if (
+				typeof body.slug !== "string" ||
+				body.slug.length === 0 ||
+				slugify(body.slug) !== body.slug
+			) {
+				return c.json({ error: "invalid_slug" }, 422);
+			}
+			// Unique per network (mirrors server_keys_network_slug_uniq).
+			const taken = await db
+				.select({ id: serverKeys.id })
+				.from(serverKeys)
+				.where(
+					and(
+						eq(serverKeys.networkId, network.id),
+						eq(serverKeys.slug, body.slug),
+						ne(serverKeys.id, keyId),
+					),
+				);
+			if (taken.length > 0) return c.json({ error: "slug_taken" }, 409);
+			updates.slug = body.slug;
+		}
+		if (updates.label === undefined && updates.slug === undefined) {
+			return c.json({ error: "no_fields" }, 422);
+		}
+
+		const [updated] = await db
+			.update(serverKeys)
+			.set(updates)
+			.where(eq(serverKeys.id, keyId))
+			.returning();
+		return c.json({ id: updated.id, label: updated.label, slug: updated.slug });
+	},
+);
 
 // POST /api/networks/:id/server-keys — create server_key in network
 userNetworksRouter.post(
