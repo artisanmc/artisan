@@ -38,13 +38,27 @@ describe("AdminSidebar", () => {
     expect(back).toHaveAttribute("href", "/networks");
   });
 
-  it("renders the AI and Design system nav entries", () => {
+  it("renders the AI, Users and Design system nav entries", () => {
     render(<AdminSidebar />);
     expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("link", { name: /utilisateurs|users/i })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
     expect(screen.getByRole("link", { name: /design system/i })).toHaveAttribute(
       "href",
       "/admin/design",
     );
+  });
+
+  it("keeps the Users entry active on a user profile subpage", () => {
+    mockPathname.current = "/admin/users/u123";
+    render(<AdminSidebar />);
+    expect(screen.getByRole("link", { name: /utilisateurs|users/i })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).not.toHaveAttribute("aria-current");
   });
 
   it("marks the AI entry active on /admin", () => {
