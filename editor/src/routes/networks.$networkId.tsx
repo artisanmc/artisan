@@ -1,5 +1,6 @@
 import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHistoryModal";
 import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
+import { EditServerModal } from "@/components/network-detail/EditServerModal";
 import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { NewWorkspaceModal } from "@/components/network-detail/NewWorkspaceModal";
@@ -10,6 +11,7 @@ import {
   deleteServerKey,
   getNetwork,
   rotateServerKey,
+  updateServerKey,
 } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
@@ -37,6 +39,11 @@ export function NetworkDetailPage() {
   const [newServerOpen, setNewServerOpen] = useState(false);
   const [newWsForServer, setNewWsForServer] = useState<string | null>(null);
   const [historyServer, setHistoryServer] = useState<string | null>(null);
+  const [editServer, setEditServer] = useState<{
+    id: string;
+    label: string | null;
+    slug?: string;
+  } | null>(null);
   const [allowlistServer, setAllowlistServer] = useState<string | null>(null);
   const [deleteServer, setDeleteServer] = useState<{
     id: string;
@@ -85,6 +92,9 @@ export function NetworkDetailPage() {
       if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
       const result = await rotateServerKey(detail.network.id, serverId);
       setRevealedKey({ keyId: serverId, key: result.key });
+    } else if (action === "edit") {
+      const sk = detail.serverKeys.find((k) => k.id === serverId);
+      if (sk) setEditServer({ id: sk.id, label: sk.label, slug: sk.slug });
     } else if (action === "history") {
       setHistoryServer(serverId);
     } else if (action === "allowlist") {
@@ -95,6 +105,19 @@ export function NetworkDetailPage() {
       const count = (packsByServer.get(serverId) ?? []).length;
       setDeleteServer({ id: serverId, label: displayServerLabel(sk), workspaceCount: count });
     }
+  };
+
+  const handleEditServer = async (updates: { label: string; slug: string }) => {
+    if (!editServer) return;
+    // Errors bubble to the modal, which maps codes (slug_taken…) to messages.
+    const updated = await updateServerKey(detail.network.id, editServer.id, updates);
+    useNetworksStore.getState().bumpRefresh(); // sync the sidebar
+    setDetail({
+      ...detail,
+      serverKeys: detail.serverKeys.map((k) =>
+        k.id === editServer.id ? { ...k, label: updated.label, slug: updated.slug } : k,
+      ),
+    });
   };
 
   const handleCreateServer = async (label: string) => {
@@ -209,6 +232,12 @@ export function NetworkDetailPage() {
           onCreate={handleCreateWorkspace}
         />
       )}
+      <EditServerModal
+        open={!!editServer}
+        onOpenChange={(o) => !o && setEditServer(null)}
+        server={editServer}
+        onSave={handleEditServer}
+      />
       {historyServer && (
         <ConnectionHistoryModal
           open

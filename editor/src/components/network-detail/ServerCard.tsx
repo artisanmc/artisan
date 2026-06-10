@@ -23,7 +23,7 @@ interface Props {
   server: Server;
   workspaces: Workspace[];
   onAction: (
-    action: "show-key" | "rotate" | "history" | "allowlist" | "delete",
+    action: "edit" | "show-key" | "rotate" | "history" | "allowlist" | "delete",
     serverId: string,
   ) => void;
   onCreateWorkspace: (serverId: string) => void;
