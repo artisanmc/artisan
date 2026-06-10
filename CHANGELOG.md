@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- Console admin — onglet **Utilisateurs** : liste des comptes avec recherche (nom/email), vue profil avec champs éditables (nom, email, flag admin) + infos compte (méthode de connexion, date de création, networks et rôles). Backend `backend/src/routes/adminUsers.ts` : `GET /api/v1/admin/users?q=`, `GET /api/v1/admin/users/:id`, `PATCH /api/v1/admin/users/:id` (email unique → 409 `email_taken` ; self-demote interdit → 422 `cannot_demote_self` ; `passwordHash` jamais exposé). Éditeur : routes `/admin/users` + `/admin/users/:userId`, entrée « Utilisateurs » dans la sidebar admin.
 - Édition des networks et serveurs (nom + slug) :
   - Endpoints REST `PATCH /api/v1/networks/:id` (name/slug) et `PATCH /api/v1/networks/:id/server-keys/:keyId` (label/slug) — membre requis, `:id` réseau accepte id ou slug, slug canonique exigé (422 `invalid_slug`), unicité (409 `slug_taken` ; scope global pour les networks, par network pour les serveurs).
   - Éditeur : section « Général » (nom + slug) dans les settings réseau (navigation automatique vers la nouvelle URL après changement de slug) ; action « Modifier le serveur… » dans le kebab des cartes serveur (`EditServerModal`, label + slug). Helper `editor/src/lib/slug.ts` (miroir du `slugify` backend) ; clients API `updateNetwork` / `updateServerKey`.
