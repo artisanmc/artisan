@@ -5,10 +5,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantPane } from "./AssistantPane";
 
-// The pane embeds AssistantChat, which imports the SSE client at module load.
+// The pane embeds AssistantBody (list + chat), which calls the SSE client.
 vi.mock("@/lib/api/assistant", () => ({
   openConversation: vi.fn(),
   streamAssistant: vi.fn(),
+  getConversation: vi.fn(),
+  listConversations: vi.fn(async () => []),
 }));
 
 afterEach(() => {

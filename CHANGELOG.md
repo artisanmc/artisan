@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- Historique des conversations de l'assistant IA — **persistées en DB** (`assistant_conversations`, migration 0007), scopées par workspace (`ownerKey` + `packId`). Le panneau ouvre sur une **liste** (titre auto depuis le 1er message + date) avec « Nouvelle conversation » ; cliquer une conversation **recharge son transcript** et on continue dessus. Backend : repo `conversationRepo.ts` + endpoints `GET /assistant/conversations?packId=` (liste) et `GET /assistant/conversations/:id` (transcript), persistance du transcript après chaque tour SSE. Front : `AssistantBody` (liste ↔ chat), `AssistantConversations` (liste), `AssistantChat` reprend via `conversationId`.
 - Socle console super-admin (plan 1 — `docs/superpowers/plans/2026-06-09-admin-1-access-secrets.md`) :
   - `users.is_admin` (BOOLEAN, migration 0006) + amorçage env `ADMIN_BOOTSTRAP_EMAILS` (CSV) dans `userAuth` (promotion une fois, guard `!isAdmin`). `GET /me` expose `isAdmin`.
   - Middleware `requireAdmin()` (`backend/src/middleware/requireAdmin.ts`) — 403 si non-admin (assume `userAuth` en amont ; câblé aux routes en plan 2).

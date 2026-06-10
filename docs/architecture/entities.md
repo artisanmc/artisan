@@ -55,6 +55,10 @@ User ── Membership ──┐
 
 - **`app_settings`** (migration 0006) : store générique key/value plateforme-wide. `(key PK, value TEXT — JSON stringifié, updated_at, updated_by → users.id)`. Usage prévu : config de l'assistant IA gérée par le super-admin. Les secrets dans `value` sont chiffrés via `secretBox` (AES-256-GCM, clé `CONFIG_ENC_KEY`) avant stockage ; `isSecretsConfigured()` gate le fallback env quand la clé n'est pas configurée. Pas d'endpoint/UI au plan 1 (socle) — branchés aux plans 2 (config IA backend) & 3 (UI `/admin`).
 
+## Assistant IA — conversations
+
+- **`assistant_conversations`** (migration 0007) : historique du chat assistant, scopé par `(owner_key, pack_id)` (index `assistant_conv_owner_pack_idx`). `(id PK, owner_key TEXT, pack_id TEXT, title TEXT, messages JSONB — transcript LLM complet pour la reprise, created_at, updated_at)`. `owner_key` = `sk:<serverKeyId>` (session plugin) ou `user:<userId>` (login web), miroir de `resolveOwnerKey` (`modules/assistant/routes.ts`). La working-copy n'est **pas** persistée (reconstruite depuis le pack vivant à chaque tour). `title` dérivé du 1er message utilisateur. Pas de FK sur `pack_id`/`owner_key` — des conversations orphelines sont tolérées si le pack est supprimé.
+
 ## Transferts & désaffectation
 
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Token partageable 24h pour transférer la propriété d'un Network entier. Memberships swap **clean break** — ancien owner perd l'accès.

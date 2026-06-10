@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
-import { editorSessions, networks, serverKeys, users } from "../../db/schema";
+import {
+	assistantConversations,
+	editorSessions,
+	networks,
+	serverKeys,
+	users,
+} from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
@@ -58,6 +64,7 @@ const SRV = "srv_test_assistant";
 const ACCESS = "acc_test_assistant_token";
 const URL_TOKEN = "url_test_assistant";
 const USER_ID = "usr_test_assistant";
+const PACK_ID = "pack_test_assistant";
 let networkId = "";
 let userSessionId = "";
 
@@ -104,6 +111,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	__setProviderForTests(null);
+	await db
+		.delete(assistantConversations)
+		.where(eq(assistantConversations.packId, PACK_ID));
 	await db.delete(editorSessions).where(eq(editorSessions.token, URL_TOKEN));
 	await db.delete(serverKeys).where(eq(serverKeys.id, SRV));
 	await db.delete(users).where(eq(users.id, USER_ID)); // cascades userSessions
@@ -129,7 +139,7 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: auth,
-			body: JSON.stringify({ menus: [], attachments: {} }),
+			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		expect(created.status).toBe(200);
 		const { conversationId } = await created.json();
@@ -149,6 +159,56 @@ describe("assistant routes", () => {
 		expect(sse).toContain("event: done");
 	});
 
+	it("persists the transcript: lists the conversation and resumes its messages", async () => {
+		const created = await app.request("/api/v1/assistant/conversations", {
+			method: "POST",
+			headers: auth,
+			body: JSON.stringify({ packId: PACK_ID }),
+		});
+		const { conversationId } = await created.json();
+		const sent = await app.request(
+			`/api/v1/assistant/conversations/${conversationId}/messages`,
+			{
+				method: "POST",
+				headers: auth,
+				body: JSON.stringify({ text: "build a kit menu" }),
+			},
+		);
+		expect(sent.status).toBe(200);
+		await sent.text(); // drain the stream so the persistence (finally) runs
+
+		// Listed for the workspace, titled from the first user message.
+		const listed = await app.request(
+			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
+			{
+				headers: auth,
+			},
+		);
+		expect(listed.status).toBe(200);
+		const { conversations } = await listed.json();
+		const row = conversations.find(
+			(x: { id: string }) => x.id === conversationId,
+		);
+		expect(row).toBeTruthy();
+		expect(row.title).toBe("build a kit menu");
+
+		// Resumable: the transcript includes the user message.
+		const one = await app.request(
+			`/api/v1/assistant/conversations/${conversationId}`,
+			{
+				headers: auth,
+			},
+		);
+		expect(one.status).toBe(200);
+		const conv = await one.json();
+		expect(
+			conv.messages.some(
+				(m: { role: string; content?: string }) =>
+					m.role === "user" && m.content === "build a kit menu",
+			),
+		).toBe(true);
+	});
+
 	it("authenticates via the user-session cookie (web login, no Bearer)", async () => {
 		const cookie = {
 			Cookie: `artisan_user_session=${userSessionId}`,
@@ -157,13 +217,17 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookie,
-			body: JSON.stringify({ menus: [], attachments: {} }),
+			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		expect(created.status).toBe(200);
 		const { conversationId } = await created.json();
 		const res = await app.request(
 			`/api/v1/assistant/conversations/${conversationId}/messages`,
-			{ method: "POST", headers: cookie, body: JSON.stringify({ text: "hi" }) },
+			{
+				method: "POST",
+				headers: cookie,
+				body: JSON.stringify({ text: "hi" }),
+			},
 		);
 		expect(res.status).toBe(200);
 		expect(await res.text()).toContain("event: done");
@@ -177,14 +241,25 @@ describe("assistant routes", () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			headers: cookie,
-			body: JSON.stringify({ menus: [] }),
+			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
 		// Same id, but the editor-session Bearer token is a different ownerKey → 404.
 		const res = await app.request(
 			`/api/v1/assistant/conversations/${conversationId}/messages`,
-			{ method: "POST", headers: auth, body: JSON.stringify({ text: "x" }) },
+			{
+				method: "POST",
+				headers: auth,
+				body: JSON.stringify({ text: "x" }),
+			},
 		);
 		expect(res.status).toBe(404);
+		const got = await app.request(
+			`/api/v1/assistant/conversations/${conversationId}`,
+			{
+				headers: auth,
+			},
+		);
+		expect(got.status).toBe(404);
 	});
 });

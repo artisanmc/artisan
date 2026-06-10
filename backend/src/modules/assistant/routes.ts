@@ -4,13 +4,17 @@ import { getCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
 import { validateAccessToken } from "../../lib/auth";
 import { findSession } from "../../lib/sessionManager";
-import { ConversationStore } from "./conversations";
+import {
+	createConversation,
+	getConversation,
+	listConversations,
+	saveConversation,
+} from "./conversationRepo";
 import { runTurn } from "./loop";
 import { createProvider } from "./provider/config";
 import { loadAssistantProviderConfig } from "./provider/dbConfig";
 import type { LlmProvider } from "./provider/types";
-
-const store = new ConversationStore();
+import { WorkingCopy } from "./workingCopy";
 
 let providerOverride: LlmProvider | null = null;
 /** Test hook: inject a fake provider (and skip config resolution). */
@@ -59,7 +63,47 @@ export function buildAssistantRouter(): Hono {
 		return next();
 	});
 
+	// List a workspace's conversations (newest first), without message bodies.
+	r.get("/conversations", async (c) => {
+		const packId = c.req.query("packId") ?? "";
+		const conversations = await listConversations(
+			c.get("ownerKey") as string,
+			packId,
+		);
+		return c.json({ conversations });
+	});
+
+	// Create an empty conversation for a workspace (seeded with the system prompt).
 	r.post("/conversations", async (c) => {
+		const body = await c.req
+			.json()
+			.catch(() => ({}) as Record<string, unknown>);
+		const packId =
+			typeof (body as any).packId === "string" ? (body as any).packId : "";
+		const id = await createConversation(c.get("ownerKey") as string, packId);
+		return c.json({ conversationId: id });
+	});
+
+	// Fetch one conversation's full transcript (to resume it in the UI).
+	r.get("/conversations/:id", async (c) => {
+		const conv = await getConversation(c.req.param("id"));
+		if (!conv || conv.ownerKey !== (c.get("ownerKey") as string))
+			return c.json({ error: "Not found" }, 404);
+		return c.json({
+			id: conv.id,
+			packId: conv.packId,
+			title: conv.title,
+			messages: conv.messages,
+			updatedAt: conv.updatedAt,
+		});
+	});
+
+	// Send a user message and stream the assistant's turn (SSE). The transcript
+	// is persisted after the stream so the conversation can be resumed later.
+	r.post("/conversations/:id/messages", async (c) => {
+		const conv = await getConversation(c.req.param("id"));
+		if (!conv || conv.ownerKey !== (c.get("ownerKey") as string))
+			return c.json({ error: "Not found" }, 404);
 		const body = await c.req
 			.json()
 			.catch(() => ({}) as Record<string, unknown>);
@@ -68,23 +112,6 @@ export function buildAssistantRouter(): Hono {
 			(body as any).attachments && typeof (body as any).attachments === "object"
 				? (body as any).attachments
 				: {};
-		const id = store.create({
-			menus,
-			attachments,
-			ownerKey: c.get("ownerKey") as string,
-		});
-		return c.json({ conversationId: id });
-	});
-
-	r.post("/conversations/:id/messages", async (c) => {
-		const conv = store.get(c.req.param("id"));
-		if (!conv || conv.ownerKey !== (c.get("ownerKey") as string))
-			return c.json({ error: "Not found" }, 404);
-		const body = await c.req
-			.json()
-			.catch(() => ({}) as Record<string, unknown>);
-		if (Array.isArray((body as any).menus))
-			store.reseed(conv, (body as any).menus, (body as any).attachments ?? {});
 		const pm = await resolve();
 		if (!pm)
 			return c.json(
@@ -95,10 +122,13 @@ export function buildAssistantRouter(): Hono {
 				503,
 			);
 
-		conv.messages.push({
-			role: "user",
-			content: typeof (body as any).text === "string" ? (body as any).text : "",
-		});
+		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
+		const wc = new WorkingCopy(menus, attachments);
+		const text =
+			typeof (body as any).text === "string" ? (body as any).text : "";
+		conv.messages.push({ role: "user", content: text });
+		// Title the conversation from its first user message.
+		const title = conv.title || text.slice(0, 60);
 
 		return streamSSE(c, async (stream) => {
 			try {
@@ -106,7 +136,7 @@ export function buildAssistantRouter(): Hono {
 					provider: pm.provider,
 					model: pm.model,
 					messages: conv.messages,
-					wc: conv.wc,
+					wc,
 				})) {
 					await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
 				}
@@ -117,6 +147,9 @@ export function buildAssistantRouter(): Hono {
 						message: e instanceof Error ? e.message : String(e),
 					}),
 				});
+			} finally {
+				// runTurn mutates conv.messages in place; persist the full transcript.
+				await saveConversation(conv.id, conv.messages, title);
 			}
 		});
 	});
