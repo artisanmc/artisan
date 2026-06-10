@@ -1,10 +1,16 @@
 import type { PackId } from "@/domain/types";
 import { packToMenuV1 } from "@/features/export/transform";
-import { openConversation, streamAssistant } from "@/lib/api/assistant";
+import {
+  type ConversationMessage,
+  getConversation,
+  openConversation,
+  streamAssistant,
+} from "@/lib/api/assistant";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
-import { useRef, useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -12,23 +18,46 @@ type Entry =
   | { role: "user" | "assistant"; text: string }
   | { role: "card"; kind: "written" | "deleted"; id: string };
 
+/** Rebuild display bubbles from a persisted transcript (skip system/tool/empty). */
+function messagesToEntries(messages: ConversationMessage[]): Entry[] {
+  const out: Entry[] = [];
+  for (const m of messages) {
+    if (
+      (m.role === "user" || m.role === "assistant") &&
+      typeof m.content === "string" &&
+      m.content
+    ) {
+      out.push({ role: m.role, text: m.content });
+    }
+  }
+  return out;
+}
+
 /**
  * AssistantChat — the AI chat body (transcript + composer + file drag-drop +
  * the streaming send loop). Presentation-agnostic: rendered inside the desktop
- * resizable pane (`AssistantPane`) and the mobile drawer (`AssistantPanel`), so
- * the chat behaviour lives in exactly one place.
+ * resizable pane and the mobile drawer, both via `AssistantBody`.
+ *
+ * When `conversationId` is set, the persisted transcript is loaded on mount
+ * (resume); when null it's a fresh conversation, created lazily on first send.
+ * The parent keys this component per conversation, so its state is fresh on
+ * every switch. `onBack` returns to the conversation list.
  *
  * The SSE loop (`streamAssistant`) renders streamed text incrementally and
- * applies engine events live to the canvas:
- *   - `menu_written` → `accountStore.applyAssistantMenu` (upsert)
- *   - `menu_deleted` → `accountStore.deleteFromPack`
- * Each message re-seeds the working copy with `packToMenuV1(pack)` +
- * `attachments` (last-writer-wins) so the assistant stays in sync with whatever
- * the user has edited by hand. Auth: a session token (plugin trust-dance) OR a
- * logged-in web user — the request rides the `artisan_user_session` cookie when
- * there is no token (see `lib/api/assistant.ts`).
+ * applies engine events live to the canvas: `menu_written` → `applyAssistantMenu`,
+ * `menu_deleted` → `deleteFromPack`. Each message re-seeds the backend working
+ * copy with `packToMenuV1(pack)` + `attachments`. Auth: a session token OR a
+ * logged-in user (cookie); see `lib/api/assistant.ts`.
  */
-export function AssistantChat({ packId }: { packId: PackId }) {
+export function AssistantChat({
+  packId,
+  conversationId = null,
+  onBack,
+}: {
+  packId: PackId;
+  conversationId?: string | null;
+  onBack?: () => void;
+}) {
   const { t } = useTranslation();
   const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
@@ -37,7 +66,21 @@ export function AssistantChat({ packId }: { packId: PackId }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
-  const convId = useRef<string | null>(null);
+  const convId = useRef<string | null>(conversationId);
+
+  // Resume: load the persisted transcript (parent keys us per conversation).
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    getConversation(token, conversationId)
+      .then((c) => {
+        if (!cancelled) setEntries(messagesToEntries(c.messages));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, token]);
 
   /** Append `chunk` to the trailing assistant entry, or start a new one. */
   function appendAssistant(chunk: string) {
@@ -65,7 +108,7 @@ export function AssistantChat({ packId }: { packId: PackId }) {
       const lang = pack?.defaultLang ?? "en";
       const menus = pack ? packToMenuV1(pack) : [];
       if (!convId.current) {
-        convId.current = await openConversation(token, { menus, attachments });
+        convId.current = await openConversation(token, { packId });
       }
       for await (const ev of streamAssistant(token, convId.current, { text, menus, attachments })) {
         if (ev.type === "text") {
@@ -106,6 +149,19 @@ export function AssistantChat({ packId }: { packId: PackId }) {
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
     >
+      {onBack && (
+        <div className="flex shrink-0 items-center border-[var(--border-soft)] border-b px-2 py-1.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 rounded-[8px] px-2 py-1 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {t("assistant.backToList")}
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <div
           data-testid="assistant-transcript"
@@ -151,7 +207,7 @@ export function AssistantChat({ packId }: { packId: PackId }) {
         </div>
       )}
 
-      <div className="flex shrink-0 items-end gap-2 border-t border-[var(--border-soft)] p-3">
+      <div className="flex shrink-0 items-end gap-2 border-[var(--border-soft)] border-t p-3">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
