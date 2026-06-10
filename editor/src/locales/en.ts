@@ -893,6 +893,7 @@ export default {
     anonymous: "Anonymous",
     profile: "Profile",
     signIn: "Sign in",
+    admin: "Admin console",
   },
   auth: {
     signupTitle: "Create your account",
