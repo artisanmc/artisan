@@ -904,6 +904,7 @@ const fr: typeof en = {
     anonymous: "Anonyme",
     profile: "Profil",
     signIn: "Se connecter",
+    admin: "Console admin",
   },
   auth: {
     signupTitle: "Créer ton compte",
