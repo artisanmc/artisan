@@ -10,14 +10,21 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const networks = pgTable("networks", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	tier: text("tier").notNull().default("free"),
-	subscriptionId: text("subscription_id"),
-	createdAt: timestamp("created_at").notNull(),
-	updatedAt: timestamp("updated_at").notNull(),
-});
+export const networks = pgTable(
+	"networks",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		// URL slug, globally unique. Nullable only so the column can be added to
+		// existing rows before backfillSlugs() populates them; set on create.
+		slug: text("slug"),
+		tier: text("tier").notNull().default("free"),
+		subscriptionId: text("subscription_id"),
+		createdAt: timestamp("created_at").notNull(),
+		updatedAt: timestamp("updated_at").notNull(),
+	},
+	(t) => [uniqueIndex("networks_slug_uniq").on(t.slug)],
+);
 
 export const serverKeys = pgTable(
 	"server_keys",
@@ -25,6 +32,8 @@ export const serverKeys = pgTable(
 		id: text("id").primaryKey(),
 		hash: text("hash").notNull(),
 		label: text("label"),
+		// URL slug, unique per network. Nullable during backfill; set on create.
+		slug: text("slug"),
 		networkId: text("network_id")
 			.notNull()
 			.references(() => networks.id, { onDelete: "cascade" }),
@@ -38,7 +47,10 @@ export const serverKeys = pgTable(
 		// non-null `rejected_reason`.
 		allowedIps: jsonb("allowed_ips").$type<string[] | null>(),
 	},
-	(t) => [index("server_keys_network_idx").on(t.networkId)],
+	(t) => [
+		index("server_keys_network_idx").on(t.networkId),
+		uniqueIndex("server_keys_network_slug_uniq").on(t.networkId, t.slug),
+	],
 );
 
 // Append-only audit log of plugin hellos. One row per successful `hello`,
@@ -192,6 +204,8 @@ export const packs = pgTable(
 			.notNull()
 			.references(() => serverKeys.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
+		// URL slug, unique per server key (workspace). Nullable during backfill.
+		slug: text("slug"),
 		description: text("description"),
 		hash: text("hash").notNull().default(""),
 		filesJson: text("files_json").notNull().default("{}"),
@@ -205,6 +219,7 @@ export const packs = pgTable(
 		index("packs_network_idx").on(t.networkId),
 		index("packs_network_deleted_idx").on(t.networkId, t.deletedAt),
 		index("packs_server_key_idx").on(t.serverKeyId),
+		uniqueIndex("packs_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
 	],
 );
 
