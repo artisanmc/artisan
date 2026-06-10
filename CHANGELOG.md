@@ -84,6 +84,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `menu/v1` schema: retrait des types `StandardClick` / `ComponentClick` (remplacés par le step-tree de `click`) et de la condition `Cooldown`.
 
 ### Fixed
+- Assistant IA injoignable dans l'éditeur web : le panel vit dans la route user-auth (`networks/.../workspaces/$workspaceId`) mais s'authentifiait via le token editor-session (`sessionStore.accessToken`), toujours `null` hors trust-dance plugin → `send()` sortait en silence (clic « Envoyer » sans effet). Le routeur assistant (`backend/src/modules/assistant/routes.ts`) accepte désormais **soit** le Bearer editor-session **soit** le cookie `artisan_user_session` (conversations scopées par `ownerKey` = `sk:<serverKeyId>` ou `user:<userId>`) ; le client front (`editor/src/lib/api/assistant.ts`) envoie `credentials:"include"` et n'ajoute le Bearer que s'il existe ; la garde du panel autorise un token **ou** un utilisateur connecté.
 - Race condition in editor: `/`, `/link`, `/transfer` routes no longer redirect to `/login` before `authStore.hydrate()` completes. `isLoading` now starts `true` and routes gate on it.
 
 ### Security

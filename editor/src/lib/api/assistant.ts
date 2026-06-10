@@ -6,17 +6,26 @@ export interface AssistantEvent {
 function apiUrl(): string {
   return (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 }
-function authHeaders(token: string): HeadersInit {
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+/**
+ * In session mode (plugin trust-dance) `token` is the editor-session access
+ * token → Bearer header. In user-auth mode (web login) `token` is null and the
+ * request authenticates via the `artisan_user_session` cookie (`credentials:
+ * "include"`). The backend middleware accepts either.
+ */
+function authHeaders(token: string | null): HeadersInit {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
 }
 
 export async function openConversation(
-  token: string,
+  token: string | null,
   body: { menus: unknown[]; attachments?: Record<string, string> },
 ): Promise<string> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations`, {
     method: "POST",
     headers: authHeaders(token),
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`openConversation failed: ${res.status}`);
@@ -26,13 +35,14 @@ export async function openConversation(
 
 /** Stream EngineEvents from a message. Parses SSE frames from the POST response body. */
 export async function* streamAssistant(
-  token: string,
+  token: string | null,
   conversationId: string,
   body: { text: string; menus?: unknown[]; attachments?: Record<string, string> },
 ): AsyncGenerator<AssistantEvent> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: authHeaders(token),
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok || !res.body) throw new Error(`streamAssistant failed: ${res.status}`);

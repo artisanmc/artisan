@@ -1,5 +1,6 @@
 import { packId } from "@/domain/ids";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -48,6 +49,7 @@ function setup() {
 afterEach(() => {
   vi.clearAllMocks();
   useUiStore.getState().setAssistantPanelOpen(false);
+  useAuthStore.setState({ currentUser: null } as never);
 });
 
 describe("AssistantPanel", () => {
@@ -83,6 +85,21 @@ describe("AssistantPanel", () => {
     // "Created / updated: shop"). Matched precisely so it doesn't collide with
     // the user's own "fais un shop" message in the transcript.
     expect(screen.getByText(/(modifié|updated)\s*:?\s*shop/i)).toBeTruthy();
+  });
+
+  it("sends in user-auth mode: no session token but a logged-in user", async () => {
+    setup();
+    // Web-login mode: no editor-session token, auth rides the user cookie.
+    useSessionStore.setState({ accessToken: null } as never);
+    useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
+    render(<AssistantPanel packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "fais un shop");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("assistant-transcript").textContent).toMatch(/Voici le menu\./),
+    );
   });
 
   it("attaching a dropped file shows the attachment count", async () => {
