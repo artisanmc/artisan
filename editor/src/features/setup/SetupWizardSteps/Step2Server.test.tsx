@@ -1,4 +1,5 @@
 import * as networksApi from "@/lib/api/networks";
+import { useNetworksStore } from "@/state/networksStore";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,5 +39,20 @@ describe("Step2Server", () => {
     const newState = updater(stateReady);
     expect(newState.serverKey).toBe("artisan_sk_plaintext123");
     expect(newState.serverKeyId).toBe("sk-abc");
+  });
+
+  it("bumps the networks store refresh token so the sidebar picks up the new server", async () => {
+    vi.spyOn(networksApi, "createServerKey").mockResolvedValue({
+      id: "sk-abc",
+      key: "artisan_sk_plaintext123",
+      label: null,
+    });
+    const before = useNetworksStore.getState().refreshToken;
+
+    render(<Step2Server state={stateReady} setState={vi.fn()} />);
+    await userEvent.type(screen.getByRole("textbox"), "Lobby");
+    await userEvent.click(screen.getByRole("button", { name: /générer|generate server/i }));
+
+    await waitFor(() => expect(useNetworksStore.getState().refreshToken).toBe(before + 1));
   });
 });

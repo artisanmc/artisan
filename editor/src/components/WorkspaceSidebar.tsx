@@ -38,6 +38,7 @@ export function WorkspaceSidebar() {
   const sessionServerKeyId = useSessionStore((s) => s.serverKeyId);
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
+  const storeRefreshToken = useNetworksStore((s) => s.refreshToken);
   const localPacks = useAccountStore((s) => s.account.packs);
   const packOrder = useAccountStore((s) => s.account.packOrder);
   const reorderPacks = useAccountStore((s) => s.reorderPacks);
@@ -73,12 +74,14 @@ export function WorkspaceSidebar() {
 
   useEffect(() => {
     if (isSessionMode) return; // listNetworks needs cookie auth
-    if (networks.length === 0) {
+    // Refetch on refresh bump too — a network created in the wizard/hub would
+    // otherwise never reach the store (only fetched when empty).
+    if (networks.length === 0 || storeRefreshToken > 0) {
       listNetworks()
         .then(setNetworks)
         .catch(() => {});
     }
-  }, [isSessionMode]);
+  }, [isSessionMode, storeRefreshToken]);
 
   // Fetch all server entries across all networks + packs for the active network.
   useEffect(() => {
@@ -128,7 +131,7 @@ export function WorkspaceSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [networks, activeNetworkId, refetchToken, isSessionMode]);
+  }, [networks, activeNetworkId, refetchToken, storeRefreshToken, isSessionMode]);
 
   const serverIds = new Set(serverPacks.map((p) => p.id));
   const optimisticEntries: PackSummary[] = localPacks

@@ -1,7 +1,7 @@
 import * as networksApi from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
 import { useSessionStore } from "@/state/sessionStore";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 
@@ -159,5 +159,28 @@ describe("WorkspaceSidebar", () => {
     });
     render(<WorkspaceSidebar />);
     await waitFor(() => expect(getNetwork).toHaveBeenCalledWith("net_1"));
+  });
+
+  it("refetches when the store refresh token is bumped (server/workspace created elsewhere)", async () => {
+    const getNetwork = vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<WorkspaceSidebar />);
+    await waitFor(() => expect(getNetwork).toHaveBeenCalledTimes(1));
+
+    // A page (network hub, wizard…) creates a server, then signals the refresh.
+    getNetwork.mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [],
+      serverKeys: [
+        { id: "sk_1", label: "Survival" },
+        { id: "sk_2", label: "Creatif" },
+      ],
+    });
+    act(() => useNetworksStore.getState().bumpRefresh());
+
+    await waitFor(() => expect(getNetwork.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 });

@@ -1,6 +1,6 @@
+import type { NetworkSummary } from "@/lib/api/networks";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { NetworkSummary } from "@/lib/api/networks";
 
 interface NetworksState {
   networks: NetworkSummary[];
@@ -10,9 +10,16 @@ interface NetworksState {
    * Persisted so picking a network in the dropdown sticks across reloads.
    */
   activeId: string | null;
+  /**
+   * Bumped after a network/server/workspace is created or deleted outside the
+   * sidebar (networks hub, network detail, setup wizard…). The sidebar listens
+   * and refetches — without this it only refreshes on mount or network change.
+   */
+  refreshToken: number;
   setNetworks: (n: NetworkSummary[]) => void;
   upsertNetwork: (n: NetworkSummary) => void;
   setActiveId: (id: string | null) => void;
+  bumpRefresh: () => void;
   reset: () => void;
 }
 
@@ -21,6 +28,7 @@ export const useNetworksStore = create<NetworksState>()(
     (set) => ({
       networks: [],
       activeId: null,
+      refreshToken: 0,
       setNetworks: (networks) => set({ networks }),
       upsertNetwork: (n) =>
         set((state) => {
@@ -31,7 +39,8 @@ export const useNetworksStore = create<NetworksState>()(
           return { networks: next };
         }),
       setActiveId: (id) => set({ activeId: id }),
-      reset: () => set({ networks: [], activeId: null }),
+      bumpRefresh: () => set((s) => ({ refreshToken: s.refreshToken + 1 })),
+      reset: () => set({ networks: [], activeId: null, refreshToken: 0 }),
     }),
     {
       name: "artisan-networks",
