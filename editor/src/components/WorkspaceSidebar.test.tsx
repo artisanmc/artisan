@@ -1,16 +1,21 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { WorkspaceSidebar } from "./WorkspaceSidebar";
+import * as networksApi from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
 import { useSessionStore } from "@/state/sessionStore";
-import * as networksApi from "@/lib/api/networks";
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkspaceSidebar } from "./WorkspaceSidebar";
+
+const mockParams = vi.hoisted(() => ({
+  current: { networkId: "net_1", serverId: "sk_1" } as { networkId?: string; serverId?: string },
+}));
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
+    useParams: () => mockParams.current,
     useSearch: () => ({}),
     Link: ({ children, to, params, ...props }: any) => (
       <a href={to} {...props}>
@@ -23,6 +28,7 @@ vi.mock("@tanstack/react-router", async () => {
 describe("WorkspaceSidebar", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockParams.current = { networkId: "net_1", serverId: "sk_1" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
     } as any);
@@ -44,8 +50,22 @@ describe("WorkspaceSidebar", () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       packs: [
-        { id: "pack_b", name: "Menu principal", hash: "h2", updatedAt: "2026-05-26T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
-        { id: "pack_a", name: "Lobby", hash: "h1", updatedAt: "2026-05-25T10:00:00Z", networkId: "net_1", serverKeyId: "sk_1" },
+        {
+          id: "pack_b",
+          name: "Menu principal",
+          hash: "h2",
+          updatedAt: "2026-05-26T10:00:00Z",
+          networkId: "net_1",
+          serverKeyId: "sk_1",
+        },
+        {
+          id: "pack_a",
+          name: "Lobby",
+          hash: "h1",
+          updatedAt: "2026-05-25T10:00:00Z",
+          networkId: "net_1",
+          serverKeyId: "sk_1",
+        },
       ],
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
@@ -59,9 +79,7 @@ describe("WorkspaceSidebar", () => {
   it("workspace links use the server-scoped URL pattern", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
-      packs: [
-        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
-      ],
+      packs: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
       serverKeys: [{ id: "sk_1", label: "Survival" }],
     });
     render(<WorkspaceSidebar />);
@@ -100,6 +118,37 @@ describe("WorkspaceSidebar", () => {
     });
     render(<WorkspaceSidebar />);
     expect(await screen.findByText(/Anonymous|Anonyme/i)).toBeInTheDocument();
+  });
+
+  it("resolves slug URL params and lists the active server's workspaces", async () => {
+    // Phase 4a routes put slugs (not ids) in networkId/serverId params.
+    mockParams.current = { networkId: "mon-network", serverId: "survival" };
+    useNetworksStore.setState({
+      networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
+    } as any);
+    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
+      packs: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
+      serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
+    });
+    render(<WorkspaceSidebar />);
+    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+  });
+
+  it("shows the active server label in ServerSelector when the URL carries the server slug", async () => {
+    mockParams.current = { networkId: "mon-network", serverId: "survival" };
+    useNetworksStore.setState({
+      networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
+    } as any);
+    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
+      packs: [],
+      serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
+    });
+    render(<WorkspaceSidebar />);
+    expect(await screen.findByText("Survival")).toBeInTheDocument();
   });
 
   it("refetches when networkId changes", async () => {

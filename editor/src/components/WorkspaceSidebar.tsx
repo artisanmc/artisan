@@ -55,9 +55,21 @@ export function WorkspaceSidebar() {
 
   // Active network + server: URL params first, then session bindings as
   // fallback (the trust dance pre-populates sessionStore with both).
+  // Since the slug routes (phase 4a), URL params may carry slugs instead of
+  // ids — resolve them to real ids here so all downstream matching (pack
+  // filtering, link building) stays id-based.
   const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const activeNetworkId = urlParams.networkId ?? sessionNetworkId ?? networks[0]?.id ?? null;
-  const activeServerId = urlParams.serverId ?? sessionServerKeyId ?? null;
+  const rawNetworkParam = urlParams.networkId ?? sessionNetworkId ?? networks[0]?.id ?? null;
+  const activeNetworkId = rawNetworkParam
+    ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
+      rawNetworkParam)
+    : null;
+  const rawServerParam = urlParams.serverId ?? sessionServerKeyId ?? null;
+  const activeServerId = rawServerParam
+    ? (allServerEntries.find(
+        (e) => e.serverId === rawServerParam || e.serverSlug === rawServerParam,
+      )?.serverId ?? rawServerParam)
+    : null;
 
   useEffect(() => {
     if (isSessionMode) return; // listNetworks needs cookie auth
@@ -92,6 +104,7 @@ export function WorkspaceSidebar() {
         const entries: ServerEntry[] = results.flatMap((r) =>
           r.serverKeys.map((sk) => ({
             serverId: sk.id,
+            serverSlug: sk.slug,
             serverLabel: displayServerLabel(sk),
             networkId: r.network.id,
             networkName: r.network.name,
