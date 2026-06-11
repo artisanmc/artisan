@@ -1,9 +1,9 @@
-import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import "@/i18n";
-import { SignupForm } from "./SignupForm";
 import { useAuthStore } from "@/state/authStore";
+import { SignupForm } from "./SignupForm";
 
 beforeEach(() => {
   useAuthStore.setState({ currentUser: null, isLoading: false, error: null });
@@ -18,11 +18,19 @@ describe("SignupForm", () => {
     await userEvent.type(screen.getByLabelText(/password|mot de passe/i), "longenoughpw");
     await userEvent.type(screen.getByLabelText(/^name|^nom/i), "Nathan");
     await userEvent.click(screen.getByRole("button", { name: /sign up|s'inscrire/i }));
-    expect(signupSpy).toHaveBeenCalledWith("http://x", { email: "n@e.com", password: "longenoughpw", name: "Nathan" });
+    expect(signupSpy).toHaveBeenCalledWith("http://x", {
+      email: "n@e.com",
+      password: "longenoughpw",
+      name: "Nathan",
+    });
   });
 
   test("shows email_taken error on 409", async () => {
-    vi.spyOn(useAuthStore.getState(), "signup").mockResolvedValue({ ok: false, error: "email_taken", status: 409 });
+    vi.spyOn(useAuthStore.getState(), "signup").mockResolvedValue({
+      ok: false,
+      error: "email_taken",
+      status: 409,
+    });
     render(<SignupForm apiUrl="http://x" onSuccess={() => {}} />);
     await userEvent.type(screen.getByLabelText(/^email$/i), "taken@e.com");
     await userEvent.type(screen.getByLabelText(/password|mot de passe/i), "longenoughpw");

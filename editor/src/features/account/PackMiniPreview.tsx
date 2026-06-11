@@ -1,6 +1,7 @@
 import type { Pack } from "@/domain/types";
 import { autoLayout } from "@/features/canvas/autoLayout";
 import { COMMAND_BOX, menuBoxSize } from "@/features/canvas/menuLayout";
+import { useTranslation } from "react-i18next";
 
 interface PackMiniPreviewProps {
   pack: Pack;
@@ -18,6 +19,7 @@ const PADDING = 6;
  * still render.
  */
 export function PackMiniPreview({ pack }: PackMiniPreviewProps) {
+  const { t } = useTranslation();
   const layout = autoLayout(pack);
   const boxes = [
     ...(pack.menus ?? []).map((m) => ({
@@ -35,7 +37,7 @@ export function PackMiniPreview({ pack }: PackMiniPreviewProps) {
   if (boxes.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center text-[10px] text-[var(--text-faint)]">
-        empty
+        {t("packMini.emptyPreview")}
       </div>
     );
   }
@@ -73,8 +75,8 @@ export function PackMiniPreview({ pack }: PackMiniPreviewProps) {
           width={Math.max(2, b.size.width * scale)}
           height={Math.max(2, b.size.height * scale)}
           rx={1}
-          fill={b.kind === "menu" ? "#27272a" : "#422006"}
-          stroke={b.kind === "menu" ? "#3a3a3f" : "#a16207"}
+          fill={b.kind === "menu" ? "var(--surface-raised-2)" : "var(--warning-soft)"}
+          stroke={b.kind === "menu" ? "var(--border)" : "var(--warning)"}
           strokeWidth={0.5}
         />
       ))}

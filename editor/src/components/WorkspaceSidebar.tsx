@@ -66,9 +66,14 @@ export function WorkspaceSidebar() {
       rawNetworkParam)
     : null;
   const rawServerParam = urlParams.serverId ?? sessionServerKeyId ?? null;
+  // Server slugs are only unique per network ("server" exists in many) — scope
+  // the lookup to the active network or a slug could resolve to another
+  // network's server and the workspace list would filter to the wrong packs.
   const activeServerId = rawServerParam
     ? (allServerEntries.find(
-        (e) => e.serverId === rawServerParam || e.serverSlug === rawServerParam,
+        (e) =>
+          (activeNetworkId == null || e.networkId === activeNetworkId) &&
+          (e.serverId === rawServerParam || e.serverSlug === rawServerParam),
       )?.serverId ?? rawServerParam)
     : null;
 
@@ -110,6 +115,7 @@ export function WorkspaceSidebar() {
             serverSlug: sk.slug,
             serverLabel: displayServerLabel(sk),
             networkId: r.network.id,
+            networkSlug: r.network.slug,
             networkName: r.network.name,
           })),
         );

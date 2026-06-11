@@ -1,12 +1,16 @@
-import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import "@/i18n";
-import { LogoutButton } from "./LogoutButton";
 import { useAuthStore } from "@/state/authStore";
+import { LogoutButton } from "./LogoutButton";
 
 beforeEach(() => {
-  useAuthStore.setState({ currentUser: { id: "u", email: "x@y.z", name: "X", avatarUrl: null }, isLoading: false, error: null });
+  useAuthStore.setState({
+    currentUser: { id: "u", email: "x@y.z", name: "X", avatarUrl: null },
+    isLoading: false,
+    error: null,
+  });
   vi.restoreAllMocks();
 });
 
