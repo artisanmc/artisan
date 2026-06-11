@@ -22,7 +22,10 @@ class MenuListener(
         val clickType = event.click.toIfzClickType()
         val handler = session?.activeClicks?.get(event.rawSlot)?.get(clickType)
         handler ?: return
-        executor.handle(handler, session!!.ctx)
+        val slotCtx = session!!.ctx.copy(
+            args = session.ctx.args + (session.slotArgs[event.rawSlot] ?: emptyMap()),
+        )
+        executor.handle(handler, slotCtx)
     }
 
     @EventHandler
