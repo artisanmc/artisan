@@ -27,10 +27,12 @@ class CanonicalConformanceTest {
     fun `canonical button example compiles with its actions`() {
         val menu = example("canonical-button.json")
         val compiled = BundleCompiler.compile(menu, emptyMap())
-        // The button element has one appearance with a left-click of two flat action steps.
+        // The button element has one appearance with a left-click of two flat action steps,
+        // compiled into the canonical Step tree.
         val apps = compiled.compiledAppearances.values.flatten()
         assertTrue(apps.isNotEmpty(), "expected at least one compiled appearance")
-        val leftActions = apps.first().clicks[ClickType.LEFT]?.actions ?: emptyList()
+        val leftSteps = apps.first().clicks[ClickType.LEFT]?.steps ?: emptyList()
+        val leftActions = leftSteps.filterIsInstance<Step.ActionStep>().map { it.action }
         assertTrue(leftActions.any { it is Action.RunCommand }, "expected a run_command action")
         assertTrue(leftActions.any { it is Action.SendMessage }, "expected a send_message action")
     }
@@ -45,7 +47,9 @@ class CanonicalConformanceTest {
             apps.any { app -> app.conditions.any { it is Condition.HasPermission } },
             "expected a has_permission gate to compile",
         )
-        // NOTE: the click `kind:"if"` branch is intentionally NOT executed by the plugin
-        // (documented runtime gap) — we only assert the menu compiles without throwing.
+        // Click `kind:"if"` branches now compile into the Step tree (and execute).
+        val ifSteps = apps.flatMap { it.clicks.values }.flatMap { it.steps }
+            .filterIsInstance<Step.IfStep>()
+        assertTrue(ifSteps.isNotEmpty(), "expected the click if-step to compile into the Step tree")
     }
 }
