@@ -108,8 +108,31 @@ class ConditionEvaluatorTest {
         assertFalse(eval.evaluate(Condition.PlaceholderEquals("%player_name%", "Steve"), ctx(player())))
     }
 
-    @Test fun `pagination_at_first always false in V1`() {
-        assertFalse(eval.evaluate(Condition.PaginationAtFirst(), ctx(player())))
+    @Test fun `pagination_at_first true on page 0, false after`() {
+        val p = player()
+        val first = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(0, 3)))
+        val mid   = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(1, 3)))
+        assertTrue(eval.evaluate(Condition.PaginationAtFirst("grid"), first))
+        assertFalse(eval.evaluate(Condition.PaginationAtFirst("grid"), mid))
+    }
+
+    @Test fun `pagination_at_last true on the final page`() {
+        val p = player()
+        val last = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(2, 3)))
+        assertTrue(eval.evaluate(Condition.PaginationAtLast("grid"), last))
+    }
+
+    @Test fun `element_id omitted targets the single iterating element`() {
+        val p = player()
+        val one = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(0, 2)))
+        assertTrue(eval.evaluate(Condition.PaginationAtFirst(null), one))
+    }
+
+    @Test fun `no iterating element — at_first and at_last are both true (hide both pagers)`() {
+        val p = player()
+        val none = ExecutionContext(p)
+        assertTrue(eval.evaluate(Condition.PaginationAtFirst(null), none))
+        assertTrue(eval.evaluate(Condition.PaginationAtLast(null), none))
     }
 
     @Test fun `world_is true when player is in matching world`() {

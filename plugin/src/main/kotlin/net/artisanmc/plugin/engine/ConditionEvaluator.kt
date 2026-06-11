@@ -21,8 +21,8 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
         is Condition.TimeIs            -> evaluateTime(ctx, condition.range)
         is Condition.RandomChance      -> Math.random() < condition.probability
         is Condition.PlayerInRegion    -> deps.worldGuard?.isInRegion(ctx.player, condition.region) ?: false
-        is Condition.PaginationAtFirst -> false
-        is Condition.PaginationAtLast  -> false
+        is Condition.PaginationAtFirst -> pageInfoFor(ctx, condition.elementId)?.let { it.page <= 0 } ?: true
+        is Condition.PaginationAtLast  -> pageInfoFor(ctx, condition.elementId)?.let { it.page >= it.pageCount - 1 } ?: true
         is Condition.Not               -> !evaluate(condition.inner, ctx)
         is Condition.And               -> condition.all.all { evaluate(it, ctx) }
         is Condition.Or                -> condition.any.any { evaluate(it, ctx) }
@@ -47,6 +47,9 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
             }.getOrDefault(false)
         }
     }
+
+    private fun pageInfoFor(ctx: ExecutionContext, elementId: String?): PageInfo? =
+        if (elementId != null) ctx.pageInfo[elementId] else ctx.pageInfo.values.singleOrNull()
 
     companion object {
         val EMPTY = ConditionEvaluator(SoftDepRegistry.EMPTY, CooldownStore())
