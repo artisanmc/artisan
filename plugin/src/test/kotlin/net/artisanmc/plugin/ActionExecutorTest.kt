@@ -20,12 +20,19 @@ class ActionExecutorTest {
     private val evaluator = ConditionEvaluator(deps, cooldowns)
 
     private var lastOpenedDialogId: String? = null
+    private var lastDialogCtx: ExecutionContext? = null
+    private var lastOpenedMenuId: String? = null
+    private var lastMenuCtx: ExecutionContext? = null
     private val stubProvider = object : MenuProvider {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
-        override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
+        override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+            lastOpenedMenuId = menuId
+            lastMenuCtx = ctx
+        }
         override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
             lastOpenedDialogId = dialogId
+            lastDialogCtx = ctx
         }
         override fun allBundles(): List<PackBundle> = emptyList()
     }
@@ -265,5 +272,85 @@ class ActionExecutorTest {
         executor().handle(handler, ctx(p))
         assertFalse(p.inventory.contains(org.bukkit.Material.DIAMOND))
         assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    // ── set_arg / set_arg_cycle_* ─────────────────────────────────────────────
+
+    private fun openSession(p: Player, menuId: String = "shop", args: Map<String, Any> = emptyMap()) {
+        sessions.set(p, MenuSession(menuId, ExecutionContext(p, args = args), emptyMap()))
+    }
+
+    @Test fun `set_arg re-renders the current menu with the updated arg`() {
+        val p = player()
+        openSession(p, "shop", args = mapOf("category" to "all"))
+        executor().execute(listOf(Action.SetArg("category", "tools")), ExecutionContext(p, args = mapOf("category" to "all")))
+        assertEquals("shop", lastOpenedMenuId)
+        assertEquals("tools", lastMenuCtx?.args?.get("category"))
+    }
+
+    @Test fun `set_arg resolves placeholders in the value`() {
+        val p = player()
+        openSession(p)
+        executor().execute(
+            listOf(Action.SetArg("picked", "{candidate}")),
+            ExecutionContext(p, args = mapOf("candidate" to "iron")),
+        )
+        assertEquals("iron", lastMenuCtx?.args?.get("picked"))
+    }
+
+    @Test fun `set_arg without an open menu does not re-render`() {
+        val p = player()
+        executor().execute(listOf(Action.SetArg("x", "1")), ctx(p))
+        assertNull(lastOpenedMenuId)
+    }
+
+    @Test fun `set_arg_cycle_next advances to the next value`() {
+        val p = player()
+        openSession(p)
+        executor().execute(
+            listOf(Action.SetArgCycleNext("sort", "price,name,level")),
+            ExecutionContext(p, args = mapOf("sort" to "price")),
+        )
+        assertEquals("name", lastMenuCtx?.args?.get("sort"))
+    }
+
+    @Test fun `set_arg_cycle_next wraps at the end of the list`() {
+        val p = player()
+        openSession(p)
+        executor().execute(
+            listOf(Action.SetArgCycleNext("sort", "price,name,level")),
+            ExecutionContext(p, args = mapOf("sort" to "level")),
+        )
+        assertEquals("price", lastMenuCtx?.args?.get("sort"))
+    }
+
+    @Test fun `set_arg_cycle_next starts at the first value when unset`() {
+        val p = player()
+        openSession(p)
+        executor().execute(listOf(Action.SetArgCycleNext("sort", "price,name,level")), ctx(p))
+        assertEquals("price", lastMenuCtx?.args?.get("sort"))
+    }
+
+    @Test fun `set_arg_cycle_prev wraps back to the last value`() {
+        val p = player()
+        openSession(p)
+        executor().execute(
+            listOf(Action.SetArgCyclePrev("sort", "price,name,level")),
+            ExecutionContext(p, args = mapOf("sort" to "price")),
+        )
+        assertEquals("level", lastMenuCtx?.args?.get("sort"))
+    }
+
+    @Test fun `later actions in the same click see the arg set earlier`() {
+        val p = player()
+        openSession(p)
+        executor().executeSteps(
+            listOf(
+                Step.ActionStep(Action.SetArg("picked", "yes")),
+                Step.ActionStep(Action.OpenDialog("confirm")),
+            ),
+            ctx(p),
+        )
+        assertEquals("yes", lastDialogCtx?.args?.get("picked"))
     }
 }

@@ -46,4 +46,8 @@ sealed class Action {
         val clearContext: Boolean = false,
     ) : Action()
     data object CloseDialog : Action()
+    data class SetArg(val arg: String, val value: String) : Action()
+    /** `list` est la liste de valeurs séparées par des virgules ("price,name"). */
+    data class SetArgCycleNext(val arg: String, val list: String) : Action()
+    data class SetArgCyclePrev(val arg: String, val list: String) : Action()
 }
