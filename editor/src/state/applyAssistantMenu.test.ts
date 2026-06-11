@@ -37,6 +37,44 @@ describe("applyAssistantMenu", () => {
     const app = menu.layers[0].elements[0].appearances[0];
     expect(getText(pack, app.title, "en")).toBe("<gold>Buy</gold>");
   });
+  it("returns the unsupported constructs dropped during conversion", () => {
+    const withExotics = {
+      ...menuV1,
+      layers: [
+        {
+          id: "l1",
+          name: "default",
+          elements: [
+            {
+              id: "e1",
+              positions: "13",
+              appearances: [
+                {
+                  if: [{ type: "world_is", world: "spawn" }],
+                  material: "DIAMOND",
+                  click: {
+                    left: { steps: [{ kind: "action", action: { type: "give_xp", amount: 5 } }] },
+                  },
+                },
+                { material: "STONE" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const unsupported = useAccountStore
+      .getState()
+      .applyAssistantMenu({ packId: packId("p"), menuV1: withExotics, lang: "en" });
+    expect(unsupported).toContain("condition: world_is");
+    expect(unsupported).toContain("action: give_xp");
+  });
+  it("returns an empty list for a fully supported menu", () => {
+    const unsupported = useAccountStore
+      .getState()
+      .applyAssistantMenu({ packId: packId("p"), menuV1, lang: "en" });
+    expect(unsupported).toEqual([]);
+  });
   it("replaces an existing menu with the same id", () => {
     useAccountStore.getState().applyAssistantMenu({ packId: packId("p"), menuV1, lang: "en" });
     useAccountStore

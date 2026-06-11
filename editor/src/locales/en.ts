@@ -1109,6 +1109,8 @@ export default {
     menuDeleted: "Deleted: {{id}}",
     dropHint: "Drop files to attach",
     errorGeneric: "Something went wrong. Try again.",
+    unsupportedDropped:
+      "Menu “{{id}}”: unsupported constructs were dropped on import: {{list}}",
     disabled: "Assistant not configured.",
     attachFiles: "Attach files",
     attachRemove: "Remove {{name}}",

@@ -1119,6 +1119,8 @@ const fr: typeof en = {
     menuDeleted: "Supprimé : {{id}}",
     dropHint: "Dépose des fichiers pour les joindre",
     errorGeneric: "Une erreur est survenue. Réessaie.",
+    unsupportedDropped:
+      "Menu « {{id}} » : des éléments non supportés ont été ignorés à l'import : {{list}}",
     disabled: "Assistant non configuré.",
     attachFiles: "Joindre des fichiers",
     attachRemove: "Retirer {{name}}",
