@@ -351,6 +351,15 @@ class ActionExecutorTest {
         assertEquals("level", lastMenuCtx?.args?.get("sort"))
     }
 
+    @Test fun `open_menu resets pagination state for the target menu`() {
+        val p = player()
+        val ctx = ExecutionContext(p, pagination = mapOf("grid" to 2), pageInfo = mapOf("grid" to PageInfo(2, 3)))
+        executor().execute(listOf(Action.OpenMenu("other")), ctx)
+        assertEquals("other", lastOpenedMenuId)
+        assertTrue(lastMenuCtx?.pagination?.isEmpty() == true)
+        assertTrue(lastMenuCtx?.pageInfo?.isEmpty() == true)
+    }
+
     @Test fun `pagination_next advances the page and re-renders`() {
         val p = player()
         sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))

@@ -98,7 +98,12 @@ class ActionExecutor(
                 } else {
                     ctx.args + action.context.mapValues { it.value as Any }
                 }
-                menuProvider.openMenu(player, action.menuId, ctx.lang, ctx.copy(args = newArgs))
+                // La pagination est un état par menu — ne jamais la propager au menu
+                // cible (collision d'element ids entre menus, ex. deux "grid").
+                menuProvider.openMenu(
+                    player, action.menuId, ctx.lang,
+                    ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap()),
+                )
             }
             is Action.CloseMenu -> player.closeInventory()
             is Action.OpenDialog -> {
