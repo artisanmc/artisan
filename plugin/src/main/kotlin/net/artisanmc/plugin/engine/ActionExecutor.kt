@@ -31,7 +31,8 @@ class ActionExecutor(
             execute(handler.fallback, ctx)
             return
         }
-        execute(handler.actions, ctx)
+        if (handler.steps.isNotEmpty()) executeSteps(handler.steps, ctx)
+        else execute(handler.actions, ctx)
         if (cooldown != null) {
             cooldowns.set(cooldown.id, ctx.player.uniqueId, cooldown.scope, cooldown.durationSeconds)
         }
@@ -39,6 +40,28 @@ class ActionExecutor(
 
     fun execute(actions: List<Action>, ctx: ExecutionContext) {
         actions.forEach { executeOne(it, ctx) }
+    }
+
+    /** Exécute un arbre canonique : actions plates + branches if/else-if/else. */
+    fun executeSteps(steps: List<Step>, ctx: ExecutionContext) {
+        for (step in steps) when (step) {
+            is Step.ActionStep -> executeOne(step.action, ctx)
+            is Step.IfStep -> {
+                val case = step.cases.firstOrNull { caseMatches(it, ctx) }
+                executeSteps(case?.steps ?: step.elseSteps, ctx)
+            }
+        }
+    }
+
+    /** `joins` est évalué de gauche à droite sans précédence ; manquant = "and". */
+    private fun caseMatches(case: IfCase, ctx: ExecutionContext): Boolean {
+        if (case.conditions.isEmpty()) return true
+        var result = evaluator.evaluate(case.conditions[0], ctx)
+        for (i in 1 until case.conditions.size) {
+            val next = evaluator.evaluate(case.conditions[i], ctx)
+            result = if (case.joins.getOrNull(i - 1) == "or") result || next else result && next
+        }
+        return result
     }
 
     fun resolveArgs(text: String, ctx: ExecutionContext): String {

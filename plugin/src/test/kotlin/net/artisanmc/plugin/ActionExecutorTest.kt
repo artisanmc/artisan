@@ -152,4 +152,118 @@ class ActionExecutorTest {
         val p = player()
         executor().execute(listOf(Action.ShowTitle(title = "<red>x")), ctx(p))
     }
+
+    // ── canonical step-tree execution (kind: action / if) ────────────────────
+
+    private fun give(material: String) = Step.ActionStep(Action.GiveItem(material, 1))
+
+    private fun ifStep(conditions: List<Condition>, then: List<Step>, els: List<Step>, joins: List<String> = emptyList()) =
+        Step.IfStep(cases = listOf(IfCase(conditions, joins, then)), elseSteps = els)
+
+    private fun handlerWithSteps(vararg steps: Step) = ClickHandler(
+        requirements = emptyList(), actions = emptyList(), fallback = emptyList(), steps = steps.toList(),
+    )
+
+    @Test fun `handle executes the matching if-case steps`() {
+        val p = player()
+        p.addAttachment(pluginInstance, "step.vip", true)
+        val handler = handlerWithSteps(
+            ifStep(listOf(Condition.HasPermission("step.vip")), listOf(give("DIAMOND")), listOf(give("STONE"))),
+        )
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertFalse(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `handle executes else steps when no case matches`() {
+        val p = player()
+        val handler = handlerWithSteps(
+            ifStep(listOf(Condition.HasPermission("step.vip")), listOf(give("DIAMOND")), listOf(give("STONE"))),
+        )
+        executor().handle(handler, ctx(p))
+        assertFalse(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `or join matches when only the second condition holds`() {
+        val p = player()
+        p.addAttachment(pluginInstance, "perm.b", true)
+        val handler = handlerWithSteps(
+            ifStep(
+                listOf(Condition.HasPermission("perm.a"), Condition.HasPermission("perm.b")),
+                listOf(give("DIAMOND")), listOf(give("STONE")),
+                joins = listOf("or"),
+            ),
+        )
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+    }
+
+    @Test fun `default and join requires every condition`() {
+        val p = player()
+        p.addAttachment(pluginInstance, "perm.a", true)
+        val handler = handlerWithSteps(
+            ifStep(
+                listOf(Condition.HasPermission("perm.a"), Condition.HasPermission("perm.b")),
+                listOf(give("DIAMOND")), listOf(give("STONE")),
+            ),
+        )
+        executor().handle(handler, ctx(p))
+        assertFalse(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `an empty conditions case always matches`() {
+        val p = player()
+        val handler = handlerWithSteps(
+            ifStep(emptyList(), listOf(give("DIAMOND")), listOf(give("STONE"))),
+        )
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertFalse(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `nested if steps execute the inner branch`() {
+        val p = player()
+        val inner = ifStep(listOf(Condition.HasPermission("inner.perm")), listOf(give("DIAMOND")), listOf(give("STONE")))
+        val handler = handlerWithSteps(ifStep(emptyList(), listOf(inner), emptyList()))
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `steps after an if step always run`() {
+        val p = player()
+        val handler = handlerWithSteps(
+            ifStep(listOf(Condition.HasPermission("step.vip")), listOf(give("DIAMOND")), listOf(give("STONE"))),
+            give("APPLE"),
+        )
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.APPLE))
+    }
+
+    @Test fun `step tree takes precedence over legacy flat actions`() {
+        val p = player()
+        val handler = ClickHandler(
+            requirements = emptyList(),
+            actions = listOf(Action.GiveItem("STONE", 1)),
+            fallback = emptyList(),
+            steps = listOf(give("DIAMOND")),
+        )
+        executor().handle(handler, ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertFalse(p.inventory.contains(org.bukkit.Material.STONE))
+    }
+
+    @Test fun `legacy requirements gate still applies before steps`() {
+        val p = player()
+        val handler = ClickHandler(
+            requirements = listOf(Condition.HasPermission("never.granted")),
+            actions = emptyList(),
+            fallback = listOf(Action.GiveItem("STONE", 1)),
+            steps = listOf(give("DIAMOND")),
+        )
+        executor().handle(handler, ctx(p))
+        assertFalse(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertTrue(p.inventory.contains(org.bukkit.Material.STONE))
+    }
 }

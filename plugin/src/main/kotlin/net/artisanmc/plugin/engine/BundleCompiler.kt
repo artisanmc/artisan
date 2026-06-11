@@ -43,12 +43,15 @@ object BundleCompiler {
             val clicks = app.click.mapNotNull { (key, handlerYaml) ->
                 val clickType = ClickType.fromYamlKey(key) ?: return@mapNotNull null
                 val requirements = handlerYaml.requirements.map { ConditionParser.parse(it) }
-                val actions      = handlerYaml.resolvedActions().map { ActionParser.parse(it) }
-                val fallback     = handlerYaml.resolvedFallback().map { ActionParser.parse(it) }
+                // Canonical wire (`steps:`) compiles to a Step tree; the flat
+                // `actions:`/`fallback:` keys are the legacy wire and stay as-is.
+                val steps        = StepParser.parseAll(handlerYaml.steps)
+                val actions      = handlerYaml.actions.map { ActionParser.parse(it) }
+                val fallback     = handlerYaml.fallback.map { ActionParser.parse(it) }
                 val cooldown     = handlerYaml.cooldown?.let { cy ->
                     Cooldown(cy.id, cy.duration, cy.scope, cy.message)
                 }
-                clickType to ClickHandler(requirements, actions, fallback, cooldown)
+                clickType to ClickHandler(requirements, actions, fallback, cooldown, steps)
             }.toMap()
 
             CompiledAppearance(conditions, clicks, app)
