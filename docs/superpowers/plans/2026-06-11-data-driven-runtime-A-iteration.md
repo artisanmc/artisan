@@ -24,7 +24,7 @@
 - Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt` (MenuYaml, ElementYaml + nouveaux DTO)
 - Create: `plugin/src/test/kotlin/net/artisanmc/plugin/MenuYamlParsingTest.kt`
 
-- [ ] **Step 1 : test RED**
+- [x] **Step 1 : test RED**
 
 ```kotlin
 package net.artisanmc.plugin
@@ -89,9 +89,9 @@ class MenuYamlParsingTest {
 }
 ```
 
-- [ ] **Step 2 : RED** — `./gradlew test --tests "*MenuYamlParsingTest*"` → FAIL (champ inconnu / propriété absente).
+- [x] **Step 2 : RED** — `./gradlew test --tests "*MenuYamlParsingTest*"` → FAIL (champ inconnu / propriété absente).
 
-- [ ] **Step 3 : implémentation** — dans `PackBundle.kt` :
+- [x] **Step 3 : implémentation** — dans `PackBundle.kt` :
 
 ```kotlin
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -109,9 +109,9 @@ data class IteratesYaml(val source: String = "", val alias: String = "")
 
 `MenuYaml` gagne `@JsonProperty("context_inputs") val contextInputs: List<ContextInputYaml> = emptyList()` ; `ElementYaml` gagne `val iterates: IteratesYaml? = null`.
 
-- [ ] **Step 4 : GREEN** — `./gradlew test --tests "*MenuYamlParsingTest*"` → PASS, puis suite complète.
+- [x] **Step 4 : GREEN** — `./gradlew test --tests "*MenuYamlParsingTest*"` → PASS, puis suite complète.
 
-- [ ] **Step 5 : commit** — `feat(plugin): parse menu/v1 context_inputs and iterates`
+- [x] **Step 5 : commit** — `feat(plugin): parse menu/v1 context_inputs and iterates`
 
 ---
 
@@ -121,7 +121,7 @@ data class IteratesYaml(val source: String = "", val alias: String = "")
 - Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ArgResolver.kt`
 - Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ArgResolverTest.kt`
 
-- [ ] **Step 1 : test RED**
+- [x] **Step 1 : test RED**
 
 ```kotlin
 package net.artisanmc.plugin
@@ -150,9 +150,9 @@ class ArgResolverTest {
 }
 ```
 
-- [ ] **Step 2 : RED** — `./gradlew test --tests "*ArgResolverTest*"` → FAIL (classe absente).
+- [x] **Step 2 : RED** — `./gradlew test --tests "*ArgResolverTest*"` → FAIL (classe absente).
 
-- [ ] **Step 3 : implémentation**
+- [x] **Step 3 : implémentation**
 
 ```kotlin
 package net.artisanmc.plugin.engine
@@ -177,14 +177,14 @@ object ArgResolver {
 }
 ```
 
-- [ ] **Step 4 : GREEN** puis brancher les 3 call-sites existants (mêmes tests de non-régression : suite complète) :
+- [x] **Step 4 : GREEN** puis brancher les 3 call-sites existants (mêmes tests de non-régression : suite complète) :
   - `MenuRenderer.resolveText` : remplacer la boucle `ctx.args.forEach { replace }` par `text = ArgResolver.resolve(text, ctx.args)`.
   - `MenuRenderer.open` → lambda `interpolate` : idem.
   - `ActionExecutor.resolveArgs` : corps → `ArgResolver.resolve(text, ctx.args)`.
 
-- [ ] **Step 5 : suite complète** — `./gradlew test` → PASS (les tests resolveArgs existants couvrent la non-régression).
+- [x] **Step 5 : suite complète** — `./gradlew test` → PASS (les tests resolveArgs existants couvrent la non-régression).
 
-- [ ] **Step 6 : commit** — `feat(plugin): shared ArgResolver with {alias.field} map access`
+- [x] **Step 6 : commit** — `feat(plugin): shared ArgResolver with {alias.field} map access`
 
 ---
 
@@ -194,7 +194,7 @@ object ArgResolver {
 - Create: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ContextBinder.kt`
 - Create: `plugin/src/test/kotlin/net/artisanmc/plugin/ContextBinderTest.kt`
 
-- [ ] **Step 1 : test RED**
+- [x] **Step 1 : test RED**
 
 ```kotlin
 package net.artisanmc.plugin
@@ -239,9 +239,9 @@ class ContextBinderTest {
 }
 ```
 
-- [ ] **Step 2 : RED** → FAIL (classe absente).
+- [x] **Step 2 : RED** → FAIL (classe absente).
 
-- [ ] **Step 3 : implémentation**
+- [x] **Step 3 : implémentation**
 
 ```kotlin
 package net.artisanmc.plugin.engine
@@ -274,7 +274,7 @@ object ContextBinder {
 }
 ```
 
-- [ ] **Step 4 : GREEN** ; **Step 5 : commit** — `feat(plugin): ContextBinder — declared defaults, caller wins`
+- [x] **Step 4 : GREEN** ; **Step 5 : commit** — `feat(plugin): ContextBinder — declared defaults, caller wins`
 
 ---
 
@@ -286,7 +286,7 @@ object ContextBinder {
 
 Pas de test dédié (structures pures) — couvertes par les Tasks 5–7.
 
-- [ ] **Step 1 : implémentation**
+- [x] **Step 1 : implémentation**
 
 ```kotlin
 // ExecutionContext.kt
@@ -319,9 +319,9 @@ data class MenuSession(
 )
 ```
 
-- [ ] **Step 2 : compiler + suite** — `./gradlew test` → PASS (champs avec defaults, aucun call-site à changer).
+- [x] **Step 2 : compiler + suite** — `./gradlew test` → PASS (champs avec defaults, aucun call-site à changer).
 
-- [ ] **Step 3 : commit** — `feat(plugin): pagination state on ExecutionContext + per-slot session args`
+- [x] **Step 3 : commit** — `feat(plugin): pagination state on ExecutionContext + per-slot session args`
 
 ---
 
@@ -331,7 +331,7 @@ data class MenuSession(
 - Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuRenderer.kt`
 - Create: `plugin/src/test/kotlin/net/artisanmc/plugin/MenuRendererIterationTest.kt`
 
-- [ ] **Step 1 : test RED** (pattern MockBukkit d'`ActionExecutorTest` ; `BundleMenu` construit via `BundleCompiler.compile`)
+- [x] **Step 1 : test RED** (pattern MockBukkit d'`ActionExecutorTest` ; `BundleMenu` construit via `BundleCompiler.compile`)
 
 ```kotlin
 package net.artisanmc.plugin
@@ -465,9 +465,9 @@ class MenuRendererIterationTest {
 }
 ```
 
-- [ ] **Step 2 : RED** — `./gradlew test --tests "*MenuRendererIterationTest*"` → FAIL.
+- [x] **Step 2 : RED** — `./gradlew test --tests "*MenuRendererIterationTest*"` → FAIL.
 
-- [ ] **Step 3 : implémentation** — dans `MenuRenderer.open`, après `langMap` :
+- [x] **Step 3 : implémentation** — dans `MenuRenderer.open`, après `langMap` :
 
 ```kotlin
 // §15.4 : defaults déclarés (l'appelant gagne par nom).
@@ -537,7 +537,7 @@ val item = resolvedMaterial?.let { mat ->
 
 Retour : `return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)`.
 
-- [ ] **Step 4 : GREEN** puis suite complète. **Step 5 : commit** — `feat(plugin): render iterating elements — windowed pages, per-item scope`
+- [x] **Step 4 : GREEN** puis suite complète. **Step 5 : commit** — `feat(plugin): render iterating elements — windowed pages, per-item scope`
 
 ---
 
@@ -547,7 +547,7 @@ Retour : `return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = lang
 - Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuListener.kt:25`
 - Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/ActionExecutorTest.kt` (test du merge via exécution directe)
 
-- [ ] **Step 1 : test RED** — dans `ActionExecutorTest` (le listener est une glue fine ; on teste la sémantique du merge) :
+- [x] **Step 1 : test RED** — dans `ActionExecutorTest` (le listener est une glue fine ; on teste la sémantique du merge) :
 
 ```kotlin
 @Test fun `clicking an iterated slot resolves the alias in run_command`() {
@@ -561,7 +561,7 @@ Retour : `return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = lang
 }
 ```
 
-- [ ] **Step 2 : RED→GREEN** — le test passe déjà après Task 2 (ArgResolver) ; c'est l'oracle du contrat. Modifier le listener :
+- [x] **Step 2 : RED→GREEN** — le test passe déjà après Task 2 (ArgResolver) ; c'est l'oracle du contrat. Modifier le listener :
 
 ```kotlin
 // MenuListener.onClick — remplacer executor.handle(handler, session!!.ctx) par :
@@ -571,7 +571,7 @@ val slotCtx = session!!.ctx.copy(
 executor.handle(handler, slotCtx)
 ```
 
-- [ ] **Step 3 : suite complète** → PASS. **Step 4 : commit** — `feat(plugin): per-slot iteration scope on click`
+- [x] **Step 3 : suite complète** → PASS. **Step 4 : commit** — `feat(plugin): per-slot iteration scope on click`
 
 ---
 
@@ -582,7 +582,7 @@ executor.handle(handler, slotCtx)
 - Modify: `plugin/src/main/kotlin/net/artisanmc/plugin/engine/ConditionEvaluator.kt` (PaginationAtFirst/AtLast)
 - Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/ActionExecutorTest.kt`, `ConditionEvaluatorTest.kt`
 
-- [ ] **Step 1 : tests RED**
+- [x] **Step 1 : tests RED**
 
 `ConditionEvaluatorTest` :
 
@@ -642,9 +642,9 @@ executor.handle(handler, slotCtx)
 }
 ```
 
-- [ ] **Step 2 : RED** → FAIL (stubs actuels).
+- [x] **Step 2 : RED** → FAIL (stubs actuels).
 
-- [ ] **Step 3 : implémentation**
+- [x] **Step 3 : implémentation**
 
 `ConditionEvaluator` :
 
@@ -683,7 +683,7 @@ private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): Exe
 }
 ```
 
-- [ ] **Step 4 : GREEN** + suite complète. **Step 5 : commit** — `feat(plugin): working pagination — actions advance pages, at_first/at_last real`
+- [x] **Step 4 : GREEN** + suite complète. **Step 5 : commit** — `feat(plugin): working pagination — actions advance pages, at_first/at_last real`
 
 ---
 
@@ -692,7 +692,7 @@ private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): Exe
 **Files:**
 - Modify: `plugin/src/test/kotlin/net/artisanmc/plugin/MenuRendererIterationTest.kt`
 
-- [ ] **Step 1 : test** (RED si un raccord manque, sinon oracle vert) — simule le cycle réel : open → clic next (via executor + provider réel branché sur MenuRenderer) → la page 2 est rendue.
+- [x] **Step 1 : test** (RED si un raccord manque, sinon oracle vert) — simule le cycle réel : open → clic next (via executor + provider réel branché sur MenuRenderer) → la page 2 est rendue.
 
 ```kotlin
 @Test fun `full loop — pagination_next re-renders the next window`() {
@@ -724,7 +724,7 @@ private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): Exe
 }
 ```
 
-- [ ] **Step 2 : GREEN** + suite complète. **Step 3 : commit** — `test(plugin): end-to-end pagination loop oracle`
+- [x] **Step 2 : GREEN** + suite complète. **Step 3 : commit** — `test(plugin): end-to-end pagination loop oracle`
 
 ---
 
@@ -740,7 +740,7 @@ private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): Exe
 - Modify: `backend/src/modules/assistant/validate.test.ts` (acceptance + retirer ces types des tests de rejet)
 - Modify: `backend/src/modules/assistant/grounding/menu-v1-authoring-guide.md` (table conditions + note « NOT in subset » : il ne reste que `expression` ; caveat pagination supprimé)
 
-- [ ] **Step 1 : test RED éditeur** (`menuV1ToDomain.test.ts`) :
+- [x] **Step 1 : test RED éditeur** (`menuV1ToDomain.test.ts`) :
 
 ```ts
 it("imports pagination_at_first / pagination_at_last", () => {
@@ -759,7 +759,7 @@ it("imports pagination_at_first / pagination_at_last", () => {
 });
 ```
 
-- [ ] **Step 2 : implémentation éditeur**
+- [x] **Step 2 : implémentation éditeur**
   - Domaine : `| { type: "pagination_at_first"; elementId?: string } | { type: "pagination_at_last"; elementId?: string }` (camelCase domaine ; ces deux conditions NE passent PAS par le passthrough → mapping explicite des deux côtés).
   - `menuV1ToDomain.condition()` : `case "pagination_at_first": return { type: "pagination_at_first", ...(c.element_id ? { elementId: c.element_id } : {}) };` (idem `at_last`). Ajouter les deux à `DOMAIN_CONDITIONS`.
   - `transform.serializeCondition()` : ces deux types nécessitent un cas explicite (snake_case) :
@@ -772,11 +772,11 @@ it("imports pagination_at_first / pagination_at_last", () => {
   - `labels.conditionSummary` : `case "pagination_at_first": return condition.elementId ? \`first page of ${condition.elementId}\` : "on first page";` (idem last).
   - Étendre la fixture round-trip (`menuV1ToDomain.roundtrip.test.ts`) : une condition `pagination_at_first` sur l'appearance du bouton pager.
 
-- [ ] **Step 3 : backend** — `SUPPORTED_CONDITIONS` += les deux types ; `validate.test.ts` : retirer `pagination_at_first/last` des tests de rejet (il ne reste QUE `expression` comme exemple hors-subset) et les ajouter au test d'acceptation ; guide : deux lignes dans la table conditions, note « NOT in subset » réduite à `expression`, suppression du caveat « pagination no-op » de la section Runtime caveats (désormais faux), et le caveat iterates devient : « server runtime renders caller-provided lists; connector/pack data delivery is Phase B — flag when a menu depends on a connector ».
+- [x] **Step 3 : backend** — `SUPPORTED_CONDITIONS` += les deux types ; `validate.test.ts` : retirer `pagination_at_first/last` des tests de rejet (il ne reste QUE `expression` comme exemple hors-subset) et les ajouter au test d'acceptation ; guide : deux lignes dans la table conditions, note « NOT in subset » réduite à `expression`, suppression du caveat « pagination no-op » de la section Runtime caveats (désormais faux), et le caveat iterates devient : « server runtime renders caller-provided lists; connector/pack data delivery is Phase B — flag when a menu depends on a connector ».
 
-- [ ] **Step 4 : suites** — `npm test` (éditeur), `bun run test` (backend) → PASS.
+- [x] **Step 4 : suites** — `npm test` (éditeur), `bun run test` (backend) → PASS.
 
-- [ ] **Step 5 : commit** — `feat(editor,assistant): pagination_at_first/last join the importable subset`
+- [x] **Step 5 : commit** — `feat(editor,assistant): pagination_at_first/last join the importable subset`
 
 ---
 
@@ -786,9 +786,9 @@ it("imports pagination_at_first / pagination_at_last", () => {
 - Modify: `docs/architecture/schemas-codegen.md` (gaps : itération/pagination fermés ; restants = connecteurs/pack-data (Phase B) + expression)
 - Modify: `CHANGELOG.md` `[Unreleased]`
 
-- [ ] **Step 1 :** déplacer « `context_inputs` / itération » et « pagination » vers la section **Fermés** de schemas-codegen.md avec une ligne chacun (binder §15.4, fenêtrage par slots, `{alias.field}`, clamp + at_first/at_last réels) ; préciser que la livraison de données (connecteurs/`pack:`) reste ouverte (Phase B).
-- [ ] **Step 2 :** entrée CHANGELOG `Added` décrivant le runtime (mêmes points, 3-4 lignes).
-- [ ] **Step 3 : commit** — `docs: data-driven runtime phase A status`
+- [x] **Step 1 :** déplacer « `context_inputs` / itération » et « pagination » vers la section **Fermés** de schemas-codegen.md avec une ligne chacun (binder §15.4, fenêtrage par slots, `{alias.field}`, clamp + at_first/at_last réels) ; préciser que la livraison de données (connecteurs/`pack:`) reste ouverte (Phase B).
+- [x] **Step 2 :** entrée CHANGELOG `Added` décrivant le runtime (mêmes points, 3-4 lignes).
+- [x] **Step 3 : commit** — `docs: data-driven runtime phase A status`
 
 ---
 

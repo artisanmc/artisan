@@ -24,7 +24,8 @@ import { stringify } from "yaml";
 const i18nRef = (key: string): string => `{i18n:${key}}`;
 
 // ─── condition serialization ────────────────────────────────────────────────
-// Conditions are already snake_case and contain no LText — pass through as-is.
+// Most conditions are stored snake_case and contain no LText — pass through
+// as-is. Exceptions: composites (recursive) and pagination (camelCase domain).
 
 function serializeCondition(c: Condition): unknown {
   if (c.type === "not") return { type: "not", of: serializeCondition(c.of) };

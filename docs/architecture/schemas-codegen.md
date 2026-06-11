@@ -40,14 +40,22 @@ Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
   (cases/joins/else, joins gauche→droite sans précédence), menus **et** commandes ;
 - ✅ actions `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev` — mutation des args de
   contexte + re-render du menu courant ; le contexte est replié d'action en action dans un
-  même clic.
+  même clic ;
+- ✅ `context_inputs` + `iterates` (Phase A, plan `2026-06-11-data-driven-runtime-A-iteration.md`) —
+  `ContextBinder` (§15.4 : l'appelant gagne, defaults coercés), rendu fenêtré par page
+  (pageSize = slots de l'élément), `{alias.field}` via `ArgResolver` (matériel inclus),
+  scope d'item par slot au clic (`MenuSession.slotArgs`) ;
+- ✅ pagination — `pagination_next/prev` avancent/reculent avec clamp + re-render ;
+  `pagination_at_first/last` réelles (état dans `ExecutionContext.pagination`/`pageInfo`,
+  aucune modification d'interface `MenuProvider`).
 
 **Restants** (le plugin ne les exécute pas encore — projets séparés) :
 
-- `context_inputs` / itération (`iterates`, connecteurs `DataSourceRegistry`) ;
+- **livraison de données** (Phase B) : `pack.dataSources` non exporté, `ConnectorBinding`
+  (`source.ref`/`params`/`filter`/`sort`/`limit`) non résolu, aucun connecteur
+  `DataSourceRegistry` implémenté — les listes itérées ne peuvent venir que de l'appelant ;
 - évaluation des `expression` (DSL éditeur-only ; une condition `expression` fait dropper
   l'appearance au chargement plugin — retirée du vocab assistant en attendant) ;
-- `pagination_next` / `pagination_prev` (parsées, no-op à l'exécution) ;
 - `open_requirements` / `open_actions` / `close_actions` / `background` top-level
   (implémentés nulle part : ni domaine éditeur, ni runtime — rejetés par le gate assistant).
 
