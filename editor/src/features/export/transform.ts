@@ -420,7 +420,9 @@ export function serializeMenuToV1(menu: Menu, pack: Pack): { id: string } & Reco
         if (ci.default !== undefined) c.default = ci.default;
         return c;
       }
-      return { name: ci.name, ref: ci.ref };
+      // Canonical connector shape — `source` is a ConnectorBinding; `type`
+      // is required by the schema (connector-fed inputs are lists in v1).
+      return { name: ci.name, type: "list", source: { ref: ci.ref } };
     });
   }
   return out as { id: string } & Record<string, unknown>;
