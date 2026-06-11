@@ -21,8 +21,9 @@ or cannot be represented downstream.
 ```
 
 Required: `schema` (always the literal `"menu/v1"`), `id`, `title`, `size`, `layers`.
-Optional: `permission`, `context_inputs`, `notes`, `background`, `open_requirements`,
-`open_actions`, `close_actions`.
+Optional: `permission`, `context_inputs`, `notes`.
+Do **not** emit `background`, `open_requirements`, `open_actions` or `close_actions` —
+they exist in the full schema but are not implemented yet and are rejected here.
 
 - **`id`** — stable slug, lowercase + underscore, `^[a-z][a-z0-9_]{0,63}$`. Used in
   `/menu open <id>` and `open_menu`.
@@ -136,7 +137,6 @@ Use **only** these condition `type` values. Any other type is rejected / non-rep
 | `not`               | `of` (a single Condition)       | `{ "type": "not", "of": { "type": "has_permission", "perm": "x" } }` |
 | `and`               | `of` (Condition[])              | `{ "type": "and", "of": [ ... ] }` |
 | `or`                | `of` (Condition[])              | `{ "type": "or", "of": [ ... ] }` |
-| `expression`        | `expr` (Artisan expression DSL) | `{ "type": "expression", "expr": "balance >= 100" }` |
 
 `placeholder` accepts a PAPI placeholder (`%vault_eco_balance%`), a context input (`{category}`),
 or an iteration field (`{alias.field}`).
@@ -164,10 +164,19 @@ and in `open_actions` / `close_actions`.
 | `close_dialog`         | —                                                     | `{ "type": "close_dialog" }` |
 
 > The full `menu/v1` schema defines more actions/conditions (e.g. `give_xp`, `play_sound`,
-> `teleport`, `has_item`, `time_is`), but they are **NOT** in the importable subset and are
-> rejected here. Stick to the tables above. When a source file needs something outside this
-> set, **say so in chat** (and optionally record it in the menu's `notes`) rather than
-> inventing a type.
+> `teleport`, `has_item`, `time_is`, `expression`), but they are **NOT** in the importable
+> subset and are rejected here. Stick to the tables above. When a source file needs something
+> outside this set, **say so in chat** (and optionally record it in the menu's `notes`) rather
+> than inventing a type.
+
+## Runtime caveats — tell the user when relevant
+
+- `pagination_next` / `pagination_prev` are accepted and preserved, but the server-side
+  paging engine is not wired yet — the buttons render and do nothing in game for now.
+- `iterates` + `context_inputs` render in the web editor, but the server-side data-driven
+  runtime (connectors, list iteration) is not wired yet — in game the element shows its
+  appearance with unresolved `{alias.field}` placeholders. Still produce the correct
+  structure; just **mention this limitation in chat** when you use it.
 
 ## Text & i18n
 
