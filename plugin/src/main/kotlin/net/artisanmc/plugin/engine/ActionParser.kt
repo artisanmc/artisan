@@ -62,6 +62,9 @@ object ActionParser {
                 clearContext = raw["clear_context"] as? Boolean ?: false,
             )
             "close_dialog"   -> Action.CloseDialog
+            "set_arg"            -> Action.SetArg(str(raw, "arg"), str(raw, "value"))
+            "set_arg_cycle_next" -> Action.SetArgCycleNext(str(raw, "arg"), str(raw, "list"))
+            "set_arg_cycle_prev" -> Action.SetArgCyclePrev(str(raw, "arg"), str(raw, "list"))
             else             -> throw IllegalArgumentException("Unknown action type: $type")
         }
     }
