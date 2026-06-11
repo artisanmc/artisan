@@ -1,6 +1,6 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { SignupForm } from "@/features/auth/SignupForm";
 import { useAuthStore } from "@/state/authStore";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/signup")({
   beforeLoad: ({ search }) => {
@@ -29,14 +29,7 @@ function SignupPage() {
 
   return (
     <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
-        }}
-      />
+      <div aria-hidden className="page-glow pointer-events-none absolute inset-0" />
       <SignupForm apiUrl={apiUrl} onSuccess={handleSignupSuccess} />
     </div>
   );

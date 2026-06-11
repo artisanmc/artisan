@@ -1,15 +1,15 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslation, Trans } from "react-i18next";
-import { useAuthStore } from "@/state/authStore";
 import {
-  listNetworks,
-  getNetwork,
-  claimLinkCode,
   ClaimError,
   type NetworkSummary,
   type PackSummary,
+  claimLinkCode,
+  getNetwork,
+  listNetworks,
 } from "@/lib/api/networks";
+import { useAuthStore } from "@/state/authStore";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/link")({ component: LinkRoute });
 
@@ -77,7 +77,9 @@ function LinkRoute() {
       .catch(() => {
         if (!cancelled) setPacksInNetwork([]);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [networkChoice]);
 
   const handleClaim = async () => {
@@ -94,15 +96,25 @@ function LinkRoute() {
       setStatus("done");
     } catch (e) {
       setStatus("error");
-      setErrorMessage(e instanceof ClaimError ? `linkPage.errors.${e.code}` : t("linkPage.unknownError"));
+      setErrorMessage(
+        e instanceof ClaimError ? `linkPage.errors.${e.code}` : t("linkPage.unknownError"),
+      );
     }
   };
 
   if (status === "loading") {
-    return <Shell><CenterMessage label={t("linkPage.loading")} /></Shell>;
+    return (
+      <Shell>
+        <CenterMessage label={t("linkPage.loading")} />
+      </Shell>
+    );
   }
   if (status === "claiming") {
-    return <Shell><CenterMessage label={t("linkPage.linking")} /></Shell>;
+    return (
+      <Shell>
+        <CenterMessage label={t("linkPage.linking")} />
+      </Shell>
+    );
   }
   if (status === "done") {
     return (
@@ -125,11 +137,19 @@ function LinkRoute() {
           tone="brick"
           body={
             <>
-              <p>{errorMessage?.startsWith("linkPage.") ? t(errorMessage) : (errorMessage ?? t("linkPage.unknownError"))}</p>
+              <p>
+                {errorMessage?.startsWith("linkPage.")
+                  ? t(errorMessage)
+                  : (errorMessage ?? t("linkPage.unknownError"))}
+              </p>
               <p className="mt-2 text-[12.5px] text-[var(--text-mut)]">
                 <Trans
                   i18nKey="linkPage.retryHint"
-                  components={{ 1: <code className="mono rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-[var(--text-mut)]" /> }}
+                  components={{
+                    1: (
+                      <code className="mono rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-[var(--text-mut)]" />
+                    ),
+                  }}
                   values={{ cmd: "/artisan setup" }}
                 />
               </p>
@@ -219,7 +239,11 @@ function Stepper({ step }: { step: Step }) {
               <span
                 className={[
                   "text-[10.5px] font-semibold uppercase tracking-[.14em]",
-                  isActive ? "text-[var(--text)]" : isDone ? "text-[var(--text-mut)]" : "text-[var(--text-faint)]",
+                  isActive
+                    ? "text-[var(--text)]"
+                    : isDone
+                      ? "text-[var(--text-mut)]"
+                      : "text-[var(--text-faint)]",
                 ].join(" ")}
               >
                 {it.label}
@@ -251,11 +275,15 @@ function NetworkStep({
 }) {
   const { t } = useTranslation();
   const [newName, setNewName] = useState(choice?.mode === "new" ? choice.name : "");
-  const canProceed = (choice?.mode === "existing") || (choice?.mode === "new" && choice.name.trim().length > 0);
+  const canProceed =
+    choice?.mode === "existing" || (choice?.mode === "new" && choice.name.trim().length > 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2
+        className="display text-[20px] text-[var(--text)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
         {t("linkPage.networkTitle")}
       </h2>
 
@@ -331,19 +359,21 @@ function PackStep({
 }) {
   const { t } = useTranslation();
   const [newName, setNewName] = useState(choice?.mode === "new" ? choice.name : "");
-  const canProceed = (choice?.mode === "existing") || (choice?.mode === "new" && choice.name.trim().length > 0);
+  const canProceed =
+    choice?.mode === "existing" || (choice?.mode === "new" && choice.name.trim().length > 0);
   const isNewNetwork = networkChoice.mode === "new";
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2
+        className="display text-[20px] text-[var(--text)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
         {t("linkPage.packTitle")}
       </h2>
 
       {isNewNetwork ? (
-        <p className="text-[12.5px] text-[var(--text-mut)]">
-          {t("linkPage.newNetworkHasNoPacks")}
-        </p>
+        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.newNetworkHasNoPacks")}</p>
       ) : packs.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {packs.map((p) => {
@@ -393,7 +423,9 @@ function PackStep({
       </div>
 
       <div className="flex justify-between border-t border-[var(--border-soft)] pt-4">
-        <button type="button" onClick={onBack} className="btn btn-ghost">{t("linkPage.back")}</button>
+        <button type="button" onClick={onBack} className="btn btn-ghost">
+          {t("linkPage.back")}
+        </button>
         <button type="button" onClick={onNext} disabled={!canProceed} className="btn btn-primary">
           {t("linkPage.next")}
         </button>
@@ -433,7 +465,10 @@ function ConfirmStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="display text-[20px] text-[var(--text)]" style={{ fontFamily: "var(--font-display)" }}>
+      <h2
+        className="display text-[20px] text-[var(--text)]"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
         {t("linkPage.confirmTitle")}
       </h2>
 
@@ -450,11 +485,15 @@ function ConfirmStep({
           value={serverKeyLabel}
           onChange={(e) => onServerKeyLabelChange(e.target.value)}
         />
-        <span className="text-[11px] text-[var(--text-faint)]">{t("linkPage.serverKeyLabelHint")}</span>
+        <span className="text-[11px] text-[var(--text-faint)]">
+          {t("linkPage.serverKeyLabelHint")}
+        </span>
       </div>
 
       <div className="flex justify-between border-t border-[var(--border-soft)] pt-4">
-        <button type="button" onClick={onBack} className="btn btn-ghost">{t("linkPage.back")}</button>
+        <button type="button" onClick={onBack} className="btn btn-ghost">
+          {t("linkPage.back")}
+        </button>
         <button type="button" onClick={onConfirm} className="btn btn-primary">
           {t("linkPage.confirm")}
         </button>
@@ -477,14 +516,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
-        }}
-      />
+      <div aria-hidden className="page-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[1] w-full max-w-md">{children}</div>
     </div>
   );

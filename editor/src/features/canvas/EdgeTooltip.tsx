@@ -60,25 +60,19 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
               <span className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--text)]">
                 {elementLabel(trigger.elementId)}
               </span>
-              <span className="badge badge-terra shrink-0 font-mono">
-                {trigger.clickType}
-              </span>
+              <span className="badge badge-terra shrink-0 font-mono">{trigger.clickType}</span>
             </div>
           ) : trigger.kind === "dialog_button" ? (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
-              <span className="badge shrink-0 font-mono" style={{ background: "rgba(93,186,112,.18)", color: "var(--success)" }}>
-                dialog
-              </span>
+              <span className="badge badge-sage shrink-0 font-mono">dialog</span>
               <span className="font-mono text-xs text-[var(--text-mut)]">{trigger.buttonId}</span>
             </div>
           ) : (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                /
-                {pack.commands.find((c) => c.id === trigger.commandId)?.name ??
-                  trigger.commandId}
+                /{pack.commands.find((c) => c.id === trigger.commandId)?.name ?? trigger.commandId}
               </span>
             </div>
           ),
@@ -101,7 +95,9 @@ function ElementIcon({ material }: { material: string }) {
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="font-mono text-[7px] text-[var(--text-faint)]">{material.slice(0, 3) || "?"}</span>
+        <span className="font-mono text-[7px] text-[var(--text-faint)]">
+          {material.slice(0, 3) || "?"}
+        </span>
       )}
     </div>
   );

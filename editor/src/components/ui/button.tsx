@@ -4,33 +4,29 @@ import * as React from "react";
 
 import { cn } from "@/lib/cx";
 
-const buttonVariants = cva(
-  "btn",
-  {
-    variants: {
-      variant: {
-        default: "",
-        primary: "btn-primary",
-        deploy: "btn-deploy",
-        destructive: "btn-danger",
-        outline: "btn-outline",
-        secondary: "btn-outline",
-        ghost: "btn-ghost",
-        link: "btn-ghost underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "",
-        sm: "btn-sm",
-        lg: "h-[44px] px-7 text-[14px]",
-        icon: "btn-icon",
-      },
+const buttonVariants = cva("btn", {
+  variants: {
+    variant: {
+      default: "",
+      primary: "btn-primary",
+      destructive: "btn-danger",
+      outline: "btn-outline",
+      secondary: "btn-outline",
+      ghost: "btn-ghost",
+      link: "btn-ghost underline-offset-4 hover:underline",
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
+    size: {
+      default: "",
+      sm: "btn-sm",
+      lg: "h-[44px] px-7 text-[14px]",
+      icon: "btn-icon",
     },
   },
-);
+  defaultVariants: {
+    variant: "default",
+    size: "default",
+  },
+});
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,

@@ -1,8 +1,10 @@
-import { useTranslation } from "react-i18next";
-import { LogOut } from "lucide-react";
 import { useAuthStore } from "@/state/authStore";
+import { LogOut } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-interface Props { apiUrl: string }
+interface Props {
+  apiUrl: string;
+}
 
 export function LogoutButton({ apiUrl }: Props) {
   const { t } = useTranslation();

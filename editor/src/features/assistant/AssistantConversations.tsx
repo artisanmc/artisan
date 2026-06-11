@@ -44,7 +44,7 @@ export function AssistantConversations({
   return (
     <div data-testid="assistant-conversations" className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 p-3">
-        <button type="button" onClick={onNew} className="btn btn-sm btn-deploy w-full">
+        <button type="button" onClick={onNew} className="btn btn-sm btn-primary w-full">
           <Plus className="h-4 w-4" />
           {t("assistant.newConversation")}
         </button>

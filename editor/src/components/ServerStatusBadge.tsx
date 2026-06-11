@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { getServerStatus } from "@/lib/api/networks";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   networkId: string | null | undefined;
@@ -15,17 +15,24 @@ export function ServerStatusBadge({ networkId, serverKeyId }: Props) {
   const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!networkId) return;
+    // Both ids required — a pack loaded from the user API may carry no
+    // serverKeyId; an empty segment would hit /server-keys//status (404).
+    if (!networkId || !serverKeyId) return;
     let cancelled = false;
     const refresh = async () => {
       try {
         const s = await getServerStatus(networkId, serverKeyId);
         if (!cancelled) setOnline(s.online);
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     };
     refresh();
     const id = setInterval(refresh, 15_000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [networkId, serverKeyId]);
 
   if (online === null) return null;

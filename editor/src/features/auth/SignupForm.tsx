@@ -1,6 +1,7 @@
+import { FormField } from "@/components/ui/form-field";
+import { useAuthStore } from "@/state/authStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuthStore } from "@/state/authStore";
 import { DiscordLoginButton } from "./DiscordLoginButton";
 
 interface Props {
@@ -40,7 +41,15 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
     >
       <div className="flex items-center gap-2.5">
         <span className="pixel-mark">
-          <i /><i /><i /><i /><i /><i /><i /><i /><i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
         </span>
         <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
           Artisan
@@ -55,8 +64,7 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
       </h1>
 
       <div className="flex flex-col gap-3.5">
-        <label className="flex flex-col">
-          <span className="field-label">{t("auth.name")}</span>
+        <FormField label={t("auth.name")}>
           <input
             type="text"
             required
@@ -65,9 +73,8 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
             className="input"
             autoComplete="name"
           />
-        </label>
-        <label className="flex flex-col">
-          <span className="field-label">{t("auth.email")}</span>
+        </FormField>
+        <FormField label={t("auth.email")}>
           <input
             type="email"
             required
@@ -76,9 +83,8 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
             className="input"
             autoComplete="email"
           />
-        </label>
-        <label className="flex flex-col">
-          <span className="field-label">{t("auth.password")}</span>
+        </FormField>
+        <FormField label={t("auth.password")}>
           <input
             type="password"
             required
@@ -88,7 +94,7 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
             className="input"
             autoComplete="new-password"
           />
-        </label>
+        </FormField>
       </div>
 
       {errorMsg && <div className="text-sm text-[var(--danger)]">{errorMsg}</div>}
@@ -99,7 +105,7 @@ export function SignupForm({ apiUrl, onSuccess }: Props) {
 
       <div className="flex items-center gap-3 text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-faint)]">
         <span className="h-px flex-1 bg-[var(--border-soft)]" />
-        <span>ou</span>
+        <span>{t("auth.orSeparator")}</span>
         <span className="h-px flex-1 bg-[var(--border-soft)]" />
       </div>
 
