@@ -79,6 +79,27 @@ class CommandCompilerTest {
         assertEquals(1, intArg.default)
     }
 
+    @Test fun `compile parses canonical steps into a step tree`() {
+        val yaml = CommandYaml(
+            name = "menu",
+            steps = listOf(
+                mapOf(
+                    "kind" to "if",
+                    "cases" to listOf(mapOf(
+                        "conditions" to listOf(mapOf("type" to "has_permission", "perm" to "x")),
+                        "steps" to listOf(mapOf("kind" to "action", "action" to mapOf("type" to "close_menu"))),
+                    )),
+                ),
+                mapOf("kind" to "action", "action" to mapOf("type" to "send_message", "text" to "hi")),
+            ),
+        )
+        val result = CommandCompiler.compile(yaml)
+        assertNotNull(result)
+        assertEquals(2, result.handler.steps.size)
+        assertIs<net.artisanmc.plugin.engine.Step.IfStep>(result.handler.steps[0])
+        assertIs<net.artisanmc.plugin.engine.Step.ActionStep>(result.handler.steps[1])
+    }
+
     @Test fun `compile returns null on invalid action type`() {
         val yaml = CommandYaml(
             name = "broken",

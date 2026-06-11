@@ -14,6 +14,8 @@ data class ClickHandler(
     val actions: List<Action>,
     val fallback: List<Action>,
     val cooldown: Cooldown? = null,
+    /** Arbre canonique menu/v1. Non-vide = prioritaire sur `actions` (wire legacy). */
+    val steps: List<Step> = emptyList(),
 )
 
 enum class ClickType {

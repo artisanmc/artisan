@@ -8,7 +8,10 @@ object CommandCompiler {
 
     fun compile(yaml: CommandYaml, logger: Logger? = null): CompiledCommand? = runCatching {
         val requirements = yaml.requirements.map { ConditionParser.parse(it) }
-        val actions      = yaml.resolvedActions().map { ActionParser.parse(it) }
+        // Canonical wire (`steps:`) compiles to a Step tree; flat `actions:`/
+        // `fallback:` are the legacy wire and stay as-is.
+        val steps        = StepParser.parseAll(yaml.steps)
+        val actions      = yaml.actions.map { ActionParser.parse(it) }
         val fallback     = yaml.fallback.map { ActionParser.parse(it) }
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }
         val argDefs      = ArgDefParser.parseAll(yaml.arguments)
@@ -18,7 +21,7 @@ object CommandCompiler {
             permission  = yaml.permission,
             description = yaml.description ?: "",
             argDefs     = argDefs,
-            handler     = ClickHandler(requirements, actions, fallback, cooldown),
+            handler     = ClickHandler(requirements, actions, fallback, cooldown, steps),
         )
     }.getOrElse { e ->
         logger?.warning("Failed to compile command '${yaml.name}': ${e.message}")
