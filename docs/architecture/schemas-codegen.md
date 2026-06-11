@@ -34,14 +34,25 @@ Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
 
 ## Gaps runtime documentés
 
-Le schéma `menu/v1` inclut des constructs que le **plugin n'exécute pas encore** (projets séparés, à traiter ultérieurement) :
+**Fermés (2026-06-11)** :
 
-- exécution des branches `if` d'un step-tree de clic ;
-- `context_inputs` / itération ;
-- évaluation des `expression` ;
-- actions `set_arg*`.
+- ✅ branches `if` d'un step-tree de clic — `StepParser` + `ActionExecutor.executeSteps`
+  (cases/joins/else, joins gauche→droite sans précédence), menus **et** commandes ;
+- ✅ actions `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev` — mutation des args de
+  contexte + re-render du menu courant ; le contexte est replié d'action en action dans un
+  même clic.
 
-Le schéma les décrit (l'éditeur peut les produire/valider), mais le runtime plugin les ignore tant que les projets dédiés ne sont pas livrés.
+**Restants** (le plugin ne les exécute pas encore — projets séparés) :
+
+- `context_inputs` / itération (`iterates`, connecteurs `DataSourceRegistry`) ;
+- évaluation des `expression` (DSL éditeur-only ; une condition `expression` fait dropper
+  l'appearance au chargement plugin — retirée du vocab assistant en attendant) ;
+- `pagination_next` / `pagination_prev` (parsées, no-op à l'exécution) ;
+- `open_requirements` / `open_actions` / `close_actions` / `background` top-level
+  (implémentés nulle part : ni domaine éditeur, ni runtime — rejetés par le gate assistant).
+
+Le schéma les décrit (l'éditeur peut produire/valider certains), mais le runtime plugin les
+ignore tant que les projets dédiés ne sont pas livrés.
 
 ## Statut / phasage
 

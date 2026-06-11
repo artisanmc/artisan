@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 
+// NOTE: `expression` est volontairement exclu tant que le plugin n'a pas
+// d'évaluateur DSL — une condition expression fait dropper l'appearance
+// entière au chargement serveur (ConditionParser inconnu → runCatching).
 export const SUPPORTED_CONDITIONS = [
-  "has_permission", "has_money", "placeholder_equals", "placeholder_match", "not", "and", "or", "expression",
+  "has_permission", "has_money", "placeholder_equals", "placeholder_match", "not", "and", "or",
 ] as const;
 export const SUPPORTED_ACTIONS = [
   "run_command", "open_menu", "close_menu", "send_message", "show_title", "give_item", "take_money",
