@@ -182,6 +182,7 @@ function buildPack(): Pack {
     title: titleLayers,
     rows: 3,
     permission: "menu.shop",
+    notes: "zMenu 'deposit' action had no equivalent — dropped on import.",
     layers,
     contextInputs: [
       { kind: "primitive", name: "page", type: "integer", default: "0" },
@@ -228,6 +229,11 @@ describe("menuV1ToDomain — round-trip oracle", () => {
 
   it("round-trips context inputs", () => {
     expect(imported.contextInputs).toEqual(original.contextInputs);
+  });
+
+  it("round-trips menu notes (the KB tells the AI to record drops there)", () => {
+    expect(imported.notes).toBe(original.notes);
+    expect(imported.notes).toContain("deposit");
   });
 
   it("round-trips title layer structure (kinds + non-i18n fields)", () => {

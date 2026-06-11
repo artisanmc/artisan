@@ -330,6 +330,7 @@ export function menuV1ToDomain(
     rows,
     layers: (src.layers as Json[]).map(layer),
     ...(src.permission ? { permission: src.permission } : {}),
+    ...(typeof src.notes === "string" && src.notes ? { notes: src.notes } : {}),
     ...(contextInputs && contextInputs.length > 0 ? { contextInputs } : {}),
   };
 
