@@ -30,6 +30,9 @@ function serializeCondition(c: Condition): unknown {
   if (c.type === "not") return { type: "not", of: serializeCondition(c.of) };
   if (c.type === "and") return { type: "and", of: (c.of as Condition[]).map(serializeCondition) };
   if (c.type === "or") return { type: "or", of: (c.of as Condition[]).map(serializeCondition) };
+  if (c.type === "pagination_at_first" || c.type === "pagination_at_last") {
+    return { type: c.type, ...(c.elementId ? { element_id: c.elementId } : {}) };
+  }
   return c;
 }
 

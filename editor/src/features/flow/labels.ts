@@ -75,6 +75,10 @@ export function conditionSummary(condition: Condition): string {
       return `cooldown "${condition.cooldown_id}" passed`;
     case "player_in_region":
       return `in region "${condition.region}"`;
+    case "pagination_at_first":
+      return condition.elementId ? `first page of ${condition.elementId}` : "on first page";
+    case "pagination_at_last":
+      return condition.elementId ? `last page of ${condition.elementId}` : "on last page";
     case "not":
       return `NOT (${conditionSummary(condition.of)})`;
     case "and":

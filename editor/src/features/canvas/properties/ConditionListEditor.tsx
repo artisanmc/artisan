@@ -58,6 +58,8 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "random_chance", label: "random chance", chip: "%" },
   { value: "cooldown_passed", label: "cooldown passed", chip: "cd" },
   { value: "player_in_region", label: "in region (WorldGuard)", chip: "region" },
+  { value: "pagination_at_first", label: "on first page", chip: "⏮" },
+  { value: "pagination_at_last", label: "on last page", chip: "⏭" },
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
@@ -98,6 +100,10 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "cooldown_passed", cooldown_id: "" };
     case "player_in_region":
       return { type: "player_in_region", region: "" };
+    case "pagination_at_first":
+      return { type: "pagination_at_first" };
+    case "pagination_at_last":
+      return { type: "pagination_at_last" };
   }
 };
 
@@ -505,6 +511,18 @@ function ConditionInline({
           value={condition.region}
           onChange={(e) => onChange({ ...condition, region: e.target.value })}
           className="h-6 w-[130px] px-1.5 py-0 font-mono text-[11px]"
+        />
+      );
+    case "pagination_at_first":
+    case "pagination_at_last":
+      return (
+        <Input
+          placeholder="(all iterables)"
+          value={condition.elementId ?? ""}
+          onChange={(e) =>
+            onChange({ ...condition, elementId: e.target.value || undefined })
+          }
+          className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
         />
       );
     case "expression":
