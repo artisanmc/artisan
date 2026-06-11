@@ -7,6 +7,7 @@ import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -39,12 +40,29 @@ object MenuRenderer {
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
         // iteration-order dependent (non-deterministic across loads).
         val langMap = menu.langMapWithFallback(lang)
+
+        // §15.4 : defaults déclarés (l'appelant gagne par nom).
+        val boundCtx = ctx.copy(args = ContextBinder.bind(menu.yaml, ctx.args))
+
+        // Pré-calcul des fenêtres de pagination de chaque élément itérant.
+        val pageInfo = mutableMapOf<String, PageInfo>()
+        for (layer in menu.yaml.layers) for (element in layer.elements) {
+            val iter = element.iterates ?: continue
+            val slots = parsePositions(element.positions, menu.yaml.size)
+            val list = boundCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
+            val pageSize = slots.size.coerceAtLeast(1)
+            val pageCount = ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+            val requested = boundCtx.pagination[element.id] ?: 0
+            pageInfo[element.id] = PageInfo(requested.coerceIn(0, pageCount - 1), pageCount)
+        }
+        val renderCtx = boundCtx.copy(pageInfo = pageInfo)
+
         // Per-title placeholder interpolation: `{argName}` from the ExecutionContext
         // args, then `%papi%` via PlaceholderAPI. Same chain as resolveText() applies
         // to item title/lore.
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw ->
-            var text = ArgResolver.resolve(raw, ctx.args)
+            var text = ArgResolver.resolve(raw, renderCtx.args)
             if (papi != null) text = papi.resolve(player, text)
             text
         }
@@ -56,27 +74,56 @@ object MenuRenderer {
             offsetEncoder = offsetEncoder,
             interpolate = interpolate,
         )
-        val inv = Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title)
+        // MockBukkit n'implémente pas l'overload Component de createInventory —
+        // fallback legacy uniquement dans ce cas (la prod garde le Component,
+        // indispensable aux titres pixel-perfect à base de fonts).
+        val inv = runCatching { Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title) }
+            .getOrElse {
+                Bukkit.createInventory(
+                    ArtisanMenuHolder(), menu.yaml.size,
+                    LegacyComponentSerializer.legacySection().serialize(title),
+                )
+            }
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
+        val slotArgs = mutableMapOf<Int, Map<String, Any>>()
 
         for (layer in menu.yaml.layers) {
             for (element in layer.elements) {
                 val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
-                val chosen = compiledList.firstOrNull { ca ->
-                    evaluator.evaluateAll(ca.conditions, ctx)
-                } ?: continue
-
-                val item = buildItem(chosen.yaml, langMap, ctx, evaluator.deps)
                 val slots = parsePositions(element.positions, menu.yaml.size)
-                for (slot in slots) {
-                    inv.setItem(slot, item)
-                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
+                val iter = element.iterates
+                if (iter == null) {
+                    val chosen = compiledList.firstOrNull { ca ->
+                        evaluator.evaluateAll(ca.conditions, renderCtx)
+                    } ?: continue
+                    val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps)
+                    for (slot in slots) {
+                        inv.setItem(slot, item)
+                        if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
+                    }
+                    continue
+                }
+                // Élément itérant : une entrée de la liste par slot, fenêtrée par page.
+                val list = renderCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
+                val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
+                val window = list.drop(info.page * slots.size).take(slots.size)
+                window.forEachIndexed { i, entry ->
+                    val slot = slots[i]
+                    val itemArgs = mapOf(iter.alias to (entry ?: ""))
+                    val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
+                    val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
+                        ?: return@forEachIndexed
+                    inv.setItem(slot, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
+                    if (chosen.clicks.isNotEmpty()) {
+                        activeClicks[slot] = chosen.clicks
+                        slotArgs[slot] = itemArgs
+                    }
                 }
             }
         }
 
         player.openInventory(inv)
-        return MenuSession(menu.id, ctx.copy(lang = lang, langMap = langMap), activeClicks)
+        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)
     }
 
     private fun buildItem(
@@ -87,7 +134,10 @@ object MenuRenderer {
     ): ItemStack {
         val papi = deps.papi
         val count = app.count.coerceAtLeast(1)
-        val item = app.material?.let { mat ->
+        // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
+        // via le contexte avant le lookup vanilla/custom.
+        val resolvedMaterial = app.material?.let { ArgResolver.resolve(it, ctx.args) }
+        val item = resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
                     ?.let { ItemStack(it, count) }
