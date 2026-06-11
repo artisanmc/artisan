@@ -36,7 +36,6 @@ sealed class Action {
         val z: Double = 0.0,
         val yaw: Float = 0f,
         val pitch: Float = 0f,
-        val warpName: String? = null,
     ) : Action()
     data class PaginationNext(val elementId: String? = null) : Action()
     data class PaginationPrev(val elementId: String? = null) : Action()

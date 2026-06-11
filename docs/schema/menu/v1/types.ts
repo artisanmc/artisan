@@ -244,7 +244,7 @@ export interface GiveLevelAction  { type: "give_level"; amount: number; }
 export interface SendMessageAction { type: "send_message"; text: string; }
 export interface BroadcastAction  { type: "broadcast"; text: string; }
 export interface PlaySoundAction  { type: "play_sound"; sound: string; volume?: number; pitch?: number; }
-export interface TeleportAction   { type: "teleport"; world?: string; x?: number; y?: number; z?: number; yaw?: number; pitch?: number; warp_name?: string; }
+export interface TeleportAction   { type: "teleport"; world?: string; x?: number; y?: number; z?: number; yaw?: number; pitch?: number; }
 export interface PaginationNextAction { type: "pagination_next"; element_id?: string; }
 export interface PaginationPrevAction { type: "pagination_prev"; element_id?: string; }
 export interface ShowTitleAction  { type: "show_title"; title: string; subtitle?: string; fade_in?: number; stay?: number; fade_out?: number; }
