@@ -59,6 +59,14 @@ class ConditionParserTest {
             ConditionParser.parse(mapOf("type" to "world_is", "world" to "nether")))
     }
 
+    @Test fun `parse time_is with object range normalizes to from-to string`() {
+        val c = ConditionParser.parse(mapOf(
+            "type" to "time_is",
+            "range" to mapOf("from_ticks" to 1000, "to_ticks" to 5000),
+        )) as Condition.TimeIs
+        assertEquals("1000-5000", c.range)
+    }
+
     @Test fun `parse time_is`() {
         assertEquals(Condition.TimeIs("day"),
             ConditionParser.parse(mapOf("type" to "time_is", "range" to "day")))
