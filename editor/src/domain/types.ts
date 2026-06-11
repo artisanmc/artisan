@@ -303,6 +303,8 @@ export type Condition =
   | { type: "random_chance"; probability: number }
   | { type: "cooldown_passed"; cooldown_id: string }
   | { type: "player_in_region"; region: string }
+  | { type: "pagination_at_first"; elementId?: string }
+  | { type: "pagination_at_last"; elementId?: string }
   | { type: "not"; of: Condition }
   | { type: "and"; of: Condition[] }
   | { type: "or"; of: Condition[] }

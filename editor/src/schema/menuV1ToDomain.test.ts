@@ -547,6 +547,23 @@ describe("menuV1ToDomain — context inputs", () => {
   });
 });
 
+describe("menuV1ToDomain — pagination_at_first / pagination_at_last", () => {
+  it("imports pagination_at_first / pagination_at_last", () => {
+    const src = minimalMenu({
+      if: [
+        { type: "pagination_at_first", element_id: "grid" },
+        { type: "pagination_at_last" },
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.unsupported).toEqual([]);
+    expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.if).toEqual([
+      { type: "pagination_at_first", elementId: "grid" },
+      { type: "pagination_at_last" },
+    ]);
+  });
+});
+
 describe("menuV1ToDomain — extended runtime-OK vocab", () => {
   it("imports the extended conditions without unsupported markers", () => {
     const src = minimalMenu({
