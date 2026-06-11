@@ -104,6 +104,11 @@ export interface Menu {
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   permission?: string;
+  /**
+   * Internal admin notes, never rendered to players (menu/v1 `notes`).
+   * The AI assistant records non-mappable source constructs here on import.
+   */
+  notes?: string;
   layers: Layer[];
   /**
    * Named values the menu expects when opened — typically passed by the

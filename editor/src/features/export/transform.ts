@@ -384,6 +384,7 @@ export function serializeMenuToV1(menu: Menu, pack: Pack): { id: string } & Reco
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
   if (menu.permission) out.permission = menu.permission;
+  if (menu.notes) out.notes = menu.notes;
   if (menu.contextInputs && menu.contextInputs.length > 0) {
     out.context_inputs = menu.contextInputs.map((ci) => {
       if (ci.kind === "primitive") {
