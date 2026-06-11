@@ -123,7 +123,8 @@ export type ContextInput =
   | {
       kind: "primitive";
       name: string;
-      type: "player" | "string" | "integer" | "number" | "boolean";
+      /** `list`/`object` = caller-provided structured data (e.g. an iteration alias). */
+      type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
       default?: string;
     }
   | {

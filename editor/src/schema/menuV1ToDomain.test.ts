@@ -508,6 +508,45 @@ function clickAction(r: ReturnType<typeof menuV1ToDomain>): unknown {
   return steps[0]!.action;
 }
 
+describe("menuV1ToDomain — context inputs", () => {
+  const withInputs = (context_inputs: unknown[]) => ({
+    ...minimalMenu({}),
+    context_inputs,
+  });
+
+  it("imports the canonical connector shape {name, type, source:{ref}}", () => {
+    const r = menuV1ToDomain(
+      withInputs([{ name: "items", type: "list", source: { ref: "pack:shop_items" } }]),
+      opts,
+    );
+    expect(r.menu.contextInputs).toEqual([
+      { kind: "sourceRef", name: "items", ref: "pack:shop_items" },
+    ]);
+    expect(r.unsupported).toEqual([]);
+  });
+
+  it("still accepts the legacy flat {name, ref} connector shape", () => {
+    const r = menuV1ToDomain(withInputs([{ name: "items", ref: "pack:shop_items" }]), opts);
+    expect(r.menu.contextInputs).toEqual([
+      { kind: "sourceRef", name: "items", ref: "pack:shop_items" },
+    ]);
+  });
+
+  it("preserves caller-provided list/object primitive inputs (iterates pattern)", () => {
+    const r = menuV1ToDomain(
+      withInputs([
+        { name: "shops", type: "list" },
+        { name: "profile", type: "object" },
+      ]),
+      opts,
+    );
+    expect(r.menu.contextInputs).toEqual([
+      { kind: "primitive", name: "shops", type: "list" },
+      { kind: "primitive", name: "profile", type: "object" },
+    ]);
+  });
+});
+
 describe("menuV1ToDomain — extended runtime-OK vocab", () => {
   it("imports the extended conditions without unsupported markers", () => {
     const src = minimalMenu({
