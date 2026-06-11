@@ -8,6 +8,7 @@ data class MenuSession(
     val menuId: String,
     val ctx: ExecutionContext,
     val activeClicks: Map<Int, Map<ClickType, ClickHandler>>,
+    val slotArgs: Map<Int, Map<String, Any>> = emptyMap(),
 )
 
 class MenuSessionStore {
