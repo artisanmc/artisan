@@ -1,5 +1,5 @@
 import { cx } from "@/lib/cx";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SplitPaneProps {
   /** Lay panes top→bottom (vertical) or left→right (horizontal). */
@@ -22,8 +22,10 @@ interface SplitPaneProps {
  * events so touch + mouse both work. The primary pane fills the
  * remaining space; the secondary pane is the controlled-size pane.
  *
- * Visual: thin bar with a centered grip pill — no arrow / collapse
- * button. Drag to resize.
+ * Visual: a 1px hairline with a small centered grip pill as the
+ * resting drag affordance. The pointer target is a wider invisible
+ * zone overlaid on the line, and the line lights up brand-colored on
+ * hover and while dragging.
  */
 export function SplitPane({
   orientation,
@@ -36,6 +38,7 @@ export function SplitPane({
 }: SplitPaneProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
   const isVertical = orientation === "vertical";
 
   const onPointerDown = useCallback(
@@ -43,6 +46,7 @@ export function SplitPane({
       e.preventDefault();
       (e.target as Element).setPointerCapture?.(e.pointerId);
       draggingRef.current = true;
+      setDragging(true);
       document.body.style.cursor = isVertical ? "row-resize" : "col-resize";
       document.body.style.userSelect = "none";
     },
@@ -65,6 +69,7 @@ export function SplitPane({
     const onUp = () => {
       if (!draggingRef.current) return;
       draggingRef.current = false;
+      setDragging(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -82,16 +87,29 @@ export function SplitPane({
     "flex h-full min-h-0 w-full min-w-0",
     isVertical ? "flex-col" : "flex-row",
   );
+  // 1px visible line; the real pointer target is the wider invisible
+  // overlay (hitClass) so the hairline stays easy to grab.
   const handleClass = cx(
-    "group relative flex shrink-0 touch-none items-center justify-center bg-[var(--surface)]",
-    "border-[var(--border-soft)] transition-colors hover:bg-[var(--surface-raised)]",
-    isVertical
-      ? "h-3 cursor-row-resize border-t border-b"
-      : "w-3 cursor-col-resize border-r border-l",
+    "group relative z-10 shrink-0 bg-[var(--border-soft)]",
+    isVertical ? "h-px" : "w-px",
   );
+  const hitClass = cx(
+    "absolute touch-none",
+    isVertical
+      ? "inset-x-0 -top-1.5 -bottom-1.5 cursor-row-resize"
+      : "inset-y-0 -left-1.5 -right-1.5 cursor-col-resize",
+  );
+  // Resting affordance: a small centered grip pill so the hairline
+  // reads as draggable. The hover/drag highlight covers it.
   const gripClass = cx(
-    "rounded-full bg-[var(--border)] transition-colors group-hover:bg-[var(--border-strong)]",
-    isVertical ? "h-0.5 w-10" : "h-10 w-0.5",
+    "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+    "rounded-full bg-[var(--border-strong)]",
+    isVertical ? "h-[3px] w-8" : "h-8 w-[3px]",
+  );
+  const highlightClass = cx(
+    "pointer-events-none absolute rounded-full bg-[var(--brand)] transition-opacity",
+    dragging ? "opacity-100 duration-0" : "opacity-0 duration-100 group-hover:opacity-100",
+    isVertical ? "inset-x-0 -top-px -bottom-px" : "inset-y-0 -left-px -right-px",
   );
   const secondaryStyle = isVertical ? { height: secondarySize } : { width: secondarySize };
 
@@ -103,10 +121,11 @@ export function SplitPane({
         role="separator"
         aria-orientation={isVertical ? "horizontal" : "vertical"}
         tabIndex={-1}
-        onPointerDown={onPointerDown}
         className={handleClass}
       >
         <div className={gripClass} />
+        <div className={highlightClass} />
+        <div onPointerDown={onPointerDown} className={hitClass} />
       </div>
       <div className="min-h-0 min-w-0 shrink-0 overflow-hidden" style={secondaryStyle}>
         {secondary}

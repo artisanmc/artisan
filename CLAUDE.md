@@ -19,6 +19,7 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Resource pack distribution modes (`ResourcePackDelegator.kt`) | `docs-site/src/content/docs/getting-started/install-admin.md` (section Resource pack) + ce fichier |
 | API publique modules (`net.artisanmc.modules.api.*`) | `docs/architecture/api-surface.md` + `CHANGELOG.md` `[Unreleased]` |
 | UI éditeur visible user (nouveau bouton/flow user-facing) | `docs-site/src/content/docs/editor/<feature>.md` (créer si nécessaire) |
+| Design system éditeur (`components/ui/*`, tokens/classes `globals.css`) | spécimen dans `/admin/design` (`features/design-system/DesignSystemPage.tsx`) + `docs/architecture/editor-internals.md` (section Design system) |
 
 Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 
@@ -175,6 +176,16 @@ Cible : `docs/architecture/versioning.md`. Surface stable : `docs/architecture/a
 Détail des messages WS : `docs/architecture/ws-protocol.md`. `hello` porte `protocol_version: "1"` + `core_version` ; les types inconnus sont loggés + ignorés (forward-compat).
 
 ---
+
+## Design system éditeur — règle de dev
+
+Tout nouveau développement UI dans `editor/` passe **en priorité** par le design system (visualisable sur `/admin/design`, admin requis) :
+
+1. Composants `editor/src/components/ui/` (Button, Input, FormField, Badge, EmptyState, Card, Dialog, Sheet, Tabs, DropdownMenu) ou classes utilitaires de `globals.css` (`.btn*`, `.input`, `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`…) d'abord.
+2. Composant manquant → le créer dans `components/ui/` + ajouter son spécimen à `/admin/design` dans le même commit. Pas de styling ad-hoc dupliqué.
+3. Couleurs uniquement via `var(--token)` (couche sémantique de `globals.css`) — jamais de hex/rgba en dur. Exception : canvas Konva (non thémable CSS).
+
+Détail des couches de tokens : `docs/architecture/editor-internals.md` (section Design system).
 
 ## Invariants critiques
 

@@ -432,7 +432,7 @@ function DeployButtons({
         onClick={handleDeploy}
         disabled={isPublishDisabled}
         title={canDeploy ? t("deploy.deployTitle") : deployDisabledTitle}
-        className="btn btn-sm btn-deploy"
+        className="btn btn-sm btn-primary"
       >
         {deploying ? t("deploy.deploying") : t("deploy.deploy")}
       </button>
@@ -474,7 +474,7 @@ function TopBarIconButton({
       {children}
       {badge != null ? (
         typeof badge === "string" || typeof badge === "number" ? (
-          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]">
+          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[var(--warning-fg)]">
             {badge}
           </span>
         ) : (

@@ -1,9 +1,4 @@
 import type { MenuId, PackId } from "@/domain/types";
-import { ArmedBanner } from "./ArmedBanner";
-import { NewMenuDialog } from "./NewMenuDialog";
-import { NewCommandDialog } from "./NewCommandDialog";
-import { NewDialogDialog } from "./NewDialogDialog";
-import { DialogGroup } from "./DialogGroup";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -12,20 +7,25 @@ import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
+import { ArmedBanner } from "./ArmedBanner";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
-import { Edges } from "./Edges";
+import { DialogGroup } from "./DialogGroup";
 import { EdgeTooltip } from "./EdgeTooltip";
+import { Edges } from "./Edges";
 import { ItemTooltip } from "./ItemTooltip";
 import { MenuGroup } from "./MenuGroup";
+import { NewCommandDialog } from "./NewCommandDialog";
+import { NewDialogDialog } from "./NewDialogDialog";
+import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { useStageContextMenu } from "./useStageContextMenu";
 import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { usePanZoom } from "./usePanZoom";
+import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
 
 interface StageProps {
@@ -109,7 +109,11 @@ export function Stage({ packId }: StageProps) {
     stageRef,
   });
 
-  const { onTouchStart: onStageTouchStart, onTouchMoveLocal: onStageTouchMove, onTouchEndLocal: onStageTouchEnd } = useStageTouch({
+  const {
+    onTouchStart: onStageTouchStart,
+    onTouchMoveLocal: onStageTouchMove,
+    onTouchEndLocal: onStageTouchEnd,
+  } = useStageTouch({
     openContextMenuAt,
     onTouchMove,
     onTouchEnd,
@@ -200,14 +204,7 @@ export function Stage({ packId }: StageProps) {
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(120% 80% at 50% 0%, rgba(223,107,65,.05), transparent 60%)",
-        }}
-      />
+      <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       <ArmedBanner />
       <KonvaStage
         ref={stageRef}
@@ -331,21 +328,26 @@ export function Stage({ packId }: StageProps) {
         packId={packId}
         open={pendingMenuPos !== null}
         position={pendingMenuPos ?? undefined}
-        onOpenChange={(o) => { if (!o) setPendingMenuPos(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingMenuPos(null);
+        }}
       />
       <NewCommandDialog
         packId={packId}
         open={pendingCommandPos !== null}
         position={pendingCommandPos ?? undefined}
-        onOpenChange={(o) => { if (!o) setPendingCommandPos(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingCommandPos(null);
+        }}
       />
       <NewDialogDialog
         packId={packId}
         open={pendingDialogPos !== null}
         position={pendingDialogPos ?? undefined}
-        onOpenChange={(o) => { if (!o) setPendingDialogPos(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingDialogPos(null);
+        }}
       />
     </div>
   );
 }
-

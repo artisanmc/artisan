@@ -1,9 +1,9 @@
-import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import "@/i18n"; // Side-effect: initializes react-i18next so useTranslation() returns translated strings.
-import { LoginForm } from "./LoginForm";
 import { useAuthStore } from "@/state/authStore";
+import { LoginForm } from "./LoginForm";
 
 beforeEach(() => {
   useAuthStore.setState({ currentUser: null, isLoading: false, error: null });
@@ -17,11 +17,18 @@ describe("LoginForm", () => {
     await userEvent.type(screen.getByLabelText(/email/i), "a@e.com");
     await userEvent.type(screen.getByLabelText(/password|mot de passe/i), "longenoughpw");
     await userEvent.click(screen.getByRole("button", { name: /sign in|se connecter/i }));
-    expect(loginSpy).toHaveBeenCalledWith("http://x", { email: "a@e.com", password: "longenoughpw" });
+    expect(loginSpy).toHaveBeenCalledWith("http://x", {
+      email: "a@e.com",
+      password: "longenoughpw",
+    });
   });
 
   test("displays error on failed login", async () => {
-    vi.spyOn(useAuthStore.getState(), "login").mockResolvedValue({ ok: false, error: "invalid_credentials", status: 401 });
+    vi.spyOn(useAuthStore.getState(), "login").mockResolvedValue({
+      ok: false,
+      error: "invalid_credentials",
+      status: 401,
+    });
     render(<LoginForm apiUrl="http://x" onSuccess={() => {}} />);
     await userEvent.type(screen.getByLabelText(/email/i), "a@e.com");
     await userEvent.type(screen.getByLabelText(/password|mot de passe/i), "longenoughpw");

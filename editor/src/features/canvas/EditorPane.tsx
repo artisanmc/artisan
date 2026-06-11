@@ -25,7 +25,8 @@ export function EditorPane({ packId }: EditorPaneProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-l border-[var(--border-soft)]">
+    // No own border — the SplitPane separator hairline provides the visual edge.
+    <div className="flex h-full min-h-0 flex-col">
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as EditorTab)}

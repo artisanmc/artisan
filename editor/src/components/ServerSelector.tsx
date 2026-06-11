@@ -12,6 +12,8 @@ export interface ServerEntry {
   serverSlug?: string;
   serverLabel: string;
   networkId: string;
+  /** URL slug — the networkId URL param may carry it instead of the id. */
+  networkSlug?: string;
   networkName: string;
 }
 
@@ -33,8 +35,17 @@ export function ServerSelector({ servers }: Props) {
   };
   const activeServerId = params.serverId ?? null;
 
+  // Server slugs are only unique per network — when the URL carries a network
+  // param (id or slug), scope the match to it so "server" doesn't resolve to
+  // another network's server of the same slug.
+  const matchesNetwork = (s: ServerEntry) =>
+    !params.networkId ||
+    s.networkId === params.networkId ||
+    (!!s.networkSlug && s.networkSlug === params.networkId);
   const active = servers.find(
-    (s) => s.serverId === activeServerId || (s.serverSlug && s.serverSlug === activeServerId),
+    (s) =>
+      matchesNetwork(s) &&
+      (s.serverId === activeServerId || (s.serverSlug && s.serverSlug === activeServerId)),
   );
 
   const handleSelect = (entry: ServerEntry) => {

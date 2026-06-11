@@ -79,6 +79,7 @@ export function PackCanvasPage() {
   const setAccessToken = useSessionStore((s) => s.setAccessToken);
   const clearSession = useSessionStore((s) => s.clearSession);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
   const setTab = (next: "overview" | "translations" | "data-sources" | "history") => {
@@ -171,6 +172,11 @@ export function PackCanvasPage() {
   }, [pId, navigate]);
 
   // Require at least one auth mode: session token OR logged-in user.
+  // Wait for auth hydration first — on a hard load, `/me` is still in flight
+  // and currentUser is briefly null; gating now would bounce a logged-in user
+  // to /session, which then redirects to /networks (the "workspace opens then
+  // lands on My Networks" bug). Mirrors admin.tsx's hydration-aware gate.
+  if (!token && authLoading) return null;
   if (!token && !currentUser) return <Navigate to="/session" replace />;
   if (token && packs.length === 0 && !currentUser) return <Navigate to="/session" replace />;
   // Session mode: if the requested pack isn't bound to this session AND there's
@@ -228,10 +234,85 @@ export function PackCanvasPage() {
   // Hand off rendering entirely to the focus-mode child route when matched.
   if (childMatches.length > 0) return <Outlet />;
 
-  const mainContent = (
+  const tabContent = (
     // `h-full` (not just `flex-1`) so it fills both its flex parent (assistant
     // closed) and the SplitPane's block wrapper (assistant open) — otherwise the
-    // main area collapses to content height and the surface shows through below.
+    // content collapses to its own height and the surface shows through below.
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {tab === "overview" && (
+        <div className="min-h-0 flex-1">
+          {isDesktop ? (
+            <SplitPane
+              orientation="horizontal"
+              primary={<Stage packId={pId} />}
+              secondary={<EditorPane packId={pId} />}
+              secondarySize={editorPaneWidth}
+              onSecondarySizeChange={setEditorPaneWidth}
+              minSecondary={280}
+              minPrimary={400}
+            />
+          ) : (
+            <SplitPane
+              orientation="vertical"
+              primary={<Stage packId={pId} />}
+              secondary={<EditorPane packId={pId} />}
+              secondarySize={flowCanvasHeight}
+              onSecondarySizeChange={setFlowCanvasHeight}
+              minSecondary={120}
+              minPrimary={200}
+            />
+          )}
+        </div>
+      )}
+      {tab === "translations" && pack && (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+            <h1
+              className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {t("workspace.tabs.translations")}
+            </h1>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+              <TranslationPanelContent packId={pId} />
+            </div>
+          </div>
+        </div>
+      )}
+      {tab === "data-sources" && pack && (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
+            <h1
+              className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {t("workspace.tabs.dataSources")}
+            </h1>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+              <DataSourcesPanelContent packId={pId} />
+            </div>
+          </div>
+        </div>
+      )}
+      {tab === "history" && pack && networkId && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
+            <h1
+              className="display text-[32px] tracking-tight text-[var(--text)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {t("workspace.tabs.history")}
+            </h1>
+            <div className="card p-6 md:p-8">
+              <HistoryTab pack={pack} networkId={networkId} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const mainContent = (
     <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {pack ? (
         <WorkspaceTopBarControls
@@ -259,76 +340,23 @@ export function PackCanvasPage() {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {tab === "overview" && (
-          <div className="min-h-0 flex-1">
-            {isDesktop ? (
-              <SplitPane
-                orientation="horizontal"
-                primary={<Stage packId={pId} />}
-                secondary={<EditorPane packId={pId} />}
-                secondarySize={editorPaneWidth}
-                onSecondarySizeChange={setEditorPaneWidth}
-                minSecondary={280}
-                minPrimary={400}
-              />
-            ) : (
-              <SplitPane
-                orientation="vertical"
-                primary={<Stage packId={pId} />}
-                secondary={<EditorPane packId={pId} />}
-                secondarySize={flowCanvasHeight}
-                onSecondarySizeChange={setFlowCanvasHeight}
-                minSecondary={120}
-                minPrimary={200}
-              />
-            )}
-          </div>
-        )}
-        {tab === "translations" && pack && (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-              <h1
-                className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {t("workspace.tabs.translations")}
-              </h1>
-              <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-                <TranslationPanelContent packId={pId} />
-              </div>
-            </div>
-          </div>
-        )}
-        {tab === "data-sources" && pack && (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-              <h1
-                className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {t("workspace.tabs.dataSources")}
-              </h1>
-              <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-                <DataSourcesPanelContent packId={pId} />
-              </div>
-            </div>
-          </div>
-        )}
-        {tab === "history" && pack && networkId && (
-          <div className="min-h-0 flex-1 overflow-auto">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
-              <h1
-                className="display text-[32px] tracking-tight text-[var(--text)]"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {t("workspace.tabs.history")}
-              </h1>
-              <div className="card p-6 md:p-8">
-                <HistoryTab pack={pack} networkId={networkId} />
-              </div>
-            </div>
-          </div>
+      {/* Assistant docks below the topbar, at the same level as the canvas
+          and its properties pane; on mobile it stays a drawer (<AssistantPanel/>).
+          On desktop the content area is clipped with a concave top-left corner +
+          hairline so the sidebar and topbar read as one continuous L-shaped frame. */}
+      <div className="min-h-0 flex-1 overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
+        {assistantOpen && isDesktop ? (
+          <SplitPane
+            orientation="horizontal"
+            primary={tabContent}
+            secondary={<AssistantPane packId={pId} />}
+            secondarySize={assistantPaneWidth}
+            onSecondarySizeChange={setAssistantPaneWidth}
+            minSecondary={320}
+            minPrimary={480}
+          />
+        ) : (
+          tabContent
         )}
       </div>
     </main>
@@ -342,23 +370,7 @@ export function PackCanvasPage() {
       onDragCancel={onDragCancel}
     >
       <div className="flex h-full overflow-hidden">
-        {/* Assistant docks as a resizable right pane on desktop (same level as
-            the canvas); on mobile it stays a drawer (<AssistantPanel/> below). */}
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          {assistantOpen && isDesktop ? (
-            <SplitPane
-              orientation="horizontal"
-              primary={mainContent}
-              secondary={<AssistantPane packId={pId} />}
-              secondarySize={assistantPaneWidth}
-              onSecondarySizeChange={setAssistantPaneWidth}
-              minSecondary={320}
-              minPrimary={480}
-            />
-          ) : (
-            mainContent
-          )}
-        </div>
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{mainContent}</div>
 
         <PatternsGallery open={patternsOpen} onOpenChange={setPatternsOpen} />
 
