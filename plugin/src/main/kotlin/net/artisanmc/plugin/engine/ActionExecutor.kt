@@ -145,7 +145,8 @@ class ActionExecutor(
                 val world = action.world?.let { Bukkit.getWorld(it) } ?: return ctx
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
-            is Action.PaginationNext, is Action.PaginationPrev -> Unit
+            is Action.PaginationNext -> return paginate(ctx, action.elementId, +1)
+            is Action.PaginationPrev -> return paginate(ctx, action.elementId, -1)
             is Action.SetArg -> return applyArg(ctx, action.arg, resolveText(action.value, ctx))
             is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
             is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
@@ -183,5 +184,21 @@ class ActionExecutor(
             else    -> values[(idx - 1 + values.size) % values.size]
         }
         return applyArg(ctx, arg, next)
+    }
+
+    /** Avance/recule la page des éléments ciblés (clamp aux bornes) puis re-rend le menu courant. */
+    private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): ExecutionContext {
+        val session = sessions.get(ctx.player) ?: return ctx
+        val targets = if (elementId != null) listOf(elementId) else ctx.pageInfo.keys.toList()
+        var pagination = ctx.pagination
+        for (t in targets) {
+            val info = ctx.pageInfo[t] ?: continue
+            val next = (info.page + delta).coerceIn(0, info.pageCount - 1)
+            if (next != info.page) pagination = pagination + (t to next)
+        }
+        if (pagination == ctx.pagination) return ctx
+        val newCtx = ctx.copy(pagination = pagination)
+        menuProvider.openMenu(ctx.player, session.menuId, newCtx.lang, newCtx)
+        return newCtx
     }
 }

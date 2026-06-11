@@ -351,6 +351,36 @@ class ActionExecutorTest {
         assertEquals("level", lastMenuCtx?.args?.get("sort"))
     }
 
+    @Test fun `pagination_next advances the page and re-renders`() {
+        val p = player()
+        sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
+        val ctx = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(0, 3)))
+        executor().execute(listOf(Action.PaginationNext("grid")), ctx)
+        assertEquals("shop", lastOpenedMenuId)
+        assertEquals(1, lastMenuCtx?.pagination?.get("grid"))
+    }
+
+    @Test fun `pagination_next clamps at the last page (no re-render)`() {
+        val p = player()
+        sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
+        val ctx = ExecutionContext(p, pagination = mapOf("grid" to 2), pageInfo = mapOf("grid" to PageInfo(2, 3)))
+        executor().execute(listOf(Action.PaginationNext("grid")), ctx)
+        assertNull(lastOpenedMenuId)
+    }
+
+    @Test fun `pagination_prev with no element_id targets every iterating element`() {
+        val p = player()
+        sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
+        val ctx = ExecutionContext(
+            p,
+            pagination = mapOf("grid" to 1, "side" to 1),
+            pageInfo = mapOf("grid" to PageInfo(1, 3), "side" to PageInfo(1, 2)),
+        )
+        executor().execute(listOf(Action.PaginationPrev(null)), ctx)
+        assertEquals(0, lastMenuCtx?.pagination?.get("grid"))
+        assertEquals(0, lastMenuCtx?.pagination?.get("side"))
+    }
+
     @Test fun `later actions in the same click see the arg set earlier`() {
         val p = player()
         openSession(p)
