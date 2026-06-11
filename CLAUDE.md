@@ -120,7 +120,7 @@ docs/
   architecture/          ← modules, versioning, api-surface, ws-protocol, rest-endpoints, entities, editor-internals
   decisions/             ← ADRs (stack, state model)
   specs/                 ← specs produit et éditeur (web-editor.md, main-spec.md)
-  schema/                ← JSON schemas menu/pack/command/translations
+  schema/                ← JSON schemas menu/pack/command/dialog/translations
   superpowers/specs/     ← design docs data-sources, expression DSL
   superpowers/plans/     ← plans actifs (archive/ = plans complétés)
 CONTEXT.md               ← glossaire domaine (source de vérité pour les termes)

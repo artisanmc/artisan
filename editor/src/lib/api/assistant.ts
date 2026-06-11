@@ -84,7 +84,13 @@ export async function getConversation(
 export async function* streamAssistant(
   token: string | null,
   conversationId: string,
-  body: { text: string; menus?: unknown[]; attachments?: Record<string, string> },
+  body: {
+    text: string;
+    menus?: unknown[];
+    attachments?: Record<string, string>;
+    /** Dialog summaries (id + resolved title) so the model can target open_dialog correctly. */
+    dialogs?: { id: string; title: string }[];
+  },
 ): AsyncGenerator<AssistantEvent> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${conversationId}/messages`, {
     method: "POST",
