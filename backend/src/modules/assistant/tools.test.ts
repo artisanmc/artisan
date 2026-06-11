@@ -8,9 +8,11 @@ const validMenu = {
 };
 
 describe("TOOL_DEFS", () => {
-  it("declares the 5 tools with JSON-Schema parameters", () => {
+  it("declares the 6 tools with JSON-Schema parameters", () => {
     const names = TOOL_DEFS.map((t) => t.name).sort();
-    expect(names).toEqual(["delete_menu", "get_menu", "list_menus", "read_attachment", "upsert_menu"]);
+    expect(names).toEqual([
+      "delete_menu", "get_menu", "list_dialogs", "list_menus", "read_attachment", "upsert_menu",
+    ]);
     for (const t of TOOL_DEFS) {
       expect(typeof t.description).toBe("string");
       expect(t.parameters).toMatchObject({ type: "object" });
@@ -70,6 +72,19 @@ describe("executeTool", () => {
     expect(hit.content).toBe("menus:\n  shop: {}");
     const miss = executeTool("read_attachment", { file_id: "f2" }, wc);
     expect(miss.ok).toBe(false);
+  });
+
+  it("list_dialogs returns the pack's dialogs (id + title)", () => {
+    const wc = new WorkingCopy([], {}, [{ id: "confirm", title: "Confirm purchase" }]);
+    const r = executeTool("list_dialogs", {}, wc);
+    expect(r.ok).toBe(true);
+    expect(JSON.parse(r.content)).toEqual([{ id: "confirm", title: "Confirm purchase" }]);
+  });
+
+  it("list_dialogs returns an empty list when the pack has no dialogs", () => {
+    const r = executeTool("list_dialogs", {}, new WorkingCopy());
+    expect(r.ok).toBe(true);
+    expect(JSON.parse(r.content)).toEqual([]);
   });
 
   it("returns an error for an unknown tool", () => {
