@@ -299,6 +299,38 @@ describe("assistant routes", () => {
 		}
 	});
 
+	it("titles a text-less first message from its attachment names", async () => {
+		const created = await app.request("/api/v1/assistant/conversations", {
+			method: "POST",
+			headers: auth,
+			body: JSON.stringify({ packId: PACK_ID }),
+		});
+		const { conversationId } = await created.json();
+		const res = await app.request(
+			`/api/v1/assistant/conversations/${conversationId}/messages`,
+			{
+				method: "POST",
+				headers: auth,
+				body: JSON.stringify({
+					text: "",
+					attachments: { "menu.yml": "size: 54", "kits.yml": "size: 27" },
+				}),
+			},
+		);
+		expect(res.status).toBe(200);
+		await res.text();
+
+		const listed = await app.request(
+			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
+			{ headers: auth },
+		);
+		const { conversations } = await listed.json();
+		const row = conversations.find(
+			(x: { id: string }) => x.id === conversationId,
+		);
+		expect(row.title).toBe("menu.yml, kits.yml");
+	});
+
 	it("does not leak a cookie-owned conversation to a Bearer owner", async () => {
 		const cookie = {
 			Cookie: `artisan_user_session=${userSessionId}`,

@@ -161,6 +161,38 @@ describe("AssistantChat", () => {
     await waitFor(() => expect(screen.getByText("kits.yml")).toBeTruthy());
   });
 
+  it("sends with attachments only: no text required", async () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} />);
+
+    fireEvent.drop(screen.getByTestId("assistant-panel"), {
+      dataTransfer: { files: [new File(["size: 54"], "menu.yml", { type: "text/yaml" })] },
+    });
+    await waitFor(() => expect(screen.getByText("menu.yml")).toBeTruthy());
+
+    const sendBtn = screen.getByText(/^(send|envoyer)$/i).closest("button");
+    expect(sendBtn?.disabled).toBe(false);
+    await userEvent.click(sendBtn as HTMLButtonElement);
+
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    await waitFor(() =>
+      expect(streamAssistant).toHaveBeenCalledWith(
+        "tok",
+        "c1",
+        expect.objectContaining({ text: "", attachments: { "menu.yml": "size: 54" } }),
+      ),
+    );
+    // The user bubble names the sent files instead of showing an empty message.
+    expect(screen.getByTestId("assistant-transcript").textContent).toMatch(/menu\.yml/);
+  });
+
+  it("keeps send disabled with neither text nor attachments", () => {
+    setup();
+    render(<AssistantChat packId={packId("p")} />);
+    const sendBtn = screen.getByText(/^(send|envoyer)$/i).closest("button");
+    expect(sendBtn?.disabled).toBe(true);
+  });
+
   it("sends the attached file contents with the message", async () => {
     setup();
     render(<AssistantChat packId={packId("p")} />);

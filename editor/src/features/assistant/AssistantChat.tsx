@@ -109,9 +109,11 @@ export function AssistantChat({
 
   async function send() {
     const text = input.trim();
-    if ((!token && !user) || !text || busy) return;
+    const attachedNames = Object.keys(attachments);
+    if ((!token && !user) || (!text && attachedNames.length === 0) || busy) return;
     setInput("");
-    setEntries((e) => [...e, { role: "user", text }]);
+    const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
+    setEntries((e) => [...e, { role: "user", text: shown }]);
     setBusy(true);
     try {
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId);
@@ -303,7 +305,7 @@ export function AssistantChat({
         />
         <button
           type="button"
-          disabled={busy || input.trim().length === 0}
+          disabled={busy || (input.trim().length === 0 && attachmentCount === 0)}
           onClick={() => void send()}
           className="btn btn-sm btn-primary shrink-0"
         >

@@ -141,8 +141,10 @@ export function buildAssistantRouter(): Hono {
 			});
 		}
 		conv.messages.push({ role: "user", content: text });
-		// Title the conversation from its first user message.
-		const title = conv.title || text.slice(0, 60);
+		// Title the conversation from its first user message; an attachments-only
+		// message (empty text is allowed) falls back to the file names.
+		const title =
+			conv.title || text.slice(0, 60) || attachedNames.join(", ").slice(0, 60);
 
 		return streamSSE(c, async (stream) => {
 			try {

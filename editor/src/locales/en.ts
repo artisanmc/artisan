@@ -1121,5 +1121,6 @@ export default {
     disabled: "Assistant not configured.",
     attachFiles: "Attach files",
     attachRemove: "Remove {{name}}",
+    sentFiles: "Sent files: {{names}}",
   },
 };
