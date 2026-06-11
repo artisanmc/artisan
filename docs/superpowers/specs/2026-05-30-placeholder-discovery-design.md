@@ -115,6 +115,8 @@ interface PlaceholderEntry {
 
 **Flattening rule**: a contextInput whose type is `object { name, reward }` produces entries `{alias}.name` and `{alias}.reward` (not `{alias}` itself). A `list of object { name, reward }` referenced through an `iterates` produces `{itemAlias}.name`, `{itemAlias}.reward` plus pagination. Primitives stay as single entries (`{player}`, `{quest_id}`).
 
+**List contextInputs at menu scope (not iterated)**: a contextInput of type `list` (whether of primitives or of objects) at menu scope is **omitted** from the catalog. It has no useful single-value placement — placing `{quests}` inline yields `[object Object,…]`. The data only becomes accessible once an element wraps it in `iterates`, at which point the iteration alias entries cover it.
+
 **Sample computation**: reuse `buildPreviewScope(menu, pack)` from `menuPreviewScope.ts`. For `action` locations, the scope is the parent menu's scope. For `dialog`, scope is the dialog's own (empty in v1 since dialogs don't yet declare contextInputs — leave the resolution branch in place for the future).
 
 **Missing sample**: `sample = null`. Renders as `—`. The row stays selectable.
