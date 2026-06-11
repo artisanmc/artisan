@@ -134,6 +134,14 @@ Use **only** these condition `type` values. Any other type is rejected / non-rep
 | `has_money`         | `amount` (>0), `currency?`      | `{ "type": "has_money", "amount": 100 }` |
 | `placeholder_equals`| `placeholder`, `value`          | `{ "type": "placeholder_equals", "placeholder": "%player_world%", "value": "spawn" }` |
 | `placeholder_match` | `placeholder`, `regex`          | `{ "type": "placeholder_match", "placeholder": "%player_name%", "regex": "^[Aa].*" }` |
+| `has_item`          | `material` (UPPER_SNAKE), `count` | `{ "type": "has_item", "material": "DIAMOND", "count": 3 }` |
+| `has_xp`            | `amount` (≥1)                   | `{ "type": "has_xp", "amount": 100 }` |
+| `has_level`         | `level` (≥1)                    | `{ "type": "has_level", "level": 30 }` |
+| `world_is`          | `world`                         | `{ "type": "world_is", "world": "spawn" }` |
+| `time_is`           | `range` (`"day"`, `"night"`, or `{from_ticks,to_ticks}` 0–24000) | `{ "type": "time_is", "range": "night" }` |
+| `random_chance`     | `probability` (0–1)             | `{ "type": "random_chance", "probability": 0.25 }` |
+| `cooldown_passed`   | `cooldown_id`                   | `{ "type": "cooldown_passed", "cooldown_id": "daily_reward" }` |
+| `player_in_region`  | `region` (WorldGuard region id) | `{ "type": "player_in_region", "region": "shop_zone" }` |
 | `not`               | `of` (a single Condition)       | `{ "type": "not", "of": { "type": "has_permission", "perm": "x" } }` |
 | `and`               | `of` (Condition[])              | `{ "type": "and", "of": [ ... ] }` |
 | `or`                | `of` (Condition[])              | `{ "type": "or", "of": [ ... ] }` |
@@ -154,7 +162,14 @@ and in `open_actions` / `close_actions`.
 | `send_message`         | `text`                                                | `{ "type": "send_message", "text": "<green>Done!</green>" }` |
 | `show_title`           | `title`, `subtitle?`, `fade_in?`, `stay?`, `fade_out?`| `{ "type": "show_title", "title": "<gold>Welcome</gold>" }` |
 | `give_item`            | `material` (UPPER_SNAKE), `count` (1–64)              | `{ "type": "give_item", "material": "DIAMOND", "count": 1 }` |
-| `take_money`           | `amount` (>0), `currency?`                            | `{ "type": "take_money", "amount": 100 }` |
+| `take_item`            | `material` (UPPER_SNAKE), `count` (1–64)              | `{ "type": "take_item", "material": "PAPER", "count": 1 }` |
+| `take_money`           | `amount` (>0)                                         | `{ "type": "take_money", "amount": 100 }` |
+| `give_money`           | `amount` (>0)                                         | `{ "type": "give_money", "amount": 50 }` |
+| `give_xp`              | `amount` (≥1)                                         | `{ "type": "give_xp", "amount": 10 }` |
+| `give_level`           | `amount` (≥1)                                         | `{ "type": "give_level", "amount": 1 }` |
+| `broadcast`            | `text` — to ALL online players                        | `{ "type": "broadcast", "text": "<gold>%player_name% won!</gold>" }` |
+| `play_sound`           | `sound` (Bukkit Sound name), `volume?` (0–1), `pitch?` (0–2) | `{ "type": "play_sound", "sound": "ENTITY_PLAYER_LEVELUP" }` |
+| `teleport`             | `world`, `x`, `y`, `z`, `yaw?`, `pitch?`              | `{ "type": "teleport", "world": "spawn", "x": 0.5, "y": 64, "z": 0.5 }` |
 | `pagination_next`      | `element_id?`                                         | `{ "type": "pagination_next" }` |
 | `pagination_prev`      | `element_id?`                                         | `{ "type": "pagination_prev" }` |
 | `set_arg`              | `arg`, `value`                                        | `{ "type": "set_arg", "arg": "category", "value": "tools" }` |
@@ -163,11 +178,10 @@ and in `open_actions` / `close_actions`.
 | `open_dialog`          | `dialog_id`, `context?`, `clear_context?`             | `{ "type": "open_dialog", "dialog_id": "confirm" }` |
 | `close_dialog`         | —                                                     | `{ "type": "close_dialog" }` |
 
-> The full `menu/v1` schema defines more actions/conditions (e.g. `give_xp`, `play_sound`,
-> `teleport`, `has_item`, `time_is`, `expression`), but they are **NOT** in the importable
-> subset and are rejected here. Stick to the tables above. When a source file needs something
-> outside this set, **say so in chat** (and optionally record it in the menu's `notes`) rather
-> than inventing a type.
+> The only schema constructs **NOT** in the importable subset are the `expression` condition
+> (no server-side DSL evaluator yet) and `pagination_at_first` / `pagination_at_last` — they
+> are rejected here. When a source file needs something outside the tables above, **say so in
+> chat** (and optionally record it in the menu's `notes`) rather than inventing a type.
 
 ## Runtime caveats — tell the user when relevant
 
@@ -177,6 +191,10 @@ and in `open_actions` / `close_actions`.
   runtime (connectors, list iteration) is not wired yet — in game the element shows its
   appearance with unresolved `{alias.field}` placeholders. Still produce the correct
   structure; just **mention this limitation in chat** when you use it.
+- Soft dependencies: `has_money`/`take_money`/`give_money` need **Vault**,
+  `placeholder_equals`/`placeholder_match` need **PlaceholderAPI**, `player_in_region` needs
+  **WorldGuard**. Without the host plugin the condition evaluates to false / the action is a
+  no-op — worth mentioning when the user's server setup is unknown.
 
 ## Text & i18n
 

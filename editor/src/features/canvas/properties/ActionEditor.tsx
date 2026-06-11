@@ -114,13 +114,22 @@ export function ActionEditor({ packId, action, onChange, menuId, elementId, clic
     case "run_command":
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
+    case "broadcast":
       return <SendMessageEditor packId={packId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "show_title":
       return <ShowTitleEditor packId={packId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "give_item":
+    case "take_item":
       return <GiveItemEditor action={action} onChange={onChange} />;
     case "take_money":
-      return <TakeMoneyEditor action={action} onChange={onChange} />;
+    case "give_money":
+    case "give_xp":
+    case "give_level":
+      return <AmountEditor action={action} onChange={onChange} />;
+    case "play_sound":
+      return <PlaySoundEditor action={action} onChange={onChange} />;
+    case "teleport":
+      return <TeleportEditor action={action} onChange={onChange} />;
     case "paginate":
       return <PaginateEditor packId={packId} action={action} onChange={onChange} />;
     case "set_arg":
@@ -331,7 +340,7 @@ function SendMessageEditor({
   clickType,
 }: {
   packId: PackId;
-  action: Extract<Action, { type: "send_message" }>;
+  action: Extract<Action, { type: "send_message" | "broadcast" }>;
   menuId?: MenuId;
   elementId?: ElementId;
   clickType?: ClickType;
@@ -551,7 +560,7 @@ function GiveItemEditor({
   action,
   onChange,
 }: {
-  action: Extract<Action, { type: "give_item" }>;
+  action: Extract<Action, { type: "give_item" | "take_item" }>;
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
@@ -609,11 +618,11 @@ function GiveItemEditor({
   );
 }
 
-function TakeMoneyEditor({
+function AmountEditor({
   action,
   onChange,
 }: {
-  action: Extract<Action, { type: "take_money" }>;
+  action: Extract<Action, { type: "take_money" | "give_money" | "give_xp" | "give_level" }>;
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
@@ -629,6 +638,137 @@ function TakeMoneyEditor({
           if (!Number.isNaN(n) && n >= 0) onChange({ ...action, amount: n });
         }}
       />
+    </div>
+  );
+}
+
+function PlaySoundEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "play_sound" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const setNumber = (field: "volume" | "pitch", raw: string, max: number) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      const next = { ...action };
+      delete next[field];
+      onChange(next);
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isFinite(n) && n >= 0 && n <= max) onChange({ ...action, [field]: n });
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <FieldLabel>{t("actionEditor.soundLabel")}</FieldLabel>
+        <Input
+          value={action.sound}
+          placeholder="ENTITY_EXPERIENCE_ORB_PICKUP"
+          onChange={(e) => onChange({ ...action, sound: e.target.value.toUpperCase() })}
+          className="font-mono"
+        />
+        <div className="mt-1 text-[10px] text-zinc-500">{t("actionEditor.soundHint")}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <FieldLabel>{t("actionEditor.soundVolume")}</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            max={1}
+            step={0.1}
+            placeholder="1"
+            value={action.volume ?? ""}
+            onChange={(e) => setNumber("volume", e.target.value, 1)}
+          />
+        </div>
+        <div>
+          <FieldLabel>{t("actionEditor.soundPitch")}</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            placeholder="1"
+            value={action.pitch ?? ""}
+            onChange={(e) => setNumber("pitch", e.target.value, 2)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeleportEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "teleport" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const setCoord = (field: "x" | "y" | "z", raw: string) => {
+    const n = Number(raw);
+    if (Number.isFinite(n)) onChange({ ...action, [field]: n });
+  };
+  const setAngle = (field: "yaw" | "pitch", raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      const next = { ...action };
+      delete next[field];
+      onChange(next);
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isFinite(n)) onChange({ ...action, [field]: n });
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <FieldLabel>{t("actionEditor.teleportWorld")}</FieldLabel>
+        <Input
+          value={action.world}
+          placeholder="world"
+          onChange={(e) => onChange({ ...action, world: e.target.value })}
+          className="font-mono"
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {(["x", "y", "z"] as const).map((axis) => (
+          <div key={axis}>
+            <FieldLabel>{axis.toUpperCase()}</FieldLabel>
+            <Input
+              type="number"
+              value={action[axis]}
+              onChange={(e) => setCoord(axis, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <FieldLabel>{t("actionEditor.teleportYaw")}</FieldLabel>
+          <Input
+            type="number"
+            placeholder="0"
+            value={action.yaw ?? ""}
+            onChange={(e) => setAngle("yaw", e.target.value)}
+          />
+        </div>
+        <div>
+          <FieldLabel>{t("actionEditor.teleportPitch")}</FieldLabel>
+          <Input
+            type="number"
+            placeholder="0"
+            value={action.pitch ?? ""}
+            onChange={(e) => setAngle("pitch", e.target.value)}
+          />
+        </div>
+      </div>
     </div>
   );
 }

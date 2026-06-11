@@ -47,44 +47,71 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     ] }] }],
   });
 
-  it("rejects a schema-valid action outside the subset (give_xp)", () => {
-    const r = validateMenuV1(withClickSteps([
-      { kind: "action", action: { type: "give_xp", amount: 10 } },
-    ]));
-    expect(r.valid).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/give_xp/);
-    expect(r.errors.join(" ")).toMatch(/vocabulary/i);
-  });
-
-  it("rejects a schema-valid condition outside the subset (world_is) in appearance if", () => {
+  it("rejects a schema-valid condition outside the subset (pagination_at_first)", () => {
     const r = validateMenuV1({
       ...good,
       layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        { if: [{ type: "world_is", world: "spawn" }], material: "STONE" },
+        { if: [{ type: "pagination_at_first" }], material: "STONE" },
         { material: "STONE" },
       ] }] }],
     });
     expect(r.valid).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/world_is/);
+    expect(r.errors.join(" ")).toMatch(/pagination_at_first/);
+    expect(r.errors.join(" ")).toMatch(/vocabulary/i);
   });
 
-  it("rejects out-of-subset types nested in composites and if-steps", () => {
+  it("rejects out-of-subset condition types nested in composites and if-steps", () => {
     const r = validateMenuV1(withClickSteps([
       {
         kind: "if",
         cases: [{
           conditions: [{ type: "and", of: [
             { type: "has_permission", perm: "x" },
-            { type: "has_item", material: "DIAMOND", count: 1 },
+            { type: "expression", expr: "1 == 1" },
           ] }],
           steps: [{ kind: "action", action: { type: "close_menu" } }],
         }],
-        else: [{ kind: "action", action: { type: "play_sound", sound: "CLICK" } }],
+        else: [{ kind: "if", cases: [{
+          conditions: [{ type: "pagination_at_last" }],
+          steps: [],
+        }] }],
       },
     ]));
     expect(r.valid).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/has_item/);
-    expect(r.errors.join(" ")).toMatch(/play_sound/);
+    expect(r.errors.join(" ")).toMatch(/expression/);
+    expect(r.errors.join(" ")).toMatch(/pagination_at_last/);
+  });
+
+  it("accepts the extended runtime-OK actions and conditions", () => {
+    const r = validateMenuV1({
+      ...good,
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
+        {
+          if: [
+            { type: "has_item", material: "DIAMOND", count: 1 },
+            { type: "world_is", world: "spawn" },
+            { type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } },
+            { type: "random_chance", probability: 0.25 },
+            { type: "cooldown_passed", cooldown_id: "daily" },
+            { type: "player_in_region", region: "shop" },
+            { type: "has_xp", amount: 5 },
+            { type: "has_level", level: 3 },
+          ],
+          material: "STONE",
+          click: { left: { steps: [
+            { kind: "action", action: { type: "broadcast", text: "hi all" } },
+            { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 1, pitch: 1 } },
+            { kind: "action", action: { type: "give_money", amount: 10 } },
+            { kind: "action", action: { type: "give_xp", amount: 5 } },
+            { kind: "action", action: { type: "give_level", amount: 1 } },
+            { kind: "action", action: { type: "take_item", material: "PAPER", count: 1 } },
+            { kind: "action", action: { type: "teleport", world: "spawn", x: 0, y: 64, z: 0 } },
+          ] } },
+        },
+        { material: "STONE" },
+      ] }] }],
+    });
+    expect(r).toEqual({ valid: true, errors: [] });
   });
 
   it("rejects open_requirements / open_actions / close_actions / background even with subset types (implemented nowhere)", () => {

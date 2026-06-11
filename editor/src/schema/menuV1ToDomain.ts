@@ -43,6 +43,14 @@ const DOMAIN_CONDITIONS = new Set([
   "has_money",
   "placeholder_equals",
   "placeholder_match",
+  "has_item",
+  "has_xp",
+  "has_level",
+  "world_is",
+  "time_is",
+  "random_chance",
+  "cooldown_passed",
+  "player_in_region",
   "not",
   "and",
   "or",
@@ -87,6 +95,22 @@ export function menuV1ToDomain(
         return { type: "placeholder_match", placeholder: c.placeholder, regex: c.regex };
       case "expression":
         return { type: "expression", expr: c.expr };
+      case "has_item":
+        return { type: "has_item", material: c.material, count: c.count ?? 1 };
+      case "has_xp":
+        return { type: "has_xp", amount: c.amount };
+      case "has_level":
+        return { type: "has_level", level: c.level };
+      case "world_is":
+        return { type: "world_is", world: c.world };
+      case "time_is":
+        return { type: "time_is", range: c.range };
+      case "random_chance":
+        return { type: "random_chance", probability: c.probability };
+      case "cooldown_passed":
+        return { type: "cooldown_passed", cooldown_id: c.cooldown_id };
+      case "player_in_region":
+        return { type: "player_in_region", region: c.region };
       case "not": {
         const of = condition(c.of);
         return of ? { type: "not", of } : null;
@@ -144,8 +168,41 @@ export function menuV1ToDomain(
         };
       case "give_item":
         return { type: "give_item", material: a.material, count: a.count };
+      case "take_item":
+        return { type: "take_item", material: a.material, count: a.count ?? 1 };
       case "take_money":
         return { type: "take_money", amount: a.amount };
+      case "give_money":
+        return { type: "give_money", amount: a.amount };
+      case "give_xp":
+        return { type: "give_xp", amount: a.amount };
+      case "give_level":
+        return { type: "give_level", amount: a.amount };
+      case "broadcast":
+        return { type: "broadcast", text: text(a.text) };
+      case "play_sound":
+        return {
+          type: "play_sound",
+          sound: a.sound,
+          ...(a.volume !== undefined ? { volume: a.volume } : {}),
+          ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
+        };
+      case "teleport": {
+        if (typeof a.world !== "string" || a.world === "") {
+          // A teleport without a world has nothing to execute.
+          unsupported.push("action: teleport (missing world)");
+          return null;
+        }
+        return {
+          type: "teleport",
+          world: a.world,
+          x: a.x ?? 0,
+          y: a.y ?? 0,
+          z: a.z ?? 0,
+          ...(a.yaw !== undefined ? { yaw: a.yaw } : {}),
+          ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
+        };
+      }
       case "pagination_next":
         return {
           type: "paginate",

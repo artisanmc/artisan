@@ -33,7 +33,7 @@ export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
       for (const [clickType, handler] of Object.entries(appearance.click)) {
         if (!handler) continue;
         for (const action of walkActions(handler.steps)) {
-          if (action.type === "send_message") {
+          if ((action.type === "send_message" || action.type === "broadcast")) {
             out.set(action.text.key, `${path}.click.${clickType}.message`);
           }
         }
@@ -62,7 +62,7 @@ export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
   for (const cmd of pack.commands) {
     const cmdPath = `commands.${cmd.id}`;
     for (const action of walkActions(cmd.steps)) {
-      if (action.type === "send_message") out.set(action.text.key, `${cmdPath}.message`);
+      if ((action.type === "send_message" || action.type === "broadcast")) out.set(action.text.key, `${cmdPath}.message`);
     }
   }
   for (const tpl of pack.templates) {

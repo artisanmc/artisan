@@ -68,7 +68,7 @@ export function rekeyMenuLTexts(pack: Pack, menu: Menu): void {
             let subtitleIdx = 0;
             for (const action of walkActions(handler.steps)) {
               const prefix = clickHandlerKeyPrefix(menu.id, el.id, appIdx, clickType);
-              if (action.type === "send_message") {
+              if ((action.type === "send_message" || action.type === "broadcast")) {
                 moveLTextKey(pack, action.text, messageKeyAt(prefix, msgIdx));
                 msgIdx++;
               } else if (action.type === "show_title") {
@@ -96,7 +96,7 @@ export function rekeyCommandLTexts(pack: Pack, cmd: Command): void {
   let titleIdx = 0;
   let subtitleIdx = 0;
   for (const action of walkActions(cmd.steps)) {
-    if (action.type === "send_message") {
+    if ((action.type === "send_message" || action.type === "broadcast")) {
       moveLTextKey(pack, action.text, messageKeyAt(prefix, msgIdx));
       msgIdx++;
     } else if (action.type === "show_title") {
