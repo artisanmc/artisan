@@ -179,4 +179,19 @@ class ActionParserTest {
     @Test fun `parse close_dialog`() {
         assertEquals(Action.CloseDialog, ActionParser.parse(mapOf("type" to "close_dialog")))
     }
+
+    @Test fun `parse set_arg`() {
+        val a = ActionParser.parse(mapOf("type" to "set_arg", "arg" to "category", "value" to "tools"))
+        assertEquals(Action.SetArg("category", "tools"), a)
+    }
+
+    @Test fun `parse set_arg_cycle_next`() {
+        val a = ActionParser.parse(mapOf("type" to "set_arg_cycle_next", "arg" to "sort", "list" to "price,name"))
+        assertEquals(Action.SetArgCycleNext("sort", "price,name"), a)
+    }
+
+    @Test fun `parse set_arg_cycle_prev`() {
+        val a = ActionParser.parse(mapOf("type" to "set_arg_cycle_prev", "arg" to "sort", "list" to "price,name"))
+        assertEquals(Action.SetArgCyclePrev("sort", "price,name"), a)
+    }
 }

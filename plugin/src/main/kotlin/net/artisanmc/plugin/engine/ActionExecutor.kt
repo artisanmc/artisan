@@ -39,18 +39,24 @@ class ActionExecutor(
     }
 
     fun execute(actions: List<Action>, ctx: ExecutionContext) {
-        actions.forEach { executeOne(it, ctx) }
+        actions.fold(ctx) { cur, action -> executeOne(action, cur) }
     }
 
-    /** Exécute un arbre canonique : actions plates + branches if/else-if/else. */
-    fun executeSteps(steps: List<Step>, ctx: ExecutionContext) {
-        for (step in steps) when (step) {
-            is Step.ActionStep -> executeOne(step.action, ctx)
+    /**
+     * Exécute un arbre canonique : actions plates + branches if/else-if/else.
+     * Le contexte est replié d'action en action pour que `set_arg*` soit
+     * visible par les actions suivantes du même clic.
+     */
+    fun executeSteps(steps: List<Step>, ctx: ExecutionContext): ExecutionContext {
+        var cur = ctx
+        for (step in steps) cur = when (step) {
+            is Step.ActionStep -> executeOne(step.action, cur)
             is Step.IfStep -> {
-                val case = step.cases.firstOrNull { caseMatches(it, ctx) }
-                executeSteps(case?.steps ?: step.elseSteps, ctx)
+                val case = step.cases.firstOrNull { caseMatches(it, cur) }
+                executeSteps(case?.steps ?: step.elseSteps, cur)
             }
         }
+        return cur
     }
 
     /** `joins` est évalué de gauche à droite sans précédence ; manquant = "and". */
@@ -80,7 +86,8 @@ class ActionExecutor(
         return resolved
     }
 
-    private fun executeOne(action: Action, ctx: ExecutionContext) {
+    /** Exécute une action et retourne le contexte — mis à jour par `set_arg*` pour les actions suivantes. */
+    private fun executeOne(action: Action, ctx: ExecutionContext): ExecutionContext {
         val player = ctx.player
         when (action) {
             is Action.RunCommand -> {
@@ -106,7 +113,7 @@ class ActionExecutor(
             }
             is Action.CloseDialog -> runCatching { player.javaClass.getMethod("closeDialog").invoke(player) }
             is Action.GiveItem  -> {
-                val material = Material.matchMaterial(action.material) ?: return
+                val material = Material.matchMaterial(action.material) ?: return ctx
                 val item = ItemStack(material, action.count)
                 if (action.name != null || action.lore.isNotEmpty()) {
                     val meta = item.itemMeta
@@ -117,7 +124,7 @@ class ActionExecutor(
                 player.inventory.addItem(item)
             }
             is Action.TakeItem -> {
-                val material = Material.matchMaterial(action.material) ?: return
+                val material = Material.matchMaterial(action.material) ?: return ctx
                 var toRemove = action.count
                 player.inventory.contents.orEmpty().forEachIndexed { i, item ->
                     if (item != null && item.type == material && toRemove > 0) {
@@ -138,11 +145,14 @@ class ActionExecutor(
                 player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
             }
             is Action.Teleport -> {
-                if (action.warpName != null && action.world == null) return
-                val world = action.world?.let { Bukkit.getWorld(it) } ?: return
+                if (action.warpName != null && action.world == null) return ctx
+                val world = action.world?.let { Bukkit.getWorld(it) } ?: return ctx
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
             is Action.PaginationNext, is Action.PaginationPrev -> Unit
+            is Action.SetArg -> return applyArg(ctx, action.arg, resolveText(action.value, ctx))
+            is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
+            is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
             is Action.ShowTitle -> {
                 val titleComponent    = mm.deserialize(resolveText(action.title, ctx))
                 val subtitleComponent = action.subtitle?.let { mm.deserialize(resolveText(it, ctx)) }
@@ -155,5 +165,27 @@ class ActionExecutor(
                 player.showTitle(Title.title(titleComponent, subtitleComponent, times))
             }
         }
+        return ctx
+    }
+
+    /** Met à jour un arg de contexte et re-rend le menu courant du joueur (s'il y en a un). */
+    private fun applyArg(ctx: ExecutionContext, arg: String, value: String): ExecutionContext {
+        val newCtx = ctx.copy(args = ctx.args + (arg to value))
+        sessions.get(ctx.player)?.let { session ->
+            menuProvider.openMenu(ctx.player, session.menuId, newCtx.lang, newCtx)
+        }
+        return newCtx
+    }
+
+    private fun cycleArg(ctx: ExecutionContext, arg: String, list: String, forward: Boolean): ExecutionContext {
+        val values = list.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (values.isEmpty()) return ctx
+        val idx = values.indexOf(ctx.args[arg]?.toString())
+        val next = when {
+            idx < 0 -> if (forward) values.first() else values.last()
+            forward -> values[(idx + 1) % values.size]
+            else    -> values[(idx - 1 + values.size) % values.size]
+        }
+        return applyArg(ctx, arg, next)
     }
 }
