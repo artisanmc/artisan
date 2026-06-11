@@ -13,6 +13,7 @@ import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { menuV1ToDomain } from "./menuV1ToDomain";
+import { validateMenuV1 } from "./validateMenuV1";
 
 /**
  * Round-trip oracle: domain Menu → export (menu/v1 YAML) → re-import → assert
@@ -231,6 +232,14 @@ describe("menuV1ToDomain — round-trip oracle", () => {
 
   it("produces no unsupported constructs", () => {
     expect(result.unsupported).toEqual([]);
+  });
+
+  it("exports a wire object that passes the canonical menu/v1 schema", () => {
+    // This is the same ajv gate the AI assistant's upsert_menu uses — if the
+    // editor's own export fails it, a get_menu → upsert_menu round-trip breaks.
+    const v = validateMenuV1(wire);
+    expect(v.errors).toEqual([]);
+    expect(v.valid).toBe(true);
   });
 
   it("round-trips top-level menu fields", () => {
