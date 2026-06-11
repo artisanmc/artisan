@@ -1131,6 +1131,7 @@ const fr: typeof en = {
     disabled: "Assistant non configuré.",
     attachFiles: "Joindre des fichiers",
     attachRemove: "Retirer {{name}}",
+    sentFiles: "Fichiers envoyés : {{names}}",
   },
 };
 export default fr;

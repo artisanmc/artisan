@@ -33,7 +33,9 @@ your normal edit history, so you can **undo** it like any other change.
 Have an existing menu from another plugin? **Drag the `.yml` file onto the chat
 panel**, or click the **📎 (paperclip)** button next to the message box to pick
 files. Attached files are listed above the composer with their name and size;
-click the **×** on a file to remove it. The assistant reads the attached files
+click the **×** on a file to remove it. You can send attached files without
+typing anything — **Send** is available as soon as a file is attached. The
+assistant reads the attached files
 and uses them as the basis for the menus it builds. This is the fastest way to
 migrate a DeluxeMenus or zmenu layout into Artisan.
 
