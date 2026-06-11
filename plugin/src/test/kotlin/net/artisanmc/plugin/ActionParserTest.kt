@@ -132,13 +132,6 @@ class ActionParserTest {
     }
 
     @Test
-    fun `parse teleport reads canonical warp_name`() {
-        val a = ActionParser.parse(mapOf("type" to "teleport", "warp_name" to "hub"))
-        val t = a as Action.Teleport
-        assertEquals("hub", t.warpName)
-    }
-
-    @Test
     fun `parse teleport with coordinates`() {
         val a = ActionParser.parse(mapOf("type" to "teleport", "world" to "world", "x" to 10.0, "y" to 64.0, "z" to -5.0))
         assertEquals(Action.Teleport("world", 10.0, 64.0, -5.0), a)

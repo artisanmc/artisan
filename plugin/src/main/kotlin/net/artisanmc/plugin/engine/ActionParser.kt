@@ -50,7 +50,6 @@ object ActionParser {
                 z        = (raw["z"] as? Number)?.toDouble() ?: 0.0,
                 yaw      = (raw["yaw"] as? Number)?.toFloat() ?: 0f,
                 pitch    = (raw["pitch"] as? Number)?.toFloat() ?: 0f,
-                warpName = raw["warp_name"] as? String ?: raw["warp"] as? String,
             )
             "pagination_next" -> Action.PaginationNext(raw["element_id"] as? String)
             "pagination_prev" -> Action.PaginationPrev(raw["element_id"] as? String)

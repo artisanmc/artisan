@@ -145,7 +145,6 @@ class ActionExecutor(
                 player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
             }
             is Action.Teleport -> {
-                if (action.warpName != null && action.world == null) return ctx
                 val world = action.world?.let { Bukkit.getWorld(it) } ?: return ctx
                 player.teleport(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
             }
