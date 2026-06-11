@@ -66,10 +66,12 @@ class TitleCompilerTest {
     }
 
     @Test
-    fun `compileLayerBody for text with missing langMap key wraps fallback key in text_y font`() {
+    fun `compileLayerBody for text with missing langMap key resolves to empty string`() {
+        // Deliberate: echoing the raw key (menus.foo.title) to players is worse
+        // than showing nothing — see TitleCompiler.resolveLText.
         val layer = MenuTitleLayer.Text(value = LText("missing.key"), x = 0, y = 5)
         val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
-        assertEquals("<font:artisan:text_y5_h8>missing.key</font>", s)
+        assertEquals("<font:artisan:text_y5_h8></font>", s)
     }
 
     @Test
