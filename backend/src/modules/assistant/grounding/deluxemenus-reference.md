@@ -144,8 +144,8 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 | requirement `has money`                  | `has_money` (`amount`) |
 | requirement `string equals`              | `placeholder_equals` (`placeholder` = `input`, `value` = `output`) |
 | requirement `regex matches`              | `placeholder_match` (`placeholder` = `input`, `regex`) |
-| requirement `javascript`                 | `expression` (`expr`) — only if it maps to the Artisan expression DSL; else flag |
-| requirement comparators / `has exp` / `has item` / `is near` / `has meta` | best-effort via `expression`, or flag |
+| requirement `javascript`                 | **no importable equivalent** (the `expression` DSL is not in the subset yet) → flag in chat; record in `notes` |
+| requirement comparators / `has exp` / `has item` / `is near` / `has meta` | **no importable equivalent** → flag in chat; record in `notes` |
 | `view_requirement`                       | appearance `if: [Condition[]]` |
 | `*_click_requirement`                    | an `if` **step** at the top of that click's `steps` |
 | `minimum_requirements` (= "any")         | wrap conditions in an `or`; otherwise default AND |
@@ -158,7 +158,8 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
   say so; offer to drop or approximate with `run_command`, and record it.
 - Custom-item materials (ItemsAdder/Oraxen/MMOItems/`head-...`) → `menu/v1` `material` expects a
   vanilla material; flag and either approximate with a vanilla look or leave a `notes` marker.
-- `javascript` / comparator / `has item` / `is near` requirements → only convert to `expression`
-  when confident; otherwise flag rather than guess.
+- `javascript` / comparator / `has item` / `is near` requirements → no importable equivalent
+  yet; flag rather than guess (a `placeholder_equals`/`placeholder_match` rewrite is fine
+  when the intent is clearly a simple placeholder comparison).
 - If a detail (exact tag behavior, requirement field) is uncertain after reading the dropped
   file, **ask or flag** — do not fabricate keys.

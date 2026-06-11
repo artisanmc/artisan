@@ -87,24 +87,37 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     expect(r.errors.join(" ")).toMatch(/play_sound/);
   });
 
-  it("rejects out-of-subset types in open_requirements / open_actions / close_actions", () => {
+  it("rejects open_requirements / open_actions / close_actions / background even with subset types (implemented nowhere)", () => {
     const r = validateMenuV1({
       ...good,
-      open_requirements: [{ type: "time_is", range: "day" }],
-      open_actions: [{ type: "broadcast", text: "hi" }],
-      close_actions: [{ type: "teleport", world: "spawn", x: 0, y: 64, z: 0 }],
+      open_requirements: [{ type: "has_permission", perm: "x" }],
+      open_actions: [{ type: "send_message", text: "hi" }],
+      close_actions: [{ type: "close_menu" }],
+      background: { material: "GRAY_STAINED_GLASS_PANE" },
     });
     expect(r.valid).toBe(false);
     const all = r.errors.join(" ");
-    expect(all).toMatch(/time_is/);
-    expect(all).toMatch(/broadcast/);
-    expect(all).toMatch(/teleport/);
+    expect(all).toMatch(/open_requirements/);
+    expect(all).toMatch(/open_actions/);
+    expect(all).toMatch(/close_actions/);
+    expect(all).toMatch(/background/);
   });
 
-  it("accepts every subset action and condition (expression, set_arg, pagination, dialogs…)", () => {
+  it("rejects expression conditions (no server-side evaluator yet)", () => {
     const r = validateMenuV1({
       ...good,
-      open_requirements: [{ type: "expression", expr: "balance >= 100" }],
+      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
+        { if: [{ type: "expression", expr: "balance >= 100" }], material: "STONE" },
+        { material: "STONE" },
+      ] }] }],
+    });
+    expect(r.valid).toBe(false);
+    expect(r.errors.join(" ")).toMatch(/expression/);
+  });
+
+  it("accepts every subset action and condition (set_arg, pagination, dialogs…)", () => {
+    const r = validateMenuV1({
+      ...good,
       layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
         {
           if: [

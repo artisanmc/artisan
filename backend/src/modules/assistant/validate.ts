@@ -69,12 +69,13 @@ function collectVocabErrors(menu: Json): string[] {
     }
   }
 
-  (menu.open_requirements ?? []).forEach((c: Json, i: number) =>
-    condition(c, `/open_requirements/${i}`),
-  );
-  (menu.open_actions ?? []).forEach((a: Json, i: number) => action(a, `/open_actions/${i}`));
-  (menu.close_actions ?? []).forEach((a: Json, i: number) => action(a, `/close_actions/${i}`));
-  appearance(menu.background, "/background");
+  // Schema-valid but implemented nowhere (neither editor domain nor plugin
+  // runtime) — the editor import silently drops them, so reject outright.
+  for (const field of ["open_requirements", "open_actions", "close_actions", "background"]) {
+    if (menu[field] !== undefined) {
+      errors.push(`/${field} is not supported by the importable subset yet — omit it`);
+    }
+  }
   (menu.layers ?? []).forEach((layer: Json, li: number) => {
     (layer.elements ?? []).forEach((el: Json, ei: number) => {
       (el.appearances ?? []).forEach((app: Json, ai: number) =>
