@@ -331,6 +331,16 @@ class ActionExecutorTest {
         assertEquals("price", lastMenuCtx?.args?.get("sort"))
     }
 
+    @Test fun `clicking an iterated slot resolves the alias in run_command`() {
+        val p = player()
+        val sessionCtx = ExecutionContext(p, args = mapOf("shops" to listOf(mapOf("id" to "s1"))))
+        val slotArgs = mapOf("shop" to mapOf("id" to "s1"))
+        // Le listener merge session.ctx.args + slotArgs[slot] avant handle().
+        val merged = sessionCtx.copy(args = sessionCtx.args + slotArgs)
+        val resolved = executor().resolveArgs("buy {shop.id}", merged)
+        assertEquals("buy s1", resolved)
+    }
+
     @Test fun `set_arg_cycle_prev wraps back to the last value`() {
         val p = player()
         openSession(p)
