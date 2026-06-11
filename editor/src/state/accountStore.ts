@@ -84,8 +84,16 @@ interface AccountState {
    */
   importPack: (input: { pack: Pack }) => PackId;
   replacePack: (pack: Pack) => void;
-  /** Apply an AI-generated menu/v1: convert to domain, insert/replace in the pack, merge i18n. */
-  applyAssistantMenu: (input: { packId: PackId; menuV1: Record<string, unknown>; lang: string }) => void;
+  /**
+   * Apply an AI-generated menu/v1: convert to domain, insert/replace in the
+   * pack, merge i18n. Returns the constructs dropped during conversion (no
+   * domain equivalent) so the caller can warn instead of losing them silently.
+   */
+  applyAssistantMenu: (input: {
+    packId: PackId;
+    menuV1: Record<string, unknown>;
+    lang: string;
+  }) => string[];
   /**
    * Create a new menu in `packId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
@@ -897,12 +905,15 @@ export const useAccountStore = create<AccountState>()(
             }),
           );
         },
-        applyAssistantMenu: ({ packId: pId, menuV1, lang }) =>
+        applyAssistantMenu: ({ packId: pId, menuV1, lang }) => {
+          let unsupported: string[] = [];
           set(
             produce((draft: AccountState) => {
               const pack = draft.account.packs.find((p) => p.id === pId);
               if (!pack) return;
-              const { menu, i18nKeys } = menuV1ToDomain(menuV1, { packId: pId, lang });
+              const converted = menuV1ToDomain(menuV1, { packId: pId, lang });
+              const { menu, i18nKeys } = converted;
+              unsupported = converted.unsupported;
               // The converter already stamps menu.packId from opts.packId; keep
               // this as a safety net so the domain Menu always carries the id.
               menu.packId = pId;
@@ -917,7 +928,9 @@ export const useAccountStore = create<AccountState>()(
               else pack.menus.push(menu);
               pack.updatedAt = new Date().toISOString();
             }),
-          ),
+          );
+          return unsupported;
+        },
         createMenu: ({ packId: pId, id: rawId, rows, position }) => {
           const id = rawId as MenuId;
           set(

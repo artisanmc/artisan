@@ -125,7 +125,17 @@ export function AssistantChat({
           appendAssistant(String(ev.text ?? ""));
         } else if (ev.type === "menu_written") {
           const menu = ev.menu as Record<string, unknown>;
-          useAccountStore.getState().applyAssistantMenu({ packId, menuV1: menu, lang });
+          const unsupported = useAccountStore
+            .getState()
+            .applyAssistantMenu({ packId, menuV1: menu, lang });
+          if (unsupported.length > 0) {
+            toast.warning(
+              t("assistant.unsupportedDropped", {
+                id: String(menu.id),
+                list: [...new Set(unsupported)].join(", "),
+              }),
+            );
+          }
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(menu.id) }]);
           dirty = true;
         } else if (ev.type === "menu_deleted") {
