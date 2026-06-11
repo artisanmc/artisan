@@ -19,12 +19,15 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "upsert_menu", description: "Create or replace a menu. The argument is a complete canonical menu/v1 object. Rejected with errors if invalid — fix and retry.", parameters: { type: "object", properties: { menu: { type: "object" } }, required: ["menu"], additionalProperties: false } },
   { name: "delete_menu", description: "Delete a menu by id.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } },
   { name: "read_attachment", description: "Read the raw text of a dropped zmenu/DeluxeMenus file by id.", parameters: { type: "object", properties: { file_id: { type: "string" } }, required: ["file_id"], additionalProperties: false } },
+  { name: "list_dialogs", description: "List the pack's dialogs (id, title). open_dialog's dialog_id MUST be one of these ids — never invent one.", parameters: { type: "object", properties: {}, additionalProperties: false } },
 ];
 
 export function executeTool(name: string, input: any, wc: WorkingCopy): ToolResult {
   switch (name) {
     case "list_menus":
       return { ok: true, content: JSON.stringify(wc.list()) };
+    case "list_dialogs":
+      return { ok: true, content: JSON.stringify(wc.listDialogs()) };
     case "get_menu": {
       const m = wc.get(String(input?.id));
       return m ? { ok: true, content: JSON.stringify(m) } : { ok: false, content: `No menu with id "${input?.id}".` };

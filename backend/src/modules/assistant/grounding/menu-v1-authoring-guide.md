@@ -178,6 +178,9 @@ and in `open_actions` / `close_actions`.
 | `open_dialog`          | `dialog_id`, `context?`, `clear_context?`             | `{ "type": "open_dialog", "dialog_id": "confirm" }` |
 | `close_dialog`         | —                                                     | `{ "type": "close_dialog" }` |
 
+`open_dialog.dialog_id` must reference an **existing** dialog — call `list_dialogs` first.
+If the pack has no dialogs, do not emit `open_dialog` (you cannot create dialogs).
+
 > The only schema constructs **NOT** in the importable subset are the `expression` condition
 > (no server-side DSL evaluator yet) and `pagination_at_first` / `pagination_at_last` — they
 > are rejected here. When a source file needs something outside the tables above, **say so in

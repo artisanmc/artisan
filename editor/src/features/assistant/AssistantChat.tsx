@@ -1,5 +1,6 @@
 import type { PackId } from "@/domain/types";
 import { packToMenuV1 } from "@/features/export/transform";
+import { getText } from "@/lib/i18n";
 import { persistPack } from "@/features/pack/persistPack";
 import {
   type ConversationMessage,
@@ -116,11 +117,16 @@ export function AssistantChat({
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId);
       const lang = pack?.defaultLang ?? "en";
       const menus = pack ? packToMenuV1(pack) : [];
+      // Dialog summaries let the model discover valid open_dialog targets
+      // (list_dialogs tool) instead of inventing dialog ids.
+      const dialogs = pack
+        ? pack.dialogs.map((d) => ({ id: d.id as string, title: getText(pack, d.title, lang) }))
+        : [];
       if (!convId.current) {
         convId.current = await openConversation(token, { packId });
       }
       let dirty = false;
-      for await (const ev of streamAssistant(token, convId.current, { text, menus, attachments })) {
+      for await (const ev of streamAssistant(token, convId.current, { text, menus, attachments, dialogs })) {
         if (ev.type === "text") {
           appendAssistant(String(ev.text ?? ""));
         } else if (ev.type === "menu_written") {
