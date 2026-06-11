@@ -70,11 +70,8 @@ class ActionExecutor(
         return result
     }
 
-    fun resolveArgs(text: String, ctx: ExecutionContext): String {
-        var result = text
-        ctx.args.forEach { (k, v) -> result = result.replace("{$k}", v.toString()) }
-        return result
-    }
+    fun resolveArgs(text: String, ctx: ExecutionContext): String =
+        ArgResolver.resolve(text, ctx.args)
 
     fun resolveText(text: String, ctx: ExecutionContext): String {
         var resolved = if (text.startsWith("{i18n:")) {
