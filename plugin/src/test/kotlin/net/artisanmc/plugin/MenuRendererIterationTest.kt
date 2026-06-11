@@ -7,8 +7,11 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
 import org.bukkit.Material
+import org.bukkit.entity.Player
 import kotlin.test.*
 
 class MenuRendererIterationTest {
@@ -99,6 +102,32 @@ class MenuRendererIterationTest {
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p))
         assertNull(p.openInventory.topInventory.getItem(10))
         assertEquals(PageInfo(0, 1), session.ctx.pageInfo["grid"])
+    }
+
+    @Test fun `full loop — pagination_next re-renders the next window`() {
+        val p = player()
+        val pluginInstance = MockBukkit.load(ArtisanPlugin::class.java)
+        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val sessions = MenuSessionStore()
+        val provider = object : MenuProvider {
+            override fun load() {}
+            override fun findMenu(menuId: String) = menu
+            override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+                sessions.set(player, MenuRenderer.open(player, menu, lang, ctx))
+            }
+            override fun allBundles(): List<PackBundle> = emptyList()
+        }
+        val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
+
+        provider.openMenu(p, "shop", "en", ExecutionContext(p, args = mapOf("shops" to shops(5))))
+        val before = sessions.get(p)!!
+        assertEquals(0, before.ctx.pageInfo["grid"]?.page)
+
+        executor.execute(listOf(Action.PaginationNext("grid")), before.ctx)
+
+        val after = sessions.get(p)!!
+        assertEquals(1, after.ctx.pageInfo["grid"]?.page)
+        assertNull(p.openInventory.topInventory.getItem(12)) // page 1 n'a que 2 items
     }
 
     @Test fun `declared default fills an arg used by a non-iterating element`() {
