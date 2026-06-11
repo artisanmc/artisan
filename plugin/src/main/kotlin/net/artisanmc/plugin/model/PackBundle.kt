@@ -28,6 +28,18 @@ data class ManifestFiles(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+data class ContextInputYaml(
+    val name: String = "",
+    val type: String = "string",
+    val default: String? = null,
+    /** ConnectorBinding canonique ({ref, params?, filter?, sort?, limit?}) — consommé en Phase B. */
+    val source: Map<String, Any> = emptyMap(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class IteratesYaml(val source: String = "", val alias: String = "")
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class MenuYaml(
     val schema: String = "",
     val id: String = "",
@@ -42,6 +54,7 @@ data class MenuYaml(
     val title: Any? = null,
     val size: Int = 27,
     val permission: String? = null,
+    @JsonProperty("context_inputs") val contextInputs: List<ContextInputYaml> = emptyList(),
     val layers: List<LayerYaml> = emptyList(),
 )
 
@@ -56,6 +69,7 @@ data class LayerYaml(
 data class ElementYaml(
     val id: String = "",
     val positions: String = "",
+    val iterates: IteratesYaml? = null,
     val appearances: List<AppearanceYaml> = emptyList(),
 )
 
