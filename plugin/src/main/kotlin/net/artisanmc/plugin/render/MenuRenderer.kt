@@ -44,8 +44,7 @@ object MenuRenderer {
         // to item title/lore.
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw ->
-            var text = raw
-            ctx.args.forEach { (k, v) -> text = text.replace("{$k}", v.toString()) }
+            var text = ArgResolver.resolve(raw, ctx.args)
             if (papi != null) text = papi.resolve(player, text)
             text
         }
@@ -106,7 +105,7 @@ object MenuRenderer {
 
     private fun resolveText(raw: String, langMap: Map<String, String>, ctx: ExecutionContext, papi: PapiProvider?): String {
         var text = if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw else raw
-        ctx.args.forEach { (k, v) -> text = text.replace("{$k}", v.toString()) }
+        text = ArgResolver.resolve(text, ctx.args)
         if (papi != null) text = papi.resolve(ctx.player, text)
         return text
     }
