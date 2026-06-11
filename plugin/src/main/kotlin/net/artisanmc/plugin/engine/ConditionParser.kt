@@ -16,7 +16,7 @@ object ConditionParser {
             "placeholder_match"  -> Condition.PlaceholderMatch(str(raw, "placeholder"), str(raw, "regex"))
             "cooldown_passed"    -> Condition.CooldownPassed(str(raw, "cooldown_id"))
             "world_is"           -> Condition.WorldIs(str(raw, "world"))
-            "time_is"            -> Condition.TimeIs(str(raw, "range"))
+            "time_is"            -> Condition.TimeIs(parseTimeRange(raw["range"]))
             "random_chance"      -> Condition.RandomChance((raw["probability"] as Number).toDouble())
             "player_in_region"   -> Condition.PlayerInRegion(str(raw, "region"))
             "pagination_at_first"-> Condition.PaginationAtFirst(raw["element_id"] as? String)
@@ -30,4 +30,17 @@ object ConditionParser {
 
     private fun str(raw: Map<String, Any>, key: String): String =
         raw[key]?.toString() ?: throw IllegalArgumentException("Condition missing required field '$key': $raw")
+
+    /** Le schéma accepte "day"/"night"/"a-b" ou {from_ticks,to_ticks} — normalisé en string "a-b". */
+    private fun parseTimeRange(range: Any?): String = when (range) {
+        is Map<*, *> -> {
+            val from = (range["from_ticks"] as? Number)?.toLong()
+            val to   = (range["to_ticks"] as? Number)?.toLong()
+            if (from == null || to == null)
+                throw IllegalArgumentException("time_is object range needs from_ticks and to_ticks: $range")
+            "$from-$to"
+        }
+        null -> throw IllegalArgumentException("Condition time_is missing required field 'range'")
+        else -> range.toString()
+    }
 }
