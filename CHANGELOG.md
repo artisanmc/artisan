@@ -15,6 +15,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - Plugin : `time_is` accepte la forme objet `{from_ticks,to_ticks}` du schéma (normalisée en range string).
 - Assistant : **tool `list_dialogs`** — l'éditeur envoie les résumés de dialogs (id + titre résolu) avec chaque tour ; le modèle découvre les `dialog_id` valides au lieu d'inventer des cibles `open_dialog` (consigne ajoutée au guide).
 - **Schéma `dialog/v1` publié** (`docs/schema/dialog/v1/schema.json`) — seul format exporté qui n'avait pas de schéma. Fixture verte : l'export éditeur (`transform` → `dialogs/<id>.yaml`) valide contre le schéma (`editor/src/features/export/dialogV1.schema.test.ts`).
+- Assistant : **envoi avec fichiers seuls** — le bouton Envoyer s'active dès qu'une pièce jointe est présente (texte optionnel) ; la bulle utilisateur affiche « Fichiers envoyés : … » et le titre de la conversation retombe sur les noms de fichiers quand le premier message n'a pas de texte.
 - Éditeur : **wire canonique des context_inputs connecteur** — export `{name, type, source:{ref}}` (l'ancien `{name, ref}` était schema-invalide et cassait le round-trip IA) ; import des deux formes ; types primitifs `list`/`object` acceptés (pattern iterates fourni par l'appelant). L'oracle round-trip vérifie désormais que tout export passe le gate ajv canonique.
 
 ### Removed
