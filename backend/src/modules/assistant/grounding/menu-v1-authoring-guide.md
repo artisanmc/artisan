@@ -142,6 +142,8 @@ Use **only** these condition `type` values. Any other type is rejected / non-rep
 | `random_chance`     | `probability` (0–1)             | `{ "type": "random_chance", "probability": 0.25 }` |
 | `cooldown_passed`   | `cooldown_id`                   | `{ "type": "cooldown_passed", "cooldown_id": "daily_reward" }` |
 | `player_in_region`  | `region` (WorldGuard region id) | `{ "type": "player_in_region", "region": "shop_zone" }` |
+| `pagination_at_first`| `element_id?`                   | `{ "type": "pagination_at_first", "element_id": "grid" }` — true on page 0 (hide the Prev button) |
+| `pagination_at_last` | `element_id?`                   | `{ "type": "pagination_at_last" }` — true on the final page (hide the Next button) |
 | `not`               | `of` (a single Condition)       | `{ "type": "not", "of": { "type": "has_permission", "perm": "x" } }` |
 | `and`               | `of` (Condition[])              | `{ "type": "and", "of": [ ... ] }` |
 | `or`                | `of` (Condition[])              | `{ "type": "or", "of": [ ... ] }` |
@@ -181,19 +183,16 @@ and in `open_actions` / `close_actions`.
 `open_dialog.dialog_id` must reference an **existing** dialog — call `list_dialogs` first.
 If the pack has no dialogs, do not emit `open_dialog` (you cannot create dialogs).
 
-> The only schema constructs **NOT** in the importable subset are the `expression` condition
-> (no server-side DSL evaluator yet) and `pagination_at_first` / `pagination_at_last` — they
-> are rejected here. When a source file needs something outside the tables above, **say so in
-> chat** (and optionally record it in the menu's `notes`) rather than inventing a type.
+> The only schema construct **NOT** in the importable subset is the `expression` condition
+> (no server-side DSL evaluator yet) — it is rejected here. When a source file needs something
+> outside the tables above, **say so in chat** (and optionally record it in the menu's `notes`)
+> rather than inventing a type.
 
 ## Runtime caveats — tell the user when relevant
 
-- `pagination_next` / `pagination_prev` are accepted and preserved, but the server-side
-  paging engine is not wired yet — the buttons render and do nothing in game for now.
-- `iterates` + `context_inputs` render in the web editor, but the server-side data-driven
-  runtime (connectors, list iteration) is not wired yet — in game the element shows its
-  appearance with unresolved `{alias.field}` placeholders. Still produce the correct
-  structure; just **mention this limitation in chat** when you use it.
+- `iterates` + `context_inputs` now render server-side from caller-provided lists (windowed
+  pagination included); what's still missing is the data delivery — connectors and pack data
+  sources (Phase B). Flag in chat when a menu depends on a connector-fed list.
 - Soft dependencies: `has_money`/`take_money`/`give_money` need **Vault**,
   `placeholder_equals`/`placeholder_match` need **PlaceholderAPI**, `player_in_region` needs
   **WorldGuard**. Without the host plugin the condition evaluates to false / the action is a

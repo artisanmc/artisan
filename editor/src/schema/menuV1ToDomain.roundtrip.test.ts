@@ -151,6 +151,7 @@ function buildPack(): Pack {
         { type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } },
         { type: "cooldown_passed", cooldown_id: "grid_cd" },
         { type: "player_in_region", region: "shop_zone" },
+        { type: "pagination_at_first", elementId: "grid" },
       ],
       material: "PAPER",
       title: lt(pack, "{item.name}"),

@@ -51,6 +51,8 @@ const DOMAIN_CONDITIONS = new Set([
   "random_chance",
   "cooldown_passed",
   "player_in_region",
+  "pagination_at_first",
+  "pagination_at_last",
   "not",
   "and",
   "or",
@@ -111,6 +113,9 @@ export function menuV1ToDomain(
         return { type: "cooldown_passed", cooldown_id: c.cooldown_id };
       case "player_in_region":
         return { type: "player_in_region", region: c.region };
+      case "pagination_at_first":
+      case "pagination_at_last":
+        return { type: c.type, ...(c.element_id ? { elementId: c.element_id } : {}) };
       case "not": {
         const of = condition(c.of);
         return of ? { type: "not", of } : null;

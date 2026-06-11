@@ -47,20 +47,20 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     ] }] }],
   });
 
-  it("rejects a schema-valid condition outside the subset (pagination_at_first)", () => {
+  it("rejects expression conditions (no server-side evaluator yet)", () => {
     const r = validateMenuV1({
       ...good,
       layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        { if: [{ type: "pagination_at_first" }], material: "STONE" },
+        { if: [{ type: "expression", expr: "balance >= 100" }], material: "STONE" },
         { material: "STONE" },
       ] }] }],
     });
     expect(r.valid).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/pagination_at_first/);
+    expect(r.errors.join(" ")).toMatch(/expression/);
     expect(r.errors.join(" ")).toMatch(/vocabulary/i);
   });
 
-  it("rejects out-of-subset condition types nested in composites and if-steps", () => {
+  it("rejects expression conditions nested in composites and if-steps", () => {
     const r = validateMenuV1(withClickSteps([
       {
         kind: "if",
@@ -72,14 +72,13 @@ describe("validateMenuV1 (vocab subset gate)", () => {
           steps: [{ kind: "action", action: { type: "close_menu" } }],
         }],
         else: [{ kind: "if", cases: [{
-          conditions: [{ type: "pagination_at_last" }],
+          conditions: [{ type: "expression", expr: "x > 0" }],
           steps: [],
         }] }],
       },
     ]));
     expect(r.valid).toBe(false);
     expect(r.errors.join(" ")).toMatch(/expression/);
-    expect(r.errors.join(" ")).toMatch(/pagination_at_last/);
   });
 
   it("accepts the extended runtime-OK actions and conditions", () => {
@@ -96,6 +95,8 @@ describe("validateMenuV1 (vocab subset gate)", () => {
             { type: "player_in_region", region: "shop" },
             { type: "has_xp", amount: 5 },
             { type: "has_level", level: 3 },
+            { type: "pagination_at_first" },
+            { type: "pagination_at_last", element_id: "grid" },
           ],
           material: "STONE",
           click: { left: { steps: [
@@ -128,18 +129,6 @@ describe("validateMenuV1 (vocab subset gate)", () => {
     expect(all).toMatch(/open_actions/);
     expect(all).toMatch(/close_actions/);
     expect(all).toMatch(/background/);
-  });
-
-  it("rejects expression conditions (no server-side evaluator yet)", () => {
-    const r = validateMenuV1({
-      ...good,
-      layers: [{ id: "l1", name: "d", elements: [{ id: "e1", positions: "0", appearances: [
-        { if: [{ type: "expression", expr: "balance >= 100" }], material: "STONE" },
-        { material: "STONE" },
-      ] }] }],
-    });
-    expect(r.valid).toBe(false);
-    expect(r.errors.join(" ")).toMatch(/expression/);
   });
 
   it("accepts every subset action and condition (set_arg, pagination, dialogs…)", () => {

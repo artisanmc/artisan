@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 
 // Le sous-ensemble = ce que le runtime plugin exécute réellement.
-// Exclusions volontaires : `expression` (pas d'évaluateur DSL serveur — une
-// condition expression fait dropper l'appearance entière au chargement) et
-// `pagination_at_first/last` (stubs toujours-false côté plugin).
+// Exclusion volontaire : `expression` (pas d'évaluateur DSL serveur — une
+// condition expression fait dropper l'appearance entière au chargement).
 export const SUPPORTED_CONDITIONS = [
   "has_permission", "has_money", "placeholder_equals", "placeholder_match",
   "has_item", "has_xp", "has_level", "world_is", "time_is", "random_chance",
-  "cooldown_passed", "player_in_region", "not", "and", "or",
+  "cooldown_passed", "player_in_region", "pagination_at_first", "pagination_at_last",
+  "not", "and", "or",
 ] as const;
 export const SUPPORTED_ACTIONS = [
   "run_command", "open_menu", "close_menu", "send_message", "broadcast", "show_title",
