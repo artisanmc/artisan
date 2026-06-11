@@ -234,7 +234,17 @@ export type Action =
       fadeOut?: number;
     }
   | { type: "give_item"; material: string; count: number }
+  | { type: "take_item"; material: string; count: number }
   | { type: "take_money"; amount: number }
+  | { type: "give_money"; amount: number }
+  | { type: "give_xp"; amount: number }
+  | { type: "give_level"; amount: number }
+  /** Broadcast to every online player (vs send_message → triggering player only). */
+  | { type: "broadcast"; text: LText }
+  /** Play a sound to the triggering player. `sound` is a Bukkit Sound name. */
+  | { type: "play_sound"; sound: string; volume?: number; pitch?: number }
+  /** Teleport to coordinates. */
+  | { type: "teleport"; world: string; x: number; y: number; z: number; yaw?: number; pitch?: number }
   /**
    * Advance pagination of an iterating element. If `targetElementId` is
    * unset the runtime paginates every iterating element in the current
@@ -282,6 +292,16 @@ export type Condition =
    * placeholder_equals.
    */
   | { type: "placeholder_match"; placeholder: string; regex: string }
+  // The following mirror the wire shape exactly (snake_case fields) — the
+  // exporter passes conditions through as-is, so domain = menu/v1 here.
+  | { type: "has_item"; material: string; count: number }
+  | { type: "has_xp"; amount: number }
+  | { type: "has_level"; level: number }
+  | { type: "world_is"; world: string }
+  | { type: "time_is"; range: "day" | "night" | { from_ticks: number; to_ticks: number } }
+  | { type: "random_chance"; probability: number }
+  | { type: "cooldown_passed"; cooldown_id: string }
+  | { type: "player_in_region"; region: string }
   | { type: "not"; of: Condition }
   | { type: "and"; of: Condition[] }
   | { type: "or"; of: Condition[] }

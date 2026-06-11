@@ -1048,8 +1048,22 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
     }
     case "give_item":
       return `${action.count}× ${action.material}`;
+    case "take_item":
+      return `-${action.count}× ${action.material}`;
     case "take_money":
-      return `$${action.amount}`;
+      return `-$${action.amount}`;
+    case "give_money":
+      return `+$${action.amount}`;
+    case "give_xp":
+      return `+${action.amount} xp`;
+    case "give_level":
+      return `+${action.amount} lvl`;
+    case "broadcast":
+      return `"${getText(action.text)}"`;
+    case "play_sound":
+      return action.sound;
+    case "teleport":
+      return `${action.world} ${action.x},${action.y},${action.z}`;
     case "paginate":
       return `${action.direction}${action.targetElementId ? ` ${action.targetElementId}` : " (all)"}`;
     case "set_arg":

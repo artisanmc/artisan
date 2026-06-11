@@ -50,10 +50,10 @@ describe("applyAssistantMenu", () => {
               positions: "13",
               appearances: [
                 {
-                  if: [{ type: "world_is", world: "spawn" }],
+                  if: [{ type: "biome_is", biome: "PLAINS" }],
                   material: "DIAMOND",
                   click: {
-                    left: { steps: [{ kind: "action", action: { type: "give_xp", amount: 5 } }] },
+                    left: { steps: [{ kind: "action", action: { type: "give_effect", effect: "SPEED" } }] },
                   },
                 },
                 { material: "STONE" },
@@ -66,8 +66,8 @@ describe("applyAssistantMenu", () => {
     const unsupported = useAccountStore
       .getState()
       .applyAssistantMenu({ packId: packId("p"), menuV1: withExotics, lang: "en" });
-    expect(unsupported).toContain("condition: world_is");
-    expect(unsupported).toContain("action: give_xp");
+    expect(unsupported).toContain("condition: biome_is");
+    expect(unsupported).toContain("action: give_effect");
   });
   it("returns an empty list for a fully supported menu", () => {
     const unsupported = useAccountStore

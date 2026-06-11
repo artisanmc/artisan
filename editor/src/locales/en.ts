@@ -217,6 +217,13 @@ export default {
     showTitleStayLabel: "stay (ticks)",
     showTitleFadeOutLabel: "fade out (ticks)",
     showTitleTicksHint: "20 ticks = 1 second. Leave empty to use vanilla defaults (10/70/20).",
+    soundLabel: "Sound",
+    soundHint: "Bukkit Sound name (e.g. ENTITY_PLAYER_LEVELUP).",
+    soundVolume: "Volume (0–1)",
+    soundPitch: "Pitch (0–2)",
+    teleportWorld: "World",
+    teleportYaw: "Yaw (optional)",
+    teleportPitch: "Pitch (optional)",
   },
   flow: {
     headerStateOne: "{{count}} state",

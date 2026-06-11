@@ -15,8 +15,22 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "title";
     case "give_item":
       return "give";
+    case "take_item":
+      return "take";
     case "take_money":
-      return "$";
+      return "-$";
+    case "give_money":
+      return "+$";
+    case "give_xp":
+      return "xp";
+    case "give_level":
+      return "lvl";
+    case "broadcast":
+      return "bcast";
+    case "play_sound":
+      return "sound";
+    case "teleport":
+      return "tp";
     case "paginate":
       return "page";
     case "set_arg":
@@ -43,6 +57,24 @@ export function conditionSummary(condition: Condition): string {
       return `${condition.placeholder} = "${condition.value}"`;
     case "placeholder_match":
       return `${condition.placeholder} ~ /${condition.regex}/`;
+    case "has_item":
+      return `has ${condition.count}× ${condition.material}`;
+    case "has_xp":
+      return `has ${condition.amount} xp`;
+    case "has_level":
+      return `level ≥ ${condition.level}`;
+    case "world_is":
+      return `world = "${condition.world}"`;
+    case "time_is":
+      return typeof condition.range === "string"
+        ? `time is ${condition.range}`
+        : `time in ${condition.range.from_ticks}–${condition.range.to_ticks}`;
+    case "random_chance":
+      return `chance ${Math.round(condition.probability * 100)}%`;
+    case "cooldown_passed":
+      return `cooldown "${condition.cooldown_id}" passed`;
+    case "player_in_region":
+      return `in region "${condition.region}"`;
     case "not":
       return `NOT (${conditionSummary(condition.of)})`;
     case "and":

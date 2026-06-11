@@ -50,6 +50,14 @@ const TYPES: Array<{ value: Condition["type"]; label: string; chip: string }> = 
   { value: "has_money", label: "has money", chip: "$" },
   { value: "placeholder_equals", label: "placeholder = value", chip: "= value" },
   { value: "placeholder_match", label: "placeholder ~ regex", chip: "~ regex" },
+  { value: "has_item", label: "has item", chip: "item" },
+  { value: "has_xp", label: "has XP", chip: "xp" },
+  { value: "has_level", label: "has level", chip: "lvl" },
+  { value: "world_is", label: "world is", chip: "world" },
+  { value: "time_is", label: "time is", chip: "time" },
+  { value: "random_chance", label: "random chance", chip: "%" },
+  { value: "cooldown_passed", label: "cooldown passed", chip: "cd" },
+  { value: "player_in_region", label: "in region (WorldGuard)", chip: "region" },
   { value: "not", label: "NOT (…)", chip: "NOT" },
   { value: "and", label: "AND group", chip: "AND" },
   { value: "or", label: "OR group", chip: "OR" },
@@ -74,6 +82,22 @@ const defaultCondition = (type: Condition["type"]): Condition => {
       return { type: "or", of: [{ type: "has_permission", perm: "" }] };
     case "expression":
       return { type: "expression", expr: "" };
+    case "has_item":
+      return { type: "has_item", material: "DIAMOND", count: 1 };
+    case "has_xp":
+      return { type: "has_xp", amount: 1 };
+    case "has_level":
+      return { type: "has_level", level: 1 };
+    case "world_is":
+      return { type: "world_is", world: "" };
+    case "time_is":
+      return { type: "time_is", range: "day" };
+    case "random_chance":
+      return { type: "random_chance", probability: 0.5 };
+    case "cooldown_passed":
+      return { type: "cooldown_passed", cooldown_id: "" };
+    case "player_in_region":
+      return { type: "player_in_region", region: "" };
   }
 };
 
@@ -341,6 +365,147 @@ function ConditionInline({
             onChange={(next) => onChange({ type: "not", of: next })}
           />
         </div>
+      );
+    case "has_item":
+      return (
+        <>
+          <Input
+            placeholder="DIAMOND"
+            value={condition.material}
+            onChange={(e) => onChange({ ...condition, material: e.target.value.toUpperCase() })}
+            className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
+          />
+          <span className="font-mono text-[10px] text-[var(--text-faint)]">×</span>
+          <Input
+            type="number"
+            min={1}
+            value={condition.count}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isNaN(n) && n >= 1) onChange({ ...condition, count: n });
+            }}
+            className="h-6 w-[55px] px-1.5 py-0 text-[11px]"
+          />
+        </>
+      );
+    case "has_xp":
+    case "has_level": {
+      const value = condition.type === "has_xp" ? condition.amount : condition.level;
+      return (
+        <>
+          <span className="font-mono text-[10px] text-[var(--text-faint)]">≥</span>
+          <Input
+            type="number"
+            min={1}
+            value={value}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isNaN(n) || n < 1) return;
+              onChange(
+                condition.type === "has_xp"
+                  ? { ...condition, amount: n }
+                  : { ...condition, level: n },
+              );
+            }}
+            className="h-6 w-[70px] px-1.5 py-0 text-[11px]"
+          />
+        </>
+      );
+    }
+    case "world_is":
+      return (
+        <Input
+          placeholder="world"
+          value={condition.world}
+          onChange={(e) => onChange({ ...condition, world: e.target.value })}
+          className="h-6 w-[110px] px-1.5 py-0 font-mono text-[11px]"
+        />
+      );
+    case "time_is": {
+      return (
+        <>
+          <select
+            value={typeof condition.range === "object" ? "custom" : condition.range}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange({
+                ...condition,
+                range: v === "custom" ? { from_ticks: 0, to_ticks: 12000 } : (v as "day" | "night"),
+              });
+            }}
+            className="h-6 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-1 font-mono text-[11px] text-[var(--text)]"
+          >
+            <option value="day">day</option>
+            <option value="night">night</option>
+            <option value="custom">ticks…</option>
+          </select>
+          {typeof condition.range === "object" ? (
+            <>
+              <Input
+                type="number"
+                min={0}
+                max={24000}
+                value={condition.range.from_ticks}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isNaN(n) && typeof condition.range === "object")
+                    onChange({ ...condition, range: { ...condition.range, from_ticks: n } });
+                }}
+                className="h-6 w-[70px] px-1.5 py-0 text-[11px]"
+              />
+              <span className="font-mono text-[10px] text-[var(--text-faint)]">→</span>
+              <Input
+                type="number"
+                min={0}
+                max={24000}
+                value={condition.range.to_ticks}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isNaN(n) && typeof condition.range === "object")
+                    onChange({ ...condition, range: { ...condition.range, to_ticks: n } });
+                }}
+                className="h-6 w-[70px] px-1.5 py-0 text-[11px]"
+              />
+            </>
+          ) : null}
+        </>
+      );
+    }
+    case "random_chance":
+      return (
+        <>
+          <span className="font-mono text-[10px] text-[var(--text-faint)]">p =</span>
+          <Input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={condition.probability}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isNaN(n) && n >= 0 && n <= 1) onChange({ ...condition, probability: n });
+            }}
+            className="h-6 w-[70px] px-1.5 py-0 text-[11px]"
+          />
+        </>
+      );
+    case "cooldown_passed":
+      return (
+        <Input
+          placeholder="daily_reward"
+          value={condition.cooldown_id}
+          onChange={(e) => onChange({ ...condition, cooldown_id: e.target.value })}
+          className="h-6 w-[130px] px-1.5 py-0 font-mono text-[11px]"
+        />
+      );
+    case "player_in_region":
+      return (
+        <Input
+          placeholder="shop_zone"
+          value={condition.region}
+          onChange={(e) => onChange({ ...condition, region: e.target.value })}
+          className="h-6 w-[130px] px-1.5 py-0 font-mono text-[11px]"
+        />
       );
     case "expression":
       return (

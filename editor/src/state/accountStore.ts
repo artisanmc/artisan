@@ -618,7 +618,7 @@ function allocStepLTexts(pack: Pack, steps: Step[], lang: string, keyPrefix: str
   let titleCounter = 0;
   let subtitleCounter = 0;
   for (const action of walkActions(steps)) {
-    if (action.type === "send_message") {
+    if ((action.type === "send_message" || action.type === "broadcast")) {
       if (action.text.key === "") {
         action.text = createLTextAt(pack, messageKeyAt(keyPrefix, msgCounter), "", lang);
       }
@@ -639,7 +639,7 @@ function allocStepLTexts(pack: Pack, steps: Step[], lang: string, keyPrefix: str
 }
 function gcStepLTexts(pack: Pack, steps: Step[]): void {
   for (const action of walkActions(steps)) {
-    if (action.type === "send_message") {
+    if ((action.type === "send_message" || action.type === "broadcast")) {
       deleteLText(pack, action.text);
     } else if (action.type === "show_title") {
       deleteLText(pack, action.title);
@@ -691,7 +691,7 @@ function gcDialogLTexts(pack: Pack, dialog: Dialog): void {
   for (const btn of dialog.buttons) {
     keys.add(btn.label.key);
     for (const action of walkActions(btn.steps)) {
-      if (action.type === "send_message") keys.add(action.text.key);
+      if ((action.type === "send_message" || action.type === "broadcast")) keys.add(action.text.key);
       else if (action.type === "show_title") {
         keys.add(action.title.key);
         if (action.subtitle) keys.add(action.subtitle.key);
@@ -732,7 +732,7 @@ function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey):
       return;
     }
     for (const action of walkActions(btn.steps)) {
-      if (action.type === "send_message" && action.text.key === oldKey) {
+      if ((action.type === "send_message" || action.type === "broadcast") && action.text.key === oldKey) {
         action.text.key = newKey;
         return;
       }
@@ -1206,7 +1206,7 @@ export const useAccountStore = create<AccountState>()(
               if (btn) {
                 delete pack!.i18nKeys[btn.label.key];
                 for (const action of walkActions(btn.steps)) {
-                  if (action.type === "send_message") delete pack!.i18nKeys[action.text.key];
+                  if ((action.type === "send_message" || action.type === "broadcast")) delete pack!.i18nKeys[action.text.key];
                   else if (action.type === "show_title") {
                     delete pack!.i18nKeys[action.title.key];
                     if (action.subtitle) delete pack!.i18nKeys[action.subtitle.key];
@@ -2721,7 +2721,7 @@ export const useAccountStore = create<AccountState>()(
                     for (const handler of Object.values(click)) {
                       if (!handler) continue;
                       for (const action of walkActions(handler.steps)) {
-                        if (action.type === "send_message") {
+                        if ((action.type === "send_message" || action.type === "broadcast")) {
                           const src = pack.i18nKeys[action.text.key];
                           action.text = createLText(pack, "", pack.defaultLang);
                           if (src) pack.i18nKeys[action.text.key] = { ...src };
@@ -2877,7 +2877,7 @@ export const useAccountStore = create<AccountState>()(
                 for (const handler of Object.values(a.click)) {
                   if (!handler) continue;
                   for (const action of walkActions(handler.steps)) {
-                    if (action.type === "send_message") {
+                    if ((action.type === "send_message" || action.type === "broadcast")) {
                       const src = pack.i18nKeys[action.text.key];
                       action.text = createLText(pack, "", pack.defaultLang);
                       if (src) pack.i18nKeys[action.text.key] = { ...src };
@@ -2923,7 +2923,7 @@ export const useAccountStore = create<AccountState>()(
             for (const c of commands) {
               const stamped: Command = { ...c, packId: pId };
               for (const action of walkActions(stamped.steps)) {
-                if (action.type === "send_message") {
+                if ((action.type === "send_message" || action.type === "broadcast")) {
                   const src = pack.i18nKeys[action.text.key];
                   action.text = createLText(pack, "", pack.defaultLang);
                   if (src) pack.i18nKeys[action.text.key] = { ...src };

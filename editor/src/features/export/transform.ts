@@ -71,8 +71,36 @@ function serializeAction(action: Action): unknown {
       return { type: "close_menu" };
     case "give_item":
       return { type: "give_item", material: action.material, count: action.count };
+    case "take_item":
+      return { type: "take_item", material: action.material, count: action.count };
     case "take_money":
       return { type: "take_money", amount: action.amount };
+    case "give_money":
+      return { type: "give_money", amount: action.amount };
+    case "give_xp":
+      return { type: "give_xp", amount: action.amount };
+    case "give_level":
+      return { type: "give_level", amount: action.amount };
+    case "broadcast":
+      return { type: "broadcast", text: i18nRef(action.text.key) };
+    case "play_sound": {
+      const out: Record<string, unknown> = { type: "play_sound", sound: action.sound };
+      if (action.volume !== undefined) out.volume = action.volume;
+      if (action.pitch !== undefined) out.pitch = action.pitch;
+      return out;
+    }
+    case "teleport": {
+      const out: Record<string, unknown> = {
+        type: "teleport",
+        world: action.world,
+        x: action.x,
+        y: action.y,
+        z: action.z,
+      };
+      if (action.yaw !== undefined) out.yaw = action.yaw;
+      if (action.pitch !== undefined) out.pitch = action.pitch;
+      return out;
+    }
     case "paginate": {
       const type = action.direction === "next" ? "pagination_next" : "pagination_prev";
       const out: Record<string, unknown> = { type };
@@ -486,6 +514,14 @@ function serializeDialog(dialog: Dialog): Record<string, unknown> {
 
 // ─── translations serialization ──────────────────────────────────────────────
 
+function addActionKeys(action: Action, keys: Set<string>): void {
+  if (action.type === "send_message" || action.type === "broadcast") keys.add(action.text.key);
+  else if (action.type === "show_title") {
+    keys.add(action.title.key);
+    if (action.subtitle) keys.add(action.subtitle.key);
+  }
+}
+
 function collectReferencedKeys(pack: Pack): Set<string> {
   const keys = new Set<string>();
   for (const menu of pack.menus) {
@@ -498,13 +534,7 @@ function collectReferencedKeys(pack: Pack): Set<string> {
           if (app.click) {
             for (const handler of Object.values(app.click)) {
               if (!handler) continue;
-              for (const action of walkActions(handler.steps)) {
-                if (action.type === "send_message") keys.add(action.text.key);
-                else if (action.type === "show_title") {
-                  keys.add(action.title.key);
-                  if (action.subtitle) keys.add(action.subtitle.key);
-                }
-              }
+              for (const action of walkActions(handler.steps)) addActionKeys(action, keys);
             }
           }
         }
@@ -512,13 +542,7 @@ function collectReferencedKeys(pack: Pack): Set<string> {
     }
   }
   for (const cmd of pack.commands) {
-    for (const action of walkActions(cmd.steps)) {
-      if (action.type === "send_message") keys.add(action.text.key);
-      else if (action.type === "show_title") {
-        keys.add(action.title.key);
-        if (action.subtitle) keys.add(action.subtitle.key);
-      }
-    }
+    for (const action of walkActions(cmd.steps)) addActionKeys(action, keys);
   }
   for (const dialog of pack.dialogs) {
     if (dialog.title) keys.add(dialog.title.key);
@@ -533,13 +557,7 @@ function collectReferencedKeys(pack: Pack): Set<string> {
     }
     for (const btn of dialog.buttons) {
       keys.add(btn.label.key);
-      for (const action of walkActions(btn.steps)) {
-        if (action.type === "send_message") keys.add(action.text.key);
-        else if (action.type === "show_title") {
-          keys.add(action.title.key);
-          if (action.subtitle) keys.add(action.subtitle.key);
-        }
-      }
+      for (const action of walkActions(btn.steps)) addActionKeys(action, keys);
     }
   }
   return keys;
