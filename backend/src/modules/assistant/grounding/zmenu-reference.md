@@ -104,7 +104,11 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 | `actions: inventory`                    | `open_menu` (`menu_id`) — only if the target menu also exists in this pack |
 | `actions: close`                        | `close_menu` |
 | `actions: withdraw`                     | `take_money` (`amount`) |
-| `actions: deposit` / `broadcast` / `sound` / `connect` / `teleport` / `actionbar` | **no clean equivalent in the importable subset** → flag in chat; record in `notes` |
+| `actions: deposit`                      | `give_money` (`amount`) |
+| `actions: broadcast`                    | `broadcast` (`text`) |
+| `actions: sound`                        | `play_sound` (`sound`, `pitch?`, `volume?`) — XSound names usually match Bukkit Sound names |
+| `actions: teleport`                     | `teleport` (`world`, `x`, `y`, `z`) — needs a `world`; flag if absent |
+| `actions: connect` / `actionbar` / `broadcast_sound` | **no clean equivalent in the importable subset** → flag in chat; record in `notes` |
 | button `type: NEXT` / `PREVIOUS`        | `pagination_next` / `pagination_prev` |
 | button `type: BACK`/`HOME`/`INVENTORY`  | `open_menu` to the relevant menu (or `close_menu` for plain back) |
 | `view-requirement`                      | appearance `if: [Condition[]]` (gate which appearance renders) |
@@ -116,9 +120,9 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 
 ### Not-clean cases — flag, don't fabricate
 
-- Actions with no importable equivalent (`deposit`, `sound`, `broadcast`, `connect`,
-  `teleport`, `actionbar`, `toast`, `data`, `permission set`, …) → say so; offer to drop or to
-  approximate with `run_command`, and note it.
+- Actions with no importable equivalent (`connect`, `actionbar`, `broadcast_sound`, `toast`,
+  `data`, `permission set`, …) → say so; offer to drop or to approximate with `run_command`,
+  and note it.
 - `DYNAMIC_PAGINATION` / data-driven lists → these map to an `iterates` element **only** if you
   have a `context_input` of `type: "list"` to iterate; without a data source, render a static
   grid and flag that the dynamic source was dropped.

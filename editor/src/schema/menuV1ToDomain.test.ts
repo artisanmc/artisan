@@ -99,10 +99,10 @@ describe("menuV1ToDomain — i18n + conditions", () => {
     expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.ifJoins).toEqual(["and", "and"]);
   });
 
-  it("flags unsupported conditions instead of crashing", () => {
-    const src = minimalMenu({ if: [{ type: "has_item", material: "DIRT", count: 1 }] });
+  it("flags unknown (future) conditions instead of crashing", () => {
+    const src = minimalMenu({ if: [{ type: "biome_is", biome: "PLAINS" }] });
     const r = menuV1ToDomain(src, opts);
-    expect(r.unsupported.join(" ")).toMatch(/has_item/);
+    expect(r.unsupported.join(" ")).toMatch(/biome_is/);
   });
 });
 
@@ -243,12 +243,21 @@ describe("menuV1ToDomain — actions + steps", () => {
     });
   });
 
-  it("flags unsupported action (give_money) and drops it", () => {
+  it("flags unknown (future) action and drops it", () => {
     const r = menuV1ToDomain(
-      menuWithClick("left", [actionStep({ type: "give_money", amount: 100 })]),
+      menuWithClick("left", [actionStep({ type: "give_effect", effect: "SPEED" })]),
       opts,
     );
-    expect(r.unsupported.join(" ")).toMatch(/give_money/);
+    expect(r.unsupported.join(" ")).toMatch(/give_effect/);
+    expect(clickSteps(r)).toHaveLength(0);
+  });
+
+  it("flags a teleport without world and drops it", () => {
+    const r = menuV1ToDomain(
+      menuWithClick("left", [actionStep({ type: "teleport", x: 1, y: 2, z: 3 })]),
+      opts,
+    );
+    expect(r.unsupported.join(" ")).toMatch(/teleport/);
     expect(clickSteps(r)).toHaveLength(0);
   });
 });
@@ -498,6 +507,80 @@ function clickAction(r: ReturnType<typeof menuV1ToDomain>): unknown {
   const steps = clickSteps(r) as { kind: string; action: unknown }[];
   return steps[0]!.action;
 }
+
+describe("menuV1ToDomain — extended runtime-OK vocab", () => {
+  it("imports the extended conditions without unsupported markers", () => {
+    const src = minimalMenu({
+      if: [
+        { type: "has_item", material: "DIAMOND", count: 3 },
+        { type: "has_xp", amount: 10 },
+        { type: "has_level", level: 5 },
+        { type: "world_is", world: "spawn" },
+        { type: "time_is", range: "day" },
+        { type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } },
+        { type: "random_chance", probability: 0.5 },
+        { type: "cooldown_passed", cooldown_id: "daily" },
+        { type: "player_in_region", region: "shop_zone" },
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.unsupported).toEqual([]);
+    const ifs = r.menu.layers[0]!.elements[0]!.appearances[0]!.if!;
+    expect(ifs).toHaveLength(9);
+    expect(ifs[0]).toEqual({ type: "has_item", material: "DIAMOND", count: 3 });
+    expect(ifs[5]).toEqual({ type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } });
+    expect(ifs[7]).toEqual({ type: "cooldown_passed", cooldown_id: "daily" });
+  });
+
+  it("imports the extended actions without unsupported markers", () => {
+    const src = {
+      ...minimalMenu({}),
+      layers: [
+        {
+          id: "l1",
+          name: "d",
+          elements: [
+            {
+              id: "e1",
+              positions: "0",
+              appearances: [
+                {
+                  material: "STONE",
+                  click: {
+                    left: {
+                      steps: [
+                        { kind: "action", action: { type: "broadcast", text: "<gold>Big news!</gold>" } },
+                        { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2 } },
+                        { kind: "action", action: { type: "give_money", amount: 250 } },
+                        { kind: "action", action: { type: "give_xp", amount: 10 } },
+                        { kind: "action", action: { type: "give_level", amount: 1 } },
+                        { kind: "action", action: { type: "take_item", material: "PAPER", count: 2 } },
+                        { kind: "action", action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0 } },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const r = menuV1ToDomain(src, opts);
+    expect(r.unsupported).toEqual([]);
+    const steps = r.menu.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps;
+    expect(steps).toHaveLength(7);
+    const bc = steps[0] as { kind: "action"; action: { type: string; text: { key: string } } };
+    expect(bc.action.type).toBe("broadcast");
+    expect(r.i18nKeys[bc.action.text.key]).toEqual({ en: "<gold>Big news!</gold>" });
+    expect((steps[1] as { action: unknown }).action).toEqual({
+      type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2,
+    });
+    expect((steps[6] as { action: unknown }).action).toEqual({
+      type: "teleport", world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0,
+    });
+  });
+});
 
 function minimalMenu(p: { appTitle?: string; if?: unknown[] }): Record<string, unknown> {
   const appearance: Record<string, unknown> = {};

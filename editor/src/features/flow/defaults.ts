@@ -25,8 +25,22 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "show_title", title: { key: UNALLOCATED_LTEXT_KEY } };
     case "give_item":
       return { type: "give_item", material: "DIAMOND", count: 1 };
+    case "take_item":
+      return { type: "take_item", material: "DIAMOND", count: 1 };
     case "take_money":
       return { type: "take_money", amount: 0 };
+    case "give_money":
+      return { type: "give_money", amount: 0 };
+    case "give_xp":
+      return { type: "give_xp", amount: 1 };
+    case "give_level":
+      return { type: "give_level", amount: 1 };
+    case "broadcast":
+      return { type: "broadcast", text: { key: UNALLOCATED_LTEXT_KEY } };
+    case "play_sound":
+      return { type: "play_sound", sound: "ENTITY_EXPERIENCE_ORB_PICKUP" };
+    case "teleport":
+      return { type: "teleport", world: "world", x: 0, y: 64, z: 0 };
     case "paginate":
       return { type: "paginate", direction: "next" };
     case "set_arg":
@@ -47,9 +61,16 @@ export const ACTION_TYPES: Action["type"][] = [
   "close_menu",
   "run_command",
   "send_message",
+  "broadcast",
   "show_title",
+  "play_sound",
   "give_item",
+  "take_item",
   "take_money",
+  "give_money",
+  "give_xp",
+  "give_level",
+  "teleport",
   "paginate",
   "set_arg",
   "set_arg_cycle_next",

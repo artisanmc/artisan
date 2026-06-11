@@ -224,6 +224,13 @@ const fr: typeof en = {
     showTitleFadeOutLabel: "fade out (ticks)",
     showTitleTicksHint:
       "20 ticks = 1 seconde. Laissez vide pour utiliser les valeurs par défaut (10/70/20).",
+    soundLabel: "Son",
+    soundHint: "Nom de Sound Bukkit (ex. ENTITY_PLAYER_LEVELUP).",
+    soundVolume: "Volume (0–1)",
+    soundPitch: "Pitch (0–2)",
+    teleportWorld: "Monde",
+    teleportYaw: "Yaw (optionnel)",
+    teleportPitch: "Pitch (optionnel)",
   },
   flow: {
     headerStateOne: "{{count}} état",

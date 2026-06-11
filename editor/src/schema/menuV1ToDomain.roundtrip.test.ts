@@ -144,7 +144,13 @@ function buildPack(): Pack {
   // Element 2: iterating grid with pagination + nested condition action.
   const gridAppearances: Appearance[] = [
     {
-      if: [{ type: "expression", expr: "1 == 1" }],
+      if: [
+        { type: "expression", expr: "1 == 1" },
+        { type: "has_item", material: "PAPER", count: 2 },
+        { type: "time_is", range: { from_ticks: 0, to_ticks: 6000 } },
+        { type: "cooldown_passed", cooldown_id: "grid_cd" },
+        { type: "player_in_region", region: "shop_zone" },
+      ],
       material: "PAPER",
       title: lt(pack, "{item.name}"),
       lore: lt(pack, "Multi\nLine\nLore"),
@@ -158,6 +164,13 @@ function buildPack(): Pack {
             { kind: "action", action: { type: "set_arg", arg: "page", value: "2" } },
             { kind: "action", action: { type: "run_command", command: "say hi", as: "console" } },
             { kind: "action", action: { type: "open_dialog", dialogId: dialogId("confirm") } },
+            { kind: "action", action: { type: "broadcast", text: lt(pack, "Big news!") } },
+            { kind: "action", action: { type: "play_sound", sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.5 } },
+            { kind: "action", action: { type: "give_money", amount: 50 } },
+            { kind: "action", action: { type: "give_xp", amount: 5 } },
+            { kind: "action", action: { type: "give_level", amount: 1 } },
+            { kind: "action", action: { type: "take_item", material: "PAPER", count: 1 } },
+            { kind: "action", action: { type: "teleport", world: "spawn", x: 0.5, y: 64, z: -3, yaw: 90 } },
           ],
         },
       },

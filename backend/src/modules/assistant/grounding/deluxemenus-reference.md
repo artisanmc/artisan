@@ -139,13 +139,19 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 | `[openguimenu] <id>`                     | `open_menu` (`menu_id`) — only if that menu exists in the pack |
 | `[close]`                                | `close_menu` |
 | `[takemoney]`                            | `take_money` (`amount`) |
-| `[broadcast]`/`[sound]`/`[connect]`/`[givemoney]`/`[giveexp]`/`[chat]`/`[refresh]`/`[json]`/`[meta]`/permission tags | **no clean equivalent in the importable subset** → flag in chat; record in `notes` |
+| `[givemoney]`                            | `give_money` (`amount`) |
+| `[giveexp]`                              | `give_xp` (`amount`) — an `L` suffix (levels) maps to `give_level` |
+| `[broadcast]` / `[minibroadcast]`        | `broadcast` (`text`) — convert `&`-codes; minibroadcast is already MiniMessage |
+| `[sound]`                                | `play_sound` (`sound`, `volume?`, `pitch?`) |
+| `[connect]`/`[chat]`/`[refresh]`/`[json]`/`[meta]`/`[takeexp]`/`[broadcastsound*]`/permission tags | **no clean equivalent in the importable subset** → flag in chat; record in `notes` |
 | requirement `has permission`             | `has_permission` (`perm`) |
 | requirement `has money`                  | `has_money` (`amount`) |
 | requirement `string equals`              | `placeholder_equals` (`placeholder` = `input`, `value` = `output`) |
 | requirement `regex matches`              | `placeholder_match` (`placeholder` = `input`, `regex`) |
+| requirement `has item`                   | `has_item` (`material`, `count`) — custom-item syntaxes → flag |
+| requirement `has exp`                    | `has_xp` (`amount`) or, with `level: true`, `has_level` (`level`) |
 | requirement `javascript`                 | **no importable equivalent** (the `expression` DSL is not in the subset yet) → flag in chat; record in `notes` |
-| requirement comparators / `has exp` / `has item` / `is near` / `has meta` | **no importable equivalent** → flag in chat; record in `notes` |
+| requirement comparators / `is near` / `has meta` | **no importable equivalent** → flag in chat; record in `notes` |
 | `view_requirement`                       | appearance `if: [Condition[]]` |
 | `*_click_requirement`                    | an `if` **step** at the top of that click's `steps` |
 | `minimum_requirements` (= "any")         | wrap conditions in an `or`; otherwise default AND |
@@ -153,12 +159,12 @@ Use **only** the allowed `menu/v1` vocab (see the authoring guide). Preserve PAP
 ### Not-clean cases — flag, don't fabricate
 
 - `open_command` and any other command registration — `menu/v1` has no command concept; note it.
-- Action tags with no importable equivalent (`[broadcast]`, `[sound]`, `[connect]`,
-  `[givemoney]`, `[giveexp]`, `[chat]`, `[refresh]`, `[json]`, `[meta]`, permission tags) →
-  say so; offer to drop or approximate with `run_command`, and record it.
+- Action tags with no importable equivalent (`[connect]`, `[chat]`, `[refresh]`, `[json]`,
+  `[meta]`, `[takeexp]`, `[broadcastsound*]`, permission tags) → say so; offer to drop or
+  approximate with `run_command`, and record it.
 - Custom-item materials (ItemsAdder/Oraxen/MMOItems/`head-...`) → `menu/v1` `material` expects a
   vanilla material; flag and either approximate with a vanilla look or leave a `notes` marker.
-- `javascript` / comparator / `has item` / `is near` requirements → no importable equivalent
+- `javascript` / comparator / `is near` / `has meta` requirements → no importable equivalent
   yet; flag rather than guess (a `placeholder_equals`/`placeholder_match` rewrite is fine
   when the intent is clearly a simple placeholder comparison).
 - If a detail (exact tag behavior, requirement field) is uncertain after reading the dropped
