@@ -60,6 +60,13 @@ describe("toStringValue", () => {
   it("joins arrays naively for toString fallback", () => {
     expect(toStringValue([1, 2, 3])).toBe("1,2,3");
   });
+  it("uses a custom toString when an object defines one (builtin player sample)", () => {
+    const player = { name: "Steve", world: "world", toString: () => "Steve" };
+    expect(toStringValue(player)).toBe("Steve");
+  });
+  it("still JSON-stringifies plain objects without a custom toString", () => {
+    expect(toStringValue({ a: 1 })).toBe('{"a":1}');
+  });
 });
 
 describe("looseEq (== / !=)", () => {
