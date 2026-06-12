@@ -14,4 +14,12 @@ data class ExecutionContext(
     val pagination: Map<String, Int> = emptyMap(),
     /** Snapshot du dernier rendu (clamps + pageCount). Lu par les conditions pagination_at_*. */
     val pageInfo: Map<String, PageInfo> = emptyMap(),
-)
+) {
+    /**
+     * Args + built-ins implicites : `player` = joueur courant (jamais écrasé
+     * si l'appelant a bindé un arg du même nom). Toute résolution de texte
+     * passe par ici, pas par `args` directement.
+     */
+    val resolvedArgs: Map<String, Any>
+        get() = if ("player" in args) args else args + ("player" to player)
+}
