@@ -1,11 +1,16 @@
 package net.artisanmc.plugin
 
+import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.engine.ContextBinder
 import net.artisanmc.plugin.model.ContextInputYaml
 import net.artisanmc.plugin.model.MenuYaml
+import org.bukkit.entity.Player
 import kotlin.test.*
 
 class ContextBinderTest {
+    @BeforeTest fun setup() { MockBukkit.mock() }
+    @AfterTest fun teardown() { MockBukkit.unmock() }
+
     private fun menu(vararg inputs: ContextInputYaml) =
         MenuYaml(id = "m", size = 9, contextInputs = inputs.toList())
 
@@ -36,5 +41,22 @@ class ContextBinderTest {
     @Test fun `caller args not declared as inputs pass through untouched`() {
         val args = ContextBinder.bind(menu(), mapOf("extra" to 1))
         assertEquals(1, args["extra"])
+    }
+    @Test fun `player-typed default binds the live Player when online`() {
+        MockBukkit.getMock()!!.addPlayer("Steve")
+        val args = ContextBinder.bind(
+            menu(ContextInputYaml(name = "target", type = "player", default = "Steve")),
+            emptyMap(),
+        )
+        val target = args["target"]
+        assertTrue(target is Player, "expected a live Player, got ${target?.javaClass}")
+        assertEquals("Steve", target.name)
+    }
+    @Test fun `player-typed default keeps the raw string when offline`() {
+        val args = ContextBinder.bind(
+            menu(ContextInputYaml(name = "target", type = "player", default = "Nobody")),
+            emptyMap(),
+        )
+        assertEquals("Nobody", args["target"])
     }
 }
