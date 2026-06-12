@@ -76,6 +76,15 @@ export interface Account {
   packOrder: PackId[];
 }
 
+export type AnchorSide = "top" | "right" | "bottom" | "left";
+
+/** Endpoint override for a canvas edge — a position on a node border. */
+export interface EdgeAnchor {
+  side: AnchorSide;
+  /** Ratio 0..1 along the side (survives node resize). */
+  t: number;
+}
+
 export interface Pack {
   id: PackId;
   name: string;
@@ -96,6 +105,11 @@ export interface Pack {
   defaultLang: string;
   dialogs: Dialog[];
   canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
+  /**
+   * Manual edge-endpoint overrides, keyed by edge id ("source->target").
+   * Editor-only metadata — exported as manifest `editor_edges`.
+   */
+  canvasEdges?: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }>;
 }
 
 export interface Menu {
