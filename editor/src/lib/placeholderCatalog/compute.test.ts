@@ -20,6 +20,13 @@ const emptyPack = (): Pack => ({
   canvasLayout: {},
 });
 
+const BUILTIN_PLAYER = [
+  { path: "player", type: "player", sample: "Steve", origin: "context" },
+  { path: "player.name", type: "string", sample: "Steve", origin: "context" },
+  { path: "player.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+  { path: "player.world", type: "string", sample: "world", origin: "context" },
+];
+
 describe("PlaceholderCatalog.compute", () => {
   it("returns [] for a menu location when the menu id is unknown", () => {
     const pack = emptyPack();
@@ -27,7 +34,7 @@ describe("PlaceholderCatalog.compute", () => {
     expect(result).toEqual([]);
   });
 
-  it("returns [] for a menu with no contextInputs", () => {
+  it("includes the builtin {player} entries for a menu with no contextInputs", () => {
     const pack = emptyPack();
     pack.menus.push({
       id: "m1" as MenuId,
@@ -38,7 +45,7 @@ describe("PlaceholderCatalog.compute", () => {
       contextInputs: [],
     });
     const result = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
-    expect(result).toEqual([]);
+    expect(result).toEqual(BUILTIN_PLAYER);
   });
 
   // Task 3 tests
@@ -58,10 +65,39 @@ describe("PlaceholderCatalog.compute", () => {
     });
     const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
     // Sorted alpha by path within context origin (Task 8 sort applied throughout).
+    // The declared `player` input shadows the builtins (caller arg wins), so
+    // there is exactly one `player` entry; its player-typed subfields still show.
     expect(out).toEqual([
       { path: "active", type: "boolean", sample: "true", origin: "context" },
       { path: "player", type: "player", sample: "Steve", origin: "context" },
+      { path: "player.name", type: "string", sample: "Steve", origin: "context" },
+      { path: "player.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+      { path: "player.world", type: "string", sample: "world", origin: "context" },
       { path: "rank", type: "integer", sample: "5", origin: "context" },
+    ]);
+    expect(out.filter((e) => e.path === "player")).toHaveLength(1);
+  });
+
+  it("emits dotted subfields for a player-typed contextInput (e.g. command arg `target`)", () => {
+    const pack = emptyPack();
+    pack.menus.push({
+      id: "m1" as MenuId,
+      packId: pack.id,
+      title: [],
+      rows: 3,
+      layers: [],
+      contextInputs: [
+        { kind: "primitive", name: "target", type: "player", default: "Alex" },
+      ],
+    });
+    const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
+    // No input named `player` → builtins stay, then target + its subfields.
+    expect(out).toEqual([
+      ...BUILTIN_PLAYER,
+      { path: "target", type: "player", sample: "Alex", origin: "context" },
+      { path: "target.name", type: "string", sample: "Alex", origin: "context" },
+      { path: "target.uuid", type: "string", sample: "8667ba71-b85a-4004-af54-457a9734eed7", origin: "context" },
+      { path: "target.world", type: "string", sample: "world", origin: "context" },
     ]);
   });
 
@@ -120,12 +156,13 @@ describe("PlaceholderCatalog.compute", () => {
     });
     const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
     expect(out).toEqual([
+      ...BUILTIN_PLAYER,
       { path: "quest.name", type: "string", sample: "Tuer 10 zombies", origin: "context" },
       { path: "quest.reward", type: "integer", sample: "500", origin: "context" },
     ]);
   });
 
-  it("omits list-typed contextInputs at menu scope (no useful single-value placement)", () => {
+  it("omits list-typed contextInputs at menu scope (only builtins remain)", () => {
     const pack = emptyPack();
     pack.dataSources.push({
       id: "ds2" as DataSourceId,
@@ -144,7 +181,7 @@ describe("PlaceholderCatalog.compute", () => {
       ],
     });
     const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
-    expect(out).toEqual([]);
+    expect(out).toEqual(BUILTIN_PLAYER);
   });
 
   // Task 5 tests
@@ -194,6 +231,7 @@ describe("PlaceholderCatalog.compute", () => {
       elementId: "e1" as ElementId,
     });
     expect(out).toEqual([
+      ...BUILTIN_PLAYER,
       { path: "quest.name", type: "string", sample: "Q1", origin: "iteration" },
       { path: "quest.reward", type: "integer", sample: "100", origin: "iteration" },
       { path: "pagination.page", type: "integer", sample: "1", origin: "pagination" },
@@ -280,20 +318,20 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   // Task 6 tests
-  it("returns [] for dialog scope in v1 (dialog contextInputs not yet modeled)", () => {
+  it("returns the builtin {player} entries for dialog scope (no contextInputs modeled)", () => {
     const pack = emptyPack();
     const out = compute(pack, { kind: "dialog", dialogId: "d1" as DialogId });
-    expect(out).toEqual([]);
+    expect(out).toEqual(BUILTIN_PLAYER);
   });
 
-  it("returns [] for dialog-action scope in v1", () => {
+  it("returns the builtin {player} entries for dialog-action scope", () => {
     const pack = emptyPack();
     const out = compute(pack, {
       kind: "dialog-action",
       dialogId: "d1" as DialogId,
       buttonId: "btn_confirm",
     });
-    expect(out).toEqual([]);
+    expect(out).toEqual(BUILTIN_PLAYER);
   });
 
   // Task 7 test
@@ -311,7 +349,7 @@ describe("PlaceholderCatalog.compute", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = compute(pack, { kind: "menu", menuId: "m1" as MenuId });
-    expect(out).toEqual([]);
+    expect(out).toEqual(BUILTIN_PLAYER);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toMatch(/deleted/);
     warn.mockRestore();
@@ -358,6 +396,10 @@ describe("PlaceholderCatalog.compute", () => {
     });
     expect(out.map((e) => `${e.origin}:${e.path}`)).toEqual([
       "context:alpha",
+      "context:player",
+      "context:player.name",
+      "context:player.uuid",
+      "context:player.world",
       "context:zoo",
       "iteration:quest.name",
       "pagination:pagination.page",

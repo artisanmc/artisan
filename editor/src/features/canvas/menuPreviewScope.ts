@@ -23,10 +23,28 @@ export function resolveSourceRef(ref: SourceRef, pack: Pack): unknown {
   return c?.sample;
 }
 
+/** Sample values for the builtin implicit `{player}` (runtime: the viewing player). */
+export const SAMPLE_PLAYER_NAME = "Steve";
+export const SAMPLE_PLAYER_UUID = "8667ba71-b85a-4004-af54-457a9734eed7";
+export const SAMPLE_PLAYER_WORLD = "world";
+
+/**
+ * Build a sample Player value for previews. The custom `toString` makes a
+ * bare `{player}` render as the name (mirrors the runtime, where a Player
+ * arg resolves to the player's name).
+ */
+export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<string, unknown> {
+  return { name, uuid: SAMPLE_PLAYER_UUID, world: SAMPLE_PLAYER_WORLD, toString: () => name };
+}
+
 /**
  * Build the preview scope for a menu by walking its contextInputs:
  *  - primitive → coerce default to its declared type
  *  - sourceRef → resolveSourceRef
+ *
+ * The builtin `player` (the viewing player at runtime) is seeded unless the
+ * menu declares a contextInput with that name — caller arg wins, like the
+ * plugin runtime.
  *
  * Used by MenuGroup and ItemTooltip preview rendering. Replaces the
  * pre-Plan-C1 sampleContext blob.
@@ -39,6 +57,9 @@ export function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknow
     } else {
       scope[input.name] = resolveSourceRef(input.ref, pack);
     }
+  }
+  if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
+    scope.player = makeSamplePlayer();
   }
   return scope;
 }
@@ -75,9 +96,11 @@ function coerceDefault(
   value: string | undefined,
   type: "player" | "string" | "integer" | "number" | "boolean",
 ): unknown {
+  if (type === "player") {
+    return makeSamplePlayer(value === undefined || value === "" ? undefined : value);
+  }
   if (value === undefined || value === "") {
     switch (type) {
-      case "player":
       case "string":
         return "";
       case "integer":

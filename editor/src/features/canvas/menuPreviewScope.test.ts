@@ -1,6 +1,6 @@
 import type { ContextInput, DataSource, DataSourceId, Menu, Pack, SourceRef } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { buildPreviewScope, resolveSourceRef } from "./menuPreviewScope";
+import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPreviewScope";
 
 const stubPack = (overrides: Partial<Pack> = {}): Pack =>
   ({
@@ -67,8 +67,38 @@ describe("resolveSourceRef", () => {
 });
 
 describe("buildPreviewScope", () => {
-  it("builds an empty scope for a menu with no inputs", () => {
-    expect(buildPreviewScope(stubMenu(), stubPack())).toEqual({});
+  it("seeds the builtin sample player when no input named `player` exists", () => {
+    const scope = buildPreviewScope(stubMenu(), stubPack());
+    expect(Object.keys(scope)).toEqual(["player"]);
+    const p = scope.player as Record<string, unknown>;
+    expect(p.name).toBe("Steve");
+    expect(p.uuid).toBe("8667ba71-b85a-4004-af54-457a9734eed7");
+    expect(p.world).toBe("world");
+    // Bare {player} must stringify to the name, not [object Object].
+    expect(String(scope.player)).toBe("Steve");
+  });
+
+  it("does not seed `player` when an input with that name is declared (caller wins)", () => {
+    const menu = stubMenu([{ kind: "sourceRef", name: "player", ref: "pack:missing" as SourceRef }]);
+    const scope = buildPreviewScope(menu, stubPack());
+    expect(scope.player).toBeUndefined();
+  });
+
+  it("coerces a player-typed primitive input to a sample player object", () => {
+    const menu = stubMenu([{ kind: "primitive", name: "target", type: "player" }]);
+    const scope = buildPreviewScope(menu, stubPack());
+    const t = scope.target as Record<string, unknown>;
+    expect(t.name).toBe("Steve");
+    expect(t.uuid).toBe("8667ba71-b85a-4004-af54-457a9734eed7");
+    expect(t.world).toBe("world");
+    expect(String(scope.target)).toBe("Steve");
+  });
+
+  it("uses the declared default as the player name for player-typed inputs", () => {
+    const menu = stubMenu([{ kind: "primitive", name: "player", type: "player", default: "Alex" }]);
+    const scope = buildPreviewScope(menu, stubPack());
+    expect((scope.player as Record<string, unknown>).name).toBe("Alex");
+    expect(String(scope.player)).toBe("Alex");
   });
 
   it("includes primitive input default coerced to its type", () => {
@@ -92,11 +122,38 @@ describe("buildPreviewScope", () => {
     const menu = stubMenu([
       { kind: "sourceRef", name: "categories", ref: "pack:categories" as SourceRef },
     ]);
-    expect(buildPreviewScope(menu, pack)).toEqual({ categories: ["weapon", "armor"] });
+    expect(buildPreviewScope(menu, pack).categories).toEqual(["weapon", "armor"]);
   });
 
   it("falls back to undefined for unresolvable sourceRef inputs", () => {
     const menu = stubMenu([{ kind: "sourceRef", name: "x", ref: "pack:missing" as SourceRef }]);
-    expect(buildPreviewScope(menu, stubPack())).toEqual({ x: undefined });
+    const scope = buildPreviewScope(menu, stubPack());
+    expect("x" in scope).toBe(true);
+    expect(scope.x).toBeUndefined();
+  });
+});
+
+describe("renderPreview with the builtin player", () => {
+  it("renders player subfields", () => {
+    const pack = stubPack();
+    const menu = stubMenu();
+    const ctx = buildPreviewScope(menu, pack);
+    expect(renderPreview("{player.name} in {player.world}", ctx, pack, "en")).toBe(
+      "Steve in world",
+    );
+  });
+
+  it("renders bare {player} as the name, not [object Object]", () => {
+    const pack = stubPack();
+    const ctx = buildPreviewScope(stubMenu(), pack);
+    expect(renderPreview("{player}", ctx, pack, "en")).toBe("Steve");
+  });
+
+  it("renders subfields of a player-typed contextInput", () => {
+    const pack = stubPack();
+    const menu = stubMenu([{ kind: "primitive", name: "target", type: "player" }]);
+    const ctx = buildPreviewScope(menu, pack);
+    expect(renderPreview("{target.name}", ctx, pack, "en")).toBe("Steve");
+    expect(renderPreview("{target}", ctx, pack, "en")).toBe("Steve");
   });
 });

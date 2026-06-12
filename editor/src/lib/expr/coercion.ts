@@ -40,6 +40,12 @@ export function toStringValue(v: unknown): string {
   }
   if (typeof v === "boolean") return v ? "true" : "false";
   if (Array.isArray(v)) return v.map((x) => toStringValue(x)).join(",");
+  // Objects carrying a custom toString (e.g. the preview's sample player)
+  // stringify via it — mirrors the runtime where a Player resolves to its name.
+  if (typeof v === "object") {
+    const ts = (v as { toString?: unknown }).toString;
+    if (typeof ts === "function" && ts !== Object.prototype.toString) return String(v);
+  }
   try {
     return JSON.stringify(v);
   } catch {

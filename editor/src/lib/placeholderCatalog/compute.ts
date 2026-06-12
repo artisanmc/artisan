@@ -1,5 +1,10 @@
 import type { FieldType, Menu, Pack } from "@/domain/types";
-import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
+import {
+  buildPreviewScope,
+  SAMPLE_PLAYER_NAME,
+  SAMPLE_PLAYER_UUID,
+  SAMPLE_PLAYER_WORLD,
+} from "@/features/canvas/menuPreviewScope";
 import { renderSample, walkPath } from "./sample";
 import type {
   FieldLocation,
@@ -30,6 +35,12 @@ export function compute(pack: Pack, location: FieldLocation): PlaceholderEntry[]
       // Build the preview scope once; thread it through all helpers.
       const scope = buildPreviewScope(menu, pack);
       const out: PlaceholderEntry[] = [];
+      // Builtin implicit {player} = the viewing player, unless the menu
+      // declares a contextInput named `player` (caller arg wins, like the
+      // plugin runtime — the declared input's own entries show instead).
+      if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
+        out.push(...builtinPlayerEntries());
+      }
       collectMenuContextInputs(menu, pack, scope, out);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
@@ -46,8 +57,27 @@ export function compute(pack: Pack, location: FieldLocation): PlaceholderEntry[]
     }
     case "dialog":
     case "dialog-action":
-      return [];
+      // Dialogs have no contextInputs yet — the builtin {player} is still in
+      // scope at runtime, so the popup is never empty.
+      return builtinPlayerEntries();
   }
+}
+
+/** The implicit `{player}` entries available everywhere at runtime. */
+function builtinPlayerEntries(): PlaceholderEntry[] {
+  return [
+    { path: "player", type: "player", sample: SAMPLE_PLAYER_NAME, origin: "context" },
+    ...playerSubfieldEntries("player", SAMPLE_PLAYER_NAME),
+  ];
+}
+
+/** `.name` / `.uuid` / `.world` rows for a Player-valued placeholder. */
+function playerSubfieldEntries(base: string, nameSample: string | null): PlaceholderEntry[] {
+  return [
+    { path: `${base}.name`, type: "string", sample: nameSample, origin: "context" },
+    { path: `${base}.uuid`, type: "string", sample: SAMPLE_PLAYER_UUID, origin: "context" },
+    { path: `${base}.world`, type: "string", sample: SAMPLE_PLAYER_WORLD, origin: "context" },
+  ];
 }
 
 function collectMenuContextInputs(
@@ -65,6 +95,10 @@ function collectMenuContextInputs(
         sample: sampleFromScope(scope, input.name),
         origin: "context",
       });
+      if (type === "player") {
+        // Player-valued args expose name/uuid/world at runtime.
+        out.push(...playerSubfieldEntries(input.name, sampleFromScope(scope, `${input.name}.name`)));
+      }
       continue;
     }
     // sourceRef
