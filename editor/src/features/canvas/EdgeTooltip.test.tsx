@@ -1,0 +1,71 @@
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import type { I18nKey, Pack } from "@/domain/types";
+import { useEdgeHoverStore } from "@/state/edgeHoverStore";
+import { EdgeTooltip } from "./EdgeTooltip";
+
+const pack = {
+  id: "p1",
+  name: "p",
+  source: "user_created",
+  createdAt: "",
+  updatedAt: "",
+  defaultLang: "en",
+  i18nKeys: { ["k_sword" as I18nKey]: { en: "<red>Épée</red> du <bold>boss</bold>" } },
+  menus: [
+    {
+      id: "m1",
+      packId: "p1",
+      title: [],
+      rows: 3,
+      layers: [
+        {
+          id: "l1",
+          name: "default",
+          elements: [
+            {
+              id: "el1",
+              appearances: [
+                { material: "DIAMOND_SWORD", title: { key: "k_sword" as I18nKey } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    { id: "m2", packId: "p1", title: [], rows: 3, layers: [] },
+  ],
+  commands: [],
+  templates: [],
+  assets: [],
+  dataSources: [],
+  importedConnectors: [],
+  dialogs: [],
+  canvasLayout: {},
+} as unknown as Pack;
+
+describe("EdgeTooltip", () => {
+  beforeEach(() => {
+    useEdgeHoverStore.getState().set(
+      {
+        id: "m1->m2",
+        source: "m1",
+        target: "m2",
+        triggers: [
+          { kind: "element", elementId: "el1", material: "DIAMOND_SWORD", clickType: "left" },
+        ],
+      },
+      10,
+      10,
+    );
+  });
+
+  it("renders element titles as MiniMessage instead of raw markup", () => {
+    render(<EdgeTooltip pack={pack} />);
+    expect(screen.queryByText(/<red>/)).not.toBeInTheDocument();
+    const segment = screen.getByText("Épée");
+    expect(segment).toBeInTheDocument();
+    expect(segment.style.color).toBeTruthy();
+  });
+});
