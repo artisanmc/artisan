@@ -181,6 +181,30 @@ describe("merge — canvasLayout map", () => {
   });
 });
 
+describe("merge — canvasEdges map", () => {
+  it("auto-merges a new edge added on src only", () => {
+    const b = base();
+    const src = structuredClone(b);
+    src.canvasEdges = { "a->b": { from: { side: "top", t: 0.3 } } };
+    const dst = structuredClone(b);
+    const result = merge(b, src, dst);
+    expect(result.conflicts).toEqual([]);
+    expect((result.mergedState.canvasEdges as Record<string, unknown>)?.["a->b"]).toEqual({ from: { side: "top", t: 0.3 } });
+  });
+
+  it("returns conflict when both modify the same edge", () => {
+    const b = base();
+    b.canvasEdges = { "a->b": { from: { side: "top", t: 0.3 } } };
+    const src = structuredClone(b);
+    (src.canvasEdges as Record<string, unknown>)["a->b"] = { from: { side: "top", t: 0.5 } };
+    const dst = structuredClone(b);
+    (dst.canvasEdges as Record<string, unknown>)["a->b"] = { from: { side: "bottom", t: 0.1 } };
+    const result = merge(b, src, dst);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].conflictKey).toBe("canvasEdges:a->b");
+  });
+});
+
 describe("merge — scalar defaultLang", () => {
   it("auto-merges when only one side changes", () => {
     const b = base();
