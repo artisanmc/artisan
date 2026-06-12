@@ -29,10 +29,12 @@ object DialogRenderer {
     fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
         val langMap = dialog.langMapWithFallback(lang)
         val ctxWithLang = ctx.copy(lang = lang, langMap = langMap)
+        // i18n puis args ({player} & co) — même chaîne que MenuRenderer.resolveText.
+        val texts = DialogTextResolver.resolveAll(dialog, langMap, ctxWithLang)
 
-        val bodyComponents: List<DialogBody> = dialog.yaml.body.mapNotNull { b ->
+        val bodyComponents: List<DialogBody> = dialog.yaml.body.mapIndexedNotNull { i, b ->
             val body: DialogBody? = when (b.type) {
-                "text" -> b.text?.let { DialogBody.plainMessage(mm.deserialize(resolveI18n(it, langMap))) }
+                "text" -> texts.bodyTexts[i]?.let { DialogBody.plainMessage(mm.deserialize(it)) }
                 "item" -> b.material?.let { mat ->
                     runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()?.let { material ->
                         DialogBody.item(ItemStack(material, b.count.coerceAtLeast(1))).build()
@@ -43,8 +45,8 @@ object DialogRenderer {
             body
         }
 
-        val inputList: List<DialogInput> = dialog.yaml.inputs.mapNotNull { inputYaml ->
-            val label = mm.deserialize(resolveI18n(inputYaml.label, langMap))
+        val inputList: List<DialogInput> = dialog.yaml.inputs.mapIndexedNotNull { i, inputYaml ->
+            val label = mm.deserialize(texts.inputLabels[i])
             runCatching {
                 when (inputYaml.type) {
                     "text" -> DialogInput.text(inputYaml.id, label)
@@ -63,10 +65,10 @@ object DialogRenderer {
                         .build()
                     "single_option" -> {
                         val defaultVal = inputYaml.default
-                        val entries = inputYaml.options.map { opt ->
+                        val entries = inputYaml.options.mapIndexed { j, opt ->
                             SingleOptionDialogInput.OptionEntry.create(
                                 opt.value,
-                                mm.deserialize(resolveI18n(opt.label, langMap)),
+                                mm.deserialize(texts.inputOptionLabels[i][j]),
                                 opt.value == defaultVal
                             )
                         }
@@ -80,12 +82,12 @@ object DialogRenderer {
         val inputIds = dialog.yaml.inputs.map { it.id }
         val inputsByIdYaml = dialog.yaml.inputs.associateBy { it.id }
 
-        val buttons = dialog.yaml.buttons.map { btnYaml ->
+        val buttons = dialog.yaml.buttons.mapIndexed { i, btnYaml ->
             val requirements = btnYaml.requirements.map { ConditionParser.parse(it) }
             val actions      = btnYaml.actions.map { ActionParser.parse(it) }
             val fallback     = btnYaml.fallback.map { ActionParser.parse(it) }
             val handler      = ClickHandler(requirements, actions, fallback)
-            val btnLabel     = mm.deserialize(resolveI18n(btnYaml.label, langMap))
+            val btnLabel     = mm.deserialize(texts.buttonLabels[i])
 
             val callback = DialogActionCallback { view: DialogResponseView, _: Audience ->
                 val inputValues: Map<String, Any> = inputIds.associateWith { id ->
@@ -105,7 +107,7 @@ object DialogRenderer {
                 .build()
         }
 
-        val title = mm.deserialize(resolveI18n(dialog.yaml.title, langMap))
+        val title = mm.deserialize(texts.title)
         val base = DialogBase.builder(title)
             .canCloseWithEscape(dialog.yaml.canCloseWithEscape)
             .body(bodyComponents)
@@ -145,10 +147,4 @@ object DialogRenderer {
             "single_option" -> view.getText(id) ?: inputYaml.default
             else            -> ""
         }
-
-    private fun resolveI18n(raw: String, langMap: Map<String, String>): String {
-        if (!raw.startsWith("{i18n:")) return raw
-        val key = raw.removePrefix("{i18n:").removeSuffix("}")
-        return langMap[key] ?: raw
-    }
 }
