@@ -423,9 +423,16 @@ export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: nu
  * holds the bare value. `buildHeadValue` re-detects pasted canonical values so
  * users can paste a full `hdb:…`/`eyJ…` and the select snaps to match.
  */
-function HeadField({ head, onChange }: { head: string; onChange: (v: string) => void }) {
+export function HeadField({ head, onChange }: { head: string; onChange: (v: string) => void }) {
   const { t } = useTranslation();
-  const source = headSourceOf(head);
+  // Hold the user's chosen source locally so an empty head doesn't snap the
+  // select back to "none" mid-edit (which would unmount the value input and
+  // make the field unusable from a blank state). Seed from the head at mount
+  // (the use site remounts via a key per element/state, so this never leaks
+  // across cards). Derive from the stored value only when it's non-empty — that
+  // also keeps paste-auto-detection working.
+  const [localSource, setLocalSource] = useState<HeadSource>(() => headSourceOf(head));
+  const source = head ? headSourceOf(head) : localSource;
   const placeholder =
     source === "hdb"
       ? t("flow.headPlaceholderHdb")
@@ -441,8 +448,12 @@ function HeadField({ head, onChange }: { head: string; onChange: (v: string) => 
           value={source}
           onChange={(e) => {
             const next = e.target.value as HeadSource;
+            setLocalSource(next);
             if (next === "none") onChange("");
-            else onChange(buildHeadValue(next, headValueOf(head)));
+            else {
+              const rebuilt = buildHeadValue(next, headValueOf(head));
+              if (rebuilt !== head) onChange(rebuilt);
+            }
           }}
         >
           <option value="none">{t("flow.headSourceNone")}</option>
@@ -797,7 +808,11 @@ function StateCard({
 
           {/* Custom head — only meaningful when the material is a player_head */}
           {material.toLowerCase() === "player_head" ? (
-            <HeadField head={appearance.head ?? ""} onChange={(v) => update("head", v)} />
+            <HeadField
+              key={`${element.id}-${stateIndex}`}
+              head={appearance.head ?? ""}
+              onChange={(v) => update("head", v)}
+            />
           ) : null}
 
           {/* Title + count */}
