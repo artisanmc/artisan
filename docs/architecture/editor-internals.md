@@ -115,6 +115,23 @@ Il n'y a **pas** de mode focus plein-écran (retiré 2026-06-06 : c'était un do
 
 Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
 
+## Canvas edges (liens entre nœuds)
+
+Les liens menu/commande/dialog sont dérivés des actions (`deriveEdges.ts`, inchangé) puis
+routés par `edgeRouting.ts` (pur, testé) : côté de sortie/entrée choisi par position
+relative des nœuds (`autoSide`), endpoints d'un même côté triés vers leur nœud opposé et
+répartis uniformément (`t = i+1/n+1`), tracé bézier cubique à tangentes perpendiculaires
+au bord (longueur ∝ distance, clamp 24–160 px). Rendu : `Edges.tsx` en Konva `Arrow`
+(tête de flèche côté cible), hover → `EdgeTooltip`, clic → sélection + 2 poignées
+draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
+
+Overrides manuels : `pack.canvasEdges[edgeId] = { from?, to? }` avec
+`EdgeAnchor = { side, t∈[0,1] }` (ratio → survit au resize). Edge id = `"source->target"`.
+Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
+pruning sur `deleteFromPack`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
+Persistance : `editor_edges` dans `manifest.yaml` (miroir d'`editor_layout`),
+round-trip backend dans `packImport.ts`.
+
 ## UI shell — Workspace + Settings (depuis 2026-05-27)
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
