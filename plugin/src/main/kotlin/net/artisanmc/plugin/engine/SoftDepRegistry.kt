@@ -102,6 +102,22 @@ class ItemsAdderItemRenderer {
     }
 }
 
+class HeadDatabaseRenderer {
+    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
+        val apiClass = Class.forName("me.arcaniax.hdb.api.HeadDatabaseAPI")
+        val api = apiClass.getConstructor().newInstance()
+        (apiClass.getMethod("getItemHead", String::class.java).invoke(api, id) as ItemStack)
+            .also { it.amount = count.coerceAtLeast(1) }
+    }.getOrNull()
+
+    companion object {
+        fun tryInit(): HeadDatabaseRenderer? = runCatching {
+            Class.forName("me.arcaniax.hdb.api.HeadDatabaseAPI")
+            HeadDatabaseRenderer()
+        }.getOrNull()
+    }
+}
+
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 class SoftDepRegistry(
@@ -111,6 +127,7 @@ class SoftDepRegistry(
     val nexoItems: NexoItemRenderer?,
     val oraxenItems: OraxenItemRenderer?,
     val itemsAdderItems: ItemsAdderItemRenderer?,
+    val hdbHeads: HeadDatabaseRenderer? = null,
 ) {
     constructor(plugin: JavaPlugin) : this(
         vault           = VaultProvider.tryInit(plugin),
@@ -119,6 +136,7 @@ class SoftDepRegistry(
         nexoItems       = NexoItemRenderer.tryInit(),
         oraxenItems     = OraxenItemRenderer.tryInit(),
         itemsAdderItems = ItemsAdderItemRenderer.tryInit(),
+        hdbHeads        = HeadDatabaseRenderer.tryInit(),
     )
 
     fun buildCustomStack(material: String, count: Int): ItemStack? {
@@ -138,6 +156,7 @@ class SoftDepRegistry(
         val EMPTY = SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null,
+            hdbHeads = null,
         )
     }
 }
