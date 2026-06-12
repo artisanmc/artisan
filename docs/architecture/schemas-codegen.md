@@ -62,6 +62,16 @@ Modifier un `docs/schema/*/v1/schema.json` ⇒ dans le même mouvement :
 Le schéma les décrit (l'éditeur peut produire/valider certains), mais le runtime plugin les
 ignore tant que les projets dédiés ne sont pas livrés.
 
+## Champs additifs `menu/v1` — alignement manuel
+
+Champs ajoutés après le gel P1.0 du schéma, alignés à la main sur les trois couches :
+
+| Champ | Type schema | `docs/schema/menu/v1/types.ts` | `editor/src/domain/types.ts` | Plugin (`AppearanceYaml`) |
+|---|---|---|---|---|
+| `Appearance.head` | `string` (optionnel) | `head?: string` | `head?: string` | `val head: String?` |
+
+Les trois préfixes reconnus par `HeadRef` (plugin) : `hdb:<id>`, `basehead:<base64>`, `playerhead:<name>` (placeholder-aware, ex. `%player%`). Une valeur brute `eyJ…` sans préfixe est tolérée comme `basehead`. Le champ n'est honoré que quand `material` vaut `PLAYER_HEAD`.
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |
