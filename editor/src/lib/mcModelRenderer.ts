@@ -287,7 +287,15 @@ const CHEST_BOXES: EntityBox[] = [
   { origin: [-7, 2.5, -7],  size: [14, 5, 14],  texOffset: [0, 0] },  // lid
   { origin: [-1, 0.5, 7],   size: [2, 4, 1],    texOffset: [0, 0] },  // lock hasp
 ];
-const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
+// Skull items: one 8×8×8 entity-layout cube (face region at texOffset 0,0 of the
+// mob/skin texture). GUI transform from item/template_skull: rotation [30,45,0].
+const HEAD_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [1.1, 1.1, 1.1] as [number,number,number] };
+const headDef = (texturePath: string, textureW: number, textureH: number): EntityRenderDef => ({
+  textureW, textureH, texturePath,
+  boxes: [{ origin: [-4, -4, -4], size: [8, 8, 8], texOffset: [0, 0] }],
+  display: HEAD_DISPLAY,
+});
+export const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   shield: {
     textureW: 64, textureH: 64, texturePath: "entity/shield_base",
     boxes: [
@@ -307,6 +315,20 @@ const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
   waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
   waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
+  player_head:           headDef("entity/player/wide/steve", 64, 64),
+  zombie_head:           headDef("entity/zombie/zombie", 64, 64),
+  creeper_head:          headDef("entity/creeper/creeper", 64, 32),
+  skeleton_skull:        headDef("entity/skeleton/skeleton", 64, 32),
+  wither_skeleton_skull: headDef("entity/skeleton/wither_skeleton", 64, 32),
+  piglin_head:           headDef("entity/piglin/piglin", 64, 64),
+  // Dragon head: approximated by the dragon model's 16³ head cube (256×256 sheet).
+  // texOffset [128,30] lands the front face on the dragon's eyes + snout region,
+  // giving a recognizable two-eyed black face (the dragon texture is mostly black).
+  dragon_head: {
+    textureW: 256, textureH: 256, texturePath: "entity/enderdragon/dragon",
+    boxes: [{ origin: [-8, -8, -8], size: [16, 16, 16], texOffset: [128, 30] }],
+    display: { ...HEAD_DISPLAY, scale: [0.55, 0.55, 0.55] as [number,number,number] },
+  },
 };
 
 // Entity cube UV face pixel rects → normalized Three.js UVs (two-triangle quad).

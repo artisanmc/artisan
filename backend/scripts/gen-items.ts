@@ -122,7 +122,9 @@ function extractSpecialEntityType(modelDef: unknown): string | null {
 }
 
 /** Special entity types rendered with Three.js hardcoded geometry. */
-const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest"]);
+// "head" (1.21.4) and "player_head" (1.21.11+) both denote skull/head items routed
+// through the entity-geometry renderer (ENTITY_RENDER_MAP keys by item id).
+const RENDERABLE_SPECIAL_TYPES = new Set(["shield", "chest", "head", "player_head"]);
 /** Special entity types rendered as a 2D crop of the entity texture. */
 const ENTITY_FLAT_SPECIAL_TYPES = new Set(["shulker_box"]);
 
