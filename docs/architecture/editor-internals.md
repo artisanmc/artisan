@@ -119,14 +119,17 @@ Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 59
 
 Les liens menu/commande/dialog sont dérivés des actions (`deriveEdges.ts`, inchangé) puis
 routés par `edgeRouting.ts` (pur, testé) : côté de sortie/entrée choisi par position
-relative des nœuds (`autoSide`), endpoints d'un même côté triés vers leur nœud opposé et
-répartis uniformément (`t = i+1/n+1`), tracé bézier cubique à tangentes perpendiculaires
+relative des nœuds (`autoSide`), endpoints d'un même côté regroupés vers leur position
+naturelle (projection du nœud opposé) avec séparation minimale `ANCHOR_SEP_PX` (16 px,
+marge coins 10 px), tracé bézier cubique à tangentes perpendiculaires
 au bord (longueur ∝ distance, clamp 24–160 px). Rendu : `Edges.tsx` en Konva `Arrow`
 (tête de flèche côté cible), hover → `EdgeTooltip`, clic → sélection + 2 poignées
 draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
 
 Overrides manuels : `pack.canvasEdges[edgeId] = { from?, to? }` avec
 `EdgeAnchor = { side, t∈[0,1] }` (ratio → survit au resize). Edge id = `"source->target"`.
+Les overrides sont des pins exacts : jamais écartés par la séparation auto — deux ancres
+manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal.
 Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
 pruning sur `deleteFromPack`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
 Persistance : `editor_edges` dans `manifest.yaml` (miroir d'`editor_layout`),

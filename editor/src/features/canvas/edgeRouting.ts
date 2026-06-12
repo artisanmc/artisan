@@ -92,6 +92,11 @@ const CTRL_MIN = 24;
 const CTRL_MAX = 160;
 const CTRL_RATIO = 0.4;
 
+/** Minimum gap between two anchors on the same side (canvas px). */
+const ANCHOR_SEP_PX = 16;
+/** Keep auto anchors off the box corners (canvas px). */
+const ANCHOR_MARGIN_PX = 10;
+
 export function routeEdges(args: {
   edges: Edge[];
   boxes: Record<string, Box>;
@@ -125,8 +130,10 @@ export function routeEdges(args: {
     return { fromEp, toEp };
   });
 
-  // Group endpoints per (node, side), sort, distribute t slots. Overridden
-  // endpoints keep their exact t but still occupy a position in the ordering.
+  // Group endpoints per (node, side). Each auto endpoint aims at its natural
+  // position (the opposite node's projection); overrides are exact pins.
+  // Autos then yield a minimum gap to their neighbours — pins never move, so
+  // two manual anchors may superpose.
   const groups = new Map<string, Endpoint[]>();
   for (const pair of pairs) {
     if (!pair) continue;
@@ -139,15 +146,39 @@ export function routeEdges(args: {
   }
   const tOf = new Map<Endpoint, number>();
   for (const group of groups.values()) {
+    const first = group[0]!;
+    const groupBox = boxes[first.nodeId]!;
+    const sideLen =
+      first.side === "top" || first.side === "bottom" ? groupBox.width : groupBox.height;
+    const margin = Math.min(ANCHOR_MARGIN_PX / sideLen, 0.45);
+    const sep = Math.min(ANCHOR_SEP_PX / sideLen, 1 / (group.length + 1));
+    const desired = (ep: Endpoint) =>
+      ep.fixedT ?? Math.min(1 - margin, Math.max(margin, ep.sortKey));
     group.sort(
       (a, b) =>
-        (a.fixedT ?? a.sortKey) - (b.fixedT ?? b.sortKey) ||
+        desired(a) - desired(b) ||
         a.edgeIndex - b.edgeIndex ||
         (a.end === "from" ? -1 : 1) - (b.end === "from" ? -1 : 1),
     );
-    group.forEach((ep, i) => {
-      tOf.set(ep, ep.fixedT ?? (i + 1) / (group.length + 1));
-    });
+    // Forward pass: push autos off their predecessor.
+    let prev = Number.NEGATIVE_INFINITY;
+    for (const ep of group) {
+      const t = ep.fixedT ?? Math.max(desired(ep), prev + sep);
+      tOf.set(ep, t);
+      prev = t;
+    }
+    // Backward pass: pull autos back inside [margin, next - sep]. When a group
+    // is overcrowded the margin wins over the gap — overlap beats out-of-range.
+    let next = Number.POSITIVE_INFINITY;
+    for (let i = group.length - 1; i >= 0; i--) {
+      const ep = group[i]!;
+      let t = tOf.get(ep)!;
+      if (ep.fixedT === undefined) {
+        t = Math.max(Math.min(t, next - sep, 1 - margin), margin);
+        tOf.set(ep, t);
+      }
+      next = t;
+    }
   }
 
   const out: RoutedEdge[] = [];
