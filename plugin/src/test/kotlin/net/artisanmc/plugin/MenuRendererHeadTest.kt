@@ -73,6 +73,22 @@ class MenuRendererHeadTest {
         assertEquals("Steve", meta.owningPlayer?.name)
     }
 
+    @Test fun `playerhead resolves PAPI placeholders like title and lore do`() {
+        val p = player()
+        val menu = BundleCompiler.compile(headMenu("PLAYER_HEAD", "playerhead:%player_name%"), emptyMap())
+        val fakePapi = object : PapiProvider() {
+            override fun resolve(player: org.bukkit.entity.Player, text: String): String =
+                text.replace("%player_name%", player.name)
+        }
+        val deps = SoftDepRegistry(
+            vault = null, papi = fakePapi, worldGuard = null,
+            nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
+        )
+        MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore()))
+        val meta = p.openInventory.topInventory.getItem(0)?.itemMeta as SkullMeta
+        assertEquals(p.name, meta.owningPlayer?.name)
+    }
+
     @Test fun `hdb without HeadDatabase falls back to a plain player head`() {
         val item = render("PLAYER_HEAD", "hdb:128276")
         assertEquals(Material.PLAYER_HEAD, item?.type)

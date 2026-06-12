@@ -20,8 +20,8 @@ class VaultProvider(private val economy: Economy) {
     }
 }
 
-class PapiProvider {
-    fun resolve(player: Player, text: String): String =
+open class PapiProvider {
+    open fun resolve(player: Player, text: String): String =
         me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, text)
 
     companion object {
