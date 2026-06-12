@@ -1,5 +1,6 @@
 import { Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
+import { headPreviewUrl } from "./headTexture";
 import { useTextureUrl } from "./textureStore";
 import { TEX_SCALE, TEX_SLOT_INNER } from "./menuLayout";
 
@@ -8,6 +9,7 @@ export interface SlotItemProps {
   innerX: number;
   innerY: number;
   count?: number;
+  head?: string;
 }
 
 /**
@@ -19,8 +21,9 @@ export interface SlotItemProps {
  * Stack count (when > 1) is drawn bottom-right with a dark drop shadow,
  * matching the vanilla MC tooltip look.
  */
-export function SlotItem({ material, innerX, innerY, count }: SlotItemProps) {
-  const url = useTextureUrl(material);
+export function SlotItem({ material, innerX, innerY, count, head }: SlotItemProps) {
+  const materialUrl = useTextureUrl(material);
+  const url = headPreviewUrl(head) ?? materialUrl;
   const [image] = useImage(url ?? "");
   const showCount = (count ?? 0) > 1;
   const countText = String(count ?? 0);
