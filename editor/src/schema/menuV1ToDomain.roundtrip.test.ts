@@ -137,7 +137,8 @@ function buildPack(): Pack {
       },
     },
     {
-      material: "STONE",
+      material: "PLAYER_HEAD",
+      head: "playerhead:%player%",
       title: lt(pack, "Fallback"),
     },
   ];

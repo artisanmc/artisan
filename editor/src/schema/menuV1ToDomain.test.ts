@@ -426,6 +426,12 @@ describe("menuV1ToDomain — title layers + menu assembly", () => {
     expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.lore).toBeUndefined();
   });
 
+  it("imports appearance.head", () => {
+    const src = menuWithAppearance({ material: "PLAYER_HEAD", head: "hdb:128276" });
+    const r = menuV1ToDomain(src, opts);
+    expect(r.menu.layers[0]!.elements[0]!.appearances[0]!.head).toBe("hdb:128276");
+  });
+
   it("carries permission and element iterates/tags through", () => {
     const src = {
       schema: "menu/v1",
