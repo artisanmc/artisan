@@ -160,6 +160,7 @@ function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknow
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
+  if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
   if (app.title) out.title = i18nRef(app.title.key);
   if (app.lore) out.lore = [i18nRef(app.lore.key)];
@@ -650,6 +651,15 @@ export function transform(pack: Pack): Record<string, string> {
   };
   if (Object.keys(editorLayout).length > 0) {
     manifest.editor_layout = editorLayout;
+  }
+  const editorEdges = Object.fromEntries(
+    Object.entries(pack.canvasEdges ?? {}).filter(([edgeId, v]) => {
+      const [src, tgt] = edgeId.split("->") as [string, string];
+      return liveIds.has(src) && liveIds.has(tgt) && (v.from || v.to);
+    }),
+  );
+  if (Object.keys(editorEdges).length > 0) {
+    manifest.editor_edges = editorEdges;
   }
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 

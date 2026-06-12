@@ -114,6 +114,51 @@ describe("transform", () => {
     expect(manifestYaml).toMatch(/y:\s*456/);
   });
 
+  it("emits editor_edges in manifest with live-edge overrides", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("home"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      canvasEdges: {
+        "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
+      },
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_edges).toEqual({
+      "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
+    });
+  });
+
+  it("omits editor_edges when canvasEdges is empty or absent", () => {
+    const pack = makePack({
+      menus: [{ id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] }],
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_edges).toBeUndefined();
+  });
+
+  it("filters editor_edges whose source or target is no longer in the pack", () => {
+    const pack = makePack({
+      menus: [
+        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("home"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+      ],
+      canvasEdges: {
+        "home->shop": { from: { side: "right", t: 0.5 } },
+        "home->ghost": { from: { side: "right", t: 0.5 } },
+        "ghost->shop": { to: { side: "left", t: 0.5 } },
+      },
+    });
+    const files = transform(pack);
+    const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
+    expect(manifest.editor_edges).toEqual({
+      "home->shop": { from: { side: "right", t: 0.5 } },
+    });
+  });
+
   it("emits a menu yaml with title array containing the text layer", () => {
     const pack = makePack({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
@@ -197,6 +242,42 @@ describe("transform", () => {
     expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
     expect(app.click.left.steps[0].action.type).toBe("send_message");
     expect(app.click.left.steps[0].action.text).toBe("{i18n:menus.shop.elements.btn.default.click.left.message}");
+  });
+
+  it("serializes appearance.head", () => {
+    const pack = makePack({
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "13",
+                  appearances: [
+                    {
+                      material: "PLAYER_HEAD",
+                      head: "basehead:eyJ0ZXh0dXJlcyI6e319",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/packs/p_test/menus/shop.yaml"]!);
+    const app = menu.layers[0].elements[0].appearances[0];
+    expect(app.material).toBe("PLAYER_HEAD");
+    expect(app.head).toBe("basehead:eyJ0ZXh0dXJlcyI6e319");
   });
 
   it("serializes show_title action with snake_case fields including all timings", () => {
