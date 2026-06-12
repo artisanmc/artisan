@@ -143,7 +143,7 @@ object MenuRenderer {
                     ?.let { ItemStack(it, count) }
         } ?: ItemStack(Material.STONE, count)
         if (item.type == Material.PLAYER_HEAD && app.head != null) {
-            item = HeadApplier.apply(item, ArgResolver.resolve(app.head, ctx.args), deps)
+            item = HeadApplier.apply(item, resolveText(app.head, langMap, ctx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) meta.displayName(parse(resolveText(app.title, langMap, ctx, papi)))
