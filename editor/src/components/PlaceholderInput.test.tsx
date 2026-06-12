@@ -174,3 +174,28 @@ describe("PlaceholderInput styling", () => {
     expect(el?.classList.contains("h-8")).toBe(true);
   });
 });
+
+describe("PlaceholderInput popup position", () => {
+  it("anchors the popup to the field's left edge, not the caret", () => {
+    render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
+    const input = screen.getByRole("combobox") as HTMLInputElement;
+    input.getBoundingClientRect = () =>
+      ({ left: 120, right: 420, top: 30, bottom: 66, width: 300, height: 36 }) as DOMRect;
+    fireEvent.change(input, {
+      target: { value: "Une très longue valeur de titre déjà saisie {" },
+    });
+    const popup = screen.getByRole("listbox");
+    expect(popup.style.left).toBe("120px");
+    expect(popup.style.top).toBe("68px");
+  });
+
+  it("clamps the popup inside the viewport on narrow screens", () => {
+    render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
+    const input = screen.getByRole("combobox") as HTMLInputElement;
+    input.getBoundingClientRect = () =>
+      ({ left: window.innerWidth - 50, right: window.innerWidth, top: 30, bottom: 66, width: 50, height: 36 }) as DOMRect;
+    fireEvent.change(input, { target: { value: "{" } });
+    const popup = screen.getByRole("listbox");
+    expect(Number.parseFloat(popup.style.left) + 268).toBeLessThanOrEqual(window.innerWidth);
+  });
+});
