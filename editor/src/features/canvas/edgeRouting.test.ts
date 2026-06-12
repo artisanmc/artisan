@@ -104,4 +104,18 @@ describe("routeEdges", () => {
   it("skips edges whose nodes have no box", () => {
     expect(routeEdges({ edges: [edge("a", "ghost")], boxes })).toHaveLength(0);
   });
+
+  it("mixed override+auto on the same side: override keeps t, autos take ordered slots", () => {
+    const boxes2: Record<string, Box> = { a: box(0, 0), b: box(300, 0), c: box(300, 100) };
+    const routed = routeEdges({
+      edges: [edge("a", "b"), edge("a", "c")],
+      boxes: boxes2,
+      overrides: { "a->b": { from: { side: "right", t: 0.9 } } },
+    });
+    // Group a|right: ep_ab sortKey=0.9 (fixedT), ep_ac sortKey=1.75 (auto, c center y=140).
+    // Sorted ascending: ep_ab (0.9) first, ep_ac (1.75) second.
+    // ep_ab: fixedT → t=0.9 → y=72. ep_ac: auto index 1 of 2 → t=2/3 → y=160/3≈53.33.
+    expect(routed[1]!.from.y).toBeCloseTo(160 / 3, 5);
+    expect(routed[0]!.from.y).toBe(72);
+  });
 });
