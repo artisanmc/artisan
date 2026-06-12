@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { getCaretCoordinates } from "@/lib/caretCoordinates";
 import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 
@@ -93,18 +92,13 @@ export function PlaceholderInput({
           setAnchorPos(anchor);
           setQuery(tail);
           setHighlight(0);
-          requestAnimationFrame(() => {
-            const el = ref.current;
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            const c = getCaretCoordinates(el, el.selectionStart ?? next.length);
-            // c.left / c.top are relative to the element's top-left content
-            // edge (the textarea/input origin). Add the viewport rect to get
-            // fixed coordinates that escape any overflow:hidden ancestor.
-            setPopupPos({
-              left: rect.left + c.left,
-              top: rect.top + c.top + c.height + 2,
-            });
+          // Anchor at the field's left edge, below it — a caret-anchored popup
+          // walks off the viewport when `{` is typed near the end of a long
+          // value. Clamp so the popup (min-width 260px) stays on screen.
+          const rect = e.target.getBoundingClientRect();
+          setPopupPos({
+            left: Math.max(8, Math.min(rect.left, window.innerWidth - 268)),
+            top: rect.bottom + 2,
           });
         }
       }
