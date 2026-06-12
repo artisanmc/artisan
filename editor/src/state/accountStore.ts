@@ -22,6 +22,7 @@ import type {
   DialogBody,
   DialogId,
   DialogInput,
+  EdgeAnchor,
   Element,
   ElementId,
   FieldType,
@@ -147,6 +148,15 @@ interface AccountState {
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
+  /** Override one endpoint of a canvas edge ("source->target" id). */
+  setEdgeAnchor: (input: {
+    packId: PackId;
+    edgeId: string;
+    end: "from" | "to";
+    anchor: EdgeAnchor;
+  }) => void;
+  /** Remove an endpoint override; drops the entry when both ends are auto again. */
+  clearEdgeAnchor: (input: { packId: PackId; edgeId: string; end: "from" | "to" }) => void;
   deleteFromPack: (input: { packId: PackId; nodeIds: string[] }) => void;
   setPackField: (input: { packId: PackId; field: "name" | "description"; value: string }) => void;
   setMenuField: (input: {
@@ -1053,6 +1063,7 @@ export const useAccountStore = create<AccountState>()(
               layout[newId as string] = layout[oldId as string]!;
               delete layout[oldId as string];
             }
+            rewriteCanvasEdgeIds(p, oldId as string, newId as string);
             p.updatedAt = new Date().toISOString();
           });
           set({ account: next });
@@ -1434,6 +1445,25 @@ export const useAccountStore = create<AccountState>()(
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
             }),
           ),
+        setEdgeAnchor: ({ packId: pId, edgeId, end, anchor }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              pack.canvasEdges ??= {};
+              pack.canvasEdges[edgeId] = { ...pack.canvasEdges[edgeId], [end]: anchor };
+            }),
+          ),
+        clearEdgeAnchor: ({ packId: pId, edgeId, end }) =>
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              const entry = pack?.canvasEdges?.[edgeId];
+              if (!pack || !entry) return;
+              delete entry[end];
+              if (!entry.from && !entry.to) delete pack.canvasEdges![edgeId];
+            }),
+          ),
         setPackField: ({ packId: pId, field, value }) =>
           set(
             produce((draft: AccountState) => {
@@ -1804,6 +1834,7 @@ export const useAccountStore = create<AccountState>()(
                 layout[newId] = layout[oldId]!;
                 delete layout[oldId];
               }
+              rewriteCanvasEdgeIds(pack, oldId as string, newId as string);
               rekeyMenuLTexts(pack, menu);
               pack.updatedAt = new Date().toISOString();
             }),
@@ -1827,6 +1858,7 @@ export const useAccountStore = create<AccountState>()(
                 layout[newId] = layout[oldId]!;
                 delete layout[oldId];
               }
+              rewriteCanvasEdgeIds(pack, oldId as string, newId as string);
               rekeyCommandLTexts(pack, cmd);
               pack.updatedAt = new Date().toISOString();
             }),
@@ -3031,6 +3063,12 @@ export const useAccountStore = create<AccountState>()(
             for (const id of ids) {
               delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[id];
             }
+            if (pack.canvasEdges) {
+              for (const key of Object.keys(pack.canvasEdges)) {
+                const [src, tgt] = key.split("->") as [string, string];
+                if (ids.has(src) || ids.has(tgt)) delete pack.canvasEdges[key];
+              }
+            }
           });
           set({ account: next });
         },
@@ -3046,6 +3084,18 @@ export const useAccountStore = create<AccountState>()(
     },
   ),
 );
+
+/** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
+function rewriteCanvasEdgeIds(pack: Pack, oldId: string, newId: string) {
+  if (!pack.canvasEdges) return;
+  for (const key of Object.keys(pack.canvasEdges)) {
+    const [src, tgt] = key.split("->") as [string, string];
+    if (src !== oldId && tgt !== oldId) continue;
+    const newKey = `${src === oldId ? newId : src}->${tgt === oldId ? newId : tgt}`;
+    pack.canvasEdges[newKey] = pack.canvasEdges[key]!;
+    delete pack.canvasEdges[key];
+  }
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // v1 → v2 migration. v1 had ClickHandler.{requirements?, actions, fallback?}

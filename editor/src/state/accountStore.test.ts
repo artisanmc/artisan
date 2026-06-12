@@ -57,6 +57,56 @@ describe("accountStore", () => {
     expect((pack.canvasLayout as Record<string, unknown>)["d_bye"]).toBeUndefined();
   });
 
+  it("setEdgeAnchor stores an endpoint override; clearEdgeAnchor removes it and the empty entry", () => {
+    useAccountStore.getState().setEdgeAnchor({
+      packId: PERSONAL,
+      edgeId: "m_shop_main->m_profile",
+      end: "from",
+      anchor: { side: "top", t: 0.3 },
+    });
+    let pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.canvasEdges!["m_shop_main->m_profile"]).toEqual({ from: { side: "top", t: 0.3 } });
+
+    useAccountStore.getState().clearEdgeAnchor({
+      packId: PERSONAL,
+      edgeId: "m_shop_main->m_profile",
+      end: "from",
+    });
+    pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
+  });
+
+  it("deleteFromPack prunes canvasEdges entries touching the deleted node", () => {
+    useAccountStore.getState().setEdgeAnchor({
+      packId: PERSONAL,
+      edgeId: "m_shop_main->m_about",
+      end: "to",
+      anchor: { side: "left", t: 0.5 },
+    });
+    useAccountStore.getState().deleteFromPack({ packId: PERSONAL, nodeIds: ["m_about"] });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.canvasEdges?.["m_shop_main->m_about"]).toBeUndefined();
+  });
+
+  it("setMenuId rewrites canvasEdges keys", () => {
+    useAccountStore.getState().setEdgeAnchor({
+      packId: PERSONAL,
+      edgeId: "m_shop_main->m_profile",
+      end: "from",
+      anchor: { side: "bottom", t: 0.8 },
+    });
+    useAccountStore.getState().setMenuId({
+      packId: PERSONAL,
+      oldId: menuId("m_profile"),
+      newId: menuId("m_profile2"),
+    });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
+    expect(pack.canvasEdges?.["m_shop_main->m_profile2"]).toEqual({
+      from: { side: "bottom", t: 0.8 },
+    });
+  });
+
   it("addDialogButton appends a button with LText", () => {
     useAccountStore.getState().createDialog({ packId: PERSONAL, id: "d_multi" });
     useAccountStore.getState().addDialogButton({ packId: PERSONAL, dialogId: dialogId("d_multi") });
