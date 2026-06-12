@@ -70,13 +70,17 @@ describe("routeEdges", () => {
     expect(r!.points[5]).toBe(40);
   });
 
-  it("gives A->B and B->A distinct anchors (no overlap)", () => {
+  it("separates A->B and B->A by the minimum gap, not a full-side spread", () => {
     const [ab, ba] = routeEdges({ edges: [edge("a", "b"), edge("b", "a")], boxes });
-    expect(ab!.from.y).not.toBe(ba!.to.y);
-    expect(ab!.to.y).not.toBe(ba!.from.y);
+    // Both endpoints aim at the same natural t=0.5; the second is nudged by
+    // ANCHOR_SEP_PX (16px) instead of jumping to a 1/3-2/3 spread.
+    expect(ab!.from.y).toBeCloseTo(40, 5);
+    expect(ba!.to.y).toBeCloseTo(56, 5);
+    expect(ab!.to.y).toBeCloseTo(40, 5);
+    expect(ba!.from.y).toBeCloseTo(56, 5);
   });
 
-  it("distributes n endpoints on the same side evenly, sorted toward targets", () => {
+  it("clusters anchors toward their targets with a minimum separation", () => {
     const boxes3: Record<string, Box> = {
       a: box(0, 0),
       b: box(300, -200),
@@ -87,8 +91,9 @@ describe("routeEdges", () => {
       edges: [edge("a", "b"), edge("a", "c"), edge("a", "d")],
       boxes: boxes3,
     });
-    // 3 endpoints on a's right side → t = 1/4, 2/4, 3/4 over height 80
-    expect(routed.map((r) => r.from.y)).toEqual([20, 40, 60]);
+    // Natural projections: b → -2 (clamped to margin 10px/80 = 0.125),
+    // c → 0.5, d → 3 (clamped to 0.875). Far enough apart → no nudging.
+    expect(routed.map((r) => r.from.y)).toEqual([10, 40, 70]);
   });
 
   it("respects an override and keeps the other end auto", () => {
@@ -105,17 +110,30 @@ describe("routeEdges", () => {
     expect(routeEdges({ edges: [edge("a", "ghost")], boxes })).toHaveLength(0);
   });
 
-  it("mixed override+auto on the same side: override keeps t, autos take ordered slots", () => {
+  it("mixed override+auto on the same side: override pins exactly, auto yields the min gap", () => {
     const boxes2: Record<string, Box> = { a: box(0, 0), b: box(300, 0), c: box(300, 100) };
     const routed = routeEdges({
       edges: [edge("a", "b"), edge("a", "c")],
       boxes: boxes2,
       overrides: { "a->b": { from: { side: "right", t: 0.9 } } },
     });
-    // Group a|right: ep_ab sortKey=0.9 (fixedT), ep_ac sortKey=1.75 (auto, c center y=140).
-    // Sorted ascending: ep_ab (0.9) first, ep_ac (1.75) second.
-    // ep_ab: fixedT → t=0.9 → y=72. ep_ac: auto index 1 of 2 → t=2/3 → y=160/3≈53.33.
-    expect(routed[1]!.from.y).toBeCloseTo(160 / 3, 5);
+    // a->b is pinned at t=0.9 → y=72. a->c aims at clamp(1.75) = 0.875 but the
+    // pin sits above it: backward pass pulls the auto to 0.9 - sep(0.2) = 0.7 → y=56.
     expect(routed[0]!.from.y).toBe(72);
+    expect(routed[1]!.from.y).toBeCloseTo(56, 5);
+  });
+
+  it("manual overrides may superpose exactly (pins are never separated)", () => {
+    const boxes2: Record<string, Box> = { a: box(0, 0), b: box(300, 0), c: box(300, 100) };
+    const routed = routeEdges({
+      edges: [edge("a", "b"), edge("a", "c")],
+      boxes: boxes2,
+      overrides: {
+        "a->b": { from: { side: "right", t: 0.5 } },
+        "a->c": { from: { side: "right", t: 0.5 } },
+      },
+    });
+    expect(routed[0]!.from).toMatchObject({ x: 100, y: 40 });
+    expect(routed[1]!.from).toMatchObject({ x: 100, y: 40 });
   });
 });
