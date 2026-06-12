@@ -149,3 +149,28 @@ describe("PlaceholderInput", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 });
+
+describe("PlaceholderInput styling", () => {
+  it("applies the design-system input class", () => {
+    const { container } = render(
+      <PlaceholderInput value="" onChange={() => {}} entries={entries} />,
+    );
+    expect(container.querySelector("input")?.classList.contains("input")).toBe(true);
+  });
+
+  it("applies the design-system textarea class when multiline", () => {
+    const { container } = render(
+      <PlaceholderInput multiline value="" onChange={() => {}} entries={entries} />,
+    );
+    expect(container.querySelector("textarea")?.classList.contains("textarea")).toBe(true);
+  });
+
+  it("merges a caller className", () => {
+    const { container } = render(
+      <PlaceholderInput value="" onChange={() => {}} entries={entries} className="h-8" />,
+    );
+    const el = container.querySelector("input");
+    expect(el?.classList.contains("input")).toBe(true);
+    expect(el?.classList.contains("h-8")).toBe(true);
+  });
+});

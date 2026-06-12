@@ -1,6 +1,7 @@
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Pack } from "@/domain/types";
 import { getText } from "@/lib/i18n";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
@@ -49,7 +50,8 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
       className="card pointer-events-none fixed z-[9999] max-w-[240px] px-2.5 py-2"
     >
       <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
-        {nodeName(edge.source)} → {nodeName(edge.target)}
+        <MiniMessageInline source={nodeName(edge.source)} /> →{" "}
+        <MiniMessageInline source={nodeName(edge.target)} />
       </div>
       <div className="flex flex-col gap-1">
         {edge.triggers.map((trigger, i) =>
@@ -57,9 +59,10 @@ export function EdgeTooltip({ pack }: EdgeTooltipProps) {
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
             <div key={i} className="flex items-center gap-1.5">
               <ElementIcon material={trigger.material} />
-              <span className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--text)]">
-                {elementLabel(trigger.elementId)}
-              </span>
+              <MiniMessageInline
+                source={elementLabel(trigger.elementId)}
+                className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--text)]"
+              />
               <span className="badge badge-terra shrink-0 font-mono">{trigger.clickType}</span>
             </div>
           ) : trigger.kind === "dialog_button" ? (
