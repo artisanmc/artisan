@@ -164,7 +164,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   const elementsByPosition = new Map<
     number,
-    { material?: string; title?: string; count?: number; elementId: string; multiPos: boolean }
+    { material?: string; head?: string; title?: string; count?: number; elementId: string; multiPos: boolean }
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -206,6 +206,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             material: appearance.material
               ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
               : undefined,
+            head: appearance.head,
             title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
@@ -222,6 +223,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             material: appearance.material
               ? pack ? renderPreview(appearance.material, itemCtx, pack, activeLang) : appearance.material
               : undefined,
+            head: appearance.head,
             title: titleRaw && pack ? renderPreview(titleRaw, itemCtx, pack, activeLang) : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
@@ -240,6 +242,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
         material: appearance.material
           ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
           : undefined,
+        head: appearance.head,
         title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
         count: appearance.count,
         elementId: el.id,
@@ -470,6 +473,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
             {filled && !isSelectionSibling ? (
               <SlotItem
                 material={el?.material ?? ""}
+                head={el?.head}
                 innerX={innerX}
                 innerY={innerY}
                 count={el?.count}
@@ -547,6 +551,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               <Group x={x} y={y} listening={false} opacity={0.9}>
                 <SlotItem
                   material={info.material!}
+                  head={info.head}
                   innerX={TEX_SLOT_INNER_OFFSET}
                   innerY={TEX_SLOT_INNER_OFFSET}
                   count={info.count}
@@ -570,6 +575,7 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
               >
                 <SlotItem
                   material={sib.material}
+                  head={sib.head}
                   innerX={TEX_SLOT_INNER_OFFSET}
                   innerY={TEX_SLOT_INNER_OFFSET}
                   count={sib.count}

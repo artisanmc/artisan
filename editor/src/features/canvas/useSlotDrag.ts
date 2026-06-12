@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
 import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
 
-export type SiblingGhost = { position: number; material: string; count?: number };
+export type SiblingGhost = { position: number; material: string; head?: string; count?: number };
 export type DragState =
   | null
   | { kind: "single"; sourcePosition: number; altKey: boolean }
@@ -106,6 +106,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
               siblings.push({
                 position: p,
                 material: appearance.material,
+                head: appearance.head,
                 count: appearance.count,
               });
             }

@@ -17,7 +17,9 @@ import type {
   PackId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { useTextureUrl } from "@/features/canvas/textureStore";
+import { buildHeadValue, type HeadSource, headSourceOf, headValueOf } from "./headField";
 import {
   ArgInsertBar,
   type PlaceholderInfo,
@@ -415,6 +417,55 @@ export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: nu
   return `${STATE_DROP_PREFIX}${menuId}:${elementId}:${stateIndex}`;
 }
 
+/**
+ * Custom-head editor shown on a player_head state. Source `<select>` chooses
+ * the ref kind (HeadDatabase id / Base64 texture / player name); the input
+ * holds the bare value. `buildHeadValue` re-detects pasted canonical values so
+ * users can paste a full `hdb:…`/`eyJ…` and the select snaps to match.
+ */
+function HeadField({ head, onChange }: { head: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const source = headSourceOf(head);
+  const placeholder =
+    source === "hdb"
+      ? t("flow.headPlaceholderHdb")
+      : source === "playerhead"
+        ? t("flow.headPlaceholderPlayer")
+        : t("flow.headPlaceholderBase64");
+  return (
+    <div>
+      <FieldLabel>{t("flow.headLabel")}</FieldLabel>
+      <div className="flex items-center gap-1.5">
+        <select
+          className="h-8 w-32 shrink-0 rounded border border-zinc-800 bg-zinc-900 px-1.5 text-xs text-zinc-200"
+          value={source}
+          onChange={(e) => {
+            const next = e.target.value as HeadSource;
+            if (next === "none") onChange("");
+            else onChange(buildHeadValue(next, headValueOf(head)));
+          }}
+        >
+          <option value="none">{t("flow.headSourceNone")}</option>
+          <option value="hdb">{t("flow.headSourceHdb")}</option>
+          <option value="basehead">{t("flow.headSourceBase64")}</option>
+          <option value="playerhead">{t("flow.headSourcePlayer")}</option>
+        </select>
+        {source !== "none" ? (
+          <Input
+            value={headValueOf(head)}
+            placeholder={placeholder}
+            onChange={(e) => onChange(buildHeadValue(source, e.target.value))}
+            className="h-8 flex-1 px-2 py-0 font-mono text-xs"
+          />
+        ) : null}
+      </div>
+      {source === "hdb" ? (
+        <p className="mt-1 text-[10px] text-zinc-500">{t("flow.headHdbHint")}</p>
+      ) : null}
+    </div>
+  );
+}
+
 interface StateMaterialIconProps {
   menuId: MenuId;
   elementId: ElementId;
@@ -547,7 +598,8 @@ function StateCard({
   if (!appearance) return null;
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
-  const textureUrl = useTextureUrl(material);
+  const materialUrl = useTextureUrl(material);
+  const textureUrl = headPreviewUrl(appearance.head) ?? materialUrl;
   const title = getText(appearance.title);
   const count = appearance.count ?? 1;
   const loreText = appearance.lore ? getText(appearance.lore) : "";
@@ -586,7 +638,7 @@ function StateCard({
     return { ...base, [element.iterates.alias]: list[0] };
   }, [pack, menu, element.iterates]);
 
-  const update = (field: "material" | "count", value: string | number) =>
+  const update = (field: "material" | "count" | "head", value: string | number) =>
     setAppearanceField({
       packId,
       menuId: menu.id,
@@ -742,6 +794,11 @@ function StateCard({
               className="h-8 flex-1 px-2 py-0 font-mono text-xs"
             />
           </div>
+
+          {/* Custom head — only meaningful when the material is a player_head */}
+          {material.toLowerCase() === "player_head" ? (
+            <HeadField head={appearance.head ?? ""} onChange={(v) => update("head", v)} />
+          ) : null}
 
           {/* Title + count */}
           <div className="flex items-start gap-2">
