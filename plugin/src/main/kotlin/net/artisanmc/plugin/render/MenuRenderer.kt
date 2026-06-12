@@ -137,11 +137,14 @@ object MenuRenderer {
         // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
         // via le contexte avant le lookup vanilla/custom.
         val resolvedMaterial = app.material?.let { ArgResolver.resolve(it, ctx.args) }
-        val item = resolvedMaterial?.let { mat ->
+        var item = resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
                     ?.let { ItemStack(it, count) }
         } ?: ItemStack(Material.STONE, count)
+        if (item.type == Material.PLAYER_HEAD && app.head != null) {
+            item = HeadApplier.apply(item, ArgResolver.resolve(app.head, ctx.args), deps)
+        }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) meta.displayName(parse(resolveText(app.title, langMap, ctx, papi)))
         if (app.lore.isNotEmpty()) {
