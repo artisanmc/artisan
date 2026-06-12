@@ -17,6 +17,7 @@ export default defineConfig({
           label: 'Editor',
           items: [
             { label: 'Overview', slug: 'editor' },
+            { label: 'Custom heads', slug: 'editor/custom-heads' },
           ],
         },
         {

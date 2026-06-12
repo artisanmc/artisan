@@ -106,6 +106,7 @@ Il n'y a **pas** de mode focus plein-écran (retiré 2026-06-06 : c'était un do
   - dialog → title / body / buttons + actions par bouton
   - multi-sélection → "select one item" (multi-edit hors V1)
 - **Sélection → onglet Edit** (depuis 2026-06-06) : cliquer un menu / slot / command / dialog sur le canvas bascule `uiStore.editorTab` sur `"edit"` (dans `useMenuClick` + les handlers de slot de `MenuGroup` + l'`onClick` de `CommandGroup`/`DialogGroup`), pour que l'élément soit éditable sans changer d'onglet à la main. Le placement d'item « armé » et la multi-sélection (shift) ne basculent pas.
+- **Têtes custom (PLAYER_HEAD)** : choisir `PLAYER_HEAD` comme material d'un state révèle une ligne « tête custom » sous le sélecteur de material. Un select choisit la source (`HeadDatabase` / `Base64` / `Player name`) et un champ de valeur apparaît à côté. Le coller d'une valeur entière est détecté automatiquement : `hdb:<id>` ou une chaîne brute `eyJ…` (base64) sont routés vers la bonne source sans action supplémentaire. Les aperçus sont résolus via `headPreviewUrl` (`editor/src/features/canvas/headTexture.ts`) : base64 et noms de joueur littéraux → rendu 3D mc-heads.net ; ids HeadDatabase et noms avec placeholder → icône de tête générique. Les aperçus s'affichent sur les slots Konva, les ghosts de drag, les overlays sibling et les icônes de la state card.
 
 ## Canvas component layout (refactor 2026-06-02)
 
