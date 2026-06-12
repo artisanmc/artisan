@@ -10,6 +10,7 @@ import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.model.PackBundle
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -154,5 +155,31 @@ class MenuRendererIterationTest {
         val menu = BundleCompiler.compile(yaml, emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p))
         assertEquals("Hi", session.ctx.args["label"])
+    }
+
+    @Test fun `builtin player placeholder resolves in an element title`() {
+        val p = MockBukkit.getMock()!!.addPlayer("Steve")
+        val yaml: MenuYaml = mapper.readValue(
+            """
+            schema: menu/v1
+            id: m
+            title: []
+            size: 9
+            layers:
+              - id: l
+                name: L
+                elements:
+                  - id: btn
+                    positions: "0"
+                    appearances:
+                      - material: STONE
+                        title: "Hello {player.name}"
+            """.trimIndent(),
+        )
+        val menu = BundleCompiler.compile(yaml, emptyMap())
+        MenuRenderer.open(p, menu, "en", ExecutionContext(p))
+        val display = p.openInventory.topInventory.getItem(0)?.itemMeta?.displayName()
+        assertNotNull(display)
+        assertEquals("Hello Steve", PlainTextComponentSerializer.plainText().serialize(display))
     }
 }

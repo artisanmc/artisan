@@ -62,7 +62,7 @@ object MenuRenderer {
         // to item title/lore.
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw ->
-            var text = ArgResolver.resolve(raw, renderCtx.args)
+            var text = ArgResolver.resolve(raw, renderCtx.resolvedArgs)
             if (papi != null) text = papi.resolve(player, text)
             text
         }
@@ -136,7 +136,7 @@ object MenuRenderer {
         val count = app.count.coerceAtLeast(1)
         // Le material peut être un placeholder ({input} ou {alias.field}) — résolu
         // via le contexte avant le lookup vanilla/custom.
-        val resolvedMaterial = app.material?.let { ArgResolver.resolve(it, ctx.args) }
+        val resolvedMaterial = app.material?.let { ArgResolver.resolve(it, ctx.resolvedArgs) }
         var item = resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
@@ -158,7 +158,7 @@ object MenuRenderer {
 
     private fun resolveText(raw: String, langMap: Map<String, String>, ctx: ExecutionContext, papi: PapiProvider?): String {
         var text = if (raw.startsWith("{i18n:")) langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw else raw
-        text = ArgResolver.resolve(text, ctx.args)
+        text = ArgResolver.resolve(text, ctx.resolvedArgs)
         if (papi != null) text = papi.resolve(ctx.player, text)
         return text
     }
