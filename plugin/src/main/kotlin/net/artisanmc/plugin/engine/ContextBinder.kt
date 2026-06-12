@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.model.MenuYaml
+import org.bukkit.Bukkit
 
 /**
  * Auto-binding §15.4 : les args de l'appelant (commande, open_menu.context,
@@ -23,6 +24,8 @@ object ContextBinder {
         "integer" -> raw.toLongOrNull() ?: raw
         "number"  -> raw.toDoubleOrNull() ?: raw
         "boolean" -> raw.toBooleanStrictOrNull() ?: raw
+        // Joueur hors-ligne → on garde la string brute ({target} reste rendable, pas de crash).
+        "player"  -> Bukkit.getPlayerExact(raw) ?: raw
         else      -> raw
     }
 }
