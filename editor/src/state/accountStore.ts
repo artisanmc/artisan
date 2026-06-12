@@ -248,7 +248,7 @@ interface AccountState {
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
-    field: "count" | "material";
+    field: "count" | "material" | "head";
     value: string | number;
   }) => void;
   /** Update an appearance title for the given language. Allocates the LText on first write. */
@@ -1946,6 +1946,9 @@ export const useAccountStore = create<AccountState>()(
                   } else if (field === "material") {
                     if (typeof value !== "string") return;
                     appearance.material = value || undefined;
+                  } else if (field === "head") {
+                    if (typeof value !== "string") return;
+                    appearance.head = value || undefined;
                   }
                   pack.updatedAt = new Date().toISOString();
                   return;
