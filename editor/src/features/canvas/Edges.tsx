@@ -1,23 +1,19 @@
-import type { Pack } from "@/domain/types";
+import type { EdgeAnchor, Pack } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
+import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
+import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
-import { useMemo } from "react";
-import { Line } from "react-konva";
+import { useEffect, useMemo, useState } from "react";
+import { Arrow, Circle } from "react-konva";
 import { deriveEdges } from "./deriveEdges";
+import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
 import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
 
 interface EdgesProps {
   pack: Pack;
   layout: Record<string, { x: number; y: number }>;
-}
-
-function boxFor(pack: Pack, id: string) {
-  const menu = pack.menus.find((m) => m.id === id);
-  if (menu) return menuBoxSize(menu.rows);
-  if ((pack.dialogs ?? []).some((d) => d.id === id)) return DIALOG_BOX;
-  return COMMAND_BOX;
 }
 
 function deriveHighlightSet(pack: Pack, ids: ReadonlySet<string>): Set<string> {
@@ -42,39 +38,96 @@ function deriveHighlightSet(pack: Pack, ids: ReadonlySet<string>): Set<string> {
 }
 
 export function Edges({ pack, layout }: EdgesProps) {
-  const edges = deriveEdges(pack);
   const selectedIds = useSelectionStore((s) => s.ids);
   const highlightSet = useMemo(() => deriveHighlightSet(pack, selectedIds), [pack, selectedIds]);
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
+  const selectedEdgeId = useEdgeSelectionStore((s) => s.edgeId);
   const brand = useCssVar("--brand");
   const edgeIdle = useCssVar("--border");
 
+  // Selecting a node dismisses the edge selection (and its handles).
+  useEffect(() => {
+    if (selectedIds.size > 0) useEdgeSelectionStore.getState().select(null);
+  }, [selectedIds]);
+
+  const boxes = useMemo(() => {
+    const out: Record<string, Box> = {};
+    for (const m of pack.menus) {
+      const pos = layout[m.id];
+      if (pos) out[m.id] = { ...pos, ...menuBoxSize(m.rows) };
+    }
+    for (const c of pack.commands) {
+      const pos = layout[c.id];
+      if (pos) out[c.id] = { ...pos, ...COMMAND_BOX };
+    }
+    for (const d of pack.dialogs ?? []) {
+      const pos = layout[d.id];
+      if (pos) out[d.id] = { ...pos, ...DIALOG_BOX };
+    }
+    return out;
+  }, [pack, layout]);
+
+  // Live preview while a handle is dragged — committed to the store on drag end.
+  const [dragOverride, setDragOverride] = useState<{
+    edgeId: string;
+    end: "from" | "to";
+    anchor: EdgeAnchor;
+  } | null>(null);
+
+  const overrides = useMemo(() => {
+    const base = pack.canvasEdges ?? {};
+    if (!dragOverride) return base;
+    return {
+      ...base,
+      [dragOverride.edgeId]: {
+        ...base[dragOverride.edgeId],
+        [dragOverride.end]: dragOverride.anchor,
+      },
+    };
+  }, [pack.canvasEdges, dragOverride]);
+
+  const routed = useMemo(
+    () => routeEdges({ edges: deriveEdges(pack), boxes, overrides }),
+    [pack, boxes, overrides],
+  );
+
+  const selectEdge = (id: string) => {
+    useEdgeSelectionStore.getState().select(id);
+    useSelectionStore.getState().clear();
+  };
+
+  const selectedRouted = routed.find((r) => r.edge.id === selectedEdgeId) ?? null;
+
   return (
     <>
-      {edges.map((e) => {
-        const src = layout[e.source];
-        const tgt = layout[e.target];
-        if (!src || !tgt) return null;
-        const srcBox = boxFor(pack, e.source);
-        const tgtBox = boxFor(pack, e.target);
-        const sx = src.x + srcBox.width;
-        const sy = src.y + srcBox.height / 2;
-        const tx = tgt.x;
-        const ty = tgt.y + tgtBox.height / 2;
-        const midX = (sx + tx) / 2;
+      {routed.map((r) => {
+        const e = r.edge;
         const isHovered = hoveredEdgeId === e.id;
-        const highlighted = isHovered || highlightSet.has(e.source) || highlightSet.has(e.target);
+        const isSelected = selectedEdgeId === e.id;
+        const highlighted =
+          isHovered || isSelected || highlightSet.has(e.source) || highlightSet.has(e.target);
+        const color = highlighted ? brand : edgeIdle;
         return (
-          <Line
+          <Arrow
             key={e.id}
-            points={[sx, sy, midX, sy, midX, ty, tx, ty]}
-            stroke={highlighted ? brand : edgeIdle}
-            strokeWidth={highlighted ? 2.5 : 1.5}
+            points={r.points}
             bezier
-            tension={0.3}
+            stroke={color}
+            fill={color}
+            strokeWidth={highlighted ? 2.5 : 1.5}
+            pointerLength={9}
+            pointerWidth={8}
             hitStrokeWidth={12}
+            onClick={(ev: Konva.KonvaEventObject<MouseEvent>) => {
+              ev.cancelBubble = true;
+              selectEdge(e.id);
+            }}
+            onTap={(ev: Konva.KonvaEventObject<Event>) => {
+              ev.cancelBubble = true;
+              selectEdge(e.id);
+            }}
             onMouseEnter={(ev: Konva.KonvaEventObject<MouseEvent>) =>
               setHover(e, ev.evt.clientX, ev.evt.clientY)
             }
@@ -85,6 +138,46 @@ export function Edges({ pack, layout }: EdgesProps) {
           />
         );
       })}
+      {selectedRouted &&
+        (["from", "to"] as const).map((end) => {
+          const edge = selectedRouted.edge;
+          const nodeId = end === "from" ? edge.source : edge.target;
+          const box = boxes[nodeId];
+          if (!box) return null;
+          const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
+          const reset = () =>
+            useAccountStore.getState().clearEdgeAnchor({ packId: pack.id, edgeId: edge.id, end });
+          return (
+            <Circle
+              key={`${edge.id}:${end}`}
+              x={pt.x}
+              y={pt.y}
+              radius={6}
+              fill={brand}
+              stroke="#ffffff"
+              strokeWidth={1.5}
+              draggable
+              onDragMove={(ev: Konva.KonvaEventObject<DragEvent>) => {
+                const anchor = closestAnchorOnBox(box, ev.target.position());
+                ev.target.position(anchorPoint(box, anchor)); // snap to the border
+                setDragOverride({ edgeId: edge.id, end, anchor });
+              }}
+              onDragEnd={() => {
+                if (dragOverride) {
+                  useAccountStore.getState().setEdgeAnchor({
+                    packId: pack.id,
+                    edgeId: dragOverride.edgeId,
+                    end: dragOverride.end,
+                    anchor: dragOverride.anchor,
+                  });
+                }
+                setDragOverride(null);
+              }}
+              onDblClick={reset}
+              onDblTap={reset}
+            />
+          );
+        })}
     </>
   );
 }

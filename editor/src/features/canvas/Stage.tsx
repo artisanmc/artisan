@@ -1,6 +1,7 @@
 import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -91,6 +92,7 @@ export function Stage({ packId }: StageProps) {
       }
       if (e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
+        useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
