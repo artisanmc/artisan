@@ -1000,6 +1000,35 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasLayout (file
   });
 });
 
+describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasEdges", () => {
+  test("manifest editor_edges lands in stored editorJson", async () => {
+    const { token } = await createSession();
+    const fakePack = {
+      id: "p_edges",
+      name: "Edges",
+      menus: [],
+    };
+    const fakeFiles = {
+      "plugins/Artisan/packs/p_edges/manifest.yaml": [
+        "schema: manifest/v1", "pack_id: p_edges", "default_lang: en",
+        "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
+        "editor_edges:", "  'shop->x': { from: { side: right, t: 0.5 } }",
+      ].join("\n") + "\n",
+    };
+    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_edges`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+    });
+    expect(res.status).toBe(201);
+
+    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
+    const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasEdges: Record<string, unknown> } | null }> };
+    const stored = body.packs.find((x) => x.pack_id === "p_edges")!.editor!;
+    expect(stored.canvasEdges).toEqual({ "shop->x": { from: { side: "right", t: 0.5 } } });
+  });
+});
+
 describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — canvasLayout (files win)", () => {
   test("deploy applies manifest editor_layout to stored editorJson", async () => {
     const { token } = await createTrustedSession();

@@ -9,7 +9,7 @@ import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
 import { broadcastDraftUpdate, pushBundleAvailable, pushPackDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { readEditorLayoutFromFiles } from "../lib/packImport";
+import { readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "../lib/packImport";
 import { getPack, upsertPackContent, createPack, softDeletePack } from "../lib/packStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
@@ -19,6 +19,7 @@ function buildEditorJsonWithLayout(rawPack: unknown, files: Record<string, strin
   // caller that later reads body.pack.
   const pack = { ...(rawPack as Record<string, unknown>) };
   pack.canvasLayout = readEditorLayoutFromFiles(files, packId); // files win
+  pack.canvasEdges = readEditorEdgesFromFiles(files, packId);
   return JSON.stringify(pack);
 }
 

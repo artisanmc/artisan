@@ -128,6 +128,7 @@ interface ManifestYaml {
   default_lang?: string;
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
   editor_layout?: Record<string, unknown>;
+  editor_edges?: Record<string, unknown>;
 }
 
 interface CommandYaml {
@@ -189,6 +190,46 @@ export function readEditorLayoutFromFiles(
 ): Record<string, { x: number; y: number }> {
   const m = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
   return parseEditorLayout(m.editor_layout);
+}
+
+// ─── editor edges ─────────────────────────────────────────────────────────────
+
+const ANCHOR_SIDES = new Set(["top", "right", "bottom", "left"]);
+
+interface EdgeAnchorJson {
+  side: string;
+  t: number;
+}
+
+function parseAnchor(raw: unknown): EdgeAnchorJson | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { side, t } = raw as { side?: unknown; t?: unknown };
+  if (typeof side !== "string" || !ANCHOR_SIDES.has(side)) return null;
+  if (typeof t !== "number" || !Number.isFinite(t)) return null;
+  return { side, t: Math.min(1, Math.max(0, t)) };
+}
+
+function parseEditorEdges(
+  raw: unknown,
+): Record<string, { from?: EdgeAnchorJson; to?: EdgeAnchorJson }> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, { from?: EdgeAnchorJson; to?: EdgeAnchorJson }> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const from = parseAnchor((v as { from?: unknown }).from);
+    const to = parseAnchor((v as { to?: unknown }).to);
+    if (!from && !to) continue;
+    out[id] = { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+  }
+  return out;
+}
+
+export function readEditorEdgesFromFiles(
+  files: Record<string, string>,
+  packId: string,
+): Record<string, { from?: EdgeAnchorJson; to?: EdgeAnchorJson }> {
+  const m = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
+  return parseEditorEdges(m.editor_edges);
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────
@@ -261,6 +302,7 @@ export function importPackFromFiles(packId: string, files: Record<string, string
     i18nKeys: {},
     defaultLang,
     canvasLayout: parseEditorLayout(manifest.editor_layout),
+    canvasEdges: parseEditorEdges(manifest.editor_edges),
   };
 }
 
