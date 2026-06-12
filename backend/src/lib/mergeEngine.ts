@@ -29,6 +29,7 @@ export interface EditorState {
   dataSources?: Array<{ id: string } & Record<string, unknown>>;
   i18nKeys?: Record<string, unknown>;
   canvasLayout?: Record<string, unknown>;
+  canvasEdges?: Record<string, unknown>;
   defaultLang?: string;
   name?: string;
   description?: string;
@@ -36,7 +37,7 @@ export interface EditorState {
 }
 
 const COLLECTIONS_BY_ID = ["menus", "commands", "dialogs", "templates", "dataSources"] as const;
-const MAP_COLLECTIONS = ["i18nKeys", "canvasLayout"] as const;
+const MAP_COLLECTIONS = ["i18nKeys", "canvasLayout", "canvasEdges"] as const;
 const SCALAR_FIELDS = ["defaultLang", "name", "description"] as const;
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -117,6 +118,7 @@ export function merge(
     const dstMap = (dst[collection] ?? {}) as Record<string, unknown>;
 
     const allKeys = new Set<string>([...Object.keys(baseMap), ...Object.keys(srcMap), ...Object.keys(dstMap)]);
+    if (allKeys.size === 0) continue;
     const result: Record<string, unknown> = {};
     for (const key of allKeys) {
       const itemBase = key in baseMap ? baseMap[key] : undefined;
@@ -220,7 +222,7 @@ export function applyResolutions(
       continue;
     }
 
-    if (collection === "i18nKeys" || collection === "canvasLayout") {
+    if (collection === "i18nKeys" || collection === "canvasLayout" || collection === "canvasEdges") {
       const map = (result[collection] ?? {}) as Record<string, unknown>;
       if (chosenValue === null) {
         delete map[key];
