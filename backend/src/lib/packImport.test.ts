@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { importPackFromFiles, readEditorLayoutFromFiles } from "./packImport";
+import { importPackFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "./packImport";
 
 const PACK_ID = "p_layout";
 const base = `plugins/Artisan/packs/${PACK_ID}`;
@@ -94,5 +94,49 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
       canvasLayout: Record<string, { x: number; y: number }>;
     };
     expect(pack.canvasLayout).toEqual({ shop: { x: 123, y: 456 } });
+  });
+});
+
+describe("readEditorEdgesFromFiles", () => {
+  test("parses editor_edges from manifest", () => {
+    const files = manifestWith(
+      "editor_edges:\n  'shop->confirm': { from: { side: right, t: 0.25 }, to: { side: left, t: 0.5 } }\n",
+    );
+    expect(readEditorEdgesFromFiles(files, PACK_ID)).toEqual({
+      "shop->confirm": { from: { side: "right", t: 0.25 }, to: { side: "left", t: 0.5 } },
+    });
+  });
+
+  test("missing editor_edges → {}", () => {
+    const files = manifestWith(null);
+    expect(readEditorEdgesFromFiles(files, PACK_ID)).toEqual({});
+  });
+
+  test("drops malformed entries (bad side, non-numeric t, empty anchors)", () => {
+    const files = manifestWith(
+      [
+        "editor_edges:",
+        "  'a->b': { from: { side: diagonal, t: 0.5 } }",
+        "  'c->d': { from: { side: top, t: oops } }",
+        "  'e->f': {}",
+        "  'g->h': { to: { side: bottom, t: 0.9 } }",
+      ].join("\n") + "\n",
+    );
+    expect(readEditorEdgesFromFiles(files, PACK_ID)).toEqual({
+      "g->h": { to: { side: "bottom", t: 0.9 } },
+    });
+  });
+});
+
+describe("importPackFromFiles canvasEdges", () => {
+  test("populates canvasEdges from manifest.editor_edges", () => {
+    const files = manifestWith("editor_edges:\n  'shop->x': { from: { side: top, t: 0.1 } }\n");
+    const pack = importPackFromFiles(PACK_ID, files);
+    expect(pack.canvasEdges).toEqual({ "shop->x": { from: { side: "top", t: 0.1 } } });
+  });
+
+  test("no editor_edges → canvasEdges: {}", () => {
+    const pack = importPackFromFiles(PACK_ID, manifestWith(null));
+    expect(pack.canvasEdges).toEqual({});
   });
 });
