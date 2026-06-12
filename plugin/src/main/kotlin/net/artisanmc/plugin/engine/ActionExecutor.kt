@@ -71,7 +71,7 @@ class ActionExecutor(
     }
 
     fun resolveArgs(text: String, ctx: ExecutionContext): String =
-        ArgResolver.resolve(text, ctx.args)
+        ArgResolver.resolve(text, ctx.resolvedArgs)
 
     fun resolveText(text: String, ctx: ExecutionContext): String {
         var resolved = if (text.startsWith("{i18n:")) {
