@@ -66,6 +66,9 @@ should be last.
 
 - **`material`** — vanilla material name (e.g. `DIAMOND`, `STONE`). May be a placeholder
   `{input_name}` or, inside an iterating element, `{alias.field}`.
+- **`head`** — custom head when `material` is `PLAYER_HEAD`. Three forms: `hdb:<id>`
+  (HeadDatabase plugin id), `basehead:<base64 textures value>`, or `playerhead:<name>`
+  (player name; placeholders like `playerhead:%player%` allowed). Ignored for any other material.
 - **`count`** — 1–64.
 - **`title`** / **`lore[]`** — literal display text (see Text & i18n below).
 - **`click`** — per-button handlers.

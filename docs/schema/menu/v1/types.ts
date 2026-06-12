@@ -157,6 +157,8 @@ export interface Appearance {
   asset?: string;
   /** "DIAMOND" littéral, {input_name} pour un contextInput, ou {alias.field} dans un Element qui itère. */
   material?: string;
+  /** Tête custom quand material = PLAYER_HEAD : hdb:<id>, basehead:<base64>, ou playerhead:<pseudo>. */
+  head?: string;
   count?: number;
   title?: string;
   lore?: string[];
