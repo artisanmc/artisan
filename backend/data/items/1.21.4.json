@@ -9,8 +9,7 @@
     "id": "acacia_button",
     "label": "Acacia Button",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_button_inventory"
+    "texture": "icons/acacia_button"
   },
   {
     "id": "acacia_chest_boat",
@@ -28,15 +27,13 @@
     "id": "acacia_fence",
     "label": "Acacia Fence",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_fence_inventory"
+    "texture": "icons/acacia_fence"
   },
   {
     "id": "acacia_fence_gate",
     "label": "Acacia Fence Gate",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_fence_gate"
+    "texture": "icons/acacia_fence_gate"
   },
   {
     "id": "acacia_hanging_sign",
@@ -48,29 +45,25 @@
     "id": "acacia_leaves",
     "label": "Acacia Leaves",
     "category": "misc",
-    "texture": "block/acacia_leaves",
-    "model": "block/acacia_leaves"
+    "texture": "icons/acacia_leaves"
   },
   {
     "id": "acacia_log",
     "label": "Acacia Log",
     "category": "misc",
-    "texture": "block/acacia_log",
-    "model": "block/acacia_log"
+    "texture": "icons/acacia_log"
   },
   {
     "id": "acacia_planks",
     "label": "Acacia Planks",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_planks"
+    "texture": "icons/acacia_planks"
   },
   {
     "id": "acacia_pressure_plate",
     "label": "Acacia Pressure Plate",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_pressure_plate"
+    "texture": "icons/acacia_pressure_plate"
   },
   {
     "id": "acacia_sapling",
@@ -88,29 +81,25 @@
     "id": "acacia_slab",
     "label": "Acacia Slab",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_slab"
+    "texture": "icons/acacia_slab"
   },
   {
     "id": "acacia_stairs",
     "label": "Acacia Stairs",
     "category": "misc",
-    "texture": "block/acacia_planks",
-    "model": "block/acacia_stairs"
+    "texture": "icons/acacia_stairs"
   },
   {
     "id": "acacia_trapdoor",
     "label": "Acacia Trapdoor",
     "category": "misc",
-    "texture": "block/acacia_trapdoor",
-    "model": "block/acacia_trapdoor_bottom"
+    "texture": "icons/acacia_trapdoor"
   },
   {
     "id": "acacia_wood",
     "label": "Acacia Wood",
     "category": "misc",
-    "texture": "block/acacia_log",
-    "model": "block/acacia_wood"
+    "texture": "icons/acacia_wood"
   },
   {
     "id": "activator_rail",
@@ -122,7 +111,7 @@
     "id": "allay_spawn_egg",
     "label": "Allay Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/allay_spawn_egg"
   },
   {
     "id": "allium",
@@ -134,8 +123,7 @@
     "id": "amethyst_block",
     "label": "Amethyst Block",
     "category": "misc",
-    "texture": "block/amethyst_block",
-    "model": "block/amethyst_block"
+    "texture": "icons/amethyst_block"
   },
   {
     "id": "amethyst_cluster",
@@ -153,36 +141,31 @@
     "id": "ancient_debris",
     "label": "Ancient Debris",
     "category": "misc",
-    "texture": "block/ancient_debris_side",
-    "model": "block/ancient_debris"
+    "texture": "icons/ancient_debris"
   },
   {
     "id": "andesite",
     "label": "Andesite",
     "category": "misc",
-    "texture": "block/andesite",
-    "model": "block/andesite"
+    "texture": "icons/andesite"
   },
   {
     "id": "andesite_slab",
     "label": "Andesite Slab",
     "category": "misc",
-    "texture": "block/andesite",
-    "model": "block/andesite_slab"
+    "texture": "icons/andesite_slab"
   },
   {
     "id": "andesite_stairs",
     "label": "Andesite Stairs",
     "category": "misc",
-    "texture": "block/andesite",
-    "model": "block/andesite_stairs"
+    "texture": "icons/andesite_stairs"
   },
   {
     "id": "andesite_wall",
     "label": "Andesite Wall",
     "category": "misc",
-    "texture": "block/andesite",
-    "model": "block/andesite_wall_inventory"
+    "texture": "icons/andesite_wall"
   },
   {
     "id": "angler_pottery_sherd",
@@ -194,8 +177,7 @@
     "id": "anvil",
     "label": "Anvil",
     "category": "misc",
-    "texture": "block/anvil",
-    "model": "block/anvil"
+    "texture": "icons/anvil"
   },
   {
     "id": "apple",
@@ -219,7 +201,7 @@
     "id": "armadillo_spawn_egg",
     "label": "Armadillo Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/armadillo_spawn_egg"
   },
   {
     "id": "armor_stand",
@@ -249,21 +231,19 @@
     "id": "axolotl_spawn_egg",
     "label": "Axolotl Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/axolotl_spawn_egg"
   },
   {
     "id": "azalea",
     "label": "Azalea",
     "category": "misc",
-    "texture": "block/azalea_plant",
-    "model": "block/azalea"
+    "texture": "icons/azalea"
   },
   {
     "id": "azalea_leaves",
     "label": "Azalea Leaves",
     "category": "misc",
-    "texture": "block/azalea_leaves",
-    "model": "block/azalea_leaves"
+    "texture": "icons/azalea_leaves"
   },
   {
     "id": "azure_bluet",
@@ -287,15 +267,13 @@
     "id": "bamboo_block",
     "label": "Bamboo Block",
     "category": "misc",
-    "texture": "block/bamboo_block",
-    "model": "block/bamboo_block"
+    "texture": "icons/bamboo_block"
   },
   {
     "id": "bamboo_button",
     "label": "Bamboo Button",
     "category": "misc",
-    "texture": "block/bamboo_planks",
-    "model": "block/bamboo_button_inventory"
+    "texture": "icons/bamboo_button"
   },
   {
     "id": "bamboo_chest_raft",
@@ -313,15 +291,13 @@
     "id": "bamboo_fence",
     "label": "Bamboo Fence",
     "category": "misc",
-    "texture": "block/bamboo_fence",
-    "model": "block/bamboo_fence_inventory"
+    "texture": "icons/bamboo_fence"
   },
   {
     "id": "bamboo_fence_gate",
     "label": "Bamboo Fence Gate",
     "category": "misc",
-    "texture": "block/bamboo_fence_gate_particle",
-    "model": "block/bamboo_fence_gate"
+    "texture": "icons/bamboo_fence_gate"
   },
   {
     "id": "bamboo_hanging_sign",
@@ -333,36 +309,31 @@
     "id": "bamboo_mosaic",
     "label": "Bamboo Mosaic",
     "category": "misc",
-    "texture": "block/bamboo_mosaic",
-    "model": "block/bamboo_mosaic"
+    "texture": "icons/bamboo_mosaic"
   },
   {
     "id": "bamboo_mosaic_slab",
     "label": "Bamboo Mosaic Slab",
     "category": "misc",
-    "texture": "block/bamboo_mosaic",
-    "model": "block/bamboo_mosaic_slab"
+    "texture": "icons/bamboo_mosaic_slab"
   },
   {
     "id": "bamboo_mosaic_stairs",
     "label": "Bamboo Mosaic Stairs",
     "category": "misc",
-    "texture": "block/bamboo_mosaic",
-    "model": "block/bamboo_mosaic_stairs"
+    "texture": "icons/bamboo_mosaic_stairs"
   },
   {
     "id": "bamboo_planks",
     "label": "Bamboo Planks",
     "category": "misc",
-    "texture": "block/bamboo_planks",
-    "model": "block/bamboo_planks"
+    "texture": "icons/bamboo_planks"
   },
   {
     "id": "bamboo_pressure_plate",
     "label": "Bamboo Pressure Plate",
     "category": "misc",
-    "texture": "block/bamboo_planks",
-    "model": "block/bamboo_pressure_plate"
+    "texture": "icons/bamboo_pressure_plate"
   },
   {
     "id": "bamboo_raft",
@@ -380,29 +351,25 @@
     "id": "bamboo_slab",
     "label": "Bamboo Slab",
     "category": "misc",
-    "texture": "block/bamboo_planks",
-    "model": "block/bamboo_slab"
+    "texture": "icons/bamboo_slab"
   },
   {
     "id": "bamboo_stairs",
     "label": "Bamboo Stairs",
     "category": "misc",
-    "texture": "block/bamboo_planks",
-    "model": "block/bamboo_stairs"
+    "texture": "icons/bamboo_stairs"
   },
   {
     "id": "bamboo_trapdoor",
     "label": "Bamboo Trapdoor",
     "category": "misc",
-    "texture": "block/bamboo_trapdoor",
-    "model": "block/bamboo_trapdoor_bottom"
+    "texture": "icons/bamboo_trapdoor"
   },
   {
     "id": "barrel",
     "label": "Barrel",
     "category": "misc",
-    "texture": "block/barrel_side",
-    "model": "block/barrel"
+    "texture": "icons/barrel"
   },
   {
     "id": "barrier",
@@ -414,41 +381,37 @@
     "id": "basalt",
     "label": "Basalt",
     "category": "misc",
-    "texture": "block/basalt_side",
-    "model": "block/basalt"
+    "texture": "icons/basalt"
   },
   {
     "id": "bat_spawn_egg",
     "label": "Bat Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/bat_spawn_egg"
   },
   {
     "id": "beacon",
     "label": "Beacon",
     "category": "misc",
-    "texture": "block/glass",
-    "model": "block/beacon"
+    "texture": "icons/beacon"
   },
   {
     "id": "bedrock",
     "label": "Bedrock",
     "category": "misc",
-    "texture": "block/bedrock",
-    "model": "block/bedrock"
+    "texture": "icons/bedrock"
   },
   {
     "id": "bee_nest",
     "label": "Bee Nest",
     "category": "misc",
-    "texture": "block/bee_nest_side",
-    "model": "block/bee_nest_empty"
+    "texture": "icons/bee_nest"
   },
   {
     "id": "bee_spawn_egg",
     "label": "Bee Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/bee_spawn_egg"
   },
   {
     "id": "beef",
@@ -460,8 +423,7 @@
     "id": "beehive",
     "label": "Beehive",
     "category": "misc",
-    "texture": "block/beehive_side",
-    "model": "block/beehive_empty"
+    "texture": "icons/beehive"
   },
   {
     "id": "beetroot",
@@ -491,8 +453,7 @@
     "id": "big_dripleaf",
     "label": "Big Dripleaf",
     "category": "misc",
-    "texture": "block/big_dripleaf_top",
-    "model": "item/big_dripleaf"
+    "texture": "icons/big_dripleaf"
   },
   {
     "id": "birch_boat",
@@ -504,8 +465,7 @@
     "id": "birch_button",
     "label": "Birch Button",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_button_inventory"
+    "texture": "icons/birch_button"
   },
   {
     "id": "birch_chest_boat",
@@ -523,15 +483,13 @@
     "id": "birch_fence",
     "label": "Birch Fence",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_fence_inventory"
+    "texture": "icons/birch_fence"
   },
   {
     "id": "birch_fence_gate",
     "label": "Birch Fence Gate",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_fence_gate"
+    "texture": "icons/birch_fence_gate"
   },
   {
     "id": "birch_hanging_sign",
@@ -543,29 +501,25 @@
     "id": "birch_leaves",
     "label": "Birch Leaves",
     "category": "misc",
-    "texture": "block/birch_leaves",
-    "model": "block/birch_leaves"
+    "texture": "icons/birch_leaves"
   },
   {
     "id": "birch_log",
     "label": "Birch Log",
     "category": "misc",
-    "texture": "block/birch_log",
-    "model": "block/birch_log"
+    "texture": "icons/birch_log"
   },
   {
     "id": "birch_planks",
     "label": "Birch Planks",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_planks"
+    "texture": "icons/birch_planks"
   },
   {
     "id": "birch_pressure_plate",
     "label": "Birch Pressure Plate",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_pressure_plate"
+    "texture": "icons/birch_pressure_plate"
   },
   {
     "id": "birch_sapling",
@@ -583,35 +537,31 @@
     "id": "birch_slab",
     "label": "Birch Slab",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_slab"
+    "texture": "icons/birch_slab"
   },
   {
     "id": "birch_stairs",
     "label": "Birch Stairs",
     "category": "misc",
-    "texture": "block/birch_planks",
-    "model": "block/birch_stairs"
+    "texture": "icons/birch_stairs"
   },
   {
     "id": "birch_trapdoor",
     "label": "Birch Trapdoor",
     "category": "misc",
-    "texture": "block/birch_trapdoor",
-    "model": "block/birch_trapdoor_bottom"
+    "texture": "icons/birch_trapdoor"
   },
   {
     "id": "birch_wood",
     "label": "Birch Wood",
     "category": "misc",
-    "texture": "block/birch_log",
-    "model": "block/birch_wood"
+    "texture": "icons/birch_wood"
   },
   {
     "id": "black_banner",
     "label": "Black Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/black_wool"
   },
   {
     "id": "black_bed",
@@ -635,22 +585,19 @@
     "id": "black_carpet",
     "label": "Black Carpet",
     "category": "misc",
-    "texture": "block/black_wool",
-    "model": "block/black_carpet"
+    "texture": "icons/black_carpet"
   },
   {
     "id": "black_concrete",
     "label": "Black Concrete",
     "category": "misc",
-    "texture": "block/black_concrete",
-    "model": "block/black_concrete"
+    "texture": "icons/black_concrete"
   },
   {
     "id": "black_concrete_powder",
     "label": "Black Concrete Powder",
     "category": "misc",
-    "texture": "block/black_concrete_powder",
-    "model": "block/black_concrete_powder"
+    "texture": "icons/black_concrete_powder"
   },
   {
     "id": "black_dye",
@@ -662,21 +609,19 @@
     "id": "black_glazed_terracotta",
     "label": "Black Glazed Terracotta",
     "category": "misc",
-    "texture": "block/black_glazed_terracotta",
-    "model": "block/black_glazed_terracotta"
+    "texture": "icons/black_glazed_terracotta"
   },
   {
     "id": "black_shulker_box",
     "label": "Black Shulker Box",
     "category": "misc",
-    "texture": "block/black_shulker_box"
+    "texture": "icons/black_shulker_box"
   },
   {
     "id": "black_stained_glass",
     "label": "Black Stained Glass",
     "category": "misc",
-    "texture": "block/black_stained_glass",
-    "model": "block/black_stained_glass"
+    "texture": "icons/black_stained_glass"
   },
   {
     "id": "black_stained_glass_pane",
@@ -688,43 +633,37 @@
     "id": "black_terracotta",
     "label": "Black Terracotta",
     "category": "misc",
-    "texture": "block/black_terracotta",
-    "model": "block/black_terracotta"
+    "texture": "icons/black_terracotta"
   },
   {
     "id": "black_wool",
     "label": "Black Wool",
     "category": "misc",
-    "texture": "block/black_wool",
-    "model": "block/black_wool"
+    "texture": "icons/black_wool"
   },
   {
     "id": "blackstone",
     "label": "Blackstone",
     "category": "misc",
-    "texture": "block/blackstone",
-    "model": "block/blackstone"
+    "texture": "icons/blackstone"
   },
   {
     "id": "blackstone_slab",
     "label": "Blackstone Slab",
     "category": "misc",
-    "texture": "block/blackstone",
-    "model": "block/blackstone_slab"
+    "texture": "icons/blackstone_slab"
   },
   {
     "id": "blackstone_stairs",
     "label": "Blackstone Stairs",
     "category": "misc",
-    "texture": "block/blackstone",
-    "model": "block/blackstone_stairs"
+    "texture": "icons/blackstone_stairs"
   },
   {
     "id": "blackstone_wall",
     "label": "Blackstone Wall",
     "category": "misc",
-    "texture": "block/blackstone",
-    "model": "block/blackstone_wall_inventory"
+    "texture": "icons/blackstone_wall"
   },
   {
     "id": "blade_pottery_sherd",
@@ -736,8 +675,7 @@
     "id": "blast_furnace",
     "label": "Blast Furnace",
     "category": "misc",
-    "texture": "block/blast_furnace_front",
-    "model": "block/blast_furnace"
+    "texture": "icons/blast_furnace"
   },
   {
     "id": "blaze_powder",
@@ -755,13 +693,13 @@
     "id": "blaze_spawn_egg",
     "label": "Blaze Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/blaze_spawn_egg"
   },
   {
     "id": "blue_banner",
     "label": "Blue Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/blue_wool"
   },
   {
     "id": "blue_bed",
@@ -785,22 +723,19 @@
     "id": "blue_carpet",
     "label": "Blue Carpet",
     "category": "misc",
-    "texture": "block/blue_wool",
-    "model": "block/blue_carpet"
+    "texture": "icons/blue_carpet"
   },
   {
     "id": "blue_concrete",
     "label": "Blue Concrete",
     "category": "misc",
-    "texture": "block/blue_concrete",
-    "model": "block/blue_concrete"
+    "texture": "icons/blue_concrete"
   },
   {
     "id": "blue_concrete_powder",
     "label": "Blue Concrete Powder",
     "category": "misc",
-    "texture": "block/blue_concrete_powder",
-    "model": "block/blue_concrete_powder"
+    "texture": "icons/blue_concrete_powder"
   },
   {
     "id": "blue_dye",
@@ -812,15 +747,13 @@
     "id": "blue_glazed_terracotta",
     "label": "Blue Glazed Terracotta",
     "category": "misc",
-    "texture": "block/blue_glazed_terracotta",
-    "model": "block/blue_glazed_terracotta"
+    "texture": "icons/blue_glazed_terracotta"
   },
   {
     "id": "blue_ice",
     "label": "Blue Ice",
     "category": "misc",
-    "texture": "block/blue_ice",
-    "model": "block/blue_ice"
+    "texture": "icons/blue_ice"
   },
   {
     "id": "blue_orchid",
@@ -832,14 +765,13 @@
     "id": "blue_shulker_box",
     "label": "Blue Shulker Box",
     "category": "misc",
-    "texture": "block/blue_shulker_box"
+    "texture": "icons/blue_shulker_box"
   },
   {
     "id": "blue_stained_glass",
     "label": "Blue Stained Glass",
     "category": "misc",
-    "texture": "block/blue_stained_glass",
-    "model": "block/blue_stained_glass"
+    "texture": "icons/blue_stained_glass"
   },
   {
     "id": "blue_stained_glass_pane",
@@ -851,21 +783,19 @@
     "id": "blue_terracotta",
     "label": "Blue Terracotta",
     "category": "misc",
-    "texture": "block/blue_terracotta",
-    "model": "block/blue_terracotta"
+    "texture": "icons/blue_terracotta"
   },
   {
     "id": "blue_wool",
     "label": "Blue Wool",
     "category": "misc",
-    "texture": "block/blue_wool",
-    "model": "block/blue_wool"
+    "texture": "icons/blue_wool"
   },
   {
     "id": "bogged_spawn_egg",
     "label": "Bogged Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/bogged_spawn_egg"
   },
   {
     "id": "bolt_armor_trim_smithing_template",
@@ -883,8 +813,7 @@
     "id": "bone_block",
     "label": "Bone Block",
     "category": "misc",
-    "texture": "block/bone_block_side",
-    "model": "block/bone_block"
+    "texture": "icons/bone_block"
   },
   {
     "id": "bone_meal",
@@ -902,8 +831,7 @@
     "id": "bookshelf",
     "label": "Bookshelf",
     "category": "misc",
-    "texture": "block/bookshelf",
-    "model": "block/bookshelf"
+    "texture": "icons/bookshelf"
   },
   {
     "id": "bordure_indented_banner_pattern",
@@ -933,8 +861,7 @@
     "id": "brain_coral_block",
     "label": "Brain Coral Block",
     "category": "misc",
-    "texture": "block/brain_coral_block",
-    "model": "block/brain_coral_block"
+    "texture": "icons/brain_coral_block"
   },
   {
     "id": "brain_coral_fan",
@@ -958,7 +885,7 @@
     "id": "breeze_spawn_egg",
     "label": "Breeze Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/breeze_spawn_egg"
   },
   {
     "id": "brewer_pottery_sherd",
@@ -982,35 +909,31 @@
     "id": "brick_slab",
     "label": "Brick Slab",
     "category": "misc",
-    "texture": "block/bricks",
-    "model": "block/brick_slab"
+    "texture": "icons/brick_slab"
   },
   {
     "id": "brick_stairs",
     "label": "Brick Stairs",
     "category": "misc",
-    "texture": "block/bricks",
-    "model": "block/brick_stairs"
+    "texture": "icons/brick_stairs"
   },
   {
     "id": "brick_wall",
     "label": "Brick Wall",
     "category": "misc",
-    "texture": "block/bricks",
-    "model": "block/brick_wall_inventory"
+    "texture": "icons/brick_wall"
   },
   {
     "id": "bricks",
     "label": "Bricks",
     "category": "misc",
-    "texture": "block/bricks",
-    "model": "block/bricks"
+    "texture": "icons/bricks"
   },
   {
     "id": "brown_banner",
     "label": "Brown Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/brown_wool"
   },
   {
     "id": "brown_bed",
@@ -1034,22 +957,19 @@
     "id": "brown_carpet",
     "label": "Brown Carpet",
     "category": "misc",
-    "texture": "block/brown_wool",
-    "model": "block/brown_carpet"
+    "texture": "icons/brown_carpet"
   },
   {
     "id": "brown_concrete",
     "label": "Brown Concrete",
     "category": "misc",
-    "texture": "block/brown_concrete",
-    "model": "block/brown_concrete"
+    "texture": "icons/brown_concrete"
   },
   {
     "id": "brown_concrete_powder",
     "label": "Brown Concrete Powder",
     "category": "misc",
-    "texture": "block/brown_concrete_powder",
-    "model": "block/brown_concrete_powder"
+    "texture": "icons/brown_concrete_powder"
   },
   {
     "id": "brown_dye",
@@ -1061,8 +981,7 @@
     "id": "brown_glazed_terracotta",
     "label": "Brown Glazed Terracotta",
     "category": "misc",
-    "texture": "block/brown_glazed_terracotta",
-    "model": "block/brown_glazed_terracotta"
+    "texture": "icons/brown_glazed_terracotta"
   },
   {
     "id": "brown_mushroom",
@@ -1074,21 +993,19 @@
     "id": "brown_mushroom_block",
     "label": "Brown Mushroom Block",
     "category": "misc",
-    "texture": "block/brown_mushroom_block",
-    "model": "block/brown_mushroom_block_inventory"
+    "texture": "icons/brown_mushroom_block"
   },
   {
     "id": "brown_shulker_box",
     "label": "Brown Shulker Box",
     "category": "misc",
-    "texture": "block/brown_shulker_box"
+    "texture": "icons/brown_shulker_box"
   },
   {
     "id": "brown_stained_glass",
     "label": "Brown Stained Glass",
     "category": "misc",
-    "texture": "block/brown_stained_glass",
-    "model": "block/brown_stained_glass"
+    "texture": "icons/brown_stained_glass"
   },
   {
     "id": "brown_stained_glass_pane",
@@ -1100,15 +1017,13 @@
     "id": "brown_terracotta",
     "label": "Brown Terracotta",
     "category": "misc",
-    "texture": "block/brown_terracotta",
-    "model": "block/brown_terracotta"
+    "texture": "icons/brown_terracotta"
   },
   {
     "id": "brown_wool",
     "label": "Brown Wool",
     "category": "misc",
-    "texture": "block/brown_wool",
-    "model": "block/brown_wool"
+    "texture": "icons/brown_wool"
   },
   {
     "id": "brush",
@@ -1126,8 +1041,7 @@
     "id": "bubble_coral_block",
     "label": "Bubble Coral Block",
     "category": "misc",
-    "texture": "block/bubble_coral_block",
-    "model": "block/bubble_coral_block"
+    "texture": "icons/bubble_coral_block"
   },
   {
     "id": "bubble_coral_fan",
@@ -1145,8 +1059,7 @@
     "id": "budding_amethyst",
     "label": "Budding Amethyst",
     "category": "misc",
-    "texture": "block/budding_amethyst",
-    "model": "block/budding_amethyst"
+    "texture": "icons/budding_amethyst"
   },
   {
     "id": "bundle",
@@ -1164,8 +1077,7 @@
     "id": "cactus",
     "label": "Cactus",
     "category": "misc",
-    "texture": "block/cactus_side",
-    "model": "block/cactus"
+    "texture": "icons/cactus"
   },
   {
     "id": "cake",
@@ -1177,21 +1089,19 @@
     "id": "calcite",
     "label": "Calcite",
     "category": "misc",
-    "texture": "block/calcite",
-    "model": "block/calcite"
+    "texture": "icons/calcite"
   },
   {
     "id": "calibrated_sculk_sensor",
     "label": "Calibrated Sculk Sensor",
     "category": "misc",
-    "texture": "block/sculk_sensor_bottom",
-    "model": "block/calibrated_sculk_sensor_inactive"
+    "texture": "icons/calibrated_sculk_sensor"
   },
   {
     "id": "camel_spawn_egg",
     "label": "Camel Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/camel_spawn_egg"
   },
   {
     "id": "campfire",
@@ -1221,21 +1131,19 @@
     "id": "cartography_table",
     "label": "Cartography Table",
     "category": "misc",
-    "texture": "block/cartography_table_side3",
-    "model": "block/cartography_table"
+    "texture": "icons/cartography_table"
   },
   {
     "id": "carved_pumpkin",
     "label": "Carved Pumpkin",
     "category": "misc",
-    "texture": "block/carved_pumpkin",
-    "model": "block/carved_pumpkin"
+    "texture": "icons/carved_pumpkin"
   },
   {
     "id": "cat_spawn_egg",
     "label": "Cat Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/cat_spawn_egg"
   },
   {
     "id": "cauldron",
@@ -1247,7 +1155,7 @@
     "id": "cave_spider_spawn_egg",
     "label": "Cave Spider Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/cave_spider_spawn_egg"
   },
   {
     "id": "chain",
@@ -1259,8 +1167,7 @@
     "id": "chain_command_block",
     "label": "Chain Command Block",
     "category": "misc",
-    "texture": "block/chain_command_block_back",
-    "model": "block/chain_command_block"
+    "texture": "icons/chain_command_block"
   },
   {
     "id": "chainmail_boots",
@@ -1302,8 +1209,7 @@
     "id": "cherry_button",
     "label": "Cherry Button",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_button_inventory"
+    "texture": "icons/cherry_button"
   },
   {
     "id": "cherry_chest_boat",
@@ -1321,15 +1227,13 @@
     "id": "cherry_fence",
     "label": "Cherry Fence",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_fence_inventory"
+    "texture": "icons/cherry_fence"
   },
   {
     "id": "cherry_fence_gate",
     "label": "Cherry Fence Gate",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_fence_gate"
+    "texture": "icons/cherry_fence_gate"
   },
   {
     "id": "cherry_hanging_sign",
@@ -1341,29 +1245,25 @@
     "id": "cherry_leaves",
     "label": "Cherry Leaves",
     "category": "misc",
-    "texture": "block/cherry_leaves",
-    "model": "block/cherry_leaves"
+    "texture": "icons/cherry_leaves"
   },
   {
     "id": "cherry_log",
     "label": "Cherry Log",
     "category": "misc",
-    "texture": "block/cherry_log",
-    "model": "block/cherry_log"
+    "texture": "icons/cherry_log"
   },
   {
     "id": "cherry_planks",
     "label": "Cherry Planks",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_planks"
+    "texture": "icons/cherry_planks"
   },
   {
     "id": "cherry_pressure_plate",
     "label": "Cherry Pressure Plate",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_pressure_plate"
+    "texture": "icons/cherry_pressure_plate"
   },
   {
     "id": "cherry_sapling",
@@ -1381,35 +1281,31 @@
     "id": "cherry_slab",
     "label": "Cherry Slab",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_slab"
+    "texture": "icons/cherry_slab"
   },
   {
     "id": "cherry_stairs",
     "label": "Cherry Stairs",
     "category": "misc",
-    "texture": "block/cherry_planks",
-    "model": "block/cherry_stairs"
+    "texture": "icons/cherry_stairs"
   },
   {
     "id": "cherry_trapdoor",
     "label": "Cherry Trapdoor",
     "category": "misc",
-    "texture": "block/cherry_trapdoor",
-    "model": "block/cherry_trapdoor_bottom"
+    "texture": "icons/cherry_trapdoor"
   },
   {
     "id": "cherry_wood",
     "label": "Cherry Wood",
     "category": "misc",
-    "texture": "block/cherry_log",
-    "model": "block/cherry_wood"
+    "texture": "icons/cherry_wood"
   },
   {
     "id": "chest",
     "label": "Chest",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "icons/chest"
   },
   {
     "id": "chest_minecart",
@@ -1427,105 +1323,91 @@
     "id": "chicken_spawn_egg",
     "label": "Chicken Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/chicken_spawn_egg"
   },
   {
     "id": "chipped_anvil",
     "label": "Chipped Anvil",
     "category": "misc",
-    "texture": "block/anvil",
-    "model": "block/chipped_anvil"
+    "texture": "icons/chipped_anvil"
   },
   {
     "id": "chiseled_bookshelf",
     "label": "Chiseled Bookshelf",
     "category": "misc",
-    "texture": "block/chiseled_bookshelf_top",
-    "model": "block/chiseled_bookshelf_inventory"
+    "texture": "icons/chiseled_bookshelf"
   },
   {
     "id": "chiseled_copper",
     "label": "Chiseled Copper",
     "category": "misc",
-    "texture": "block/chiseled_copper",
-    "model": "block/chiseled_copper"
+    "texture": "icons/chiseled_copper"
   },
   {
     "id": "chiseled_deepslate",
     "label": "Chiseled Deepslate",
     "category": "misc",
-    "texture": "block/chiseled_deepslate",
-    "model": "block/chiseled_deepslate"
+    "texture": "icons/chiseled_deepslate"
   },
   {
     "id": "chiseled_nether_bricks",
     "label": "Chiseled Nether Bricks",
     "category": "misc",
-    "texture": "block/chiseled_nether_bricks",
-    "model": "block/chiseled_nether_bricks"
+    "texture": "icons/chiseled_nether_bricks"
   },
   {
     "id": "chiseled_polished_blackstone",
     "label": "Chiseled Polished Blackstone",
     "category": "misc",
-    "texture": "block/chiseled_polished_blackstone",
-    "model": "block/chiseled_polished_blackstone"
+    "texture": "icons/chiseled_polished_blackstone"
   },
   {
     "id": "chiseled_quartz_block",
     "label": "Chiseled Quartz Block",
     "category": "misc",
-    "texture": "block/chiseled_quartz_block",
-    "model": "block/chiseled_quartz_block"
+    "texture": "icons/chiseled_quartz_block"
   },
   {
     "id": "chiseled_red_sandstone",
     "label": "Chiseled Red Sandstone",
     "category": "misc",
-    "texture": "block/chiseled_red_sandstone",
-    "model": "block/chiseled_red_sandstone"
+    "texture": "icons/chiseled_red_sandstone"
   },
   {
     "id": "chiseled_resin_bricks",
     "label": "Chiseled Resin Bricks",
     "category": "misc",
-    "texture": "block/chiseled_resin_bricks",
-    "model": "block/chiseled_resin_bricks"
+    "texture": "icons/chiseled_resin_bricks"
   },
   {
     "id": "chiseled_sandstone",
     "label": "Chiseled Sandstone",
     "category": "misc",
-    "texture": "block/chiseled_sandstone",
-    "model": "block/chiseled_sandstone"
+    "texture": "icons/chiseled_sandstone"
   },
   {
     "id": "chiseled_stone_bricks",
     "label": "Chiseled Stone Bricks",
     "category": "misc",
-    "texture": "block/chiseled_stone_bricks",
-    "model": "block/chiseled_stone_bricks"
+    "texture": "icons/chiseled_stone_bricks"
   },
   {
     "id": "chiseled_tuff",
     "label": "Chiseled Tuff",
     "category": "misc",
-    "texture": "block/chiseled_tuff",
-    "model": "block/chiseled_tuff"
+    "texture": "icons/chiseled_tuff"
   },
   {
     "id": "chiseled_tuff_bricks",
     "label": "Chiseled Tuff Bricks",
     "category": "misc",
-    "texture": "block/chiseled_tuff_bricks",
-    "model": "block/chiseled_tuff_bricks"
+    "texture": "icons/chiseled_tuff_bricks"
   },
   {
     "id": "chorus_flower",
     "label": "Chorus Flower",
     "category": "misc",
-    "texture": "block/chorus_flower",
-    "model": "block/chorus_flower"
+    "texture": "icons/chorus_flower"
   },
   {
     "id": "chorus_fruit",
@@ -1537,15 +1419,13 @@
     "id": "chorus_plant",
     "label": "Chorus Plant",
     "category": "misc",
-    "texture": "block/chorus_plant",
-    "model": "block/chorus_plant"
+    "texture": "icons/chorus_plant"
   },
   {
     "id": "clay",
     "label": "Clay",
     "category": "misc",
-    "texture": "block/clay",
-    "model": "block/clay"
+    "texture": "icons/clay"
   },
   {
     "id": "clay_ball",
@@ -1575,22 +1455,19 @@
     "id": "coal_block",
     "label": "Coal Block",
     "category": "misc",
-    "texture": "block/coal_block",
-    "model": "block/coal_block"
+    "texture": "icons/coal_block"
   },
   {
     "id": "coal_ore",
     "label": "Coal Ore",
     "category": "misc",
-    "texture": "block/coal_ore",
-    "model": "block/coal_ore"
+    "texture": "icons/coal_ore"
   },
   {
     "id": "coarse_dirt",
     "label": "Coarse Dirt",
     "category": "misc",
-    "texture": "block/coarse_dirt",
-    "model": "block/coarse_dirt"
+    "texture": "icons/coarse_dirt"
   },
   {
     "id": "coast_armor_trim_smithing_template",
@@ -1602,57 +1479,49 @@
     "id": "cobbled_deepslate",
     "label": "Cobbled Deepslate",
     "category": "misc",
-    "texture": "block/cobbled_deepslate",
-    "model": "block/cobbled_deepslate"
+    "texture": "icons/cobbled_deepslate"
   },
   {
     "id": "cobbled_deepslate_slab",
     "label": "Cobbled Deepslate Slab",
     "category": "misc",
-    "texture": "block/cobbled_deepslate",
-    "model": "block/cobbled_deepslate_slab"
+    "texture": "icons/cobbled_deepslate_slab"
   },
   {
     "id": "cobbled_deepslate_stairs",
     "label": "Cobbled Deepslate Stairs",
     "category": "misc",
-    "texture": "block/cobbled_deepslate",
-    "model": "block/cobbled_deepslate_stairs"
+    "texture": "icons/cobbled_deepslate_stairs"
   },
   {
     "id": "cobbled_deepslate_wall",
     "label": "Cobbled Deepslate Wall",
     "category": "misc",
-    "texture": "block/cobbled_deepslate",
-    "model": "block/cobbled_deepslate_wall_inventory"
+    "texture": "icons/cobbled_deepslate_wall"
   },
   {
     "id": "cobblestone",
     "label": "Cobblestone",
     "category": "misc",
-    "texture": "block/cobblestone",
-    "model": "block/cobblestone"
+    "texture": "icons/cobblestone"
   },
   {
     "id": "cobblestone_slab",
     "label": "Cobblestone Slab",
     "category": "misc",
-    "texture": "block/cobblestone",
-    "model": "block/cobblestone_slab"
+    "texture": "icons/cobblestone_slab"
   },
   {
     "id": "cobblestone_stairs",
     "label": "Cobblestone Stairs",
     "category": "misc",
-    "texture": "block/cobblestone",
-    "model": "block/cobblestone_stairs"
+    "texture": "icons/cobblestone_stairs"
   },
   {
     "id": "cobblestone_wall",
     "label": "Cobblestone Wall",
     "category": "misc",
-    "texture": "block/cobblestone",
-    "model": "block/cobblestone_wall_inventory"
+    "texture": "icons/cobblestone_wall"
   },
   {
     "id": "cobweb",
@@ -1682,14 +1551,13 @@
     "id": "cod_spawn_egg",
     "label": "Cod Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/cod_spawn_egg"
   },
   {
     "id": "command_block",
     "label": "Command Block",
     "category": "misc",
-    "texture": "block/command_block_back",
-    "model": "block/command_block"
+    "texture": "icons/command_block"
   },
   {
     "id": "command_block_minecart",
@@ -1713,14 +1581,13 @@
     "id": "composter",
     "label": "Composter",
     "category": "misc",
-    "texture": "block/composter_side",
-    "model": "block/composter"
+    "texture": "icons/composter"
   },
   {
     "id": "conduit",
     "label": "Conduit",
     "category": "misc",
-    "texture": "block/conduit"
+    "texture": "item/conduit"
   },
   {
     "id": "cooked_beef",
@@ -1774,15 +1641,13 @@
     "id": "copper_block",
     "label": "Copper Block",
     "category": "misc",
-    "texture": "block/copper_block",
-    "model": "block/copper_block"
+    "texture": "icons/copper_block"
   },
   {
     "id": "copper_bulb",
     "label": "Copper Bulb",
     "category": "misc",
-    "texture": "block/copper_bulb",
-    "model": "block/copper_bulb"
+    "texture": "icons/copper_bulb"
   },
   {
     "id": "copper_door",
@@ -1794,8 +1659,7 @@
     "id": "copper_grate",
     "label": "Copper Grate",
     "category": "misc",
-    "texture": "block/copper_grate",
-    "model": "block/copper_grate"
+    "texture": "icons/copper_grate"
   },
   {
     "id": "copper_ingot",
@@ -1807,15 +1671,13 @@
     "id": "copper_ore",
     "label": "Copper Ore",
     "category": "misc",
-    "texture": "block/copper_ore",
-    "model": "block/copper_ore"
+    "texture": "icons/copper_ore"
   },
   {
     "id": "copper_trapdoor",
     "label": "Copper Trapdoor",
     "category": "misc",
-    "texture": "block/copper_trapdoor",
-    "model": "block/copper_trapdoor_bottom"
+    "texture": "icons/copper_trapdoor"
   },
   {
     "id": "cornflower",
@@ -1827,69 +1689,61 @@
     "id": "cow_spawn_egg",
     "label": "Cow Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/cow_spawn_egg"
   },
   {
     "id": "cracked_deepslate_bricks",
     "label": "Cracked Deepslate Bricks",
     "category": "misc",
-    "texture": "block/cracked_deepslate_bricks",
-    "model": "block/cracked_deepslate_bricks"
+    "texture": "icons/cracked_deepslate_bricks"
   },
   {
     "id": "cracked_deepslate_tiles",
     "label": "Cracked Deepslate Tiles",
     "category": "misc",
-    "texture": "block/cracked_deepslate_tiles",
-    "model": "block/cracked_deepslate_tiles"
+    "texture": "icons/cracked_deepslate_tiles"
   },
   {
     "id": "cracked_nether_bricks",
     "label": "Cracked Nether Bricks",
     "category": "misc",
-    "texture": "block/cracked_nether_bricks",
-    "model": "block/cracked_nether_bricks"
+    "texture": "icons/cracked_nether_bricks"
   },
   {
     "id": "cracked_polished_blackstone_bricks",
     "label": "Cracked Polished Blackstone Bricks",
     "category": "misc",
-    "texture": "block/cracked_polished_blackstone_bricks",
-    "model": "block/cracked_polished_blackstone_bricks"
+    "texture": "icons/cracked_polished_blackstone_bricks"
   },
   {
     "id": "cracked_stone_bricks",
     "label": "Cracked Stone Bricks",
     "category": "misc",
-    "texture": "block/cracked_stone_bricks",
-    "model": "block/cracked_stone_bricks"
+    "texture": "icons/cracked_stone_bricks"
   },
   {
     "id": "crafter",
     "label": "Crafter",
     "category": "misc",
-    "texture": "block/crafter_north",
-    "model": "block/crafter"
+    "texture": "icons/crafter"
   },
   {
     "id": "crafting_table",
     "label": "Crafting Table",
     "category": "misc",
-    "texture": "block/crafting_table_front",
-    "model": "block/crafting_table"
+    "texture": "icons/crafting_table"
   },
   {
     "id": "creaking_heart",
     "label": "Creaking Heart",
     "category": "misc",
-    "texture": "block/creaking_heart",
-    "model": "block/creaking_heart"
+    "texture": "icons/creaking_heart"
   },
   {
     "id": "creaking_spawn_egg",
     "label": "Creaking Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/creaking_spawn_egg"
   },
   {
     "id": "creeper_banner_pattern",
@@ -1901,20 +1755,19 @@
     "id": "creeper_head",
     "label": "Creeper Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/creeper_head"
   },
   {
     "id": "creeper_spawn_egg",
     "label": "Creeper Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/creeper_spawn_egg"
   },
   {
     "id": "crimson_button",
     "label": "Crimson Button",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_button_inventory"
+    "texture": "icons/crimson_button"
   },
   {
     "id": "crimson_door",
@@ -1926,15 +1779,13 @@
     "id": "crimson_fence",
     "label": "Crimson Fence",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_fence_inventory"
+    "texture": "icons/crimson_fence"
   },
   {
     "id": "crimson_fence_gate",
     "label": "Crimson Fence Gate",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_fence_gate"
+    "texture": "icons/crimson_fence_gate"
   },
   {
     "id": "crimson_fungus",
@@ -1952,29 +1803,25 @@
     "id": "crimson_hyphae",
     "label": "Crimson Hyphae",
     "category": "misc",
-    "texture": "block/crimson_stem",
-    "model": "block/crimson_hyphae"
+    "texture": "icons/crimson_hyphae"
   },
   {
     "id": "crimson_nylium",
     "label": "Crimson Nylium",
     "category": "misc",
-    "texture": "block/crimson_nylium_side",
-    "model": "block/crimson_nylium"
+    "texture": "icons/crimson_nylium"
   },
   {
     "id": "crimson_planks",
     "label": "Crimson Planks",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_planks"
+    "texture": "icons/crimson_planks"
   },
   {
     "id": "crimson_pressure_plate",
     "label": "Crimson Pressure Plate",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_pressure_plate"
+    "texture": "icons/crimson_pressure_plate"
   },
   {
     "id": "crimson_roots",
@@ -1992,29 +1839,25 @@
     "id": "crimson_slab",
     "label": "Crimson Slab",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_slab"
+    "texture": "icons/crimson_slab"
   },
   {
     "id": "crimson_stairs",
     "label": "Crimson Stairs",
     "category": "misc",
-    "texture": "block/crimson_planks",
-    "model": "block/crimson_stairs"
+    "texture": "icons/crimson_stairs"
   },
   {
     "id": "crimson_stem",
     "label": "Crimson Stem",
     "category": "misc",
-    "texture": "block/crimson_stem",
-    "model": "block/crimson_stem"
+    "texture": "icons/crimson_stem"
   },
   {
     "id": "crimson_trapdoor",
     "label": "Crimson Trapdoor",
     "category": "misc",
-    "texture": "block/crimson_trapdoor",
-    "model": "block/crimson_trapdoor_bottom"
+    "texture": "icons/crimson_trapdoor"
   },
   {
     "id": "crossbow",
@@ -2026,63 +1869,55 @@
     "id": "crying_obsidian",
     "label": "Crying Obsidian",
     "category": "misc",
-    "texture": "block/crying_obsidian",
-    "model": "block/crying_obsidian"
+    "texture": "icons/crying_obsidian"
   },
   {
     "id": "cut_copper",
     "label": "Cut Copper",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper"
+    "texture": "icons/cut_copper"
   },
   {
     "id": "cut_copper_slab",
     "label": "Cut Copper Slab",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper_slab"
+    "texture": "icons/cut_copper_slab"
   },
   {
     "id": "cut_copper_stairs",
     "label": "Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper_stairs"
+    "texture": "icons/cut_copper_stairs"
   },
   {
     "id": "cut_red_sandstone",
     "label": "Cut Red Sandstone",
     "category": "misc",
-    "texture": "block/cut_red_sandstone",
-    "model": "block/cut_red_sandstone"
+    "texture": "icons/cut_red_sandstone"
   },
   {
     "id": "cut_red_sandstone_slab",
     "label": "Cut Red Sandstone Slab",
     "category": "misc",
-    "texture": "block/cut_red_sandstone",
-    "model": "block/cut_red_sandstone_slab"
+    "texture": "icons/cut_red_sandstone_slab"
   },
   {
     "id": "cut_sandstone",
     "label": "Cut Sandstone",
     "category": "misc",
-    "texture": "block/cut_sandstone",
-    "model": "block/cut_sandstone"
+    "texture": "icons/cut_sandstone"
   },
   {
     "id": "cut_sandstone_slab",
     "label": "Cut Sandstone Slab",
     "category": "misc",
-    "texture": "block/cut_sandstone",
-    "model": "block/cut_sandstone_slab"
+    "texture": "icons/cut_sandstone_slab"
   },
   {
     "id": "cyan_banner",
     "label": "Cyan Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/cyan_wool"
   },
   {
     "id": "cyan_bed",
@@ -2106,22 +1941,19 @@
     "id": "cyan_carpet",
     "label": "Cyan Carpet",
     "category": "misc",
-    "texture": "block/cyan_wool",
-    "model": "block/cyan_carpet"
+    "texture": "icons/cyan_carpet"
   },
   {
     "id": "cyan_concrete",
     "label": "Cyan Concrete",
     "category": "misc",
-    "texture": "block/cyan_concrete",
-    "model": "block/cyan_concrete"
+    "texture": "icons/cyan_concrete"
   },
   {
     "id": "cyan_concrete_powder",
     "label": "Cyan Concrete Powder",
     "category": "misc",
-    "texture": "block/cyan_concrete_powder",
-    "model": "block/cyan_concrete_powder"
+    "texture": "icons/cyan_concrete_powder"
   },
   {
     "id": "cyan_dye",
@@ -2133,21 +1965,19 @@
     "id": "cyan_glazed_terracotta",
     "label": "Cyan Glazed Terracotta",
     "category": "misc",
-    "texture": "block/cyan_glazed_terracotta",
-    "model": "block/cyan_glazed_terracotta"
+    "texture": "icons/cyan_glazed_terracotta"
   },
   {
     "id": "cyan_shulker_box",
     "label": "Cyan Shulker Box",
     "category": "misc",
-    "texture": "block/cyan_shulker_box"
+    "texture": "icons/cyan_shulker_box"
   },
   {
     "id": "cyan_stained_glass",
     "label": "Cyan Stained Glass",
     "category": "misc",
-    "texture": "block/cyan_stained_glass",
-    "model": "block/cyan_stained_glass"
+    "texture": "icons/cyan_stained_glass"
   },
   {
     "id": "cyan_stained_glass_pane",
@@ -2159,22 +1989,19 @@
     "id": "cyan_terracotta",
     "label": "Cyan Terracotta",
     "category": "misc",
-    "texture": "block/cyan_terracotta",
-    "model": "block/cyan_terracotta"
+    "texture": "icons/cyan_terracotta"
   },
   {
     "id": "cyan_wool",
     "label": "Cyan Wool",
     "category": "misc",
-    "texture": "block/cyan_wool",
-    "model": "block/cyan_wool"
+    "texture": "icons/cyan_wool"
   },
   {
     "id": "damaged_anvil",
     "label": "Damaged Anvil",
     "category": "misc",
-    "texture": "block/anvil",
-    "model": "block/damaged_anvil"
+    "texture": "icons/damaged_anvil"
   },
   {
     "id": "dandelion",
@@ -2198,8 +2025,7 @@
     "id": "dark_oak_button",
     "label": "Dark Oak Button",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_button_inventory"
+    "texture": "icons/dark_oak_button"
   },
   {
     "id": "dark_oak_chest_boat",
@@ -2217,15 +2043,13 @@
     "id": "dark_oak_fence",
     "label": "Dark Oak Fence",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_fence_inventory"
+    "texture": "icons/dark_oak_fence"
   },
   {
     "id": "dark_oak_fence_gate",
     "label": "Dark Oak Fence Gate",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_fence_gate"
+    "texture": "icons/dark_oak_fence_gate"
   },
   {
     "id": "dark_oak_hanging_sign",
@@ -2237,29 +2061,25 @@
     "id": "dark_oak_leaves",
     "label": "Dark Oak Leaves",
     "category": "misc",
-    "texture": "block/dark_oak_leaves",
-    "model": "block/dark_oak_leaves"
+    "texture": "icons/dark_oak_leaves"
   },
   {
     "id": "dark_oak_log",
     "label": "Dark Oak Log",
     "category": "misc",
-    "texture": "block/dark_oak_log",
-    "model": "block/dark_oak_log"
+    "texture": "icons/dark_oak_log"
   },
   {
     "id": "dark_oak_planks",
     "label": "Dark Oak Planks",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_planks"
+    "texture": "icons/dark_oak_planks"
   },
   {
     "id": "dark_oak_pressure_plate",
     "label": "Dark Oak Pressure Plate",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_pressure_plate"
+    "texture": "icons/dark_oak_pressure_plate"
   },
   {
     "id": "dark_oak_sapling",
@@ -2277,57 +2097,49 @@
     "id": "dark_oak_slab",
     "label": "Dark Oak Slab",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_slab"
+    "texture": "icons/dark_oak_slab"
   },
   {
     "id": "dark_oak_stairs",
     "label": "Dark Oak Stairs",
     "category": "misc",
-    "texture": "block/dark_oak_planks",
-    "model": "block/dark_oak_stairs"
+    "texture": "icons/dark_oak_stairs"
   },
   {
     "id": "dark_oak_trapdoor",
     "label": "Dark Oak Trapdoor",
     "category": "misc",
-    "texture": "block/dark_oak_trapdoor",
-    "model": "block/dark_oak_trapdoor_bottom"
+    "texture": "icons/dark_oak_trapdoor"
   },
   {
     "id": "dark_oak_wood",
     "label": "Dark Oak Wood",
     "category": "misc",
-    "texture": "block/dark_oak_log",
-    "model": "block/dark_oak_wood"
+    "texture": "icons/dark_oak_wood"
   },
   {
     "id": "dark_prismarine",
     "label": "Dark Prismarine",
     "category": "misc",
-    "texture": "block/dark_prismarine",
-    "model": "block/dark_prismarine"
+    "texture": "icons/dark_prismarine"
   },
   {
     "id": "dark_prismarine_slab",
     "label": "Dark Prismarine Slab",
     "category": "misc",
-    "texture": "block/dark_prismarine",
-    "model": "block/dark_prismarine_slab"
+    "texture": "icons/dark_prismarine_slab"
   },
   {
     "id": "dark_prismarine_stairs",
     "label": "Dark Prismarine Stairs",
     "category": "misc",
-    "texture": "block/dark_prismarine",
-    "model": "block/dark_prismarine_stairs"
+    "texture": "icons/dark_prismarine_stairs"
   },
   {
     "id": "daylight_detector",
     "label": "Daylight Detector",
     "category": "misc",
-    "texture": "block/daylight_detector_top",
-    "model": "block/daylight_detector"
+    "texture": "icons/daylight_detector"
   },
   {
     "id": "dead_brain_coral",
@@ -2339,8 +2151,7 @@
     "id": "dead_brain_coral_block",
     "label": "Dead Brain Coral Block",
     "category": "misc",
-    "texture": "block/dead_brain_coral_block",
-    "model": "block/dead_brain_coral_block"
+    "texture": "icons/dead_brain_coral_block"
   },
   {
     "id": "dead_brain_coral_fan",
@@ -2358,8 +2169,7 @@
     "id": "dead_bubble_coral_block",
     "label": "Dead Bubble Coral Block",
     "category": "misc",
-    "texture": "block/dead_bubble_coral_block",
-    "model": "block/dead_bubble_coral_block"
+    "texture": "icons/dead_bubble_coral_block"
   },
   {
     "id": "dead_bubble_coral_fan",
@@ -2383,8 +2193,7 @@
     "id": "dead_fire_coral_block",
     "label": "Dead Fire Coral Block",
     "category": "misc",
-    "texture": "block/dead_fire_coral_block",
-    "model": "block/dead_fire_coral_block"
+    "texture": "icons/dead_fire_coral_block"
   },
   {
     "id": "dead_fire_coral_fan",
@@ -2402,8 +2211,7 @@
     "id": "dead_horn_coral_block",
     "label": "Dead Horn Coral Block",
     "category": "misc",
-    "texture": "block/dead_horn_coral_block",
-    "model": "block/dead_horn_coral_block"
+    "texture": "icons/dead_horn_coral_block"
   },
   {
     "id": "dead_horn_coral_fan",
@@ -2421,8 +2229,7 @@
     "id": "dead_tube_coral_block",
     "label": "Dead Tube Coral Block",
     "category": "misc",
-    "texture": "block/dead_tube_coral_block",
-    "model": "block/dead_tube_coral_block"
+    "texture": "icons/dead_tube_coral_block"
   },
   {
     "id": "dead_tube_coral_fan",
@@ -2446,120 +2253,103 @@
     "id": "deepslate",
     "label": "Deepslate",
     "category": "misc",
-    "texture": "block/deepslate",
-    "model": "block/deepslate"
+    "texture": "icons/deepslate"
   },
   {
     "id": "deepslate_brick_slab",
     "label": "Deepslate Brick Slab",
     "category": "misc",
-    "texture": "block/deepslate_bricks",
-    "model": "block/deepslate_brick_slab"
+    "texture": "icons/deepslate_brick_slab"
   },
   {
     "id": "deepslate_brick_stairs",
     "label": "Deepslate Brick Stairs",
     "category": "misc",
-    "texture": "block/deepslate_bricks",
-    "model": "block/deepslate_brick_stairs"
+    "texture": "icons/deepslate_brick_stairs"
   },
   {
     "id": "deepslate_brick_wall",
     "label": "Deepslate Brick Wall",
     "category": "misc",
-    "texture": "block/deepslate_bricks",
-    "model": "block/deepslate_brick_wall_inventory"
+    "texture": "icons/deepslate_brick_wall"
   },
   {
     "id": "deepslate_bricks",
     "label": "Deepslate Bricks",
     "category": "misc",
-    "texture": "block/deepslate_bricks",
-    "model": "block/deepslate_bricks"
+    "texture": "icons/deepslate_bricks"
   },
   {
     "id": "deepslate_coal_ore",
     "label": "Deepslate Coal Ore",
     "category": "misc",
-    "texture": "block/deepslate_coal_ore",
-    "model": "block/deepslate_coal_ore"
+    "texture": "icons/deepslate_coal_ore"
   },
   {
     "id": "deepslate_copper_ore",
     "label": "Deepslate Copper Ore",
     "category": "misc",
-    "texture": "block/deepslate_copper_ore",
-    "model": "block/deepslate_copper_ore"
+    "texture": "icons/deepslate_copper_ore"
   },
   {
     "id": "deepslate_diamond_ore",
     "label": "Deepslate Diamond Ore",
     "category": "misc",
-    "texture": "block/deepslate_diamond_ore",
-    "model": "block/deepslate_diamond_ore"
+    "texture": "icons/deepslate_diamond_ore"
   },
   {
     "id": "deepslate_emerald_ore",
     "label": "Deepslate Emerald Ore",
     "category": "misc",
-    "texture": "block/deepslate_emerald_ore",
-    "model": "block/deepslate_emerald_ore"
+    "texture": "icons/deepslate_emerald_ore"
   },
   {
     "id": "deepslate_gold_ore",
     "label": "Deepslate Gold Ore",
     "category": "misc",
-    "texture": "block/deepslate_gold_ore",
-    "model": "block/deepslate_gold_ore"
+    "texture": "icons/deepslate_gold_ore"
   },
   {
     "id": "deepslate_iron_ore",
     "label": "Deepslate Iron Ore",
     "category": "misc",
-    "texture": "block/deepslate_iron_ore",
-    "model": "block/deepslate_iron_ore"
+    "texture": "icons/deepslate_iron_ore"
   },
   {
     "id": "deepslate_lapis_ore",
     "label": "Deepslate Lapis Ore",
     "category": "misc",
-    "texture": "block/deepslate_lapis_ore",
-    "model": "block/deepslate_lapis_ore"
+    "texture": "icons/deepslate_lapis_ore"
   },
   {
     "id": "deepslate_redstone_ore",
     "label": "Deepslate Redstone Ore",
     "category": "misc",
-    "texture": "block/deepslate_redstone_ore",
-    "model": "block/deepslate_redstone_ore"
+    "texture": "icons/deepslate_redstone_ore"
   },
   {
     "id": "deepslate_tile_slab",
     "label": "Deepslate Tile Slab",
     "category": "misc",
-    "texture": "block/deepslate_tiles",
-    "model": "block/deepslate_tile_slab"
+    "texture": "icons/deepslate_tile_slab"
   },
   {
     "id": "deepslate_tile_stairs",
     "label": "Deepslate Tile Stairs",
     "category": "misc",
-    "texture": "block/deepslate_tiles",
-    "model": "block/deepslate_tile_stairs"
+    "texture": "icons/deepslate_tile_stairs"
   },
   {
     "id": "deepslate_tile_wall",
     "label": "Deepslate Tile Wall",
     "category": "misc",
-    "texture": "block/deepslate_tiles",
-    "model": "block/deepslate_tile_wall_inventory"
+    "texture": "icons/deepslate_tile_wall"
   },
   {
     "id": "deepslate_tiles",
     "label": "Deepslate Tiles",
     "category": "misc",
-    "texture": "block/deepslate_tiles",
-    "model": "block/deepslate_tiles"
+    "texture": "icons/deepslate_tiles"
   },
   {
     "id": "detector_rail",
@@ -2583,8 +2373,7 @@
     "id": "diamond_block",
     "label": "Diamond Block",
     "category": "misc",
-    "texture": "block/diamond_block",
-    "model": "block/diamond_block"
+    "texture": "icons/diamond_block"
   },
   {
     "id": "diamond_boots",
@@ -2626,8 +2415,7 @@
     "id": "diamond_ore",
     "label": "Diamond Ore",
     "category": "misc",
-    "texture": "block/diamond_ore",
-    "model": "block/diamond_ore"
+    "texture": "icons/diamond_ore"
   },
   {
     "id": "diamond_pickaxe",
@@ -2651,43 +2439,37 @@
     "id": "diorite",
     "label": "Diorite",
     "category": "misc",
-    "texture": "block/diorite",
-    "model": "block/diorite"
+    "texture": "icons/diorite"
   },
   {
     "id": "diorite_slab",
     "label": "Diorite Slab",
     "category": "misc",
-    "texture": "block/diorite",
-    "model": "block/diorite_slab"
+    "texture": "icons/diorite_slab"
   },
   {
     "id": "diorite_stairs",
     "label": "Diorite Stairs",
     "category": "misc",
-    "texture": "block/diorite",
-    "model": "block/diorite_stairs"
+    "texture": "icons/diorite_stairs"
   },
   {
     "id": "diorite_wall",
     "label": "Diorite Wall",
     "category": "misc",
-    "texture": "block/diorite",
-    "model": "block/diorite_wall_inventory"
+    "texture": "icons/diorite_wall"
   },
   {
     "id": "dirt",
     "label": "Dirt",
     "category": "misc",
-    "texture": "block/dirt",
-    "model": "block/dirt"
+    "texture": "icons/dirt"
   },
   {
     "id": "dirt_path",
     "label": "Dirt Path",
     "category": "misc",
-    "texture": "block/dirt",
-    "model": "block/dirt_path"
+    "texture": "icons/dirt_path"
   },
   {
     "id": "disc_fragment_5",
@@ -2699,20 +2481,19 @@
     "id": "dispenser",
     "label": "Dispenser",
     "category": "misc",
-    "texture": "block/dispenser_front",
-    "model": "block/dispenser"
+    "texture": "icons/dispenser"
   },
   {
     "id": "dolphin_spawn_egg",
     "label": "Dolphin Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/dolphin_spawn_egg"
   },
   {
     "id": "donkey_spawn_egg",
     "label": "Donkey Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/donkey_spawn_egg"
   },
   {
     "id": "dragon_breath",
@@ -2724,14 +2505,13 @@
     "id": "dragon_egg",
     "label": "Dragon Egg",
     "category": "misc",
-    "texture": "block/dragon_egg",
-    "model": "block/dragon_egg"
+    "texture": "icons/dragon_egg"
   },
   {
     "id": "dragon_head",
     "label": "Dragon Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/dragon_head"
   },
   {
     "id": "dried_kelp",
@@ -2743,28 +2523,25 @@
     "id": "dried_kelp_block",
     "label": "Dried Kelp Block",
     "category": "misc",
-    "texture": "block/dried_kelp_side",
-    "model": "block/dried_kelp_block"
+    "texture": "icons/dried_kelp_block"
   },
   {
     "id": "dripstone_block",
     "label": "Dripstone Block",
     "category": "misc",
-    "texture": "block/dripstone_block",
-    "model": "block/dripstone_block"
+    "texture": "icons/dripstone_block"
   },
   {
     "id": "dropper",
     "label": "Dropper",
     "category": "misc",
-    "texture": "block/dropper_front",
-    "model": "block/dropper"
+    "texture": "icons/dropper"
   },
   {
     "id": "drowned_spawn_egg",
     "label": "Drowned Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/drowned_spawn_egg"
   },
   {
     "id": "dune_armor_trim_smithing_template",
@@ -2788,7 +2565,7 @@
     "id": "elder_guardian_spawn_egg",
     "label": "Elder Guardian Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/elder_guardian_spawn_egg"
   },
   {
     "id": "elytra",
@@ -2806,15 +2583,13 @@
     "id": "emerald_block",
     "label": "Emerald Block",
     "category": "misc",
-    "texture": "block/emerald_block",
-    "model": "block/emerald_block"
+    "texture": "icons/emerald_block"
   },
   {
     "id": "emerald_ore",
     "label": "Emerald Ore",
     "category": "misc",
-    "texture": "block/emerald_ore",
-    "model": "block/emerald_ore"
+    "texture": "icons/emerald_ore"
   },
   {
     "id": "enchanted_book",
@@ -2832,8 +2607,7 @@
     "id": "enchanting_table",
     "label": "Enchanting Table",
     "category": "misc",
-    "texture": "block/enchanting_table_bottom",
-    "model": "block/enchanting_table"
+    "texture": "icons/enchanting_table"
   },
   {
     "id": "end_crystal",
@@ -2845,62 +2619,55 @@
     "id": "end_portal_frame",
     "label": "End Portal Frame",
     "category": "misc",
-    "texture": "block/end_portal_frame_side",
-    "model": "block/end_portal_frame"
+    "texture": "icons/end_portal_frame"
   },
   {
     "id": "end_rod",
     "label": "End Rod",
     "category": "misc",
-    "texture": "block/end_rod",
-    "model": "block/end_rod"
+    "texture": "icons/end_rod"
   },
   {
     "id": "end_stone",
     "label": "End Stone",
     "category": "misc",
-    "texture": "block/end_stone",
-    "model": "block/end_stone"
+    "texture": "icons/end_stone"
   },
   {
     "id": "end_stone_brick_slab",
     "label": "End Stone Brick Slab",
     "category": "misc",
-    "texture": "block/end_stone_bricks",
-    "model": "block/end_stone_brick_slab"
+    "texture": "icons/end_stone_brick_slab"
   },
   {
     "id": "end_stone_brick_stairs",
     "label": "End Stone Brick Stairs",
     "category": "misc",
-    "texture": "block/end_stone_bricks",
-    "model": "block/end_stone_brick_stairs"
+    "texture": "icons/end_stone_brick_stairs"
   },
   {
     "id": "end_stone_brick_wall",
     "label": "End Stone Brick Wall",
     "category": "misc",
-    "texture": "block/end_stone_bricks",
-    "model": "block/end_stone_brick_wall_inventory"
+    "texture": "icons/end_stone_brick_wall"
   },
   {
     "id": "end_stone_bricks",
     "label": "End Stone Bricks",
     "category": "misc",
-    "texture": "block/end_stone_bricks",
-    "model": "block/end_stone_bricks"
+    "texture": "icons/end_stone_bricks"
   },
   {
     "id": "ender_chest",
     "label": "Ender Chest",
     "category": "misc",
-    "texture": "block/obsidian"
+    "texture": "icons/ender_chest"
   },
   {
     "id": "ender_dragon_spawn_egg",
     "label": "Ender Dragon Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/ender_dragon_spawn_egg"
   },
   {
     "id": "ender_eye",
@@ -2918,19 +2685,19 @@
     "id": "enderman_spawn_egg",
     "label": "Enderman Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/enderman_spawn_egg"
   },
   {
     "id": "endermite_spawn_egg",
     "label": "Endermite Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/endermite_spawn_egg"
   },
   {
     "id": "evoker_spawn_egg",
     "label": "Evoker Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/evoker_spawn_egg"
   },
   {
     "id": "experience_bottle",
@@ -2948,22 +2715,19 @@
     "id": "exposed_chiseled_copper",
     "label": "Exposed Chiseled Copper",
     "category": "misc",
-    "texture": "block/exposed_chiseled_copper",
-    "model": "block/exposed_chiseled_copper"
+    "texture": "icons/exposed_chiseled_copper"
   },
   {
     "id": "exposed_copper",
     "label": "Exposed Copper",
     "category": "misc",
-    "texture": "block/exposed_copper",
-    "model": "block/exposed_copper"
+    "texture": "icons/exposed_copper"
   },
   {
     "id": "exposed_copper_bulb",
     "label": "Exposed Copper Bulb",
     "category": "misc",
-    "texture": "block/exposed_copper_bulb",
-    "model": "block/exposed_copper_bulb"
+    "texture": "icons/exposed_copper_bulb"
   },
   {
     "id": "exposed_copper_door",
@@ -2975,36 +2739,31 @@
     "id": "exposed_copper_grate",
     "label": "Exposed Copper Grate",
     "category": "misc",
-    "texture": "block/exposed_copper_grate",
-    "model": "block/exposed_copper_grate"
+    "texture": "icons/exposed_copper_grate"
   },
   {
     "id": "exposed_copper_trapdoor",
     "label": "Exposed Copper Trapdoor",
     "category": "misc",
-    "texture": "block/exposed_copper_trapdoor",
-    "model": "block/exposed_copper_trapdoor_bottom"
+    "texture": "icons/exposed_copper_trapdoor"
   },
   {
     "id": "exposed_cut_copper",
     "label": "Exposed Cut Copper",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper"
+    "texture": "icons/exposed_cut_copper"
   },
   {
     "id": "exposed_cut_copper_slab",
     "label": "Exposed Cut Copper Slab",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper_slab"
+    "texture": "icons/exposed_cut_copper_slab"
   },
   {
     "id": "exposed_cut_copper_stairs",
     "label": "Exposed Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper_stairs"
+    "texture": "icons/exposed_cut_copper_stairs"
   },
   {
     "id": "eye_armor_trim_smithing_template",
@@ -3016,8 +2775,7 @@
     "id": "farmland",
     "label": "Farmland",
     "category": "misc",
-    "texture": "block/dirt",
-    "model": "block/farmland"
+    "texture": "icons/farmland"
   },
   {
     "id": "feather",
@@ -3047,7 +2805,7 @@
     "id": "filled_map",
     "label": "Filled Map",
     "category": "misc",
-    "texture": "item/filled_map"
+    "texture": "icons/filled_map"
   },
   {
     "id": "fire_charge",
@@ -3065,8 +2823,7 @@
     "id": "fire_coral_block",
     "label": "Fire Coral Block",
     "category": "misc",
-    "texture": "block/fire_coral_block",
-    "model": "block/fire_coral_block"
+    "texture": "icons/fire_coral_block"
   },
   {
     "id": "fire_coral_fan",
@@ -3084,7 +2841,7 @@
     "id": "firework_star",
     "label": "Firework Star",
     "category": "misc",
-    "texture": "item/firework_star"
+    "texture": "icons/firework_star"
   },
   {
     "id": "fishing_rod",
@@ -3096,8 +2853,7 @@
     "id": "fletching_table",
     "label": "Fletching Table",
     "category": "misc",
-    "texture": "block/fletching_table_front",
-    "model": "block/fletching_table"
+    "texture": "icons/fletching_table"
   },
   {
     "id": "flint",
@@ -3145,21 +2901,19 @@
     "id": "flowering_azalea",
     "label": "Flowering Azalea",
     "category": "misc",
-    "texture": "block/azalea_plant",
-    "model": "block/flowering_azalea"
+    "texture": "icons/flowering_azalea"
   },
   {
     "id": "flowering_azalea_leaves",
     "label": "Flowering Azalea Leaves",
     "category": "misc",
-    "texture": "block/flowering_azalea_leaves",
-    "model": "block/flowering_azalea_leaves"
+    "texture": "icons/flowering_azalea_leaves"
   },
   {
     "id": "fox_spawn_egg",
     "label": "Fox Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/fox_spawn_egg"
   },
   {
     "id": "friend_pottery_sherd",
@@ -3171,7 +2925,7 @@
     "id": "frog_spawn_egg",
     "label": "Frog Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/frog_spawn_egg"
   },
   {
     "id": "frogspawn",
@@ -3183,8 +2937,7 @@
     "id": "furnace",
     "label": "Furnace",
     "category": "misc",
-    "texture": "block/furnace_front",
-    "model": "block/furnace"
+    "texture": "icons/furnace"
   },
   {
     "id": "furnace_minecart",
@@ -3196,7 +2949,7 @@
     "id": "ghast_spawn_egg",
     "label": "Ghast Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/ghast_spawn_egg"
   },
   {
     "id": "ghast_tear",
@@ -3208,15 +2961,13 @@
     "id": "gilded_blackstone",
     "label": "Gilded Blackstone",
     "category": "misc",
-    "texture": "block/gilded_blackstone",
-    "model": "block/gilded_blackstone"
+    "texture": "icons/gilded_blackstone"
   },
   {
     "id": "glass",
     "label": "Glass",
     "category": "misc",
-    "texture": "block/glass",
-    "model": "block/glass"
+    "texture": "icons/glass"
   },
   {
     "id": "glass_bottle",
@@ -3270,14 +3021,13 @@
     "id": "glow_squid_spawn_egg",
     "label": "Glow Squid Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/glow_squid_spawn_egg"
   },
   {
     "id": "glowstone",
     "label": "Glowstone",
     "category": "misc",
-    "texture": "block/glowstone",
-    "model": "block/glowstone"
+    "texture": "icons/glowstone"
   },
   {
     "id": "glowstone_dust",
@@ -3295,14 +3045,13 @@
     "id": "goat_spawn_egg",
     "label": "Goat Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/goat_spawn_egg"
   },
   {
     "id": "gold_block",
     "label": "Gold Block",
     "category": "misc",
-    "texture": "block/gold_block",
-    "model": "block/gold_block"
+    "texture": "icons/gold_block"
   },
   {
     "id": "gold_ingot",
@@ -3320,8 +3069,7 @@
     "id": "gold_ore",
     "label": "Gold Ore",
     "category": "misc",
-    "texture": "block/gold_ore",
-    "model": "block/gold_ore"
+    "texture": "icons/gold_ore"
   },
   {
     "id": "golden_apple",
@@ -3399,49 +3147,43 @@
     "id": "granite",
     "label": "Granite",
     "category": "misc",
-    "texture": "block/granite",
-    "model": "block/granite"
+    "texture": "icons/granite"
   },
   {
     "id": "granite_slab",
     "label": "Granite Slab",
     "category": "misc",
-    "texture": "block/granite",
-    "model": "block/granite_slab"
+    "texture": "icons/granite_slab"
   },
   {
     "id": "granite_stairs",
     "label": "Granite Stairs",
     "category": "misc",
-    "texture": "block/granite",
-    "model": "block/granite_stairs"
+    "texture": "icons/granite_stairs"
   },
   {
     "id": "granite_wall",
     "label": "Granite Wall",
     "category": "misc",
-    "texture": "block/granite",
-    "model": "block/granite_wall_inventory"
+    "texture": "icons/granite_wall"
   },
   {
     "id": "grass_block",
     "label": "Grass Block",
     "category": "misc",
-    "texture": "block/dirt",
-    "model": "block/grass_block"
+    "texture": "icons/grass_block"
   },
   {
     "id": "gravel",
     "label": "Gravel",
     "category": "misc",
-    "texture": "block/gravel",
-    "model": "block/gravel"
+    "texture": "icons/gravel"
   },
   {
     "id": "gray_banner",
     "label": "Gray Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/gray_wool"
   },
   {
     "id": "gray_bed",
@@ -3465,22 +3207,19 @@
     "id": "gray_carpet",
     "label": "Gray Carpet",
     "category": "misc",
-    "texture": "block/gray_wool",
-    "model": "block/gray_carpet"
+    "texture": "icons/gray_carpet"
   },
   {
     "id": "gray_concrete",
     "label": "Gray Concrete",
     "category": "misc",
-    "texture": "block/gray_concrete",
-    "model": "block/gray_concrete"
+    "texture": "icons/gray_concrete"
   },
   {
     "id": "gray_concrete_powder",
     "label": "Gray Concrete Powder",
     "category": "misc",
-    "texture": "block/gray_concrete_powder",
-    "model": "block/gray_concrete_powder"
+    "texture": "icons/gray_concrete_powder"
   },
   {
     "id": "gray_dye",
@@ -3492,21 +3231,19 @@
     "id": "gray_glazed_terracotta",
     "label": "Gray Glazed Terracotta",
     "category": "misc",
-    "texture": "block/gray_glazed_terracotta",
-    "model": "block/gray_glazed_terracotta"
+    "texture": "icons/gray_glazed_terracotta"
   },
   {
     "id": "gray_shulker_box",
     "label": "Gray Shulker Box",
     "category": "misc",
-    "texture": "block/gray_shulker_box"
+    "texture": "icons/gray_shulker_box"
   },
   {
     "id": "gray_stained_glass",
     "label": "Gray Stained Glass",
     "category": "misc",
-    "texture": "block/gray_stained_glass",
-    "model": "block/gray_stained_glass"
+    "texture": "icons/gray_stained_glass"
   },
   {
     "id": "gray_stained_glass_pane",
@@ -3518,21 +3255,19 @@
     "id": "gray_terracotta",
     "label": "Gray Terracotta",
     "category": "misc",
-    "texture": "block/gray_terracotta",
-    "model": "block/gray_terracotta"
+    "texture": "icons/gray_terracotta"
   },
   {
     "id": "gray_wool",
     "label": "Gray Wool",
     "category": "misc",
-    "texture": "block/gray_wool",
-    "model": "block/gray_wool"
+    "texture": "icons/gray_wool"
   },
   {
     "id": "green_banner",
     "label": "Green Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/green_wool"
   },
   {
     "id": "green_bed",
@@ -3556,22 +3291,19 @@
     "id": "green_carpet",
     "label": "Green Carpet",
     "category": "misc",
-    "texture": "block/green_wool",
-    "model": "block/green_carpet"
+    "texture": "icons/green_carpet"
   },
   {
     "id": "green_concrete",
     "label": "Green Concrete",
     "category": "misc",
-    "texture": "block/green_concrete",
-    "model": "block/green_concrete"
+    "texture": "icons/green_concrete"
   },
   {
     "id": "green_concrete_powder",
     "label": "Green Concrete Powder",
     "category": "misc",
-    "texture": "block/green_concrete_powder",
-    "model": "block/green_concrete_powder"
+    "texture": "icons/green_concrete_powder"
   },
   {
     "id": "green_dye",
@@ -3583,21 +3315,19 @@
     "id": "green_glazed_terracotta",
     "label": "Green Glazed Terracotta",
     "category": "misc",
-    "texture": "block/green_glazed_terracotta",
-    "model": "block/green_glazed_terracotta"
+    "texture": "icons/green_glazed_terracotta"
   },
   {
     "id": "green_shulker_box",
     "label": "Green Shulker Box",
     "category": "misc",
-    "texture": "block/green_shulker_box"
+    "texture": "icons/green_shulker_box"
   },
   {
     "id": "green_stained_glass",
     "label": "Green Stained Glass",
     "category": "misc",
-    "texture": "block/green_stained_glass",
-    "model": "block/green_stained_glass"
+    "texture": "icons/green_stained_glass"
   },
   {
     "id": "green_stained_glass_pane",
@@ -3609,28 +3339,25 @@
     "id": "green_terracotta",
     "label": "Green Terracotta",
     "category": "misc",
-    "texture": "block/green_terracotta",
-    "model": "block/green_terracotta"
+    "texture": "icons/green_terracotta"
   },
   {
     "id": "green_wool",
     "label": "Green Wool",
     "category": "misc",
-    "texture": "block/green_wool",
-    "model": "block/green_wool"
+    "texture": "icons/green_wool"
   },
   {
     "id": "grindstone",
     "label": "Grindstone",
     "category": "misc",
-    "texture": "block/grindstone_side",
-    "model": "block/grindstone"
+    "texture": "icons/grindstone"
   },
   {
     "id": "guardian_spawn_egg",
     "label": "Guardian Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/guardian_spawn_egg"
   },
   {
     "id": "gunpowder",
@@ -3660,8 +3387,7 @@
     "id": "hay_block",
     "label": "Hay Block",
     "category": "misc",
-    "texture": "block/hay_block_side",
-    "model": "block/hay_block"
+    "texture": "icons/hay_block"
   },
   {
     "id": "heart_of_the_sea",
@@ -3685,28 +3411,25 @@
     "id": "heavy_core",
     "label": "Heavy Core",
     "category": "misc",
-    "texture": "block/heavy_core",
-    "model": "block/heavy_core"
+    "texture": "icons/heavy_core"
   },
   {
     "id": "heavy_weighted_pressure_plate",
     "label": "Heavy Weighted Pressure Plate",
     "category": "misc",
-    "texture": "block/iron_block",
-    "model": "block/heavy_weighted_pressure_plate"
+    "texture": "icons/heavy_weighted_pressure_plate"
   },
   {
     "id": "hoglin_spawn_egg",
     "label": "Hoglin Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/hoglin_spawn_egg"
   },
   {
     "id": "honey_block",
     "label": "Honey Block",
     "category": "misc",
-    "texture": "block/honey_block_top",
-    "model": "block/honey_block"
+    "texture": "icons/honey_block"
   },
   {
     "id": "honey_bottle",
@@ -3724,8 +3447,7 @@
     "id": "honeycomb_block",
     "label": "Honeycomb Block",
     "category": "misc",
-    "texture": "block/honeycomb_block",
-    "model": "block/honeycomb_block"
+    "texture": "icons/honeycomb_block"
   },
   {
     "id": "hopper",
@@ -3749,8 +3471,7 @@
     "id": "horn_coral_block",
     "label": "Horn Coral Block",
     "category": "misc",
-    "texture": "block/horn_coral_block",
-    "model": "block/horn_coral_block"
+    "texture": "icons/horn_coral_block"
   },
   {
     "id": "horn_coral_fan",
@@ -3762,7 +3483,7 @@
     "id": "horse_spawn_egg",
     "label": "Horse Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/horse_spawn_egg"
   },
   {
     "id": "host_armor_trim_smithing_template",
@@ -3780,63 +3501,55 @@
     "id": "husk_spawn_egg",
     "label": "Husk Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/husk_spawn_egg"
   },
   {
     "id": "ice",
     "label": "Ice",
     "category": "misc",
-    "texture": "block/ice",
-    "model": "block/ice"
+    "texture": "icons/ice"
   },
   {
     "id": "infested_chiseled_stone_bricks",
     "label": "Infested Chiseled Stone Bricks",
     "category": "misc",
-    "texture": "block/chiseled_stone_bricks",
-    "model": "block/chiseled_stone_bricks"
+    "texture": "icons/infested_chiseled_stone_bricks"
   },
   {
     "id": "infested_cobblestone",
     "label": "Infested Cobblestone",
     "category": "misc",
-    "texture": "block/cobblestone",
-    "model": "block/cobblestone"
+    "texture": "icons/infested_cobblestone"
   },
   {
     "id": "infested_cracked_stone_bricks",
     "label": "Infested Cracked Stone Bricks",
     "category": "misc",
-    "texture": "block/cracked_stone_bricks",
-    "model": "block/cracked_stone_bricks"
+    "texture": "icons/infested_cracked_stone_bricks"
   },
   {
     "id": "infested_deepslate",
     "label": "Infested Deepslate",
     "category": "misc",
-    "texture": "block/deepslate",
-    "model": "block/deepslate"
+    "texture": "icons/infested_deepslate"
   },
   {
     "id": "infested_mossy_stone_bricks",
     "label": "Infested Mossy Stone Bricks",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
-    "model": "block/mossy_stone_bricks"
+    "texture": "icons/infested_mossy_stone_bricks"
   },
   {
     "id": "infested_stone",
     "label": "Infested Stone",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone"
+    "texture": "icons/infested_stone"
   },
   {
     "id": "infested_stone_bricks",
     "label": "Infested Stone Bricks",
     "category": "misc",
-    "texture": "block/stone_bricks",
-    "model": "block/stone_bricks"
+    "texture": "icons/infested_stone_bricks"
   },
   {
     "id": "ink_sac",
@@ -3860,8 +3573,7 @@
     "id": "iron_block",
     "label": "Iron Block",
     "category": "misc",
-    "texture": "block/iron_block",
-    "model": "block/iron_block"
+    "texture": "icons/iron_block"
   },
   {
     "id": "iron_boots",
@@ -3885,7 +3597,7 @@
     "id": "iron_golem_spawn_egg",
     "label": "Iron Golem Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/iron_golem_spawn_egg"
   },
   {
     "id": "iron_helmet",
@@ -3927,8 +3639,7 @@
     "id": "iron_ore",
     "label": "Iron Ore",
     "category": "misc",
-    "texture": "block/iron_ore",
-    "model": "block/iron_ore"
+    "texture": "icons/iron_ore"
   },
   {
     "id": "iron_pickaxe",
@@ -3952,8 +3663,7 @@
     "id": "iron_trapdoor",
     "label": "Iron Trapdoor",
     "category": "misc",
-    "texture": "block/iron_trapdoor",
-    "model": "block/iron_trapdoor_bottom"
+    "texture": "icons/iron_trapdoor"
   },
   {
     "id": "item_frame",
@@ -3965,22 +3675,19 @@
     "id": "jack_o_lantern",
     "label": "Jack O Lantern",
     "category": "misc",
-    "texture": "block/jack_o_lantern",
-    "model": "block/jack_o_lantern"
+    "texture": "icons/jack_o_lantern"
   },
   {
     "id": "jigsaw",
     "label": "Jigsaw",
     "category": "misc",
-    "texture": "block/jigsaw_top",
-    "model": "block/jigsaw"
+    "texture": "icons/jigsaw"
   },
   {
     "id": "jukebox",
     "label": "Jukebox",
     "category": "misc",
-    "texture": "block/jukebox_side",
-    "model": "block/jukebox"
+    "texture": "icons/jukebox"
   },
   {
     "id": "jungle_boat",
@@ -3992,8 +3699,7 @@
     "id": "jungle_button",
     "label": "Jungle Button",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_button_inventory"
+    "texture": "icons/jungle_button"
   },
   {
     "id": "jungle_chest_boat",
@@ -4011,15 +3717,13 @@
     "id": "jungle_fence",
     "label": "Jungle Fence",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_fence_inventory"
+    "texture": "icons/jungle_fence"
   },
   {
     "id": "jungle_fence_gate",
     "label": "Jungle Fence Gate",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_fence_gate"
+    "texture": "icons/jungle_fence_gate"
   },
   {
     "id": "jungle_hanging_sign",
@@ -4031,29 +3735,25 @@
     "id": "jungle_leaves",
     "label": "Jungle Leaves",
     "category": "misc",
-    "texture": "block/jungle_leaves",
-    "model": "block/jungle_leaves"
+    "texture": "icons/jungle_leaves"
   },
   {
     "id": "jungle_log",
     "label": "Jungle Log",
     "category": "misc",
-    "texture": "block/jungle_log",
-    "model": "block/jungle_log"
+    "texture": "icons/jungle_log"
   },
   {
     "id": "jungle_planks",
     "label": "Jungle Planks",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_planks"
+    "texture": "icons/jungle_planks"
   },
   {
     "id": "jungle_pressure_plate",
     "label": "Jungle Pressure Plate",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_pressure_plate"
+    "texture": "icons/jungle_pressure_plate"
   },
   {
     "id": "jungle_sapling",
@@ -4071,29 +3771,25 @@
     "id": "jungle_slab",
     "label": "Jungle Slab",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_slab"
+    "texture": "icons/jungle_slab"
   },
   {
     "id": "jungle_stairs",
     "label": "Jungle Stairs",
     "category": "misc",
-    "texture": "block/jungle_planks",
-    "model": "block/jungle_stairs"
+    "texture": "icons/jungle_stairs"
   },
   {
     "id": "jungle_trapdoor",
     "label": "Jungle Trapdoor",
     "category": "misc",
-    "texture": "block/jungle_trapdoor",
-    "model": "block/jungle_trapdoor_bottom"
+    "texture": "icons/jungle_trapdoor"
   },
   {
     "id": "jungle_wood",
     "label": "Jungle Wood",
     "category": "misc",
-    "texture": "block/jungle_log",
-    "model": "block/jungle_wood"
+    "texture": "icons/jungle_wood"
   },
   {
     "id": "kelp",
@@ -4123,8 +3819,7 @@
     "id": "lapis_block",
     "label": "Lapis Block",
     "category": "misc",
-    "texture": "block/lapis_block",
-    "model": "block/lapis_block"
+    "texture": "icons/lapis_block"
   },
   {
     "id": "lapis_lazuli",
@@ -4136,8 +3831,7 @@
     "id": "lapis_ore",
     "label": "Lapis Ore",
     "category": "misc",
-    "texture": "block/lapis_ore",
-    "model": "block/lapis_ore"
+    "texture": "icons/lapis_ore"
   },
   {
     "id": "large_amethyst_bud",
@@ -4173,19 +3867,19 @@
     "id": "leather_boots",
     "label": "Leather Boots",
     "category": "armor",
-    "texture": "item/leather_boots"
+    "texture": "icons/leather_boots"
   },
   {
     "id": "leather_chestplate",
     "label": "Leather Chestplate",
     "category": "armor",
-    "texture": "item/leather_chestplate"
+    "texture": "icons/leather_chestplate"
   },
   {
     "id": "leather_helmet",
     "label": "Leather Helmet",
     "category": "armor",
-    "texture": "item/leather_helmet"
+    "texture": "icons/leather_helmet"
   },
   {
     "id": "leather_horse_armor",
@@ -4197,14 +3891,13 @@
     "id": "leather_leggings",
     "label": "Leather Leggings",
     "category": "armor",
-    "texture": "item/leather_leggings"
+    "texture": "icons/leather_leggings"
   },
   {
     "id": "lectern",
     "label": "Lectern",
     "category": "misc",
-    "texture": "block/lectern_sides",
-    "model": "block/lectern"
+    "texture": "icons/lectern"
   },
   {
     "id": "lever",
@@ -4222,7 +3915,7 @@
     "id": "light_blue_banner",
     "label": "Light Blue Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/light_blue_wool"
   },
   {
     "id": "light_blue_bed",
@@ -4246,22 +3939,19 @@
     "id": "light_blue_carpet",
     "label": "Light Blue Carpet",
     "category": "misc",
-    "texture": "block/light_blue_wool",
-    "model": "block/light_blue_carpet"
+    "texture": "icons/light_blue_carpet"
   },
   {
     "id": "light_blue_concrete",
     "label": "Light Blue Concrete",
     "category": "misc",
-    "texture": "block/light_blue_concrete",
-    "model": "block/light_blue_concrete"
+    "texture": "icons/light_blue_concrete"
   },
   {
     "id": "light_blue_concrete_powder",
     "label": "Light Blue Concrete Powder",
     "category": "misc",
-    "texture": "block/light_blue_concrete_powder",
-    "model": "block/light_blue_concrete_powder"
+    "texture": "icons/light_blue_concrete_powder"
   },
   {
     "id": "light_blue_dye",
@@ -4273,21 +3963,19 @@
     "id": "light_blue_glazed_terracotta",
     "label": "Light Blue Glazed Terracotta",
     "category": "misc",
-    "texture": "block/light_blue_glazed_terracotta",
-    "model": "block/light_blue_glazed_terracotta"
+    "texture": "icons/light_blue_glazed_terracotta"
   },
   {
     "id": "light_blue_shulker_box",
     "label": "Light Blue Shulker Box",
     "category": "misc",
-    "texture": "block/light_blue_shulker_box"
+    "texture": "icons/light_blue_shulker_box"
   },
   {
     "id": "light_blue_stained_glass",
     "label": "Light Blue Stained Glass",
     "category": "misc",
-    "texture": "block/light_blue_stained_glass",
-    "model": "block/light_blue_stained_glass"
+    "texture": "icons/light_blue_stained_glass"
   },
   {
     "id": "light_blue_stained_glass_pane",
@@ -4299,21 +3987,19 @@
     "id": "light_blue_terracotta",
     "label": "Light Blue Terracotta",
     "category": "misc",
-    "texture": "block/light_blue_terracotta",
-    "model": "block/light_blue_terracotta"
+    "texture": "icons/light_blue_terracotta"
   },
   {
     "id": "light_blue_wool",
     "label": "Light Blue Wool",
     "category": "misc",
-    "texture": "block/light_blue_wool",
-    "model": "block/light_blue_wool"
+    "texture": "icons/light_blue_wool"
   },
   {
     "id": "light_gray_banner",
     "label": "Light Gray Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/light_gray_wool"
   },
   {
     "id": "light_gray_bed",
@@ -4337,22 +4023,19 @@
     "id": "light_gray_carpet",
     "label": "Light Gray Carpet",
     "category": "misc",
-    "texture": "block/light_gray_wool",
-    "model": "block/light_gray_carpet"
+    "texture": "icons/light_gray_carpet"
   },
   {
     "id": "light_gray_concrete",
     "label": "Light Gray Concrete",
     "category": "misc",
-    "texture": "block/light_gray_concrete",
-    "model": "block/light_gray_concrete"
+    "texture": "icons/light_gray_concrete"
   },
   {
     "id": "light_gray_concrete_powder",
     "label": "Light Gray Concrete Powder",
     "category": "misc",
-    "texture": "block/light_gray_concrete_powder",
-    "model": "block/light_gray_concrete_powder"
+    "texture": "icons/light_gray_concrete_powder"
   },
   {
     "id": "light_gray_dye",
@@ -4364,21 +4047,19 @@
     "id": "light_gray_glazed_terracotta",
     "label": "Light Gray Glazed Terracotta",
     "category": "misc",
-    "texture": "block/light_gray_glazed_terracotta",
-    "model": "block/light_gray_glazed_terracotta"
+    "texture": "icons/light_gray_glazed_terracotta"
   },
   {
     "id": "light_gray_shulker_box",
     "label": "Light Gray Shulker Box",
     "category": "misc",
-    "texture": "block/light_gray_shulker_box"
+    "texture": "icons/light_gray_shulker_box"
   },
   {
     "id": "light_gray_stained_glass",
     "label": "Light Gray Stained Glass",
     "category": "misc",
-    "texture": "block/light_gray_stained_glass",
-    "model": "block/light_gray_stained_glass"
+    "texture": "icons/light_gray_stained_glass"
   },
   {
     "id": "light_gray_stained_glass_pane",
@@ -4390,29 +4071,25 @@
     "id": "light_gray_terracotta",
     "label": "Light Gray Terracotta",
     "category": "misc",
-    "texture": "block/light_gray_terracotta",
-    "model": "block/light_gray_terracotta"
+    "texture": "icons/light_gray_terracotta"
   },
   {
     "id": "light_gray_wool",
     "label": "Light Gray Wool",
     "category": "misc",
-    "texture": "block/light_gray_wool",
-    "model": "block/light_gray_wool"
+    "texture": "icons/light_gray_wool"
   },
   {
     "id": "light_weighted_pressure_plate",
     "label": "Light Weighted Pressure Plate",
     "category": "misc",
-    "texture": "block/gold_block",
-    "model": "block/light_weighted_pressure_plate"
+    "texture": "icons/light_weighted_pressure_plate"
   },
   {
     "id": "lightning_rod",
     "label": "Lightning Rod",
     "category": "misc",
-    "texture": "block/lightning_rod",
-    "model": "block/lightning_rod"
+    "texture": "icons/lightning_rod"
   },
   {
     "id": "lilac",
@@ -4436,7 +4113,7 @@
     "id": "lime_banner",
     "label": "Lime Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/lime_wool"
   },
   {
     "id": "lime_bed",
@@ -4460,22 +4137,19 @@
     "id": "lime_carpet",
     "label": "Lime Carpet",
     "category": "misc",
-    "texture": "block/lime_wool",
-    "model": "block/lime_carpet"
+    "texture": "icons/lime_carpet"
   },
   {
     "id": "lime_concrete",
     "label": "Lime Concrete",
     "category": "misc",
-    "texture": "block/lime_concrete",
-    "model": "block/lime_concrete"
+    "texture": "icons/lime_concrete"
   },
   {
     "id": "lime_concrete_powder",
     "label": "Lime Concrete Powder",
     "category": "misc",
-    "texture": "block/lime_concrete_powder",
-    "model": "block/lime_concrete_powder"
+    "texture": "icons/lime_concrete_powder"
   },
   {
     "id": "lime_dye",
@@ -4487,21 +4161,19 @@
     "id": "lime_glazed_terracotta",
     "label": "Lime Glazed Terracotta",
     "category": "misc",
-    "texture": "block/lime_glazed_terracotta",
-    "model": "block/lime_glazed_terracotta"
+    "texture": "icons/lime_glazed_terracotta"
   },
   {
     "id": "lime_shulker_box",
     "label": "Lime Shulker Box",
     "category": "misc",
-    "texture": "block/lime_shulker_box"
+    "texture": "icons/lime_shulker_box"
   },
   {
     "id": "lime_stained_glass",
     "label": "Lime Stained Glass",
     "category": "misc",
-    "texture": "block/lime_stained_glass",
-    "model": "block/lime_stained_glass"
+    "texture": "icons/lime_stained_glass"
   },
   {
     "id": "lime_stained_glass_pane",
@@ -4513,41 +4185,37 @@
     "id": "lime_terracotta",
     "label": "Lime Terracotta",
     "category": "misc",
-    "texture": "block/lime_terracotta",
-    "model": "block/lime_terracotta"
+    "texture": "icons/lime_terracotta"
   },
   {
     "id": "lime_wool",
     "label": "Lime Wool",
     "category": "misc",
-    "texture": "block/lime_wool",
-    "model": "block/lime_wool"
+    "texture": "icons/lime_wool"
   },
   {
     "id": "lingering_potion",
     "label": "Lingering Potion",
     "category": "potions",
-    "texture": "item/lingering_potion"
+    "texture": "icons/lingering_potion"
   },
   {
     "id": "llama_spawn_egg",
     "label": "Llama Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/llama_spawn_egg"
   },
   {
     "id": "lodestone",
     "label": "Lodestone",
     "category": "misc",
-    "texture": "block/lodestone_side",
-    "model": "block/lodestone"
+    "texture": "icons/lodestone"
   },
   {
     "id": "loom",
     "label": "Loom",
     "category": "misc",
-    "texture": "block/loom_front",
-    "model": "block/loom"
+    "texture": "icons/loom"
   },
   {
     "id": "mace",
@@ -4559,7 +4227,7 @@
     "id": "magenta_banner",
     "label": "Magenta Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/magenta_wool"
   },
   {
     "id": "magenta_bed",
@@ -4583,22 +4251,19 @@
     "id": "magenta_carpet",
     "label": "Magenta Carpet",
     "category": "misc",
-    "texture": "block/magenta_wool",
-    "model": "block/magenta_carpet"
+    "texture": "icons/magenta_carpet"
   },
   {
     "id": "magenta_concrete",
     "label": "Magenta Concrete",
     "category": "misc",
-    "texture": "block/magenta_concrete",
-    "model": "block/magenta_concrete"
+    "texture": "icons/magenta_concrete"
   },
   {
     "id": "magenta_concrete_powder",
     "label": "Magenta Concrete Powder",
     "category": "misc",
-    "texture": "block/magenta_concrete_powder",
-    "model": "block/magenta_concrete_powder"
+    "texture": "icons/magenta_concrete_powder"
   },
   {
     "id": "magenta_dye",
@@ -4610,21 +4275,19 @@
     "id": "magenta_glazed_terracotta",
     "label": "Magenta Glazed Terracotta",
     "category": "misc",
-    "texture": "block/magenta_glazed_terracotta",
-    "model": "block/magenta_glazed_terracotta"
+    "texture": "icons/magenta_glazed_terracotta"
   },
   {
     "id": "magenta_shulker_box",
     "label": "Magenta Shulker Box",
     "category": "misc",
-    "texture": "block/magenta_shulker_box"
+    "texture": "icons/magenta_shulker_box"
   },
   {
     "id": "magenta_stained_glass",
     "label": "Magenta Stained Glass",
     "category": "misc",
-    "texture": "block/magenta_stained_glass",
-    "model": "block/magenta_stained_glass"
+    "texture": "icons/magenta_stained_glass"
   },
   {
     "id": "magenta_stained_glass_pane",
@@ -4636,22 +4299,19 @@
     "id": "magenta_terracotta",
     "label": "Magenta Terracotta",
     "category": "misc",
-    "texture": "block/magenta_terracotta",
-    "model": "block/magenta_terracotta"
+    "texture": "icons/magenta_terracotta"
   },
   {
     "id": "magenta_wool",
     "label": "Magenta Wool",
     "category": "misc",
-    "texture": "block/magenta_wool",
-    "model": "block/magenta_wool"
+    "texture": "icons/magenta_wool"
   },
   {
     "id": "magma_block",
     "label": "Magma Block",
     "category": "misc",
-    "texture": "block/magma",
-    "model": "block/magma_block"
+    "texture": "icons/magma_block"
   },
   {
     "id": "magma_cream",
@@ -4663,7 +4323,7 @@
     "id": "magma_cube_spawn_egg",
     "label": "Magma Cube Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/magma_cube_spawn_egg"
   },
   {
     "id": "mangrove_boat",
@@ -4675,8 +4335,7 @@
     "id": "mangrove_button",
     "label": "Mangrove Button",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_button_inventory"
+    "texture": "icons/mangrove_button"
   },
   {
     "id": "mangrove_chest_boat",
@@ -4694,15 +4353,13 @@
     "id": "mangrove_fence",
     "label": "Mangrove Fence",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_fence_inventory"
+    "texture": "icons/mangrove_fence"
   },
   {
     "id": "mangrove_fence_gate",
     "label": "Mangrove Fence Gate",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_fence_gate"
+    "texture": "icons/mangrove_fence_gate"
   },
   {
     "id": "mangrove_hanging_sign",
@@ -4714,29 +4371,25 @@
     "id": "mangrove_leaves",
     "label": "Mangrove Leaves",
     "category": "misc",
-    "texture": "block/mangrove_leaves",
-    "model": "block/mangrove_leaves"
+    "texture": "icons/mangrove_leaves"
   },
   {
     "id": "mangrove_log",
     "label": "Mangrove Log",
     "category": "misc",
-    "texture": "block/mangrove_log",
-    "model": "block/mangrove_log"
+    "texture": "icons/mangrove_log"
   },
   {
     "id": "mangrove_planks",
     "label": "Mangrove Planks",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_planks"
+    "texture": "icons/mangrove_planks"
   },
   {
     "id": "mangrove_pressure_plate",
     "label": "Mangrove Pressure Plate",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_pressure_plate"
+    "texture": "icons/mangrove_pressure_plate"
   },
   {
     "id": "mangrove_propagule",
@@ -4748,8 +4401,7 @@
     "id": "mangrove_roots",
     "label": "Mangrove Roots",
     "category": "misc",
-    "texture": "block/mangrove_roots_side",
-    "model": "block/mangrove_roots"
+    "texture": "icons/mangrove_roots"
   },
   {
     "id": "mangrove_sign",
@@ -4761,29 +4413,25 @@
     "id": "mangrove_slab",
     "label": "Mangrove Slab",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_slab"
+    "texture": "icons/mangrove_slab"
   },
   {
     "id": "mangrove_stairs",
     "label": "Mangrove Stairs",
     "category": "misc",
-    "texture": "block/mangrove_planks",
-    "model": "block/mangrove_stairs"
+    "texture": "icons/mangrove_stairs"
   },
   {
     "id": "mangrove_trapdoor",
     "label": "Mangrove Trapdoor",
     "category": "misc",
-    "texture": "block/mangrove_trapdoor",
-    "model": "block/mangrove_trapdoor_bottom"
+    "texture": "icons/mangrove_trapdoor"
   },
   {
     "id": "mangrove_wood",
     "label": "Mangrove Wood",
     "category": "misc",
-    "texture": "block/mangrove_log",
-    "model": "block/mangrove_wood"
+    "texture": "icons/mangrove_wood"
   },
   {
     "id": "map",
@@ -4801,8 +4449,7 @@
     "id": "melon",
     "label": "Melon",
     "category": "misc",
-    "texture": "block/melon_side",
-    "model": "block/melon"
+    "texture": "icons/melon"
   },
   {
     "id": "melon_seeds",
@@ -4844,77 +4491,67 @@
     "id": "mooshroom_spawn_egg",
     "label": "Mooshroom Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/mooshroom_spawn_egg"
   },
   {
     "id": "moss_block",
     "label": "Moss Block",
     "category": "misc",
-    "texture": "block/moss_block",
-    "model": "block/moss_block"
+    "texture": "icons/moss_block"
   },
   {
     "id": "moss_carpet",
     "label": "Moss Carpet",
     "category": "misc",
-    "texture": "block/moss_block",
-    "model": "block/moss_carpet"
+    "texture": "icons/moss_carpet"
   },
   {
     "id": "mossy_cobblestone",
     "label": "Mossy Cobblestone",
     "category": "misc",
-    "texture": "block/mossy_cobblestone",
-    "model": "block/mossy_cobblestone"
+    "texture": "icons/mossy_cobblestone"
   },
   {
     "id": "mossy_cobblestone_slab",
     "label": "Mossy Cobblestone Slab",
     "category": "misc",
-    "texture": "block/mossy_cobblestone",
-    "model": "block/mossy_cobblestone_slab"
+    "texture": "icons/mossy_cobblestone_slab"
   },
   {
     "id": "mossy_cobblestone_stairs",
     "label": "Mossy Cobblestone Stairs",
     "category": "misc",
-    "texture": "block/mossy_cobblestone",
-    "model": "block/mossy_cobblestone_stairs"
+    "texture": "icons/mossy_cobblestone_stairs"
   },
   {
     "id": "mossy_cobblestone_wall",
     "label": "Mossy Cobblestone Wall",
     "category": "misc",
-    "texture": "block/mossy_cobblestone",
-    "model": "block/mossy_cobblestone_wall_inventory"
+    "texture": "icons/mossy_cobblestone_wall"
   },
   {
     "id": "mossy_stone_brick_slab",
     "label": "Mossy Stone Brick Slab",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
-    "model": "block/mossy_stone_brick_slab"
+    "texture": "icons/mossy_stone_brick_slab"
   },
   {
     "id": "mossy_stone_brick_stairs",
     "label": "Mossy Stone Brick Stairs",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
-    "model": "block/mossy_stone_brick_stairs"
+    "texture": "icons/mossy_stone_brick_stairs"
   },
   {
     "id": "mossy_stone_brick_wall",
     "label": "Mossy Stone Brick Wall",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
-    "model": "block/mossy_stone_brick_wall_inventory"
+    "texture": "icons/mossy_stone_brick_wall"
   },
   {
     "id": "mossy_stone_bricks",
     "label": "Mossy Stone Bricks",
     "category": "misc",
-    "texture": "block/mossy_stone_bricks",
-    "model": "block/mossy_stone_bricks"
+    "texture": "icons/mossy_stone_bricks"
   },
   {
     "id": "mourner_pottery_sherd",
@@ -4926,56 +4563,49 @@
     "id": "mud",
     "label": "Mud",
     "category": "misc",
-    "texture": "block/mud",
-    "model": "block/mud"
+    "texture": "icons/mud"
   },
   {
     "id": "mud_brick_slab",
     "label": "Mud Brick Slab",
     "category": "misc",
-    "texture": "block/mud_bricks",
-    "model": "block/mud_brick_slab"
+    "texture": "icons/mud_brick_slab"
   },
   {
     "id": "mud_brick_stairs",
     "label": "Mud Brick Stairs",
     "category": "misc",
-    "texture": "block/mud_bricks",
-    "model": "block/mud_brick_stairs"
+    "texture": "icons/mud_brick_stairs"
   },
   {
     "id": "mud_brick_wall",
     "label": "Mud Brick Wall",
     "category": "misc",
-    "texture": "block/mud_bricks",
-    "model": "block/mud_brick_wall_inventory"
+    "texture": "icons/mud_brick_wall"
   },
   {
     "id": "mud_bricks",
     "label": "Mud Bricks",
     "category": "misc",
-    "texture": "block/mud_bricks",
-    "model": "block/mud_bricks"
+    "texture": "icons/mud_bricks"
   },
   {
     "id": "muddy_mangrove_roots",
     "label": "Muddy Mangrove Roots",
     "category": "misc",
-    "texture": "block/muddy_mangrove_roots_side",
-    "model": "block/muddy_mangrove_roots"
+    "texture": "icons/muddy_mangrove_roots"
   },
   {
     "id": "mule_spawn_egg",
     "label": "Mule Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/mule_spawn_egg"
   },
   {
     "id": "mushroom_stem",
     "label": "Mushroom Stem",
     "category": "misc",
-    "texture": "block/mushroom_stem",
-    "model": "block/mushroom_stem_inventory"
+    "texture": "icons/mushroom_stem"
   },
   {
     "id": "mushroom_stew",
@@ -5107,8 +4737,7 @@
     "id": "mycelium",
     "label": "Mycelium",
     "category": "misc",
-    "texture": "block/mycelium_side",
-    "model": "block/mycelium"
+    "texture": "icons/mycelium"
   },
   {
     "id": "name_tag",
@@ -5132,50 +4761,43 @@
     "id": "nether_brick_fence",
     "label": "Nether Brick Fence",
     "category": "misc",
-    "texture": "block/nether_bricks",
-    "model": "block/nether_brick_fence_inventory"
+    "texture": "icons/nether_brick_fence"
   },
   {
     "id": "nether_brick_slab",
     "label": "Nether Brick Slab",
     "category": "misc",
-    "texture": "block/nether_bricks",
-    "model": "block/nether_brick_slab"
+    "texture": "icons/nether_brick_slab"
   },
   {
     "id": "nether_brick_stairs",
     "label": "Nether Brick Stairs",
     "category": "misc",
-    "texture": "block/nether_bricks",
-    "model": "block/nether_brick_stairs"
+    "texture": "icons/nether_brick_stairs"
   },
   {
     "id": "nether_brick_wall",
     "label": "Nether Brick Wall",
     "category": "misc",
-    "texture": "block/nether_bricks",
-    "model": "block/nether_brick_wall_inventory"
+    "texture": "icons/nether_brick_wall"
   },
   {
     "id": "nether_bricks",
     "label": "Nether Bricks",
     "category": "misc",
-    "texture": "block/nether_bricks",
-    "model": "block/nether_bricks"
+    "texture": "icons/nether_bricks"
   },
   {
     "id": "nether_gold_ore",
     "label": "Nether Gold Ore",
     "category": "misc",
-    "texture": "block/nether_gold_ore",
-    "model": "block/nether_gold_ore"
+    "texture": "icons/nether_gold_ore"
   },
   {
     "id": "nether_quartz_ore",
     "label": "Nether Quartz Ore",
     "category": "misc",
-    "texture": "block/nether_quartz_ore",
-    "model": "block/nether_quartz_ore"
+    "texture": "icons/nether_quartz_ore"
   },
   {
     "id": "nether_sprouts",
@@ -5199,8 +4821,7 @@
     "id": "nether_wart_block",
     "label": "Nether Wart Block",
     "category": "misc",
-    "texture": "block/nether_wart_block",
-    "model": "block/nether_wart_block"
+    "texture": "icons/nether_wart_block"
   },
   {
     "id": "netherite_axe",
@@ -5212,8 +4833,7 @@
     "id": "netherite_block",
     "label": "Netherite Block",
     "category": "misc",
-    "texture": "block/netherite_block",
-    "model": "block/netherite_block"
+    "texture": "icons/netherite_block"
   },
   {
     "id": "netherite_boots",
@@ -5285,15 +4905,13 @@
     "id": "netherrack",
     "label": "Netherrack",
     "category": "misc",
-    "texture": "block/netherrack",
-    "model": "block/netherrack"
+    "texture": "icons/netherrack"
   },
   {
     "id": "note_block",
     "label": "Note Block",
     "category": "misc",
-    "texture": "block/note_block",
-    "model": "block/note_block"
+    "texture": "icons/note_block"
   },
   {
     "id": "oak_boat",
@@ -5305,8 +4923,7 @@
     "id": "oak_button",
     "label": "Oak Button",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_button_inventory"
+    "texture": "icons/oak_button"
   },
   {
     "id": "oak_chest_boat",
@@ -5324,15 +4941,13 @@
     "id": "oak_fence",
     "label": "Oak Fence",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_fence_inventory"
+    "texture": "icons/oak_fence"
   },
   {
     "id": "oak_fence_gate",
     "label": "Oak Fence Gate",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_fence_gate"
+    "texture": "icons/oak_fence_gate"
   },
   {
     "id": "oak_hanging_sign",
@@ -5344,29 +4959,25 @@
     "id": "oak_leaves",
     "label": "Oak Leaves",
     "category": "misc",
-    "texture": "block/oak_leaves",
-    "model": "block/oak_leaves"
+    "texture": "icons/oak_leaves"
   },
   {
     "id": "oak_log",
     "label": "Oak Log",
     "category": "misc",
-    "texture": "block/oak_log",
-    "model": "block/oak_log"
+    "texture": "icons/oak_log"
   },
   {
     "id": "oak_planks",
     "label": "Oak Planks",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_planks"
+    "texture": "icons/oak_planks"
   },
   {
     "id": "oak_pressure_plate",
     "label": "Oak Pressure Plate",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_pressure_plate"
+    "texture": "icons/oak_pressure_plate"
   },
   {
     "id": "oak_sapling",
@@ -5384,56 +4995,49 @@
     "id": "oak_slab",
     "label": "Oak Slab",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_slab"
+    "texture": "icons/oak_slab"
   },
   {
     "id": "oak_stairs",
     "label": "Oak Stairs",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/oak_stairs"
+    "texture": "icons/oak_stairs"
   },
   {
     "id": "oak_trapdoor",
     "label": "Oak Trapdoor",
     "category": "misc",
-    "texture": "block/oak_trapdoor",
-    "model": "block/oak_trapdoor_bottom"
+    "texture": "icons/oak_trapdoor"
   },
   {
     "id": "oak_wood",
     "label": "Oak Wood",
     "category": "misc",
-    "texture": "block/oak_log",
-    "model": "block/oak_wood"
+    "texture": "icons/oak_wood"
   },
   {
     "id": "observer",
     "label": "Observer",
     "category": "misc",
-    "texture": "block/observer_front",
-    "model": "block/observer"
+    "texture": "icons/observer"
   },
   {
     "id": "obsidian",
     "label": "Obsidian",
     "category": "misc",
-    "texture": "block/obsidian",
-    "model": "block/obsidian"
+    "texture": "icons/obsidian"
   },
   {
     "id": "ocelot_spawn_egg",
     "label": "Ocelot Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/ocelot_spawn_egg"
   },
   {
     "id": "ochre_froglight",
     "label": "Ochre Froglight",
     "category": "misc",
-    "texture": "block/ochre_froglight_side",
-    "model": "block/ochre_froglight"
+    "texture": "icons/ochre_froglight"
   },
   {
     "id": "ominous_bottle",
@@ -5451,13 +5055,13 @@
     "id": "open_eyeblossom",
     "label": "Open Eyeblossom",
     "category": "misc",
-    "texture": "block/open_eyeblossom"
+    "texture": "icons/open_eyeblossom"
   },
   {
     "id": "orange_banner",
     "label": "Orange Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/orange_wool"
   },
   {
     "id": "orange_bed",
@@ -5481,22 +5085,19 @@
     "id": "orange_carpet",
     "label": "Orange Carpet",
     "category": "misc",
-    "texture": "block/orange_wool",
-    "model": "block/orange_carpet"
+    "texture": "icons/orange_carpet"
   },
   {
     "id": "orange_concrete",
     "label": "Orange Concrete",
     "category": "misc",
-    "texture": "block/orange_concrete",
-    "model": "block/orange_concrete"
+    "texture": "icons/orange_concrete"
   },
   {
     "id": "orange_concrete_powder",
     "label": "Orange Concrete Powder",
     "category": "misc",
-    "texture": "block/orange_concrete_powder",
-    "model": "block/orange_concrete_powder"
+    "texture": "icons/orange_concrete_powder"
   },
   {
     "id": "orange_dye",
@@ -5508,21 +5109,19 @@
     "id": "orange_glazed_terracotta",
     "label": "Orange Glazed Terracotta",
     "category": "misc",
-    "texture": "block/orange_glazed_terracotta",
-    "model": "block/orange_glazed_terracotta"
+    "texture": "icons/orange_glazed_terracotta"
   },
   {
     "id": "orange_shulker_box",
     "label": "Orange Shulker Box",
     "category": "misc",
-    "texture": "block/orange_shulker_box"
+    "texture": "icons/orange_shulker_box"
   },
   {
     "id": "orange_stained_glass",
     "label": "Orange Stained Glass",
     "category": "misc",
-    "texture": "block/orange_stained_glass",
-    "model": "block/orange_stained_glass"
+    "texture": "icons/orange_stained_glass"
   },
   {
     "id": "orange_stained_glass_pane",
@@ -5534,8 +5133,7 @@
     "id": "orange_terracotta",
     "label": "Orange Terracotta",
     "category": "misc",
-    "texture": "block/orange_terracotta",
-    "model": "block/orange_terracotta"
+    "texture": "icons/orange_terracotta"
   },
   {
     "id": "orange_tulip",
@@ -5547,8 +5145,7 @@
     "id": "orange_wool",
     "label": "Orange Wool",
     "category": "misc",
-    "texture": "block/orange_wool",
-    "model": "block/orange_wool"
+    "texture": "icons/orange_wool"
   },
   {
     "id": "oxeye_daisy",
@@ -5560,22 +5157,19 @@
     "id": "oxidized_chiseled_copper",
     "label": "Oxidized Chiseled Copper",
     "category": "misc",
-    "texture": "block/oxidized_chiseled_copper",
-    "model": "block/oxidized_chiseled_copper"
+    "texture": "icons/oxidized_chiseled_copper"
   },
   {
     "id": "oxidized_copper",
     "label": "Oxidized Copper",
     "category": "misc",
-    "texture": "block/oxidized_copper",
-    "model": "block/oxidized_copper"
+    "texture": "icons/oxidized_copper"
   },
   {
     "id": "oxidized_copper_bulb",
     "label": "Oxidized Copper Bulb",
     "category": "misc",
-    "texture": "block/oxidized_copper_bulb",
-    "model": "block/oxidized_copper_bulb"
+    "texture": "icons/oxidized_copper_bulb"
   },
   {
     "id": "oxidized_copper_door",
@@ -5587,50 +5181,43 @@
     "id": "oxidized_copper_grate",
     "label": "Oxidized Copper Grate",
     "category": "misc",
-    "texture": "block/oxidized_copper_grate",
-    "model": "block/oxidized_copper_grate"
+    "texture": "icons/oxidized_copper_grate"
   },
   {
     "id": "oxidized_copper_trapdoor",
     "label": "Oxidized Copper Trapdoor",
     "category": "misc",
-    "texture": "block/oxidized_copper_trapdoor",
-    "model": "block/oxidized_copper_trapdoor_bottom"
+    "texture": "icons/oxidized_copper_trapdoor"
   },
   {
     "id": "oxidized_cut_copper",
     "label": "Oxidized Cut Copper",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper"
+    "texture": "icons/oxidized_cut_copper"
   },
   {
     "id": "oxidized_cut_copper_slab",
     "label": "Oxidized Cut Copper Slab",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper_slab"
+    "texture": "icons/oxidized_cut_copper_slab"
   },
   {
     "id": "oxidized_cut_copper_stairs",
     "label": "Oxidized Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper_stairs"
+    "texture": "icons/oxidized_cut_copper_stairs"
   },
   {
     "id": "packed_ice",
     "label": "Packed Ice",
     "category": "misc",
-    "texture": "block/packed_ice",
-    "model": "block/packed_ice"
+    "texture": "icons/packed_ice"
   },
   {
     "id": "packed_mud",
     "label": "Packed Mud",
     "category": "misc",
-    "texture": "block/packed_mud",
-    "model": "block/packed_mud"
+    "texture": "icons/packed_mud"
   },
   {
     "id": "painting",
@@ -5648,15 +5235,13 @@
     "id": "pale_moss_block",
     "label": "Pale Moss Block",
     "category": "misc",
-    "texture": "block/pale_moss_block",
-    "model": "block/pale_moss_block"
+    "texture": "icons/pale_moss_block"
   },
   {
     "id": "pale_moss_carpet",
     "label": "Pale Moss Carpet",
     "category": "misc",
-    "texture": "block/pale_moss_carpet",
-    "model": "block/pale_moss_carpet"
+    "texture": "icons/pale_moss_carpet"
   },
   {
     "id": "pale_oak_boat",
@@ -5668,8 +5253,7 @@
     "id": "pale_oak_button",
     "label": "Pale Oak Button",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_button_inventory"
+    "texture": "icons/pale_oak_button"
   },
   {
     "id": "pale_oak_chest_boat",
@@ -5687,15 +5271,13 @@
     "id": "pale_oak_fence",
     "label": "Pale Oak Fence",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_fence_inventory"
+    "texture": "icons/pale_oak_fence"
   },
   {
     "id": "pale_oak_fence_gate",
     "label": "Pale Oak Fence Gate",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_fence_gate"
+    "texture": "icons/pale_oak_fence_gate"
   },
   {
     "id": "pale_oak_hanging_sign",
@@ -5707,29 +5289,25 @@
     "id": "pale_oak_leaves",
     "label": "Pale Oak Leaves",
     "category": "misc",
-    "texture": "block/pale_oak_leaves",
-    "model": "block/pale_oak_leaves"
+    "texture": "icons/pale_oak_leaves"
   },
   {
     "id": "pale_oak_log",
     "label": "Pale Oak Log",
     "category": "misc",
-    "texture": "block/pale_oak_log",
-    "model": "block/pale_oak_log"
+    "texture": "icons/pale_oak_log"
   },
   {
     "id": "pale_oak_planks",
     "label": "Pale Oak Planks",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_planks"
+    "texture": "icons/pale_oak_planks"
   },
   {
     "id": "pale_oak_pressure_plate",
     "label": "Pale Oak Pressure Plate",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_pressure_plate"
+    "texture": "icons/pale_oak_pressure_plate"
   },
   {
     "id": "pale_oak_sapling",
@@ -5747,35 +5325,31 @@
     "id": "pale_oak_slab",
     "label": "Pale Oak Slab",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_slab"
+    "texture": "icons/pale_oak_slab"
   },
   {
     "id": "pale_oak_stairs",
     "label": "Pale Oak Stairs",
     "category": "misc",
-    "texture": "block/pale_oak_planks",
-    "model": "block/pale_oak_stairs"
+    "texture": "icons/pale_oak_stairs"
   },
   {
     "id": "pale_oak_trapdoor",
     "label": "Pale Oak Trapdoor",
     "category": "misc",
-    "texture": "block/pale_oak_trapdoor",
-    "model": "block/pale_oak_trapdoor_bottom"
+    "texture": "icons/pale_oak_trapdoor"
   },
   {
     "id": "pale_oak_wood",
     "label": "Pale Oak Wood",
     "category": "misc",
-    "texture": "block/pale_oak_log",
-    "model": "block/pale_oak_wood"
+    "texture": "icons/pale_oak_wood"
   },
   {
     "id": "panda_spawn_egg",
     "label": "Panda Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/panda_spawn_egg"
   },
   {
     "id": "paper",
@@ -5787,14 +5361,13 @@
     "id": "parrot_spawn_egg",
     "label": "Parrot Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/parrot_spawn_egg"
   },
   {
     "id": "pearlescent_froglight",
     "label": "Pearlescent Froglight",
     "category": "misc",
-    "texture": "block/pearlescent_froglight_side",
-    "model": "block/pearlescent_froglight"
+    "texture": "icons/pearlescent_froglight"
   },
   {
     "id": "peony",
@@ -5806,8 +5379,7 @@
     "id": "petrified_oak_slab",
     "label": "Petrified Oak Slab",
     "category": "misc",
-    "texture": "block/oak_planks",
-    "model": "block/petrified_oak_slab"
+    "texture": "icons/petrified_oak_slab"
   },
   {
     "id": "phantom_membrane",
@@ -5819,13 +5391,13 @@
     "id": "phantom_spawn_egg",
     "label": "Phantom Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/phantom_spawn_egg"
   },
   {
     "id": "pig_spawn_egg",
     "label": "Pig Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/pig_spawn_egg"
   },
   {
     "id": "piglin_banner_pattern",
@@ -5837,31 +5409,31 @@
     "id": "piglin_brute_spawn_egg",
     "label": "Piglin Brute Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/piglin_brute_spawn_egg"
   },
   {
     "id": "piglin_head",
     "label": "Piglin Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/piglin_head"
   },
   {
     "id": "piglin_spawn_egg",
     "label": "Piglin Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/piglin_spawn_egg"
   },
   {
     "id": "pillager_spawn_egg",
     "label": "Pillager Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/pillager_spawn_egg"
   },
   {
     "id": "pink_banner",
     "label": "Pink Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/pink_wool"
   },
   {
     "id": "pink_bed",
@@ -5885,22 +5457,19 @@
     "id": "pink_carpet",
     "label": "Pink Carpet",
     "category": "misc",
-    "texture": "block/pink_wool",
-    "model": "block/pink_carpet"
+    "texture": "icons/pink_carpet"
   },
   {
     "id": "pink_concrete",
     "label": "Pink Concrete",
     "category": "misc",
-    "texture": "block/pink_concrete",
-    "model": "block/pink_concrete"
+    "texture": "icons/pink_concrete"
   },
   {
     "id": "pink_concrete_powder",
     "label": "Pink Concrete Powder",
     "category": "misc",
-    "texture": "block/pink_concrete_powder",
-    "model": "block/pink_concrete_powder"
+    "texture": "icons/pink_concrete_powder"
   },
   {
     "id": "pink_dye",
@@ -5912,8 +5481,7 @@
     "id": "pink_glazed_terracotta",
     "label": "Pink Glazed Terracotta",
     "category": "misc",
-    "texture": "block/pink_glazed_terracotta",
-    "model": "block/pink_glazed_terracotta"
+    "texture": "icons/pink_glazed_terracotta"
   },
   {
     "id": "pink_petals",
@@ -5925,14 +5493,13 @@
     "id": "pink_shulker_box",
     "label": "Pink Shulker Box",
     "category": "misc",
-    "texture": "block/pink_shulker_box"
+    "texture": "icons/pink_shulker_box"
   },
   {
     "id": "pink_stained_glass",
     "label": "Pink Stained Glass",
     "category": "misc",
-    "texture": "block/pink_stained_glass",
-    "model": "block/pink_stained_glass"
+    "texture": "icons/pink_stained_glass"
   },
   {
     "id": "pink_stained_glass_pane",
@@ -5944,8 +5511,7 @@
     "id": "pink_terracotta",
     "label": "Pink Terracotta",
     "category": "misc",
-    "texture": "block/pink_terracotta",
-    "model": "block/pink_terracotta"
+    "texture": "icons/pink_terracotta"
   },
   {
     "id": "pink_tulip",
@@ -5957,15 +5523,13 @@
     "id": "pink_wool",
     "label": "Pink Wool",
     "category": "misc",
-    "texture": "block/pink_wool",
-    "model": "block/pink_wool"
+    "texture": "icons/pink_wool"
   },
   {
     "id": "piston",
     "label": "Piston",
     "category": "misc",
-    "texture": "block/piston_side",
-    "model": "block/piston_inventory"
+    "texture": "icons/piston"
   },
   {
     "id": "pitcher_plant",
@@ -5983,7 +5547,7 @@
     "id": "player_head",
     "label": "Player Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/player_head"
   },
   {
     "id": "plenty_pottery_sherd",
@@ -5995,8 +5559,7 @@
     "id": "podzol",
     "label": "Podzol",
     "category": "misc",
-    "texture": "block/podzol_side",
-    "model": "block/podzol"
+    "texture": "icons/podzol"
   },
   {
     "id": "pointed_dripstone",
@@ -6014,203 +5577,175 @@
     "id": "polar_bear_spawn_egg",
     "label": "Polar Bear Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/polar_bear_spawn_egg"
   },
   {
     "id": "polished_andesite",
     "label": "Polished Andesite",
     "category": "misc",
-    "texture": "block/polished_andesite",
-    "model": "block/polished_andesite"
+    "texture": "icons/polished_andesite"
   },
   {
     "id": "polished_andesite_slab",
     "label": "Polished Andesite Slab",
     "category": "misc",
-    "texture": "block/polished_andesite",
-    "model": "block/polished_andesite_slab"
+    "texture": "icons/polished_andesite_slab"
   },
   {
     "id": "polished_andesite_stairs",
     "label": "Polished Andesite Stairs",
     "category": "misc",
-    "texture": "block/polished_andesite",
-    "model": "block/polished_andesite_stairs"
+    "texture": "icons/polished_andesite_stairs"
   },
   {
     "id": "polished_basalt",
     "label": "Polished Basalt",
     "category": "misc",
-    "texture": "block/polished_basalt_side",
-    "model": "block/polished_basalt"
+    "texture": "icons/polished_basalt"
   },
   {
     "id": "polished_blackstone",
     "label": "Polished Blackstone",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone"
+    "texture": "icons/polished_blackstone"
   },
   {
     "id": "polished_blackstone_brick_slab",
     "label": "Polished Blackstone Brick Slab",
     "category": "misc",
-    "texture": "block/polished_blackstone_bricks",
-    "model": "block/polished_blackstone_brick_slab"
+    "texture": "icons/polished_blackstone_brick_slab"
   },
   {
     "id": "polished_blackstone_brick_stairs",
     "label": "Polished Blackstone Brick Stairs",
     "category": "misc",
-    "texture": "block/polished_blackstone_bricks",
-    "model": "block/polished_blackstone_brick_stairs"
+    "texture": "icons/polished_blackstone_brick_stairs"
   },
   {
     "id": "polished_blackstone_brick_wall",
     "label": "Polished Blackstone Brick Wall",
     "category": "misc",
-    "texture": "block/polished_blackstone_bricks",
-    "model": "block/polished_blackstone_brick_wall_inventory"
+    "texture": "icons/polished_blackstone_brick_wall"
   },
   {
     "id": "polished_blackstone_bricks",
     "label": "Polished Blackstone Bricks",
     "category": "misc",
-    "texture": "block/polished_blackstone_bricks",
-    "model": "block/polished_blackstone_bricks"
+    "texture": "icons/polished_blackstone_bricks"
   },
   {
     "id": "polished_blackstone_button",
     "label": "Polished Blackstone Button",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone_button_inventory"
+    "texture": "icons/polished_blackstone_button"
   },
   {
     "id": "polished_blackstone_pressure_plate",
     "label": "Polished Blackstone Pressure Plate",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone_pressure_plate"
+    "texture": "icons/polished_blackstone_pressure_plate"
   },
   {
     "id": "polished_blackstone_slab",
     "label": "Polished Blackstone Slab",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone_slab"
+    "texture": "icons/polished_blackstone_slab"
   },
   {
     "id": "polished_blackstone_stairs",
     "label": "Polished Blackstone Stairs",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone_stairs"
+    "texture": "icons/polished_blackstone_stairs"
   },
   {
     "id": "polished_blackstone_wall",
     "label": "Polished Blackstone Wall",
     "category": "misc",
-    "texture": "block/polished_blackstone",
-    "model": "block/polished_blackstone_wall_inventory"
+    "texture": "icons/polished_blackstone_wall"
   },
   {
     "id": "polished_deepslate",
     "label": "Polished Deepslate",
     "category": "misc",
-    "texture": "block/polished_deepslate",
-    "model": "block/polished_deepslate"
+    "texture": "icons/polished_deepslate"
   },
   {
     "id": "polished_deepslate_slab",
     "label": "Polished Deepslate Slab",
     "category": "misc",
-    "texture": "block/polished_deepslate",
-    "model": "block/polished_deepslate_slab"
+    "texture": "icons/polished_deepslate_slab"
   },
   {
     "id": "polished_deepslate_stairs",
     "label": "Polished Deepslate Stairs",
     "category": "misc",
-    "texture": "block/polished_deepslate",
-    "model": "block/polished_deepslate_stairs"
+    "texture": "icons/polished_deepslate_stairs"
   },
   {
     "id": "polished_deepslate_wall",
     "label": "Polished Deepslate Wall",
     "category": "misc",
-    "texture": "block/polished_deepslate",
-    "model": "block/polished_deepslate_wall_inventory"
+    "texture": "icons/polished_deepslate_wall"
   },
   {
     "id": "polished_diorite",
     "label": "Polished Diorite",
     "category": "misc",
-    "texture": "block/polished_diorite",
-    "model": "block/polished_diorite"
+    "texture": "icons/polished_diorite"
   },
   {
     "id": "polished_diorite_slab",
     "label": "Polished Diorite Slab",
     "category": "misc",
-    "texture": "block/polished_diorite",
-    "model": "block/polished_diorite_slab"
+    "texture": "icons/polished_diorite_slab"
   },
   {
     "id": "polished_diorite_stairs",
     "label": "Polished Diorite Stairs",
     "category": "misc",
-    "texture": "block/polished_diorite",
-    "model": "block/polished_diorite_stairs"
+    "texture": "icons/polished_diorite_stairs"
   },
   {
     "id": "polished_granite",
     "label": "Polished Granite",
     "category": "misc",
-    "texture": "block/polished_granite",
-    "model": "block/polished_granite"
+    "texture": "icons/polished_granite"
   },
   {
     "id": "polished_granite_slab",
     "label": "Polished Granite Slab",
     "category": "misc",
-    "texture": "block/polished_granite",
-    "model": "block/polished_granite_slab"
+    "texture": "icons/polished_granite_slab"
   },
   {
     "id": "polished_granite_stairs",
     "label": "Polished Granite Stairs",
     "category": "misc",
-    "texture": "block/polished_granite",
-    "model": "block/polished_granite_stairs"
+    "texture": "icons/polished_granite_stairs"
   },
   {
     "id": "polished_tuff",
     "label": "Polished Tuff",
     "category": "misc",
-    "texture": "block/polished_tuff",
-    "model": "block/polished_tuff"
+    "texture": "icons/polished_tuff"
   },
   {
     "id": "polished_tuff_slab",
     "label": "Polished Tuff Slab",
     "category": "misc",
-    "texture": "block/polished_tuff",
-    "model": "block/polished_tuff_slab"
+    "texture": "icons/polished_tuff_slab"
   },
   {
     "id": "polished_tuff_stairs",
     "label": "Polished Tuff Stairs",
     "category": "misc",
-    "texture": "block/polished_tuff",
-    "model": "block/polished_tuff_stairs"
+    "texture": "icons/polished_tuff_stairs"
   },
   {
     "id": "polished_tuff_wall",
     "label": "Polished Tuff Wall",
     "category": "misc",
-    "texture": "block/polished_tuff",
-    "model": "block/polished_tuff_wall_inventory"
+    "texture": "icons/polished_tuff_wall"
   },
   {
     "id": "popped_chorus_fruit",
@@ -6240,7 +5775,7 @@
     "id": "potion",
     "label": "Potion",
     "category": "potions",
-    "texture": "item/potion"
+    "texture": "icons/potion"
   },
   {
     "id": "powder_snow_bucket",
@@ -6258,29 +5793,25 @@
     "id": "prismarine",
     "label": "Prismarine",
     "category": "misc",
-    "texture": "block/prismarine",
-    "model": "block/prismarine"
+    "texture": "icons/prismarine"
   },
   {
     "id": "prismarine_brick_slab",
     "label": "Prismarine Brick Slab",
     "category": "misc",
-    "texture": "block/prismarine_bricks",
-    "model": "block/prismarine_brick_slab"
+    "texture": "icons/prismarine_brick_slab"
   },
   {
     "id": "prismarine_brick_stairs",
     "label": "Prismarine Brick Stairs",
     "category": "misc",
-    "texture": "block/prismarine_bricks",
-    "model": "block/prismarine_brick_stairs"
+    "texture": "icons/prismarine_brick_stairs"
   },
   {
     "id": "prismarine_bricks",
     "label": "Prismarine Bricks",
     "category": "misc",
-    "texture": "block/prismarine_bricks",
-    "model": "block/prismarine_bricks"
+    "texture": "icons/prismarine_bricks"
   },
   {
     "id": "prismarine_crystals",
@@ -6298,22 +5829,19 @@
     "id": "prismarine_slab",
     "label": "Prismarine Slab",
     "category": "misc",
-    "texture": "block/prismarine",
-    "model": "block/prismarine_slab"
+    "texture": "icons/prismarine_slab"
   },
   {
     "id": "prismarine_stairs",
     "label": "Prismarine Stairs",
     "category": "misc",
-    "texture": "block/prismarine",
-    "model": "block/prismarine_stairs"
+    "texture": "icons/prismarine_stairs"
   },
   {
     "id": "prismarine_wall",
     "label": "Prismarine Wall",
     "category": "misc",
-    "texture": "block/prismarine",
-    "model": "block/prismarine_wall_inventory"
+    "texture": "icons/prismarine_wall"
   },
   {
     "id": "prize_pottery_sherd",
@@ -6337,14 +5865,13 @@
     "id": "pufferfish_spawn_egg",
     "label": "Pufferfish Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/pufferfish_spawn_egg"
   },
   {
     "id": "pumpkin",
     "label": "Pumpkin",
     "category": "misc",
-    "texture": "block/pumpkin_side",
-    "model": "block/pumpkin"
+    "texture": "icons/pumpkin"
   },
   {
     "id": "pumpkin_pie",
@@ -6362,7 +5889,7 @@
     "id": "purple_banner",
     "label": "Purple Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/purple_wool"
   },
   {
     "id": "purple_bed",
@@ -6386,22 +5913,19 @@
     "id": "purple_carpet",
     "label": "Purple Carpet",
     "category": "misc",
-    "texture": "block/purple_wool",
-    "model": "block/purple_carpet"
+    "texture": "icons/purple_carpet"
   },
   {
     "id": "purple_concrete",
     "label": "Purple Concrete",
     "category": "misc",
-    "texture": "block/purple_concrete",
-    "model": "block/purple_concrete"
+    "texture": "icons/purple_concrete"
   },
   {
     "id": "purple_concrete_powder",
     "label": "Purple Concrete Powder",
     "category": "misc",
-    "texture": "block/purple_concrete_powder",
-    "model": "block/purple_concrete_powder"
+    "texture": "icons/purple_concrete_powder"
   },
   {
     "id": "purple_dye",
@@ -6413,21 +5937,19 @@
     "id": "purple_glazed_terracotta",
     "label": "Purple Glazed Terracotta",
     "category": "misc",
-    "texture": "block/purple_glazed_terracotta",
-    "model": "block/purple_glazed_terracotta"
+    "texture": "icons/purple_glazed_terracotta"
   },
   {
     "id": "purple_shulker_box",
     "label": "Purple Shulker Box",
     "category": "misc",
-    "texture": "block/purple_shulker_box"
+    "texture": "icons/purple_shulker_box"
   },
   {
     "id": "purple_stained_glass",
     "label": "Purple Stained Glass",
     "category": "misc",
-    "texture": "block/purple_stained_glass",
-    "model": "block/purple_stained_glass"
+    "texture": "icons/purple_stained_glass"
   },
   {
     "id": "purple_stained_glass_pane",
@@ -6439,43 +5961,37 @@
     "id": "purple_terracotta",
     "label": "Purple Terracotta",
     "category": "misc",
-    "texture": "block/purple_terracotta",
-    "model": "block/purple_terracotta"
+    "texture": "icons/purple_terracotta"
   },
   {
     "id": "purple_wool",
     "label": "Purple Wool",
     "category": "misc",
-    "texture": "block/purple_wool",
-    "model": "block/purple_wool"
+    "texture": "icons/purple_wool"
   },
   {
     "id": "purpur_block",
     "label": "Purpur Block",
     "category": "misc",
-    "texture": "block/purpur_block",
-    "model": "block/purpur_block"
+    "texture": "icons/purpur_block"
   },
   {
     "id": "purpur_pillar",
     "label": "Purpur Pillar",
     "category": "misc",
-    "texture": "block/purpur_pillar",
-    "model": "block/purpur_pillar"
+    "texture": "icons/purpur_pillar"
   },
   {
     "id": "purpur_slab",
     "label": "Purpur Slab",
     "category": "misc",
-    "texture": "block/purpur_block",
-    "model": "block/purpur_slab"
+    "texture": "icons/purpur_slab"
   },
   {
     "id": "purpur_stairs",
     "label": "Purpur Stairs",
     "category": "misc",
-    "texture": "block/purpur_block",
-    "model": "block/purpur_stairs"
+    "texture": "icons/purpur_stairs"
   },
   {
     "id": "quartz",
@@ -6487,36 +6003,31 @@
     "id": "quartz_block",
     "label": "Quartz Block",
     "category": "misc",
-    "texture": "block/quartz_block_side",
-    "model": "block/quartz_block"
+    "texture": "icons/quartz_block"
   },
   {
     "id": "quartz_bricks",
     "label": "Quartz Bricks",
     "category": "misc",
-    "texture": "block/quartz_bricks",
-    "model": "block/quartz_bricks"
+    "texture": "icons/quartz_bricks"
   },
   {
     "id": "quartz_pillar",
     "label": "Quartz Pillar",
     "category": "misc",
-    "texture": "block/quartz_pillar",
-    "model": "block/quartz_pillar"
+    "texture": "icons/quartz_pillar"
   },
   {
     "id": "quartz_slab",
     "label": "Quartz Slab",
     "category": "misc",
-    "texture": "block/quartz_block_side",
-    "model": "block/quartz_slab"
+    "texture": "icons/quartz_slab"
   },
   {
     "id": "quartz_stairs",
     "label": "Quartz Stairs",
     "category": "misc",
-    "texture": "block/quartz_block_side",
-    "model": "block/quartz_stairs"
+    "texture": "icons/quartz_stairs"
   },
   {
     "id": "rabbit",
@@ -6540,7 +6051,7 @@
     "id": "rabbit_spawn_egg",
     "label": "Rabbit Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/rabbit_spawn_egg"
   },
   {
     "id": "rabbit_stew",
@@ -6564,7 +6075,7 @@
     "id": "ravager_spawn_egg",
     "label": "Ravager Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/ravager_spawn_egg"
   },
   {
     "id": "raw_copper",
@@ -6576,8 +6087,7 @@
     "id": "raw_copper_block",
     "label": "Raw Copper Block",
     "category": "misc",
-    "texture": "block/raw_copper_block",
-    "model": "block/raw_copper_block"
+    "texture": "icons/raw_copper_block"
   },
   {
     "id": "raw_gold",
@@ -6589,8 +6099,7 @@
     "id": "raw_gold_block",
     "label": "Raw Gold Block",
     "category": "misc",
-    "texture": "block/raw_gold_block",
-    "model": "block/raw_gold_block"
+    "texture": "icons/raw_gold_block"
   },
   {
     "id": "raw_iron",
@@ -6602,8 +6111,7 @@
     "id": "raw_iron_block",
     "label": "Raw Iron Block",
     "category": "misc",
-    "texture": "block/raw_iron_block",
-    "model": "block/raw_iron_block"
+    "texture": "icons/raw_iron_block"
   },
   {
     "id": "recovery_compass",
@@ -6615,7 +6123,7 @@
     "id": "red_banner",
     "label": "Red Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/red_wool"
   },
   {
     "id": "red_bed",
@@ -6639,22 +6147,19 @@
     "id": "red_carpet",
     "label": "Red Carpet",
     "category": "misc",
-    "texture": "block/red_wool",
-    "model": "block/red_carpet"
+    "texture": "icons/red_carpet"
   },
   {
     "id": "red_concrete",
     "label": "Red Concrete",
     "category": "misc",
-    "texture": "block/red_concrete",
-    "model": "block/red_concrete"
+    "texture": "icons/red_concrete"
   },
   {
     "id": "red_concrete_powder",
     "label": "Red Concrete Powder",
     "category": "misc",
-    "texture": "block/red_concrete_powder",
-    "model": "block/red_concrete_powder"
+    "texture": "icons/red_concrete_powder"
   },
   {
     "id": "red_dye",
@@ -6666,8 +6171,7 @@
     "id": "red_glazed_terracotta",
     "label": "Red Glazed Terracotta",
     "category": "misc",
-    "texture": "block/red_glazed_terracotta",
-    "model": "block/red_glazed_terracotta"
+    "texture": "icons/red_glazed_terracotta"
   },
   {
     "id": "red_mushroom",
@@ -6679,84 +6183,73 @@
     "id": "red_mushroom_block",
     "label": "Red Mushroom Block",
     "category": "misc",
-    "texture": "block/red_mushroom_block",
-    "model": "block/red_mushroom_block_inventory"
+    "texture": "icons/red_mushroom_block"
   },
   {
     "id": "red_nether_brick_slab",
     "label": "Red Nether Brick Slab",
     "category": "misc",
-    "texture": "block/red_nether_bricks",
-    "model": "block/red_nether_brick_slab"
+    "texture": "icons/red_nether_brick_slab"
   },
   {
     "id": "red_nether_brick_stairs",
     "label": "Red Nether Brick Stairs",
     "category": "misc",
-    "texture": "block/red_nether_bricks",
-    "model": "block/red_nether_brick_stairs"
+    "texture": "icons/red_nether_brick_stairs"
   },
   {
     "id": "red_nether_brick_wall",
     "label": "Red Nether Brick Wall",
     "category": "misc",
-    "texture": "block/red_nether_bricks",
-    "model": "block/red_nether_brick_wall_inventory"
+    "texture": "icons/red_nether_brick_wall"
   },
   {
     "id": "red_nether_bricks",
     "label": "Red Nether Bricks",
     "category": "misc",
-    "texture": "block/red_nether_bricks",
-    "model": "block/red_nether_bricks"
+    "texture": "icons/red_nether_bricks"
   },
   {
     "id": "red_sand",
     "label": "Red Sand",
     "category": "misc",
-    "texture": "block/red_sand",
-    "model": "block/red_sand"
+    "texture": "icons/red_sand"
   },
   {
     "id": "red_sandstone",
     "label": "Red Sandstone",
     "category": "misc",
-    "texture": "block/red_sandstone",
-    "model": "block/red_sandstone"
+    "texture": "icons/red_sandstone"
   },
   {
     "id": "red_sandstone_slab",
     "label": "Red Sandstone Slab",
     "category": "misc",
-    "texture": "block/red_sandstone",
-    "model": "block/red_sandstone_slab"
+    "texture": "icons/red_sandstone_slab"
   },
   {
     "id": "red_sandstone_stairs",
     "label": "Red Sandstone Stairs",
     "category": "misc",
-    "texture": "block/red_sandstone",
-    "model": "block/red_sandstone_stairs"
+    "texture": "icons/red_sandstone_stairs"
   },
   {
     "id": "red_sandstone_wall",
     "label": "Red Sandstone Wall",
     "category": "misc",
-    "texture": "block/red_sandstone",
-    "model": "block/red_sandstone_wall_inventory"
+    "texture": "icons/red_sandstone_wall"
   },
   {
     "id": "red_shulker_box",
     "label": "Red Shulker Box",
     "category": "misc",
-    "texture": "block/red_shulker_box"
+    "texture": "icons/red_shulker_box"
   },
   {
     "id": "red_stained_glass",
     "label": "Red Stained Glass",
     "category": "misc",
-    "texture": "block/red_stained_glass",
-    "model": "block/red_stained_glass"
+    "texture": "icons/red_stained_glass"
   },
   {
     "id": "red_stained_glass_pane",
@@ -6768,8 +6261,7 @@
     "id": "red_terracotta",
     "label": "Red Terracotta",
     "category": "misc",
-    "texture": "block/red_terracotta",
-    "model": "block/red_terracotta"
+    "texture": "icons/red_terracotta"
   },
   {
     "id": "red_tulip",
@@ -6781,8 +6273,7 @@
     "id": "red_wool",
     "label": "Red Wool",
     "category": "misc",
-    "texture": "block/red_wool",
-    "model": "block/red_wool"
+    "texture": "icons/red_wool"
   },
   {
     "id": "redstone",
@@ -6794,22 +6285,19 @@
     "id": "redstone_block",
     "label": "Redstone Block",
     "category": "misc",
-    "texture": "block/redstone_block",
-    "model": "block/redstone_block"
+    "texture": "icons/redstone_block"
   },
   {
     "id": "redstone_lamp",
     "label": "Redstone Lamp",
     "category": "misc",
-    "texture": "block/redstone_lamp",
-    "model": "block/redstone_lamp"
+    "texture": "icons/redstone_lamp"
   },
   {
     "id": "redstone_ore",
     "label": "Redstone Ore",
     "category": "misc",
-    "texture": "block/redstone_ore",
-    "model": "block/redstone_ore"
+    "texture": "icons/redstone_ore"
   },
   {
     "id": "redstone_torch",
@@ -6821,8 +6309,7 @@
     "id": "reinforced_deepslate",
     "label": "Reinforced Deepslate",
     "category": "misc",
-    "texture": "block/reinforced_deepslate_side",
-    "model": "block/reinforced_deepslate"
+    "texture": "icons/reinforced_deepslate"
   },
   {
     "id": "repeater",
@@ -6834,15 +6321,13 @@
     "id": "repeating_command_block",
     "label": "Repeating Command Block",
     "category": "misc",
-    "texture": "block/repeating_command_block_back",
-    "model": "block/repeating_command_block"
+    "texture": "icons/repeating_command_block"
   },
   {
     "id": "resin_block",
     "label": "Resin Block",
     "category": "misc",
-    "texture": "block/resin_block",
-    "model": "block/resin_block"
+    "texture": "icons/resin_block"
   },
   {
     "id": "resin_brick",
@@ -6854,29 +6339,25 @@
     "id": "resin_brick_slab",
     "label": "Resin Brick Slab",
     "category": "misc",
-    "texture": "block/resin_bricks",
-    "model": "block/resin_brick_slab"
+    "texture": "icons/resin_brick_slab"
   },
   {
     "id": "resin_brick_stairs",
     "label": "Resin Brick Stairs",
     "category": "misc",
-    "texture": "block/resin_bricks",
-    "model": "block/resin_brick_stairs"
+    "texture": "icons/resin_brick_stairs"
   },
   {
     "id": "resin_brick_wall",
     "label": "Resin Brick Wall",
     "category": "misc",
-    "texture": "block/resin_bricks",
-    "model": "block/resin_brick_wall_inventory"
+    "texture": "icons/resin_brick_wall"
   },
   {
     "id": "resin_bricks",
     "label": "Resin Bricks",
     "category": "misc",
-    "texture": "block/resin_bricks",
-    "model": "block/resin_bricks"
+    "texture": "icons/resin_bricks"
   },
   {
     "id": "resin_clump",
@@ -6888,8 +6369,7 @@
     "id": "respawn_anchor",
     "label": "Respawn Anchor",
     "category": "misc",
-    "texture": "block/respawn_anchor_side0",
-    "model": "block/respawn_anchor_0"
+    "texture": "icons/respawn_anchor"
   },
   {
     "id": "rib_armor_trim_smithing_template",
@@ -6901,8 +6381,7 @@
     "id": "rooted_dirt",
     "label": "Rooted Dirt",
     "category": "misc",
-    "texture": "block/rooted_dirt",
-    "model": "block/rooted_dirt"
+    "texture": "icons/rooted_dirt"
   },
   {
     "id": "rose_bush",
@@ -6938,49 +6417,43 @@
     "id": "salmon_spawn_egg",
     "label": "Salmon Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/salmon_spawn_egg"
   },
   {
     "id": "sand",
     "label": "Sand",
     "category": "misc",
-    "texture": "block/sand",
-    "model": "block/sand"
+    "texture": "icons/sand"
   },
   {
     "id": "sandstone",
     "label": "Sandstone",
     "category": "misc",
-    "texture": "block/sandstone",
-    "model": "block/sandstone"
+    "texture": "icons/sandstone"
   },
   {
     "id": "sandstone_slab",
     "label": "Sandstone Slab",
     "category": "misc",
-    "texture": "block/sandstone",
-    "model": "block/sandstone_slab"
+    "texture": "icons/sandstone_slab"
   },
   {
     "id": "sandstone_stairs",
     "label": "Sandstone Stairs",
     "category": "misc",
-    "texture": "block/sandstone",
-    "model": "block/sandstone_stairs"
+    "texture": "icons/sandstone_stairs"
   },
   {
     "id": "sandstone_wall",
     "label": "Sandstone Wall",
     "category": "misc",
-    "texture": "block/sandstone",
-    "model": "block/sandstone_wall_inventory"
+    "texture": "icons/sandstone_wall"
   },
   {
     "id": "scaffolding",
     "label": "Scaffolding",
     "category": "misc",
-    "texture": "block/scaffolding_top",
-    "model": "block/scaffolding_stable"
+    "texture": "icons/scaffolding"
   },
   {
     "id": "scrape_pottery_sherd",
@@ -6992,29 +6465,25 @@
     "id": "sculk",
     "label": "Sculk",
     "category": "misc",
-    "texture": "block/sculk",
-    "model": "block/sculk"
+    "texture": "icons/sculk"
   },
   {
     "id": "sculk_catalyst",
     "label": "Sculk Catalyst",
     "category": "misc",
-    "texture": "block/sculk_catalyst_side",
-    "model": "block/sculk_catalyst"
+    "texture": "icons/sculk_catalyst"
   },
   {
     "id": "sculk_sensor",
     "label": "Sculk Sensor",
     "category": "misc",
-    "texture": "block/sculk_sensor_bottom",
-    "model": "block/sculk_sensor_inactive"
+    "texture": "icons/sculk_sensor"
   },
   {
     "id": "sculk_shrieker",
     "label": "Sculk Shrieker",
     "category": "misc",
-    "texture": "block/sculk_shrieker_bottom",
-    "model": "block/sculk_shrieker"
+    "texture": "icons/sculk_shrieker"
   },
   {
     "id": "sculk_vein",
@@ -7026,8 +6495,7 @@
     "id": "sea_lantern",
     "label": "Sea Lantern",
     "category": "misc",
-    "texture": "block/sea_lantern",
-    "model": "block/sea_lantern"
+    "texture": "icons/sea_lantern"
   },
   {
     "id": "sea_pickle",
@@ -7069,7 +6537,7 @@
     "id": "sheep_spawn_egg",
     "label": "Sheep Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/sheep_spawn_egg"
   },
   {
     "id": "shelter_pottery_sherd",
@@ -7081,7 +6549,7 @@
     "id": "shield",
     "label": "Shield",
     "category": "combat",
-    "texture": "block/dark_oak_planks"
+    "texture": "icons/shield"
   },
   {
     "id": "short_grass",
@@ -7093,14 +6561,13 @@
     "id": "shroomlight",
     "label": "Shroomlight",
     "category": "misc",
-    "texture": "block/shroomlight",
-    "model": "block/shroomlight"
+    "texture": "icons/shroomlight"
   },
   {
     "id": "shulker_box",
     "label": "Shulker Box",
     "category": "misc",
-    "texture": "block/shulker_box"
+    "texture": "icons/shulker_box"
   },
   {
     "id": "shulker_shell",
@@ -7112,7 +6579,7 @@
     "id": "shulker_spawn_egg",
     "label": "Shulker Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/shulker_spawn_egg"
   },
   {
     "id": "silence_armor_trim_smithing_template",
@@ -7124,25 +6591,25 @@
     "id": "silverfish_spawn_egg",
     "label": "Silverfish Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/silverfish_spawn_egg"
   },
   {
     "id": "skeleton_horse_spawn_egg",
     "label": "Skeleton Horse Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/skeleton_horse_spawn_egg"
   },
   {
     "id": "skeleton_skull",
     "label": "Skeleton Skull",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/skeleton_skull"
   },
   {
     "id": "skeleton_spawn_egg",
     "label": "Skeleton Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/skeleton_spawn_egg"
   },
   {
     "id": "skull_banner_pattern",
@@ -7166,14 +6633,13 @@
     "id": "slime_block",
     "label": "Slime Block",
     "category": "misc",
-    "texture": "block/slime_block",
-    "model": "block/slime_block"
+    "texture": "icons/slime_block"
   },
   {
     "id": "slime_spawn_egg",
     "label": "Slime Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/slime_spawn_egg"
   },
   {
     "id": "small_amethyst_bud",
@@ -7185,106 +6651,91 @@
     "id": "small_dripleaf",
     "label": "Small Dripleaf",
     "category": "misc",
-    "texture": "block/small_dripleaf_top",
-    "model": "item/small_dripleaf"
+    "texture": "icons/small_dripleaf"
   },
   {
     "id": "smithing_table",
     "label": "Smithing Table",
     "category": "misc",
-    "texture": "block/smithing_table_front",
-    "model": "block/smithing_table"
+    "texture": "icons/smithing_table"
   },
   {
     "id": "smoker",
     "label": "Smoker",
     "category": "misc",
-    "texture": "block/smoker_front",
-    "model": "block/smoker"
+    "texture": "icons/smoker"
   },
   {
     "id": "smooth_basalt",
     "label": "Smooth Basalt",
     "category": "misc",
-    "texture": "block/smooth_basalt",
-    "model": "block/smooth_basalt"
+    "texture": "icons/smooth_basalt"
   },
   {
     "id": "smooth_quartz",
     "label": "Smooth Quartz",
     "category": "misc",
-    "texture": "block/quartz_block_bottom",
-    "model": "block/smooth_quartz"
+    "texture": "icons/smooth_quartz"
   },
   {
     "id": "smooth_quartz_slab",
     "label": "Smooth Quartz Slab",
     "category": "misc",
-    "texture": "block/quartz_block_bottom",
-    "model": "block/smooth_quartz_slab"
+    "texture": "icons/smooth_quartz_slab"
   },
   {
     "id": "smooth_quartz_stairs",
     "label": "Smooth Quartz Stairs",
     "category": "misc",
-    "texture": "block/quartz_block_bottom",
-    "model": "block/smooth_quartz_stairs"
+    "texture": "icons/smooth_quartz_stairs"
   },
   {
     "id": "smooth_red_sandstone",
     "label": "Smooth Red Sandstone",
     "category": "misc",
-    "texture": "block/red_sandstone_top",
-    "model": "block/smooth_red_sandstone"
+    "texture": "icons/smooth_red_sandstone"
   },
   {
     "id": "smooth_red_sandstone_slab",
     "label": "Smooth Red Sandstone Slab",
     "category": "misc",
-    "texture": "block/red_sandstone_top",
-    "model": "block/smooth_red_sandstone_slab"
+    "texture": "icons/smooth_red_sandstone_slab"
   },
   {
     "id": "smooth_red_sandstone_stairs",
     "label": "Smooth Red Sandstone Stairs",
     "category": "misc",
-    "texture": "block/red_sandstone_top",
-    "model": "block/smooth_red_sandstone_stairs"
+    "texture": "icons/smooth_red_sandstone_stairs"
   },
   {
     "id": "smooth_sandstone",
     "label": "Smooth Sandstone",
     "category": "misc",
-    "texture": "block/sandstone_top",
-    "model": "block/smooth_sandstone"
+    "texture": "icons/smooth_sandstone"
   },
   {
     "id": "smooth_sandstone_slab",
     "label": "Smooth Sandstone Slab",
     "category": "misc",
-    "texture": "block/sandstone_top",
-    "model": "block/smooth_sandstone_slab"
+    "texture": "icons/smooth_sandstone_slab"
   },
   {
     "id": "smooth_sandstone_stairs",
     "label": "Smooth Sandstone Stairs",
     "category": "misc",
-    "texture": "block/sandstone_top",
-    "model": "block/smooth_sandstone_stairs"
+    "texture": "icons/smooth_sandstone_stairs"
   },
   {
     "id": "smooth_stone",
     "label": "Smooth Stone",
     "category": "misc",
-    "texture": "block/smooth_stone",
-    "model": "block/smooth_stone"
+    "texture": "icons/smooth_stone"
   },
   {
     "id": "smooth_stone_slab",
     "label": "Smooth Stone Slab",
     "category": "misc",
-    "texture": "block/smooth_stone_slab_side",
-    "model": "block/smooth_stone_slab"
+    "texture": "icons/smooth_stone_slab"
   },
   {
     "id": "sniffer_egg",
@@ -7296,7 +6747,7 @@
     "id": "sniffer_spawn_egg",
     "label": "Sniffer Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/sniffer_spawn_egg"
   },
   {
     "id": "snort_pottery_sherd",
@@ -7314,21 +6765,19 @@
     "id": "snow",
     "label": "Snow",
     "category": "misc",
-    "texture": "block/snow",
-    "model": "block/snow_height2"
+    "texture": "icons/snow"
   },
   {
     "id": "snow_block",
     "label": "Snow Block",
     "category": "misc",
-    "texture": "block/snow",
-    "model": "block/snow_block"
+    "texture": "icons/snow_block"
   },
   {
     "id": "snow_golem_spawn_egg",
     "label": "Snow Golem Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/snow_golem_spawn_egg"
   },
   {
     "id": "snowball",
@@ -7352,15 +6801,13 @@
     "id": "soul_sand",
     "label": "Soul Sand",
     "category": "misc",
-    "texture": "block/soul_sand",
-    "model": "block/soul_sand"
+    "texture": "icons/soul_sand"
   },
   {
     "id": "soul_soil",
     "label": "Soul Soil",
     "category": "misc",
-    "texture": "block/soul_soil",
-    "model": "block/soul_soil"
+    "texture": "icons/soul_soil"
   },
   {
     "id": "soul_torch",
@@ -7372,8 +6819,7 @@
     "id": "spawner",
     "label": "Spawner",
     "category": "misc",
-    "texture": "block/spawner",
-    "model": "block/spawner"
+    "texture": "icons/spawner"
   },
   {
     "id": "spectral_arrow",
@@ -7391,7 +6837,7 @@
     "id": "spider_spawn_egg",
     "label": "Spider Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/spider_spawn_egg"
   },
   {
     "id": "spire_armor_trim_smithing_template",
@@ -7403,21 +6849,19 @@
     "id": "splash_potion",
     "label": "Splash Potion",
     "category": "potions",
-    "texture": "item/splash_potion"
+    "texture": "icons/splash_potion"
   },
   {
     "id": "sponge",
     "label": "Sponge",
     "category": "misc",
-    "texture": "block/sponge",
-    "model": "block/sponge"
+    "texture": "icons/sponge"
   },
   {
     "id": "spore_blossom",
     "label": "Spore Blossom",
     "category": "misc",
-    "texture": "block/spore_blossom",
-    "model": "block/spore_blossom"
+    "texture": "icons/spore_blossom"
   },
   {
     "id": "spruce_boat",
@@ -7429,8 +6873,7 @@
     "id": "spruce_button",
     "label": "Spruce Button",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_button_inventory"
+    "texture": "icons/spruce_button"
   },
   {
     "id": "spruce_chest_boat",
@@ -7448,15 +6891,13 @@
     "id": "spruce_fence",
     "label": "Spruce Fence",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_fence_inventory"
+    "texture": "icons/spruce_fence"
   },
   {
     "id": "spruce_fence_gate",
     "label": "Spruce Fence Gate",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_fence_gate"
+    "texture": "icons/spruce_fence_gate"
   },
   {
     "id": "spruce_hanging_sign",
@@ -7468,29 +6909,25 @@
     "id": "spruce_leaves",
     "label": "Spruce Leaves",
     "category": "misc",
-    "texture": "block/spruce_leaves",
-    "model": "block/spruce_leaves"
+    "texture": "icons/spruce_leaves"
   },
   {
     "id": "spruce_log",
     "label": "Spruce Log",
     "category": "misc",
-    "texture": "block/spruce_log",
-    "model": "block/spruce_log"
+    "texture": "icons/spruce_log"
   },
   {
     "id": "spruce_planks",
     "label": "Spruce Planks",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_planks"
+    "texture": "icons/spruce_planks"
   },
   {
     "id": "spruce_pressure_plate",
     "label": "Spruce Pressure Plate",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_pressure_plate"
+    "texture": "icons/spruce_pressure_plate"
   },
   {
     "id": "spruce_sapling",
@@ -7508,29 +6945,25 @@
     "id": "spruce_slab",
     "label": "Spruce Slab",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_slab"
+    "texture": "icons/spruce_slab"
   },
   {
     "id": "spruce_stairs",
     "label": "Spruce Stairs",
     "category": "misc",
-    "texture": "block/spruce_planks",
-    "model": "block/spruce_stairs"
+    "texture": "icons/spruce_stairs"
   },
   {
     "id": "spruce_trapdoor",
     "label": "Spruce Trapdoor",
     "category": "misc",
-    "texture": "block/spruce_trapdoor",
-    "model": "block/spruce_trapdoor_bottom"
+    "texture": "icons/spruce_trapdoor"
   },
   {
     "id": "spruce_wood",
     "label": "Spruce Wood",
     "category": "misc",
-    "texture": "block/spruce_log",
-    "model": "block/spruce_wood"
+    "texture": "icons/spruce_wood"
   },
   {
     "id": "spyglass",
@@ -7542,7 +6975,7 @@
     "id": "squid_spawn_egg",
     "label": "Squid Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/squid_spawn_egg"
   },
   {
     "id": "stick",
@@ -7554,15 +6987,13 @@
     "id": "sticky_piston",
     "label": "Sticky Piston",
     "category": "misc",
-    "texture": "block/piston_side",
-    "model": "block/sticky_piston_inventory"
+    "texture": "icons/sticky_piston"
   },
   {
     "id": "stone",
     "label": "Stone",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone"
+    "texture": "icons/stone"
   },
   {
     "id": "stone_axe",
@@ -7574,36 +7005,31 @@
     "id": "stone_brick_slab",
     "label": "Stone Brick Slab",
     "category": "misc",
-    "texture": "block/stone_bricks",
-    "model": "block/stone_brick_slab"
+    "texture": "icons/stone_brick_slab"
   },
   {
     "id": "stone_brick_stairs",
     "label": "Stone Brick Stairs",
     "category": "misc",
-    "texture": "block/stone_bricks",
-    "model": "block/stone_brick_stairs"
+    "texture": "icons/stone_brick_stairs"
   },
   {
     "id": "stone_brick_wall",
     "label": "Stone Brick Wall",
     "category": "misc",
-    "texture": "block/stone_bricks",
-    "model": "block/stone_brick_wall_inventory"
+    "texture": "icons/stone_brick_wall"
   },
   {
     "id": "stone_bricks",
     "label": "Stone Bricks",
     "category": "misc",
-    "texture": "block/stone_bricks",
-    "model": "block/stone_bricks"
+    "texture": "icons/stone_bricks"
   },
   {
     "id": "stone_button",
     "label": "Stone Button",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone_button_inventory"
+    "texture": "icons/stone_button"
   },
   {
     "id": "stone_hoe",
@@ -7621,8 +7047,7 @@
     "id": "stone_pressure_plate",
     "label": "Stone Pressure Plate",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone_pressure_plate"
+    "texture": "icons/stone_pressure_plate"
   },
   {
     "id": "stone_shovel",
@@ -7634,15 +7059,13 @@
     "id": "stone_slab",
     "label": "Stone Slab",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone_slab"
+    "texture": "icons/stone_slab"
   },
   {
     "id": "stone_stairs",
     "label": "Stone Stairs",
     "category": "misc",
-    "texture": "block/stone",
-    "model": "block/stone_stairs"
+    "texture": "icons/stone_stairs"
   },
   {
     "id": "stone_sword",
@@ -7654,20 +7077,19 @@
     "id": "stonecutter",
     "label": "Stonecutter",
     "category": "misc",
-    "texture": "block/stonecutter_bottom",
-    "model": "block/stonecutter"
+    "texture": "icons/stonecutter"
   },
   {
     "id": "stray_spawn_egg",
     "label": "Stray Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/stray_spawn_egg"
   },
   {
     "id": "strider_spawn_egg",
     "label": "Strider Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/strider_spawn_egg"
   },
   {
     "id": "string",
@@ -7679,169 +7101,145 @@
     "id": "stripped_acacia_log",
     "label": "Stripped Acacia Log",
     "category": "misc",
-    "texture": "block/stripped_acacia_log",
-    "model": "block/stripped_acacia_log"
+    "texture": "icons/stripped_acacia_log"
   },
   {
     "id": "stripped_acacia_wood",
     "label": "Stripped Acacia Wood",
     "category": "misc",
-    "texture": "block/stripped_acacia_log",
-    "model": "block/stripped_acacia_wood"
+    "texture": "icons/stripped_acacia_wood"
   },
   {
     "id": "stripped_bamboo_block",
     "label": "Stripped Bamboo Block",
     "category": "misc",
-    "texture": "block/stripped_bamboo_block",
-    "model": "block/stripped_bamboo_block"
+    "texture": "icons/stripped_bamboo_block"
   },
   {
     "id": "stripped_birch_log",
     "label": "Stripped Birch Log",
     "category": "misc",
-    "texture": "block/stripped_birch_log",
-    "model": "block/stripped_birch_log"
+    "texture": "icons/stripped_birch_log"
   },
   {
     "id": "stripped_birch_wood",
     "label": "Stripped Birch Wood",
     "category": "misc",
-    "texture": "block/stripped_birch_log",
-    "model": "block/stripped_birch_wood"
+    "texture": "icons/stripped_birch_wood"
   },
   {
     "id": "stripped_cherry_log",
     "label": "Stripped Cherry Log",
     "category": "misc",
-    "texture": "block/stripped_cherry_log",
-    "model": "block/stripped_cherry_log"
+    "texture": "icons/stripped_cherry_log"
   },
   {
     "id": "stripped_cherry_wood",
     "label": "Stripped Cherry Wood",
     "category": "misc",
-    "texture": "block/stripped_cherry_log",
-    "model": "block/stripped_cherry_wood"
+    "texture": "icons/stripped_cherry_wood"
   },
   {
     "id": "stripped_crimson_hyphae",
     "label": "Stripped Crimson Hyphae",
     "category": "misc",
-    "texture": "block/stripped_crimson_stem",
-    "model": "block/stripped_crimson_hyphae"
+    "texture": "icons/stripped_crimson_hyphae"
   },
   {
     "id": "stripped_crimson_stem",
     "label": "Stripped Crimson Stem",
     "category": "misc",
-    "texture": "block/stripped_crimson_stem",
-    "model": "block/stripped_crimson_stem"
+    "texture": "icons/stripped_crimson_stem"
   },
   {
     "id": "stripped_dark_oak_log",
     "label": "Stripped Dark Oak Log",
     "category": "misc",
-    "texture": "block/stripped_dark_oak_log",
-    "model": "block/stripped_dark_oak_log"
+    "texture": "icons/stripped_dark_oak_log"
   },
   {
     "id": "stripped_dark_oak_wood",
     "label": "Stripped Dark Oak Wood",
     "category": "misc",
-    "texture": "block/stripped_dark_oak_log",
-    "model": "block/stripped_dark_oak_wood"
+    "texture": "icons/stripped_dark_oak_wood"
   },
   {
     "id": "stripped_jungle_log",
     "label": "Stripped Jungle Log",
     "category": "misc",
-    "texture": "block/stripped_jungle_log",
-    "model": "block/stripped_jungle_log"
+    "texture": "icons/stripped_jungle_log"
   },
   {
     "id": "stripped_jungle_wood",
     "label": "Stripped Jungle Wood",
     "category": "misc",
-    "texture": "block/stripped_jungle_log",
-    "model": "block/stripped_jungle_wood"
+    "texture": "icons/stripped_jungle_wood"
   },
   {
     "id": "stripped_mangrove_log",
     "label": "Stripped Mangrove Log",
     "category": "misc",
-    "texture": "block/stripped_mangrove_log",
-    "model": "block/stripped_mangrove_log"
+    "texture": "icons/stripped_mangrove_log"
   },
   {
     "id": "stripped_mangrove_wood",
     "label": "Stripped Mangrove Wood",
     "category": "misc",
-    "texture": "block/stripped_mangrove_log",
-    "model": "block/stripped_mangrove_wood"
+    "texture": "icons/stripped_mangrove_wood"
   },
   {
     "id": "stripped_oak_log",
     "label": "Stripped Oak Log",
     "category": "misc",
-    "texture": "block/stripped_oak_log",
-    "model": "block/stripped_oak_log"
+    "texture": "icons/stripped_oak_log"
   },
   {
     "id": "stripped_oak_wood",
     "label": "Stripped Oak Wood",
     "category": "misc",
-    "texture": "block/stripped_oak_log",
-    "model": "block/stripped_oak_wood"
+    "texture": "icons/stripped_oak_wood"
   },
   {
     "id": "stripped_pale_oak_log",
     "label": "Stripped Pale Oak Log",
     "category": "misc",
-    "texture": "block/stripped_pale_oak_log",
-    "model": "block/stripped_pale_oak_log"
+    "texture": "icons/stripped_pale_oak_log"
   },
   {
     "id": "stripped_pale_oak_wood",
     "label": "Stripped Pale Oak Wood",
     "category": "misc",
-    "texture": "block/stripped_pale_oak_log",
-    "model": "block/stripped_pale_oak_wood"
+    "texture": "icons/stripped_pale_oak_wood"
   },
   {
     "id": "stripped_spruce_log",
     "label": "Stripped Spruce Log",
     "category": "misc",
-    "texture": "block/stripped_spruce_log",
-    "model": "block/stripped_spruce_log"
+    "texture": "icons/stripped_spruce_log"
   },
   {
     "id": "stripped_spruce_wood",
     "label": "Stripped Spruce Wood",
     "category": "misc",
-    "texture": "block/stripped_spruce_log",
-    "model": "block/stripped_spruce_wood"
+    "texture": "icons/stripped_spruce_wood"
   },
   {
     "id": "stripped_warped_hyphae",
     "label": "Stripped Warped Hyphae",
     "category": "misc",
-    "texture": "block/stripped_warped_stem",
-    "model": "block/stripped_warped_hyphae"
+    "texture": "icons/stripped_warped_hyphae"
   },
   {
     "id": "stripped_warped_stem",
     "label": "Stripped Warped Stem",
     "category": "misc",
-    "texture": "block/stripped_warped_stem",
-    "model": "block/stripped_warped_stem"
+    "texture": "icons/stripped_warped_stem"
   },
   {
     "id": "structure_block",
     "label": "Structure Block",
     "category": "misc",
-    "texture": "block/structure_block",
-    "model": "block/structure_block"
+    "texture": "icons/structure_block"
   },
   {
     "id": "structure_void",
@@ -7871,15 +7269,13 @@
     "id": "suspicious_gravel",
     "label": "Suspicious Gravel",
     "category": "misc",
-    "texture": "block/suspicious_gravel_0",
-    "model": "block/suspicious_gravel_0"
+    "texture": "icons/suspicious_gravel"
   },
   {
     "id": "suspicious_sand",
     "label": "Suspicious Sand",
     "category": "misc",
-    "texture": "block/suspicious_sand_0",
-    "model": "block/suspicious_sand_0"
+    "texture": "icons/suspicious_sand"
   },
   {
     "id": "suspicious_stew",
@@ -7903,7 +7299,7 @@
     "id": "tadpole_spawn_egg",
     "label": "Tadpole Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/tadpole_spawn_egg"
   },
   {
     "id": "tall_grass",
@@ -7915,15 +7311,13 @@
     "id": "target",
     "label": "Target",
     "category": "misc",
-    "texture": "block/target_side",
-    "model": "block/target"
+    "texture": "icons/target"
   },
   {
     "id": "terracotta",
     "label": "Terracotta",
     "category": "misc",
-    "texture": "block/terracotta",
-    "model": "block/terracotta"
+    "texture": "icons/terracotta"
   },
   {
     "id": "tide_armor_trim_smithing_template",
@@ -7935,21 +7329,19 @@
     "id": "tinted_glass",
     "label": "Tinted Glass",
     "category": "misc",
-    "texture": "block/tinted_glass",
-    "model": "block/tinted_glass"
+    "texture": "icons/tinted_glass"
   },
   {
     "id": "tipped_arrow",
     "label": "Tipped Arrow",
     "category": "combat",
-    "texture": "item/tipped_arrow_base"
+    "texture": "icons/tipped_arrow"
   },
   {
     "id": "tnt",
     "label": "Tnt",
     "category": "misc",
-    "texture": "block/tnt_side",
-    "model": "block/tnt"
+    "texture": "icons/tnt"
   },
   {
     "id": "tnt_minecart",
@@ -7985,13 +7377,13 @@
     "id": "trader_llama_spawn_egg",
     "label": "Trader Llama Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/trader_llama_spawn_egg"
   },
   {
     "id": "trapped_chest",
     "label": "Trapped Chest",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "icons/trapped_chest"
   },
   {
     "id": "trial_key",
@@ -8003,8 +7395,7 @@
     "id": "trial_spawner",
     "label": "Trial Spawner",
     "category": "misc",
-    "texture": "block/trial_spawner_side_inactive",
-    "model": "block/trial_spawner"
+    "texture": "icons/trial_spawner"
   },
   {
     "id": "trident",
@@ -8034,7 +7425,7 @@
     "id": "tropical_fish_spawn_egg",
     "label": "Tropical Fish Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/tropical_fish_spawn_egg"
   },
   {
     "id": "tube_coral",
@@ -8046,8 +7437,7 @@
     "id": "tube_coral_block",
     "label": "Tube Coral Block",
     "category": "misc",
-    "texture": "block/tube_coral_block",
-    "model": "block/tube_coral_block"
+    "texture": "icons/tube_coral_block"
   },
   {
     "id": "tube_coral_fan",
@@ -8059,57 +7449,49 @@
     "id": "tuff",
     "label": "Tuff",
     "category": "misc",
-    "texture": "block/tuff",
-    "model": "block/tuff"
+    "texture": "icons/tuff"
   },
   {
     "id": "tuff_brick_slab",
     "label": "Tuff Brick Slab",
     "category": "misc",
-    "texture": "block/tuff_bricks",
-    "model": "block/tuff_brick_slab"
+    "texture": "icons/tuff_brick_slab"
   },
   {
     "id": "tuff_brick_stairs",
     "label": "Tuff Brick Stairs",
     "category": "misc",
-    "texture": "block/tuff_bricks",
-    "model": "block/tuff_brick_stairs"
+    "texture": "icons/tuff_brick_stairs"
   },
   {
     "id": "tuff_brick_wall",
     "label": "Tuff Brick Wall",
     "category": "misc",
-    "texture": "block/tuff_bricks",
-    "model": "block/tuff_brick_wall_inventory"
+    "texture": "icons/tuff_brick_wall"
   },
   {
     "id": "tuff_bricks",
     "label": "Tuff Bricks",
     "category": "misc",
-    "texture": "block/tuff_bricks",
-    "model": "block/tuff_bricks"
+    "texture": "icons/tuff_bricks"
   },
   {
     "id": "tuff_slab",
     "label": "Tuff Slab",
     "category": "misc",
-    "texture": "block/tuff",
-    "model": "block/tuff_slab"
+    "texture": "icons/tuff_slab"
   },
   {
     "id": "tuff_stairs",
     "label": "Tuff Stairs",
     "category": "misc",
-    "texture": "block/tuff",
-    "model": "block/tuff_stairs"
+    "texture": "icons/tuff_stairs"
   },
   {
     "id": "tuff_wall",
     "label": "Tuff Wall",
     "category": "misc",
-    "texture": "block/tuff",
-    "model": "block/tuff_wall_inventory"
+    "texture": "icons/tuff_wall"
   },
   {
     "id": "turtle_egg",
@@ -8133,7 +7515,7 @@
     "id": "turtle_spawn_egg",
     "label": "Turtle Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/turtle_spawn_egg"
   },
   {
     "id": "twisting_vines",
@@ -8145,15 +7527,13 @@
     "id": "vault",
     "label": "Vault",
     "category": "misc",
-    "texture": "block/vault_side_off",
-    "model": "block/vault"
+    "texture": "icons/vault"
   },
   {
     "id": "verdant_froglight",
     "label": "Verdant Froglight",
     "category": "misc",
-    "texture": "block/verdant_froglight_side",
-    "model": "block/verdant_froglight"
+    "texture": "icons/verdant_froglight"
   },
   {
     "id": "vex_armor_trim_smithing_template",
@@ -8165,19 +7545,19 @@
     "id": "vex_spawn_egg",
     "label": "Vex Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/vex_spawn_egg"
   },
   {
     "id": "villager_spawn_egg",
     "label": "Villager Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/villager_spawn_egg"
   },
   {
     "id": "vindicator_spawn_egg",
     "label": "Vindicator Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/vindicator_spawn_egg"
   },
   {
     "id": "vine",
@@ -8189,7 +7569,7 @@
     "id": "wandering_trader_spawn_egg",
     "label": "Wandering Trader Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/wandering_trader_spawn_egg"
   },
   {
     "id": "ward_armor_trim_smithing_template",
@@ -8201,14 +7581,13 @@
     "id": "warden_spawn_egg",
     "label": "Warden Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/warden_spawn_egg"
   },
   {
     "id": "warped_button",
     "label": "Warped Button",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_button_inventory"
+    "texture": "icons/warped_button"
   },
   {
     "id": "warped_door",
@@ -8220,15 +7599,13 @@
     "id": "warped_fence",
     "label": "Warped Fence",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_fence_inventory"
+    "texture": "icons/warped_fence"
   },
   {
     "id": "warped_fence_gate",
     "label": "Warped Fence Gate",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_fence_gate"
+    "texture": "icons/warped_fence_gate"
   },
   {
     "id": "warped_fungus",
@@ -8252,29 +7629,25 @@
     "id": "warped_hyphae",
     "label": "Warped Hyphae",
     "category": "misc",
-    "texture": "block/warped_stem",
-    "model": "block/warped_hyphae"
+    "texture": "icons/warped_hyphae"
   },
   {
     "id": "warped_nylium",
     "label": "Warped Nylium",
     "category": "misc",
-    "texture": "block/warped_nylium_side",
-    "model": "block/warped_nylium"
+    "texture": "icons/warped_nylium"
   },
   {
     "id": "warped_planks",
     "label": "Warped Planks",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_planks"
+    "texture": "icons/warped_planks"
   },
   {
     "id": "warped_pressure_plate",
     "label": "Warped Pressure Plate",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_pressure_plate"
+    "texture": "icons/warped_pressure_plate"
   },
   {
     "id": "warped_roots",
@@ -8292,36 +7665,31 @@
     "id": "warped_slab",
     "label": "Warped Slab",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_slab"
+    "texture": "icons/warped_slab"
   },
   {
     "id": "warped_stairs",
     "label": "Warped Stairs",
     "category": "misc",
-    "texture": "block/warped_planks",
-    "model": "block/warped_stairs"
+    "texture": "icons/warped_stairs"
   },
   {
     "id": "warped_stem",
     "label": "Warped Stem",
     "category": "misc",
-    "texture": "block/warped_stem",
-    "model": "block/warped_stem"
+    "texture": "icons/warped_stem"
   },
   {
     "id": "warped_trapdoor",
     "label": "Warped Trapdoor",
     "category": "misc",
-    "texture": "block/warped_trapdoor",
-    "model": "block/warped_trapdoor_bottom"
+    "texture": "icons/warped_trapdoor"
   },
   {
     "id": "warped_wart_block",
     "label": "Warped Wart Block",
     "category": "misc",
-    "texture": "block/warped_wart_block",
-    "model": "block/warped_wart_block"
+    "texture": "icons/warped_wart_block"
   },
   {
     "id": "water_bucket",
@@ -8333,22 +7701,19 @@
     "id": "waxed_chiseled_copper",
     "label": "Waxed Chiseled Copper",
     "category": "misc",
-    "texture": "block/chiseled_copper",
-    "model": "block/chiseled_copper"
+    "texture": "icons/waxed_chiseled_copper"
   },
   {
     "id": "waxed_copper_block",
     "label": "Waxed Copper Block",
     "category": "misc",
-    "texture": "block/copper_block",
-    "model": "block/copper_block"
+    "texture": "icons/waxed_copper_block"
   },
   {
     "id": "waxed_copper_bulb",
     "label": "Waxed Copper Bulb",
     "category": "misc",
-    "texture": "block/copper_bulb",
-    "model": "block/copper_bulb"
+    "texture": "icons/waxed_copper_bulb"
   },
   {
     "id": "waxed_copper_door",
@@ -8360,57 +7725,49 @@
     "id": "waxed_copper_grate",
     "label": "Waxed Copper Grate",
     "category": "misc",
-    "texture": "block/copper_grate",
-    "model": "block/copper_grate"
+    "texture": "icons/waxed_copper_grate"
   },
   {
     "id": "waxed_copper_trapdoor",
     "label": "Waxed Copper Trapdoor",
     "category": "misc",
-    "texture": "block/copper_trapdoor",
-    "model": "block/copper_trapdoor_bottom"
+    "texture": "icons/waxed_copper_trapdoor"
   },
   {
     "id": "waxed_cut_copper",
     "label": "Waxed Cut Copper",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper"
+    "texture": "icons/waxed_cut_copper"
   },
   {
     "id": "waxed_cut_copper_slab",
     "label": "Waxed Cut Copper Slab",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper_slab"
+    "texture": "icons/waxed_cut_copper_slab"
   },
   {
     "id": "waxed_cut_copper_stairs",
     "label": "Waxed Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/cut_copper",
-    "model": "block/cut_copper_stairs"
+    "texture": "icons/waxed_cut_copper_stairs"
   },
   {
     "id": "waxed_exposed_chiseled_copper",
     "label": "Waxed Exposed Chiseled Copper",
     "category": "misc",
-    "texture": "block/exposed_chiseled_copper",
-    "model": "block/exposed_chiseled_copper"
+    "texture": "icons/waxed_exposed_chiseled_copper"
   },
   {
     "id": "waxed_exposed_copper",
     "label": "Waxed Exposed Copper",
     "category": "misc",
-    "texture": "block/exposed_copper",
-    "model": "block/exposed_copper"
+    "texture": "icons/waxed_exposed_copper"
   },
   {
     "id": "waxed_exposed_copper_bulb",
     "label": "Waxed Exposed Copper Bulb",
     "category": "misc",
-    "texture": "block/exposed_copper_bulb",
-    "model": "block/exposed_copper_bulb"
+    "texture": "icons/waxed_exposed_copper_bulb"
   },
   {
     "id": "waxed_exposed_copper_door",
@@ -8422,57 +7779,49 @@
     "id": "waxed_exposed_copper_grate",
     "label": "Waxed Exposed Copper Grate",
     "category": "misc",
-    "texture": "block/exposed_copper_grate",
-    "model": "block/exposed_copper_grate"
+    "texture": "icons/waxed_exposed_copper_grate"
   },
   {
     "id": "waxed_exposed_copper_trapdoor",
     "label": "Waxed Exposed Copper Trapdoor",
     "category": "misc",
-    "texture": "block/exposed_copper_trapdoor",
-    "model": "block/exposed_copper_trapdoor_bottom"
+    "texture": "icons/waxed_exposed_copper_trapdoor"
   },
   {
     "id": "waxed_exposed_cut_copper",
     "label": "Waxed Exposed Cut Copper",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper"
+    "texture": "icons/waxed_exposed_cut_copper"
   },
   {
     "id": "waxed_exposed_cut_copper_slab",
     "label": "Waxed Exposed Cut Copper Slab",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper_slab"
+    "texture": "icons/waxed_exposed_cut_copper_slab"
   },
   {
     "id": "waxed_exposed_cut_copper_stairs",
     "label": "Waxed Exposed Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/exposed_cut_copper",
-    "model": "block/exposed_cut_copper_stairs"
+    "texture": "icons/waxed_exposed_cut_copper_stairs"
   },
   {
     "id": "waxed_oxidized_chiseled_copper",
     "label": "Waxed Oxidized Chiseled Copper",
     "category": "misc",
-    "texture": "block/oxidized_chiseled_copper",
-    "model": "block/oxidized_chiseled_copper"
+    "texture": "icons/waxed_oxidized_chiseled_copper"
   },
   {
     "id": "waxed_oxidized_copper",
     "label": "Waxed Oxidized Copper",
     "category": "misc",
-    "texture": "block/oxidized_copper",
-    "model": "block/oxidized_copper"
+    "texture": "icons/waxed_oxidized_copper"
   },
   {
     "id": "waxed_oxidized_copper_bulb",
     "label": "Waxed Oxidized Copper Bulb",
     "category": "misc",
-    "texture": "block/oxidized_copper_bulb",
-    "model": "block/oxidized_copper_bulb"
+    "texture": "icons/waxed_oxidized_copper_bulb"
   },
   {
     "id": "waxed_oxidized_copper_door",
@@ -8484,57 +7833,49 @@
     "id": "waxed_oxidized_copper_grate",
     "label": "Waxed Oxidized Copper Grate",
     "category": "misc",
-    "texture": "block/oxidized_copper_grate",
-    "model": "block/oxidized_copper_grate"
+    "texture": "icons/waxed_oxidized_copper_grate"
   },
   {
     "id": "waxed_oxidized_copper_trapdoor",
     "label": "Waxed Oxidized Copper Trapdoor",
     "category": "misc",
-    "texture": "block/oxidized_copper_trapdoor",
-    "model": "block/oxidized_copper_trapdoor_bottom"
+    "texture": "icons/waxed_oxidized_copper_trapdoor"
   },
   {
     "id": "waxed_oxidized_cut_copper",
     "label": "Waxed Oxidized Cut Copper",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper"
+    "texture": "icons/waxed_oxidized_cut_copper"
   },
   {
     "id": "waxed_oxidized_cut_copper_slab",
     "label": "Waxed Oxidized Cut Copper Slab",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper_slab"
+    "texture": "icons/waxed_oxidized_cut_copper_slab"
   },
   {
     "id": "waxed_oxidized_cut_copper_stairs",
     "label": "Waxed Oxidized Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/oxidized_cut_copper",
-    "model": "block/oxidized_cut_copper_stairs"
+    "texture": "icons/waxed_oxidized_cut_copper_stairs"
   },
   {
     "id": "waxed_weathered_chiseled_copper",
     "label": "Waxed Weathered Chiseled Copper",
     "category": "misc",
-    "texture": "block/weathered_chiseled_copper",
-    "model": "block/weathered_chiseled_copper"
+    "texture": "icons/waxed_weathered_chiseled_copper"
   },
   {
     "id": "waxed_weathered_copper",
     "label": "Waxed Weathered Copper",
     "category": "misc",
-    "texture": "block/weathered_copper",
-    "model": "block/weathered_copper"
+    "texture": "icons/waxed_weathered_copper"
   },
   {
     "id": "waxed_weathered_copper_bulb",
     "label": "Waxed Weathered Copper Bulb",
     "category": "misc",
-    "texture": "block/weathered_copper_bulb",
-    "model": "block/weathered_copper_bulb"
+    "texture": "icons/waxed_weathered_copper_bulb"
   },
   {
     "id": "waxed_weathered_copper_door",
@@ -8546,36 +7887,31 @@
     "id": "waxed_weathered_copper_grate",
     "label": "Waxed Weathered Copper Grate",
     "category": "misc",
-    "texture": "block/weathered_copper_grate",
-    "model": "block/weathered_copper_grate"
+    "texture": "icons/waxed_weathered_copper_grate"
   },
   {
     "id": "waxed_weathered_copper_trapdoor",
     "label": "Waxed Weathered Copper Trapdoor",
     "category": "misc",
-    "texture": "block/weathered_copper_trapdoor",
-    "model": "block/weathered_copper_trapdoor_bottom"
+    "texture": "icons/waxed_weathered_copper_trapdoor"
   },
   {
     "id": "waxed_weathered_cut_copper",
     "label": "Waxed Weathered Cut Copper",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper"
+    "texture": "icons/waxed_weathered_cut_copper"
   },
   {
     "id": "waxed_weathered_cut_copper_slab",
     "label": "Waxed Weathered Cut Copper Slab",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper_slab"
+    "texture": "icons/waxed_weathered_cut_copper_slab"
   },
   {
     "id": "waxed_weathered_cut_copper_stairs",
     "label": "Waxed Weathered Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper_stairs"
+    "texture": "icons/waxed_weathered_cut_copper_stairs"
   },
   {
     "id": "wayfinder_armor_trim_smithing_template",
@@ -8587,22 +7923,19 @@
     "id": "weathered_chiseled_copper",
     "label": "Weathered Chiseled Copper",
     "category": "misc",
-    "texture": "block/weathered_chiseled_copper",
-    "model": "block/weathered_chiseled_copper"
+    "texture": "icons/weathered_chiseled_copper"
   },
   {
     "id": "weathered_copper",
     "label": "Weathered Copper",
     "category": "misc",
-    "texture": "block/weathered_copper",
-    "model": "block/weathered_copper"
+    "texture": "icons/weathered_copper"
   },
   {
     "id": "weathered_copper_bulb",
     "label": "Weathered Copper Bulb",
     "category": "misc",
-    "texture": "block/weathered_copper_bulb",
-    "model": "block/weathered_copper_bulb"
+    "texture": "icons/weathered_copper_bulb"
   },
   {
     "id": "weathered_copper_door",
@@ -8614,36 +7947,31 @@
     "id": "weathered_copper_grate",
     "label": "Weathered Copper Grate",
     "category": "misc",
-    "texture": "block/weathered_copper_grate",
-    "model": "block/weathered_copper_grate"
+    "texture": "icons/weathered_copper_grate"
   },
   {
     "id": "weathered_copper_trapdoor",
     "label": "Weathered Copper Trapdoor",
     "category": "misc",
-    "texture": "block/weathered_copper_trapdoor",
-    "model": "block/weathered_copper_trapdoor_bottom"
+    "texture": "icons/weathered_copper_trapdoor"
   },
   {
     "id": "weathered_cut_copper",
     "label": "Weathered Cut Copper",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper"
+    "texture": "icons/weathered_cut_copper"
   },
   {
     "id": "weathered_cut_copper_slab",
     "label": "Weathered Cut Copper Slab",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper_slab"
+    "texture": "icons/weathered_cut_copper_slab"
   },
   {
     "id": "weathered_cut_copper_stairs",
     "label": "Weathered Cut Copper Stairs",
     "category": "misc",
-    "texture": "block/weathered_cut_copper",
-    "model": "block/weathered_cut_copper_stairs"
+    "texture": "icons/weathered_cut_copper_stairs"
   },
   {
     "id": "weeping_vines",
@@ -8655,8 +7983,7 @@
     "id": "wet_sponge",
     "label": "Wet Sponge",
     "category": "misc",
-    "texture": "block/wet_sponge",
-    "model": "block/wet_sponge"
+    "texture": "icons/wet_sponge"
   },
   {
     "id": "wheat",
@@ -8674,7 +8001,7 @@
     "id": "white_banner",
     "label": "White Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/white_wool"
   },
   {
     "id": "white_bed",
@@ -8698,22 +8025,19 @@
     "id": "white_carpet",
     "label": "White Carpet",
     "category": "misc",
-    "texture": "block/white_wool",
-    "model": "block/white_carpet"
+    "texture": "icons/white_carpet"
   },
   {
     "id": "white_concrete",
     "label": "White Concrete",
     "category": "misc",
-    "texture": "block/white_concrete",
-    "model": "block/white_concrete"
+    "texture": "icons/white_concrete"
   },
   {
     "id": "white_concrete_powder",
     "label": "White Concrete Powder",
     "category": "misc",
-    "texture": "block/white_concrete_powder",
-    "model": "block/white_concrete_powder"
+    "texture": "icons/white_concrete_powder"
   },
   {
     "id": "white_dye",
@@ -8725,21 +8049,19 @@
     "id": "white_glazed_terracotta",
     "label": "White Glazed Terracotta",
     "category": "misc",
-    "texture": "block/white_glazed_terracotta",
-    "model": "block/white_glazed_terracotta"
+    "texture": "icons/white_glazed_terracotta"
   },
   {
     "id": "white_shulker_box",
     "label": "White Shulker Box",
     "category": "misc",
-    "texture": "block/white_shulker_box"
+    "texture": "icons/white_shulker_box"
   },
   {
     "id": "white_stained_glass",
     "label": "White Stained Glass",
     "category": "misc",
-    "texture": "block/white_stained_glass",
-    "model": "block/white_stained_glass"
+    "texture": "icons/white_stained_glass"
   },
   {
     "id": "white_stained_glass_pane",
@@ -8751,8 +8073,7 @@
     "id": "white_terracotta",
     "label": "White Terracotta",
     "category": "misc",
-    "texture": "block/white_terracotta",
-    "model": "block/white_terracotta"
+    "texture": "icons/white_terracotta"
   },
   {
     "id": "white_tulip",
@@ -8764,8 +8085,7 @@
     "id": "white_wool",
     "label": "White Wool",
     "category": "misc",
-    "texture": "block/white_wool",
-    "model": "block/white_wool"
+    "texture": "icons/white_wool"
   },
   {
     "id": "wild_armor_trim_smithing_template",
@@ -8783,7 +8103,7 @@
     "id": "witch_spawn_egg",
     "label": "Witch Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/witch_spawn_egg"
   },
   {
     "id": "wither_rose",
@@ -8795,19 +8115,19 @@
     "id": "wither_skeleton_skull",
     "label": "Wither Skeleton Skull",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/wither_skeleton_skull"
   },
   {
     "id": "wither_skeleton_spawn_egg",
     "label": "Wither Skeleton Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/wither_skeleton_spawn_egg"
   },
   {
     "id": "wither_spawn_egg",
     "label": "Wither Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/wither_spawn_egg"
   },
   {
     "id": "wolf_armor",
@@ -8819,7 +8139,7 @@
     "id": "wolf_spawn_egg",
     "label": "Wolf Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/wolf_spawn_egg"
   },
   {
     "id": "wooden_axe",
@@ -8867,7 +8187,7 @@
     "id": "yellow_banner",
     "label": "Yellow Banner",
     "category": "misc",
-    "texture": "block/oak_planks"
+    "texture": "block/yellow_wool"
   },
   {
     "id": "yellow_bed",
@@ -8891,22 +8211,19 @@
     "id": "yellow_carpet",
     "label": "Yellow Carpet",
     "category": "misc",
-    "texture": "block/yellow_wool",
-    "model": "block/yellow_carpet"
+    "texture": "icons/yellow_carpet"
   },
   {
     "id": "yellow_concrete",
     "label": "Yellow Concrete",
     "category": "misc",
-    "texture": "block/yellow_concrete",
-    "model": "block/yellow_concrete"
+    "texture": "icons/yellow_concrete"
   },
   {
     "id": "yellow_concrete_powder",
     "label": "Yellow Concrete Powder",
     "category": "misc",
-    "texture": "block/yellow_concrete_powder",
-    "model": "block/yellow_concrete_powder"
+    "texture": "icons/yellow_concrete_powder"
   },
   {
     "id": "yellow_dye",
@@ -8918,21 +8235,19 @@
     "id": "yellow_glazed_terracotta",
     "label": "Yellow Glazed Terracotta",
     "category": "misc",
-    "texture": "block/yellow_glazed_terracotta",
-    "model": "block/yellow_glazed_terracotta"
+    "texture": "icons/yellow_glazed_terracotta"
   },
   {
     "id": "yellow_shulker_box",
     "label": "Yellow Shulker Box",
     "category": "misc",
-    "texture": "block/yellow_shulker_box"
+    "texture": "icons/yellow_shulker_box"
   },
   {
     "id": "yellow_stained_glass",
     "label": "Yellow Stained Glass",
     "category": "misc",
-    "texture": "block/yellow_stained_glass",
-    "model": "block/yellow_stained_glass"
+    "texture": "icons/yellow_stained_glass"
   },
   {
     "id": "yellow_stained_glass_pane",
@@ -8944,50 +8259,48 @@
     "id": "yellow_terracotta",
     "label": "Yellow Terracotta",
     "category": "misc",
-    "texture": "block/yellow_terracotta",
-    "model": "block/yellow_terracotta"
+    "texture": "icons/yellow_terracotta"
   },
   {
     "id": "yellow_wool",
     "label": "Yellow Wool",
     "category": "misc",
-    "texture": "block/yellow_wool",
-    "model": "block/yellow_wool"
+    "texture": "icons/yellow_wool"
   },
   {
     "id": "zoglin_spawn_egg",
     "label": "Zoglin Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/zoglin_spawn_egg"
   },
   {
     "id": "zombie_head",
     "label": "Zombie Head",
     "category": "misc",
-    "texture": "block/soul_sand"
+    "texture": "icons/zombie_head"
   },
   {
     "id": "zombie_horse_spawn_egg",
     "label": "Zombie Horse Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/zombie_horse_spawn_egg"
   },
   {
     "id": "zombie_spawn_egg",
     "label": "Zombie Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/zombie_spawn_egg"
   },
   {
     "id": "zombie_villager_spawn_egg",
     "label": "Zombie Villager Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/zombie_villager_spawn_egg"
   },
   {
     "id": "zombified_piglin_spawn_egg",
     "label": "Zombified Piglin Spawn Egg",
     "category": "misc",
-    "texture": "item/spawn_egg"
+    "texture": "icons/zombified_piglin_spawn_egg"
   }
 ]

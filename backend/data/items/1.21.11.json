@@ -1941,7 +1941,7 @@
     "id": "creeper_head",
     "label": "Creeper Head",
     "category": "misc",
-    "texture": "item/creeper_head"
+    "texture": "icons/creeper_head"
   },
   {
     "id": "creeper_spawn_egg",
@@ -2727,7 +2727,7 @@
     "id": "dragon_head",
     "label": "Dragon Head",
     "category": "misc",
-    "texture": "item/dragon_head"
+    "texture": "icons/dragon_head"
   },
   {
     "id": "dried_ghast",
@@ -5865,7 +5865,7 @@
     "id": "piglin_head",
     "label": "Piglin Head",
     "category": "misc",
-    "texture": "item/piglin_head"
+    "texture": "icons/piglin_head"
   },
   {
     "id": "piglin_spawn_egg",
@@ -6003,7 +6003,7 @@
     "id": "player_head",
     "label": "Player Head",
     "category": "misc",
-    "texture": "item/player_head"
+    "texture": "icons/player_head"
   },
   {
     "id": "plenty_pottery_sherd",
@@ -7077,7 +7077,7 @@
     "id": "skeleton_skull",
     "label": "Skeleton Skull",
     "category": "misc",
-    "texture": "item/skeleton_skull"
+    "texture": "icons/skeleton_skull"
   },
   {
     "id": "skeleton_spawn_egg",
@@ -8817,7 +8817,7 @@
     "id": "wither_skeleton_skull",
     "label": "Wither Skeleton Skull",
     "category": "misc",
-    "texture": "item/wither_skeleton_skull"
+    "texture": "icons/wither_skeleton_skull"
   },
   {
     "id": "wither_skeleton_spawn_egg",
@@ -8991,7 +8991,7 @@
     "id": "zombie_head",
     "label": "Zombie Head",
     "category": "misc",
-    "texture": "item/zombie_head"
+    "texture": "icons/zombie_head"
   },
   {
     "id": "zombie_horse_spawn_egg",

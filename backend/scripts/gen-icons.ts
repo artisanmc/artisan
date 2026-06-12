@@ -53,9 +53,9 @@ console.log(`  ${Object.keys(bundle).length} models resolved.`);
 
 // ── Local file server ────────────────────────────────────────────────────────────
 // Serves exactly the routes mcModelRenderer.ts fetches from:
-//   /api/model-bundle/:version   → pre-built bundle JSON
-//   /api/textures/:version/*     → PNG files from mc-assets/textures/
-//   /api/models/:version/*       → model JSON files (fallback if not in bundle)
+//   /api/v1/model-bundle/:version → pre-built bundle JSON
+//   /api/v1/textures/:version/*   → PNG files from mc-assets/textures/
+//   /api/v1/models/:version/*     → model JSON files (fallback if not in bundle)
 
 const TEXTURES_DIR = join(ASSETS, "textures");
 const MODELS_DIR = join(ASSETS, "models");
@@ -67,13 +67,13 @@ const server = Bun.serve({
     const path = decodeURIComponent(new URL(req.url).pathname);
     const cors = { "Access-Control-Allow-Origin": "*" };
 
-    if (path === `/api/model-bundle/${VERSION}`) {
+    if (path === `/api/v1/model-bundle/${VERSION}`) {
       return new Response(bundleJson, {
         headers: { "Content-Type": "application/json", ...cors },
       });
     }
 
-    const texPrefix = `/api/textures/${VERSION}/`;
+    const texPrefix = `/api/v1/textures/${VERSION}/`;
     if (path.startsWith(texPrefix)) {
       const rel = path.slice(texPrefix.length);
       const filePath = join(TEXTURES_DIR, `${rel}.png`);
@@ -83,7 +83,7 @@ const server = Bun.serve({
       });
     }
 
-    const modelPrefix = `/api/models/${VERSION}/`;
+    const modelPrefix = `/api/v1/models/${VERSION}/`;
     if (path.startsWith(modelPrefix)) {
       const rel = path.slice(modelPrefix.length);
       const filePath = join(MODELS_DIR, `${rel}.json`);
