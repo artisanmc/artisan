@@ -282,6 +282,7 @@ export function menuV1ToDomain(
       if (ifa.joins.length > 0) out.ifJoins = ifa.joins;
     }
     if (a.material) out.material = a.material;
+    if (a.head) out.head = a.head;
     if (a.count !== undefined) out.count = a.count;
     if (a.title !== undefined) out.title = text(a.title);
     const lore = loreText(a.lore);

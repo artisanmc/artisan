@@ -175,6 +175,8 @@ export interface Appearance {
   ifJoins?: ("and" | "or")[];
   assetId?: AssetId;
   material?: string;
+  /** Custom head when material is PLAYER_HEAD: "hdb:<id>", "basehead:<base64>", or "playerhead:<name>". */
+  head?: string;
   count?: number;
   title?: LText;
   lore?: LText | null;
