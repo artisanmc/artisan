@@ -76,6 +76,7 @@ data class ElementYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AppearanceYaml(
     val material: String? = null,
+    val head: String? = null,
     val count: Int = 1,
     val title: String? = null,
     val lore: List<String> = emptyList(),
