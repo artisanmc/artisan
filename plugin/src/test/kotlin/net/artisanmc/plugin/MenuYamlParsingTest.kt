@@ -46,6 +46,27 @@ class MenuYamlParsingTest {
     }
 
     @Test
+    fun `appearance head field is parsed`() {
+        val yaml = """
+            schema: menu/v1
+            id: heads
+            title: []
+            size: 9
+            layers:
+              - id: main
+                name: Main
+                elements:
+                  - id: hd
+                    positions: "0"
+                    appearances:
+                      - material: PLAYER_HEAD
+                        head: "hdb:128276"
+        """.trimIndent()
+        val menu = mapper.readValue<MenuYaml>(yaml)
+        assertEquals("hdb:128276", menu.layers[0].elements[0].appearances[0].head)
+    }
+
+    @Test
     fun `menus without these fields still parse (back-compat)`() {
         val menu = mapper.readValue<MenuYaml>(
             """
