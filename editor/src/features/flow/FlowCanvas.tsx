@@ -825,6 +825,7 @@ function StateCard({
                 entries={placeholderEntries}
                 placeholder={t("flow.titlePlaceholder")}
                 onFocus={() => setSub({ kind: "state", stateIndex })}
+                className="h-8 px-2 py-0 text-xs"
               />
               <ArgInsertBar onInsert={(name) => updateTitle(`${title}{${name}}`)} />
               {looksLikeMiniMessage(title) ? (
@@ -876,6 +877,7 @@ function StateCard({
               }}
               entries={placeholderEntries}
               placeholder={t("flow.lorePlaceholder")}
+              className="min-h-0 px-2 py-1 text-xs"
             />
             <ArgInsertBar
               onInsert={(name) => {

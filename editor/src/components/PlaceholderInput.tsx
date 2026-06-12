@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { getCaretCoordinates } from "@/lib/caretCoordinates";
+import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 
 export interface PlaceholderInputProps {
@@ -16,6 +17,8 @@ export interface PlaceholderInputProps {
   rows?: number;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** Merged after the design-system `.input` / `.textarea` base class. */
+  className?: string;
 }
 
 /**
@@ -33,6 +36,7 @@ export function PlaceholderInput({
   rows,
   onFocus,
   onBlur,
+  className,
 }: PlaceholderInputProps) {
   const { t } = useTranslation();
   const reactId = useId();
@@ -232,10 +236,15 @@ export function PlaceholderInput({
         <textarea
           ref={ref as React.RefObject<HTMLTextAreaElement>}
           rows={rows}
+          className={cn("textarea", className)}
           {...commonProps}
         />
       ) : (
-        <input ref={ref as React.RefObject<HTMLInputElement>} {...commonProps} />
+        <input
+          ref={ref as React.RefObject<HTMLInputElement>}
+          className={cn("input", className)}
+          {...commonProps}
+        />
       )}
 
       {popup}
