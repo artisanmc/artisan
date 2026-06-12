@@ -31,4 +31,18 @@ describe("validateMenuV1", () => {
     bad.layers[0].elements[0].appearances[0].click.left = { actions: [] };
     expect(validateMenuV1(bad).valid).toBe(false);
   });
+
+  it("accepts an appearance with a custom head", () => {
+    const m = structuredClone(canonicalButton) as Record<string, any>;
+    const app = m.layers[0].elements[0].appearances[0];
+    app.material = "PLAYER_HEAD";
+    app.head = "hdb:128276";
+    expect(validateMenuV1(m).valid).toBe(true);
+  });
+
+  it("rejects a non-string head", () => {
+    const m = structuredClone(canonicalButton) as Record<string, any>;
+    m.layers[0].elements[0].appearances[0].head = 42;
+    expect(validateMenuV1(m).valid).toBe(false);
+  });
 });

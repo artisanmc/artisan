@@ -246,6 +246,7 @@
         },
         "asset": { "type": "string" },
         "material": { "type": "string", "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère." },
+        "head": { "type": "string", "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material." },
         "count": { "type": "integer", "minimum": 1, "maximum": 64, "default": 1 },
         "title": { "type": "string" },
         "lore": { "type": "array", "items": { "type": "string" } },
