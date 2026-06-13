@@ -5,16 +5,19 @@ import { ArrowLeft } from "lucide-react";
 import type { ElementId, MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SplitPane } from "@/components/SplitPane";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { SoloMenuStage } from "./SoloMenuStage";
+import { elementLabel } from "./usePackElements";
 
 export function ElementView({ packId, elementId }: { packId: PackId; elementId: ElementId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const activeLang = useUiStore((s) => s.activeLang);
   const eid = elementId as string;
   const menu = pack?.menus.find((m) => m.id === eid);
   const command = pack?.commands.find((c) => c.id === eid);
@@ -40,7 +43,7 @@ export function ElementView({ packId, elementId }: { packId: PackId; elementId: 
       >
         <ArrowLeft className="size-4" /> {t("elementView.back")}
       </button>
-      <span className="truncate text-[14px] font-medium text-[var(--text)]">{elementId}</span>
+      <span className="truncate text-[14px] font-medium text-[var(--text)]">{pack ? elementLabel(pack, elementId as string, activeLang) : elementId}</span>
     </header>
   );
 
