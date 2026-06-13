@@ -1,0 +1,69 @@
+import { describe, expect, it } from "vitest";
+import { commandV1ToDomain } from "./commandV1ToDomain";
+import { packId } from "@/domain/ids";
+
+const opts = { packId: packId("p1"), lang: "en" };
+
+describe("commandV1ToDomain", () => {
+  it("maps id/name/aliases/permission/description and steps", () => {
+    const { command } = commandV1ToDomain(
+      {
+        schema: "command/v1",
+        id: "heal",
+        name: "heal",
+        aliases: ["h"],
+        permission: "a.heal",
+        description: "Heal",
+        steps: [{ kind: "action", action: { type: "close_menu" } }],
+      },
+      opts,
+    );
+    expect(command.id).toBe("heal");
+    expect(command.name).toBe("heal");
+    expect(command.aliases).toEqual(["h"]);
+    expect(command.permission).toBe("a.heal");
+    expect(command.description).toBe("Heal");
+    expect(command.packId).toBe("p1");
+    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+  });
+
+  it("maps arguments, online_player→player, and extracts send_message i18n", () => {
+    const { command, i18nKeys } = commandV1ToDomain(
+      {
+        schema: "command/v1",
+        id: "pay",
+        name: "pay",
+        arguments: [
+          { name: "target", type: "online_player", required: true },
+          { name: "amount", type: "integer", required: true },
+        ],
+        steps: [{ kind: "action", action: { type: "send_message", text: "ok" } }],
+      },
+      opts,
+    );
+    expect(command.arguments).toEqual([
+      { name: "target", type: "player", required: true },
+      { name: "amount", type: "integer", required: true },
+    ]);
+    const a = command.steps[0] as any;
+    expect(i18nKeys[a.action.text.key]).toEqual({ en: "ok" });
+  });
+
+  it("flags requirements/fallback/cooldown and unsupported arg types", () => {
+    const { command, unsupported } = commandV1ToDomain(
+      {
+        schema: "command/v1",
+        id: "c",
+        name: "c",
+        arguments: [{ name: "w", type: "world", required: false }],
+        requirements: [{ type: "has_money", amount: 1 }],
+        fallback: [{ type: "close_menu" }],
+        cooldown: { id: "x", duration_seconds: 5 },
+        steps: [{ kind: "action", action: { type: "close_menu" } }],
+      },
+      opts,
+    );
+    expect(command.arguments[0]).toEqual({ name: "w", type: "string", required: false });
+    expect(unsupported).toEqual(expect.arrayContaining(["command.requirements", "command.fallback", "command.cooldown", "arg type: world"]));
+  });
+});
