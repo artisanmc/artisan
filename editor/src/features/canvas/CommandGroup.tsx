@@ -51,6 +51,8 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: command.id } }))}
+      onDblTap={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: command.id } }))}
       name={`command:${command.id}`}
       id={command.id}
     >
