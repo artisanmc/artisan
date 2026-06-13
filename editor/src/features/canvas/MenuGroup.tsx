@@ -273,6 +273,8 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       onDragEnd={solo ? undefined : onMenuDragEnd}
       onClick={solo ? undefined : onClick}
       onTap={solo ? undefined : onClick}
+      onDblClick={solo ? undefined : () => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: menu.id } }))}
+      onDblTap={solo ? undefined : () => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: menu.id } }))}
       name={`menu:${menu.id}`}
       id={menu.id}
     >

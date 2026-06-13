@@ -51,6 +51,8 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
+      onDblClick={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: dialog.id } }))}
+      onDblTap={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: dialog.id } }))}
       name={`dialog:${dialog.id}`}
       id={dialog.id}
     >
