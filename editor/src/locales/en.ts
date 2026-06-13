@@ -399,7 +399,6 @@ export default {
   elementView: {
     back: "Back to board",
     notFound: "This element no longer exists",
-    soon: "Editor coming soon",
   },
   editorPane: {
     tabEdit: "Edit",

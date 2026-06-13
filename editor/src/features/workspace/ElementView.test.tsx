@@ -10,6 +10,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("./SoloMenuStage", () => ({ SoloMenuStage: () => <div data-testid="solo-menu" /> }));
 vi.mock("@/features/canvas/EditorPane", () => ({ EditorPane: () => <div data-testid="editor-pane" /> }));
+vi.mock("@/features/flow/FlowCanvas", () => ({ FlowCanvas: () => <div data-testid="flow-canvas" /> }));
 
 import { ElementView } from "./ElementView";
 
@@ -19,7 +20,7 @@ beforeEach(() => {
   useAccountStore.setState({ account: { id: "a" as any, packOrder: [PID], packs: [{
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", packId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    commands: [{ id: "c1", packId: PID, name: "heal", arguments: [], steps: [] } as any], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: {},
   } as Pack] } } as any);
 });
@@ -40,5 +41,9 @@ describe("ElementView", () => {
   it("élément introuvable → notFound", () => {
     render(<ElementView packId={PID} elementId={"zzz" as any} />);
     expect(screen.getByText(/no longer exists|n'existe plus/i)).toBeInTheDocument();
+  });
+  it("rend l'éditeur de flux centré pour une commande", () => {
+    render(<ElementView packId={PID} elementId={"c1" as any} />);
+    expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
   });
 });
