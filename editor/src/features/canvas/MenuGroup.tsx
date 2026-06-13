@@ -41,6 +41,11 @@ interface MenuGroupProps {
   /** Full pack-canvas layout — needed by the slot drag-out handler to
    *  resolve which menu (if any) the cursor was over on dragend. */
   layout: Record<string, { x: number; y: number }>;
+  /** Solo mode: render at origin, non-draggable, no menu-level drag/select
+   *  handlers. Slot-level handlers (click-to-edit, library placement) remain
+   *  active. Used by the individual-element view so it reuses this component
+   *  without diverging. */
+  solo?: boolean;
 }
 
 /**
@@ -56,7 +61,7 @@ interface MenuGroupProps {
  * texture itself draws the visual slot wells; we just overlay material text
  * + interaction targets.
  */
-export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
+export function MenuGroup({ packId, menu, position, layout, solo = false }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -261,13 +266,13 @@ export function MenuGroup({ packId, menu, position, layout }: MenuGroupProps) {
 
   return (
     <Group
-      x={position.x}
-      y={position.y}
-      draggable
-      onDragStart={onMenuDragStart}
-      onDragEnd={onMenuDragEnd}
-      onClick={onClick}
-      onTap={onClick}
+      x={solo ? 0 : position.x}
+      y={solo ? 0 : position.y}
+      draggable={!solo}
+      onDragStart={solo ? undefined : onMenuDragStart}
+      onDragEnd={solo ? undefined : onMenuDragEnd}
+      onClick={solo ? undefined : onClick}
+      onTap={solo ? undefined : onClick}
       name={`menu:${menu.id}`}
       id={menu.id}
     >
