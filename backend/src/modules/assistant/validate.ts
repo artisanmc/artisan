@@ -120,19 +120,24 @@ function vocabErrorsInSteps(list: Json[] | undefined): string[] {
       return;
     }
     if (c.type === "not") condition(c.of, `${p}/of`);
-    if (c.type === "and" || c.type === "or") (c.of ?? []).forEach((s: Json, i: number) => condition(s, `${p}/of/${i}`));
+    if (c.type === "and" || c.type === "or")
+      (Array.isArray(c.of) ? c.of : []).forEach((s: Json, i: number) => condition(s, `${p}/of/${i}`));
   }
   function action(a: Json | undefined, p: string): void {
     if (!a || typeof a !== "object") return;
     if (!ACTION_SET.has(a.type)) errors.push(`${p} action type "${a.type}" is not in the allowed vocabulary`);
   }
   function steps(l: Json[] | undefined, p: string): void {
-    (l ?? []).forEach((s, i) => {
+    (Array.isArray(l) ? l : []).forEach((s, i) => {
+      if (!s || typeof s !== "object") return;
       const sp = `${p}/${i}`;
-      if (s?.kind === "action") action(s.action, `${sp}/action`);
-      else if (s?.kind === "if") {
-        (s.cases ?? []).forEach((c: Json, j: number) => {
-          (c.conditions ?? []).forEach((cd: Json, k: number) => condition(cd, `${sp}/cases/${j}/conditions/${k}`));
+      if (s.kind === "action") action(s.action, `${sp}/action`);
+      else if (s.kind === "if") {
+        (Array.isArray(s.cases) ? s.cases : []).forEach((c: Json, j: number) => {
+          if (!c || typeof c !== "object") return;
+          (Array.isArray(c.conditions) ? c.conditions : []).forEach((cd: Json, k: number) =>
+            condition(cd, `${sp}/cases/${j}/conditions/${k}`),
+          );
           steps(c.steps, `${sp}/cases/${j}/steps`);
         });
         steps(s.else, `${sp}/else`);
@@ -145,7 +150,7 @@ function vocabErrorsInSteps(list: Json[] | undefined): string[] {
 
 function vocabErrorsInActions(list: Json[] | undefined, base: string): string[] {
   const errors: string[] = [];
-  (list ?? []).forEach((a, i) => {
+  (Array.isArray(list) ? list : []).forEach((a, i) => {
     if (a && typeof a === "object" && !ACTION_SET.has(a.type)) {
       errors.push(`${base}/${i} action type "${a.type}" is not in the allowed vocabulary`);
     }
@@ -162,9 +167,10 @@ function vocabErrorsInConditions(list: Json[] | undefined, base: string): string
       return;
     }
     if (c.type === "not") condition(c.of, `${p}/of`);
-    if (c.type === "and" || c.type === "or") (c.of ?? []).forEach((s: Json, i: number) => condition(s, `${p}/of/${i}`));
+    if (c.type === "and" || c.type === "or")
+      (Array.isArray(c.of) ? c.of : []).forEach((s: Json, i: number) => condition(s, `${p}/of/${i}`));
   }
-  (list ?? []).forEach((c, i) => condition(c, `${base}/${i}`));
+  (Array.isArray(list) ? list : []).forEach((c, i) => condition(c, `${base}/${i}`));
   return errors;
 }
 
@@ -195,7 +201,8 @@ export function validateDialogV1(dlg: unknown): MenuV1ValidationResult {
   );
   const d = (dlg && typeof dlg === "object" ? dlg : {}) as Json;
   const vocab: string[] = [];
-  (d.buttons ?? []).forEach((b: Json, i: number) => {
+  (Array.isArray(d.buttons) ? d.buttons : []).forEach((b: Json, i: number) => {
+    if (!b || typeof b !== "object") return;
     vocab.push(...vocabErrorsInActions(b.actions, `/buttons/${i}/actions`));
   });
   const errors = [...structErrors, ...vocab];
