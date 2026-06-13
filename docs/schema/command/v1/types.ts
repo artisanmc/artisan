@@ -4,7 +4,7 @@
  * Source de vérité pour le format intermédiaire d'une commande.
  * Maintenu à la main, en miroir de schema.json. Les deux DOIVENT rester synchrones.
  *
- * Les Actions, Conditions et Cooldown sont réutilisés depuis menu/v1 — une commande
+ * Les Actions, Conditions et Steps sont réutilisés depuis menu/v1 — une commande
  * partage le même catalogue d'effets qu'un click handler de menu.
  *
  * Vocabulaire :
@@ -18,7 +18,7 @@
  *                   (sauf clear_context: true).
  */
 
-import type { Action, Condition, Cooldown } from "../../menu/v1/types";
+import type { Action, Condition, Step } from "../../menu/v1/types";
 
 // ============================================================================
 // TOP-LEVEL
@@ -35,11 +35,24 @@ export interface Command {
   notes?: string;
   arguments?: Argument[];
   requirements?: Condition[];
-  actions: Action[];
+  /** Séquence de steps exécutée quand la commande est appelée (actions + branches if). */
+  steps: Step[];
   /** Exécuté si requirements échoue. */
   fallback?: Action[];
   cooldown?: Cooldown;
   metadata?: CommandMetadata;
+}
+
+/** Cooldown entre exécutions. Scope player (par défaut) ou server. */
+export interface Cooldown {
+  /** Identifiant du cooldown, partagé entre exécutions du même scope. */
+  id: string;
+  /** Durée du cooldown en secondes (> 0). */
+  duration_seconds: number;
+  /** player = par joueur ; server = global au serveur. Default: "player". */
+  scope?: "player" | "server";
+  /** Message affiché quand le cooldown est actif. Référence i18n {i18n:key} ou littéral MiniMessage. */
+  message?: string;
 }
 
 export interface CommandMetadata {
