@@ -44,7 +44,6 @@ export function WorkspacePanel({ packId }: { packId: PackId }) {
   const empty = groups.every((g) => g.items.length === 0);
 
   const openElement = (id: string) =>
-    // The element route is added in Task 10; cast until routeTree.gen.ts knows it.
     navigate({
       to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
       params: {
@@ -53,7 +52,7 @@ export function WorkspacePanel({ packId }: { packId: PackId }) {
         workspaceId: packId,
         elementId: id,
       },
-    } as unknown as Parameters<typeof navigate>[0]);
+    });
 
   return (
     <nav className="flex h-full flex-col gap-2 overflow-auto p-2">
