@@ -2,7 +2,7 @@ import { commandId, dialogId, elementId, layerId, menuId, packId } from "@/domai
 import type { Appearance, AssetId, Condition, Dialog, I18nKey, Pack } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
-import { parseTitleNode, transform } from "./transform";
+import { packToCommandV1, packToDialogV1, parseTitleNode, transform } from "./transform";
 
 const makePack = (overrides: Partial<Pack> = {}): Pack =>
   ({
@@ -1220,5 +1220,40 @@ describe("transform — appearance conditions", () => {
     const app = getApp(transform(pack));
     expect(app.if[0].of).toBeDefined();
     expect(app.if[0].any).toBeUndefined();
+  });
+});
+
+describe("packToCommandV1 / packToDialogV1", () => {
+  it("serializes a command to command/v1 with steps", () => {
+    const pack = makePack({
+      commands: [
+        {
+          id: commandId("heal"), packId: packId("p_test"), name: "heal",
+          arguments: [{ name: "n", type: "integer", required: true }],
+          steps: [{ kind: "action", action: { type: "close_menu" } }],
+        },
+      ],
+    });
+    const [cmd] = packToCommandV1(pack);
+    expect(cmd).toMatchObject({ schema: "command/v1", id: "heal", name: "heal" });
+    expect((cmd as any).steps[0].kind).toBe("action");
+    expect((cmd as any).arguments[0]).toEqual({ name: "n", type: "integer", required: true });
+  });
+
+  it("serializes a dialog to dialog/v1 with flat button actions", () => {
+    const pack = makePack({
+      i18nKeys: { ["k_t" as I18nKey]: { en: "T" }, ["k_b" as I18nKey]: { en: "OK" } },
+      dialogs: [
+        {
+          id: dialogId("confirm"), packId: packId("p_test"),
+          title: { key: "k_t" as I18nKey }, canCloseWithEscape: true,
+          body: [], inputs: [],
+          buttons: [{ id: "ok", label: { key: "k_b" as I18nKey }, steps: [{ kind: "action", action: { type: "close_dialog" } }] }],
+        } as any,
+      ],
+    });
+    const [dlg] = packToDialogV1(pack);
+    expect(dlg).toMatchObject({ schema: "dialog/v1", id: "confirm" });
+    expect((dlg as any).buttons[0].actions[0].type).toBe("close_dialog");
   });
 });
