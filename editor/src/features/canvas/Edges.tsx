@@ -7,9 +7,14 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle } from "react-konva";
-import { deriveEdges } from "./deriveEdges";
+import { deriveEdges, type Edge } from "./deriveEdges";
 import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
 import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
+
+/** Ne garde que les edges dont les deux extrémités sont sur la planche. */
+export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
+  return edges.filter((e) => layout[e.source] && layout[e.target]);
+}
 
 interface EdgesProps {
   pack: Pack;
@@ -89,8 +94,8 @@ export function Edges({ pack, layout }: EdgesProps) {
   }, [pack.canvasEdges, dragOverride]);
 
   const routed = useMemo(
-    () => routeEdges({ edges: deriveEdges(pack), boxes, overrides }),
-    [pack, boxes, overrides],
+    () => routeEdges({ edges: visibleEdges(deriveEdges(pack), layout), boxes, overrides }),
+    [pack, layout, boxes, overrides],
   );
 
   const selectEdge = (id: string) => {
