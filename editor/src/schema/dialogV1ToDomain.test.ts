@@ -1,0 +1,70 @@
+import { describe, expect, it } from "vitest";
+import { dialogV1ToDomain } from "./dialogV1ToDomain";
+import { packId } from "@/domain/ids";
+
+const opts = { packId: packId("p1"), lang: "en" };
+
+describe("dialogV1ToDomain", () => {
+  it("maps title, escape default true, and a text button action → steps", () => {
+    const { dialog, i18nKeys } = dialogV1ToDomain(
+      {
+        schema: "dialog/v1",
+        id: "confirm",
+        title: "Sure?",
+        buttons: [{ id: "yes", label: "Yes", actions: [{ type: "close_dialog" }] }],
+      },
+      opts,
+    );
+    expect(dialog.id).toBe("confirm");
+    expect(dialog.packId).toBe("p1");
+    expect(dialog.canCloseWithEscape).toBe(true);
+    expect(i18nKeys[dialog.title.key]).toEqual({ en: "Sure?" });
+    expect(dialog.buttons[0]!.steps).toEqual([{ kind: "action", action: { type: "close_dialog" } }]);
+    expect(i18nKeys[dialog.buttons[0]!.label.key]).toEqual({ en: "Yes" });
+  });
+
+  it("maps can_close_with_escape:false, body text+item, and a text input", () => {
+    const { dialog } = dialogV1ToDomain(
+      {
+        schema: "dialog/v1",
+        id: "d",
+        title: "{i18n:dialogs.d.title}",
+        can_close_with_escape: false,
+        body: [
+          { type: "text", text: "Hello" },
+          { type: "item", material: "DIAMOND", count: 3 },
+        ],
+        inputs: [{ id: "name", type: "text", label: "Name", default: "x", max_length: 16 }],
+        buttons: [{ id: "ok", label: "OK" }],
+      },
+      opts,
+    );
+    expect(dialog.canCloseWithEscape).toBe(false);
+    expect(dialog.body[0]).toMatchObject({ type: "text" });
+    expect(dialog.body[1]).toEqual({ type: "item", material: "DIAMOND", count: 3 });
+    expect(dialog.inputs[0]).toMatchObject({ type: "text", id: "name", default: "x", maxLength: 16 });
+    expect(dialog.buttons[0]!.steps).toEqual([]);
+  });
+
+  it("maps single_option input options + bool/number_range defaults", () => {
+    const { dialog } = dialogV1ToDomain(
+      {
+        schema: "dialog/v1",
+        id: "d",
+        title: "t",
+        inputs: [
+          { id: "b", type: "bool", label: "B", default: "true" },
+          { id: "n", type: "number_range", label: "N", min: 0, max: 10, default: "5" },
+          { id: "o", type: "single_option", label: "O", options: [{ value: "a", label: "A" }], default: "a" },
+        ],
+        buttons: [{ id: "ok", label: "OK" }],
+      },
+      opts,
+    );
+    expect(dialog.inputs[0]).toMatchObject({ type: "bool", default: true });
+    expect(dialog.inputs[1]).toMatchObject({ type: "number_range", min: 0, max: 10, default: 5 });
+    const opt = dialog.inputs[2] as any;
+    expect(opt.type).toBe("single_option");
+    expect(opt.options[0].value).toBe("a");
+  });
+});
