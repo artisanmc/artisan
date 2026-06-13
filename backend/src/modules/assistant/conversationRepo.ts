@@ -1,7 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index";
 import { assistantConversations } from "../../db/schema";
-import { buildSystemPrompt } from "./grounding";
 import type { LlmMessage } from "./provider/types";
 
 /**
@@ -27,7 +26,11 @@ export interface ConversationSummary {
 	updatedAt: Date;
 }
 
-/** Create a conversation seeded with the system prompt. Returns its id. */
+/**
+ * Create an empty conversation. Returns its id. The grounding system prompt is
+ * NOT persisted here — it is injected fresh per turn (see loop.ts `system`) so
+ * evolving grounding always applies, including to resumed conversations.
+ */
 export async function createConversation(
 	ownerKey: string,
 	packId: string,
@@ -39,7 +42,7 @@ export async function createConversation(
 		ownerKey,
 		packId,
 		title: "",
-		messages: [{ role: "system", content: buildSystemPrompt() }] as unknown[],
+		messages: [] as unknown[],
 		createdAt: now,
 		updatedAt: now,
 	});
