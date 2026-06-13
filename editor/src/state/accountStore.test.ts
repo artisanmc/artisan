@@ -1198,4 +1198,43 @@ describe("accountStore", () => {
       if (menu.title[1]!.kind === "background") expect(menu.title[1]!.assetId).toBe("bg3");
     });
   });
+
+  it("applyAssistantCommand inserts then replaces a command and merges i18n", () => {
+    const dropped = useAccountStore.getState().applyAssistantCommand({
+      packId: PERSONAL, lang: "en",
+      commandV1: {
+        schema: "command/v1", id: "heal", name: "heal",
+        steps: [{ kind: "action", action: { type: "send_message", text: "Healed" } }],
+      },
+    });
+    expect(dropped).toEqual([]);
+    let pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const cmd = pack.commands.find((c) => c.id === "heal")!;
+    expect(cmd.name).toBe("heal");
+    const msgKey = (cmd.steps[0] as any).action.text.key;
+    expect(pack.i18nKeys[msgKey]!.en).toBe("Healed");
+
+    useAccountStore.getState().applyAssistantCommand({
+      packId: PERSONAL, lang: "en",
+      commandV1: { schema: "command/v1", id: "heal", name: "heal2", steps: [{ kind: "action", action: { type: "close_menu" } }] },
+    });
+    pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.commands.filter((c) => c.id === "heal")).toHaveLength(1);
+    expect(pack.commands.find((c) => c.id === "heal")!.name).toBe("heal2");
+  });
+
+  it("applyAssistantDialog inserts a dialog and merges i18n", () => {
+    useAccountStore.getState().applyAssistantDialog({
+      packId: PERSONAL, lang: "en",
+      dialogV1: {
+        schema: "dialog/v1", id: "d_confirm", title: "Sure?",
+        buttons: [{ id: "yes", label: "Yes", actions: [{ type: "close_dialog" }] }],
+      },
+    });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    const dlg = pack.dialogs.find((d) => d.id === "d_confirm")!;
+    expect(dlg).toBeDefined();
+    expect(pack.i18nKeys[dlg.title.key]!.en).toBe("Sure?");
+    expect(dlg.buttons[0]!.steps[0]).toMatchObject({ kind: "action" });
+  });
 });
