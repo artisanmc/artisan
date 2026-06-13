@@ -6,8 +6,7 @@ import type Konva from "konva";
 import { useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { deriveEdges } from "./deriveEdges";
-import type { Box } from "./edgeRouting";
-import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
+import { nodeBox } from "./menuLayout";
 import { offBoardLinks } from "./offBoardLinks";
 
 interface GhostChipsProps {
@@ -16,43 +15,39 @@ interface GhostChipsProps {
   packId: PackId;
 }
 
-/**
- * Boîte d'un nœud sur la planche — mêmes dimensions par type que Edges.tsx
- * (menu via rows, command/dialog box fixe) pour aligner les chips sur les nœuds.
- */
-function sourceBox(
-  pack: Pack,
-  id: string,
-  pos: { x: number; y: number },
-): Box | null {
-  const menu = pack.menus.find((m) => m.id === id);
-  if (menu) return { ...pos, ...menuBoxSize(menu.rows) };
-  if (pack.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
-  if ((pack.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
-  return null;
-}
-
 const CHIP_H = 22;
 const CHIP_PAD = 8;
-const CHAR_W = 6.2; // estimation largeur monospace 11px
+const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
+// Char-width estimate calibrated for the chip Text (ui-monospace, ~11px).
+// If that font/size changes, re-tune this.
+const CHAR_W = 6.2;
 
 export function GhostChips({ pack, layout, packId }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const links = useMemo(() => offBoardLinks(deriveEdges(pack), layout), [pack, layout]);
 
+  // Index of each link within its source group — used to stagger overlapping chips.
+  const indexBySource = useMemo(() => {
+    const counts: Record<string, number> = {};
+    return links.map(({ source }) => {
+      const i = counts[source] ?? 0;
+      counts[source] = i + 1;
+      return i;
+    });
+  }, [links]);
+
   return (
     <>
-      {links.map(({ source, target }) => {
-        const pos = layout[source];
-        if (!pos) return null;
-        const box = sourceBox(pack, source, pos);
+      {links.map(({ source, target }, idx) => {
+        const box = nodeBox(pack, source, layout);
         if (!box) return null;
 
+        const i = indexBySource[idx] ?? 0;
         const label = `→ ${elementLabel(pack, target, activeLang)}`;
         const width = Math.max(48, label.length * CHAR_W + CHIP_PAD * 2);
-        // Ancre : coin haut-droit de la source.
+        // Ancre : coin haut-droit de la source, décalé verticalement par chip.
         const x = box.x + box.width + 8;
-        const y = box.y;
+        const y = box.y + i * (CHIP_H + CHIP_GAP);
 
         const onAdd = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
           e.cancelBubble = true;
@@ -60,7 +55,7 @@ export function GhostChips({ pack, layout, packId }: GhostChipsProps) {
             packId,
             nodeId: target,
             x: box.x + box.width + 40,
-            y: box.y,
+            y: box.y + i * (CHIP_H + CHIP_GAP),
           });
         };
 
