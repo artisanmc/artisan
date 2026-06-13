@@ -113,6 +113,7 @@ export function buildAssistantRouter(): Hono {
 				? (body as any).attachments
 				: {};
 		const dialogs = Array.isArray((body as any).dialogs) ? (body as any).dialogs : [];
+		const commands = Array.isArray((body as any).commands) ? (body as any).commands : [];
 		const pm = await resolve();
 		if (!pm)
 			return c.json(
@@ -124,7 +125,7 @@ export function buildAssistantRouter(): Hono {
 			);
 
 		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
-		const wc = new WorkingCopy(menus, attachments, dialogs);
+		const wc = new WorkingCopy(menus, attachments, dialogs, commands);
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";
 		// The model can only discover attachments through this note: read_attachment
