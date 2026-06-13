@@ -67,4 +67,35 @@ describe("dialogV1ToDomain", () => {
     expect(opt.type).toBe("single_option");
     expect(opt.options[0].value).toBe("a");
   });
+
+  it("drops an unknown input type and flags it, instead of coercing to text", () => {
+    const { dialog, unsupported } = dialogV1ToDomain(
+      {
+        schema: "dialog/v1", id: "d", title: "t",
+        inputs: [
+          { id: "c", type: "color_picker", label: "C" },
+          { id: "ok", type: "text", label: "OK", default: "", max_length: 8 },
+        ],
+        buttons: [{ id: "ok", label: "OK" }],
+      },
+      opts,
+    );
+    expect(dialog.inputs).toHaveLength(1);
+    expect(dialog.inputs[0]!.id).toBe("ok");
+    expect(unsupported).toContain("input type: color_picker");
+  });
+
+  it("drops an unknown body type and flags it", () => {
+    const { dialog, unsupported } = dialogV1ToDomain(
+      {
+        schema: "dialog/v1", id: "d", title: "t",
+        body: [{ type: "hologram", data: 1 }, { type: "text", text: "hi" }],
+        buttons: [{ id: "ok", label: "OK" }],
+      },
+      opts,
+    );
+    expect(dialog.body).toHaveLength(1);
+    expect(dialog.body[0]).toMatchObject({ type: "text" });
+    expect(unsupported).toContain("body type: hologram");
+  });
 });
