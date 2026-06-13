@@ -1,3 +1,6 @@
+// Pure selectors for the workspace panel. File is named `usePackElements`
+// to anchor a future React-hook wrapper; for now only the pure
+// `buildPackElements` is needed (WorkspacePanel calls it directly).
 import type { Pack } from "@/domain/types";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import { getText } from "@/lib/i18n";
@@ -17,7 +20,7 @@ export function buildPackElements(pack: Pack, activeLang: string): PackElementGr
     id: c.id, label: `/${c.name}`, type: "command", onBoard: onBoard(c.id),
   }));
   const dialogs: PackElementItem[] = (pack.dialogs ?? []).map((d) => ({
-    id: d.id, label: d.id, type: "dialog", onBoard: onBoard(d.id),
+    id: d.id, label: getText(pack, d.title, activeLang) || d.id, type: "dialog", onBoard: onBoard(d.id),
   }));
   return [
     { type: "menu", items: menus },
