@@ -19,6 +19,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - **Schéma `dialog/v1` publié** (`docs/schema/dialog/v1/schema.json`) — seul format exporté qui n'avait pas de schéma. Fixture verte : l'export éditeur (`transform` → `dialogs/<id>.yaml`) valide contre le schéma (`editor/src/features/export/dialogV1.schema.test.ts`).
 - Assistant : **envoi avec fichiers seuls** — le bouton Envoyer s'active dès qu'une pièce jointe est présente (texte optionnel) ; la bulle utilisateur affiche « Fichiers envoyés : … » et le titre de la conversation retombe sur les noms de fichiers quand le premier message n'a pas de texte.
 - Éditeur : **wire canonique des context_inputs connecteur** — export `{name, type, source:{ref}}` (l'ancien `{name, ref}` était schema-invalide et cassait le round-trip IA) ; import des deux formes ; types primitifs `list`/`object` acceptés (pattern iterates fourni par l'appelant). L'oracle round-trip vérifie désormais que tout export passe le gate ajv canonique.
+- Assistant IA : support complet des commandes et dialogs (création/édition/suppression via les tools `upsert_command`/`delete_command`/`list_commands`/`get_command` et `upsert_dialog`/`delete_dialog`/`get_dialog`), en plus des menus. La migration d'une config zMenu/DeluxeMenus devient bout-en-bout (menus + commandes + dialogs).
 
 ### Removed
 - **Champ `warp_name` de l'action `teleport`** (schéma menu/v1, types partagés, plugin). Jamais implémenté — aucune intégration warps (Essentials/CMI) n'existe ; le champ était du poids mort qui laissait croire à une fonctionnalité. Le teleport par coordonnées reste.
@@ -32,6 +33,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - Éditeur : `applyAssistantMenu` retourne la liste des constructs droppés à la conversion (`unsupported`) et `AssistantChat` l'affiche en toast — plus de perte silencieuse.
 
 ### Fixed
+- Schéma `command/v1` aligné sur `steps` (avec branches `if`), cohérent avec l'éditeur, le backend et le runtime (le champ `actions` plat était obsolète).
 - Editor: head/skull items rendered a soulsand texture; they now render real mob heads via the `__entity__/` pipeline (`ENTITY_RENDER_MAP` entries for heads, `mcModelRenderer.ts`).
 - gen-icons.ts pre-render pipeline silently failed (file-server routes lacked `/api/v1/` prefix); items.json (1.21.4 + 1.21.11) now ships fully pre-rendered icons.
 - Plugin : test `TitleCompilerTest` obsolète (clé i18n manquante → la prod résout volontairement en `""` au lieu d'échoer la clé brute ; le test attendait encore l'écho) — suite plugin de `main` à nouveau verte.
