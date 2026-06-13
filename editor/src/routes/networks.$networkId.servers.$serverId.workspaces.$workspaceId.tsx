@@ -1,6 +1,14 @@
 import { SplitPane } from "@/components/SplitPane";
 import { WorkspaceTopBarControls } from "@/components/WorkspaceTopBarControls";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import type { ElementId, MenuId, PackId } from "@/domain/types";
 import {
   exportPackToFile,
@@ -53,6 +61,7 @@ import {
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
+import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -306,15 +315,37 @@ export function PackCanvasPage() {
               </div>
             </div>
           ) : (
-            <SplitPane
-              orientation="vertical"
-              primary={<Stage packId={pId} />}
-              secondary={<EditorPane packId={pId} />}
-              secondarySize={flowCanvasHeight}
-              onSecondarySizeChange={setFlowCanvasHeight}
-              minSecondary={120}
-              minPrimary={200}
-            />
+            // Mobile: the WorkspacePanel lives in a left drawer (the 3-zone
+            // desktop column doesn't fit). A tappable trigger row sits above
+            // the vertical Stage|Editor split.
+            <div className="flex h-full flex-col">
+              <div className="flex h-10 shrink-0 items-center border-b border-[var(--border-soft)] px-2">
+                <Sheet>
+                  <SheetTrigger className="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
+                    <PanelLeft className="size-4" /> {t("workspacePanel.openPanel")}
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[280px] max-w-[85%] p-0">
+                    <SheetHeader>
+                      <SheetTitle>{t("workspacePanel.openPanel")}</SheetTitle>
+                    </SheetHeader>
+                    <SheetBody className="p-0">
+                      <WorkspacePanel packId={pId} />
+                    </SheetBody>
+                  </SheetContent>
+                </Sheet>
+              </div>
+              <div className="min-h-0 flex-1">
+                <SplitPane
+                  orientation="vertical"
+                  primary={<Stage packId={pId} />}
+                  secondary={<EditorPane packId={pId} />}
+                  secondarySize={flowCanvasHeight}
+                  onSecondarySizeChange={setFlowCanvasHeight}
+                  minSecondary={120}
+                  minPrimary={200}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}

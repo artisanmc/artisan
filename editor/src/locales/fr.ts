@@ -404,6 +404,7 @@ const fr: typeof en = {
     arrangeAll: "Tout arranger sur la planche",
     options: "Options",
     drag: "Glisser vers la planche",
+    openPanel: "Éléments",
   },
   elementView: {
     back: "Retour à la planche",
