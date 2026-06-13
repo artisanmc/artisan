@@ -237,12 +237,12 @@ export function Stage({ packId }: StageProps) {
           <Edges pack={pack} layout={layout} />
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
-          {pack.menus.map((menu) => (
+          {pack.menus.filter((menu) => layout[menu.id]).map((menu) => (
             <MenuGroup
               key={menu.id}
               packId={packId}
               menu={menu}
-              position={layout[menu.id] ?? { x: 0, y: 0 }}
+              position={layout[menu.id]!}
               layout={layout}
             />
           ))}
@@ -250,20 +250,20 @@ export function Stage({ packId }: StageProps) {
         {/* Commands and dialogs render above the menus layer so they always
             take click priority, even after a menu calls moveToTop() during drag. */}
         <Layer name="commands" imageSmoothingEnabled={false}>
-          {pack.commands.map((command) => (
+          {pack.commands.filter((command) => layout[command.id]).map((command) => (
             <CommandGroup
               key={command.id}
               packId={packId}
               command={command}
-              position={layout[command.id] ?? { x: 0, y: 0 }}
+              position={layout[command.id]!}
             />
           ))}
-          {pack.dialogs.map((dialog) => (
+          {pack.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
             <DialogGroup
               key={dialog.id}
               packId={packId}
               dialog={dialog}
-              position={layout[dialog.id] ?? { x: 0, y: 0 }}
+              position={layout[dialog.id]!}
             />
           ))}
         </Layer>
