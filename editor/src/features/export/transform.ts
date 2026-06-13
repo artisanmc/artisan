@@ -440,7 +440,7 @@ export function packToMenuV1(pack: Pack): ({ id: string } & Record<string, unkno
 
 // ─── command serialization ───────────────────────────────────────────────────
 
-function serializeCommand(cmd: Command, pack: Pack): Record<string, unknown> {
+export function serializeCommand(cmd: Command, pack: Pack): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "command/v1",
     id: cmd.id,
@@ -459,6 +459,11 @@ function serializeCommand(cmd: Command, pack: Pack): Record<string, unknown> {
     }));
   }
   return out;
+}
+
+/** Serialize every command in a pack to canonical command/v1 objects. */
+export function packToCommandV1(pack: Pack): Record<string, unknown>[] {
+  return pack.commands.map((c) => serializeCommand(c, pack));
 }
 
 // ─── dialog serialization ────────────────────────────────────────────────────
@@ -506,7 +511,7 @@ function serializeDialogButton(btn: DialogButton): Record<string, unknown> {
   return out;
 }
 
-function serializeDialog(dialog: Dialog): Record<string, unknown> {
+export function serializeDialog(dialog: Dialog): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
@@ -517,6 +522,11 @@ function serializeDialog(dialog: Dialog): Record<string, unknown> {
   if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
   out.buttons = dialog.buttons.map(serializeDialogButton);
   return out;
+}
+
+/** Serialize every dialog in a pack to canonical dialog/v1 objects. */
+export function packToDialogV1(pack: Pack): Record<string, unknown>[] {
+  return pack.dialogs.map((d) => serializeDialog(d));
 }
 
 // ─── translations serialization ──────────────────────────────────────────────
