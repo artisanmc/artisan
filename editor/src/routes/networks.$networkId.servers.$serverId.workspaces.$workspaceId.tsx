@@ -179,6 +179,20 @@ export function PackCanvasPage() {
     return () => window.removeEventListener("ifz:pack_deleted", onPackDeleted);
   }, [pId, navigate]);
 
+  // Open the individual element view on double-click (dispatched from board nodes).
+  useEffect(() => {
+    function onOpen(e: Event) {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (id)
+        navigate({
+          to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+          params: { networkId, serverId, workspaceId: pId, elementId: id },
+        });
+    }
+    window.addEventListener("ifz:open_element", onOpen);
+    return () => window.removeEventListener("ifz:open_element", onOpen);
+  }, [networkId, serverId, pId, navigate]);
+
   // Require at least one auth mode: session token OR logged-in user.
   // Wait for auth hydration first — on a hard load, `/me` is still in flight
   // and currentUser is briefly null; gating now would bounce a logged-in user
