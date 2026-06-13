@@ -57,6 +57,8 @@ import {
 } from "@/lib/i18nKeys";
 import { migratePackToI18n } from "@/lib/i18nMigration";
 import { migrateTitle } from "@/domain/migrateTitle";
+import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
+import { dialogV1ToDomain } from "@/schema/dialogV1ToDomain";
 import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
 import {
   addPosition,
@@ -95,6 +97,10 @@ interface AccountState {
     menuV1: Record<string, unknown>;
     lang: string;
   }) => string[];
+  /** Apply an AI-generated command/v1: convert + insert/replace + merge i18n. Returns dropped constructs. */
+  applyAssistantCommand: (input: { packId: PackId; commandV1: Record<string, unknown>; lang: string }) => string[];
+  /** Apply an AI-generated dialog/v1: convert + insert/replace + merge i18n. Returns dropped constructs. */
+  applyAssistantDialog: (input: { packId: PackId; dialogV1: Record<string, unknown>; lang: string }) => string[];
   /**
    * Create a new menu in `packId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
@@ -936,6 +942,46 @@ export const useAccountStore = create<AccountState>()(
               const idx = pack.menus.findIndex((m) => m.id === menu.id);
               if (idx >= 0) pack.menus[idx] = menu;
               else pack.menus.push(menu);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+          return unsupported;
+        },
+        applyAssistantCommand: ({ packId: pId, commandV1, lang }) => {
+          let unsupported: string[] = [];
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const { command, i18nKeys, unsupported: u } = commandV1ToDomain(commandV1, { packId: pId, lang });
+              unsupported = u;
+              command.packId = pId;
+              for (const [key, langs] of Object.entries(i18nKeys)) {
+                pack.i18nKeys[key as I18nKey] = { ...(pack.i18nKeys[key as I18nKey] ?? {}), ...langs };
+              }
+              const idx = pack.commands.findIndex((c) => c.id === command.id);
+              if (idx >= 0) pack.commands[idx] = command;
+              else pack.commands.push(command);
+              pack.updatedAt = new Date().toISOString();
+            }),
+          );
+          return unsupported;
+        },
+        applyAssistantDialog: ({ packId: pId, dialogV1, lang }) => {
+          let unsupported: string[] = [];
+          set(
+            produce((draft: AccountState) => {
+              const pack = draft.account.packs.find((p) => p.id === pId);
+              if (!pack) return;
+              const { dialog, i18nKeys, unsupported: u } = dialogV1ToDomain(dialogV1, { packId: pId, lang });
+              unsupported = u;
+              dialog.packId = pId;
+              for (const [key, langs] of Object.entries(i18nKeys)) {
+                pack.i18nKeys[key as I18nKey] = { ...(pack.i18nKeys[key as I18nKey] ?? {}), ...langs };
+              }
+              const idx = pack.dialogs.findIndex((d) => d.id === dialog.id);
+              if (idx >= 0) pack.dialogs[idx] = dialog;
+              else pack.dialogs.push(dialog);
               pack.updatedAt = new Date().toISOString();
             }),
           );
