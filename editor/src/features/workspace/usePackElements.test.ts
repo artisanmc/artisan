@@ -8,9 +8,11 @@ function pack(): Pack {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{ id: "m1", packId: PID, title: [], rows: 3, layers: [] } as any],
     commands: [{ id: "c1", packId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [{ id: "d1", packId: PID, title: { _: "" }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as any],
+    // title is an LText ref — key "k_d1" resolved via i18nKeys below
+    dialogs: [{ id: "d1", packId: PID, title: { key: "k_d1" }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as any],
     templates: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    i18nKeys: { k_d1: { en: "Confirm" } } as any,
+    defaultLang: "en", canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Pack;
 }
 
@@ -23,5 +25,16 @@ describe("buildPackElements", () => {
     expect(cmds.items[0]).toMatchObject({ id: "c1", label: "/heal", onBoard: false });
     const dlgs = groups.find((g) => g.type === "dialog")!;
     expect(dlgs.items[0]).toMatchObject({ id: "d1", onBoard: false });
+    // dialog label resolves title via i18nKeys, not raw id
+    expect(dlgs.items[0].label).toBe("Confirm");
+  });
+
+  it("dialog label falls back to id when title has no matching key", () => {
+    const p = pack();
+    // Remove the i18nKeys entry so getText returns ""
+    (p.i18nKeys as any) = {};
+    const groups = buildPackElements(p, "en");
+    const dlgs = groups.find((g) => g.type === "dialog")!;
+    expect(dlgs.items[0].label).toBe("d1");
   });
 });
