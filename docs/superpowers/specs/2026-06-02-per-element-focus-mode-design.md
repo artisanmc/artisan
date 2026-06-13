@@ -1,8 +1,10 @@
 # Per-Element Focus Mode — Design
 
-> Spec brainstormée le 2026-06-02 pour éclaircir l'éditeur quand on travaille sur UN élément, tout en gardant le canvas multi-éléments comme overview principal. Source de vérité pour le plan d'implémentation associé.
+> ⚠️ **SUPERSEDED (2026-06-13)** par [`2026-06-13-workspace-board-curation-design.md`](./2026-06-13-workspace-board-curation-design.md). Le focus mode décrit ici a été **construit puis reverté** : sa cause d'échec était deux surfaces d'édition parallèles (canvas + éditeurs `MenuEditor`/`CommandEditor`/`DialogEditor` distincts) qui **divergeaient**. La nouvelle spec garde la vue par élément mais (1) impose un **rendu unique partagé** planche↔vue individuelle (pas de réécriture d'éditeur), et (2) remplace « le canvas garde tout » par une **planche curée + panneau source-de-vérité**. Conservé pour ses designs d'éditeurs par type (Menu/Command/Dialog), réutilisables comme contenu de la vue individuelle.
 
-**Statut** — Spec validée. Implémentation phasée en 7 étapes (P1 → P7), chaque phase shippable indépendamment.
+> Spec brainstormée le 2026-06-02 pour éclaircir l'éditeur quand on travaille sur UN élément, tout en gardant le canvas multi-éléments comme overview principal.
+
+**Statut** — Superseded (voir bandeau ci-dessus). Jamais shippé (reverté).
 
 ---
 
