@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/ui/empty-state";
 import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
@@ -6,6 +7,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { ArmedBanner } from "./ArmedBanner";
@@ -34,6 +36,7 @@ interface StageProps {
 }
 
 export function Stage({ packId }: StageProps) {
+  const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -207,6 +210,22 @@ export function Stage({ packId }: StageProps) {
       onMouseLeave={onWrapperMouseLeave}
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
+      {Object.keys(layout).length === 0 && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <EmptyState
+            title={t("workspacePanel.empty")}
+            action={
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => useAccountStore.getState().arrangeAllOnBoard({ packId })}
+              >
+                {t("workspacePanel.arrangeAll")}
+              </button>
+            }
+          />
+        </div>
+      )}
       <ArmedBanner />
       <KonvaStage
         ref={stageRef}

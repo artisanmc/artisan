@@ -10,8 +10,10 @@ import {
 import { AssistantPane } from "@/features/assistant/AssistantPane";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 import { EditorPane } from "@/features/canvas/EditorPane";
+import { screenToWorld } from "@/features/canvas/hitTest";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
+import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
@@ -22,6 +24,7 @@ import { usePackLoader } from "@/features/pack/usePackLoader";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { HistoryTab } from "@/features/workspace/HistoryTab";
+import { PANEL_DRAG_PREFIX, WorkspacePanel } from "@/features/workspace/WorkspacePanel";
 import { deletePack } from "@/lib/api/packs";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -65,6 +68,11 @@ export const Route = createFileRoute(
     return { tab: "overview" };
   },
 });
+
+/** Convertit un drop panneau→planche en addToBoard aux coordonnées monde. */
+export function handlePanelDrop(packId: PackId, nodeId: string, worldX: number, worldY: number) {
+  useAccountStore.getState().addToBoard({ packId, nodeId, x: worldX, y: worldY });
+}
 
 export function PackCanvasPage() {
   const {
@@ -202,6 +210,27 @@ export function PackCanvasPage() {
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
     const id = String(e.active.id);
+
+    // Panel → board: convert release client coords to world coords via the
+    // live Stage geometry, then add the node to the canvas layout.
+    if (id.startsWith(PANEL_DRAG_PREFIX)) {
+      const nodeId = id.slice(PANEL_DRAG_PREFIX.length);
+      const start = e.activatorEvent as PointerEvent;
+      const endX = (start.clientX ?? 0) + e.delta.x;
+      const endY = (start.clientY ?? 0) + e.delta.y;
+      const geo = getStageGeometry();
+      if (geo) {
+        const world = screenToWorld(
+          { x: endX - geo.wrapperRect.left, y: endY - geo.wrapperRect.top },
+          geo.viewport,
+        );
+        handlePanelDrop(pId, nodeId, world.x, world.y);
+      } else {
+        handlePanelDrop(pId, nodeId, 40, 40);
+      }
+      return;
+    }
+
     if (!id.startsWith(LIBRARY_DRAG_PREFIX)) return;
     const material = id.slice(LIBRARY_DRAG_PREFIX.length);
 
@@ -242,15 +271,25 @@ export function PackCanvasPage() {
       {tab === "overview" && (
         <div className="min-h-0 flex-1">
           {isDesktop ? (
-            <SplitPane
-              orientation="horizontal"
-              primary={<Stage packId={pId} />}
-              secondary={<EditorPane packId={pId} />}
-              secondarySize={editorPaneWidth}
-              onSecondarySizeChange={setEditorPaneWidth}
-              minSecondary={280}
-              minPrimary={400}
-            />
+            // 3 zones: fixed-width WorkspacePanel (left) | Stage | EditorPane.
+            // SplitPane's sized pane is always the right one, so the panel is
+            // a plain fixed-width column; only the Stage|Editor divider resizes.
+            <div className="flex h-full min-h-0 w-full">
+              <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
+                <WorkspacePanel packId={pId} />
+              </div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <SplitPane
+                  orientation="horizontal"
+                  primary={<Stage packId={pId} />}
+                  secondary={<EditorPane packId={pId} />}
+                  secondarySize={editorPaneWidth}
+                  onSecondarySizeChange={setEditorPaneWidth}
+                  minSecondary={280}
+                  minPrimary={400}
+                />
+              </div>
+            </div>
           ) : (
             <SplitPane
               orientation="vertical"
