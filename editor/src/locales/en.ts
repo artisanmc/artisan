@@ -393,6 +393,8 @@ export default {
     delete: "Delete from pack",
     empty: "No elements yet",
     arrangeAll: "Arrange all on board",
+    options: "Options",
+    drag: "Drag to board",
   },
   editorPane: {
     tabEdit: "Edit",

@@ -402,6 +402,8 @@ const fr: typeof en = {
     delete: "Supprimer du pack",
     empty: "Aucun élément pour l'instant",
     arrangeAll: "Tout arranger sur la planche",
+    options: "Options",
+    drag: "Glisser vers la planche",
   },
   editorPane: {
     tabEdit: "Édition",
