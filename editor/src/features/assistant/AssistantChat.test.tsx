@@ -166,6 +166,64 @@ describe("AssistantChat", () => {
     );
   });
 
+  it("a tool event updates the activity indicator", async () => {
+    setup();
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield { type: "tool", name: "list_menus", ok: true };
+      // Stay busy so the indicator remains mounted for the assertion.
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    render(<AssistantChat packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "regarde les menus");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("assistant-thinking").textContent).toMatch(
+        /(Analyse des menus|Scanning menus)/i,
+      ),
+    );
+  });
+
+  it("an error event shows a persistent interrupted line", async () => {
+    setup();
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield { type: "error", message: "boom" };
+    });
+    render(<AssistantChat packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "fais un truc");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() => {
+      const err = screen.getByTestId("assistant-error");
+      expect(err.textContent).toMatch(/boom/);
+    });
+    // It persists after the turn ends (busy is false).
+    expect(screen.queryByTestId("assistant-thinking")).toBeNull();
+  });
+
+  it("a thrown stream shows the interrupted line", async () => {
+    setup();
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield { type: "text", text: "hmm" };
+      throw new Error("network down");
+    });
+    render(<AssistantChat packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "fais un truc");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("assistant-error").textContent).toMatch(
+        /(Interrompu|Interrupted)/i,
+      ),
+    );
+  });
+
   it("resumes a conversation: loads its transcript on mount", async () => {
     setup();
     render(<AssistantChat packId={packId("p")} conversationId="c1" />);
