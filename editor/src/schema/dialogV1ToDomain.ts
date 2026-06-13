@@ -50,37 +50,45 @@ export function dialogV1ToDomain(
       .filter(Boolean)
       .map((act) => ({ kind: "action", action: act! }) as DomainStep);
 
-  const body: DialogBody[] = ((src.body as Json[]) ?? []).map((b) =>
-    b.type === "text"
-      ? { type: "text", text: text(b.text) }
-      : { type: "item", material: b.material, count: b.count ?? 1 },
-  );
+  const body: DialogBody[] = ((src.body as Json[]) ?? [])
+    .map((b): DialogBody | null => {
+      if (b.type === "text") return { type: "text", text: text(b.text) };
+      if (b.type === "item") return { type: "item", material: b.material, count: b.count ?? 1 };
+      unsupported.push(`body type: ${b.type}`);
+      return null;
+    })
+    .filter(Boolean) as DialogBody[];
 
-  const inputs: DialogInput[] = ((src.inputs as Json[]) ?? []).map((i) => {
-    switch (i.type) {
-      case "bool":
-        return { type: "bool", id: i.id, label: text(i.label), default: String(i.default) === "true" };
-      case "number_range":
-        return {
-          type: "number_range",
-          id: i.id,
-          label: text(i.label),
-          min: i.min ?? 0,
-          max: i.max ?? 100,
-          default: Number(i.default ?? 0),
-        };
-      case "single_option":
-        return {
-          type: "single_option",
-          id: i.id,
-          label: text(i.label),
-          options: ((i.options as Json[]) ?? []).map((o) => ({ value: o.value, label: text(o.label) })),
-          default: i.default ?? "",
-        };
-      default:
-        return { type: "text", id: i.id, label: text(i.label), default: i.default ?? "", maxLength: i.max_length ?? 32 };
-    }
-  });
+  const inputs: DialogInput[] = ((src.inputs as Json[]) ?? [])
+    .map((i): DialogInput | null => {
+      switch (i.type) {
+        case "text":
+          return { type: "text", id: i.id, label: text(i.label), default: i.default ?? "", maxLength: i.max_length ?? 32 };
+        case "bool":
+          return { type: "bool", id: i.id, label: text(i.label), default: String(i.default) === "true" };
+        case "number_range":
+          return {
+            type: "number_range",
+            id: i.id,
+            label: text(i.label),
+            min: i.min ?? 0,
+            max: i.max ?? 100,
+            default: Number(i.default ?? 0),
+          };
+        case "single_option":
+          return {
+            type: "single_option",
+            id: i.id,
+            label: text(i.label),
+            options: ((i.options as Json[]) ?? []).map((o) => ({ value: o.value, label: text(o.label) })),
+            default: i.default ?? "",
+          };
+        default:
+          unsupported.push(`input type: ${i.type}`);
+          return null;
+      }
+    })
+    .filter(Boolean) as DialogInput[];
 
   const buttons: DialogButton[] = ((src.buttons as Json[]) ?? []).map((b) => ({
     id: b.id,
