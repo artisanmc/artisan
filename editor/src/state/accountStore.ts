@@ -68,6 +68,7 @@ import {
   removePosition,
 } from "@/lib/positions";
 import { inferFieldTypeFromValue } from "@/features/data/helpers";
+import { gridArrange } from "@/features/canvas/autoLayout";
 import { parse as parseYaml } from "yaml";
 import { produce } from "immer";
 import { temporal } from "zundo";
@@ -154,6 +155,9 @@ interface AccountState {
   reorderPacks: (newOrder: PackId[]) => void;
   moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
   setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
+  addToBoard: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
+  removeFromBoard: (input: { packId: PackId; nodeId: string }) => void;
+  arrangeAllOnBoard: (input: { packId: PackId }) => void;
   /** Override one endpoint of a canvas edge ("source->target" id). */
   setEdgeAnchor: (input: {
     packId: PackId;
@@ -1491,6 +1495,25 @@ export const useAccountStore = create<AccountState>()(
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
             }),
           ),
+        addToBoard: ({ packId: pId, nodeId, x, y }) =>
+          set(produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
+          })),
+        removeFromBoard: ({ packId: pId, nodeId }) =>
+          set(produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId];
+          })),
+        arrangeAllOnBoard: ({ packId: pId }) =>
+          set(produce((draft: AccountState) => {
+            const pack = draft.account.packs.find((p) => p.id === pId);
+            if (!pack) return;
+            const grid = gridArrange(pack);
+            pack.canvasLayout = grid as typeof pack.canvasLayout;
+          })),
         setEdgeAnchor: ({ packId: pId, edgeId, end, anchor }) =>
           set(
             produce((draft: AccountState) => {

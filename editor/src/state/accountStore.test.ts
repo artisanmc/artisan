@@ -1,4 +1,5 @@
 import { dialogId, elementId, menuId, packId } from "@/domain/ids";
+import { gridArrange } from "@/features/canvas/autoLayout";
 import type { I18nKey, Menu, MenuTitleLayer } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -1236,5 +1237,36 @@ describe("accountStore", () => {
     expect(dlg).toBeDefined();
     expect(pack.i18nKeys[dlg.title.key]!.en).toBe("Sure?");
     expect(dlg.buttons[0]!.steps[0]).toMatchObject({ kind: "action" });
+  });
+});
+
+describe("accountStore — board membership", () => {
+  const P = packId("p_personal");
+
+  beforeEach(() => {
+    localStorage.clear();
+    useAccountStore.setState({ account: mockAccount() });
+  });
+
+  it("addToBoard écrit une entrée canvasLayout sans toucher au reste du pack", () => {
+    useAccountStore.getState().addToBoard({ packId: P, nodeId: "m_about", x: 5, y: 6 });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === P)!;
+    expect(pack.canvasLayout["m_about" as keyof typeof pack.canvasLayout]).toEqual({ x: 5, y: 6 });
+    expect(pack.menus.some((m) => m.id === "m_about")).toBe(true);
+  });
+
+  it("removeFromBoard retire l'entrée canvasLayout MAIS garde l'élément dans le pack", () => {
+    useAccountStore.getState().addToBoard({ packId: P, nodeId: "m_about", x: 5, y: 6 });
+    useAccountStore.getState().removeFromBoard({ packId: P, nodeId: "m_about" });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === P)!;
+    expect("m_about" in pack.canvasLayout).toBe(false);
+    expect(pack.menus.some((m) => m.id === "m_about")).toBe(true);
+  });
+
+  it("arrangeAllOnBoard remplit canvasLayout pour tous les éléments via gridArrange", () => {
+    useAccountStore.getState().arrangeAllOnBoard({ packId: P });
+    const pack = useAccountStore.getState().account.packs.find((p) => p.id === P)!;
+    const expected = gridArrange(pack);
+    expect(Object.keys(pack.canvasLayout).sort()).toEqual(Object.keys(expected).sort());
   });
 });
