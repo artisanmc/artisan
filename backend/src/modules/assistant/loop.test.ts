@@ -39,6 +39,26 @@ describe("runTurn", () => {
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
   });
 
+  it("prepends a fresh system prompt for the provider call without persisting it", async () => {
+    let seen: { role: string }[] = [];
+    const provider: LlmProvider = {
+      async *streamTurn({ messages }) {
+        seen = messages.map((m) => ({ role: m.role }));
+        yield { type: "text", text: "ok" };
+        yield { type: "done", stopReason: "end_turn" };
+      },
+    };
+    const messages: any[] = [{ role: "user", content: "hi" }];
+    await collect(runTurn({ provider, model: "m", messages, wc: new WorkingCopy(), system: "SYS" }));
+
+    // Provider saw the system prefix then the user message.
+    expect(seen[0]).toEqual({ role: "system" });
+    expect(seen[1]).toEqual({ role: "user" });
+    // The persisted history never gained the grounding system message.
+    expect(messages.some((m) => m.role === "system")).toBe(false);
+    expect(messages[0]).toEqual({ role: "user", content: "hi" });
+  });
+
   it("stops at the iteration cap if the model never stops calling tools", async () => {
     const loopTurn: LlmStreamEvent[] = [{ type: "tool_use", id: "x", name: "list_menus", input: {} }, { type: "done", stopReason: "tool_calls" }];
     const provider: LlmProvider = { async *streamTurn() { for (const e of loopTurn) yield e; } };

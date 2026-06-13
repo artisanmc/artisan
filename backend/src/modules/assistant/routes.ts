@@ -10,6 +10,7 @@ import {
 	listConversations,
 	saveConversation,
 } from "./conversationRepo";
+import { buildSystemPrompt } from "./grounding";
 import { runTurn } from "./loop";
 import { createProvider } from "./provider/config";
 import { loadAssistantProviderConfig } from "./provider/dbConfig";
@@ -104,6 +105,16 @@ export function buildAssistantRouter(): Hono {
 		const conv = await getConversation(c.req.param("id"));
 		if (!conv || conv.ownerKey !== (c.get("ownerKey") as string))
 			return c.json({ error: "Not found" }, 404);
+		// Migration: conversations created before per-turn grounding persisted the
+		// grounding system prompt at index 0. Drop it — grounding is now injected
+		// fresh per turn (see runTurn `system`). Guard against eating a legitimate
+		// attachment-note system message (recognisable by "read_attachment"), which
+		// can sit at index 0 when the very first message carried attachments.
+		while (
+			conv.messages[0]?.role === "system" &&
+			!conv.messages[0].content.includes("read_attachment")
+		)
+			conv.messages.shift();
 		const body = await c.req
 			.json()
 			.catch(() => ({}) as Record<string, unknown>);
@@ -154,6 +165,7 @@ export function buildAssistantRouter(): Hono {
 					model: pm.model,
 					messages: conv.messages,
 					wc,
+					system: buildSystemPrompt(),
 				})) {
 					await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
 				}
