@@ -16,4 +16,11 @@ describe("buildSystemPrompt", () => {
     for (const a of SUPPORTED_ACTIONS) expect(sys).toContain(a);
     expect(sys.length).toBeGreaterThan(2000);
   });
+  it("system prompt includes command and dialog authoring guides + tools", () => {
+    const p = buildSystemPrompt();
+    expect(p).toMatch(/command\/v1/);
+    expect(p).toMatch(/dialog\/v1/);
+    expect(p).toMatch(/upsert_command/);
+    expect(p).toMatch(/upsert_dialog/);
+  });
 });
