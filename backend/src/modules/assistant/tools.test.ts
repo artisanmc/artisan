@@ -8,10 +8,14 @@ const validMenu = {
 };
 
 describe("TOOL_DEFS", () => {
-  it("declares the 6 tools with JSON-Schema parameters", () => {
+  it("declares the menu/dialog/command tools with JSON-Schema parameters", () => {
     const names = TOOL_DEFS.map((t) => t.name).sort();
     expect(names).toEqual([
-      "delete_menu", "get_menu", "list_dialogs", "list_menus", "read_attachment", "upsert_menu",
+      "delete_command", "delete_dialog", "delete_menu",
+      "get_command", "get_dialog", "get_menu",
+      "list_commands", "list_dialogs", "list_menus",
+      "read_attachment",
+      "upsert_command", "upsert_dialog", "upsert_menu",
     ]);
     for (const t of TOOL_DEFS) {
       expect(typeof t.description).toBe("string");
@@ -91,5 +95,58 @@ describe("executeTool", () => {
     const r = executeTool("nope", {}, new WorkingCopy());
     expect(r.ok).toBe(false);
     expect(r.content).toMatch(/Unknown tool/);
+  });
+});
+
+describe("command tools", () => {
+  const cmd = { schema: "command/v1", id: "heal", name: "heal", steps: [{ kind: "action", action: { type: "close_menu" } }] };
+
+  it("tool defs expose command CRUD", () => {
+    const names = TOOL_DEFS.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["list_commands", "get_command", "upsert_command", "delete_command"]));
+  });
+
+  it("upsert_command validates then writes and emits command_written", () => {
+    const wc = new WorkingCopy();
+    const r = executeTool("upsert_command", { command: cmd }, wc);
+    expect(r.ok).toBe(true);
+    expect(r.event).toEqual({ type: "command_written", command: cmd });
+    expect(wc.getCommand("heal")).toBeDefined();
+  });
+
+  it("upsert_command rejects invalid command with errors", () => {
+    const wc = new WorkingCopy();
+    const r = executeTool("upsert_command", { command: { schema: "command/v1", id: "x" } }, wc);
+    expect(r.ok).toBe(false);
+    expect(r.content).toMatch(/Invalid command/);
+  });
+
+  it("delete_command emits command_deleted", () => {
+    const wc = new WorkingCopy([], {}, [], [cmd]);
+    const r = executeTool("delete_command", { id: "heal" }, wc);
+    expect(r.event).toEqual({ type: "command_deleted", id: "heal" });
+  });
+});
+
+describe("dialog write tools", () => {
+  const dlg = { schema: "dialog/v1", id: "d", title: "T", buttons: [{ id: "ok", label: "OK", actions: [{ type: "close_dialog" }] }] };
+
+  it("upsert_dialog validates and emits dialog_written", () => {
+    const wc = new WorkingCopy();
+    const r = executeTool("upsert_dialog", { dialog: dlg }, wc);
+    expect(r.ok).toBe(true);
+    expect(r.event).toEqual({ type: "dialog_written", dialog: dlg });
+  });
+
+  it("get_dialog returns the full object", () => {
+    const wc = new WorkingCopy([], {}, [dlg]);
+    const r = executeTool("get_dialog", { id: "d" }, wc);
+    expect(JSON.parse(r.content).buttons[0].id).toBe("ok");
+  });
+
+  it("delete_dialog emits dialog_deleted", () => {
+    const wc = new WorkingCopy([], {}, [dlg]);
+    const r = executeTool("delete_dialog", { id: "d" }, wc);
+    expect(r.event).toEqual({ type: "dialog_deleted", id: "d" });
   });
 });
