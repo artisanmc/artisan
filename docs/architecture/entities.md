@@ -37,6 +37,7 @@ User ── Membership ──┐
 ### Merge sémantique par item (Phase 3)
 
 - **Granularité** : par item top-level uniquement (`menus`, `commands`, `dialogs`, `templates`, `dataSources` indexés par `id` ; `i18nKeys`, `canvasLayout` en map ; scalaires `defaultLang`/`name`/`description`). Pas de merge field-level intra-item — un item conflictuel est résolu en entier ("use src" / "use dst").
+- **`canvasLayout`** (`Record<id, {x,y}>`, métadonnée éditeur) : depuis 2026-06-13 c'est l'**ensemble d'appartenance à la planche** (présence d'une entrée = l'élément est sur la planche curée), pas seulement des positions sauvegardées. Pas de changement de schéma DB — seule la sémantique évolue ; `autoLayout` côté éditeur ne retourne que les entrées explicites. Détail : `editor-internals.md` (§ Planche curée).
 - **Auto-merge** : changement non-collisionnel (un seul côté a touché l'item depuis le LCA) → entre dans `mergedState` sans conflit.
 - **Conflit** : modify-modify OU delete-modify. Clés : `"<collection>:<id>"` ou `"scalar:<field>"`.
 - **`mergeEngine.merge`** est pur (pas de DB), opère sur `EditorState` désérialisé, retourne `{ mergedState, conflicts[] }`. Sur conflit, `mergedState` garde `dst` par défaut (renderable avant résolution).
