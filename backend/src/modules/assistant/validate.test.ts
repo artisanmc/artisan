@@ -228,3 +228,30 @@ describe("validateDialogV1", () => {
     expect(r.valid).toBe(false);
   });
 });
+
+describe("validators are crash-safe on malformed input", () => {
+  it("validateCommandV1 returns invalid (no throw) for type-wrong containers", () => {
+    for (const bad of [
+      { schema: "command/v1", id: "c", name: "c", steps: "nope" },
+      { schema: "command/v1", id: "c", name: "c", steps: [{ kind: "if", cases: "x" }] },
+      { schema: "command/v1", id: "c", name: "c", steps: [{ kind: "if", cases: [null] }] },
+      { schema: "command/v1", id: "c", name: "c", steps: [], requirements: "x" },
+      { schema: "command/v1", id: "c", name: "c", steps: [], requirements: [{ type: "and", of: "x" }] },
+      { schema: "command/v1", id: "c", name: "c", steps: [], fallback: "x" },
+    ]) {
+      expect(() => validateCommandV1(bad)).not.toThrow();
+      expect(validateCommandV1(bad).valid).toBe(false);
+    }
+  });
+
+  it("validateDialogV1 returns invalid (no throw) for type-wrong containers", () => {
+    for (const bad of [
+      { schema: "dialog/v1", id: "d", title: "t", buttons: "x" },
+      { schema: "dialog/v1", id: "d", title: "t", buttons: [null] },
+      { schema: "dialog/v1", id: "d", title: "t", buttons: [{ id: "ok", label: "OK", actions: "x" }] },
+    ]) {
+      expect(() => validateDialogV1(bad)).not.toThrow();
+      expect(validateDialogV1(bad).valid).toBe(false);
+    }
+  });
+});
