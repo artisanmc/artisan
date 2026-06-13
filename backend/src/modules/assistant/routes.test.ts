@@ -331,6 +331,56 @@ describe("assistant routes", () => {
 		expect(row.title).toBe("menu.yml, kits.yml");
 	});
 
+	it("passes commands from the request body into the working copy", async () => {
+		// Turn 1: the model calls list_commands. Turn 2: capture the messages so we
+		// can read the tool result the loop appended (successful tool results don't
+		// surface in the streamed `tool` event, only in the tool message history).
+		let toolResult: string | null = null;
+		let i = 0;
+		__setProviderForTests({
+			async *streamTurn({ messages }) {
+				if (i++ === 0) {
+					yield { type: "tool_use", id: "lc1", name: "list_commands", input: {} };
+					yield { type: "done", stopReason: "tool_calls" };
+					return;
+				}
+				const toolMsg = messages.find(
+					(m) => m.role === "tool" && "toolCallId" in m && m.toolCallId === "lc1",
+				);
+				toolResult =
+					toolMsg && "content" in toolMsg ? (toolMsg.content as string) : null;
+				yield { type: "text", text: "Found the commands." };
+				yield { type: "done", stopReason: "end_turn" };
+			},
+		});
+		try {
+			const created = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: auth,
+				body: JSON.stringify({ packId: PACK_ID }),
+			});
+			const { conversationId } = await created.json();
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: auth,
+					body: JSON.stringify({
+						text: "what commands exist?",
+						commands: [{ schema: "command/v1", id: "heal", name: "heal" }],
+					}),
+				},
+			);
+			expect(res.status).toBe(200);
+			await res.text();
+
+			expect(toolResult).toBeTruthy();
+			expect(toolResult).toContain("heal");
+		} finally {
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
 	it("does not leak a cookie-owned conversation to a Bearer owner", async () => {
 		const cookie = {
 			Cookie: `artisan_user_session=${userSessionId}`,
