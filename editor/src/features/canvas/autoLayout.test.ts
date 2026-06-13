@@ -1,0 +1,34 @@
+import { describe, expect, it } from "vitest";
+import type { Pack } from "@/domain/types";
+import { autoLayout, gridArrange } from "./autoLayout";
+
+function makePack(over: Partial<Pack> = {}): Pack {
+  return {
+    id: "p1" as Pack["id"], name: "p", source: "user_created", createdAt: "", updatedAt: "",
+    menus: [], commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
+    i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: {}, ...over,
+  } as Pack;
+}
+
+describe("autoLayout", () => {
+  it("ne retourne QUE les entrées explicites de canvasLayout (pas de grid-fill)", () => {
+    const pack = makePack({
+      menus: [{ id: "m1" } as any, { id: "m2" } as any],
+      canvasLayout: { m1: { x: 10, y: 20 } } as any,
+    });
+    const layout = autoLayout(pack);
+    expect(layout).toEqual({ m1: { x: 10, y: 20 } });
+    expect("m2" in layout).toBe(false);
+  });
+});
+
+describe("gridArrange", () => {
+  it("place TOUS les éléments (menus + commandes + dialogs) dans une grille", () => {
+    const pack = makePack({
+      menus: [{ id: "m1" } as any], commands: [{ id: "c1" } as any], dialogs: [{ id: "d1" } as any],
+    });
+    const layout = gridArrange(pack);
+    expect(Object.keys(layout).sort()).toEqual(["c1", "d1", "m1"]);
+    expect(layout.m1).toEqual({ x: 40, y: 40 });
+  });
+});
