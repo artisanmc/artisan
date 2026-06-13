@@ -11,8 +11,9 @@ import {
 } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
+import { saveConversation } from "./conversationRepo";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
-import { __setProviderForTests } from "./routes";
+import { ATTACHMENT_NOTE_PREFIX, __setProviderForTests } from "./routes";
 
 const validMenu = {
 	schema: "menu/v1",
@@ -376,6 +377,69 @@ describe("assistant routes", () => {
 
 			expect(toolResult).toBeTruthy();
 			expect(toolResult).toContain("heal");
+		} finally {
+			__setProviderForTests(fakeProvider());
+		}
+	});
+
+	it("strips a stale grounding system message and injects fresh grounding", async () => {
+		// Seed a conversation whose persisted transcript already has a stale
+		// grounding system message at index 0, as if created before the per-turn
+		// grounding migration (commit bc787f28). We create the conversation via the
+		// API then mutate its stored messages directly via saveConversation.
+		const created = await app.request("/api/v1/assistant/conversations", {
+			method: "POST",
+			headers: auth,
+			body: JSON.stringify({ packId: PACK_ID }),
+		});
+		const { conversationId } = await created.json();
+
+		// Inject a stale grounding message as if it were persisted by an old build.
+		await saveConversation(
+			conversationId,
+			[{ role: "system", content: "OLD GROUNDING — stale" }],
+			"",
+		);
+
+		// Capture the messages the provider actually receives.
+		let receivedMessages: { role: string; content: unknown }[] = [];
+		__setProviderForTests({
+			async *streamTurn({ messages }) {
+				receivedMessages = messages.map((m) => ({
+					role: m.role,
+					content: "content" in m ? m.content : null,
+				}));
+				yield { type: "text", text: "ok" };
+				yield { type: "done", stopReason: "end_turn" };
+			},
+		});
+		try {
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: auth,
+					body: JSON.stringify({ text: "hello" }),
+				},
+			);
+			expect(res.status).toBe(200);
+			await res.text();
+
+			// The stale grounding must not appear anywhere in what the provider saw.
+			const stalePresent = receivedMessages.some(
+				(m) =>
+					typeof m.content === "string" &&
+					m.content.includes("OLD GROUNDING — stale"),
+			);
+			expect(stalePresent).toBe(false);
+
+			// runTurn prepends the FRESH grounding as messages[0] via the `system`
+			// param — so there is exactly one system message, and it is the fresh one.
+			const systemMessages = receivedMessages.filter((m) => m.role === "system");
+			expect(systemMessages.length).toBe(1);
+			// The fresh grounding is not the stale content.
+			expect(typeof systemMessages[0]?.content).toBe("string");
+			expect((systemMessages[0]?.content as string).includes("OLD GROUNDING")).toBe(false);
 		} finally {
 			__setProviderForTests(fakeProvider());
 		}
