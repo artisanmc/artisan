@@ -395,6 +395,7 @@ export default {
     arrangeAll: "Arrange all on board",
     options: "Options",
     drag: "Drag to board",
+    openPanel: "Elements",
   },
   elementView: {
     back: "Back to board",
