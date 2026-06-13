@@ -5,6 +5,7 @@ import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
+import { dispatchOpenElement } from "./canvasEvents";
 import { DIALOG_BOX } from "./menuLayout";
 
 interface DialogGroupProps {
@@ -51,8 +52,8 @@ export function DialogGroup({ packId, dialog, position }: DialogGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: dialog.id } }))}
-      onDblTap={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: dialog.id } }))}
+      onDblClick={() => dispatchOpenElement(dialog.id)}
+      onDblTap={() => dispatchOpenElement(dialog.id)}
       name={`dialog:${dialog.id}`}
       id={dialog.id}
     >
