@@ -396,6 +396,11 @@ export default {
     options: "Options",
     drag: "Drag to board",
   },
+  elementView: {
+    back: "Back to board",
+    notFound: "This element no longer exists",
+    soon: "Editor coming soon",
+  },
   editorPane: {
     tabEdit: "Edit",
     tabLibrary: "Library",

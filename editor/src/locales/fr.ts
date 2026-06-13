@@ -405,6 +405,11 @@ const fr: typeof en = {
     options: "Options",
     drag: "Glisser vers la planche",
   },
+  elementView: {
+    back: "Retour à la planche",
+    notFound: "Cet élément n'existe plus",
+    soon: "Éditeur bientôt disponible",
+  },
   editorPane: {
     tabEdit: "Édition",
     tabLibrary: "Library",
