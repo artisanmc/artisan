@@ -14,9 +14,12 @@ vi.mock("react-konva", () => ({
   Text: () => <div />,
 }));
 
-// On contrôle les edges directement : m1 sur la planche → cible shop hors-planche.
+// On contrôle les edges directement. Reconfigurable par test via mockEdges.
+let mockEdges: { id: string; source: string; target: string; triggers: unknown[] }[] = [
+  { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
+];
 vi.mock("./deriveEdges", () => ({
-  deriveEdges: () => [{ id: "m1->shop", source: "m1", target: "shop", triggers: [] }],
+  deriveEdges: () => mockEdges,
 }));
 
 const PID = "p1" as PackId;
@@ -26,6 +29,7 @@ function pack(): Pack {
     menus: [
       { id: "m1", packId: PID, title: [], rows: 3, layers: [] } as any,
       { id: "shop", packId: PID, title: [], rows: 3, layers: [] } as any,
+      { id: "bank", packId: PID, title: [], rows: 3, layers: [] } as any,
     ],
     commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: { m1: { x: 0, y: 0 } } as any,
@@ -34,6 +38,7 @@ function pack(): Pack {
 
 describe("GhostChips", () => {
   beforeEach(() => {
+    mockEdges = [{ id: "m1->shop", source: "m1", target: "shop", triggers: [] }];
     useAccountStore.setState({
       account: { id: "a" as any, packs: [pack()], packOrder: [PID] },
     } as any);
@@ -55,5 +60,20 @@ describe("GhostChips", () => {
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ packId: PID, nodeId: "shop" }),
     );
+  });
+
+  it("rend deux chips distincts pour deux cibles hors-planche d'une même source", () => {
+    mockEdges = [
+      { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
+      { id: "m1->bank", source: "m1", target: "bank", triggers: [] },
+    ];
+    const layout = { m1: { x: 0, y: 0 } };
+    render(<GhostChips pack={pack()} layout={layout} packId={PID} />);
+    const names = screen
+      .getAllByTestId("konva-group")
+      .map((g) => g.getAttribute("data-name"));
+    expect(names).toContain("ghostchip:m1->shop");
+    expect(names).toContain("ghostchip:m1->bank");
+    expect(new Set(names).size).toBe(2);
   });
 });
