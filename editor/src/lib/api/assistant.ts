@@ -88,8 +88,10 @@ export async function* streamAssistant(
     text: string;
     menus?: unknown[];
     attachments?: Record<string, string>;
-    /** Dialog summaries (id + resolved title) so the model can target open_dialog correctly. */
-    dialogs?: { id: string; title: string }[];
+    /** Full command/v1 objects (for get_command round-trip + editing). */
+    commands?: unknown[];
+    /** Full dialog/v1 objects (was summaries; now full for get_dialog/editing). */
+    dialogs?: unknown[];
   },
 ): AsyncGenerator<AssistantEvent> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${conversationId}/messages`, {
