@@ -95,7 +95,7 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 
 ## Édition d'un élément — onglet « Edit » du `EditorPane`
 
-Il n'y a **pas** de mode focus plein-écran (retiré 2026-06-06 : c'était un doublon de l'onglet Edit + une source de bugs de routing — `features/element-editor/`, les routes `.../element/$elementId`, `useElementDblClickNav` et le bouton `FocusButton` ont été supprimés). On édite l'élément sélectionné dans le panneau de droite.
+L'élément sélectionné s'édite dans le panneau de droite. L'ancien **mode focus** plein-écran (forké, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) a été retiré 2026-06-06 : doublon de l'onglet Edit + bugs de routing. Le 2026-06-13, une **vue individuelle** deep-linkable l'a remplacé sur des bases saines — un seul rendu partagé avec la planche, pas d'éditeur forké (cf. section « Planche curée » plus bas). La route `.../element/$elementId` est donc à nouveau présente, mais avec une implémentation différente.
 
 - **`features/canvas/EditorPane.tsx`** — `Tabs` à 3 onglets : **Edit / Library / Assets** (`uiStore.editorTab`). L'onglet `edit` rend `<FlowCanvas>`.
 - **`features/flow/FlowCanvas.tsx`** — éditeur unifié de la sélection courante (`useSelectionStore`). Route par type :
@@ -135,6 +135,48 @@ Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = rese
 pruning sur `deleteFromPack`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
 Persistance : `editor_edges` dans `manifest.yaml` (miroir d'`editor_layout`),
 round-trip backend dans `packImport.ts`.
+
+## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
+
+Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type d'élément, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode.
+
+### `canvasLayout` = appartenance à la planche
+
+Un élément est **sur la planche ssi** il a une entrée explicite `pack.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
+
+- `autoLayout(pack)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
+- `gridArrange(pack)` (même fichier) construit une grille complète sur tous les éléments — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({packId})`.
+- Trois actions `accountStore` distinctes : `addToBoard({packId, nodeId, x, y})` / `removeFromBoard({packId, nodeId})` manipulent `canvasLayout` (l'élément reste dans le pack) ; `deleteFromPack({packId, nodeIds})` (existant) retire l'élément du pack.
+
+### `WorkspacePanel` — panneau gauche source de vérité
+
+`features/workspace/WorkspacePanel.tsx` : liste **tout** le pack groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildPackElements(pack, lang)` (`usePackElements.ts`).
+
+- Recherche texte ; badge « sur la planche » sur les éléments présents dans `canvasLayout`.
+- **Drag → planche** : draggable id préfixé `PANEL_DRAG_PREFIX` (`"panel:"`), drop résolu par `handlePanelDrop(packId, nodeId, worldX, worldY)` dans la route overview (conversion écran→monde via `getStageGeometry`, `features/canvas/stageGeometry.ts`).
+- **Clic** → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel** : éditer / ajouter-retirer de la planche / supprimer.
+- 3ᵉ zone du layout overview desktop (panneau · planche · `EditorPane`).
+- Helper de label partagé `elementLabel(pack, id, lang)` (`usePackElements.ts`) — utilisé aussi par l'en-tête de `ElementView`.
+
+### Vue individuelle (deep-linkable)
+
+`features/workspace/ElementView.tsx`, monté par la route enfant `…/workspaces/$workspaceId/element/$elementId.tsx`. La route overview bascule dessus via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — donc rechargement, bouton retour navigateur et lien partageable fonctionnent.
+
+- **Dispatch par type** : menu → `SoloMenuStage` (`features/workspace/SoloMenuStage.tsx`, hôte d'un `<MenuGroup>` en mode solo) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
+- Sélection posée via `useSelectionStore.set([elementId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
+- **INVARIANT** : `ElementView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
+
+### Chips fantômes (liens hors-planche)
+
+`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible` (clic = `addToBoard`). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(pack, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+
+### Entrées dans la vue individuelle
+
+Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route élément.
+
+### Mobile (< lg)
+
+Le `WorkspacePanel` vit dans un **drawer gauche** (`Sheet`, `side="left"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
 
 ## UI shell — Workspace + Settings (depuis 2026-05-27)
 
