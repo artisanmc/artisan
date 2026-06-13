@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Menu, MenuId, PackId } from "@/domain/types";
+import { OPEN_ELEMENT_EVENT } from "./canvasEvents";
 
 vi.mock("react-konva", () => ({
   Group: (props: any) => (
@@ -35,7 +36,7 @@ describe("MenuGroup solo", () => {
 
   it("double-clic (mode board) émet ifz:open_element avec l'id du menu", () => {
     const spy = vi.fn();
-    window.addEventListener("ifz:open_element", spy as any);
+    window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
     const menu = { id: "m1" as MenuId, packId: "p1" as PackId, title: [], rows: 3, layers: [] } as Menu;
     render(<MenuGroup packId={"p1" as PackId} menu={menu} position={{ x: 0, y: 0 }} layout={{ m1: { x: 0, y: 0 } }} />);
     const g = screen.getAllByTestId("konva-group").find((x) => x.getAttribute("data-name") === "menu:m1")!;
@@ -43,17 +44,17 @@ describe("MenuGroup solo", () => {
     expect(spy).toHaveBeenCalled();
     const ev = spy.mock.calls[0][0] as CustomEvent;
     expect(ev.detail.id).toBe("m1");
-    window.removeEventListener("ifz:open_element", spy as any);
+    window.removeEventListener(OPEN_ELEMENT_EVENT, spy as any);
   });
 
   it("double-clic en mode solo n'émet pas ifz:open_element", () => {
     const spy = vi.fn();
-    window.addEventListener("ifz:open_element", spy as any);
+    window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
     const menu = { id: "m1" as MenuId, packId: "p1" as PackId, title: [], rows: 3, layers: [] } as Menu;
     render(<MenuGroup packId={"p1" as PackId} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />);
     const g = screen.getAllByTestId("konva-group").find((x) => x.getAttribute("data-name") === "menu:m1")!;
     fireEvent.doubleClick(g);
     expect(spy).not.toHaveBeenCalled();
-    window.removeEventListener("ifz:open_element", spy as any);
+    window.removeEventListener(OPEN_ELEMENT_EVENT, spy as any);
   });
 });
