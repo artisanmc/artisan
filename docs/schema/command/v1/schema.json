@@ -63,7 +63,7 @@
       "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
     },
     "cooldown": {
-      "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Cooldown",
+      "$ref": "#/$defs/Cooldown",
       "description": "Cooldown entre exécutions. Scope player par défaut."
     },
     "metadata": {
@@ -82,6 +82,33 @@
     }
   },
   "$defs": {
+    "Cooldown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "duration_seconds"],
+      "description": "Cooldown entre exécutions. Scope player (par défaut) ou server.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant du cooldown, partagé entre exécutions du même scope."
+        },
+        "duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Durée du cooldown en secondes."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["player", "server"],
+          "default": "player",
+          "description": "player = par joueur ; server = global au serveur."
+        },
+        "message": {
+          "type": "string",
+          "description": "Message affiché quand le cooldown est actif. Référence i18n {i18n:key} ou littéral MiniMessage."
+        }
+      }
+    },
     "Argument": {
       "type": "object",
       "additionalProperties": false,
