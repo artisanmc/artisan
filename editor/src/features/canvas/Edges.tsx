@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle } from "react-konva";
 import { deriveEdges, type Edge } from "./deriveEdges";
 import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
-import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
+import { nodeBox } from "./menuLayout";
 
 /** Ne garde que les edges dont les deux extrémités sont sur la planche. */
 export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
@@ -60,16 +60,16 @@ export function Edges({ pack, layout }: EdgesProps) {
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
     for (const m of pack.menus) {
-      const pos = layout[m.id];
-      if (pos) out[m.id] = { ...pos, ...menuBoxSize(m.rows) };
+      const box = nodeBox(pack, m.id, layout);
+      if (box) out[m.id] = box;
     }
     for (const c of pack.commands) {
-      const pos = layout[c.id];
-      if (pos) out[c.id] = { ...pos, ...COMMAND_BOX };
+      const box = nodeBox(pack, c.id, layout);
+      if (box) out[c.id] = box;
     }
     for (const d of pack.dialogs ?? []) {
-      const pos = layout[d.id];
-      if (pos) out[d.id] = { ...pos, ...DIALOG_BOX };
+      const box = nodeBox(pack, d.id, layout);
+      if (box) out[d.id] = box;
     }
     return out;
   }, [pack, layout]);

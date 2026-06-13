@@ -1,4 +1,6 @@
+import type { Pack } from "@/domain/types";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
+import type { Box } from "./edgeRouting";
 
 /**
  * Menu rendering geometry — based on the vanilla Minecraft chest GUI texture
@@ -49,6 +51,25 @@ export const menuBoxSize = (rows: number) => ({
   width: TEX_W,
   height: TEX_TITLE_H + rows * TEX_SLOT_STRIDE + TEX_BOTTOM_H,
 });
+
+/**
+ * Canvas bounding box for a node id, or null if it has no layout position.
+ * Type-dispatched: menu → menuBoxSize(rows), command → COMMAND_BOX, dialog → DIALOG_BOX.
+ * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
+ */
+export function nodeBox(
+  pack: Pack,
+  id: string,
+  layout: Record<string, { x: number; y: number }>,
+): Box | null {
+  const pos = layout[id];
+  if (!pos) return null;
+  const menu = pack.menus.find((m) => m.id === id);
+  if (menu) return { ...pos, ...menuBoxSize(menu.rows) };
+  if (pack.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
+  if ((pack.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
+  return null;
+}
 
 export const bottomPieceY = (rows: number) => TEX_TITLE_H + rows * TEX_SLOT_STRIDE;
 
