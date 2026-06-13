@@ -5,6 +5,7 @@ import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
+import { dispatchOpenElement } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
 
 interface CommandGroupProps {
@@ -51,8 +52,8 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: command.id } }))}
-      onDblTap={() => window.dispatchEvent(new CustomEvent("ifz:open_element", { detail: { id: command.id } }))}
+      onDblClick={() => dispatchOpenElement(command.id)}
+      onDblTap={() => dispatchOpenElement(command.id)}
       name={`command:${command.id}`}
       id={command.id}
     >

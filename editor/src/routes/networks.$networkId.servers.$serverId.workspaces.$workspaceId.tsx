@@ -27,6 +27,7 @@ import { HistoryTab } from "@/features/workspace/HistoryTab";
 import { PANEL_DRAG_PREFIX, WorkspacePanel } from "@/features/workspace/WorkspacePanel";
 import { deletePack } from "@/lib/api/packs";
 import { refreshEditorSession } from "@/lib/editorSession";
+import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -189,8 +190,8 @@ export function PackCanvasPage() {
           params: { networkId, serverId, workspaceId: pId, elementId: id },
         });
     }
-    window.addEventListener("ifz:open_element", onOpen);
-    return () => window.removeEventListener("ifz:open_element", onOpen);
+    window.addEventListener(OPEN_ELEMENT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
   }, [networkId, serverId, pId, navigate]);
 
   // Require at least one auth mode: session token OR logged-in user.
