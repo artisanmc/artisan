@@ -70,7 +70,7 @@ import {
 import { inferFieldTypeFromValue } from "@/features/data/helpers";
 import { gridArrange } from "@/features/canvas/autoLayout";
 import { parse as parseYaml } from "yaml";
-import { produce } from "immer";
+import { current, produce } from "immer";
 import { temporal } from "zundo";
 import { create } from "zustand";
 
@@ -1495,6 +1495,9 @@ export const useAccountStore = create<AccountState>()(
               (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
             }),
           ),
+        // Board-membership entry point: puts an element ON the board at (x,y).
+        // Same write as setCanvasPosition (drag-persist), but a distinct intent —
+        // call sites read clearly as "add to board" vs. "node moved".
         addToBoard: ({ packId: pId, nodeId, x, y }) =>
           set(produce((draft: AccountState) => {
             const pack = draft.account.packs.find((p) => p.id === pId);
@@ -1511,7 +1514,7 @@ export const useAccountStore = create<AccountState>()(
           set(produce((draft: AccountState) => {
             const pack = draft.account.packs.find((p) => p.id === pId);
             if (!pack) return;
-            const grid = gridArrange(pack);
+            const grid = gridArrange(current(pack));
             pack.canvasLayout = grid as typeof pack.canvasLayout;
           })),
         setEdgeAnchor: ({ packId: pId, edgeId, end, anchor }) =>
