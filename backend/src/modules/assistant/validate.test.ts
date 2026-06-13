@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { validateMenuV1 } from "./validate";
+import { validateCommandV1, validateDialogV1, validateMenuV1 } from "./validate";
 
 const good = {
   schema: "menu/v1", id: "shop", title: [{ kind: "plain", value: { key: "k" } }], size: 27,
@@ -167,5 +167,64 @@ describe("validateMenuV1 (vocab subset gate)", () => {
       ] }] }],
     });
     expect(r).toEqual({ valid: true, errors: [] });
+  });
+});
+
+describe("validateCommandV1", () => {
+  it("accepts a minimal valid command", () => {
+    const r = validateCommandV1({
+      schema: "command/v1", id: "heal", name: "heal",
+      steps: [{ kind: "action", action: { type: "close_menu" } }],
+    });
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it("rejects an out-of-vocabulary action inside a step", () => {
+    const r = validateCommandV1({
+      schema: "command/v1", id: "c", name: "c",
+      steps: [{ kind: "action", action: { type: "launch_nukes" } }],
+    });
+    expect(r.valid).toBe(false);
+    expect(r.errors.join("\n")).toMatch(/launch_nukes/);
+  });
+
+  it("rejects a structurally invalid command (missing name)", () => {
+    const r = validateCommandV1({ schema: "command/v1", id: "c", steps: [{ kind: "action", action: { type: "close_menu" } }] });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects an out-of-vocab condition in requirements", () => {
+    const r = validateCommandV1({
+      schema: "command/v1", id: "c", name: "c",
+      requirements: [{ type: "moon_phase" }],
+      steps: [{ kind: "action", action: { type: "close_menu" } }],
+    });
+    expect(r.valid).toBe(false);
+    expect(r.errors.join("\n")).toMatch(/moon_phase/);
+  });
+});
+
+describe("validateDialogV1", () => {
+  it("accepts a minimal valid dialog", () => {
+    const r = validateDialogV1({
+      schema: "dialog/v1", id: "d", title: "T",
+      buttons: [{ id: "ok", label: "OK", actions: [{ type: "close_dialog" }] }],
+    });
+    expect(r.valid).toBe(true);
+  });
+
+  it("rejects an out-of-vocab action in a button", () => {
+    const r = validateDialogV1({
+      schema: "dialog/v1", id: "d", title: "T",
+      buttons: [{ id: "ok", label: "OK", actions: [{ type: "rm_rf" }] }],
+    });
+    expect(r.valid).toBe(false);
+    expect(r.errors.join("\n")).toMatch(/rm_rf/);
+  });
+
+  it("rejects a dialog with no buttons (schema required)", () => {
+    const r = validateDialogV1({ schema: "dialog/v1", id: "d", title: "T" });
+    expect(r.valid).toBe(false);
   });
 });
