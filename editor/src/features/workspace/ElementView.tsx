@@ -9,6 +9,7 @@ import { useUiStore } from "@/state/uiStore";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SplitPane } from "@/components/SplitPane";
 import { EditorPane } from "@/features/canvas/EditorPane";
+import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { SoloMenuStage } from "./SoloMenuStage";
 import { elementLabel } from "./usePackElements";
 
@@ -73,8 +74,8 @@ export function ElementView({ packId, elementId }: { packId: PackId; elementId: 
             minPrimary={400}
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <EmptyState title={t("elementView.soon")} />
+          <div className="mx-auto h-full w-full max-w-3xl overflow-auto">
+            <FlowCanvas packId={packId} />
           </div>
         )}
       </div>

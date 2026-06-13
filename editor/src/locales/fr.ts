@@ -408,7 +408,6 @@ const fr: typeof en = {
   elementView: {
     back: "Retour à la planche",
     notFound: "Cet élément n'existe plus",
-    soon: "Éditeur bientôt disponible",
   },
   editorPane: {
     tabEdit: "Édition",
