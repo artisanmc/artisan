@@ -16,6 +16,7 @@ import { ContextMenu } from "./ContextMenu";
 import { DialogGroup } from "./DialogGroup";
 import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
+import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
 import { MenuGroup } from "./MenuGroup";
 import { NewCommandDialog } from "./NewCommandDialog";
@@ -285,6 +286,7 @@ export function Stage({ packId }: StageProps) {
               position={layout[dialog.id]!}
             />
           ))}
+          <GhostChips pack={pack} layout={layout} packId={packId} />
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
