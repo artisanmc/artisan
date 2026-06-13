@@ -97,6 +97,60 @@ describe("AssistantChat", () => {
     await waitFor(() => expect(persistPack).toHaveBeenCalled());
   });
 
+  it("applies a command_written event via applyAssistantCommand", async () => {
+    setup();
+    const spy = vi.spyOn(useAccountStore.getState(), "applyAssistantCommand");
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield {
+        type: "command_written",
+        command: { schema: "command/v1", id: "heal", name: "heal", steps: [] },
+      };
+      yield { type: "done", stopReason: "end_turn" };
+    });
+    render(<AssistantChat packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "fais une commande");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          packId: packId("p"),
+          commandV1: expect.objectContaining({ id: "heal" }),
+          lang: "en",
+        }),
+      ),
+    );
+  });
+
+  it("applies a dialog_written event via applyAssistantDialog", async () => {
+    setup();
+    const spy = vi.spyOn(useAccountStore.getState(), "applyAssistantDialog");
+    const { streamAssistant } = await import("@/lib/api/assistant");
+    vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
+      yield {
+        type: "dialog_written",
+        dialog: { schema: "dialog/v1", id: "d", title: "T", buttons: [] },
+      };
+      yield { type: "done", stopReason: "end_turn" };
+    });
+    render(<AssistantChat packId={packId("p")} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "fais un dialog");
+    await userEvent.click(screen.getByText(/send|envoyer/i));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          packId: packId("p"),
+          dialogV1: expect.objectContaining({ id: "d" }),
+          lang: "en",
+        }),
+      ),
+    );
+  });
+
   it("sends in user-auth mode: no session token but a logged-in user", async () => {
     setup();
     // Web-login mode: no editor-session token, auth rides the user cookie.
