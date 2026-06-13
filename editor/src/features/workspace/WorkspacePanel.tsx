@@ -22,6 +22,11 @@ const TYPE_ICON: Record<ElementType, typeof LayoutGrid> = {
   command: TerminalSquare,
   dialog: MessageSquare,
 };
+const TYPE_LABEL_KEY: Record<ElementType, string> = {
+  menu: "workspacePanel.menus",
+  command: "workspacePanel.commands",
+  dialog: "workspacePanel.dialogs",
+};
 
 export function WorkspacePanel({ packId }: { packId: PackId }) {
   const { t } = useTranslation();
@@ -65,9 +70,7 @@ export function WorkspacePanel({ packId }: { packId: PackId }) {
             g.items.length > 0 && (
               <div key={g.type} className="flex flex-col">
                 <div className="px-2 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                  {t(
-                    `workspacePanel.${g.type === "menu" ? "menus" : g.type === "command" ? "commands" : "dialogs"}`,
-                  )}
+                  {t(TYPE_LABEL_KEY[g.type])}
                 </div>
                 {g.items.map((it) => (
                   <PanelItem
@@ -122,13 +125,16 @@ function PanelItem({
         ref={setNodeRef}
         {...listeners}
         {...attributes}
-        className="w-5 shrink-0 cursor-grab touch-none text-center text-[var(--text-faint)]"
-        aria-label="drag"
+        className="flex shrink-0 cursor-grab touch-none items-center justify-center p-2 text-[var(--text-faint)]"
+        aria-label={t("workspacePanel.drag")}
       >
         ⋮⋮
       </span>
       <DropdownMenu>
-        <DropdownMenuTrigger className="w-5 shrink-0 text-[var(--text-faint)]">
+        <DropdownMenuTrigger
+          className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"
+          aria-label={t("workspacePanel.options")}
+        >
           ···
         </DropdownMenuTrigger>
         <DropdownMenuContent>
