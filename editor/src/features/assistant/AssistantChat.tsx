@@ -19,6 +19,30 @@ type Entry =
   | { role: "user" | "assistant"; text: string }
   | { role: "card"; kind: "written" | "deleted"; id: string };
 
+/**
+ * Map a backend tool name to the i18n key of its friendly activity label.
+ * Unknown / not-yet-running tools fall back to the generic "thinking" line.
+ */
+const ACTIVITY_KEYS: Record<string, string> = {
+  read_attachment: "assistant.activity.reading",
+  list_menus: "assistant.activity.menus",
+  get_menu: "assistant.activity.menus",
+  upsert_menu: "assistant.activity.writeMenu",
+  delete_menu: "assistant.activity.deleteMenu",
+  list_commands: "assistant.activity.commands",
+  get_command: "assistant.activity.commands",
+  upsert_command: "assistant.activity.writeCommand",
+  delete_command: "assistant.activity.deleteCommand",
+  list_dialogs: "assistant.activity.dialogs",
+  get_dialog: "assistant.activity.dialogs",
+  upsert_dialog: "assistant.activity.writeDialog",
+  delete_dialog: "assistant.activity.deleteDialog",
+};
+
+function labelKeyFor(name: string): string {
+  return ACTIVITY_KEYS[name] ?? "assistant.thinking";
+}
+
 /** Human-readable byte size of an attachment's text content (UTF-8). */
 function formatBytes(text: string): string {
   const n = new TextEncoder().encode(text).length;
@@ -74,6 +98,8 @@ export function AssistantChat({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activity, setActivity] = useState<string | null>(null);
+  const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
   const convId = useRef<string | null>(conversationId);
 
@@ -114,6 +140,8 @@ export function AssistantChat({
     const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
     setEntries((e) => [...e, { role: "user", text: shown }]);
     setBusy(true);
+    setActivity(null);
+    setTurnError(null);
     try {
       const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId);
       const lang = pack?.defaultLang ?? "en";
@@ -132,7 +160,12 @@ export function AssistantChat({
         dialogs,
       })) {
         if (ev.type === "text") {
+          // Once the model starts writing its answer, the streamed text is the
+          // live feedback — fall back to the generic thinking label.
+          setActivity(null);
           appendAssistant(String(ev.text ?? ""));
+        } else if (ev.type === "tool") {
+          setActivity(labelKeyFor(String(ev.name)));
         } else if (ev.type === "menu_written") {
           const menu = ev.menu as Record<string, unknown>;
           const unsupported = useAccountStore
@@ -191,7 +224,9 @@ export function AssistantChat({
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
         } else if (ev.type === "error") {
-          toast.error(String(ev.message ?? t("assistant.errorGeneric")));
+          const msg = String(ev.message ?? t("assistant.errorGeneric"));
+          toast.error(msg);
+          setTurnError(msg);
         }
       }
       // AI writes must be durable immediately: the debounced auto-save would
@@ -202,8 +237,10 @@ export function AssistantChat({
       }
     } catch {
       toast.error(t("assistant.errorGeneric"));
+      setTurnError(t("assistant.interrupted"));
     } finally {
       setBusy(false);
+      setActivity(null);
     }
   }
 
@@ -278,8 +315,19 @@ export function AssistantChat({
             ),
           )}
           {busy && (
-            <div data-testid="assistant-thinking" className="text-[12px] text-[var(--text-mut)]">
-              {t("assistant.thinking")}
+            <div
+              data-testid="assistant-thinking"
+              className="flex items-center gap-1 text-[12px] text-[var(--text-mut)]"
+            >
+              <span>{t(activity ?? "assistant.thinking")}</span>
+              <span aria-hidden className="animate-pulse">
+                …
+              </span>
+            </div>
+          )}
+          {!busy && turnError && (
+            <div data-testid="assistant-error" className="text-[12px] text-[var(--danger)]">
+              ⚠️ {turnError}
             </div>
           )}
         </div>
