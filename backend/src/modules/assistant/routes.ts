@@ -17,6 +17,9 @@ import { loadAssistantProviderConfig } from "./provider/dbConfig";
 import type { LlmProvider } from "./provider/types";
 import { WorkingCopy } from "./workingCopy";
 
+/** Prefix marking the transient system note that lists a turn's attachments. */
+export const ATTACHMENT_NOTE_PREFIX = "Fichiers joints par l'utilisateur";
+
 let providerOverride: LlmProvider | null = null;
 /** Test hook: inject a fake provider (and skip config resolution). */
 export function __setProviderForTests(p: LlmProvider | null): void {
@@ -108,11 +111,14 @@ export function buildAssistantRouter(): Hono {
 		// Migration: conversations created before per-turn grounding persisted the
 		// grounding system prompt at index 0. Drop it — grounding is now injected
 		// fresh per turn (see runTurn `system`). Guard against eating a legitimate
-		// attachment-note system message (recognisable by "read_attachment"), which
-		// can sit at index 0 when the very first message carried attachments.
+		// attachment-note system message (recognisable by ATTACHMENT_NOTE_PREFIX),
+		// which can sit at index 0 when the very first message carried attachments.
 		while (
 			conv.messages[0]?.role === "system" &&
-			!conv.messages[0].content.includes("read_attachment")
+			!(
+				typeof conv.messages[0].content === "string" &&
+				(conv.messages[0].content as string).startsWith(ATTACHMENT_NOTE_PREFIX)
+			)
 		)
 			conv.messages.shift();
 		const body = await c.req
@@ -146,7 +152,7 @@ export function buildAssistantRouter(): Hono {
 			conv.messages.push({
 				role: "system",
 				content:
-					`Fichiers joints par l'utilisateur à ce message : ${attachedNames
+					`${ATTACHMENT_NOTE_PREFIX} à ce message : ${attachedNames
 						.map((n) => `\`${n}\``)
 						.join(", ")}. ` +
 					"Lis leur contenu avec le tool read_attachment (file_id = nom exact ci-dessus) avant de répondre. Ne demande jamais à l'utilisateur de re-déposer ses fichiers.",
