@@ -161,7 +161,7 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
   return (
     <div
       data-testid="add-layer-controls"
-      className="flex gap-2 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-2"
+      className="@container flex gap-2 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-2"
     >
       <Button
         type="button"
@@ -169,11 +169,13 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         size="sm"
         variant="outline"
         className="flex-1"
+        title="+ Image"
+        aria-label="+ Image"
         onPointerDown={(e) => onPointerDown("image", e)}
         onClick={(e) => onClick("image", e)}
       >
-        <ImageIcon className="mr-1 h-3.5 w-3.5" />
-        + Image
+        <ImageIcon className="h-3.5 w-3.5 @[15rem]:mr-1" />
+        <span className="hidden whitespace-nowrap @[15rem]:inline">+ Image</span>
       </Button>
       <Button
         type="button"
@@ -181,11 +183,13 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         size="sm"
         variant="outline"
         className="flex-1"
+        title="+ Texte"
+        aria-label="+ Texte"
         onPointerDown={(e) => onPointerDown("text", e)}
         onClick={(e) => onClick("text", e)}
       >
-        <Type className="mr-1 h-3.5 w-3.5" />
-        + Texte
+        <Type className="h-3.5 w-3.5 @[15rem]:mr-1" />
+        <span className="hidden whitespace-nowrap @[15rem]:inline">+ Texte</span>
       </Button>
       <Button
         type="button"
@@ -193,11 +197,13 @@ export function AddLayerControls({ onPlace }: AddLayerControlsProps) {
         size="sm"
         variant="outline"
         className="flex-1"
+        title="+ Bloc texte"
+        aria-label="+ Bloc texte"
         onPointerDown={(e) => onPointerDown("textarea", e)}
         onClick={(e) => onClick("textarea", e)}
       >
-        <AlignLeft className="mr-1 h-3.5 w-3.5" />
-        + Bloc texte
+        <AlignLeft className="h-3.5 w-3.5 @[15rem]:mr-1" />
+        <span className="hidden whitespace-nowrap @[15rem]:inline">+ Bloc texte</span>
       </Button>
     </div>
   );
