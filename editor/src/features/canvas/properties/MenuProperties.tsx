@@ -7,9 +7,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { ContextInput, Menu, MenuId, Pack, PackId, SourceRef } from "@/domain/types";
-import { summarizeFieldType } from "@/features/data/helpers";
+import type {
+  ContextInput,
+  InventoryType,
+  Menu,
+  MenuId,
+  Pack,
+  PackId,
+  SourceRef,
+} from "@/domain/types";
+import { slotCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
+import { summarizeFieldType } from "@/features/data/helpers";
+import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
@@ -23,6 +33,7 @@ interface MenuPropertiesProps {
 }
 
 const ROWS_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
+const INVENTORY_TYPE_OPTIONS: InventoryType[] = ["chest", "hopper", "dropper"];
 const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = [
   "player",
   "string",
@@ -38,6 +49,16 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
   const { t } = useTranslation();
 
   const elementCount = menu.layers.reduce((sum, layer) => sum + layer.elements.length, 0);
+
+  const type = menu.inventoryType ?? "chest";
+  const capacity = slotCount(type, menu.rows);
+  const outOfRange = menu.layers.reduce(
+    (n, l) =>
+      n + l.elements.filter((el) => parsePositions(el.positions).some((p) => p >= capacity)).length,
+    0,
+  );
+  const onTypeChange = (next: InventoryType) =>
+    setMenuField({ packId, menuId: menu.id, field: "inventoryType", value: next });
 
   const onRowsChange = (rows: 1 | 2 | 3 | 4 | 5 | 6) => {
     try {
@@ -80,25 +101,55 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
         onChange={(v) => setMenuField({ packId, menuId: menu.id, field: "permission", value: v })}
       />
       <div>
-        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("menuProperties.rows")}</div>
+        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
+          {t("menuProperties.inventoryType")}
+        </div>
         <div className="flex gap-1">
-          {ROWS_OPTIONS.map((r) => (
+          {INVENTORY_TYPE_OPTIONS.map((opt) => (
             <button
-              key={r}
+              key={opt}
               type="button"
-              onClick={() => onRowsChange(r)}
+              onClick={() => onTypeChange(opt)}
               className={
-                r === menu.rows
+                opt === type
                   ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
                   : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
               }
             >
-              {r}
+              {t(`menuProperties.type${opt[0]!.toUpperCase()}${opt.slice(1)}`)}
             </button>
           ))}
         </div>
-        {rowsError && <div className="mt-1 text-[10px] text-[var(--danger)]">{rowsError}</div>}
+        {outOfRange > 0 ? (
+          <div className="mt-1.5 rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
+            {t("menuProperties.outOfRange", { count: outOfRange })}
+          </div>
+        ) : null}
       </div>
+      {type === "chest" ? (
+        <div>
+          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
+            {t("menuProperties.rows")}
+          </div>
+          <div className="flex gap-1">
+            {ROWS_OPTIONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => onRowsChange(r)}
+                className={
+                  r === menu.rows
+                    ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
+                    : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
+                }
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {rowsError && <div className="mt-1 text-[10px] text-[var(--danger)]">{rowsError}</div>}
+        </div>
+      ) : null}
       <ContextInputsEditor packId={packId} menu={menu} />
     </div>
   );
@@ -130,7 +181,9 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("menuProperties.id")}</div>
+      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
+        {t("menuProperties.id")}
+      </div>
       <Input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -241,7 +294,10 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
             {t("menuProperties.addInput")}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+        <DropdownMenuContent
+          align="start"
+          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+        >
           <DropdownMenuItem
             onSelect={() => addInput({ packId, menuId: menu.id, kind: "primitive" })}
             className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
@@ -381,7 +437,10 @@ function SourceRefInputRow({
             <span className="text-[var(--text-faint)]">▾</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+        <DropdownMenuContent
+          align="start"
+          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+        >
           {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -423,7 +482,9 @@ function SourcePickerOptions({
             >
               <span className="mr-1">{d.type.kind === "list" ? "🗂" : "📦"}</span>
               <span className="font-mono">{d.name}</span>
-              <span className="ml-auto text-[9px] text-[var(--text-faint)]">{summarizeFieldType(d.type)}</span>
+              <span className="ml-auto text-[9px] text-[var(--text-faint)]">
+                {summarizeFieldType(d.type)}
+              </span>
             </DropdownMenuItem>
           ))}
         </>
@@ -443,13 +504,18 @@ function SourcePickerOptions({
             >
               <span className="mr-1">🔌</span>
               <span className="font-mono">{c.ref}</span>
-              <span className="ml-auto text-[9px] text-[var(--text-faint)]">{summarizeFieldType(c.type)}</span>
+              <span className="ml-auto text-[9px] text-[var(--text-faint)]">
+                {summarizeFieldType(c.type)}
+              </span>
             </DropdownMenuItem>
           ))}
         </>
       ) : null}
       {!hasPackData && !hasConnectors ? (
-        <DropdownMenuItem disabled className="cursor-not-allowed text-[11px] text-[var(--text-faint)]">
+        <DropdownMenuItem
+          disabled
+          className="cursor-not-allowed text-[11px] text-[var(--text-faint)]"
+        >
           {t("menuProperties.refNoSources")}
         </DropdownMenuItem>
       ) : null}
