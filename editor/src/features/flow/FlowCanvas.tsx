@@ -1173,70 +1173,78 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
           {command.permission ? `perm: ${command.permission} · ` : ""}command
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-3 py-3">
-        <Lane label={t("flow.elementId")}>
-          <div className="flex flex-col gap-2">
-            <CommandIdField packId={packId} commandId={command.id} />
-            <PropertyField
-              label={t("command.nameLabel")}
-              value={command.name}
-              onChange={(v) =>
-                setCommandField({ packId, commandId: command.id, field: "name", value: v })
-              }
-            />
-            <PropertyField
-              label={t("command.permissionLabel")}
-              value={command.permission ?? ""}
-              placeholder={t("command.permissionPlaceholder")}
-              onChange={(v) =>
-                setCommandField({ packId, commandId: command.id, field: "permission", value: v })
-              }
-            />
-            <PropertyField
-              label={t("command.descriptionLabel")}
-              value={command.description ?? ""}
-              placeholder={t("command.descriptionPlaceholder")}
-              multiline
-              onChange={(v) =>
-                setCommandField({ packId, commandId: command.id, field: "description", value: v })
-              }
-            />
-            <AliasesField
-              label={t("command.aliasesLabel")}
-              aliases={command.aliases ?? []}
-              onChange={(aliases) =>
-                setCommandAliases({
-                  packId,
-                  commandId: command.id,
-                  aliases,
-                })
-              }
-            />
+      <div className="@container flex-1 overflow-auto px-3 py-3">
+        {/* Wide containers (individual view) split into two columns: properties
+            left, arguments + steps right. The narrow right pane stays stacked. */}
+        <div className="grid grid-cols-1 gap-x-6 @2xl:grid-cols-2 @2xl:items-start">
+          <div className="min-w-0">
+            <Lane label={t("flow.propertiesLabel")}>
+              <div className="flex flex-col gap-2">
+                <CommandIdField packId={packId} commandId={command.id} />
+                <PropertyField
+                  label={t("command.nameLabel")}
+                  value={command.name}
+                  onChange={(v) =>
+                    setCommandField({ packId, commandId: command.id, field: "name", value: v })
+                  }
+                />
+                <PropertyField
+                  label={t("command.permissionLabel")}
+                  value={command.permission ?? ""}
+                  placeholder={t("command.permissionPlaceholder")}
+                  onChange={(v) =>
+                    setCommandField({ packId, commandId: command.id, field: "permission", value: v })
+                  }
+                />
+                <PropertyField
+                  label={t("command.descriptionLabel")}
+                  value={command.description ?? ""}
+                  placeholder={t("command.descriptionPlaceholder")}
+                  multiline
+                  onChange={(v) =>
+                    setCommandField({ packId, commandId: command.id, field: "description", value: v })
+                  }
+                />
+                <AliasesField
+                  label={t("command.aliasesLabel")}
+                  aliases={command.aliases ?? []}
+                  onChange={(aliases) =>
+                    setCommandAliases({
+                      packId,
+                      commandId: command.id,
+                      aliases,
+                    })
+                  }
+                />
+              </div>
+            </Lane>
           </div>
-        </Lane>
-        <Lane label={t("command.argumentsLabel")}>
-          <CommandArgsEditor packId={packId} command={command} />
-        </Lane>
-        <Lane label={t("command.steps")}>
-          <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
-            {/* Args declared above are referenceable as {name} in any text
-                field of the actions inside this step tree. */}
-            <PlaceholderProvider
-              value={command.arguments.map<PlaceholderInfo>((a) => ({
-                name: a.name,
-                type: a.type,
-                source: "command-arg",
-              }))}
-            >
-              <CommandStepPseudocode
-                packId={packId}
-                commandId={command.id}
-                steps={command.steps}
-                frames={[]}
-              />
-            </PlaceholderProvider>
+          <div className="min-w-0">
+            <Lane label={t("command.argumentsLabel")}>
+              <CommandArgsEditor packId={packId} command={command} />
+            </Lane>
+            <Lane label={t("command.steps")}>
+              <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-900/40 p-2">
+                {/* Args declared above are referenceable as {name} in any text
+                    field of the actions inside this step tree. */}
+                <PlaceholderProvider
+                  value={command.arguments.map<PlaceholderInfo>((a) => ({
+                    name: a.name,
+                    type: a.type,
+                    source: "command-arg",
+                  }))}
+                >
+                  <CommandStepPseudocode
+                    packId={packId}
+                    commandId={command.id}
+                    steps={command.steps}
+                    frames={[]}
+                  />
+                </PlaceholderProvider>
+              </div>
+            </Lane>
           </div>
-        </Lane>
+        </div>
       </div>
     </div>
   );
@@ -1500,7 +1508,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
       </div>
 
       <div className="flex-1 overflow-auto px-3 py-3">
-        <Lane label={t("dialog.idLabel")}>
+        <Lane label={t("flow.propertiesLabel")}>
           <DialogIdField packId={packId} dialogId={dialog.id} />
           <div>
             <div className="mb-1 text-[10px] uppercase text-zinc-500">

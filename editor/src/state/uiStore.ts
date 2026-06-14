@@ -75,6 +75,9 @@ interface UiState {
   setArmedMaterial: (m: string | null) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
+  /** Panel→board drag in progress — drives the DragOverlay ghost. */
+  activeDragPanelItem: { label: string; type: string } | null;
+  setActiveDragPanelItem: (v: { label: string; type: string } | null) => void;
   /**
    * v3 title composer — id of the menu currently selected in the pack canvas.
    * Drives the contents of the 3rd-column LayersPanel. Distinct from the
@@ -179,6 +182,8 @@ export const useUiStore = create<UiState>()(
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       activeDragMaterial: null,
       setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
+      activeDragPanelItem: null,
+      setActiveDragPanelItem: (v) => set({ activeDragPanelItem: v }),
       selectedMenuId: null,
       lastSelectedMenuId: null,
       setSelectedMenuId: (id) =>
