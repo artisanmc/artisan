@@ -5,14 +5,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { LayoutGrid, MessageSquare, TerminalSquare } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ElementType, type PackElementItem, buildPackElements } from "./usePackElements";
 
@@ -34,13 +32,9 @@ export function WorkspacePanel({ packId }: { packId: PackId }) {
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const activeLang = useUiStore((s) => s.activeLang);
-  const [q, setQ] = useState("");
   if (!pack) return null;
 
-  const groups = buildPackElements(pack, activeLang).map((g) => ({
-    ...g,
-    items: g.items.filter((it) => it.label.toLowerCase().includes(q.toLowerCase())),
-  }));
+  const groups = buildPackElements(pack, activeLang);
   const empty = groups.every((g) => g.items.length === 0);
 
   const openElement = (id: string) =>
@@ -56,11 +50,6 @@ export function WorkspacePanel({ packId }: { packId: PackId }) {
 
   return (
     <nav className="flex h-full flex-col gap-2 overflow-auto p-2">
-      <Input
-        placeholder={t("workspacePanel.search")}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
       {empty ? (
         <EmptyState title={t("workspacePanel.empty")} />
       ) : (

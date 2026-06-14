@@ -385,6 +385,7 @@ export default {
   },
   workspacePanel: {
     search: "Search…",
+    toggle: "Elements",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",
