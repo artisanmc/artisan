@@ -61,7 +61,7 @@ import {
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -146,6 +146,7 @@ export function PackCanvasPage() {
     });
   };
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
+  const setActiveDragPanelItem = useUiStore((s) => s.setActiveDragPanelItem);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -228,11 +229,15 @@ export function PackCanvasPage() {
     const id = String(e.active.id);
     if (id.startsWith(LIBRARY_DRAG_PREFIX)) {
       setActiveDragMaterial(id.slice(LIBRARY_DRAG_PREFIX.length));
+    } else if (id.startsWith(PANEL_DRAG_PREFIX)) {
+      const data = e.active.data.current as { label?: string; type?: string } | undefined;
+      setActiveDragPanelItem({ label: data?.label ?? id.slice(PANEL_DRAG_PREFIX.length), type: data?.type ?? "menu" });
     }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
+    setActiveDragPanelItem(null);
     const id = String(e.active.id);
 
     // Panel → board: convert release client coords to world coords via the
@@ -282,7 +287,10 @@ export function PackCanvasPage() {
     tryStageDrop(endX, endY, material);
   };
 
-  const onDragCancel = () => setActiveDragMaterial(null);
+  const onDragCancel = () => {
+    setActiveDragMaterial(null);
+    setActiveDragPanelItem(null);
+  };
 
   // Hand off rendering entirely to the focus-mode child route when matched.
   if (childMatches.length > 0) return <Outlet />;
@@ -514,10 +522,29 @@ export function PackCanvasPage() {
 
 function LibraryDragOverlay() {
   const material = useUiStore((s) => s.activeDragMaterial);
+  const panelItem = useUiStore((s) => s.activeDragPanelItem);
   return (
     <DragOverlay dropAnimation={null}>
-      {material ? <LibraryDragGhost material={material} /> : null}
+      {material ? (
+        <LibraryDragGhost material={material} />
+      ) : panelItem ? (
+        <PanelDragGhost label={panelItem.label} />
+      ) : null}
     </DragOverlay>
+  );
+}
+
+/** Cursor-following ghost while dragging a panel element onto the board.
+ *  The "+" + brand border signal "add to board" (vs an in-list reorder). */
+function PanelDragGhost({ label }: { label: string }) {
+  return (
+    <div
+      className="pointer-events-none flex max-w-[200px] items-center gap-1.5 rounded-[10px] border-2 border-[var(--brand)] bg-[var(--surface-raised)]/95 px-2.5 py-1.5 text-[12px] font-medium text-[var(--text)]"
+      style={{ boxShadow: "var(--shadow-lg)" }}
+    >
+      <Plus className="size-3.5 shrink-0 text-[var(--brand)]" />
+      <span className="truncate">{label}</span>
+    </div>
   );
 }
 
