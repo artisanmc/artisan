@@ -18,6 +18,7 @@ import type {
   Pack,
   Step,
 } from "@/domain/types";
+import { slotCount } from "@/features/canvas/inventoryTypes";
 import { listLanguages } from "@/lib/i18nUsages";
 import { stringify } from "yaml";
 
@@ -408,14 +409,19 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
  * the AI assistant (`packToMenuV1`) *and* the internal file exporter
  * (`transform()`), so the wire shape stays single-sourced.
  */
-export function serializeMenuToV1(menu: Menu, pack: Pack): { id: string } & Record<string, unknown> {
+export function serializeMenuToV1(
+  menu: Menu,
+  pack: Pack,
+): { id: string } & Record<string, unknown> {
+  const type = menu.inventoryType ?? "chest";
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
     title: menu.title.map(serializeTitleLayer),
-    size: menu.rows * 9,
+    size: slotCount(type, menu.rows),
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
+  if (type !== "chest") out.inventory_type = type;
   if (menu.permission) out.permission = menu.permission;
   if (menu.notes) out.notes = menu.notes;
   if (menu.contextInputs && menu.contextInputs.length > 0) {

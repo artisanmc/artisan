@@ -9,7 +9,7 @@ import type {
   Pack,
   SourceRef,
 } from "@/domain/types";
-import { transform } from "@/features/export/transform";
+import { serializeMenuToV1, transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { menuV1ToDomain } from "./menuV1ToDomain";
@@ -392,5 +392,53 @@ describe("menuV1ToDomain — round-trip oracle", () => {
     for (const [got, want] of pairs) {
       expect(got).toBe(want);
     }
+  });
+});
+
+describe("serializeMenuToV1 inventory_type", () => {
+  const pack = {
+    id: "p",
+    i18nKeys: {},
+    defaultLang: "en",
+    menus: [],
+    commands: [],
+    dialogs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+  } as any;
+
+  it("omits inventory_type for chest and uses size = rows*9", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+    const menu = { id: "m", packId: "p", title: [], rows: 3, layers: [] } as any;
+    const out = serializeMenuToV1(menu, pack);
+    expect(out.inventory_type).toBeUndefined();
+    expect(out.size).toBe(27);
+  });
+  it("emits inventory_type=hopper with size 5", () => {
+    const menu = {
+      id: "m",
+      packId: "p",
+      title: [],
+      rows: 1,
+      inventoryType: "hopper",
+      layers: [],
+      // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+    } as any;
+    const out = serializeMenuToV1(menu, pack);
+    expect(out.inventory_type).toBe("hopper");
+    expect(out.size).toBe(5);
+  });
+  it("emits inventory_type=dropper with size 9", () => {
+    const menu = {
+      id: "m",
+      packId: "p",
+      title: [],
+      rows: 3,
+      inventoryType: "dropper",
+      layers: [],
+      // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+    } as any;
+    const out = serializeMenuToV1(menu, pack);
+    expect(out.inventory_type).toBe("dropper");
+    expect(out.size).toBe(9);
   });
 });
