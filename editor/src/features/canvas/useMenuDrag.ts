@@ -1,5 +1,6 @@
 import type { MenuId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useAlignmentStore } from "@/state/alignmentStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -19,6 +20,9 @@ export function useMenuDrag({ packId, menuId, position }: UseMenuDragArgs) {
 
   const onMenuDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Clear alignment guides on drop (snapped node position is already
+      // applied by onDragMove → computeAndApplyAlignment).
+      useAlignmentStore.getState().clear();
       // TouchEvent has no clientX/Y — those live on changedTouches[0]. Without
       // this branching the rect-check below short-circuits to "all conditions
       // false" on touch, and the first pack-mini in the DOM (often hidden
