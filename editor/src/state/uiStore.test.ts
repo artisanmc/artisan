@@ -142,6 +142,27 @@ describe("uiStore — applyLayerDeleted", () => {
   });
 });
 
+describe("uiStore — panel/search flags", () => {
+  beforeEach(() => {
+    useUiStore.setState({ workspacePanelOpen: true, searchOpen: false });
+  });
+
+  it("workspacePanelOpen défaut true, toggle/set le modifient", () => {
+    expect(useUiStore.getState().workspacePanelOpen).toBe(true);
+    useUiStore.getState().setWorkspacePanelOpen(false);
+    expect(useUiStore.getState().workspacePanelOpen).toBe(false);
+    useUiStore.getState().toggleWorkspacePanel();
+    expect(useUiStore.getState().workspacePanelOpen).toBe(true);
+  });
+  it("searchOpen défaut false, set le modifie", () => {
+    expect(useUiStore.getState().searchOpen).toBe(false);
+    useUiStore.getState().setSearchOpen(true);
+    expect(useUiStore.getState().searchOpen).toBe(true);
+    useUiStore.getState().setSearchOpen(false);
+    expect(useUiStore.getState().searchOpen).toBe(false);
+  });
+});
+
 describe("uiStore — applyLayerMoved", () => {
   beforeEach(() => {
     useUiStore.setState({
