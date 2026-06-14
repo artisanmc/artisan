@@ -394,6 +394,7 @@ const fr: typeof en = {
   },
   workspacePanel: {
     search: "Rechercher…",
+    toggle: "Éléments",
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",

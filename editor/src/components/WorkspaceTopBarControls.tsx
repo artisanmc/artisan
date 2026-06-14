@@ -31,7 +31,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
-import { Redo2, Search, Sparkles, Undo2 } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Redo2, Search, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -76,9 +76,21 @@ export function WorkspaceTopBarControls({
   networkId,
 }: WorkspaceTopBarControlsProps) {
   const displayName = packName ?? pack.name;
+  const { t } = useTranslation();
+  const panelOpen = useUiStore((s) => s.workspacePanelOpen);
 
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-2 pl-14 pr-3 lg:px-5">
+      <button
+        type="button"
+        onClick={() => useUiStore.getState().toggleWorkspacePanel()}
+        aria-label={t("workspacePanel.toggle")}
+        aria-pressed={panelOpen}
+        className="hidden shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
+      >
+        {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+        <span>{t("workspacePanel.toggle")}</span>
+      </button>
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
         <span
           className="h-1.5 w-1.5 shrink-0 rounded-full"

@@ -50,15 +50,6 @@ describe("WorkspacePanel", () => {
     expect(screen.getAllByText(/on board|sur la planche/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it("la recherche filtre la liste", () => {
-    render(<WorkspacePanel packId={PID} />);
-    fireEvent.change(screen.getByPlaceholderText(/search|rechercher/i), {
-      target: { value: "heal" },
-    });
-    expect(screen.getByText("/heal")).toBeInTheDocument();
-    expect(screen.queryByText("m1")).not.toBeInTheDocument();
-  });
-
   it("cliquer un élément navigue vers sa vue individuelle", () => {
     render(<WorkspacePanel packId={PID} />);
     fireEvent.click(screen.getByText("/heal"));

@@ -110,6 +110,7 @@ export function PackCanvasPage() {
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const assistantOpen = useUiStore((s) => s.assistantPanelOpen);
+  const workspacePanelOpen = useUiStore((s) => s.workspacePanelOpen);
   const assistantPaneWidth = useUiStore((s) => s.assistantPaneWidth);
   const setAssistantPaneWidth = useUiStore((s) => s.setAssistantPaneWidth);
   const packs = useAccountStore((s) => s.account.packs);
@@ -311,9 +312,11 @@ export function PackCanvasPage() {
             // SplitPane's sized pane is always the right one, so the panel is
             // a plain fixed-width column; only the Stage|Editor divider resizes.
             <div className="flex h-full min-h-0 w-full">
-              <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
-                <WorkspacePanel packId={pId} />
-              </div>
+              {workspacePanelOpen && (
+                <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
+                  <WorkspacePanel packId={pId} />
+                </div>
+              )}
               <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                 <SplitPane
                   orientation="horizontal"
