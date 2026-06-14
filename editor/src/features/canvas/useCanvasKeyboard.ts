@@ -1,5 +1,6 @@
 import type { Command, Element, ElementId, Menu, MenuId, PackId } from "@/domain/types";
 import { formatPositions, parsePositions } from "@/lib/positions";
+import { slotCount } from "./inventoryTypes";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -100,7 +101,7 @@ const findFreePositions = (
       for (const p of parsePositions(el.positions)) occupied.add(p);
     }
   }
-  const max = menu.rows * 9;
+  const max = slotCount(menu.inventoryType ?? "chest", menu.rows);
   for (let delta = 0; delta < max; delta++) {
     const shifted = original.map((p) => p + delta);
     if (shifted.every((p) => p < max && !occupied.has(p))) return shifted;

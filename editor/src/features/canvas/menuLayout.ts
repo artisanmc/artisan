@@ -46,8 +46,6 @@ export const TEX_SLOT_INNER_OFFSET = MC_SLOT_INNER_OFFSET * TEX_SCALE;
 export const TEX_FIRST_SLOT_X = MC_FIRST_SLOT_X * TEX_SCALE;
 export const TEX_BOTTOM_H = MC_BOTTOM_H * TEX_SCALE;
 
-export const COLS = 9;
-
 /** Editor GUI background by texture key (matches INVENTORY_TYPES[type].textureKey). */
 export const TEXTURE_URLS: Record<"generic_54" | "hopper" | "dispenser", string> = {
   generic_54: vanillaChestTextureUrl,
