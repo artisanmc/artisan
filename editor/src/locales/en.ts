@@ -89,6 +89,7 @@ export default {
     commandsEmpty: "No commands yet — create one to add /commands the player can run.",
     newMenu: "New menu",
     newCommand: "New command",
+    newDialog: "New dialog",
     countTemplatesAssets: "{{templates}} {{templatesPlural}} · {{assets}} {{assetsPlural}}",
     templateOne: "template",
     templateOther: "templates",
