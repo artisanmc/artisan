@@ -9,13 +9,14 @@ export interface SearchEntry {
   id: string;
   group: SearchGroup;
   label: string;
-  context?: string;
+  /** Où se trouve le match — traduit par la palette via t(context.key, { owner }). */
+  context?: { key: string; owner: string };
   haystack: string;
   target: { openId: string; selectId?: string; focusedSlot?: number };
 }
 
 function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
-  const haystack = `${partial.label} ${partial.context ?? ""}`.toLowerCase();
+  const haystack = `${partial.label} ${partial.context?.owner ?? ""}`.toLowerCase();
   return { ...partial, haystack };
 }
 
@@ -30,17 +31,19 @@ export function buildSearchIndex(pack: Pack, activeLang: string): SearchEntry[] 
 
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
+        // apparence primaire seulement (V1) ; les états conditionnels ne sont pas indexés
         const ap = el.appearances?.[0];
         if (!ap) continue;
+        // première slot de l'élément (ancre de navigation) ; undefined si positions vide
         const slot = parsePositions(el.positions)[0];
         const baseTarget = { openId: menu.id, selectId: el.id, focusedSlot: slot };
         if (ap.material) {
-          out.push(entry({ id: `item:${menu.id}:${el.id}`, group: "content", label: ap.material, context: `dans ${menuLabel}`, target: baseTarget }));
+          out.push(entry({ id: `item:${menu.id}:${el.id}`, group: "content", label: ap.material, context: { key: "search.ctxInMenu", owner: menuLabel }, target: baseTarget }));
         }
         const title = getText(pack, ap.title, activeLang);
-        if (title) out.push(entry({ id: `itemtitle:${menu.id}:${el.id}`, group: "content", label: title, context: `titre · ${menuLabel}`, target: baseTarget }));
+        if (title) out.push(entry({ id: `itemtitle:${menu.id}:${el.id}`, group: "content", label: title, context: { key: "search.ctxItemTitle", owner: menuLabel }, target: baseTarget }));
         const lore = getText(pack, ap.lore ?? undefined, activeLang);
-        if (lore) out.push(entry({ id: `itemlore:${menu.id}:${el.id}`, group: "content", label: lore, context: `lore · ${menuLabel}`, target: baseTarget }));
+        if (lore) out.push(entry({ id: `itemlore:${menu.id}:${el.id}`, group: "content", label: lore, context: { key: "search.ctxItemLore", owner: menuLabel }, target: baseTarget }));
       }
     }
   }
@@ -52,16 +55,17 @@ export function buildSearchIndex(pack: Pack, activeLang: string): SearchEntry[] 
   for (const dialog of pack.dialogs ?? []) {
     const dlabel = getText(pack, dialog.title, activeLang) || dialog.id;
     out.push(entry({ id: `dialog:${dialog.id}`, group: "dialog", label: dlabel, target: { openId: dialog.id } }));
-    for (let i = 0; i < (dialog.body ?? []).length; i++) {
-      const b = dialog.body[i]!;
-      if (b.type === "text") {
+    const body = dialog.body ?? [];
+    for (let i = 0; i < body.length; i++) {
+      const b = body[i];
+      if (b && b.type === "text") {
         const text = getText(pack, b.text, activeLang);
-        if (text) out.push(entry({ id: `dbody:${dialog.id}:${i}`, group: "content", label: text, context: `dialog · ${dlabel}`, target: { openId: dialog.id } }));
+        if (text) out.push(entry({ id: `dbody:${dialog.id}:${i}`, group: "content", label: text, context: { key: "search.ctxDialogBody", owner: dlabel }, target: { openId: dialog.id } }));
       }
     }
     for (const btn of dialog.buttons ?? []) {
       const text = getText(pack, btn.label, activeLang);
-      if (text) out.push(entry({ id: `dbtn:${dialog.id}:${btn.id}`, group: "content", label: text, context: `bouton · ${dlabel}`, target: { openId: dialog.id } }));
+      if (text) out.push(entry({ id: `dbtn:${dialog.id}:${btn.id}`, group: "content", label: text, context: { key: "search.ctxDialogButton", owner: dlabel }, target: { openId: dialog.id } }));
     }
   }
 
