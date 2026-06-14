@@ -1,4 +1,4 @@
-import type { ElementId, Layer, MenuId, PackId } from "@/domain/types";
+import type { ElementId, InventoryType, Layer, MenuId, PackId } from "@/domain/types";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -6,6 +6,7 @@ import type Konva from "konva";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
+import { colsFor } from "./inventoryTypes";
 import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
 
 export type SiblingGhost = { position: number; material: string; head?: string; count?: number };
@@ -30,10 +31,13 @@ interface UseSlotDragArgs {
   layout: Record<string, { x: number; y: number }>;
   /** The menu's layer stack, used to inspect element positions during drag-start. */
   menuLayers: Layer[];
+  /** Inventory type — drives slot geometry (slotXY origin) and column count
+   *  for selection-drag grid deltas. Absent = chest. */
+  inventoryType: InventoryType;
 }
 
 export function useSlotDrag(args: UseSlotDragArgs) {
-  const { packId, menuId, position, layout, menuLayers } = args;
+  const { packId, menuId, position, layout, menuLayers, inventoryType } = args;
 
   /**
    * Slot-drag state. Two flavours:
@@ -127,22 +131,25 @@ export function useSlotDrag(args: UseSlotDragArgs) {
     [menuLayers],
   );
 
-  const onSlotDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    const altKey = (e.evt as MouseEvent).altKey;
-    const node = e.target;
-    setDragState((prev) => {
-      if (!prev) return prev;
-      if (prev.kind === "selection") {
-        const origin = slotXY(prev.sourcePosition);
-        const dx = node.x() - origin.x;
-        const dy = node.y() - origin.y;
-        if (prev.offset.dx === dx && prev.offset.dy === dy && prev.altKey === altKey) return prev;
-        return { ...prev, offset: { dx, dy }, altKey };
-      }
-      if (prev.altKey === altKey) return prev;
-      return { ...prev, altKey };
-    });
-  }, []);
+  const onSlotDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const altKey = (e.evt as MouseEvent).altKey;
+      const node = e.target;
+      setDragState((prev) => {
+        if (!prev) return prev;
+        if (prev.kind === "selection") {
+          const origin = slotXY(prev.sourcePosition, inventoryType);
+          const dx = node.x() - origin.x;
+          const dy = node.y() - origin.y;
+          if (prev.offset.dx === dx && prev.offset.dy === dy && prev.altKey === altKey) return prev;
+          return { ...prev, offset: { dx, dy }, altKey };
+        }
+        if (prev.altKey === altKey) return prev;
+        return { ...prev, altKey };
+      });
+    },
+    [inventoryType],
+  );
 
   /**
    * Slot drag-end router. Two paths depending on the captured drag state:
@@ -166,7 +173,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const node = e.target;
       const localX = node.x();
       const localY = node.y();
-      const original = slotXY(srcPosition);
+      const original = slotXY(srcPosition, inventoryType);
       node.position({ x: original.x, y: original.y });
 
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
@@ -182,8 +189,9 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       // rather than where the user grabbed inside the slot.
       if (captured?.kind === "selection") {
         if (!hit || hit.menuId !== menuId) return;
-        const dCol = (hit.position % 9) - (srcPosition % 9);
-        const dRow = Math.floor(hit.position / 9) - Math.floor(srcPosition / 9);
+        const cols = colsFor(inventoryType);
+        const dCol = (hit.position % cols) - (srcPosition % cols);
+        const dRow = Math.floor(hit.position / cols) - Math.floor(srcPosition / cols);
         if (dCol === 0 && dRow === 0) return;
         try {
           useAccountStore.getState().moveSelectionByDelta({
@@ -231,7 +239,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         toast.error(err instanceof Error ? err.message : "slot drag failed");
       }
     },
-    [dragState, packId, menuId, position.x, position.y, layout],
+    [dragState, packId, menuId, position.x, position.y, layout, inventoryType],
   );
 
   return { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd };

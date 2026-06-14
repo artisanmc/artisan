@@ -1,5 +1,6 @@
 import type { Pack } from "@/domain/types";
-import { COLS, TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H, menuBoxSize } from "./menuLayout";
+import { INVENTORY_TYPES, rowsFor } from "./inventoryTypes";
+import { TEX_SCALE, TEX_SLOT_STRIDE, menuBoxSize } from "./menuLayout";
 
 export interface SlotHit {
   menuId: string;
@@ -8,15 +9,16 @@ export interface SlotHit {
 
 /**
  * Manual hit-testing in pack-canvas (world) coordinates: given a point in the
- * same coordinate system as the menu Group `position` props, find which CHEST
- * slot of which menu sits under it. Player-inventory slots aren't returned —
- * they aren't editable in the editor.
+ * same coordinate system as the menu Group `position` props, find which slot of
+ * which menu sits under it. Player-inventory slots aren't returned — they
+ * aren't editable in the editor.
  *
  * Slot Rects keep listening={false} (so click on a slot bubbles up to the
  * parent menu Group for selection); enabling listening would break
  * click-to-select-menu. Instead we hit-test against the texture-derived
- * geometry (TEX_SLOT_STRIDE chest cells starting at TEX_FIRST_SLOT_X /
- * TEX_TITLE_H from the menu origin).
+ * geometry of the menu's slot grid, parameterized by inventory type: the slot
+ * origin (firstSlotX/firstSlotY), column count, and row count all come from
+ * INVENTORY_TYPES so hopper/dropper hit correctly, not just chest.
  */
 export function hitTestSlot(
   pack: Pack,
@@ -27,23 +29,27 @@ export function hitTestSlot(
   for (const menu of pack.menus) {
     const pos = layout[menu.id];
     if (!pos) continue;
-    const box = menuBoxSize(menu.rows);
+    const type = menu.inventoryType ?? "chest";
+    const g = INVENTORY_TYPES[type];
+    const cols = g.cols;
+    const rows = rowsFor(type, menu.rows);
+    const box = menuBoxSize(type, menu.rows);
     const localX = worldX - pos.x;
     const localY = worldY - pos.y;
     if (localX < 0 || localY < 0 || localX > box.width || localY > box.height) continue;
 
-    // Chest slot grid only — exclude title bar and player inventory area.
-    const gridX = localX - TEX_FIRST_SLOT_X;
-    const gridY = localY - TEX_TITLE_H;
+    // Slot grid only — exclude title bar and player inventory area.
+    const gridX = localX - g.firstSlotX * TEX_SCALE;
+    const gridY = localY - g.firstSlotY * TEX_SCALE;
     if (gridX < 0 || gridY < 0) continue;
-    if (gridX >= COLS * TEX_SLOT_STRIDE) continue;
-    if (gridY >= menu.rows * TEX_SLOT_STRIDE) continue;
+    if (gridX >= cols * TEX_SLOT_STRIDE) continue;
+    if (gridY >= rows * TEX_SLOT_STRIDE) continue;
 
     const col = Math.floor(gridX / TEX_SLOT_STRIDE);
     const row = Math.floor(gridY / TEX_SLOT_STRIDE);
-    if (col < 0 || col >= COLS || row < 0 || row >= menu.rows) continue;
+    if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
 
-    return { menuId: menu.id, position: row * COLS + col };
+    return { menuId: menu.id, position: row * cols + col };
   }
   return null;
 }

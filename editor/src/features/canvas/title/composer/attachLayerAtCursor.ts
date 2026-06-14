@@ -1,9 +1,9 @@
 import type { MenuId, Pack } from "@/domain/types";
 import { autoLayout } from "../../autoLayout";
-import { menuBoxSize, TEX_SCALE, TEX_TITLE_H } from "../../menuLayout";
+import { TEX_SCALE, TEX_TITLE_H, menuBoxSize } from "../../menuLayout";
 import type { StageGeometry } from "../../stageGeometry";
-import { findNearestMenu, type MenuBounds } from "./dragPlacement";
-import { screenToCanvasCoords, type Cursor } from "./screenToCanvasCoords";
+import { type MenuBounds, findNearestMenu } from "./dragPlacement";
+import { type Cursor, screenToCanvasCoords } from "./screenToCanvasCoords";
 
 export interface AttachPlacement {
   menuId: MenuId;
@@ -23,7 +23,7 @@ export interface AttachPlacement {
  *  1. Convert the client-space cursor into canvas coords using the live
  *     stage geometry (wrapper rect + viewport pan/scale).
  *  2. Build a `MenuBounds` for every menu in the pack from
- *     `autoLayout(pack)` + `menuBoxSize(rows)`.
+ *     `autoLayout(pack)` + `menuBoxSize(type, rows)`.
  *  3. Pick the nearest with `findNearestMenu`.
  *  4. Translate the cursor into layer-local MC pixels by subtracting the
  *     menu origin and dividing by `TEX_SCALE`.
@@ -40,7 +40,7 @@ export function attachLayerAtCursor(
   for (const menu of pack.menus) {
     const pos = layout[menu.id];
     if (!pos) continue;
-    const box = menuBoxSize(menu.rows);
+    const box = menuBoxSize(menu.inventoryType ?? "chest", menu.rows);
     bounds.push({
       id: menu.id as string,
       x: pos.x,
