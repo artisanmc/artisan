@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { renderHook } from "@testing-library/react";
 import type { Pack, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
-import { computeAndApplyAlignment } from "./useNodeAlignment";
+import { computeAndApplyAlignment, useNodeAlignment } from "./useNodeAlignment";
 
 const PID = "p1" as PackId;
 function seed() {
@@ -32,5 +33,34 @@ describe("computeAndApplyAlignment", () => {
     computeAndApplyAlignment(PID, "m2", node as any, true);
     expect(node.x()).toBe(104);
     expect(useAlignmentStore.getState().guides).toEqual([]);
+  });
+});
+
+describe("useNodeAlignment.onDragMove", () => {
+  it("ignore les events bubblés d'un enfant (target.id != selfId)", () => {
+    seed(); useAlignmentStore.getState().clear();
+    const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
+    let nx = 104, ny = 600;
+    const slotNode = {
+      id: () => "some_slot",
+      x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)),
+      y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
+    };
+    result.current.onDragMove({ target: slotNode, evt: { altKey: false } } as any);
+    expect(nx).toBe(104); // pas de snap (event ignoré)
+    expect(useAlignmentStore.getState().guides).toEqual([]);
+  });
+
+  it("agit quand target.id === selfId", () => {
+    seed(); useAlignmentStore.getState().clear();
+    const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
+    let nx = 104, ny = 600;
+    const menuNode = {
+      id: () => "m2",
+      x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)),
+      y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
+    };
+    result.current.onDragMove({ target: menuNode, evt: { altKey: false } } as any);
+    expect(nx).toBe(100); // snap appliqué (m1.left)
   });
 });
