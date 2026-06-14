@@ -72,6 +72,28 @@ Champs ajoutés après le gel P1.0 du schéma, alignés à la main sur les trois
 
 Les trois préfixes reconnus par `HeadRef` (plugin) : `hdb:<id>`, `basehead:<base64>`, `playerhead:<name>` (placeholder-aware, ex. `%player%`). Une valeur brute `eyJ…` sans préfixe est tolérée comme `basehead`. Le champ n'est honoré que quand `material` vaut `PLAYER_HEAD`.
 
+### `inventory_type` (Chest / Hopper / Dropper)
+
+Champ **additif optionnel** au niveau menu (`menu/v1`) : `inventory_type ∈ {chest, hopper, dropper}`, **défaut `chest`**. **Absent ⇒ chest** → full back-compat : tous les menus existants restent des coffres sans migration de données.
+
+Changements de schéma (additifs, non-breaking) :
+
+- `inventory_type` : enum optionnel (`default: "chest"`).
+- `size` : enum relaxé à `[5, 9, 18, 27, 36, 45, 54]` (ajout de `5` pour le hopper).
+- Cross-validation `allOf` : `chest` ⇒ `size` multiple de 9 ; `hopper` ⇒ `size = 5` ; `dropper` ⇒ `size = 9`.
+
+Resté dans **`menu/v1`** (pas de dossier `v2`) : l'ajout est additif et non-breaking, donc la règle « nouveau schema version = nouveau dossier » (qui cible les changements *breaking*) ne s'applique pas — cf. `docs/architecture/versioning.md`.
+
+Types alignés à la main sur les trois couches :
+
+| Couche | Source |
+|---|---|
+| Type éditeur | `InventoryType` dans `editor/src/domain/types.ts` |
+| Géométrie (single source of truth) | table `INVENTORY_TYPES` dans `editor/src/features/canvas/inventoryTypes.ts` (cols, rows fixes, origine slot-0 en px MC, hauteur de box, clé texture, type Bukkit) |
+| Plugin | `MenuYaml.inventoryType` (défaut `chest`) |
+
+Export (`serializeMenuToV1`) : émet `inventory_type` **uniquement si ≠ chest**, et `size = slotCount(type, rows)`. Import (`menuV1ToDomain`) : le lit (défaut `chest`) et calcule les rows par type. Plugin : `MenuRenderer` crée l'inventaire via `InventoryType.HOPPER`/`DROPPER` pour les types non-chest (branche sur le **type**, pas la taille — dropper = 9 slots comme un coffre 1 ligne).
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |
