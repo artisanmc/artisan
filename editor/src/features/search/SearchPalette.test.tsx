@@ -40,14 +40,14 @@ describe("SearchPalette", () => {
   });
   it("taper filtre et affiche les résultats", () => {
     render(<SearchPalette packId={PID} />);
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "heal" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.queryByText("Shop")).not.toBeInTheDocument();
   });
   it("Entrée sur un menu navigue vers sa vue individuelle", () => {
     render(<SearchPalette packId={PID} />);
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "shop" } });
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "shop" } });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({
       to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
       params: expect.objectContaining({ elementId: "m_shop" }),
@@ -56,14 +56,14 @@ describe("SearchPalette", () => {
   });
   it("Entrée sur un item sélectionne l'élément + slot", () => {
     render(<SearchPalette packId={PID} />);
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "diamond" } });
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "diamond" } });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     expect([...useSelectionStore.getState().ids]).toContain("el_buy");
     expect(useSelectionStore.getState().focusedSlot).toBe(13);
   });
   it("Esc ferme la palette", () => {
     render(<SearchPalette packId={PID} />);
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
     expect(useUiStore.getState().searchOpen).toBe(false);
   });
 });

@@ -26,6 +26,7 @@ export function SearchPalette({ packId }: { packId: PackId }) {
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeRowRef = useRef<HTMLButtonElement>(null);
 
   const index = useMemo(() => (pack ? buildSearchIndex(pack, activeLang) : []), [pack, activeLang]);
   const results = useMemo(() => searchQuery(index, q), [index, q]);
@@ -38,11 +39,13 @@ export function SearchPalette({ packId }: { packId: PackId }) {
     }
   }, [open]);
   useEffect(() => setActive(0), [q]);
+  useEffect(() => { activeRowRef.current?.scrollIntoView?.({ block: "nearest" }); }, [active]);
 
   if (!open) return null;
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
+    // workspaceId (URL) == packId (domain) dans le modèle actuel : un pack par workspace.
     navigate({
       to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
       params: {
@@ -68,6 +71,9 @@ export function SearchPalette({ packId }: { packId: PackId }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]" onClick={() => setOpen(false)}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("search.open")}
         className="w-full max-w-[560px] overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-lg)]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -76,6 +82,11 @@ export function SearchPalette({ packId }: { packId: PackId }) {
           <input
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded={true}
+            aria-controls="search-results"
+            aria-activedescendant={results[active] ? `search-opt-${results[active].id}` : undefined}
+            aria-autocomplete="list"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
@@ -83,7 +94,7 @@ export function SearchPalette({ packId }: { packId: PackId }) {
             className="h-12 flex-1 bg-transparent text-[14px] text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
         </div>
-        <div className="max-h-[50vh] overflow-auto py-1">
+        <div id="search-results" role="listbox" className="max-h-[50vh] overflow-auto py-1">
           {results.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-[var(--text-faint)]">
               {q.trim() ? t("search.empty") : t("search.placeholder")}
@@ -102,6 +113,10 @@ export function SearchPalette({ packId }: { packId: PackId }) {
                   )}
                   <button
                     type="button"
+                    ref={i === active ? activeRowRef : undefined}
+                    id={`search-opt-${r.id}`}
+                    role="option"
+                    aria-selected={i === active}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => choose(r)}
                     className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] ${
