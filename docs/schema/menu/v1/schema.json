@@ -6,6 +6,20 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "title", "size", "layers"],
+  "allOf": [
+    {
+      "if": { "required": ["inventory_type"], "properties": { "inventory_type": { "const": "hopper" } } },
+      "then": { "properties": { "size": { "const": 5 } } }
+    },
+    {
+      "if": { "required": ["inventory_type"], "properties": { "inventory_type": { "const": "dropper" } } },
+      "then": { "properties": { "size": { "const": 9 } } }
+    },
+    {
+      "if": { "not": { "required": ["inventory_type"], "properties": { "inventory_type": { "enum": ["hopper", "dropper"] } } } },
+      "then": { "properties": { "size": { "enum": [9, 18, 27, 36, 45, 54] } } }
+    }
+  ],
   "properties": {
     "schema": {
       "const": "menu/v1",
@@ -23,8 +37,14 @@
     },
     "size": {
       "type": "integer",
-      "enum": [9, 18, 27, 36, 45, 54],
-      "description": "Taille de l'inventaire en nombre de positions Minecraft (multiple de 9, max 54 = double chest)."
+      "enum": [5, 9, 18, 27, 36, 45, 54],
+      "description": "Taille de l'inventaire en nombre de positions. chest = multiple de 9 (max 54) ; hopper = 5 ; dropper = 9. Validation croisée avec inventory_type."
+    },
+    "inventory_type": {
+      "type": "string",
+      "enum": ["chest", "hopper", "dropper"],
+      "default": "chest",
+      "description": "Type de conteneur. Absent = chest (rétro-compatible). chest = grille 9×rows ; hopper = 5×1 ; dropper = 3×3."
     },
     "permission": {
       "type": "string",
