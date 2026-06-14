@@ -40,6 +40,10 @@ export function computeAndApplyAlignment(
 export function useNodeAlignment(packId: PackId, selfId: string) {
   const onDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Konva bubbles drag events from child shapes (e.g. menu slots) up to the
+      // parent group. Only compute alignment when THIS node is the drag target —
+      // otherwise a slot drag would teleport the slot + draw stray guides.
+      if ((e.target as Konva.Node).id?.() !== selfId) return;
       const alt = (e.evt as unknown as { altKey?: boolean }).altKey ?? false;
       computeAndApplyAlignment(
         packId,
