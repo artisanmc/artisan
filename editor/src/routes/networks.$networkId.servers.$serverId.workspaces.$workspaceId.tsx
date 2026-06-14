@@ -297,14 +297,31 @@ export function PackCanvasPage() {
     setActiveDragPanelItem(null);
   };
 
-  // Hand off rendering entirely to the focus-mode child route when matched.
-  if (childMatches.length > 0) return <Outlet />;
-
   const tabContent = (
     // `h-full` (not just `flex-1`) so it fills both its flex parent (assistant
     // closed) and the SplitPane's block wrapper (assistant open) — otherwise the
     // content collapses to its own height and the surface shows through below.
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {childMatches.length > 0 ? (
+        // Detail (element) view nests in the persistent shell: same panel column
+        // as overview, only the center swaps to <Outlet/>. Mutually exclusive with
+        // the tab blocks below — never render both.
+        isDesktop ? (
+          <div className="flex h-full min-h-0 w-full">
+            {workspacePanelOpen && (
+              <div className="h-full w-[240px] shrink-0 min-w-0 overflow-hidden border-r border-[var(--border-soft)]">
+                <WorkspacePanel packId={pId} />
+              </div>
+            )}
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <Outlet />
+            </div>
+          </div>
+        ) : (
+          <Outlet />
+        )
+      ) : (
+        <>
       {tab === "overview" && (
         <div className="min-h-0 flex-1">
           {isDesktop ? (
@@ -408,6 +425,8 @@ export function PackCanvasPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
