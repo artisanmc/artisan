@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
@@ -19,11 +19,12 @@ export function ElementView({ packId, elementId }: { packId: PackId; elementId: 
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
   const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
   const activeLang = useUiStore((s) => s.activeLang);
+  const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
+  const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const eid = elementId as string;
   const menu = pack?.menus.find((m) => m.id === eid);
   const command = pack?.commands.find((c) => c.id === eid);
   const dialog = pack?.dialogs.find((d) => d.id === eid);
-  const [secondarySize, setSecondarySize] = useState(320);
 
   useEffect(() => {
     useSelectionStore.getState().set([elementId]);
@@ -68,8 +69,8 @@ export function ElementView({ packId, elementId }: { packId: PackId; elementId: 
             orientation="horizontal"
             primary={<SoloMenuStage packId={packId} menuId={elementId as unknown as MenuId} />}
             secondary={<EditorPane packId={packId} />}
-            secondarySize={secondarySize}
-            onSecondarySizeChange={setSecondarySize}
+            secondarySize={editorPaneWidth}
+            onSecondarySizeChange={setEditorPaneWidth}
             minSecondary={280}
             minPrimary={400}
           />

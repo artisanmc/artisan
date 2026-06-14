@@ -51,7 +51,7 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
   return (
     <div className="flex flex-col gap-3">
       {elementCount === 0 ? (
-        <div className="flex flex-col gap-2 rounded border border-[var(--brand)]/40 border-dashed bg-emerald-600/5 p-3">
+        <div className="flex flex-col gap-2 rounded border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] p-3">
           <div className="font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide">
             {t("menuProperties.emptyMenuTitle")}
           </div>
@@ -147,7 +147,7 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
         }}
         className={
           error
-            ? "h-8 border-red-500/60 px-2 py-0 font-mono text-xs"
+            ? "h-8 border-[var(--danger)] px-2 py-0 font-mono text-xs"
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
@@ -202,7 +202,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
               key={i}
               className={
                 isInvalid
-                  ? "flex flex-col gap-1 rounded border border-red-500/60 bg-red-500/5 p-1.5"
+                  ? "flex flex-col gap-1 rounded border border-[var(--danger)] bg-[var(--danger-soft)] p-1.5"
                   : "flex flex-col gap-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)]/40 p-1.5"
               }
             >
@@ -282,7 +282,7 @@ function PrimitiveInputRow({
           onChange={(e) => onChange({ name: e.target.value })}
           className={
             isInvalid
-              ? "h-8 w-28 border-red-500/60 px-2 py-0 font-mono text-xs"
+              ? "h-8 w-28 border-[var(--danger)] px-2 py-0 font-mono text-xs"
               : "h-8 w-28 px-2 py-0 font-mono text-xs"
           }
         />
@@ -330,7 +330,7 @@ function PrimitiveInputRow({
               type="checkbox"
               checked={input.default === "{sender}"}
               onChange={(e) => onChange({ default: e.target.checked ? "{sender}" : undefined })}
-              className="h-3.5 w-3.5 accent-emerald-500"
+              className="h-3.5 w-3.5 accent-[var(--brand)]"
             />
             {t("menuProperties.inputSenderDefault")}
           </label>
