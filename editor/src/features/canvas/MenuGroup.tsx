@@ -13,27 +13,29 @@ import { useMemo } from "react";
 import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
-import { dispatchOpenElement } from "./canvasEvents";
-import { fanoutElements, type SlotEntry } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
-import { useMenuClick } from "./useMenuClick";
-import { useMenuDrag } from "./useMenuDrag";
-import { useSlotDrag } from "./useSlotDrag";
 import { SlotItem } from "./SlotItem";
-import { TitleRender } from "./title/composer/TitleRender";
+import { dispatchOpenElement } from "./canvasEvents";
+import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
+import { type SlotEntry, fanoutElements } from "./menuFanout";
 import {
-  COLS,
+  TEXTURE_URLS,
   TEX_SCALE,
   TEX_SLOT_INNER,
   TEX_SLOT_INNER_OFFSET,
-  TEX_URL,
   bottomPieceCrop,
   bottomPieceY,
   menuBoxSize,
+  singleBackgroundCrop,
   slotXY,
   topPieceCrop,
+  usesSingleBackground,
 } from "./menuLayout";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
+import { TitleRender } from "./title/composer/TitleRender";
+import { useMenuClick } from "./useMenuClick";
+import { useMenuDrag } from "./useMenuDrag";
+import { useSlotDrag } from "./useSlotDrag";
 
 interface MenuGroupProps {
   packId: PackId;
@@ -87,9 +89,10 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
     return positions;
   }, [hoveredEdge, menu.layers]);
 
-  const [vanillaTex] = useImage(TEX_URL);
-
-  const box = menuBoxSize(menu.rows);
+  const type = menu.inventoryType ?? "chest";
+  const [tex] = useImage(TEXTURE_URLS[INVENTORY_TYPES[type].textureKey]);
+  const box = menuBoxSize(type, menu.rows);
+  const single = usesSingleBackground(type);
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
 
@@ -170,7 +173,14 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
 
   const elementsByPosition = new Map<
     number,
-    { material?: string; head?: string; title?: string; count?: number; elementId: string; multiPos: boolean }
+    {
+      material?: string;
+      head?: string;
+      title?: string;
+      count?: number;
+      elementId: string;
+      multiPos: boolean;
+    }
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -210,10 +220,15 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
           const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[0]!, {
             material: appearance.material
-              ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
+              ? pack
+                ? renderPreview(appearance.material, enhancedCtx, pack, activeLang)
+                : appearance.material
               : undefined,
             head: appearance.head,
-            title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
+            title:
+              titleRaw && pack
+                ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
+                : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
             multiPos: false,
@@ -227,10 +242,15 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
           const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
           elementsByPosition.set(positions[i]!, {
             material: appearance.material
-              ? pack ? renderPreview(appearance.material, itemCtx, pack, activeLang) : appearance.material
+              ? pack
+                ? renderPreview(appearance.material, itemCtx, pack, activeLang)
+                : appearance.material
               : undefined,
             head: appearance.head,
-            title: titleRaw && pack ? renderPreview(titleRaw, itemCtx, pack, activeLang) : titleRaw || undefined,
+            title:
+              titleRaw && pack
+                ? renderPreview(titleRaw, itemCtx, pack, activeLang)
+                : titleRaw || undefined,
             count: appearance.count,
             elementId: el.id,
             multiPos: false,
@@ -246,10 +266,15 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       const titleRaw = pack ? getText(pack, appearance.title, activeLang) : "";
       const info = {
         material: appearance.material
-          ? pack ? renderPreview(appearance.material, enhancedCtx, pack, activeLang) : appearance.material
+          ? pack
+            ? renderPreview(appearance.material, enhancedCtx, pack, activeLang)
+            : appearance.material
           : undefined,
         head: appearance.head,
-        title: titleRaw && pack ? renderPreview(titleRaw, enhancedCtx, pack, activeLang) : titleRaw || undefined,
+        title:
+          titleRaw && pack
+            ? renderPreview(titleRaw, enhancedCtx, pack, activeLang)
+            : titleRaw || undefined,
         count: appearance.count,
         elementId: el.id,
         multiPos: elSlots.length > 1,
@@ -260,10 +285,11 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
     }
   }
 
-  const slotCount = menu.rows * COLS;
+  const total = slotCount(type, menu.rows);
   const top = topPieceCrop(menu.rows);
   const bottom = bottomPieceCrop();
   const bottomY = bottomPieceY(menu.rows);
+  const fullCrop = singleBackgroundCrop(type);
 
   return (
     <Group
@@ -279,31 +305,44 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       name={`menu:${menu.id}`}
       id={menu.id}
     >
-      {/* Background. Two vanilla slices so the chest height adapts to `rows`.
-          Images are listening=true so the menu Group has a hit shape and
-          drag works from anywhere on the texture (Konva picks the deepest
-          draggable, so filled slots still take precedence). */}
-      {vanillaTex ? (
-        <>
+      {/* Background. Chest uses two vanilla slices so its height adapts to
+          `rows`; hopper/dropper use a single full-box crop. Images are
+          listening=true so the menu Group has a hit shape and drag works from
+          anywhere on the texture (Konva picks the deepest draggable, so filled
+          slots still take precedence). */}
+      {tex ? (
+        single ? (
           <KonvaImage
-            image={vanillaTex}
+            image={tex}
             x={0}
             y={0}
-            width={top.width * TEX_SCALE}
-            height={top.height * TEX_SCALE}
-            crop={top}
+            width={fullCrop.width * TEX_SCALE}
+            height={fullCrop.height * TEX_SCALE}
+            crop={fullCrop}
             perfectDrawEnabled={false}
           />
-          <KonvaImage
-            image={vanillaTex}
-            x={0}
-            y={bottomY}
-            width={bottom.width * TEX_SCALE}
-            height={bottom.height * TEX_SCALE}
-            crop={bottom}
-            perfectDrawEnabled={false}
-          />
-        </>
+        ) : (
+          <>
+            <KonvaImage
+              image={tex}
+              x={0}
+              y={0}
+              width={top.width * TEX_SCALE}
+              height={top.height * TEX_SCALE}
+              crop={top}
+              perfectDrawEnabled={false}
+            />
+            <KonvaImage
+              image={tex}
+              x={0}
+              y={bottomY}
+              width={bottom.width * TEX_SCALE}
+              height={bottom.height * TEX_SCALE}
+              crop={bottom}
+              perfectDrawEnabled={false}
+            />
+          </>
+        )
       ) : (
         <Rect width={box.width} height={box.height} fill="#c6c6c6" perfectDrawEnabled={false} />
       )}
@@ -335,14 +374,10 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
           backdrop set this menu as the selected one (and clear any layer
           selection belonging to this menu). All wiring lives in TitleRender;
           no overlay Rect needed here. */}
-      <TitleRender
-        packId={packId}
-        menuId={menu.id}
-        scale={TEX_SCALE}
-      />
+      <TitleRender packId={packId} menuId={menu.id} scale={TEX_SCALE} />
       {/* Slot interaction overlays */}
-      {Array.from({ length: slotCount }, (_, i) => {
-        const { x, y } = slotXY(i);
+      {Array.from({ length: total }, (_, i) => {
+        const { x, y } = slotXY(i, type);
         const el = elementsByPosition.get(i);
         const present = Boolean(el);
         const filled = Boolean(el?.material);
@@ -554,7 +589,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       elementsByPosition.get(dragState.sourcePosition)?.material
         ? (() => {
             const info = elementsByPosition.get(dragState.sourcePosition)!;
-            const { x, y } = slotXY(dragState.sourcePosition);
+            const { x, y } = slotXY(dragState.sourcePosition, type);
             return (
               <Group x={x} y={y} listening={false} opacity={0.9}>
                 <SlotItem
@@ -572,7 +607,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
           Group's offset so the user sees the whole selection translate. */}
       {dragState?.kind === "selection"
         ? dragState.siblings.map((sib) => {
-            const { x, y } = slotXY(sib.position);
+            const { x, y } = slotXY(sib.position, type);
             return (
               <Group
                 key={`ghost-${sib.position}`}
