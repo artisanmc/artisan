@@ -442,3 +442,38 @@ describe("serializeMenuToV1 inventory_type", () => {
     expect(out.size).toBe(9);
   });
 });
+
+describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
+  const pack = {
+    id: "p",
+    i18nKeys: {},
+    defaultLang: "en",
+    menus: [],
+    commands: [],
+    dialogs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
+  } as any;
+  for (const [type, rows, size] of [
+    ["hopper", 1, 5],
+    ["dropper", 3, 9],
+    ["chest", 4, 36],
+  ] as const) {
+    it(`stable for ${type}`, () => {
+      const menu = {
+        id: "m",
+        packId: "p",
+        title: [],
+        rows,
+        ...(type !== "chest" ? { inventoryType: type } : {}),
+        layers: [{ id: "l", name: "L", elements: [] }],
+        // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
+      } as any;
+      const v1 = serializeMenuToV1(menu, pack);
+      expect(v1.size).toBe(size);
+      // biome-ignore lint/suspicious/noExplicitAny: wire object re-fed to importer
+      const back = menuV1ToDomain(v1 as any, { packId: packId("p"), lang: "en" }).menu;
+      expect(back.inventoryType).toBe(type === "chest" ? undefined : type);
+      expect(back.rows).toBe(rows);
+    });
+  }
+});

@@ -10,12 +10,14 @@ import type {
   Menu as DomainMenu,
   Step as DomainStep,
   I18nKey,
+  InventoryType,
   LText,
   MenuId,
   MenuTitleLayer,
   PackId,
   TextSize,
 } from "@/domain/types";
+import { INVENTORY_TYPES } from "@/features/canvas/inventoryTypes";
 import { newI18nKey } from "@/lib/i18n";
 import { makeStepConverter } from "./actionV1ToDomain";
 
@@ -190,7 +192,14 @@ export function menuV1ToDomain(
     };
   }
 
-  const rows = (src.size / 9) as 1 | 2 | 3 | 4 | 5 | 6;
+  const rawType = (src.inventory_type ?? "chest") as string;
+  const inventoryType: InventoryType =
+    rawType === "hopper" || rawType === "dropper" ? rawType : "chest";
+  // Chest: rows = size/9. Hopper/dropper: rows is irrelevant to geometry; store
+  // the type's fixed row count (1 / 3) so a later switch-to-chest is sane.
+  const rows = (
+    inventoryType === "chest" ? src.size / 9 : (INVENTORY_TYPES[inventoryType].rows ?? 1)
+  ) as 1 | 2 | 3 | 4 | 5 | 6;
   const title = ((src.title as Json[]) ?? []).map(titleLayer).filter(Boolean) as MenuTitleLayer[];
   const contextInputs = (src.context_inputs as Json[] | undefined)?.map(contextInput);
   const menu: DomainMenu = {
@@ -198,6 +207,7 @@ export function menuV1ToDomain(
     packId: opts.packId,
     title,
     rows,
+    ...(inventoryType !== "chest" ? { inventoryType } : {}),
     layers: (src.layers as Json[]).map(layer),
     ...(src.permission ? { permission: src.permission } : {}),
     ...(typeof src.notes === "string" && src.notes ? { notes: src.notes } : {}),
