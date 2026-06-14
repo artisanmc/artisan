@@ -93,6 +93,19 @@ describe("useMarqueeSelection — selection logic", () => {
     expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
   });
 
+  it("shouldConsumeClick returns true once after a drag then false", () => {
+    const pk = packWithMenus();
+    const ptr = { x: 10, y: 10 };
+    const { hook } = renderMarquee(pk, ptr);
+    act(() => hook.result.current.onMouseDown(stageEvent()));
+    ptr.x = 110;
+    ptr.y = 110;
+    act(() => hook.result.current.onMouseMove());
+    act(() => hook.result.current.onMouseUp(stageEvent()));
+    expect(hook.result.current.shouldConsumeClick()).toBe(true);
+    expect(hook.result.current.shouldConsumeClick()).toBe(false);
+  });
+
   it("shift ajoute à la sélection existante", () => {
     const pk = packWithMenus();
     useSelectionStore.getState().add("m2");
