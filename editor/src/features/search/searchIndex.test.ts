@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Pack, PackId } from "@/domain/types";
-import { buildSearchIndex, searchQuery } from "./searchIndex";
+import { buildSearchIndex, groupResultsForDisplay, searchQuery } from "./searchIndex";
 
 const PID = "p1" as PackId;
 function pack(): Pack {
@@ -65,5 +65,20 @@ describe("searchQuery", () => {
   });
   it("requête vide renvoie []", () => {
     expect(searchQuery(buildSearchIndex(pack(), "en"), "  ")).toEqual([]);
+  });
+});
+
+describe("groupResultsForDisplay", () => {
+  it("rend chaque groupe contigu en préservant l'ordre d'apparition + l'ordre intra-groupe", () => {
+    const e = (id: string, group: any) => ({ id, group, label: id, haystack: id, target: { openId: id } });
+    // ordre par score (entrée) : menuA, command, menuB, content  → menuB doit rejoindre menuA
+    const input = [e("menuA", "menu"), e("cmd", "command"), e("menuB", "menu"), e("c1", "content")] as any;
+    const out = groupResultsForDisplay(input);
+    expect(out.map((x) => x.id)).toEqual(["menuA", "menuB", "cmd", "c1"]);
+    // groupes contigus : menu, menu, command, content
+    expect(out.map((x) => x.group)).toEqual(["menu", "menu", "command", "content"]);
+  });
+  it("groupe vide → []", () => {
+    expect(groupResultsForDisplay([])).toEqual([]);
   });
 });

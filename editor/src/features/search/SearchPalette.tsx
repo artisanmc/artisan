@@ -6,7 +6,7 @@ import type { ElementId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { buildSearchIndex, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
+import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
 
 const GROUP_ICON: Record<SearchGroup, typeof Search> = {
   menu: LayoutGrid, command: TerminalSquare, dialog: MessageSquare, content: Search,
@@ -29,7 +29,7 @@ export function SearchPalette({ packId }: { packId: PackId }) {
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
   const index = useMemo(() => (pack ? buildSearchIndex(pack, activeLang) : []), [pack, activeLang]);
-  const results = useMemo(() => searchQuery(index, q), [index, q]);
+  const results = useMemo(() => groupResultsForDisplay(searchQuery(index, q)), [index, q]);
 
   useEffect(() => {
     if (open) {

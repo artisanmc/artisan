@@ -72,6 +72,20 @@ export function buildSearchIndex(pack: Pack, activeLang: string): SearchEntry[] 
   return out;
 }
 
+/** Réordonne des résultats déjà classés par score en groupes CONTIGUS,
+ *  dans l'ordre de première apparition (le groupe du meilleur match d'abord),
+ *  en préservant l'ordre intra-groupe. Ne change pas le classement, seulement
+ *  la contiguïté d'affichage (évite les en-têtes de groupe répétés). */
+export function groupResultsForDisplay(results: SearchEntry[]): SearchEntry[] {
+  const buckets = new Map<SearchGroup, SearchEntry[]>();
+  for (const r of results) {
+    const b = buckets.get(r.group);
+    if (b) b.push(r);
+    else buckets.set(r.group, [r]); // first appearance defines group order (Map preserves insertion)
+  }
+  return [...buckets.values()].flat();
+}
+
 const GROUP_RANK: Record<SearchGroup, number> = { menu: 0, command: 0, dialog: 0, content: 1 };
 
 /** Filter + rank. Case-insensitive substring match. Empty query → []. */
