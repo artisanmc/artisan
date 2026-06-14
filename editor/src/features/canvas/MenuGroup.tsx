@@ -104,6 +104,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
     position,
     layout,
     menuLayers: menu.layers,
+    inventoryType: type,
   });
 
   // Fanout: Map<elementId, SlotEntry[]> — single source of truth for both
