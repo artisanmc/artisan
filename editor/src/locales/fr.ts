@@ -94,6 +94,7 @@ const fr: typeof en = {
       "Aucune commande — créez-en une pour ajouter des /commandes utilisables par le joueur.",
     newMenu: "Nouveau menu",
     newCommand: "Nouvelle commande",
+    newDialog: "Nouveau dialogue",
     countTemplatesAssets: "{{templates}} {{templatesPlural}} · {{assets}} {{assetsPlural}}",
     templateOne: "template",
     templateOther: "templates",
