@@ -27,6 +27,7 @@ import type {
   ElementId,
   FieldType,
   I18nKey,
+  InventoryType,
   LText,
   Layer,
   Menu,
@@ -172,7 +173,7 @@ interface AccountState {
   setMenuField: (input: {
     packId: PackId;
     menuId: MenuId;
-    field: "permission" | "rows";
+    field: "permission" | "rows" | "inventoryType";
     value: string | MenuRows;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
@@ -1619,6 +1620,12 @@ export const useAccountStore = create<AccountState>()(
                 );
               }
               menu.rows = value;
+            } else if (field === "inventoryType") {
+              if (typeof value !== "string") return;
+              // Keep+warn: never throw on out-of-range elements; the UI surfaces
+              // a count and the canvas/export clamp to the new slotCount. Store
+              // undefined for chest so "absent = chest" everywhere.
+              menu.inventoryType = value === "chest" ? undefined : (value as InventoryType);
             }
             pack.updatedAt = new Date().toISOString();
           });
