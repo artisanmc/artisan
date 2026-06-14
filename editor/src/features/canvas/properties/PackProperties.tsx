@@ -99,7 +99,7 @@ export function PackProperties({ pack }: PackPropertiesProps) {
         <button
           type="button"
           onClick={() => setDeleteDialogOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded border border-red-900/50 px-2.5 py-1.5 text-[11px] text-[var(--danger)] hover:border-red-700/60 hover:bg-red-900/20"
+          className="inline-flex items-center gap-1.5 rounded border border-[var(--danger-soft)] px-2.5 py-1.5 text-[11px] text-[var(--danger)] hover:border-[var(--danger)] hover:bg-[var(--danger-soft)]"
         >
           <Trash2 className="h-3 w-3" />
           {t("packProperties.deletePack")}

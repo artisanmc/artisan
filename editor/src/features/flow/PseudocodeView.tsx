@@ -65,7 +65,7 @@ function DragHandle() {
       className={cx(
         "flex h-6 w-5 shrink-0 select-none items-center justify-center rounded text-[12px] leading-none",
         enabled
-          ? "cursor-grab touch-none text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 active:cursor-grabbing"
+          ? "cursor-grab touch-none text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] active:cursor-grabbing"
           : "pointer-events-none opacity-0",
       )}
     >
@@ -152,10 +152,10 @@ export function ElementClickHandlersPseudocode({
       {populated.map((clickType) => (
         <div
           key={clickType}
-          className="rounded border border-zinc-800 bg-zinc-900/40 font-mono text-[12px]"
+          className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] font-mono text-[12px]"
         >
-          <div className="flex items-center justify-between border-zinc-800 border-b px-2 py-1">
-            <span className="text-[11px] text-blue-200">
+          <div className="flex items-center justify-between border-[var(--border-soft)] border-b px-2 py-1">
+            <span className="text-[11px] text-[var(--brand)]">
               {t("flow.clickHandlerOn", { clickType })}
             </span>
             <button
@@ -164,7 +164,7 @@ export function ElementClickHandlersPseudocode({
               onClick={() =>
                 removeHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType })
               }
-              className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-zinc-500 leading-none hover:bg-zinc-800 hover:text-zinc-200"
+              className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[var(--text-faint)] leading-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             >
               ×
             </button>
@@ -188,12 +188,12 @@ export function ElementClickHandlersPseudocode({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="self-start rounded border border-zinc-700 border-dashed px-2 py-1.5 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+              className="self-start rounded border border-[var(--border)] border-dashed px-2 py-1.5 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
             >
               {t("flow.clickAdd")}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+          <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
             {unpopulated.map((opt) => (
               <DropdownMenuItem
                 key={opt}
@@ -206,7 +206,7 @@ export function ElementClickHandlersPseudocode({
                     clickType: opt,
                   })
                 }
-                className="cursor-pointer font-mono text-[11px] focus:bg-zinc-800"
+                className="cursor-pointer font-mono text-[11px] focus:bg-[var(--surface-hover)]"
               >
                 {clickTypeLabel(opt)}
               </DropdownMenuItem>
@@ -684,7 +684,7 @@ function ActionLine({
       >
         <DragHandle />
         <Token kind="action">{action.type}</Token>
-        <span className="text-zinc-300">{actionSummaryArgs(action, getText)}</span>
+        <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText)}</span>
       </Row>
       {expanded ? (
         <Expansion indent={indent + 1}>
@@ -762,7 +762,7 @@ function IfBlock(props: IfBlockProps) {
         <button
           type="button"
           onClick={onAddCase}
-          className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {t("flow.elseIfAdd")}
         </button>
@@ -770,7 +770,7 @@ function IfBlock(props: IfBlockProps) {
           <button
             type="button"
             onClick={() => onToggleElse(true)}
-            className="rounded border border-zinc-700 border-dashed px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("flow.elseAdd")}
           </button>
@@ -820,7 +820,7 @@ function CaseBlock({
       >
         {showStepHandles ? <DragHandle /> : null}
         <Token kind="if">{label}</Token>
-        <span className="truncate text-zinc-300">{summary}</span>
+        <span className="truncate text-[var(--text-mut)]">{summary}</span>
       </Row>
       {expanded ? (
         <Expansion indent={indent + 1}>
@@ -876,33 +876,33 @@ function AddStepLine({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="rounded border border-zinc-800 border-dashed px-2 py-1 text-[11px] text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+            className="rounded border border-[var(--border-soft)] border-dashed px-2 py-1 text-[11px] text-[var(--text-faint)] hover:border-[var(--border)] hover:text-[var(--text-mut)]"
           >
             {t("flow.addStep")}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
           {ACTION_TYPES.map((type) => (
             <DropdownMenuItem
               key={type}
               onSelect={() => onPick({ kind: "action", action: defaultAction(type, firstMenuId) })}
-              className="cursor-pointer focus:bg-zinc-800"
+              className="cursor-pointer focus:bg-[var(--surface-hover)]"
             >
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-300">
+              <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
                 {actionTypeLabel(type)}
               </span>
-              <span className="font-mono text-[11px] text-zinc-200">{type}</span>
+              <span className="font-mono text-[11px] text-[var(--text)]">{type}</span>
             </DropdownMenuItem>
           ))}
           {allowIf && (
             <DropdownMenuItem
               onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
-              className="cursor-pointer focus:bg-zinc-800"
+              className="cursor-pointer focus:bg-[var(--surface-hover)]"
             >
-              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-blue-200">
+              <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--brand)]">
                 if
               </span>
-              <span className="font-mono text-[11px] text-zinc-200">{t("flow.addStepIfBranch")}</span>
+              <span className="font-mono text-[11px] text-[var(--text)]">{t("flow.addStepIfBranch")}</span>
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -933,8 +933,8 @@ function Row({
     <div
       data-row-selected={selected ? "true" : undefined}
       className={cx(
-        "group flex min-h-[28px] items-center rounded px-1 hover:bg-zinc-900/60",
-        selected && "bg-zinc-900/80",
+        "group flex min-h-[28px] items-center rounded px-1 hover:bg-[var(--surface-raised)]",
+        selected && "bg-[var(--surface-raised)]",
       )}
     >
       <div style={{ width: indent * INDENT }} className="shrink-0" />
@@ -961,7 +961,10 @@ function Token({
   kind: "action" | "if";
   children: React.ReactNode;
 }) {
-  const cls = kind === "if" ? "bg-blue-500/20 text-blue-200" : "bg-zinc-800 text-zinc-300";
+  const cls =
+    kind === "if"
+      ? "bg-[var(--brand-soft)] text-[var(--brand)]"
+      : "bg-[var(--surface-raised-2)] text-[var(--text-mut)]";
   return (
     <span
       className={cx(
@@ -978,7 +981,7 @@ function Expansion({ indent, children }: { indent: number; children: React.React
   return (
     <div className="flex">
       <div style={{ width: indent * INDENT }} className="shrink-0" />
-      <div className="my-1 flex-1 rounded border border-zinc-800 bg-zinc-950 p-2">{children}</div>
+      <div className="my-1 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">{children}</div>
     </div>
   );
 }
@@ -1017,8 +1020,8 @@ function HandleButton({
       className={cx(
         "flex h-6 w-6 items-center justify-center rounded text-[13px] leading-none",
         disabled
-          ? "cursor-not-allowed text-zinc-700"
-          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
+          ? "cursor-not-allowed text-[var(--text-faint)]"
+          : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
       )}
     >
       {children}
