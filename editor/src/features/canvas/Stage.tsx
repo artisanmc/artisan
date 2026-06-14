@@ -19,6 +19,7 @@ import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
 import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
+import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
 import { NewCommandDialog } from "./NewCommandDialog";
 import { NewDialogDialog } from "./NewDialogDialog";
@@ -29,6 +30,7 @@ import { hitTestSlot, screenToWorld } from "./hitTest";
 import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
+import { useMarqueeSelection } from "./useMarqueeSelection";
 import { usePanZoom } from "./usePanZoom";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
@@ -214,6 +216,14 @@ export function Stage({ packId }: StageProps) {
     onError: (msg) => toast.error(msg),
   });
 
+  const marquee = useMarqueeSelection({
+    stageRef,
+    viewport,
+    pack,
+    layout,
+    active: canvasMode === "select" && !spaceHeld,
+  });
+
   const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     useHoverStore.getState().setCursor(e.clientX, e.clientY);
   }, []);
@@ -295,6 +305,9 @@ export function Stage({ packId }: StageProps) {
         onWheel={onWheel}
         onClick={onStageClick}
         onTap={onStageClick}
+        onMouseDown={marquee.onMouseDown}
+        onMouseMove={marquee.onMouseMove}
+        onMouseUp={marquee.onMouseUp}
         onContextMenu={onStageContextMenu}
         onTouchStart={onStageTouchStart}
         onTouchMove={onStageTouchMove}
@@ -345,6 +358,7 @@ export function Stage({ packId }: StageProps) {
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
+          <MarqueeRect rect={marquee.rect} />
         </Layer>
       </KonvaStage>
       <ItemTooltip packId={packId} />

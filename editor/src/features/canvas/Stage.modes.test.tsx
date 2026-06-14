@@ -1,9 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import type Konva from "konva";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Pack, PackId } from "@/domain/types";
+import type { Menu, MenuId, Pack, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { Stage } from "./Stage";
+import { useMarqueeSelection } from "./useMarqueeSelection";
 
 vi.mock("react-konva", () => ({
   Stage: (p: any) => <div data-testid="konva-stage" data-draggable={String(!!p.draggable)}>{p.children}</div>,
@@ -33,5 +36,73 @@ describe("Stage — modes", () => {
     useUiStore.setState({ canvasMode: "select" } as any);
     render(<Stage packId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
+  });
+});
+
+// Two on-board 1-row menus: m1 spans (0,0)→(352,266), m2 at (1000,1000).
+function menu(id: string): Menu {
+  return { id: id as MenuId, packId: PID, title: [], rows: 1 } as unknown as Menu;
+}
+function packWithMenus(): Pack {
+  return {
+    ...pack(),
+    menus: [menu("m1"), menu("m2")],
+    canvasLayout: { m1: { x: 0, y: 0 }, m2: { x: 1000, y: 1000 } },
+  } as Pack;
+}
+
+// Konva mouse event with a target that IS the stage (empty-space drag).
+function stageEvent(shiftKey = false) {
+  const stage = { getStage() { return stage; } };
+  return { target: stage, evt: { shiftKey } } as unknown as Konva.KonvaEventObject<MouseEvent>;
+}
+
+describe("useMarqueeSelection — selection logic", () => {
+  beforeEach(() => {
+    useSelectionStore.getState().clear();
+  });
+
+  // Mutable pointer so down/move can report different positions.
+  function renderMarquee(pk: Pack, pointer: { x: number; y: number }) {
+    const stageRef = {
+      current: { getPointerPosition: () => pointer } as unknown as Konva.Stage,
+    } as React.RefObject<Konva.Stage | null>;
+    const hook = renderHook(() =>
+      useMarqueeSelection({
+        stageRef,
+        viewport: { x: 0, y: 0, scale: 1 },
+        pack: pk,
+        layout: pk.canvasLayout,
+        active: true,
+      }),
+    );
+    return { hook, pointer };
+  }
+
+  it("sélectionne les menus dont la boîte intersecte le marquee", () => {
+    const pk = packWithMenus();
+    const ptr = { x: 10, y: 10 };
+    const { hook } = renderMarquee(pk, ptr);
+    // down at (10,10)
+    act(() => hook.result.current.onMouseDown(stageEvent()));
+    // drag to (110,110): marquee (10,10)→(110,110) covers m1 only, not m2.
+    ptr.x = 110;
+    ptr.y = 110;
+    act(() => hook.result.current.onMouseMove());
+    act(() => hook.result.current.onMouseUp(stageEvent()));
+    expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
+  });
+
+  it("shift ajoute à la sélection existante", () => {
+    const pk = packWithMenus();
+    useSelectionStore.getState().add("m2");
+    const ptr = { x: 10, y: 10 };
+    const { hook } = renderMarquee(pk, ptr);
+    act(() => hook.result.current.onMouseDown(stageEvent(true)));
+    ptr.x = 110;
+    ptr.y = 110;
+    act(() => hook.result.current.onMouseMove());
+    act(() => hook.result.current.onMouseUp(stageEvent(true)));
+    expect([...useSelectionStore.getState().ids].sort()).toEqual(["m1", "m2"]);
   });
 });
