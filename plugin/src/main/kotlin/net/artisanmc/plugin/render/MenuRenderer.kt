@@ -11,6 +11,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
@@ -24,6 +25,11 @@ object MenuRenderer {
 
     private val mm = MiniMessage.miniMessage()
     private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
+
+    private val INVENTORY_TYPES: Map<String, InventoryType> = mapOf(
+        "hopper" to InventoryType.HOPPER,
+        "dropper" to InventoryType.DROPPER,
+    )
 
     private fun parse(text: String) = mm.deserialize(text).applyFallbackStyle(noItalic)
 
@@ -77,13 +83,28 @@ object MenuRenderer {
         // MockBukkit n'implémente pas l'overload Component de createInventory —
         // fallback legacy uniquement dans ce cas (la prod garde le Component,
         // indispensable aux titres pixel-perfect à base de fonts).
-        val inv = runCatching { Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title) }
-            .getOrElse {
-                Bukkit.createInventory(
-                    ArtisanMenuHolder(), menu.yaml.size,
-                    LegacyComponentSerializer.legacySection().serialize(title),
-                )
-            }
+        // Branche sur inventory_type : hopper/dropper créent un container du bon
+        // TYPE (un dropper a 9 slots comme un chest 1-row mais un type distinct),
+        // donc on ne peut pas se reposer sur size. Chest garde le createInventory
+        // basé sur size.
+        val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
+        val inv = if (invType != null) {
+            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
+                .getOrElse {
+                    Bukkit.createInventory(
+                        ArtisanMenuHolder(), invType,
+                        LegacyComponentSerializer.legacySection().serialize(title),
+                    )
+                }
+        } else {
+            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title) }
+                .getOrElse {
+                    Bukkit.createInventory(
+                        ArtisanMenuHolder(), menu.yaml.size,
+                        LegacyComponentSerializer.legacySection().serialize(title),
+                    )
+                }
+        }
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
 
