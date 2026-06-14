@@ -231,6 +231,7 @@ export default {
     headerEmpty: "(empty)",
     elementId: "id",
     elementIdPlaceholder: "el_xxx",
+    propertiesLabel: "properties",
     positions: "positions",
     positionsLabelOne: "positions ({{count}} slot)",
     positionsLabelOther: "positions ({{count}} slots)",

@@ -100,7 +100,7 @@ function PanelItem({
   const Icon = TYPE_ICON[item.type];
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${PANEL_DRAG_PREFIX}${item.id}`,
-    data: { nodeId: item.id, type: item.type },
+    data: { nodeId: item.id, type: item.type, label: item.label },
   });
   return (
     <div
