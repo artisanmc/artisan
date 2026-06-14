@@ -755,6 +755,7 @@ export default {
       primitives: "React primitives (components/ui)",
       appComponents: "Shared app components",
       searchPalette: "Search palette (Cmd+K)",
+      canvasToolbar: "Canvas toolbar (mode switcher)",
     },
     groups: {
       surfaces: "Surfaces",
