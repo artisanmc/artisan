@@ -31,9 +31,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Inbox, Pencil, Plus, Sparkles } from "lucide-react";
+import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useUiStore } from "@/state/uiStore";
 
 /**
  * Living style guide rendered at /admin/design. Every token, utility class
@@ -397,6 +398,45 @@ export function DesignSystemPage() {
               </CardHeader>
               <CardContent className="text-[13px] text-[var(--text-mut)]">CardContent</CardContent>
             </Card>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Search palette ────────────────────────────────────────────── */}
+      <Section id="search-palette" title={t("adminDesign.sections.searchPalette")}>
+        <div className="card flex flex-col gap-4 p-5">
+          <span className="text-[12px] text-[var(--text-mut)]">
+            {t("adminDesign.demo.searchHint")}
+          </span>
+          {/* Static preview of the palette panel chrome */}
+          <div className="w-full max-w-[420px] overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-lg)]">
+            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-3">
+              <Search className="size-4 shrink-0 text-[var(--text-faint)]" />
+              <span className="h-12 flex-1 leading-[3rem] text-[14px] text-[var(--text-faint)]">
+                {t("search.placeholder")}
+              </span>
+            </div>
+            <div className="py-1">
+              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+                {t("search.groupMenu")}
+              </div>
+              <div className="flex w-full items-center gap-2.5 bg-[var(--brand-soft)] px-3 py-2 text-left text-[13px] text-[var(--text)]">
+                <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+                <span className="flex-1 truncate">Shop</span>
+              </div>
+              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+                {t("search.groupCommand")}
+              </div>
+              <div className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[var(--text-mut)]">
+                <TerminalSquare className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+                <span className="flex-1 truncate">/heal</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <Button variant="outline" onClick={() => useUiStore.getState().setSearchOpen(true)}>
+              <Search className="size-[15px]" /> {t("adminDesign.demo.openSearch")}
+            </Button>
           </div>
         </div>
       </Section>
