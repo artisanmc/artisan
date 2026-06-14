@@ -79,3 +79,73 @@ describe("MenuProperties — embedded title section", () => {
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
   });
 });
+
+// Tests run pinned to French (tests/setup.ts), so labels use French copy.
+describe("MenuProperties — inventory type", () => {
+  it("renders the three inventory-type options", () => {
+    const menu = useAccountStore.getState().account.packs[0]!.menus[0]! as Menu;
+    render(<MenuProperties packId={PACK_ID} menu={menu} />);
+
+    expect(screen.getByRole("button", { name: "Coffre" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entonnoir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Distributeur" })).toBeInTheDocument();
+  });
+
+  it("shows the rows selector for a chest menu", () => {
+    const menu = useAccountStore.getState().account.packs[0]!.menus[0]! as Menu;
+    render(<MenuProperties packId={PACK_ID} menu={menu} />);
+
+    // chest rows 1..6 buttons present
+    expect(screen.getByRole("button", { name: "6" })).toBeInTheDocument();
+  });
+
+  it("hides the rows selector for a hopper menu", () => {
+    const menu = {
+      ...(useAccountStore.getState().account.packs[0]!.menus[0]! as Menu),
+      inventoryType: "hopper" as const,
+    };
+    render(<MenuProperties packId={PACK_ID} menu={menu} />);
+
+    expect(screen.queryByRole("button", { name: "6" })).not.toBeInTheDocument();
+    // type selector still visible
+    expect(screen.getByRole("button", { name: "Entonnoir" })).toBeInTheDocument();
+  });
+
+  it("calls setMenuField with field inventoryType when clicking Hopper", () => {
+    const spy = vi.fn();
+    const prev = useAccountStore.getState().setMenuField;
+    useAccountStore.setState({ setMenuField: spy } as any);
+
+    const menu = useAccountStore.getState().account.packs[0]!.menus[0]! as Menu;
+    render(<MenuProperties packId={PACK_ID} menu={menu} />);
+    screen.getByRole("button", { name: "Entonnoir" }).click();
+
+    expect(spy).toHaveBeenCalledWith({
+      packId: PACK_ID,
+      menuId: MENU_ID,
+      field: "inventoryType",
+      value: "hopper",
+    });
+
+    useAccountStore.setState({ setMenuField: prev } as any);
+  });
+
+  it("shows the out-of-range warning when an element exceeds capacity", () => {
+    // hopper capacity = 5 slots (indices 0..4); slot 10 is out of range.
+    const base = useAccountStore.getState().account.packs[0]!.menus[0]! as Menu;
+    const menu: Menu = {
+      ...base,
+      inventoryType: "hopper",
+      layers: [
+        {
+          ...(base.layers[0] ?? { key: "base", elements: [] }),
+          key: "base",
+          elements: [{ id: "e1", positions: "10", states: [] } as any],
+        } as any,
+      ],
+    };
+    render(<MenuProperties packId={PACK_ID} menu={menu} />);
+
+    expect(screen.getByText(/hors de l'inventaire/i)).toBeInTheDocument();
+  });
+});
