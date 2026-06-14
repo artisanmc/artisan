@@ -53,19 +53,18 @@ export function Stage({ packId }: StageProps) {
       return tag === "INPUT" || tag === "TEXTAREA" || !!n?.isContentEditable;
     };
     const down = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !isEditable(e.target)) {
-        e.preventDefault();
-        setSpaceHeld(true);
-      }
+      if (e.repeat) return;
+      if (e.code === "Space" && !isEditable(e.target)) { e.preventDefault(); setSpaceHeld(true); }
     };
-    const up = (e: KeyboardEvent) => {
-      if (e.code === "Space") setSpaceHeld(false);
-    };
+    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpaceHeld(false); };
+    const onBlur = () => setSpaceHeld(false);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
   const panMode = canvasMode === "hand" || spaceHeld;
