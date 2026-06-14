@@ -84,12 +84,12 @@ export function WorkspaceTopBarControls({
       <button
         type="button"
         onClick={() => useUiStore.getState().toggleWorkspacePanel()}
-        aria-label={t("workspacePanel.toggle")}
+        aria-label={t("workspacePanel.openPanel")}
         aria-pressed={panelOpen}
         className="hidden shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"
       >
         {panelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-        <span>{t("workspacePanel.toggle")}</span>
+        <span>{t("workspacePanel.openPanel")}</span>
       </button>
       <div className="flex min-w-0 flex-1 items-center gap-2.5 truncate px-1 font-mono text-[13px] text-[var(--text)]">
         <span

@@ -384,8 +384,6 @@ export default {
     unavailable: "Library unavailable — server offline",
   },
   workspacePanel: {
-    search: "Search…",
-    toggle: "Elements",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",
