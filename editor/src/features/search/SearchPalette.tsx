@@ -7,6 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery, type SearchEntry, type SearchGroup } from "./searchIndex";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 
 const GROUP_ICON: Record<SearchGroup, typeof Search> = {
   menu: LayoutGrid, command: TerminalSquare, dialog: MessageSquare, content: Search,
@@ -124,7 +125,7 @@ export function SearchPalette({ packId }: { packId: PackId }) {
                     }`}
                   >
                     <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
-                    <span className="flex-1 truncate">{r.label}</span>
+                    <MiniMessageInline source={r.label} className="flex-1 truncate" />
                     {r.context && (
                       <span className="shrink-0 truncate text-[11px] text-[var(--text-faint)]">
                         {t(r.context.key, { owner: r.context.owner })}
