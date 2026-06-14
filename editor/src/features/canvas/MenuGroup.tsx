@@ -18,6 +18,7 @@ import { fanoutElements, type SlotEntry } from "./menuFanout";
 import { PaginationControls } from "./PaginationControls";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
+import { useNodeAlignment } from "./useNodeAlignment";
 import { useSlotDrag } from "./useSlotDrag";
 import { SlotItem } from "./SlotItem";
 import { TitleRender } from "./title/composer/TitleRender";
@@ -92,6 +93,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
   const box = menuBoxSize(menu.rows);
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
+  const nodeAlign = useNodeAlignment(packId, menu.id);
 
   const { onClick } = useMenuClick({ packId, menu, layout });
 
@@ -271,6 +273,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       y={solo ? 0 : position.y}
       draggable={!solo}
       onDragStart={solo ? undefined : onMenuDragStart}
+      onDragMove={solo ? undefined : nodeAlign.onDragMove}
       onDragEnd={solo ? undefined : onMenuDragEnd}
       onClick={solo ? undefined : onClick}
       onTap={solo ? undefined : onClick}
