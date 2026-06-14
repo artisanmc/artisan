@@ -1,6 +1,10 @@
-import type { Pack } from "@/domain/types";
+import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
+import hopperTextureUrl from "@/assets/minecraft/hopper.png";
+import type { Pack } from "@/domain/types";
+import type { InventoryType } from "@/domain/types";
 import type { Box } from "./edgeRouting";
+import { INVENTORY_TYPES, slotMcXY } from "./inventoryTypes";
 
 /**
  * Menu rendering geometry — based on the vanilla Minecraft chest GUI texture
@@ -44,13 +48,24 @@ export const TEX_BOTTOM_H = MC_BOTTOM_H * TEX_SCALE;
 
 export const COLS = 9;
 
+/** Editor GUI background by texture key (matches INVENTORY_TYPES[type].textureKey). */
+export const TEXTURE_URLS: Record<"generic_54" | "hopper" | "dispenser", string> = {
+  generic_54: vanillaChestTextureUrl,
+  hopper: hopperTextureUrl,
+  dispenser: dispenserTextureUrl,
+};
+
 export const COMMAND_BOX = { width: 140, height: 48 };
 export const DIALOG_BOX = { width: 140, height: 60 };
 
-export const menuBoxSize = (rows: number) => ({
-  width: TEX_W,
-  height: TEX_TITLE_H + rows * TEX_SLOT_STRIDE + TEX_BOTTOM_H,
-});
+export const menuBoxSize = (type: InventoryType, rows: number) => {
+  const fixedH = INVENTORY_TYPES[type].boxHeight;
+  return {
+    width: TEX_W,
+    height:
+      fixedH != null ? fixedH * TEX_SCALE : TEX_TITLE_H + rows * TEX_SLOT_STRIDE + TEX_BOTTOM_H,
+  };
+};
 
 /**
  * Canvas bounding box for a node id, or null if it has no layout position.
@@ -65,7 +80,7 @@ export function nodeBox(
   const pos = layout[id];
   if (!pos) return null;
   const menu = pack.menus.find((m) => m.id === id);
-  if (menu) return { ...pos, ...menuBoxSize(menu.rows) };
+  if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
   if (pack.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
   if ((pack.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
   return null;
@@ -73,14 +88,10 @@ export function nodeBox(
 
 export const bottomPieceY = (rows: number) => TEX_TITLE_H + rows * TEX_SLOT_STRIDE;
 
-/** Top-left corner of slot `i`'s outer cell, relative to the menu origin. */
-export const slotXY = (i: number) => {
-  const col = i % COLS;
-  const row = Math.floor(i / COLS);
-  return {
-    x: TEX_FIRST_SLOT_X + col * TEX_SLOT_STRIDE,
-    y: TEX_TITLE_H + row * TEX_SLOT_STRIDE,
-  };
+/** Top-left corner of slot `i`'s outer cell (canvas px), relative to menu origin. */
+export const slotXY = (i: number, type: InventoryType) => {
+  const { x, y } = slotMcXY(i, type);
+  return { x: x * TEX_SCALE, y: y * TEX_SCALE };
 };
 
 /** Source crop for the top piece of a menu with `rows` rows. MC pixels. */
@@ -98,3 +109,17 @@ export const bottomPieceCrop = () => ({
   width: MC_W,
   height: MC_BOTTOM_H,
 });
+
+/** Whether this type renders a single fixed background image (vs. chest's 2 slices). */
+export const usesSingleBackground = (type: InventoryType): boolean =>
+  INVENTORY_TYPES[type].boxHeight != null;
+
+/** Source crop (MC pixels) for a single-image background (hopper/dropper). */
+export const singleBackgroundCrop = (type: InventoryType) => ({
+  x: 0,
+  y: 0,
+  width: MC_W,
+  height: INVENTORY_TYPES[type].boxHeight ?? MC_BOTTOM_Y,
+});
+
+export { slotCount } from "./inventoryTypes";
