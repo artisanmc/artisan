@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import type { MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { InventoryType, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
@@ -9,12 +9,12 @@ import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
-import { MC_BOTTOM_H, MC_SLOT_STRIDE, MC_TITLE_H } from "../../menuLayout";
+import { MC_TITLE_H, menuBoxSize } from "../../menuLayout";
 import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
+import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
-import { WidthResizeHandle } from "./WidthResizeHandle";
 
 const TAG_RX = /<[^>]+>/g;
 
@@ -202,9 +202,11 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
           (layer.kind === "text" || layer.kind === "textarea") && layer.fontAssetId
             ? assets.find((a) => a.id === layer.fontAssetId)
             : undefined;
-        const text = (layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea") ? getText(pack, layer.value, activeLang) : "";
-        const selected =
-          selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
+        const text =
+          layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
+            ? getText(pack, layer.value, activeLang)
+            : "";
+        const selected = selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
         return (
           <LayerNode
@@ -268,9 +270,7 @@ function LayerNode({
   // = fontRefAscent, top at y=0) to the bottom of the deepest glyph.
   const textContentH: number =
     fontRefAscent != null && fontAsset?.fontMeta?.glyphMap.length
-      ? Math.max(
-          ...fontAsset.fontMeta.glyphMap.map((g) => (fontRefAscent - g.ascent) + g.height),
-        )
+      ? Math.max(...fontAsset.fontMeta.glyphMap.map((g) => fontRefAscent - g.ascent + g.height))
       : MC_FONT_HEIGHT_PX;
 
   // Group position. Background and glyph Y are derived from asset.ascent
@@ -279,12 +279,18 @@ function LayerNode({
   // group origin aligns with the first visible pixel (enables body-area text).
   // Plain text falls back to MC_TITLE_LABEL_Y.
   const groupX =
-    layer.kind === "background" ? 0
-    : layer.kind === "plain" ? TITLE_LABEL_X * scale
-    : "x" in layer ? layer.x * scale : 0;
+    layer.kind === "background"
+      ? 0
+      : layer.kind === "plain"
+        ? TITLE_LABEL_X * scale
+        : "x" in layer
+          ? layer.x * scale
+          : 0;
   const groupY =
     layer.kind === "background"
-      ? (asset?.ascent != null ? (GLYPH_Y_BASE - asset.ascent) * scale : MC_TITLE_H * scale)
+      ? asset?.ascent != null
+        ? (GLYPH_Y_BASE - asset.ascent) * scale
+        : MC_TITLE_H * scale
       : layer.kind === "plain"
         ? MC_TITLE_LABEL_Y * scale
         : layer.kind === "text"
@@ -292,7 +298,9 @@ function LayerNode({
             ? (GLYPH_Y_BASE - fontRefAscent) * scale
             : layer.y * scale
           : layer.kind === "glyph"
-            ? (asset?.ascent != null ? (GLYPH_Y_BASE - asset.ascent) * scale : layer.y * scale)
+            ? asset?.ascent != null
+              ? (GLYPH_Y_BASE - asset.ascent) * scale
+              : layer.y * scale
             : layer.kind === "textarea"
               ? layer.y * scale
               : "y" in layer
@@ -312,23 +320,17 @@ function LayerNode({
     [selected, setSelectedLayerKey],
   );
 
-  const handleDragStart = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      // Stop the drag from bubbling up to MenuGroup's drag handler — the
-      // parent reads `e.target.x()/y()` on dragend and would otherwise apply
-      // the layer's coords as the menu's new position. Same pattern as
-      // `handleClick` above.
-      e.cancelBubble = true;
-    },
-    [],
-  );
+  const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    // Stop the drag from bubbling up to MenuGroup's drag handler — the
+    // parent reads `e.target.x()/y()` on dragend and would otherwise apply
+    // the layer's coords as the menu's new position. Same pattern as
+    // `handleClick` above.
+    e.cancelBubble = true;
+  }, []);
 
-  const handleDragMove = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      e.cancelBubble = true;
-    },
-    [],
-  );
+  const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+  }, []);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -361,19 +363,18 @@ function LayerNode({
   // Intrinsic bounding-box for image-kind layers — drives both the selection
   // outline and the ResizeHandles geometry. Falls back to a sane default when
   // the asset hasn't loaded yet (or is missing).
-  const imageW =
-    (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
-  const imageH =
-    (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
+  const imageW = (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
+  const imageH = (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;
 
   const textareaLines =
     layer.kind === "textarea"
-      // Trim leading whitespace from the whole content so the first sub-line
-      // doesn't carry accidental leading spaces (matches the plugin runtime).
-      // Internal indentation after explicit `\n` is preserved.
-      ? text.replace(/^\s+/, "").split("\n").flatMap((l) =>
-          wrapLineJs(l, Math.floor(layer.width * 8 / (layer.size ?? 8)))
-        )
+      ? // Trim leading whitespace from the whole content so the first sub-line
+        // doesn't carry accidental leading spaces (matches the plugin runtime).
+        // Internal indentation after explicit `\n` is preserved.
+        text
+          .replace(/^\s+/, "")
+          .split("\n")
+          .flatMap((l) => wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))))
       : [];
   const textareaBoxW = layer.kind === "textarea" ? layer.width : 0;
   // Alignment-aware x offset for the bbox/hit/handle: the textarea's lines
@@ -389,9 +390,7 @@ function LayerNode({
           : 0
       : 0;
   const textareaTotalH =
-    layer.kind === "textarea"
-      ? Math.max(1, textareaLines.length) * layer.lineHeight
-      : 0;
+    layer.kind === "textarea" ? Math.max(1, textareaLines.length) * layer.lineHeight : 0;
 
   // Per-kind body. Background and glyph share the image path.
   let body: React.ReactNode = null;
@@ -439,7 +438,7 @@ function LayerNode({
     // indentation after explicit `\n` is preserved.
     const hardLines = text.replace(/^\s+/, "").split("\n");
     const lines = hardLines.flatMap((l) =>
-      wrapLineJs(l, Math.floor(layer.width * 8 / (layer.size ?? 8)))
+      wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))),
     );
     body = (
       <>
@@ -515,9 +514,7 @@ function LayerNode({
   // size=8 (default) → sizeScale=1, size=16 → sizeScale=2, etc.
   // `plain` has no `size` field (it's a legacy kind without per-layer sizing).
   const layerSizeScale =
-    layer.kind === "text" || layer.kind === "textarea"
-      ? (layer.size ?? 8) / 8
-      : 1;
+    layer.kind === "text" || layer.kind === "textarea" ? (layer.size ?? 8) / 8 : 1;
 
   // Bounding-box dimensions — used for the selection outline and hit area.
   const outlineW =
@@ -630,10 +627,11 @@ function LayerNode({
  * via negative-ascent push). Otherwise just the title bar strip.
  */
 export function titleRenderHeight(
-  menu: { rows: number; title: MenuTitleLayer[] },
+  menu: { rows: number; inventoryType?: InventoryType; title: MenuTitleLayer[] },
   scale: number,
 ): number {
   const hasBackground = menu.title.some((l) => l.kind === "background");
   if (!hasBackground) return MC_TITLE_H * scale;
-  return (MC_TITLE_H + menu.rows * MC_SLOT_STRIDE + MC_BOTTOM_H) * scale;
+  // Full GUI box height for the type, re-expressed at the requested scale.
+  return menuBoxSize(menu.inventoryType ?? "chest", menu.rows).height * (scale / 2);
 }
