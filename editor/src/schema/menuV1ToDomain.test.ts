@@ -644,6 +644,53 @@ describe("menuV1ToDomain — extended runtime-OK vocab", () => {
   });
 });
 
+describe("menuV1ToDomain inventory_type", () => {
+  it("defaults to chest (undefined) when inventory_type is absent; rows = size/9", () => {
+    const { menu } = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "m",
+        title: [],
+        size: 27,
+        layers: [{ id: "l", name: "L", elements: [] }],
+      },
+      opts,
+    );
+    expect(menu.inventoryType).toBeUndefined();
+    expect(menu.rows).toBe(3);
+  });
+  it("reads inventory_type=hopper; rows defaults to 1", () => {
+    const { menu } = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "m",
+        title: [],
+        inventory_type: "hopper",
+        size: 5,
+        layers: [{ id: "l", name: "L", elements: [] }],
+      },
+      opts,
+    );
+    expect(menu.inventoryType).toBe("hopper");
+    expect(menu.rows).toBe(1);
+  });
+  it("reads inventory_type=dropper; rows defaults to 3", () => {
+    const { menu } = menuV1ToDomain(
+      {
+        schema: "menu/v1",
+        id: "m",
+        title: [],
+        inventory_type: "dropper",
+        size: 9,
+        layers: [{ id: "l", name: "L", elements: [] }],
+      },
+      opts,
+    );
+    expect(menu.inventoryType).toBe("dropper");
+    expect(menu.rows).toBe(3);
+  });
+});
+
 function minimalMenu(p: { appTitle?: string; if?: unknown[] }): Record<string, unknown> {
   const appearance: Record<string, unknown> = {};
   if (p.appTitle) appearance.title = p.appTitle;
