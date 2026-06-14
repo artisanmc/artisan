@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
+import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
@@ -362,6 +363,7 @@ export function Stage({ packId }: StageProps) {
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
           <MarqueeRect rect={marquee.rect} />
+          <AlignmentGuides />
         </Layer>
       </KonvaStage>
       <ItemTooltip packId={packId} />

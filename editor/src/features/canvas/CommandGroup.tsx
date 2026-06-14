@@ -1,5 +1,6 @@
 import type { Command, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useAlignmentStore } from "@/state/alignmentStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -7,6 +8,7 @@ import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
+import { useNodeAlignment } from "./useNodeAlignment";
 
 interface CommandGroupProps {
   packId: PackId;
@@ -17,6 +19,7 @@ interface CommandGroupProps {
 export function CommandGroup({ packId, command, position }: CommandGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(command.id));
+  const nodeAlign = useNodeAlignment(packId, command.id);
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -25,6 +28,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       setCanvasPosition({ packId, nodeId: command.id, x: e.target.x(), y: e.target.y() });
+      useAlignmentStore.getState().clear();
     },
     [packId, command.id, setCanvasPosition],
   );
@@ -49,6 +53,7 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
       y={position.y}
       draggable
       onDragStart={onDragStart}
+      onDragMove={nodeAlign.onDragMove}
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
