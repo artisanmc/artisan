@@ -238,6 +238,7 @@ const fr: typeof en = {
     headerEmpty: "(vide)",
     elementId: "id",
     elementIdPlaceholder: "el_xxx",
+    propertiesLabel: "propriétés",
     positions: "positions",
     positionsLabelOne: "positions ({{count}} slot)",
     positionsLabelOther: "positions ({{count}} slots)",
