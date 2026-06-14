@@ -212,17 +212,45 @@ export function Stage({ packId }: StageProps) {
     >
       <div aria-hidden className="stage-bg-glow pointer-events-none absolute inset-0" />
       {Object.keys(layout).length === 0 && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
+        // pointer-events-none lets right-click / drag fall through to the Konva
+        // stage below (so the create context-menu still works); only the action
+        // buttons opt back into pointer events.
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <EmptyState
             title={t("workspacePanel.empty")}
             action={
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={() => useAccountStore.getState().arrangeAllOnBoard({ packId })}
-              >
-                {t("workspacePanel.arrangeAll")}
-              </button>
+              <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setPendingMenuPos({ x: 40, y: 40 })}
+                >
+                  {t("canvas.newMenu")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setPendingCommandPos({ x: 40, y: 40 })}
+                >
+                  {t("canvas.newCommand")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setPendingDialogPos({ x: 40, y: 40 })}
+                >
+                  {t("canvas.newDialog")}
+                </button>
+                {pack.menus.length + pack.commands.length + pack.dialogs.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => useAccountStore.getState().arrangeAllOnBoard({ packId })}
+                  >
+                    {t("workspacePanel.arrangeAll")}
+                  </button>
+                )}
+              </div>
             }
           />
         </div>
