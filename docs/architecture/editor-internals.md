@@ -116,6 +116,18 @@ L'élément sélectionné s'édite dans le panneau de droite. L'ancien **mode fo
 
 Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
 
+## Types d'inventaire (Chest / Hopper / Dropper, depuis 2026-06-14)
+
+Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **single source of truth** est la table `INVENTORY_TYPES` dans `features/canvas/inventoryTypes.ts` : par type elle porte `cols`, les `rows` fixes (`null` pour le chest = `menu.rows`), l'origine du slot 0 en px MC (`firstSlotX/Y`), la hauteur de box (`null` = calculée depuis les rows pour le chest), la clé texture et le type Bukkit. Helpers : `colsFor`, `rowsFor`, `slotCount`, `slotMcXY` (stride constant `MC_SLOT_STRIDE = 18`).
+
+**Title composer width-agnostic** : les trois GUI conteneurs vanilla font **176 px MC de large** avec le titre à `(8, 6)`. Seules la **hauteur de box** et la **grille de slots** varient par type — aucune paramétrisation de largeur n'est nécessaire dans le title composer.
+
+**Fonds (`MenuGroup`)** : le chest utilise la texture deux-tranches `generic_54.png` (header + slice de lignes répétée). Le hopper et le dropper utilisent une **image de box complète** (`hopper.png` / `dispenser.png`). `MenuGroup` branche via `usesSingleBackground(type)`.
+
+**Hit-test + drag paramétrés par type** : `hitTest.ts` et `useSlotDrag.ts` lisent cols / origine / rows depuis la table — plus aucun hardcode des 9 colonnes du chest.
+
+**Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
+
 ## Canvas edges (liens entre nœuds)
 
 Les liens menu/commande/dialog sont dérivés des actions (`deriveEdges.ts`, inchangé) puis
