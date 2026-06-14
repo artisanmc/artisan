@@ -393,8 +393,6 @@ const fr: typeof en = {
     unavailable: "Bibliothèque indisponible — serveur hors ligne",
   },
   workspacePanel: {
-    search: "Rechercher…",
-    toggle: "Éléments",
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",
