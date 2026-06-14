@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { ArmedBanner } from "./ArmedBanner";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
 import { DialogGroup } from "./DialogGroup";
@@ -256,6 +257,7 @@ export function Stage({ packId }: StageProps) {
         </div>
       )}
       <ArmedBanner />
+      <CanvasToolbar />
       <KonvaStage
         ref={stageRef}
         width={size.w}

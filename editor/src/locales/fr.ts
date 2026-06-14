@@ -461,6 +461,8 @@ const fr: typeof en = {
     newCommandDialogTitle: "Nouvelle commande",
     cancel: "Annuler",
     create: "Créer",
+    modeSelect: "Sélection",
+    modeHand: "Navigation",
   },
   dialog: {
     idLabel: "id",
