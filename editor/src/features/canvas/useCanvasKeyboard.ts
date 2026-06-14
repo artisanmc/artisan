@@ -3,6 +3,7 @@ import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
 import {
   CLIPBOARD_VERSION,
@@ -244,6 +245,15 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
       if (isEditableTarget(e.target)) return;
 
       const cmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      if (!cmdOrCtrl && (e.key === "v" || e.key === "V")) {
+        useUiStore.getState().setCanvasMode("select");
+        return;
+      }
+      if (!cmdOrCtrl && (e.key === "h" || e.key === "H")) {
+        useUiStore.getState().setCanvasMode("hand");
+        return;
+      }
 
       if (cmdOrCtrl && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
