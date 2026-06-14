@@ -264,6 +264,8 @@ function AssistantButton() {
   );
 }
 
+const SHORTCUT_MOD = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";
+
 /**
  * Top-bar search button. Opens the search palette (Cmd/Ctrl+K).
  */
@@ -271,7 +273,7 @@ function SearchButton() {
   const { t } = useTranslation();
   return (
     <TopBarIconButton
-      title={`${t("search.open")} (⌘K)`}
+      title={`${t("search.open")} (${SHORTCUT_MOD}K)`}
       onClick={() => useUiStore.getState().setSearchOpen(true)}
     >
       <Search className="size-[18px]" />
