@@ -112,11 +112,19 @@ export interface Pack {
   canvasEdges?: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }>;
 }
 
+/** Container shape of a menu. Absent in stored data = "chest" (back-compat). */
+export type InventoryType = "chest" | "hopper" | "dropper";
+
 export interface Menu {
   id: MenuId;
   packId: PackId;
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
+  /**
+   * Container shape. Absent = "chest" everywhere (back-compat). `rows` is only
+   * meaningful for chest; hopper/dropper have fixed geometry (see INVENTORY_TYPES).
+   */
+  inventoryType?: InventoryType;
   permission?: string;
   /**
    * Internal admin notes, never rendered to players (menu/v1 `notes`).
