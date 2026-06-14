@@ -46,3 +46,42 @@ describe("validateMenuV1", () => {
     expect(validateMenuV1(m).valid).toBe(false);
   });
 });
+
+describe("validateMenuV1 inventory_type cross-validation", () => {
+  const base = {
+    schema: "menu/v1",
+    id: "m",
+    title: [],
+    layers: [
+      {
+        id: "l",
+        name: "L",
+        elements: [{ id: "e", positions: "0", appearances: [{ material: "STONE" }] }],
+      },
+    ],
+  };
+  it("accepts a chest menu with no inventory_type (back-compat)", () => {
+    expect(validateMenuV1({ ...base, size: 27 }).valid).toBe(true);
+  });
+  it("accepts inventory_type=chest with a multiple-of-9 size", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "chest", size: 54 }).valid).toBe(true);
+  });
+  it("accepts inventory_type=hopper with size 5", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "hopper", size: 5 }).valid).toBe(true);
+  });
+  it("accepts inventory_type=dropper with size 9", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "dropper", size: 9 }).valid).toBe(true);
+  });
+  it("rejects hopper with size 9 (must be 5)", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "hopper", size: 9 }).valid).toBe(false);
+  });
+  it("rejects dropper with size 5", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "dropper", size: 5 }).valid).toBe(false);
+  });
+  it("rejects chest with size 5 (5 only valid for hopper)", () => {
+    expect(validateMenuV1({ ...base, size: 5 }).valid).toBe(false);
+  });
+  it("rejects an unknown inventory_type", () => {
+    expect(validateMenuV1({ ...base, inventory_type: "furnace", size: 9 }).valid).toBe(false);
+  });
+});
