@@ -20,6 +20,7 @@ export function CanvasToolbar() {
       <button
         type="button"
         aria-pressed={mode === "select"}
+        aria-keyshortcuts="v"
         title={`${t("canvas.modeSelect")} (V)`}
         onClick={() => setMode("select")}
         className={btn(mode === "select")}
@@ -29,6 +30,7 @@ export function CanvasToolbar() {
       <button
         type="button"
         aria-pressed={mode === "hand"}
+        aria-keyshortcuts="h"
         title={`${t("canvas.modeHand")} (H)`}
         onClick={() => setMode("hand")}
         className={btn(mode === "hand")}

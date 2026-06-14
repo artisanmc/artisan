@@ -44,6 +44,31 @@ export function Stage({ packId }: StageProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
+  const canvasMode = useUiStore((s) => s.canvasMode);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null) => {
+      const n = el as HTMLElement | null;
+      const tag = n?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || !!n?.isContentEditable;
+    };
+    const down = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !isEditable(e.target)) {
+        e.preventDefault();
+        setSpaceHeld(true);
+      }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === "Space") setSpaceHeld(false);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+  const panMode = canvasMode === "hand" || spaceHeld;
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -95,13 +120,13 @@ export function Stage({ packId }: StageProps) {
           }
         }
       }
-      if (e.target === e.target.getStage()) {
+      if (!panMode && e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, packId],
+    [pack, layout, viewport, packId, panMode],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -208,6 +233,7 @@ export function Stage({ packId }: StageProps) {
     <div
       ref={wrapperRef}
       className="stage-bg-dots relative h-full w-full"
+      style={{ cursor: panMode ? "grab" : "default" }}
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
@@ -266,7 +292,7 @@ export function Stage({ packId }: StageProps) {
         y={viewport.y}
         scaleX={viewport.scale}
         scaleY={viewport.scale}
-        draggable
+        draggable={panMode}
         onWheel={onWheel}
         onClick={onStageClick}
         onTap={onStageClick}
