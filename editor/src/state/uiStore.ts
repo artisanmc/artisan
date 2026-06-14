@@ -134,6 +134,19 @@ interface UiState {
   draggingNewLayer: DraggingNewLayer | null;
   setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
   /**
+   * Left workspace panel (WorkspacePanel) visible? Persisted — the user's
+   * choice survives reloads.
+   */
+  workspacePanelOpen: boolean;
+  setWorkspacePanelOpen: (open: boolean) => void;
+  toggleWorkspacePanel: () => void;
+  /**
+   * Cmd+K search palette open? Transient session state: deliberately NOT
+   * persisted (see partialize).
+   */
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
+  /**
    * AI assistant overlay — whether the right-side chat Sheet is open.
    * Transient session state: deliberately NOT persisted (see partialize).
    */
@@ -283,6 +296,11 @@ export const useUiStore = create<UiState>()(
         }),
       draggingNewLayer: null,
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
+      workspacePanelOpen: true,
+      setWorkspacePanelOpen: (open) => set({ workspacePanelOpen: open }),
+      toggleWorkspacePanel: () => set((s) => ({ workspacePanelOpen: !s.workspacePanelOpen })),
+      searchOpen: false,
+      setSearchOpen: (open) => set({ searchOpen: open }),
       assistantPanelOpen: false,
       setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
       assistantPaneWidth: 380,
@@ -303,6 +321,7 @@ export const useUiStore = create<UiState>()(
         editorPaneWidth: state.editorPaneWidth,
         assistantPaneWidth: state.assistantPaneWidth,
         editorTab: state.editorTab,
+        workspacePanelOpen: state.workspacePanelOpen,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
       // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push
