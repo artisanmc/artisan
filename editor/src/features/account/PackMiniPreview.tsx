@@ -24,7 +24,7 @@ export function PackMiniPreview({ pack }: PackMiniPreviewProps) {
   const boxes = [
     ...(pack.menus ?? []).map((m) => ({
       pos: layout[m.id] ?? { x: 0, y: 0 },
-      size: menuBoxSize(m.rows),
+      size: menuBoxSize(m.inventoryType ?? "chest", m.rows),
       kind: "menu" as const,
     })),
     ...(pack.commands ?? []).map((c) => ({
