@@ -178,6 +178,20 @@ Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchO
 
 Le `WorkspacePanel` vit dans un **drawer gauche** (`Sheet`, `side="left"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
 
+## Recherche (palette Cmd+K) + panneau toggleable (depuis 2026-06-14)
+
+Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
+
+### Module de recherche (`editor/src/features/search/`)
+
+- **`searchIndex.ts`** — `buildSearchIndex(pack, lang) → SearchEntry[]` : index plat couvrant les noms de menus/commandes/dialogs, les matériaux des items de menu, et les textes i18n (titres/lores d'items, corps/labels de boutons de dialogs). Chaque `SearchEntry` porte un contexte structuré `{ key, owner }` (clé de traduction i18n + id du propriétaire) traduit dans la palette via `t()` — aucune string en dur. `searchQuery(entries, query)` filtre et ranke ; `groupResultsForDisplay(results)` regroupe par catégorie pour l'affichage.
+- **`SearchPalette.tsx`** — overlay combobox/listbox (conforme a11y). Navigation clavier ↑/↓/Enter/Esc. Sur sélection : navigue vers la vue individuelle de l'élément (`…/element/$elementId`) ; pour les matches d'items de menu, sous-sélectionne le slot correspondant. Ouverte via `useGlobalSearchShortcut` **ou** le bouton 🔍 de la topbar.
+- **`useGlobalSearchShortcut.ts`** — écoute Cmd+K (Mac) / Ctrl+K (Windows/Linux) ; ignore Shift. Monte/démonte le listener de façon propre.
+
+### Panneau toggleable
+
+`uiStore.workspacePanelOpen` (booléen, **persisté** via `partialize`) contrôle la visibilité du `WorkspacePanel` sur desktop. Le bouton « Éléments » dans la topbar (`PanelLeftClose`/`PanelLeftOpen`, icône lucide-react, desktop-only) bascule cet état. En desktop (≥lg), la colonne de 240 px est rendue conditionnellement selon `workspacePanelOpen`. En mobile (<lg), le panneau reste dans son **drawer Sheet** gauche, indépendant du toggle. La barre de recherche inline qui existait dans le `WorkspacePanel` a été **supprimée** — la palette Cmd+K la remplace intégralement.
+
 ## UI shell — Workspace + Settings (depuis 2026-05-27)
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
