@@ -53,6 +53,7 @@ data class MenuYaml(
      */
     val title: Any? = null,
     val size: Int = 27,
+    @JsonProperty("inventory_type") val inventoryType: String = "chest",
     val permission: String? = null,
     @JsonProperty("context_inputs") val contextInputs: List<ContextInputYaml> = emptyList(),
     val layers: List<LayerYaml> = emptyList(),

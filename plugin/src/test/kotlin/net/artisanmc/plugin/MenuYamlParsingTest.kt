@@ -86,4 +86,43 @@ class MenuYamlParsingTest {
         assertTrue(menu.contextInputs.isEmpty())
         assertNull(menu.layers[0].elements[0].iterates)
     }
+
+    @Test
+    fun `parses inventory_type, defaulting to chest`() {
+        val hopper = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: h
+            title: []
+            inventory_type: hopper
+            size: 5
+            layers:
+              - id: l
+                name: L
+                elements:
+                  - id: e
+                    positions: "0"
+                    appearances:
+                      - material: STONE
+            """.trimIndent(),
+        )
+        assertEquals("hopper", hopper.inventoryType)
+
+        val chest = mapper.readValue<MenuYaml>(
+            """
+            schema: menu/v1
+            id: c
+            size: 9
+            layers:
+              - id: l
+                name: L
+                elements:
+                  - id: e
+                    positions: "0"
+                    appearances:
+                      - material: STONE
+            """.trimIndent(),
+        )
+        assertEquals("chest", chest.inventoryType)
+    }
 }
