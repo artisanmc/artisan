@@ -753,6 +753,7 @@ export default {
       cssUtilities: "CSS utility classes",
       primitives: "React primitives (components/ui)",
       appComponents: "Shared app components",
+      searchPalette: "Search palette (Cmd+K)",
     },
     groups: {
       surfaces: "Surfaces",
@@ -768,6 +769,8 @@ export default {
       confirm: "Confirm",
       sheetTitle: "Sheet title",
       sheetBody: "Side sheet body — used for mobile drawers and detail panels.",
+      openSearch: "Open search palette",
+      searchHint: "Command-palette overlay — reads uiStore.searchOpen, grouped results, keyboard nav.",
     },
   },
   networksPage: {
@@ -1165,5 +1168,19 @@ export default {
     attachFiles: "Attach files",
     attachRemove: "Remove {{name}}",
     sentFiles: "Sent files: {{names}}",
+  },
+  search: {
+    placeholder: "Search menus, commands, items, text…",
+    open: "Search",
+    empty: "No results",
+    groupMenu: "Menus",
+    groupCommand: "Commands",
+    groupDialog: "Dialogs",
+    groupContent: "Content",
+    ctxInMenu: "in {{owner}}",
+    ctxItemTitle: "title · {{owner}}",
+    ctxItemLore: "lore · {{owner}}",
+    ctxDialogBody: "dialog · {{owner}}",
+    ctxDialogButton: "button · {{owner}}",
   },
 };

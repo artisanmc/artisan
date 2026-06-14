@@ -763,6 +763,7 @@ const fr: typeof en = {
       cssUtilities: "Classes utilitaires CSS",
       primitives: "Primitives React (components/ui)",
       appComponents: "Composants partagés de l'app",
+      searchPalette: "Palette de recherche (Cmd+K)",
     },
     groups: {
       surfaces: "Surfaces",
@@ -778,6 +779,8 @@ const fr: typeof en = {
       confirm: "Confirmer",
       sheetTitle: "Titre du sheet",
       sheetBody: "Corps du sheet latéral — utilisé pour les drawers mobile et panneaux de détail.",
+      openSearch: "Ouvrir la palette de recherche",
+      searchHint: "Overlay command-palette — lit uiStore.searchOpen, résultats groupés, navigation clavier.",
     },
   },
   networksPage: {
@@ -1176,6 +1179,20 @@ const fr: typeof en = {
     attachFiles: "Joindre des fichiers",
     attachRemove: "Retirer {{name}}",
     sentFiles: "Fichiers envoyés : {{names}}",
+  },
+  search: {
+    placeholder: "Rechercher menus, commandes, items, texte…",
+    open: "Rechercher",
+    empty: "Aucun résultat",
+    groupMenu: "Menus",
+    groupCommand: "Commandes",
+    groupDialog: "Dialogs",
+    groupContent: "Contenu",
+    ctxInMenu: "dans {{owner}}",
+    ctxItemTitle: "titre · {{owner}}",
+    ctxItemLore: "lore · {{owner}}",
+    ctxDialogBody: "dialog · {{owner}}",
+    ctxDialogButton: "bouton · {{owner}}",
   },
 };
 export default fr;
