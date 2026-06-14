@@ -14,7 +14,7 @@ export interface InventoryGeometry {
   firstSlotY: number;
   /** Full GUI box height in MC pixels. `null` = computed from rows (chest). */
   boxHeight: number | null;
-  /** Editor background texture key (see TEXTURE_URLS in menuLayout). */
+  /** Editor background texture key (resolved to a URL via TEXTURE_URLS in menuLayout, added later). */
   textureKey: "generic_54" | "hopper" | "dispenser";
   /** Bukkit InventoryType name used by the plugin. */
   bukkitType: "CHEST" | "HOPPER" | "DROPPER";
@@ -22,9 +22,33 @@ export interface InventoryGeometry {
 
 /** Single source of truth for every type-specific geometry attribute. */
 export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
-  chest:   { cols: 9, rows: null, firstSlotX: 7,  firstSlotY: 17, boxHeight: null, textureKey: "generic_54", bukkitType: "CHEST" },
-  hopper:  { cols: 5, rows: 1,    firstSlotX: 44, firstSlotY: 20, boxHeight: 133,  textureKey: "hopper",     bukkitType: "HOPPER" },
-  dropper: { cols: 3, rows: 3,    firstSlotX: 62, firstSlotY: 17, boxHeight: 166,  textureKey: "dispenser",  bukkitType: "DROPPER" },
+  chest: {
+    cols: 9,
+    rows: null,
+    firstSlotX: 7,
+    firstSlotY: 17,
+    boxHeight: null,
+    textureKey: "generic_54",
+    bukkitType: "CHEST",
+  },
+  hopper: {
+    cols: 5,
+    rows: 1,
+    firstSlotX: 44,
+    firstSlotY: 20,
+    boxHeight: 133,
+    textureKey: "hopper",
+    bukkitType: "HOPPER",
+  },
+  dropper: {
+    cols: 3,
+    rows: 3,
+    firstSlotX: 62,
+    firstSlotY: 17,
+    boxHeight: 166,
+    textureKey: "dispenser",
+    bukkitType: "DROPPER",
+  },
 };
 
 export const colsFor = (type: InventoryType): number => INVENTORY_TYPES[type].cols;
