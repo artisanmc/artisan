@@ -93,10 +93,20 @@ export function Stage({ packId }: StageProps) {
 
   const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
 
+  const marquee = useMarqueeSelection({
+    stageRef,
+    viewport,
+    pack,
+    layout,
+    active: canvasMode === "select" && !spaceHeld,
+  });
+
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
   // Also: if a material is "armed" from the Library (touch placement flow),
   // a click on a slot places it. Hit-test in world coords.
+  // suppressClick: if a marquee drag just completed, the follow-up stage click
+  // must not clear the selection the marquee just made.
   const onStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const armed = useUiStore.getState().armedMaterial;
@@ -121,13 +131,14 @@ export function Stage({ packId }: StageProps) {
           }
         }
       }
-      if (!panMode && e.target === e.target.getStage()) {
+      const suppressed = marquee.shouldConsumeClick();
+      if (!panMode && !suppressed && e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, packId, panMode],
+    [pack, layout, viewport, packId, panMode, marquee.shouldConsumeClick],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -214,14 +225,6 @@ export function Stage({ packId }: StageProps) {
   useCanvasKeyboard({
     packId,
     onError: (msg) => toast.error(msg),
-  });
-
-  const marquee = useMarqueeSelection({
-    stageRef,
-    viewport,
-    pack,
-    layout,
-    active: canvasMode === "select" && !spaceHeld,
   });
 
   const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
