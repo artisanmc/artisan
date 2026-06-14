@@ -452,6 +452,8 @@ export default {
     newCommandDialogTitle: "New command",
     cancel: "Cancel",
     create: "Create",
+    modeSelect: "Select",
+    modeHand: "Pan",
   },
   dialog: {
     idLabel: "id",
