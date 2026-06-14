@@ -31,7 +31,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
-import { Redo2, Sparkles, Undo2 } from "lucide-react";
+import { Redo2, Search, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -93,6 +93,7 @@ export function WorkspaceTopBarControls({
       />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
+      <SearchButton />
       <AssistantButton />
       <DeployButtons pack={pack} packId={packId} networkId={networkId ?? null} />
       <TopBarKebabMenu
@@ -259,6 +260,21 @@ function AssistantButton() {
   return (
     <TopBarIconButton title={t("assistant.open")} onClick={() => setOpen(!open)}>
       <Sparkles className="h-4 w-4" />
+    </TopBarIconButton>
+  );
+}
+
+/**
+ * Top-bar search button. Opens the search palette (Cmd/Ctrl+K).
+ */
+function SearchButton() {
+  const { t } = useTranslation();
+  return (
+    <TopBarIconButton
+      title={`${t("search.open")} (⌘K)`}
+      onClick={() => useUiStore.getState().setSearchOpen(true)}
+    >
+      <Search className="size-[18px]" />
     </TopBarIconButton>
   );
 }

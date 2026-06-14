@@ -17,6 +17,8 @@ import {
 } from "@/features/account/packFileIo";
 import { AssistantPane } from "@/features/assistant/AssistantPane";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import { SearchPalette } from "@/features/search/SearchPalette";
+import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { screenToWorld } from "@/features/canvas/hitTest";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
@@ -120,6 +122,8 @@ export function PackCanvasPage() {
   // Hooks must come before any conditional return — keep here, near the other
   // routing hooks, so React's call order stays stable across re-renders.
   const childMatches = useChildMatches();
+
+  useGlobalSearchShortcut();
 
   // networkId comes directly from the URL param — no lazy fetch needed.
 
@@ -516,6 +520,9 @@ export function PackCanvasPage() {
           right pane above (<AssistantPane/>); this Sheet self-gates on
           !isDesktop so the two presentations never show at once. */}
       <AssistantPanel packId={pId} />
+
+      {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
+      <SearchPalette packId={pId} />
     </DndContext>
   );
 }
