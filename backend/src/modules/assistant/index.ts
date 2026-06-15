@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { BackendModule } from "../api/types";
+import type { BackendModule } from "@artisan/backend-sdk";
 import { buildAssistantRouter } from "./routes";
 
 export const assistantModule: BackendModule = {

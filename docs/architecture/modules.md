@@ -128,6 +128,8 @@ export interface BackendModule {
 }
 ```
 
+> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
+
 ### 3.3 Plugin Paper : architecture multi-plugins
 
 **Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par module business**. Côté serveur l'admin install ce dont il a besoin :

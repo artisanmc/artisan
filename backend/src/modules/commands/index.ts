@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { BackendModule } from "../api/types";
+import type { BackendModule } from "@artisan/backend-sdk";
 
 function buildCommandsSubrouter(): Hono {
   const sub = new Hono();
