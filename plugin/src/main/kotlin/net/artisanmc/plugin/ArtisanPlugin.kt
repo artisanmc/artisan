@@ -78,6 +78,7 @@ open class ArtisanPlugin : JavaPlugin() {
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
+            installedModules = modules.map { mapOf("id" to it.id, "version" to description.version) },
         )
         // Inject before load() so the initial hello includes the correct custom_items_hash.
         // Nexo/Oraxen fire their "items loaded" events before Artisan enables (softdepend order),
@@ -232,6 +233,7 @@ open class ArtisanPlugin : JavaPlugin() {
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
+            installedModules = modules.map { mapOf("id" to it.id, "version" to description.version) },
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(

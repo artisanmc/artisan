@@ -13,6 +13,7 @@ class WsClient(
     private val currentBundleHash: String = "",
     private val localPackIds: List<String> = emptyList(),
     private val customItemsHash: String = "",
+    private val installedModules: List<Map<String, String>> = emptyList(),
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
 ) {
@@ -56,6 +57,7 @@ class WsClient(
                 "current_bundle_hash" to currentBundleHash,
                 "local_pack_ids" to localPackIds,
                 "custom_items_hash" to customItemsHash.ifEmpty { null },
+                "installed_modules" to installedModules,
             )
             ws.send(mapper.writeValueAsString(hello))
         }
