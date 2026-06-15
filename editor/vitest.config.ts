@@ -12,6 +12,9 @@ export default defineConfig({
     execArgv: ["--no-webstorage"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@artisan/editor-sdk": path.resolve(__dirname, "./src/sdk/index.ts"),
+    },
   },
 });

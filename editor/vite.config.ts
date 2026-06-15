@@ -9,7 +9,10 @@ const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 export default defineConfig({
   plugins: [TanStackRouterVite(), react(), tailwindcss()],
   resolve: {
-    alias: { "@": srcDir },
+    alias: {
+      "@": srcDir,
+      "@artisan/editor-sdk": fileURLToPath(new URL("./src/sdk/index.ts", import.meta.url)),
+    },
   },
   server: {
     watch: {
