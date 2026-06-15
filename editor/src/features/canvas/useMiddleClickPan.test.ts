@@ -17,18 +17,22 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function down(target: Element, button: number, clientX: number, clientY: number) {
-  const e = new MouseEvent("mousedown", { button, clientX, clientY, cancelable: true, bubbles: true });
-  target.dispatchEvent(e);
+// PointerEvent isn't constructible in jsdom; a MouseEvent on a pointer-type
+// carries button/clientX/clientY, which is all the hook reads.
+function pdown(target: Element, button: number, clientX: number, clientY: number) {
+  const e = new MouseEvent("pointerdown", { button, clientX, clientY, cancelable: true, bubbles: true });
+  act(() => {
+    target.dispatchEvent(e);
+  });
   return e;
 }
 
 describe("useMiddleClickPan", () => {
   it("ignores non-middle buttons", () => {
     const { child, setViewport, result } = setup();
-    const e = down(child, 0, 10, 10);
+    const e = pdown(child, 0, 10, 10);
     expect(e.defaultPrevented).toBe(false);
-    expect(result.current.isPanning()).toBe(false);
+    expect(result.current.panning).toBe(false);
     expect(setViewport).not.toHaveBeenCalled();
   });
 
@@ -36,30 +40,30 @@ describe("useMiddleClickPan", () => {
     const { result } = setup();
     const outside = document.createElement("div");
     document.body.appendChild(outside);
-    const e = down(outside, 1, 5, 5);
+    const e = pdown(outside, 1, 5, 5);
     expect(e.defaultPrevented).toBe(false);
-    expect(result.current.isPanning()).toBe(false);
+    expect(result.current.panning).toBe(false);
   });
 
   it("middle-drag inside the canvas pans by the screen delta (preventing autoscroll)", () => {
     const { child, setViewport, result } = setup({ x: 100, y: 50, scale: 2 });
-    const e = down(child, 1, 200, 200);
+    const e = pdown(child, 1, 200, 200);
     expect(e.defaultPrevented).toBe(true);
-    expect(result.current.isPanning()).toBe(true);
+    expect(result.current.panning).toBe(true);
 
-    act(() => window.dispatchEvent(new MouseEvent("mousemove", { clientX: 230, clientY: 180 })));
+    act(() => window.dispatchEvent(new MouseEvent("pointermove", { clientX: 230, clientY: 180 })));
     // delta = (+30, -20); scale preserved.
     expect(setViewport).toHaveBeenLastCalledWith({ x: 130, y: 30, scale: 2 });
 
-    act(() => window.dispatchEvent(new MouseEvent("mouseup")));
-    expect(result.current.isPanning()).toBe(false);
+    act(() => window.dispatchEvent(new MouseEvent("pointerup")));
+    expect(result.current.panning).toBe(false);
   });
 
   it("stops panning on window blur", () => {
     const { child, result } = setup();
-    down(child, 1, 0, 0);
-    expect(result.current.isPanning()).toBe(true);
+    pdown(child, 1, 0, 0);
+    expect(result.current.panning).toBe(true);
     act(() => window.dispatchEvent(new Event("blur")));
-    expect(result.current.isPanning()).toBe(false);
+    expect(result.current.panning).toBe(false);
   });
 });

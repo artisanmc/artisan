@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Viewport {
   x: number;
@@ -16,59 +16,91 @@ interface Args {
 /**
  * Middle-mouse-button panning, independent of the canvas mode.
  *
- * Bound as a CAPTURE-phase `mousedown` on `document`: the capture phase runs
- * top-down (document → … → canvas) so we see the event before Konva's own
- * handlers on the stage canvas — neither Konva nor anything else can swallow it
- * by stopping propagation, and `preventDefault` here reliably kills the browser
- * autoscroll. The pan is a raw screen-delta on `viewport`, bypassing Konva's
- * drag entirely, so it works the same over empty space or over a node.
+ * Uses CAPTURE-phase Pointer Events on `document`: the middle button's
+ * `mousedown` can be swallowed before reaching the page (browser autoscroll /
+ * mouse-driver software), but `pointerdown` still fires. Capture phase runs
+ * top-down so we beat Konva's own handlers, `preventDefault` suppresses
+ * autoscroll, and `setPointerCapture` guarantees we keep receiving
+ * `pointermove` for the duration. The pan is a raw screen-delta on `viewport`,
+ * bypassing Konva's drag, so it works over empty space or over a node alike.
+ *
+ * Returns `panning` (reactive) so the canvas can show a closed-hand cursor.
  */
 export function useMiddleClickPan({ containerRef, viewport, setViewport }: Args) {
   // Latest viewport in a ref so the listeners read fresh values without
   // re-binding on every pan tick.
   const vpRef = useRef(viewport);
   vpRef.current = viewport;
-  const panRef = useRef<{ startX: number; startY: number; vx: number; vy: number } | null>(null);
+  const panRef = useRef<{
+    startX: number;
+    startY: number;
+    vx: number;
+    vy: number;
+    pointerId: number;
+    captureEl: Element | null;
+  } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       if (e.button !== 1) return; // middle button only
-      // Only when the press is inside the canvas wrapper. Checked at event time
-      // (not bind time) so a not-yet-mounted ref doesn't disable the feature.
       const el = containerRef.current;
       if (!el || !(e.target instanceof Node) || !el.contains(e.target)) return;
-      e.preventDefault(); // suppress autoscroll
+      e.preventDefault();
+      let captureEl: Element | null = null;
+      if (e.target instanceof Element) {
+        try {
+          e.target.setPointerCapture(e.pointerId);
+          captureEl = e.target;
+        } catch {
+          /* capture is best-effort */
+        }
+      }
       panRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         vx: vpRef.current.x,
         vy: vpRef.current.y,
+        pointerId: e.pointerId,
+        captureEl,
       };
+      setPanning(true);
     };
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const s = panRef.current;
-      if (!s) return;
+      if (!s || e.pointerId !== s.pointerId) return;
       setViewport({
         x: s.vx + (e.clientX - s.startX),
         y: s.vy + (e.clientY - s.startY),
         scale: vpRef.current.scale,
       });
     };
-    const onUp = () => {
+    const onUp = (e?: PointerEvent) => {
+      const s = panRef.current;
+      if (s?.captureEl && e) {
+        try {
+          s.captureEl.releasePointerCapture(s.pointerId);
+        } catch {
+          /* already released */
+        }
+      }
       panRef.current = null;
+      setPanning(false);
     };
-    document.addEventListener("mousedown", onDown, true);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("blur", onUp);
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    const onBlur = () => onUp();
+    window.addEventListener("blur", onBlur);
     return () => {
-      document.removeEventListener("mousedown", onDown, true);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("blur", onUp);
+      document.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, [containerRef, setViewport]);
 
-  const isPanning = useCallback(() => panRef.current !== null, []);
-  return { isPanning };
+  return { panning };
 }
