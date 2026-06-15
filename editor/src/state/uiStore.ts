@@ -155,7 +155,7 @@ interface UiState {
   /** Width (px) of the AI assistant pane when docked on the right (desktop). */
   assistantPaneWidth: number;
   setAssistantPaneWidth: (w: number) => void;
-  /** Mode d'interaction du canvas : sélection (clic + marquee) ou main (pan). Persisté. */
+  /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
 }
@@ -308,11 +308,22 @@ export const useUiStore = create<UiState>()(
       setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
       assistantPaneWidth: 380,
       setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
-      canvasMode: "select",
+      canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
     }),
     {
       name: "artisan:ui",
+      // Bump when a persisted default flips so existing users pick it up once.
+      // v1: canvasMode default changed select → hand; drop the old persisted
+      // value so the new default applies (then future toggles persist again).
+      version: 1,
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<UiState>;
+        // delete (not set undefined) so merge's {...current, ...p} keeps the
+        // new default rather than spreading an explicit undefined over it.
+        if (version < 1) delete p.canvasMode;
+        return p;
+      },
       // armedMaterial is session state; don't persist it.
       // Title-composer v3 fields (selectedLayerKey, hiddenLayerKeys,
       // draggingNewLayer, selectedMenuId, lastSelectedMenuId) are all
