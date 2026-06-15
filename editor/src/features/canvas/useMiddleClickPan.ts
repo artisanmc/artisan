@@ -1,4 +1,3 @@
-import type React from "react";
 import { useCallback, useEffect, useRef } from "react";
 
 interface Viewport {
@@ -8,26 +7,44 @@ interface Viewport {
 }
 
 interface Args {
+  /** The canvas wrapper element; middle-clicks inside it start a pan. */
+  containerRef: React.RefObject<HTMLElement | null>;
   viewport: Viewport;
   setViewport: (v: Viewport) => void;
 }
 
 /**
- * Middle-mouse-button panning, independent of the canvas mode. Returns an
- * `onMouseDown` to attach to the canvas wrapper div (React DOM event — always
- * bound when the div renders, and `preventDefault` there reliably suppresses
- * the browser autoscroll affordance). Panning itself is a raw screen-delta on
- * `viewport`, bypassing Konva's drag entirely — so it works the same over empty
- * space or over a node and never competes with node-drag / marquee.
+ * Middle-mouse-button panning, independent of the canvas mode.
+ *
+ * Bound as a CAPTURE-phase `mousedown` on `document`: the capture phase runs
+ * top-down (document → … → canvas) so we see the event before Konva's own
+ * handlers on the stage canvas — neither Konva nor anything else can swallow it
+ * by stopping propagation, and `preventDefault` here reliably kills the browser
+ * autoscroll. The pan is a raw screen-delta on `viewport`, bypassing Konva's
+ * drag entirely, so it works the same over empty space or over a node.
  */
-export function useMiddleClickPan({ viewport, setViewport }: Args) {
-  // Latest viewport in a ref so the window listeners read fresh values without
+export function useMiddleClickPan({ containerRef, viewport, setViewport }: Args) {
+  // Latest viewport in a ref so the listeners read fresh values without
   // re-binding on every pan tick.
   const vpRef = useRef(viewport);
   vpRef.current = viewport;
   const panRef = useRef<{ startX: number; startY: number; vx: number; vy: number } | null>(null);
 
   useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 1) return; // middle button only
+      // Only when the press is inside the canvas wrapper. Checked at event time
+      // (not bind time) so a not-yet-mounted ref doesn't disable the feature.
+      const el = containerRef.current;
+      if (!el || !(e.target instanceof Node) || !el.contains(e.target)) return;
+      e.preventDefault(); // suppress autoscroll
+      panRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        vx: vpRef.current.x,
+        vy: vpRef.current.y,
+      };
+    };
     const onMove = (e: MouseEvent) => {
       const s = panRef.current;
       if (!s) return;
@@ -40,27 +57,18 @@ export function useMiddleClickPan({ viewport, setViewport }: Args) {
     const onUp = () => {
       panRef.current = null;
     };
+    document.addEventListener("mousedown", onDown, true);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     window.addEventListener("blur", onUp);
     return () => {
+      document.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("blur", onUp);
     };
-  }, [setViewport]);
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 1) return; // middle button only
-    e.preventDefault(); // suppress autoscroll
-    panRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      vx: vpRef.current.x,
-      vy: vpRef.current.y,
-    };
-  }, []);
+  }, [containerRef, setViewport]);
 
   const isPanning = useCallback(() => panRef.current !== null, []);
-  return { onMouseDown, isPanning };
+  return { isPanning };
 }
