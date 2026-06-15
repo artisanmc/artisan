@@ -116,8 +116,8 @@ export function Stage({ packId }: StageProps) {
     active: canvasMode === "select" && !spaceHeld && !altHeld,
   });
 
-  // Middle-button pans regardless of mode/target (onMouseDown on the wrapper).
-  const middlePan = useMiddleClickPan({ viewport, setViewport });
+  // Middle-button pans regardless of mode/target (document capture listener).
+  useMiddleClickPan({ containerRef: wrapperRef, viewport, setViewport });
 
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
@@ -267,7 +267,6 @@ export function Stage({ packId }: StageProps) {
       ref={wrapperRef}
       className="stage-bg-dots relative h-full w-full"
       style={{ cursor: panMode ? "grab" : "default" }}
-      onMouseDown={middlePan.onMouseDown}
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
