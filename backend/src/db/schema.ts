@@ -5,6 +5,7 @@ import {
 	integer,
 	jsonb,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -75,6 +76,24 @@ export const serverKeyHelloes = pgTable(
 	(t) => [
 		index("server_key_helloes_key_time_idx").on(t.serverKeyId, t.helloAt),
 	],
+);
+
+// Active module set per server, reported by the plugin at every `hello`
+// (`installed_modules`). The editor reads this to decide which modules to
+// mount — a module appears because its plugin is installed on the server.
+// Presence only: removing a row hides the module's UI; authored content is
+// never touched. Cf. docs/superpowers/specs/2026-06-15-modules-architecture-design.md §8.
+export const serverModules = pgTable(
+	"server_modules",
+	{
+		serverKeyId: text("server_key_id")
+			.notNull()
+			.references(() => serverKeys.id, { onDelete: "cascade" }),
+		moduleId: text("module_id").notNull(),
+		version: text("version"),
+		lastSeen: timestamp("last_seen").notNull(),
+	},
+	(t) => [primaryKey({ columns: [t.serverKeyId, t.moduleId] })],
 );
 
 export const linkCodes = pgTable("link_codes", {
