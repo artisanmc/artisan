@@ -31,6 +31,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -437,6 +438,22 @@ export function DesignSystemPage() {
             <Button variant="outline" onClick={() => useUiStore.getState().setSearchOpen(true)}>
               <Search className="size-[15px]" /> {t("adminDesign.demo.openSearch")}
             </Button>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Canvas toolbar ────────────────────────────────────────────── */}
+      <Section id="canvas-toolbar" title={t("adminDesign.sections.canvasToolbar")}>
+        <div className="card flex flex-col gap-4 p-5">
+          <span className="mono text-[11px] text-[var(--text-faint)]">{"<CanvasToolbar>"}</span>
+          <span className="text-[12px] text-[var(--text-mut)]">
+            Bottom-center DOM toolbar (absolute, z-20). Two mode buttons (Select / Pan), active
+            state via --brand-soft. Hotkeys: <kbd className="mono text-[11px]">V</kbd> /{" "}
+            <kbd className="mono text-[11px]">H</kbd> / Space-hold (temporary pan).
+          </span>
+          {/* Live render in a relative container to avoid absolute positioning overflow */}
+          <div className="relative h-16 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]">
+            <CanvasToolbar />
           </div>
         </div>
       </Section>
