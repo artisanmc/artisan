@@ -5,8 +5,13 @@ import { useHoverStore } from "@/state/hoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
-import type Konva from "konva";
+import Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// Only the primary (left) button drags Konva nodes / the stage. This frees the
+// middle button for panning (handled manually via useMiddleClickPan) without it
+// accidentally starting a node drag when pressed over a menu.
+Konva.dragButtons = [0];
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
@@ -32,6 +37,7 @@ import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useMarqueeSelection } from "./useMarqueeSelection";
+import { useMiddleClickPan } from "./useMiddleClickPan";
 import { usePanZoom } from "./usePanZoom";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
@@ -49,6 +55,10 @@ export function Stage({ packId }: StageProps) {
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
   const canvasMode = useUiStore((s) => s.canvasMode);
   const [spaceHeld, setSpaceHeld] = useState(false);
+  // Alt held = temporary pan (like Space), so you can navigate without leaving
+  // select mode. Alt during a *node* drag still means "free move / no snap"
+  // (useNodeAlignment) — different target, no conflict.
+  const [altHeld, setAltHeld] = useState(false);
   useEffect(() => {
     const isEditable = (el: EventTarget | null) => {
       const n = el as HTMLElement | null;
@@ -58,9 +68,13 @@ export function Stage({ packId }: StageProps) {
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (e.code === "Space" && !isEditable(e.target)) { e.preventDefault(); setSpaceHeld(true); }
+      if (e.key === "Alt" && !isEditable(e.target)) { e.preventDefault(); setAltHeld(true); }
     };
-    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpaceHeld(false); };
-    const onBlur = () => setSpaceHeld(false);
+    const up = (e: KeyboardEvent) => {
+      if (e.code === "Space") setSpaceHeld(false);
+      if (e.key === "Alt") setAltHeld(false);
+    };
+    const onBlur = () => { setSpaceHeld(false); setAltHeld(false); };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", onBlur);
@@ -70,7 +84,7 @@ export function Stage({ packId }: StageProps) {
       window.removeEventListener("blur", onBlur);
     };
   }, []);
-  const panMode = canvasMode === "hand" || spaceHeld;
+  const panMode = canvasMode === "hand" || spaceHeld || altHeld;
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -99,8 +113,11 @@ export function Stage({ packId }: StageProps) {
     viewport,
     pack,
     layout,
-    active: canvasMode === "select" && !spaceHeld,
+    active: canvasMode === "select" && !spaceHeld && !altHeld,
   });
+
+  // Middle-button pans regardless of mode/target (bound to the wrapper element).
+  useMiddleClickPan({ containerRef: wrapperRef, viewport, setViewport });
 
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
@@ -132,14 +149,17 @@ export function Stage({ packId }: StageProps) {
           }
         }
       }
+      // Click (not drag) on empty space clears the selection — in every mode,
+      // including hand/space/alt pan (a real pan fires dragend, not click, so it
+      // won't clear). suppressed = a marquee drag just finished.
       const suppressed = marquee.shouldConsumeClick();
-      if (!panMode && !suppressed && e.target === e.target.getStage()) {
+      if (!suppressed && e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, packId, panMode, marquee.shouldConsumeClick],
+    [pack, layout, viewport, packId, marquee.shouldConsumeClick],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
