@@ -1,38 +1,36 @@
 import { act, renderHook } from "@testing-library/react";
+import type React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useMiddleClickPan } from "./useMiddleClickPan";
 
-function setup(viewport = { x: 0, y: 0, scale: 1 }) {
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const containerRef = { current: el } as React.RefObject<HTMLElement | null>;
-  const setViewport = vi.fn();
-  const { result, rerender } = renderHook(
-    (vp: typeof viewport) => useMiddleClickPan({ containerRef, viewport: vp, setViewport }),
-    { initialProps: viewport },
-  );
-  return { el, setViewport, result, rerender };
-}
-
-function mousedown(el: HTMLElement, button: number, clientX: number, clientY: number) {
-  const e = new MouseEvent("mousedown", { button, clientX, clientY, cancelable: true, bubbles: true });
-  el.dispatchEvent(e);
-  return e;
+function mdEvent(button: number, clientX: number, clientY: number) {
+  const preventDefault = vi.fn();
+  return {
+    event: { button, clientX, clientY, preventDefault } as unknown as React.MouseEvent,
+    preventDefault,
+  };
 }
 
 describe("useMiddleClickPan", () => {
   it("ignores non-middle buttons", () => {
-    const { el, setViewport, result } = setup();
-    const e = mousedown(el, 0, 10, 10);
-    expect(e.defaultPrevented).toBe(false);
+    const setViewport = vi.fn();
+    const { result } = renderHook(() =>
+      useMiddleClickPan({ viewport: { x: 0, y: 0, scale: 1 }, setViewport }),
+    );
+    const left = mdEvent(0, 10, 10);
+    act(() => result.current.onMouseDown(left.event));
+    expect(left.preventDefault).not.toHaveBeenCalled();
     expect(result.current.isPanning()).toBe(false);
-    expect(setViewport).not.toHaveBeenCalled();
   });
 
   it("middle-drag pans the viewport by the screen delta (preventing autoscroll)", () => {
-    const { el, setViewport, result } = setup({ x: 100, y: 50, scale: 2 });
-    const e = mousedown(el, 1, 200, 200);
-    expect(e.defaultPrevented).toBe(true);
+    const setViewport = vi.fn();
+    const { result } = renderHook(() =>
+      useMiddleClickPan({ viewport: { x: 100, y: 50, scale: 2 }, setViewport }),
+    );
+    const mid = mdEvent(1, 200, 200);
+    act(() => result.current.onMouseDown(mid.event));
+    expect(mid.preventDefault).toHaveBeenCalled();
     expect(result.current.isPanning()).toBe(true);
 
     act(() => window.dispatchEvent(new MouseEvent("mousemove", { clientX: 230, clientY: 180 })));
@@ -44,8 +42,11 @@ describe("useMiddleClickPan", () => {
   });
 
   it("stops panning on window blur", () => {
-    const { el, result } = setup();
-    mousedown(el, 1, 0, 0);
+    const setViewport = vi.fn();
+    const { result } = renderHook(() =>
+      useMiddleClickPan({ viewport: { x: 0, y: 0, scale: 1 }, setViewport }),
+    );
+    act(() => result.current.onMouseDown(mdEvent(1, 0, 0).event));
     expect(result.current.isPanning()).toBe(true);
     act(() => window.dispatchEvent(new Event("blur")));
     expect(result.current.isPanning()).toBe(false);
