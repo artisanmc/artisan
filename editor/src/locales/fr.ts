@@ -467,6 +467,8 @@ const fr: typeof en = {
     newCommandDialogTitle: "Nouvelle commande",
     cancel: "Annuler",
     create: "Créer",
+    modeSelect: "Sélection",
+    modeHand: "Navigation",
   },
   dialog: {
     idLabel: "id",
@@ -769,6 +771,7 @@ const fr: typeof en = {
       primitives: "Primitives React (components/ui)",
       appComponents: "Composants partagés de l'app",
       searchPalette: "Palette de recherche (Cmd+K)",
+      canvasToolbar: "Toolbar canvas (sélecteur de mode)",
     },
     groups: {
       surfaces: "Surfaces",

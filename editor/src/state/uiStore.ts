@@ -155,6 +155,9 @@ interface UiState {
   /** Width (px) of the AI assistant pane when docked on the right (desktop). */
   assistantPaneWidth: number;
   setAssistantPaneWidth: (w: number) => void;
+  /** Mode d'interaction du canvas : sélection (clic + marquee) ou main (pan). Persisté. */
+  canvasMode: "select" | "hand";
+  setCanvasMode: (m: "select" | "hand") => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -305,6 +308,8 @@ export const useUiStore = create<UiState>()(
       setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
       assistantPaneWidth: 380,
       setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
+      canvasMode: "select",
+      setCanvasMode: (m) => set({ canvasMode: m }),
     }),
     {
       name: "artisan:ui",
@@ -322,6 +327,7 @@ export const useUiStore = create<UiState>()(
         assistantPaneWidth: state.assistantPaneWidth,
         editorTab: state.editorTab,
         workspacePanelOpen: state.workspacePanelOpen,
+        canvasMode: state.canvasMode,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the
       // 3-tab structure was replaced by 2 tabs (Edit + Library). Also push

@@ -14,6 +14,7 @@ import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
 import { PaginationControls } from "./PaginationControls";
+import { useNodeAlignment } from "./useNodeAlignment";
 import { SlotItem } from "./SlotItem";
 import { dispatchOpenElement } from "./canvasEvents";
 import { INVENTORY_TYPES, slotCount } from "./inventoryTypes";
@@ -95,6 +96,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
   const single = usesSingleBackground(type);
 
   const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
+  const nodeAlign = useNodeAlignment(packId, menu.id);
 
   const { onClick } = useMenuClick({ packId, menu, layout });
 
@@ -298,6 +300,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
       y={solo ? 0 : position.y}
       draggable={!solo}
       onDragStart={solo ? undefined : onMenuDragStart}
+      onDragMove={solo ? undefined : nodeAlign.onDragMove}
       onDragEnd={solo ? undefined : onMenuDragEnd}
       onClick={solo ? undefined : onClick}
       onTap={solo ? undefined : onClick}

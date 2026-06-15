@@ -190,6 +190,34 @@ Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchO
 
 Le `WorkspacePanel` vit dans un **drawer gauche** (`Sheet`, `side="left"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
 
+## Modes d'interaction + guides d'alignement (depuis 2026-06-14)
+
+Cf. `docs/superpowers/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
+
+### `canvasMode` (select / hand) — toolbar + raccourcis
+
+`uiStore.canvasMode: "select" | "hand"` (persisté via `partialize`, défaut `"select"`) + `setCanvasMode`.
+**Mode `hand`** : le `<KonvaStage>` est `draggable`, le curseur passe en `grab`/`grabbing`, les clics sur le vide ne sélectionnent pas (sauf placement d'`armedMaterial`, conservé).
+**Mode `select`** (défaut) : le stage est `non draggable` — le drag sur le vide active le marquee.
+
+- **`CanvasToolbar.tsx`** (`features/canvas/`) : overlay DOM `absolute bottom-4 left-1/2 -translate-x-1/2 z-20`, deux boutons (icônes `MousePointer2` / `Hand` lucide), bouton actif mis en avant via `--brand-soft`. Labels + tooltips i18n (`canvas.modeSelect` / `canvas.modeHand`) avec hint hotkey.
+- **Raccourcis clavier** (`features/canvas/useCanvasKeyboard.ts`) : **V** → select, **H** → hand (ignorés si un input est focusé). **Espace maintenu** (dans `Stage.tsx`, reset sur `window blur`) → mode main temporaire (`spaceHeld`) ; relâché → retour au mode courant.
+
+### Marquee (sélection rectangle, mode select uniquement)
+
+- **`useMarqueeSelection.ts`** — gère `pointerdown/move/up` sur le stage. `pointerdown` sur le vide (`e.target === stage`) démarre le rectangle ; `pointermove` l'agrandit (coords monde via `screenToWorld`) ; `pointerup` lance le hit-test puis supprime le rect.
+- **`marqueeHitTest.ts`** (pur) — `rectIntersectsBoxes(rect, boxes)` : intersection normalisée (pas inclusion totale) entre le rectangle de sélection et les `nodeBox` des nœuds présents dans le `layout`. Shift = ajout à la sélection existante ; sans Shift = remplacement.
+- **`MarqueeRect.tsx`** — overlay Konva sur le layer `overlay`, lit l'état du rect courant.
+- Clic sans drag sur le vide conserve le `clear` existant. Le `pointerup` du marquee supprime l'event de clic de suivi pour ne pas vider la sélection juste posée. Annulation si le pointer relâché hors du canvas.
+
+### Guides d'alignement + snapping
+
+- **`alignmentGuides.ts`** (pur) — `alignmentGuides(dragged, others, threshold) → { snapX?, snapY?, guides[] }`. Compare **left / centerX / right** et **top / centerY / bottom** du nœud déplacé avec ceux de chaque autre nœud ; retient le meilleur candidat par axe dans le `threshold` (≈ 8 px monde) ; émet des `Guide { axis, pos, from, to }` couvrant les extrémités des nœuds alignés.
+- **`useNodeAlignment.ts`** — hook câblé dans le `onDragMove` des groupes de nœuds (`MenuGroup` board, `CommandGroup`, `DialogGroup`). Guarde sur `e.target` pour que les drags d'enfants (slots) ne déclenchent pas le snap/téléportation. Repositionne le nœud Konva (`node.x(snapX)` / `node.y(snapY)`) et publie les guides actifs dans `alignmentStore`.
+- **`alignmentStore.ts`** — guides actifs (état léger, non persisté). Vidé à `dragEnd` (position finale persistée via `setCanvasPosition` existant).
+- **`AlignmentGuidesOverlay.tsx`** — `<Layer>` overlay, lignes Konva `<Line>` brand (`--brand`) en pointillé, `listening={false}`.
+- **Alt maintenu** pendant le drag → `alignmentGuides` court-circuité (déplacement libre, sans snap ni guide).
+
 ## Recherche (palette Cmd+K) + panneau toggleable (depuis 2026-06-14)
 
 Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
