@@ -458,6 +458,8 @@ export default {
     newCommandDialogTitle: "New command",
     cancel: "Cancel",
     create: "Create",
+    modeSelect: "Select",
+    modeHand: "Pan",
   },
   dialog: {
     idLabel: "id",
@@ -759,6 +761,7 @@ export default {
       primitives: "React primitives (components/ui)",
       appComponents: "Shared app components",
       searchPalette: "Search palette (Cmd+K)",
+      canvasToolbar: "Canvas toolbar (mode switcher)",
     },
     groups: {
       surfaces: "Surfaces",

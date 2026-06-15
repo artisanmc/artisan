@@ -10,7 +10,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
+import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
 import { DialogGroup } from "./DialogGroup";
@@ -18,6 +20,7 @@ import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
 import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
+import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
 import { NewCommandDialog } from "./NewCommandDialog";
 import { NewDialogDialog } from "./NewDialogDialog";
@@ -28,6 +31,7 @@ import { hitTestSlot, screenToWorld } from "./hitTest";
 import { setStageDropTarget } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
+import { useMarqueeSelection } from "./useMarqueeSelection";
 import { usePanZoom } from "./usePanZoom";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
@@ -43,6 +47,30 @@ export function Stage({ packId }: StageProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
+  const canvasMode = useUiStore((s) => s.canvasMode);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null) => {
+      const n = el as HTMLElement | null;
+      const tag = n?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || !!n?.isContentEditable;
+    };
+    const down = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.code === "Space" && !isEditable(e.target)) { e.preventDefault(); setSpaceHeld(true); }
+    };
+    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpaceHeld(false); };
+    const onBlur = () => setSpaceHeld(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+  const panMode = canvasMode === "hand" || spaceHeld;
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -66,10 +94,20 @@ export function Stage({ packId }: StageProps) {
 
   const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
 
+  const marquee = useMarqueeSelection({
+    stageRef,
+    viewport,
+    pack,
+    layout,
+    active: canvasMode === "select" && !spaceHeld,
+  });
+
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
   // Also: if a material is "armed" from the Library (touch placement flow),
   // a click on a slot places it. Hit-test in world coords.
+  // suppressClick: if a marquee drag just completed, the follow-up stage click
+  // must not clear the selection the marquee just made.
   const onStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const armed = useUiStore.getState().armedMaterial;
@@ -94,13 +132,14 @@ export function Stage({ packId }: StageProps) {
           }
         }
       }
-      if (e.target === e.target.getStage()) {
+      const suppressed = marquee.shouldConsumeClick();
+      if (!panMode && !suppressed && e.target === e.target.getStage()) {
         useSelectionStore.getState().clear();
         useEdgeSelectionStore.getState().select(null);
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, packId],
+    [pack, layout, viewport, packId, panMode, marquee.shouldConsumeClick],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -207,6 +246,7 @@ export function Stage({ packId }: StageProps) {
     <div
       ref={wrapperRef}
       className="stage-bg-dots relative h-full w-full"
+      style={{ cursor: panMode ? "grab" : "default" }}
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
@@ -256,6 +296,7 @@ export function Stage({ packId }: StageProps) {
         </div>
       )}
       <ArmedBanner />
+      <CanvasToolbar />
       <KonvaStage
         ref={stageRef}
         width={size.w}
@@ -264,10 +305,13 @@ export function Stage({ packId }: StageProps) {
         y={viewport.y}
         scaleX={viewport.scale}
         scaleY={viewport.scale}
-        draggable
+        draggable={panMode}
         onWheel={onWheel}
         onClick={onStageClick}
         onTap={onStageClick}
+        onMouseDown={marquee.onMouseDown}
+        onMouseMove={marquee.onMouseMove}
+        onMouseUp={marquee.onMouseUp}
         onContextMenu={onStageContextMenu}
         onTouchStart={onStageTouchStart}
         onTouchMove={onStageTouchMove}
@@ -318,6 +362,8 @@ export function Stage({ packId }: StageProps) {
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
+          <MarqueeRect rect={marquee.rect} />
+          <AlignmentGuides />
         </Layer>
       </KonvaStage>
       <ItemTooltip packId={packId} />
