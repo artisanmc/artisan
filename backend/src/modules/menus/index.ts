@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { BackendModule } from "../api/types";
+import type { BackendModule } from "@artisan/backend-sdk";
 
 /**
  * V1 backend MenusModule — owns the legacy /api/user/packs/* and /api/bundles/* routes.

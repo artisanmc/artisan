@@ -22,7 +22,7 @@ import { buildAssistantAdminRouter } from "./modules/assistant/adminRoutes";
 import { buildAdminUsersRouter } from "./routes/adminUsers";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
-import { mountModules } from "./modules/api/moduleRegistry";
+import { mountModules } from "@artisan/backend-sdk";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
 import { assistantModule } from "./modules/assistant";
