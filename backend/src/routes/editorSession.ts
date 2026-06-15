@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, packs, serverKeys } from "../db/schema";
+import { editorSessions, packs, serverKeys, serverModules } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
@@ -118,6 +118,18 @@ router.delete("/:token", async (c) => {
   await db.update(editorSessions).set({ revokedAt: new Date() })
     .where(eq(editorSessions.token, session.sessionId));
   return c.json({ ok: true });
+});
+
+// Active modules for this session's server — drives editor module visibility
+// (presence activation). Source: server_modules, populated at each plugin hello.
+router.get("/:token/modules", async (c) => {
+  const session = await validateAccessToken(c.req.param("token"));
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const rows = await db
+    .select()
+    .from(serverModules)
+    .where(eq(serverModules.serverKeyId, session.serverKeyId));
+  return c.json({ modules: rows.map((r) => ({ id: r.moduleId, version: r.version })) });
 });
 
 router.get("/:token/packs", async (c) => {
