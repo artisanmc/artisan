@@ -29,6 +29,7 @@ export function useMarqueeSelection({ stageRef, viewport, pack, layout, active }
   const onMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (!active) return;
+      if ((e.evt.button ?? 0) !== 0) return; // primary button only (middle = pan)
       if (e.target !== e.target.getStage()) return; // only empty space
       const p = stageRef.current?.getPointerPosition();
       if (!p) return;

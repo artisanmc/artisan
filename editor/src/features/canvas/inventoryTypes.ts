@@ -22,6 +22,10 @@ export interface InventoryGeometry {
 
 /** Single source of truth for every type-specific geometry attribute. */
 export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
+  // `firstSlotX/Y` = the top-left of slot 0's 18×18 *graphic* cell in the texture
+  // (NOT the inner 16×16 item area — the +1px MC_SLOT_INNER_OFFSET handles that).
+  // Same convention as chest's (7,17). Values verified against the actual
+  // hopper/dispenser GUI textures (hopper grid at 43,19; dispenser grid at 61,16).
   chest: {
     cols: 9,
     rows: null,
@@ -34,8 +38,8 @@ export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
   hopper: {
     cols: 5,
     rows: 1,
-    firstSlotX: 44,
-    firstSlotY: 20,
+    firstSlotX: 43,
+    firstSlotY: 19,
     boxHeight: 133,
     textureKey: "hopper",
     bukkitType: "HOPPER",
@@ -43,8 +47,8 @@ export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
   dropper: {
     cols: 3,
     rows: 3,
-    firstSlotX: 62,
-    firstSlotY: 17,
+    firstSlotX: 61,
+    firstSlotY: 16,
     boxHeight: 166,
     textureKey: "dispenser",
     bukkitType: "DROPPER",
