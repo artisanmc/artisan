@@ -21,6 +21,7 @@ import type {
 } from "@/domain/types";
 import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { useGetText } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
@@ -684,7 +685,7 @@ function ActionLine({
       >
         <DragHandle />
         <Token kind="action">{action.type}</Token>
-        <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText)}</span>
+        <ActionSummaryArgs action={action} getText={getText} />
       </Row>
       {expanded ? (
         <Expansion indent={indent + 1}>
@@ -981,7 +982,7 @@ function Expansion({ indent, children }: { indent: number; children: React.React
   return (
     <div className="flex">
       <div style={{ width: indent * INDENT }} className="shrink-0" />
-      <div className="my-1 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">{children}</div>
+      <div className="my-1 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">{children}</div>
     </div>
   );
 }
@@ -1032,6 +1033,44 @@ function HandleButton({
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inline summary of an action's args. MiniMessage-bearing actions
+ * (send_message / broadcast / show_title) render their text *formatted* so
+ * the row shows `<gold><bold>Hi` as actual gold bold text, not raw tags.
+ * Everything else falls back to the plain-string {@link actionSummaryArgs}.
+ */
+function ActionSummaryArgs({
+  action,
+  getText,
+}: {
+  action: Action;
+  getText: (lt: LText | undefined) => string;
+}) {
+  if (action.type === "send_message" || action.type === "broadcast") {
+    return (
+      <span className="min-w-0 truncate text-[var(--text-mut)]">
+        "<MiniMessageInline source={getText(action.text)} />"
+      </span>
+    );
+  }
+  if (action.type === "show_title") {
+    const sub = action.subtitle ? getText(action.subtitle) : null;
+    return (
+      <span className="min-w-0 truncate text-[var(--text-mut)]">
+        "<MiniMessageInline source={getText(action.title)} />"
+        {sub !== null ? (
+          <>
+            {' / "'}
+            <MiniMessageInline source={sub} />
+            {'"'}
+          </>
+        ) : null}
+      </span>
+    );
+  }
+  return <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText)}</span>;
+}
 
 /** Compact one-line summary of action params (just the args, no type prefix). */
 function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => string): string {
