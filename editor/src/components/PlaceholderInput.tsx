@@ -14,6 +14,7 @@ export interface PlaceholderInputProps {
   /** Default true. Set false on fields where the hint would be redundant. */
   showHint?: boolean;
   rows?: number;
+  autoFocus?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
   /** Merged after the design-system `.input` / `.textarea` base class. */
@@ -33,6 +34,7 @@ export function PlaceholderInput({
   placeholder,
   showHint = true,
   rows,
+  autoFocus,
   onFocus,
   onBlur,
   className,
@@ -173,6 +175,7 @@ export function PlaceholderInput({
     onKeyDown: handleKeyDown,
     onFocus,
     onBlur,
+    autoFocus,
     placeholder,
     role: "combobox" as const,
     "aria-expanded": open,
