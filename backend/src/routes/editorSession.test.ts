@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, packs, serverKeys, networks } from "../db/schema";
+import { editorSessions, packs, serverKeys, serverModules, networks } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
 import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
@@ -196,6 +196,25 @@ describe("validateEditorToken", () => {
       revokedAt: new Date(),
     });
     expect(await validateEditorToken(token)).toBeNull();
+  });
+});
+
+describe("GET /api/v1/editor-session/:token/modules", () => {
+  test("returns the active modules for the session's server", async () => {
+    const { token, keyId } = await createSession();
+    await db.insert(serverModules).values([
+      { serverKeyId: keyId, moduleId: "menus", version: "1.0.0", lastSeen: new Date() },
+      { serverKeyId: keyId, moduleId: "commands", version: "1.0.0", lastSeen: new Date() },
+    ]);
+    const res = await app.request(`/api/v1/editor-session/${token}/modules`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { modules: { id: string; version: string | null }[] };
+    expect(body.modules.map((m) => m.id).sort()).toEqual(["commands", "menus"]);
+  });
+
+  test("401 for an invalid token", async () => {
+    const res = await app.request("/api/v1/editor-session/bogus/modules");
+    expect(res.status).toBe(401);
   });
 });
 

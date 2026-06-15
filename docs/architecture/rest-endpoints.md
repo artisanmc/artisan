@@ -20,11 +20,11 @@
 | `auth.ts` | `auth/signup`, `auth/login`, `auth/logout`, `auth/me` (GET + PATCH `editor_language`), `auth/discord/start`, `auth/discord/callback`. |
 | `discordOauth.ts` | Lib OAuth Discord (exchange code, fetch user) consommée par `auth.ts`. |
 | `link.ts` | `link/:code/claim` — **login required**, smart-count network (cf. flux ci-dessous). |
-| `userNetworks.ts` | `networks` (CRUD + PATCH `:id` — name/slug, 409 `slug_taken`), `networks/:id/server-keys` (create / PATCH `:keyId` — label/slug / `rotate` / DELETE / `status` / `helloes` / `allowlist`), `networks/:id/packs` (POST — **`serverKeyId` requis**). Les `:id` réseau acceptent id **ou** slug. |
+| `userNetworks.ts` | `networks` (CRUD + PATCH `:id` — name/slug, 409 `slug_taken`), `networks/:id` (GET détail — chaque pack porte `elementCount` = menus+commandes+dialogs, pour l'indicateur sidebar/Espaces de travail), `networks/:id/server-keys` (create / PATCH `:keyId` — label/slug / `rotate` / DELETE / `status` / `helloes` / `allowlist`), `networks/:id/packs` (POST — **`serverKeyId` requis**). Les `:id` réseau acceptent id **ou** slug. |
 | `userBranches.ts` | `networks/:id/packs/:packId/branches` (list/create), `commits` (list / POST / `:commitId/content`), `branches/:src/promote/:dst`, `branches/:src/merge-into/:dst` (+ `/resolve`). |
 | `userPacks.ts` | `user/packs/:packId` (GET / PUT, user-auth + membership check). PUT broadcast `bundle_available`. |
 | `networkTransfers.ts` | `networks/:id/transfer/init`, `networks/transfer/:token` (GET / `accept`). Transfert de propriété d'un Network (TTL 24h, clean break). |
-| `editorSession.ts` | `editor-session/:token` (GET, inclut `network_id`), `…/custom-items`, `…/packs/:packId/assets` (CRUD + `:id/duplicate`), `…/packs/:packId` (DELETE soft + auto-resolve conflits), `…/resource-pack/rebuild`. |
+| `editorSession.ts` | `editor-session/:token` (GET, inclut `network_id`), `…/modules` (GET — modules actifs du serveur, activation par présence depuis `server_modules`), `…/custom-items`, `…/packs/:packId/assets` (CRUD + `:id/duplicate`), `…/packs/:packId` (DELETE soft + auto-resolve conflits), `…/resource-pack/rebuild`. |
 | `assets.ts` | Handlers assets per-pack (upload PNG, list, detail, PATCH name/ascent/height, duplicate glyph, delete). Montés sous `editor-session/:token`. |
 | `bundles.ts` | `bundles/:packId` (publish POST / download GET) — consommé par le plugin (`BundleDownloader.kt`). |
 | `serverKeys.ts` | Création server_key standalone (auto-crée un Network par défaut). |
