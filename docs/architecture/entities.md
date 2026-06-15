@@ -73,6 +73,10 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 
 **Invariant hash** : `CustomItemsManager.buildBundle()` calcule le hash inline depuis les items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) — cohérence hash ↔ data.
 
+## Présence des modules (`server_modules`)
+
+`server_modules(server_key_id, module_id, version, last_seen)` — ensemble des modules actifs par serveur, **remplacé à chaque `hello`** depuis `installed_modules` (upsert + prune dans `persistServerModules`, `hub.ts`). PK composite `(server_key_id, module_id)`, FK → `server_keys` cascade. **Présence uniquement** : pilote la visibilité des modules dans l'éditeur ; cacher un module (retirer la ligne) **ne supprime jamais** le contenu authored (qui vit dans `packs`/etc.). Cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md` §8.
+
 ---
 
 ## Historique des phases (récit — pas la référence courante)

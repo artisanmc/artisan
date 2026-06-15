@@ -1,7 +1,7 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBranches, packCommits, packs, serverKeyHelloes, serverKeys } from "../db/schema";
+import { editorSessions, linkCodes, packBranches, packCommits, packs, serverKeyHelloes, serverKeys, serverModules } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
@@ -127,6 +127,36 @@ async function validateServerKey(rawKey: string): Promise<{ id: string; allowedI
   return { id: rows[0].id, allowedIps: rows[0].allowedIps ?? null };
 }
 
+/**
+ * Replace the active module set for a server_key with the set reported at
+ * `hello` (`installed_modules`). Upsert each reported module, then prune the
+ * ones no longer reported. Presence only — never touches authored content.
+ * Exported for direct testing; called fire-and-forget from the hello handler.
+ */
+export async function persistServerModules(
+  serverKeyId: string,
+  installed: { id: string; version: string }[],
+): Promise<void> {
+  const now = new Date();
+  for (const m of installed) {
+    await db
+      .insert(serverModules)
+      .values({ serverKeyId, moduleId: m.id, version: m.version ?? null, lastSeen: now })
+      .onConflictDoUpdate({
+        target: [serverModules.serverKeyId, serverModules.moduleId],
+        set: { version: m.version ?? null, lastSeen: now },
+      });
+  }
+  const keepIds = installed.map((m) => m.id);
+  await db
+    .delete(serverModules)
+    .where(
+      keepIds.length > 0
+        ? and(eq(serverModules.serverKeyId, serverKeyId), notInArray(serverModules.moduleId, keepIds))
+        : eq(serverModules.serverKeyId, serverKeyId),
+    );
+}
+
 async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
   if (!incomingHash) return;
   const cacheDir = customItemsCacheDir(serverKeyId);
@@ -180,6 +210,7 @@ export async function handlePluginMessage(
       mcVersion: hello.minecraft_version,
       helloAt: new Date(),
     }).catch(() => {});
+    persistServerModules(keyId, hello.installed_modules ?? []).catch(() => {});
     handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
     if (!assetsDone(hello.minecraft_version)) {
       ensureAssets(hello.minecraft_version).catch((err) =>

@@ -8,6 +8,9 @@ export interface HelloMessage {
   current_bundle_hash: string;
   local_pack_ids?: string[];
   custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
+  // Modules the Core plugin currently has registered. Drives editor visibility
+  // (presence activation). Absent/empty on older plugins → no modules reported.
+  installed_modules?: { id: string; version: string }[];
 }
 
 export interface HelloAckMessage {

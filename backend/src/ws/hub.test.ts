@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { app } from "../app";
 import {
   handlePluginMessage,
+  persistServerModules,
   registerConn,
   registerEditorConn,
   broadcastDraftUpdate,
@@ -12,11 +13,13 @@ import {
   connSenders,
 } from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import {
   editorSessions,
   serverKeys,
   serverKeyHelloes,
+  serverModules,
   packs,
   networks,
   linkCodes,
@@ -69,6 +72,38 @@ async function seedBoundPack(
 }
 
 beforeEach(clearAll);
+
+describe("persistServerModules (presence)", () => {
+  test("upserts the reported set and prunes modules no longer reported", async () => {
+    const networkId = crypto.randomUUID();
+    await db.insert(networks).values({
+      id: networkId,
+      name: "presence-test",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({
+      id: keyId,
+      hash: "h",
+      networkId,
+      createdAt: new Date(),
+    });
+
+    await persistServerModules(keyId, [
+      { id: "menus", version: "1.0" },
+      { id: "shop", version: "2.0" },
+    ]);
+    let rows = await db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId));
+    expect(rows.map((r) => r.moduleId).sort()).toEqual(["menus", "shop"]);
+
+    // Re-report without "shop", bump menus → shop pruned, menus version updated.
+    await persistServerModules(keyId, [{ id: "menus", version: "1.1" }]);
+    rows = await db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId));
+    expect(rows.map((r) => r.moduleId)).toEqual(["menus"]);
+    expect(rows[0]?.version).toBe("1.1");
+  });
+});
 
 describe("handlePluginMessage", () => {
   test("hello with unknown key returns null", async () => {
