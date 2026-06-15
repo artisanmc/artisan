@@ -37,6 +37,15 @@ describe("Stage — modes", () => {
     render(<Stage packId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
   });
+  it("select mode + Alt held → stage draggable (temporary pan)", () => {
+    useUiStore.setState({ canvasMode: "select" } as any);
+    render(<Stage packId={PID} />);
+    expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
+    act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" })); });
+    expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("true");
+    act(() => { window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt" })); });
+    expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
+  });
 });
 
 // Two on-board 1-row menus: m1 spans (0,0)→(352,266), m2 at (1000,1000).
@@ -52,9 +61,9 @@ function packWithMenus(): Pack {
 }
 
 // Konva mouse event with a target that IS the stage (empty-space drag).
-function stageEvent(shiftKey = false) {
+function stageEvent(shiftKey = false, button = 0) {
   const stage = { getStage() { return stage; } };
-  return { target: stage, evt: { shiftKey } } as unknown as Konva.KonvaEventObject<MouseEvent>;
+  return { target: stage, evt: { shiftKey, button } } as unknown as Konva.KonvaEventObject<MouseEvent>;
 }
 
 describe("useMarqueeSelection — selection logic", () => {
@@ -117,5 +126,17 @@ describe("useMarqueeSelection — selection logic", () => {
     act(() => hook.result.current.onMouseMove());
     act(() => hook.result.current.onMouseUp(stageEvent(true)));
     expect([...useSelectionStore.getState().ids].sort()).toEqual(["m1", "m2"]);
+  });
+
+  it("middle button does not start a marquee (reserved for pan)", () => {
+    const pk = packWithMenus();
+    const ptr = { x: 10, y: 10 };
+    const { hook } = renderMarquee(pk, ptr);
+    act(() => hook.result.current.onMouseDown(stageEvent(false, 1)));
+    expect(hook.result.current.rect).toBeNull();
+    ptr.x = 110;
+    ptr.y = 110;
+    act(() => hook.result.current.onMouseMove());
+    expect(hook.result.current.rect).toBeNull();
   });
 });

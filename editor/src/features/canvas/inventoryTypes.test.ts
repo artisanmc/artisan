@@ -24,10 +24,12 @@ describe("inventoryTypes geometry table", () => {
   it("slotMcXY walks columns then rows, in MC pixels from the type origin", () => {
     expect(slotMcXY(0, "chest")).toEqual({ x: 7, y: 17 });
     expect(slotMcXY(9, "chest")).toEqual({ x: 7, y: 35 });
-    expect(slotMcXY(0, "hopper")).toEqual({ x: 44, y: 20 });
-    expect(slotMcXY(4, "hopper")).toEqual({ x: 116, y: 20 });
-    expect(slotMcXY(0, "dropper")).toEqual({ x: 62, y: 17 });
-    expect(slotMcXY(4, "dropper")).toEqual({ x: 80, y: 35 });
+    // hopper/dropper origins = the slot graphic top-left in the texture
+    // (verified against hopper.png grid @43,19 and dispenser.png grid @61,16).
+    expect(slotMcXY(0, "hopper")).toEqual({ x: 43, y: 19 });
+    expect(slotMcXY(4, "hopper")).toEqual({ x: 115, y: 19 });
+    expect(slotMcXY(0, "dropper")).toEqual({ x: 61, y: 16 });
+    expect(slotMcXY(4, "dropper")).toEqual({ x: 79, y: 34 });
   });
 
   it("every type entry has a textureKey and a bukkitType", () => {
