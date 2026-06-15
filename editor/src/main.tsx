@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
 import { detectInitialTheme } from "@/state/themeStore";
-import { registerModule, listModules } from "./modules/api/registry";
+import { registerModule, listModules } from "@artisan/editor-sdk";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
 
