@@ -1,4 +1,4 @@
-import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
@@ -375,22 +375,25 @@ function SendMessageEditor({
           ? t("actionEditor.textLangFallback", { lang: edit.lang })
           : t("actionEditor.textLang", { lang: edit.lang })}
       </FieldLabel>
-      <PlaceholderInput
+      <RevealField
         multiline
         rows={3}
         placeholder={t("actionEditor.textPlaceholder")}
         value={edit.value}
         onChange={onTextChange}
         entries={placeholderEntries}
+        facade={<MiniMessageInline source={edit.value} className="font-mono text-xs" />}
+        preview={
+          looksLikeMiniMessage(edit.value) ? (
+            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+              <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
+                {t("menuProperties.preview")}
+              </span>
+              <MiniMessageInline source={edit.value} className="font-mono text-xs" />
+            </div>
+          ) : null
+        }
       />
-      {looksLikeMiniMessage(edit.value) ? (
-        <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-          <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
-            {t("menuProperties.preview")}
-          </span>
-          <MiniMessageInline source={edit.value} className="font-mono text-xs" />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -460,22 +463,25 @@ function ShowTitleEditor({
             ? t("actionEditor.showTitleTitleLabelFallback", { lang: titleEdit.lang })
             : t("actionEditor.showTitleTitleLabel", { lang: titleEdit.lang })}
         </FieldLabel>
-        <PlaceholderInput
+        <RevealField
           multiline
           rows={2}
           placeholder={t("actionEditor.showTitleTitlePlaceholder")}
           value={titleEdit.value}
           onChange={onTitleChange}
           entries={placeholderEntries}
+          facade={<MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />}
+          preview={
+            looksLikeMiniMessage(titleEdit.value) ? (
+              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+                <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
+                  {t("menuProperties.preview")}
+                </span>
+                <MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />
+              </div>
+            ) : null
+          }
         />
-        {looksLikeMiniMessage(titleEdit.value) ? (
-          <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-            <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
-              {t("menuProperties.preview")}
-            </span>
-            <MiniMessageInline source={titleEdit.value} className="font-mono text-xs" />
-          </div>
-        ) : null}
       </div>
 
       {hasSubtitle ? (
@@ -485,22 +491,25 @@ function ShowTitleEditor({
               ? t("actionEditor.showTitleSubtitleLabelFallback", { lang: subtitleEdit.lang })
               : t("actionEditor.showTitleSubtitleLabel", { lang: subtitleEdit.lang })}
           </FieldLabel>
-          <PlaceholderInput
+          <RevealField
             multiline
             rows={2}
             placeholder={t("actionEditor.showTitleSubtitlePlaceholder")}
             value={subtitleEdit.value}
             onChange={onSubtitleChange}
             entries={placeholderEntries}
+            facade={<MiniMessageInline source={subtitleEdit.value} className="font-mono text-xs" />}
+            preview={
+              looksLikeMiniMessage(subtitleEdit.value) ? (
+                <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+                  <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
+                    {t("menuProperties.preview")}
+                  </span>
+                  <MiniMessageInline source={subtitleEdit.value} className="font-mono text-xs" />
+                </div>
+              ) : null
+            }
           />
-          {looksLikeMiniMessage(subtitleEdit.value) ? (
-            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-              <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
-                {t("menuProperties.preview")}
-              </span>
-              <MiniMessageInline source={subtitleEdit.value} className="font-mono text-xs" />
-            </div>
-          ) : null}
           <button
             type="button"
             onClick={removeSubtitle}

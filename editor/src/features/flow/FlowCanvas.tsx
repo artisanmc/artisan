@@ -1,4 +1,5 @@
 import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
@@ -21,7 +22,6 @@ import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { buildHeadValue, type HeadSource, headSourceOf, headValueOf } from "./headField";
 import {
-  ArgInsertBar,
   type PlaceholderInfo,
   PlaceholderProvider,
 } from "@/features/canvas/properties/ActionEditor";
@@ -757,7 +757,7 @@ function StateCard({
         className="relative flex w-full items-stretch gap-1 rounded border border-[var(--brand)] bg-[var(--brand-soft)] text-xs transition-colors"
       >
         <DragHandleButton sortable={sortable} />
-        <div className="flex flex-1 flex-col gap-2 px-2.5 py-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-2 px-2.5 py-2">
           {/* Header row — state name + delete. Click header to collapse. */}
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
@@ -819,23 +819,30 @@ function StateCard({
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <FieldLabel>{t("flow.titleLabel", { lang: activeLang })}</FieldLabel>
-              <PlaceholderInput
+              <RevealField
                 value={title}
                 onChange={(v) => updateTitle(v)}
                 entries={placeholderEntries}
                 placeholder={t("flow.titlePlaceholder")}
-                onFocus={() => setSub({ kind: "state", stateIndex })}
+                onActivate={() => setSub({ kind: "state", stateIndex })}
                 className="h-8 px-2 py-0 text-xs"
+                facade={
+                  <MiniMessageInline
+                    source={pack ? renderPreview(title, lorePreviewCtx, pack, activeLang) : title}
+                    className="font-mono text-xs"
+                  />
+                }
+                preview={
+                  looksLikeMiniMessage(title) ? (
+                    <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+                      <span className="mr-2 text-[9px] text-[var(--text-faint)] uppercase">
+                        {t("menuProperties.preview")}
+                      </span>
+                      <MiniMessageInline source={title} className="font-mono text-xs" />
+                    </div>
+                  ) : null
+                }
               />
-              <ArgInsertBar onInsert={(name) => updateTitle(`${title}{${name}}`)} />
-              {looksLikeMiniMessage(title) ? (
-                <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                  <span className="mr-2 text-[9px] text-[var(--text-faint)] uppercase">
-                    {t("menuProperties.preview")}
-                  </span>
-                  <MiniMessageInline source={title} className="font-mono text-xs" />
-                </div>
-              ) : null}
             </div>
             <div className="w-20 shrink-0">
               <FieldLabel>{t("flow.countLabel")}</FieldLabel>
@@ -857,7 +864,7 @@ function StateCard({
           {/* Lore */}
           <div>
             <FieldLabel>{t("flow.loreLabel", { lang: activeLang })}</FieldLabel>
-            <PlaceholderInput
+            <RevealField
               multiline
               rows={lore.length > 2 ? 4 : 2}
               value={loreDraft}
@@ -865,11 +872,11 @@ function StateCard({
                 setLoreDraft(v);
                 updateLore(v.replace(/\n+$/, ""));
               }}
-              onFocus={() => {
+              onActivate={() => {
                 setLoreHasFocus(true);
                 setSub({ kind: "state", stateIndex });
               }}
-              onBlur={() => {
+              onDeactivate={() => {
                 setLoreHasFocus(false);
                 const trimmed = loreDraft.replace(/\n+$/, "");
                 updateLore(trimmed);
@@ -878,27 +885,40 @@ function StateCard({
               entries={placeholderEntries}
               placeholder={t("flow.lorePlaceholder")}
               className="min-h-0 px-2 py-1 text-xs"
+              facade={
+                pack ? (
+                  <span className="flex flex-col gap-0.5">
+                    {lore.map((line, i) => (
+                      <MiniMessageInline
+                        // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
+                        key={i}
+                        source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
+                        className="font-mono text-xs"
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="whitespace-pre-wrap font-mono text-xs">{loreText}</span>
+                )
+              }
+              preview={
+                lore.length > 0 && pack ? (
+                  <div className="mt-1 flex flex-col gap-0.5 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+                    <span className="text-[9px] text-[var(--text-faint)] uppercase">
+                      {t("menuProperties.preview")}
+                    </span>
+                    {lore.map((line, i) => (
+                      <MiniMessageInline
+                        // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
+                        key={i}
+                        source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
+                        className="font-mono text-xs"
+                      />
+                    ))}
+                  </div>
+                ) : null
+              }
             />
-            <ArgInsertBar
-              onInsert={(name) => {
-                const next = `${loreDraft}{${name}}`;
-                setLoreDraft(next);
-                updateLore(next.replace(/\n+$/, ""));
-              }}
-            />
-            {lore.length > 0 && pack ? (
-              <div className="mt-1 flex flex-col gap-0.5 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-                <span className="text-[9px] text-[var(--text-faint)] uppercase">preview</span>
-                {lore.map((line, i) => (
-                  <MiniMessageInline
-                    // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
-                    key={i}
-                    source={renderPreview(line, lorePreviewCtx, pack, activeLang)}
-                    className="font-mono text-xs"
-                  />
-                ))}
-              </div>
-            ) : null}
           </div>
 
           {/* Visibility conditions */}
