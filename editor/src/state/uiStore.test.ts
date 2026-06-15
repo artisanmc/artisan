@@ -164,12 +164,8 @@ describe("uiStore — panel/search flags", () => {
 });
 
 describe("uiStore — canvasMode", () => {
-  beforeEach(() => {
-    useUiStore.setState({ canvasMode: "select" } as any);
-  });
-
-  it("défaut 'select', setter le change", () => {
-    useUiStore.setState({ canvasMode: "select" } as any);
+  it("setter bascule entre hand (défaut) et select", () => {
+    useUiStore.getState().setCanvasMode("select");
     expect(useUiStore.getState().canvasMode).toBe("select");
     useUiStore.getState().setCanvasMode("hand");
     expect(useUiStore.getState().canvasMode).toBe("hand");
