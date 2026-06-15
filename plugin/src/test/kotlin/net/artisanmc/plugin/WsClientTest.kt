@@ -43,4 +43,39 @@ class WsClientTest {
         client.disconnect()
         server.shutdown()
     }
+
+    @Test
+    fun `sends installed_modules in hello`() {
+        val server = MockWebServer()
+        val helloText = java.util.concurrent.atomic.AtomicReference<String>()
+        val latch = CountDownLatch(1)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                override fun onMessage(ws: WebSocket, text: String) {
+                    helloText.set(text)
+                    latch.countDown()
+                }
+            })
+        )
+        server.start()
+
+        val client = WsClient(
+            url = server.url("/ws/plugin").toString(),
+            serverKey = "sk_test",
+            mcVersion = "1.21.4",
+            currentBundleHash = "",
+            installedModules = listOf(
+                mapOf("id" to "menus", "version" to "1.0.0"),
+                mapOf("id" to "commands", "version" to "1.0.0"),
+            ),
+            onMessage = {},
+        )
+        client.connect()
+        assertTrue(latch.await(5, TimeUnit.SECONDS), "Expected hello within 5s")
+        val hello = helloText.get()
+        assertTrue(hello.contains("installed_modules"), "hello must carry installed_modules")
+        assertTrue(hello.contains("menus") && hello.contains("commands"), "hello must list both core modules")
+        client.disconnect()
+        server.shutdown()
+    }
 }

@@ -60,6 +60,7 @@ class SyncedMenuProvider(
     private val resourcePackManager: ResourcePackManager? = null,
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
+    private val installedModules: List<Map<String, String>> = emptyList(),
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<PackBundle>()
@@ -115,6 +116,7 @@ class SyncedMenuProvider(
                 currentBundleHash = currentHash,
                 localPackIds      = bundles.map { it.packId },
                 customItemsHash   = "",
+                installedModules  = installedModules,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
