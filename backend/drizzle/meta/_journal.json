@@ -64,6 +64,13 @@
       "when": 1781097056422,
       "tag": "0008_redundant_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781532041897,
+      "tag": "0009_abnormal_onslaught",
+      "breakpoints": true
     }
   ]
 }
