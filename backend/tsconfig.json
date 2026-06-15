@@ -4,7 +4,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "types": ["bun-types"]
+    "types": ["bun-types"],
+    "baseUrl": ".",
+    "paths": { "@artisan/backend-sdk": ["src/sdk/index.ts"] }
   },
   "include": ["src/**/*", "drizzle.config.ts"]
 }
