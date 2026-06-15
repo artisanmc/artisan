@@ -1,4 +1,4 @@
-import type { FrontendModule } from "../api/types";
+import type { FrontendModule } from "@artisan/editor-sdk";
 
 /**
  * V1 editor MenusModule — wraps the existing pack/menu editing routes.

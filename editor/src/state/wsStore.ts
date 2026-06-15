@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { publishBundle } from "@/lib/ws/bundlePublisher";
 import { createPluginBridge, type PluginBridge } from "@/lib/ws/pluginBridge";
-import { emitModuleEvent, type ModuleEvent } from "@/modules/api/eventBus";
+import { emitModuleEvent, type ModuleEvent } from "@artisan/editor-sdk";
 
 let _unsubMessage: (() => void) | null = null;
 

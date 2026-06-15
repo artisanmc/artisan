@@ -90,6 +90,8 @@ export const modules: FrontendModule[] = [menusModule, commandsModule, shopModul
 
 Le core charge ce registry au boot, monte les routes, register les WS handlers, ajoute les entrées sidebar.
 
+> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+
 ### 3.2 Backend module
 
 ```

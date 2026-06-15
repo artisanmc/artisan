@@ -1,4 +1,4 @@
-import type { FrontendModule } from "../api/types";
+import type { FrontendModule } from "@artisan/editor-sdk";
 
 export const commandsModule: FrontendModule = {
   id: "commands",
