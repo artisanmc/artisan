@@ -85,6 +85,9 @@ export function Stage({ packId }: StageProps) {
     };
   }, []);
   const panMode = canvasMode === "hand" || spaceHeld || altHeld;
+  // True while a stage-drag pan is in progress (hand/Space/Alt left-drag) — so
+  // the cursor can switch from open hand (grab) to closed hand (grabbing).
+  const [stageDragging, setStageDragging] = useState(false);
 
   // Konva's native stage-drag (single-finger pan) mutates the stage's x/y
   // directly without going through React. Without this sync, the next
@@ -117,7 +120,7 @@ export function Stage({ packId }: StageProps) {
   });
 
   // Middle-button pans regardless of mode/target (document capture listener).
-  useMiddleClickPan({ containerRef: wrapperRef, viewport, setViewport });
+  const middlePan = useMiddleClickPan({ containerRef: wrapperRef, viewport, setViewport });
 
   // Empty-stage click clears selection. Konva fires `click` on the Stage when
   // the user clicks an area not occupied by any listening child.
@@ -266,7 +269,10 @@ export function Stage({ packId }: StageProps) {
     <div
       ref={wrapperRef}
       className="stage-bg-dots relative h-full w-full"
-      style={{ cursor: panMode ? "grab" : "default" }}
+      style={{
+        cursor:
+          middlePan.panning || stageDragging ? "grabbing" : panMode ? "grab" : "default",
+      }}
       onMouseMove={onWrapperMouseMove}
       onMouseLeave={onWrapperMouseLeave}
     >
@@ -336,13 +342,19 @@ export function Stage({ packId }: StageProps) {
         onTouchStart={onStageTouchStart}
         onTouchMove={onStageTouchMove}
         onTouchEnd={onStageTouchEnd}
+        onDragStart={(e) => {
+          if (e.target === e.target.getStage()) setStageDragging(true);
+        }}
         onDragMove={(e) => {
           // Only sync when the drag target is the Stage itself (not a
           // child Group like a menu or a slot, which fire dragmove too).
           if (e.target === e.target.getStage()) syncViewportFromStage();
         }}
         onDragEnd={(e) => {
-          if (e.target === e.target.getStage()) syncViewportFromStage();
+          if (e.target === e.target.getStage()) {
+            syncViewportFromStage();
+            setStageDragging(false);
+          }
         }}
       >
         <Layer name="edges">
