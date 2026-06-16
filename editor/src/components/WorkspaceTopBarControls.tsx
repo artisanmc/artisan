@@ -19,13 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { rekeyPack } from "@/domain/i18nSites";
 import type { Pack as PackType } from "@/domain/types";
 import type { Pack, PackId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { transform } from "@/features/export/transform";
 import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserPack } from "@/lib/api/userPacks";
-import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { DeployError, deployPack, getDeployedPack, updateAsset } from "@/lib/packApi";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
@@ -276,7 +276,8 @@ function AssistantButton() {
   );
 }
 
-const SHORTCUT_MOD = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";
+const SHORTCUT_MOD =
+  typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";
 
 /**
  * Top-bar search button. Renders as a GitBook-style input pill that opens
@@ -382,8 +383,7 @@ function DeployButtons({
     setDeploying(true);
     try {
       const cloned = structuredClone(pack);
-      for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
-      for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
+      rekeyPack(cloned);
       const files = transform(cloned);
 
       if (token) {

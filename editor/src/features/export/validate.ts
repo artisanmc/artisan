@@ -1,5 +1,4 @@
-import { getTitleTextLayers } from "@/domain/menuTitle";
-import { walkActions } from "@/domain/stepPath";
+import { visitPackLTexts } from "@/domain/i18nSites";
 import type { I18nKey, Pack } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
 
@@ -13,40 +12,10 @@ export function validate(pack: Pack): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Collect all LText keys referenced in the pack
+  // Collect all LText keys referenced in the pack — one traversal covering
+  // menus, commands, templates, and dialogs (see @/domain/i18nSites).
   const referencedKeys = new Set<string>();
-  for (const menu of pack.menus) {
-    for (const lt of getTitleTextLayers(menu)) referencedKeys.add(lt.key);
-    for (const layer of menu.layers) {
-      for (const el of layer.elements) {
-        for (const app of el.appearances) {
-          if (app.title) referencedKeys.add(app.title.key);
-          if (app.lore) referencedKeys.add(app.lore.key);
-          if (app.click) {
-            for (const handler of Object.values(app.click)) {
-              if (!handler) continue;
-              for (const action of walkActions(handler.steps)) {
-                if ((action.type === "send_message" || action.type === "broadcast")) referencedKeys.add(action.text.key);
-                else if (action.type === "show_title") {
-                  referencedKeys.add(action.title.key);
-                  if (action.subtitle) referencedKeys.add(action.subtitle.key);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  for (const cmd of pack.commands) {
-    for (const action of walkActions(cmd.steps)) {
-      if ((action.type === "send_message" || action.type === "broadcast")) referencedKeys.add(action.text.key);
-      else if (action.type === "show_title") {
-        referencedKeys.add(action.title.key);
-        if (action.subtitle) referencedKeys.add(action.subtitle.key);
-      }
-    }
-  }
+  for (const site of visitPackLTexts(pack)) referencedKeys.add(site.lText.key);
 
   // 1. Every referenced key must have a non-empty value in defaultLang
   for (const key of referencedKeys) {
