@@ -1,3 +1,4 @@
+import { rekeyCommand, rekeyMenu } from "@/domain/i18nSites";
 import { commandId, elementId, layerId, menuId } from "@/domain/ids";
 import type { Command, I18nKey, Menu, MenuTitleLayer, Pack } from "@/domain/types";
 import { describe, expect, it } from "vitest";
@@ -8,8 +9,6 @@ import {
   elementTitleKey,
   menuTitleKey,
   messageKeyAt,
-  rekeyCommandLTexts,
-  rekeyMenuLTexts,
   showSubtitleKeyAt,
   showTitleKeyAt,
   stateLabel,
@@ -99,10 +98,15 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
     ...overrides,
   }) as Pack;
 
-describe("rekeyMenuLTexts", () => {
+describe("rekeyMenu", () => {
   it("renames menu title key to semantic key", () => {
     const pack = makePack({ i18nKeys: { lt_abc: { en: "Shop" } } as Pack["i18nKeys"] });
-    const titleLayer: MenuTitleLayer = { kind: "text", value: { key: "lt_abc" as I18nKey }, x: 8, y: 5 };
+    const titleLayer: MenuTitleLayer = {
+      kind: "text",
+      value: { key: "lt_abc" as I18nKey },
+      x: 8,
+      y: 5,
+    };
     const menu: Menu = {
       id: menuId("shop_main"),
       packId: pack.id,
@@ -111,7 +115,7 @@ describe("rekeyMenuLTexts", () => {
       layers: [],
     };
 
-    rekeyMenuLTexts(pack, menu);
+    rekeyMenu(pack, menu);
 
     const first = menu.title[0];
     expect(first?.kind).toBe("text");
@@ -152,7 +156,7 @@ describe("rekeyMenuLTexts", () => {
       ],
     };
 
-    rekeyMenuLTexts(pack, menu);
+    rekeyMenu(pack, menu);
 
     const el = menu.layers[0]!.elements[0]!;
     const app = el.appearances[0]!;
@@ -174,7 +178,7 @@ describe("rekeyMenuLTexts", () => {
       layers: [],
     };
 
-    rekeyMenuLTexts(pack, menu);
+    rekeyMenu(pack, menu);
 
     const first = menu.title[0];
     expect(first?.kind).toBe("text");
@@ -202,7 +206,10 @@ describe("rekeyMenuLTexts", () => {
                   click: {
                     left: {
                       steps: [
-                        { kind: "action", action: { type: "send_message", text: { key: "lt_msg" as I18nKey } } },
+                        {
+                          kind: "action",
+                          action: { type: "send_message", text: { key: "lt_msg" as I18nKey } },
+                        },
                       ],
                     },
                   },
@@ -214,16 +221,17 @@ describe("rekeyMenuLTexts", () => {
       ],
     };
 
-    rekeyMenuLTexts(pack, menu);
+    rekeyMenu(pack, menu);
 
     const action = menu.layers[0]!.elements[0]!.appearances[0]!.click!.left!.steps[0]!;
-    if (action.kind !== "action" || action.action.type !== "send_message") throw new Error("unexpected");
+    if (action.kind !== "action" || action.action.type !== "send_message")
+      throw new Error("unexpected");
     expect(action.action.text.key).toBe("menus.shop.elements.btn.default.click.left.message");
     expect(pack.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
 });
 
-describe("rekeyCommandLTexts", () => {
+describe("rekeyCommand", () => {
   it("renames send_message keys to semantic command prefix", () => {
     const pack = makePack({ i18nKeys: { lt_msg: { en: "Healed!" } } as Pack["i18nKeys"] });
     const cmd: Command = {
@@ -236,7 +244,7 @@ describe("rekeyCommandLTexts", () => {
       ],
     };
 
-    rekeyCommandLTexts(pack, cmd);
+    rekeyCommand(pack, cmd);
 
     const action = cmd.steps[0]!;
     if (action.kind !== "action" || action.action.type !== "send_message") throw new Error();
@@ -263,7 +271,7 @@ describe("rekeyCommandLTexts", () => {
       ],
     };
 
-    rekeyCommandLTexts(pack, cmd);
+    rekeyCommand(pack, cmd);
 
     const a0 = cmd.steps[0]!;
     const a1 = cmd.steps[1]!;
@@ -275,7 +283,7 @@ describe("rekeyCommandLTexts", () => {
     expect(pack.i18nKeys["commands.greet.message_1" as I18nKey]).toEqual({ en: "Second" });
   });
 
-  it("rekeyCommandLTexts assigns canonical show_title and show_subtitle keys", () => {
+  it("rekeyCommand assigns canonical show_title and show_subtitle keys", () => {
     const pack = makePack({
       i18nKeys: {
         "stale.title": { en: "Welcome" },
@@ -299,7 +307,7 @@ describe("rekeyCommandLTexts", () => {
       ],
     };
 
-    rekeyCommandLTexts(pack, cmd);
+    rekeyCommand(pack, cmd);
 
     const a0 = cmd.steps[0]!;
     if (a0.kind !== "action" || a0.action.type !== "show_title") throw new Error();
@@ -311,7 +319,7 @@ describe("rekeyCommandLTexts", () => {
     expect(pack.i18nKeys["stale.subtitle" as I18nKey]).toBeUndefined();
   });
 
-  it("rekeyCommandLTexts counts show_title and send_message independently", () => {
+  it("rekeyCommand counts show_title and send_message independently", () => {
     const pack = makePack({
       i18nKeys: {
         lt_m1: { en: "M1" },
@@ -333,7 +341,7 @@ describe("rekeyCommandLTexts", () => {
       ],
     };
 
-    rekeyCommandLTexts(pack, cmd);
+    rekeyCommand(pack, cmd);
 
     const a0 = cmd.steps[0]!;
     const a1 = cmd.steps[1]!;

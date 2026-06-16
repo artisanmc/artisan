@@ -50,6 +50,27 @@ describe("accountStore", () => {
     expect(pack.i18nKeys[dialog.title.key]!["en"]).toBe("Hello!");
   });
 
+  it("removeUnusedI18nKeys drops orphaned keys but keeps referenced ones", () => {
+    const store = useAccountStore.getState();
+    // Seed an orphan: setI18nValue against a key no tree node references.
+    store.setI18nValue({
+      packId: PERSONAL,
+      lt: { key: "lt_orphan_xyz" as I18nKey },
+      lang: "en",
+      value: "stale",
+    });
+    const usedKey = "menus.m_shop_main.title" as I18nKey; // referenced by the fixture menu title
+    let pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.i18nKeys["lt_orphan_xyz" as I18nKey]).toBeTruthy();
+    expect(pack.i18nKeys[usedKey]).toBeTruthy();
+
+    store.removeUnusedI18nKeys({ packId: PERSONAL });
+
+    pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+    expect(pack.i18nKeys["lt_orphan_xyz" as I18nKey]).toBeUndefined();
+    expect(pack.i18nKeys[usedKey]).toBeTruthy();
+  });
+
   it("deleteFromPack removes dialog and its canvas position", () => {
     useAccountStore.getState().createDialog({ packId: PERSONAL, id: "d_bye", position: { x: 10, y: 10 } });
     useAccountStore.getState().deleteFromPack({ packId: PERSONAL, nodeIds: ["d_bye"] });
@@ -1008,7 +1029,7 @@ describe("accountStore", () => {
 
     it("setElementId renames element i18n keys to new semantic key", () => {
       // The mock fixture already has an opaque title on PROFILE_BTN. Capture it
-      // before rename, then verify rekeyMenuLTexts moved it to the semantic slot.
+      // before rename, then verify rekeyMenu moved it to the semantic slot.
       const pack0 = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
       const el0 = pack0.menus.find((m) => m.id === SHOP_MAIN)!.layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const oldKey = el0.appearances[0]!.title?.key;
