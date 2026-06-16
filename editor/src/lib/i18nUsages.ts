@@ -1,76 +1,33 @@
-import { getTitleTextLayers } from "@/domain/menuTitle";
-import { walkActions } from "@/domain/stepPath";
-import type { Appearance, Element, I18nKey, Menu, Pack } from "@/domain/types";
-import { stateLabel } from "@/lib/i18nKeys";
+import { visitPackLTexts } from "@/domain/i18nSites";
+import type { I18nKey, Pack } from "@/domain/types";
 
 /**
- * Walk a pack and label every LText reference with a dotted-path
- * "context" string describing where it sits in the tree. Used by the
- * Translations panel — both as inline metadata in the table and as
- * comments in the YAML copy output (so an AI / human translator knows
- * the register of each string).
+ * Label every LText reference in a pack with a dotted-path "context" string
+ * describing where it sits in the tree. Used by the Translations panel — both
+ * as inline metadata in the table and as comments in the YAML copy output (so
+ * an AI / human translator knows the register of each string).
  *
- * Path style mirrors the runtime YAML layout the plugin will consume:
- *   menus.<menuId>.title
- *   menus.<menuId>.elements.<elementId>.<state>.title
- *   menus.<menuId>.elements.<elementId>.<state>.lore[i]
- *   menus.<menuId>.elements.<elementId>.<state>.click.<type>.message
- *   commands.<commandId>.message
- *
- * `<state>` is "default" for index 0 and "stateN" otherwise — shorter
- * than the index-based form and matches how the editor labels
- * appearances in the UI.
+ * Thin fold over the single pack traversal in `@/domain/i18nSites`; the path
+ * vocabulary (`menus.<id>.title`, `…click.<type>.message`, `…body[i]`) lives
+ * there as each site's `path`.
  */
 export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
   const out = new Map<I18nKey, string>();
-
-  const recordAppearance = (path: string, appearance: Appearance) => {
-    if (appearance.title) out.set(appearance.title.key, `${path}.title`);
-    if (appearance.lore) {
-      out.set(appearance.lore.key, `${path}.lore`);
-    }
-    if (appearance.click) {
-      for (const [clickType, handler] of Object.entries(appearance.click)) {
-        if (!handler) continue;
-        for (const action of walkActions(handler.steps)) {
-          if ((action.type === "send_message" || action.type === "broadcast")) {
-            out.set(action.text.key, `${path}.click.${clickType}.message`);
-          }
-        }
-      }
-    }
-  };
-
-  const recordElement = (menuPath: string, el: Element) => {
-    const elPath = `${menuPath}.elements.${el.id}`;
-    el.appearances.forEach((a, i) => recordAppearance(`${elPath}.${stateLabel(i)}`, a));
-  };
-
-  const recordMenu = (menu: Menu) => {
-    const menuPath = `menus.${menu.id}`;
-    const titleLayers = getTitleTextLayers(menu);
-    titleLayers.forEach((lt, i) => {
-      const suffix = titleLayers.length > 1 ? `.title[${i}]` : `.title`;
-      out.set(lt.key, `${menuPath}${suffix}`);
-    });
-    for (const layer of menu.layers) {
-      for (const el of layer.elements) recordElement(menuPath, el);
-    }
-  };
-
-  for (const m of pack.menus) recordMenu(m);
-  for (const cmd of pack.commands) {
-    const cmdPath = `commands.${cmd.id}`;
-    for (const action of walkActions(cmd.steps)) {
-      if ((action.type === "send_message" || action.type === "broadcast")) out.set(action.text.key, `${cmdPath}.message`);
-    }
-  }
-  for (const tpl of pack.templates) {
-    const tplPath = `templates.${tpl.id}`;
-    tpl.appearances.forEach((a, i) => recordAppearance(`${tplPath}.${stateLabel(i)}`, a));
-  }
-
+  for (const site of visitPackLTexts(pack)) out.set(site.lText.key, site.path);
   return out;
+}
+
+const UNUSED_CONTEXT = "(unused)";
+
+/**
+ * All i18n keys present in the pack's translation map that no longer have a
+ * reference anywhere in the tree (menus, commands, templates, dialogs). These
+ * are stale leftovers from deleted elements / re-imports — safe to drop. Used
+ * by the Translations panel's "remove unused" cleanup.
+ */
+export function findUnusedI18nKeys(pack: Pack): I18nKey[] {
+  const used = findKeyUsages(pack);
+  return (Object.keys(pack.i18nKeys) as I18nKey[]).filter((key) => !used.has(key));
 }
 
 /**
@@ -102,7 +59,9 @@ export function listLanguages(pack: Pack): string[] {
     if (!entry) continue;
     for (const lang of Object.keys(entry)) langs.add(lang);
   }
-  const others = Array.from(langs).filter((l) => l !== pack.defaultLang).sort();
+  const others = Array.from(langs)
+    .filter((l) => l !== pack.defaultLang)
+    .sort();
   return [pack.defaultLang, ...others];
 }
 
@@ -142,14 +101,20 @@ export function buildTranslationRows(pack: Pack, activeLang: string): Translatio
     if (!entry) continue;
     rows.push({
       key: key as I18nKey,
-      context: usages.get(key as I18nKey) ?? "(unused)",
+      context: usages.get(key as I18nKey) ?? UNUSED_CONTEXT,
       source: entry[pack.defaultLang] ?? "",
       target: entry[activeLang] ?? "",
     });
   }
-  // Sort by context so related strings sit together — much easier to
-  // skim and to translate consistently (titles next to their lore, etc.).
-  rows.sort((a, b) => a.context.localeCompare(b.context));
+  // Sort by context so related strings sit together — much easier to skim and
+  // to translate consistently (titles next to their lore, etc.). Orphaned
+  // "(unused)" keys go last: otherwise "(" sorts before letters and stale
+  // entries dominate the top of the list, reading as "everything is unused".
+  rows.sort((a, b) => {
+    const aUnused = a.context === UNUSED_CONTEXT;
+    const bUnused = b.context === UNUSED_CONTEXT;
+    if (aUnused !== bUnused) return aUnused ? 1 : -1;
+    return a.context.localeCompare(b.context);
+  });
   return rows;
 }
-
