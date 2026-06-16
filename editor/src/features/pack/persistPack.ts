@@ -1,7 +1,7 @@
+import { rekeyPack } from "@/domain/i18nSites";
 import type { Pack } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { saveUserPack } from "@/lib/api/userPacks";
-import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
 import { savePack } from "@/lib/packApi";
 
 /**
@@ -21,8 +21,7 @@ export async function persistPack(
 ): Promise<void> {
   if (!token && !hasUser) return;
   const cloned = structuredClone(pack);
-  for (const menu of cloned.menus) rekeyMenuLTexts(cloned, menu);
-  for (const cmd of cloned.commands) rekeyCommandLTexts(cloned, cmd);
+  rekeyPack(cloned);
   const files = transform(cloned);
   if (token) {
     // Session mode (trust dance): the editor_session token authorises this.
