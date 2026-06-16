@@ -119,7 +119,9 @@ describe("validate", () => {
                               kind: "action",
                               action: {
                                 type: "send_message",
-                                text: { key: "menus.shop.elements.btn.default.click.left.message" as I18nKey },
+                                text: {
+                                  key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
+                                },
                               },
                             },
                           ],
@@ -139,7 +141,9 @@ describe("validate", () => {
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.message"))).toBe(true);
+    expect(
+      result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.message")),
+    ).toBe(true);
   });
 
   it("validates show_title title and subtitle keys in element click handlers", () => {
@@ -167,8 +171,12 @@ describe("validate", () => {
                               kind: "action",
                               action: {
                                 type: "show_title",
-                                title: { key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey },
-                                subtitle: { key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey },
+                                title: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                },
+                                subtitle: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+                                },
                               },
                             },
                           ],
@@ -188,8 +196,16 @@ describe("validate", () => {
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.show_title"))).toBe(true);
-    expect(result.errors.some((e) => e.includes("menus.shop.elements.btn.default.click.left.show_subtitle"))).toBe(true);
+    expect(
+      result.errors.some((e) =>
+        e.includes("menus.shop.elements.btn.default.click.left.show_title"),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some((e) =>
+        e.includes("menus.shop.elements.btn.default.click.left.show_subtitle"),
+      ),
+    ).toBe(true);
   });
 
   it("validates send_message keys in command steps", () => {
@@ -234,7 +250,9 @@ describe("validate", () => {
                 {
                   id: elementId("btn"),
                   positions: "0",
-                  appearances: [{ title: { key: "menus.shop.elements.btn.default.title" as I18nKey } }],
+                  appearances: [
+                    { title: { key: "menus.shop.elements.btn.default.title" as I18nKey } },
+                  ],
                 },
               ],
             },
@@ -245,5 +263,56 @@ describe("validate", () => {
     const result = validate(pack);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it("validates dialog title keys (previously skipped entirely)", () => {
+    const pack = makePack({
+      dialogs: [
+        {
+          id: "confirm",
+          packId: "p_test",
+          title: { key: "dialogs.confirm.title" as I18nKey },
+          canCloseWithEscape: true,
+          body: [],
+          inputs: [],
+          buttons: [],
+        },
+      ] as unknown as Pack["dialogs"],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("dialogs.confirm.title"))).toBe(true);
+  });
+
+  it("collects each entry of legacy array-shaped lore without crashing", () => {
+    const pack = makePack({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          packId: packId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  // legacy migration artifact: lore as an LText[] rather than a single LText
+                  appearances: [{ lore: [{ key: "lt_l0" }, { key: "lt_l1" }] }],
+                },
+              ],
+            },
+          ],
+        },
+      ] as unknown as Pack["menus"],
+    });
+    const result = validate(pack);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("lt_l0"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("lt_l1"))).toBe(true);
   });
 });
