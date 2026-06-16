@@ -1,4 +1,4 @@
-import { rekeyCommandLTexts, rekeyMenuLTexts } from "@/lib/i18nKeys";
+import { rekeyPack } from "@/domain/i18nSites";
 import type { Pack } from "@/domain/types";
 import { buildZip } from "./buildZip";
 import { transform } from "./transform";
@@ -17,8 +17,7 @@ export interface ExportZipResult {
  */
 export async function runExportZip(pack: Pack): Promise<ExportZipResult> {
   const exportPack = structuredClone(pack);
-  for (const menu of exportPack.menus) rekeyMenuLTexts(exportPack, menu);
-  for (const cmd of exportPack.commands) rekeyCommandLTexts(exportPack, cmd);
+  rekeyPack(exportPack);
 
   const result = validate(exportPack);
   if (!result.valid) {
