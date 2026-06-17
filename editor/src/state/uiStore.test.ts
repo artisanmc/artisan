@@ -1,4 +1,4 @@
-import type { MenuId } from "@/domain/types";
+import type { MenuId, PackId } from "@/domain/types";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useUiStore } from "./uiStore";
 
@@ -169,6 +169,26 @@ describe("uiStore — canvasMode", () => {
     expect(useUiStore.getState().canvasMode).toBe("select");
     useUiStore.getState().setCanvasMode("hand");
     expect(useUiStore.getState().canvasMode).toBe("hand");
+  });
+});
+
+describe("uiStore — canvasViewports", () => {
+  beforeEach(() => useUiStore.setState({ canvasViewports: {} }));
+
+  it("défaut vide", () => {
+    expect(useUiStore.getState().canvasViewports).toEqual({});
+  });
+
+  it("setCanvasViewport stocke par pack et roundtrip", () => {
+    useUiStore.getState().setCanvasViewport("p1" as PackId, { x: 10, y: 20, scale: 2 });
+    expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 10, y: 20, scale: 2 });
+  });
+
+  it("setCanvasViewport laisse les autres packs intacts", () => {
+    useUiStore.getState().setCanvasViewport("p1" as PackId, { x: 1, y: 2, scale: 1 });
+    useUiStore.getState().setCanvasViewport("p2" as PackId, { x: 3, y: 4, scale: 0.5 });
+    expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 1, y: 2, scale: 1 });
+    expect(useUiStore.getState().canvasViewports.p2).toEqual({ x: 3, y: 4, scale: 0.5 });
   });
 });
 

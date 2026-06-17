@@ -22,6 +22,28 @@ import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 
 type Vars = { user: AuthUser | null };
 
+/**
+ * Number of authorable elements (menus + commands + dialogs) inside a pack's
+ * editor JSON. Surfaced in the network detail so the sidebar + workspaces list
+ * can show an element-count indicator without loading the full pack. Returns 0
+ * on missing/corrupt JSON — the count is informational, never load-bearing.
+ */
+function countPackElements(editorJson: string | null): number {
+	if (!editorJson) return 0;
+	try {
+		const e = JSON.parse(editorJson) as {
+			menus?: unknown[];
+			commands?: unknown[];
+			dialogs?: unknown[];
+		};
+		return (
+			(e.menus?.length ?? 0) + (e.commands?.length ?? 0) + (e.dialogs?.length ?? 0)
+		);
+	} catch {
+		return 0;
+	}
+}
+
 export const userNetworksRouter = new Hono<{ Variables: Vars }>();
 
 // Helper: get authenticated userId or return null
@@ -90,11 +112,15 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 		return c.json({ error: "forbidden" }, 403);
 	}
 	const packsList = await listPacksForNetwork(network.id);
+	const packsWithCounts = packsList.map((p) => ({
+		...p,
+		elementCount: countPackElements(p.editorJson),
+	}));
 	const skList = await db
 		.select()
 		.from(serverKeys)
 		.where(eq(serverKeys.networkId, network.id));
-	return c.json({ network, packs: packsList, serverKeys: skList });
+	return c.json({ network, packs: packsWithCounts, serverKeys: skList });
 });
 
 // PATCH /api/networks/:id — update name and/or slug (member required)

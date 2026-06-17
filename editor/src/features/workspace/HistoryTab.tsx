@@ -7,6 +7,36 @@ import { useAccountStore } from "@/state/accountStore";
 
 interface Props { pack: Pack; networkId: string; }
 
+/**
+ * Order commits newest-first (HEAD → root). We walk parent links from the tip
+ * rather than trusting `createdAt` desc: commits minted in the same request
+ * (e.g. initial commit + first deploy) can share a timestamp, and a plain
+ * timestamp sort then leaves them in arbitrary order. The tip is the commit no
+ * other commit lists as a parent; ties/orphans fall back to `createdAt` desc.
+ */
+function orderHeadFirst(commits: Commit[]): Commit[] {
+  if (commits.length <= 1) return commits;
+  const byId = new Map(commits.map((c) => [c.id, c]));
+  const isParent = new Set<string>();
+  for (const c of commits) if (c.parentId) isParent.add(c.parentId);
+  const tips = commits
+    .filter((c) => !isParent.has(c.id))
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const ordered: Commit[] = [];
+  const seen = new Set<string>();
+  for (const tip of tips) {
+    let cur: Commit | undefined = tip;
+    while (cur && !seen.has(cur.id)) {
+      ordered.push(cur);
+      seen.add(cur.id);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+  }
+  // Leftovers (cycles / detached commits) — keep them visible, newest first.
+  for (const c of commits) if (!seen.has(c.id)) ordered.push(c);
+  return ordered;
+}
+
 export function HistoryTab({ pack, networkId }: Props) {
   const { t, i18n } = useTranslation();
   const [commits, setCommits] = useState<Commit[] | null>(null);
@@ -14,7 +44,9 @@ export function HistoryTab({ pack, networkId }: Props) {
   const replacePack = useAccountStore((s) => s.replacePack);
 
   useEffect(() => {
-    listCommits(networkId, pack.id, "main").then(setCommits).catch(() => setCommits([]));
+    listCommits(networkId, pack.id, "main")
+      .then((list) => setCommits(orderHeadFirst(list)))
+      .catch(() => setCommits([]));
   }, [networkId, pack.id]);
 
   const fmt = (iso: string) => {

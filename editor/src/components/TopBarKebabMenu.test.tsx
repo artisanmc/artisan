@@ -22,8 +22,8 @@ describe("TopBarKebabMenu", () => {
     render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
     expect(screen.getByText(/Exporter vers le serveur|Export to server|topbar\.exportZip/i)).toBeInTheDocument();
-    expect(screen.getByText(/Importer un pack|Import pack|topbar\.import/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exporter le pack|Export pack|^topbar\.export$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Importer un workspace|Import a workspace|topbar\.import/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exporter le workspace|Export workspace|^topbar\.export$/i)).toBeInTheDocument();
     expect(screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i)).toBeInTheDocument();
     expect(screen.getByText(/Supprimer|Delete|topbar\.deletePack/i)).toBeInTheDocument();
   });

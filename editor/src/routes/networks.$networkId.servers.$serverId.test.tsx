@@ -23,7 +23,7 @@ vi.mock("@/lib/api/networks", () => ({
     network: { id: "net_1", name: "Mon Réseau", tier: "free" },
     serverKeys: [{ id: "sk_1", label: "Survival" }],
     packs: [
-      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
+      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1", elementCount: 5 },
       { id: "p2", name: "Lobby", hash: "h2", networkId: "net_1", serverKeyId: "sk_2" },
     ],
   }),
@@ -40,6 +40,12 @@ describe("ServerDetailPage", () => {
     render(<ServerDetailPage />);
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
     expect(screen.queryByText("Lobby")).not.toBeInTheDocument();
+  });
+
+  it("shows the element-count indicator for a workspace", async () => {
+    render(<ServerDetailPage />);
+    await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
   it("workspace link points to the new URL pattern", async () => {

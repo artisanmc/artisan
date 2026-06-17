@@ -164,9 +164,10 @@ Un élément est **sur la planche ssi** il a une entrée explicite `pack.canvasL
 
 `features/workspace/WorkspacePanel.tsx` : liste **tout** le pack groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildPackElements(pack, lang)` (`usePackElements.ts`).
 
-- Recherche texte ; badge « sur la planche » sur les éléments présents dans `canvasLayout`.
-- **Drag → planche** : draggable id préfixé `PANEL_DRAG_PREFIX` (`"panel:"`), drop résolu par `handlePanelDrop(packId, nodeId, worldX, worldY)` dans la route overview (conversion écran→monde via `getStageGeometry`, `features/canvas/stageGeometry.ts`).
-- **Clic** → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel** : éditer / ajouter-retirer de la planche / supprimer.
+- Recherche texte.
+- **Bouton toggle « canvas »** par ligne (remplace l'ancien drag-and-drop, retiré) : flèche entrante `title="Ajouter au canvas"` → `addToBoard` quand l'élément est hors planche ; flèche sortante colorée `--brand` `title="Retirer du canvas"` → `removeFromBoard` quand il est présent. La couleur `--brand` du bouton « retirer » sert aussi d'indicateur d'état (remplace l'ancien badge texte « sur la planche »).
+- **Clic** sur le label → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel `···`** : éditer / supprimer du pack (l'ajout/retrait passe par le bouton toggle).
+- Terminologie user-facing : « canvas » (les actions/identifiants internes gardent `board` : `addToBoard`, `removeFromBoard`, `canvasLayout`).
 - 3ᵉ zone du layout overview desktop (panneau · planche · `EditorPane`).
 - Helper de label partagé `elementLabel(pack, id, lang)` (`usePackElements.ts`) — utilisé aussi par l'en-tête de `ElementView`.
 
@@ -177,6 +178,8 @@ Un élément est **sur la planche ssi** il a une entrée explicite `pack.canvasL
 - **Dispatch par type** : menu → `SoloMenuStage` (`features/workspace/SoloMenuStage.tsx`, hôte d'un `<MenuGroup>` en mode solo) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
 - Sélection posée via `useSelectionStore.set([elementId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
 - **INVARIANT** : `ElementView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
+- **Échap = retour planche** : `ElementView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
+- **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[packId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par packId, **session-only** (hors `partialize`) : quitter pour une vue d'élément puis revenir garde la position + le zoom ; un reload repart de la vue par défaut.
 
 ### Chips fantômes (liens hors-planche)
 

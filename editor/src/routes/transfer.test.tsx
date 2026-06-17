@@ -64,7 +64,7 @@ describe("/transfer?token=...", () => {
     render(<TransferRoute />);
 
     await screen.findByText(/Alpha/);
-    expect(screen.getByText(/3 packs/)).toBeTruthy();
+    expect(screen.getByText(/3 workspaces/)).toBeTruthy();
     expect(screen.getByText(/1 server_key/)).toBeTruthy();
 
     const acceptButton = screen.getByText(/Accepter/i);

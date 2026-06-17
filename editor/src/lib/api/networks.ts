@@ -22,6 +22,8 @@ export interface PackSummary {
   updatedAt?: string;
   networkId: string;
   serverKeyId: string;
+  /** Menus + commands + dialogs count, for the element-count indicator. */
+  elementCount?: number;
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {
@@ -371,6 +373,11 @@ export class ClaimError extends Error {
   constructor(
     public readonly code:
       | "must_choose_network"
+      | "ambiguous_network"
+      | "ambiguous_pack"
+      | "pack_not_in_network"
+      | "invalid_network_name"
+      | "invalid_pack_name"
       | "unauthorized"
       | "forbidden"
       | "expired"

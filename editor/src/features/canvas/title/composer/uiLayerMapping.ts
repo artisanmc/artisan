@@ -2,19 +2,30 @@ import type { MenuTitleLayer } from "@/domain/types";
 import type { UiLayer } from "./types";
 
 export function toUiLayers(layers: MenuTitleLayer[]): UiLayer[] {
-  return layers.map((l): UiLayer => {
+  const out: UiLayer[] = [];
+  for (const l of layers) {
     switch (l.kind) {
       case "background":
-        return { kind: "image", assetId: l.assetId, x: 0, y: 0, stretchToChest: true };
+        out.push({ kind: "image", assetId: l.assetId, x: 0, y: 0, stretchToChest: true });
+        break;
       case "glyph":
-        return { kind: "image", assetId: l.assetId, x: l.x, y: l.y, stretchToChest: false };
+        out.push({ kind: "image", assetId: l.assetId, x: l.x, y: l.y, stretchToChest: false });
+        break;
       case "text":
         // color is intentionally dropped (deprecated). fontAssetId passes through.
-        return { kind: "text", value: l.value, x: l.x, y: l.y, fontAssetId: l.fontAssetId };
+        out.push({ kind: "text", value: l.value, x: l.x, y: l.y, fontAssetId: l.fontAssetId });
+        break;
       case "external_glyph":
-        return { kind: "external", layer: l };
+        out.push({ kind: "external", layer: l });
+        break;
+      // `plain` and `textarea` aren't part of the positioned-layer canvas model
+      // (UiLayer) — they're edited via their own forms. Skip them here.
+      case "plain":
+      case "textarea":
+        break;
     }
-  });
+  }
+  return out;
 }
 
 export function fromUiLayers(ui: UiLayer[]): MenuTitleLayer[] {

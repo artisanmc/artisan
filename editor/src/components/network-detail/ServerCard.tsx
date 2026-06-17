@@ -14,6 +14,8 @@ interface Server {
 interface Workspace {
   id: string;
   name: string;
+  /** Menus + commands + dialogs count, for the element-count indicator. */
+  elementCount?: number;
 }
 
 interface Props {
@@ -70,7 +72,18 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreateWo
             <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">
               📋 {w.name}
             </span>
-            <ArrowRight className="size-[13px] text-[var(--text-faint)]" />
+            <div className="flex shrink-0 items-center gap-1.5">
+              {w.elementCount != null && (
+                <span
+                  title={t("serverDetail.elementCount", { count: w.elementCount })}
+                  aria-label={t("serverDetail.elementCount", { count: w.elementCount })}
+                  className="rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+                >
+                  {w.elementCount}
+                </span>
+              )}
+              <ArrowRight className="size-[13px] text-[var(--text-faint)]" />
+            </div>
           </Link>
         ))}
         <button
