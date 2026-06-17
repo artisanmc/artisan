@@ -48,6 +48,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 modules = registry,
                 coreVersion = plugin.description.version,
             )
+            // version = core plugin version for now (ArtisanModule has no own version); P1c will add ArtisanModule.version
             registry.bind(api) {
                 if (plugin::menuProvider.isInitialized) {
                     (plugin.menuProvider as? SyncedMenuProvider)?.notifyModulesChanged(

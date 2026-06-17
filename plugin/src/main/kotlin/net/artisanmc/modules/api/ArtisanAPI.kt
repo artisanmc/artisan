@@ -15,7 +15,8 @@ import org.bukkit.plugin.java.JavaPlugin
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
  *
- * Obtain via Bukkit `ServicesManager`: `server.servicesManager.load(ArtisanAPI::class.java)`.
+ * Obtain via Bukkit `ServicesManager`:
+ * `server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provider`.
  */
 @Stable
 class ArtisanAPI(

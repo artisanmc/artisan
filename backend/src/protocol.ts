@@ -128,6 +128,7 @@ export interface LocalPushMessage {
 // Plugin → backend: emitted when a module registers after hello (runtime registration seam)
 export interface ModulesChangedMessage {
   type: "modules_changed";
+  // redundant with the authenticated session; ignored by the backend (kept for payload parity with hello)
   server_key: string;
   installed_modules: { id: string; version: string }[];
 }
