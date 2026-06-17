@@ -38,13 +38,20 @@ open class ArtisanPlugin : JavaPlugin() {
             CommandsModule(),
         )
 
-        fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanAPI(
-            plugin = plugin,
-            dataSources = DataSourceRegistry(),
-            commands = CommandRegistry(),
-            events = ModuleEventBus(),
-            schemas = SchemaRegistry(),
-        )
+        fun buildApi(plugin: ArtisanPlugin): ArtisanAPI {
+            val registry = ModuleRegistry()
+            val api = ArtisanAPI(
+                plugin = plugin,
+                dataSources = DataSourceRegistry(),
+                commands = CommandRegistry(),
+                events = ModuleEventBus(),
+                schemas = SchemaRegistry(),
+                modules = registry,
+                coreVersion = plugin.description.version,
+            )
+            registry.bind(api) {}
+            return api
+        }
     }
 
     override fun onEnable() {
