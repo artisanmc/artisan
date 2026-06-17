@@ -189,7 +189,7 @@ Détail des couches de tokens : `docs/architecture/editor-internals.md` (section
 
 ## Invariants critiques
 
-**Hash byte-order sort** — `BundleHasher.kt` et `hashUtils.ts` trient les fichiers par ordre byte natif (`<`/`>` Kotlin/JS). Ne jamais utiliser `localeCompare` ou `compareToIgnoreCase` : les hashes divergeraient entre plugin et backend.
+**Hash byte-order sort + maison unique** — le hash de pack a **une seule implémentation par langage** : `BundleHasher` (plugin) et `hashUtils.computeBundleHash` (backend). Tous deux hashent une map **relPath-keyed** triée par ordre byte natif (`<`/`>` Kotlin/JS — jamais `localeCompare`/`compareToIgnoreCase`, sinon divergence plugin↔backend). Côté plugin, disque (`hash`), `local_push` (`hashCanonical`) et upload passent **tous** par `BundleHasher` — pas de second SHA-256 ad-hoc (un hash dupliqué dans `LocalPushSender` avait silencieusement divergé en keyant sur le chemin complet ; corrigé 2026-06-17). L'égalité cross-langage est verrouillée par le vecteur partagé `testdata/pack-hash-conformance.json`, asservi par `BundleHashConformanceTest` (plugin) **et** `hashUtils.test.ts` (backend) — changer l'algo = mettre à jour les deux + régénérer le vecteur.
 
 **Sentinel `""`** — chaîne vide = "jamais synchronisé / pas de contenu" dans tous les contextes hash. `BundleHasher.hash()` renvoie `""` pour un répertoire vide. `SyncMetadata.syncedHash` est `""` par défaut.
 

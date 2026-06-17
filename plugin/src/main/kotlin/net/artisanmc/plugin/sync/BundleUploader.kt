@@ -10,19 +10,28 @@ import java.util.logging.Logger
 
 object PackFilesReader {
     /**
-     * Walk packDir and produce the canonical files map keyed by
-     * "plugins/Artisan/packs/<packId>/<relPath>", excluding `.artisan*` metadata.
+     * The single pack-dir walk. relPath-keyed map (forward slashes), excluding
+     * `.artisan*` sync metadata. Both the hash (`BundleHasher`) and the wire forms
+     * (`read`, below) derive from this — no second traversal.
      */
-    fun read(packDir: File, packId: String): Map<String, String> {
-        val prefix = "plugins/Artisan/packs/$packId/"
+    fun readRelative(packDir: File): Map<String, String> {
         val out = mutableMapOf<String, String>()
         packDir.walkTopDown()
             .filter { it.isFile && !it.name.startsWith(".artisan") }
             .forEach { file ->
                 val rel = file.relativeTo(packDir).path.replace('\\', '/')
-                out["$prefix$rel"] = file.readText(Charsets.UTF_8)
+                out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
+    }
+
+    /**
+     * Canonical files map keyed by "plugins/Artisan/packs/<packId>/<relPath>"
+     * (the form the backend stores). Thin re-key over [readRelative].
+     */
+    fun read(packDir: File, packId: String): Map<String, String> {
+        val prefix = "plugins/Artisan/packs/$packId/"
+        return readRelative(packDir).mapKeys { (rel, _) -> "$prefix$rel" }
     }
 }
 
