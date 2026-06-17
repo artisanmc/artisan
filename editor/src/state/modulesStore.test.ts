@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { registered, loadQuests, questsMod } = vi.hoisted(() => {
+const { registered, loadQuests } = vi.hoisted(() => {
   const questsMod = {
     id: "quests",
     displayName: "Quests",
@@ -10,7 +10,7 @@ const { registered, loadQuests, questsMod } = vi.hoisted(() => {
   };
   const registered = new Map<string, unknown>();
   const loadQuests = vi.fn(async () => questsMod);
-  return { registered, loadQuests, questsMod };
+  return { registered, loadQuests };
 });
 
 vi.mock("@artisan/editor-sdk", () => ({
