@@ -288,6 +288,7 @@ export function WorkspaceSidebar() {
             <ul className="flex flex-col">
               {moduleNav.map((m) => (
                 <li key={m.id}>
+                  {/* TODO(P2): render m.sidebar.icon once modules ship real icons */}
                   <Link
                     to="/m/$moduleId"
                     params={{ moduleId: m.id }}

@@ -29,4 +29,8 @@ describe("resolveModule", () => {
     registered.set("quests", { id: "quests", routes: [] });
     expect(resolveModule("quests", "ready")).toEqual({ kind: "missing" });
   });
+
+  it("returns loading when the module is absent and status is idle", () => {
+    expect(resolveModule("quests", "idle")).toEqual({ kind: "loading" });
+  });
 });

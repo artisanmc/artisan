@@ -62,4 +62,13 @@ describe("useModulesStore.integrate", () => {
     expect(loadQuests).toHaveBeenCalledTimes(1);
     expect(fetchActiveModules).toHaveBeenCalledTimes(1);
   });
+
+  it("resets to idle and clears mountedIds when fetchActiveModules rejects", async () => {
+    vi.mocked(fetchActiveModules).mockRejectedValue(new Error("network"));
+
+    await useModulesStore.getState().integrate("tok");
+
+    expect(useModulesStore.getState().status).toBe("idle");
+    expect(useModulesStore.getState().mountedIds).toEqual([]);
+  });
 });
