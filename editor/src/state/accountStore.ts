@@ -48,6 +48,7 @@ import type {
   Step,
 } from "@/domain/types";
 import { gridArrange } from "@/features/canvas/autoLayout";
+import { colsFor, rowsFor, slotCount } from "@/features/canvas/inventoryTypes";
 import { inferFieldTypeFromValue } from "@/features/data/helpers";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
@@ -1738,7 +1739,7 @@ export const useAccountStore = create<AccountState>()(
             menu.permission = value || undefined;
           } else if (field === "rows") {
             if (typeof value !== "number") return;
-            const maxPos = value * 9 - 1;
+            const maxPos = slotCount(menu.inventoryType ?? "chest", value) - 1;
             const overflow = menu.layers.some((l) =>
               l.elements.some((el) => parsePositions(el.positions).some((p) => p > maxPos)),
             );
@@ -3004,6 +3005,10 @@ export const useAccountStore = create<AccountState>()(
           const menu = pack.menus.find((m) => m.id === mId);
           if (!menu) return;
           const targetSet = new Set(elementIds);
+          // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3.
+          const type = menu.inventoryType ?? "chest";
+          const cols = colsFor(type);
+          const rows = rowsFor(type, menu.rows);
           // First pass: compute new positions and validate bounds.
           const plans = new Map<ElementId, number[]>();
           for (const layer of menu.layers) {
@@ -3011,12 +3016,12 @@ export const useAccountStore = create<AccountState>()(
               if (!targetSet.has(el.id)) continue;
               const newPositions: number[] = [];
               for (const p of parsePositions(el.positions)) {
-                const newCol = (p % 9) + dCol;
-                const newRow = Math.floor(p / 9) + dRow;
-                if (newCol < 0 || newCol >= 9 || newRow < 0 || newRow >= menu.rows) {
+                const newCol = (p % cols) + dCol;
+                const newRow = Math.floor(p / cols) + dRow;
+                if (newCol < 0 || newCol >= cols || newRow < 0 || newRow >= rows) {
                   throw new Error("selection drag would land outside the menu");
                 }
-                newPositions.push(newRow * 9 + newCol);
+                newPositions.push(newRow * cols + newCol);
               }
               plans.set(el.id, newPositions);
             }
