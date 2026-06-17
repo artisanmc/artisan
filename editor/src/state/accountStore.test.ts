@@ -513,6 +513,57 @@ describe("accountStore", () => {
     expect(findElement()?.positions).toBe("13");
   });
 
+  it("moveSelectionByDelta respects the inventory type's grid (hopper = 5 cols × 1 row)", () => {
+    // Turn SHOP_MAIN into a hopper: 5 columns, a single row.
+    useAccountStore
+      .getState()
+      .setMenuField({ packId: PERSONAL, menuId: SHOP_MAIN, field: "inventoryType", value: "hopper" });
+
+    // Last hopper column is 4; moving right leaves the 5-wide grid → must throw
+    // (a chest-assuming `% 9` would wrongly allow it and produce slot 5).
+    useAccountStore
+      .getState()
+      .setElementPositions({ packId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN, positions: "4" });
+    expect(() =>
+      useAccountStore.getState().moveSelectionByDelta({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        elementIds: [PROFILE_BTN],
+        dCol: 1,
+        dRow: 0,
+      }),
+    ).toThrow(/outside the menu/);
+    expect(findElement()?.positions).toBe("4");
+
+    // A hopper has a single row; moving down must throw (chest `menu.rows` bound
+    // would wrongly allow it and produce slot 9).
+    useAccountStore
+      .getState()
+      .setElementPositions({ packId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN, positions: "0" });
+    expect(() =>
+      useAccountStore.getState().moveSelectionByDelta({
+        packId: PERSONAL,
+        menuId: SHOP_MAIN,
+        elementIds: [PROFILE_BTN],
+        dCol: 0,
+        dRow: 1,
+      }),
+    ).toThrow(/outside the menu/);
+
+    // A valid in-row move still works: col 1 → col 2.
+    useAccountStore
+      .getState()
+      .setElementPositions({ packId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN, positions: "1" });
+    useAccountStore.getState().moveSelectionByDelta({
+      packId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementIds: [PROFILE_BTN],
+      dCol: 1,
+      dRow: 0,
+    });
+    expect(findElement()?.positions).toBe("2");
+  });
+
   it("addAppearance pushes a conditional state seeded with a placeholder permission", () => {
     useAccountStore
       .getState()
