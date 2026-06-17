@@ -150,8 +150,45 @@ describe("userNetworksRouter", () => {
     expect(body.packs[0].name).toBe("p1");
     expect(body.packs[0]).toHaveProperty("networkId");
     expect(body.packs[0]).toHaveProperty("serverKeyId");
+    // Fresh pack has no menus/commands/dialogs yet.
+    expect(body.packs[0].elementCount).toBe(0);
     expect(body.serverKeys).toHaveLength(1);
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
+  });
+
+  test("GET /api/v1/networks/:id reports elementCount from the pack editor JSON", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N-count" }),
+    });
+    const { network } = await create.json();
+
+    await db.insert(serverKeys).values({
+      id: "sk_count",
+      hash: "hash_count",
+      networkId: network.id,
+      createdAt: new Date(),
+      label: null,
+    });
+    const { createPack, upsertPackContent } = await import("../lib/packStorage");
+    const pack = await createPack({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
+    await upsertPackContent(pack.id, {
+      editorJson: JSON.stringify({
+        menus: [{ id: "m1" }, { id: "m2" }],
+        commands: [{ id: "c1" }],
+        dialogs: [{ id: "d1" }],
+      }),
+    });
+
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const body = await res.json();
+    expect(body.packs[0].elementCount).toBe(4);
   });
 
   test("GET /api/v1/networks/:id 403 when not member", async () => {

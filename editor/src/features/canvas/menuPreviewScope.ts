@@ -53,7 +53,10 @@ export function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknow
   const scope: Record<string, unknown> = {};
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") {
-      scope[input.name] = coerceDefault(input.default, input.type);
+      scope[input.name] = coerceDefault(
+        input.default,
+        input.type as "player" | "string" | "integer" | "number" | "boolean",
+      );
     } else {
       scope[input.name] = resolveSourceRef(input.ref, pack);
     }

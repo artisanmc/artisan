@@ -20,3 +20,5 @@ test-results
 .vscode
 *.log
 .gstack/
+.env
+.env.local

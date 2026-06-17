@@ -72,6 +72,15 @@ export default function ServerDetailPage() {
                     className="card flex items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
+                    {w.elementCount != null && (
+                      <span
+                        title={t("serverDetail.elementCount", { count: w.elementCount })}
+                        aria-label={t("serverDetail.elementCount", { count: w.elementCount })}
+                        className="shrink-0 rounded-full bg-[var(--surface-raised)] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[var(--text-mut)]"
+                      >
+                        {w.elementCount}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}

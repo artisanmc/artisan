@@ -20,10 +20,8 @@ import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { EditorPane } from "@/features/canvas/EditorPane";
-import { screenToWorld } from "@/features/canvas/hitTest";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
-import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { tryStageDrop } from "@/features/canvas/stageDropTarget";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
@@ -34,7 +32,7 @@ import { usePackLoader } from "@/features/pack/usePackLoader";
 import { DeletePackDialog } from "@/features/sync/DeletePackDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { HistoryTab } from "@/features/workspace/HistoryTab";
-import { PANEL_DRAG_PREFIX, WorkspacePanel } from "@/features/workspace/WorkspacePanel";
+import { WorkspacePanel } from "@/features/workspace/WorkspacePanel";
 import { deletePack } from "@/lib/api/packs";
 import { refreshEditorSession } from "@/lib/editorSession";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
@@ -44,7 +42,6 @@ import { useAuthStore } from "@/state/authStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
-import { useWsStore } from "@/state/wsStore";
 import {
   DndContext,
   type DragEndEvent,
@@ -63,7 +60,7 @@ import {
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
-import { PanelLeft, Plus } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -81,11 +78,6 @@ export const Route = createFileRoute(
   },
 });
 
-/** Convertit un drop panneau→planche en addToBoard aux coordonnées monde. */
-export function handlePanelDrop(packId: PackId, nodeId: string, worldX: number, worldY: number) {
-  useAccountStore.getState().addToBoard({ packId, nodeId, x: worldX, y: worldY });
-}
-
 export function PackCanvasPage() {
   const {
     networkId,
@@ -102,9 +94,6 @@ export function PackCanvasPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
-  const setTab = (next: "overview" | "translations" | "data-sources" | "history") => {
-    navigate({ search: { tab: next } });
-  };
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
@@ -132,13 +121,12 @@ export function PackCanvasPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [exportErrorsOpen, setExportErrorsOpen] = useState(false);
   const [exportErrors, setExportErrors] = useState<string[]>([]);
-  const apiUrl = useWsStore((s) => s.apiUrl);
 
   const importPackAction = useAccountStore((s) => s.importPack);
   const setSelection = useSelectionStore((s) => s.set);
   const handleImport = () => {
     pickPackFileForImport((file) => {
-      importPackFromFile(file, importPackAction)
+      importPackFromFile(file, importPackAction as (input: { pack: unknown }) => string)
         .then(({ newId, name }) => {
           setSelection([newId as ElementId]);
           toast.success(t("toast.importedPack", { name }));
@@ -151,7 +139,6 @@ export function PackCanvasPage() {
     });
   };
   const setActiveDragMaterial = useUiStore((s) => s.setActiveDragMaterial);
-  const setActiveDragPanelItem = useUiStore((s) => s.setActiveDragPanelItem);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -162,7 +149,7 @@ export function PackCanvasPage() {
     if (ui.lastActivePackId !== pId) ui.setLastActivePackId(pId);
     // Persist the tab too so a reload (which bounces through /session) can
     // restore the exact view, not just the pack.
-    if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab);
+    if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab ?? null);
   }, [pId, tab]);
 
   // Keep the access token alive while the pack page is open.
@@ -234,36 +221,12 @@ export function PackCanvasPage() {
     const id = String(e.active.id);
     if (id.startsWith(LIBRARY_DRAG_PREFIX)) {
       setActiveDragMaterial(id.slice(LIBRARY_DRAG_PREFIX.length));
-    } else if (id.startsWith(PANEL_DRAG_PREFIX)) {
-      const data = e.active.data.current as { label?: string; type?: string } | undefined;
-      setActiveDragPanelItem({ label: data?.label ?? id.slice(PANEL_DRAG_PREFIX.length), type: data?.type ?? "menu" });
     }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
-    setActiveDragPanelItem(null);
     const id = String(e.active.id);
-
-    // Panel → board: convert release client coords to world coords via the
-    // live Stage geometry, then add the node to the canvas layout.
-    if (id.startsWith(PANEL_DRAG_PREFIX)) {
-      const nodeId = id.slice(PANEL_DRAG_PREFIX.length);
-      const start = e.activatorEvent as PointerEvent;
-      const endX = (start.clientX ?? 0) + e.delta.x;
-      const endY = (start.clientY ?? 0) + e.delta.y;
-      const geo = getStageGeometry();
-      if (geo) {
-        const world = screenToWorld(
-          { x: endX - geo.wrapperRect.left, y: endY - geo.wrapperRect.top },
-          geo.viewport,
-        );
-        handlePanelDrop(pId, nodeId, world.x, world.y);
-      } else {
-        handlePanelDrop(pId, nodeId, 40, 40);
-      }
-      return;
-    }
 
     if (!id.startsWith(LIBRARY_DRAG_PREFIX)) return;
     const material = id.slice(LIBRARY_DRAG_PREFIX.length);
@@ -294,7 +257,6 @@ export function PackCanvasPage() {
 
   const onDragCancel = () => {
     setActiveDragMaterial(null);
-    setActiveDragPanelItem(null);
   };
 
   const tabContent = (
@@ -551,29 +513,10 @@ export function PackCanvasPage() {
 
 function LibraryDragOverlay() {
   const material = useUiStore((s) => s.activeDragMaterial);
-  const panelItem = useUiStore((s) => s.activeDragPanelItem);
   return (
     <DragOverlay dropAnimation={null}>
-      {material ? (
-        <LibraryDragGhost material={material} />
-      ) : panelItem ? (
-        <PanelDragGhost label={panelItem.label} />
-      ) : null}
+      {material ? <LibraryDragGhost material={material} /> : null}
     </DragOverlay>
-  );
-}
-
-/** Cursor-following ghost while dragging a panel element onto the board.
- *  The "+" + brand border signal "add to board" (vs an in-list reorder). */
-function PanelDragGhost({ label }: { label: string }) {
-  return (
-    <div
-      className="pointer-events-none flex max-w-[200px] items-center gap-1.5 rounded-[10px] border-2 border-[var(--brand)] bg-[var(--surface-raised)]/95 px-2.5 py-1.5 text-[12px] font-medium text-[var(--text)]"
-      style={{ boxShadow: "var(--shadow-lg)" }}
-    >
-      <Plus className="size-3.5 shrink-0 text-[var(--brand)]" />
-      <span className="truncate">{label}</span>
-    </div>
   );
 }
 

@@ -19,7 +19,9 @@ import { useTranslation } from "react-i18next";
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import type { PackId } from "@/domain/types";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { type PackSummary, getNetwork, listNetworks } from "@/lib/api/networks";
+import { useUiStore } from "@/state/uiStore";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
@@ -174,6 +176,15 @@ export function WorkspaceSidebar() {
   const remaining = [...idToPack.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
 
+  // Element count per pack: prefer the live count from a fully-loaded pack in
+  // the account store (updates as the user edits), else the summary's
+  // backend-computed elementCount. Null when neither is available.
+  const liveCount = new Map(
+    localPacks.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
+  );
+  const countFor = (p: PackSummary): number | null =>
+    liveCount.get(p.id as PackId) ?? p.elementCount ?? null;
+
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -233,6 +244,7 @@ export function WorkspaceSidebar() {
                       key={w.id}
                       id={w.id}
                       name={w.name}
+                      count={countFor(w)}
                       networkId={w.networkId || activeNetworkId}
                       serverId={w.serverKeyId || activeServerId}
                     />
@@ -278,14 +290,17 @@ export function WorkspaceSidebar() {
 function SortableWorkspaceItem({
   id,
   name,
+  count,
   networkId,
   serverId,
 }: {
   id: string;
   name: string;
+  count: number | null;
   networkId: string | null;
   serverId: string | null;
 }) {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -326,6 +341,15 @@ function SortableWorkspaceItem({
         >
           <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           <span className="truncate flex-1">{name}</span>
+          {count != null && (
+            <span
+              title={t("serverDetail.elementCount", { count })}
+              aria-label={t("serverDetail.elementCount", { count })}
+              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+            >
+              {count}
+            </span>
+          )}
         </Link>
         <button
           type="button"
@@ -357,9 +381,22 @@ function WorkspaceSubTabs({
   const { t } = useTranslation();
   const search = useSearch({ strict: false }) as { tab?: string } | undefined;
   const currentTab = search?.tab ?? "overview";
+  // Missing-translation count for this workspace's pack, for the active
+  // language — mirrors the Translations panel's "N missing" headline exactly
+  // (same lang, same formula) so the nav badge and the panel never disagree.
+  // Sourced from the live account store, so it tracks edits; 0 when the pack
+  // isn't loaded (summary-only) → no badge.
+  const activeLang = useUiStore((s) => s.activeLang);
+  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === workspaceId));
+  const missingCount = pack ? countMissingForLang(pack, activeLang) : 0;
   const tabs = [
     { id: "overview", label: t("workspace.tabs.overview"), Icon: LayoutGrid },
-    { id: "translations", label: t("workspace.tabs.translations"), Icon: Languages },
+    {
+      id: "translations",
+      label: t("workspace.tabs.translations"),
+      Icon: Languages,
+      badge: missingCount,
+    },
     { id: "data-sources", label: t("workspace.tabs.dataSources"), Icon: Database },
     { id: "history", label: t("workspace.tabs.history"), Icon: History },
   ] as const;
@@ -389,7 +426,16 @@ function WorkspaceSubTabs({
               }
             >
               <Icon className="size-[13px] shrink-0" />
-              {tab.label}
+              <span className="flex-1 truncate">{tab.label}</span>
+              {"badge" in tab && tab.badge > 0 ? (
+                <span
+                  aria-label={t("workspace.tabs.missingTranslations", { count: tab.badge })}
+                  title={t("workspace.tabs.missingTranslations", { count: tab.badge })}
+                  className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]"
+                >
+                  {tab.badge}
+                </span>
+              ) : null}
             </Link>
           </li>
         );

@@ -74,12 +74,15 @@ export function NetworkDetailPage() {
     );
 
   // Group packs by server (1:N).
-  const packsByServer = new Map<string, Array<{ id: string; name: string }>>();
+  const packsByServer = new Map<
+    string,
+    Array<{ id: string; name: string; elementCount?: number }>
+  >();
   for (const p of detail.packs) {
     const skId = p.serverKeyId;
     if (!skId) continue;
     const list = packsByServer.get(skId) ?? [];
-    list.push({ id: p.id, name: p.name });
+    list.push({ id: p.id, name: p.name, elementCount: p.elementCount });
     packsByServer.set(skId, list);
   }
 
@@ -193,7 +196,7 @@ export function NetworkDetailPage() {
                 <ServerCard
                   key={sk.id}
                   networkId={detail.network.id}
-                  server={{ id: sk.id, slug: sk.slug, label: sk.label, online: false }}
+                  server={{ id: sk.id, slug: sk.slug ?? sk.id, label: sk.label, online: false }}
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
                   onCreateWorkspace={(serverId) => setNewWsForServer(serverId)}

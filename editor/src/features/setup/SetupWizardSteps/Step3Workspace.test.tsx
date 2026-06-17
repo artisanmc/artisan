@@ -48,9 +48,9 @@ describe("Step3Workspace", () => {
     const setState = vi.fn();
     render(<Step3Workspace state={stateWithServer} setState={setState} />);
 
-    await waitFor(() => expect(screen.getByPlaceholderText(/my_pack/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByPlaceholderText(/my_workspace/i)).toBeTruthy());
 
-    await userEvent.type(screen.getByPlaceholderText(/my_pack/i), "My New Pack");
+    await userEvent.type(screen.getByPlaceholderText(/my_workspace/i), "My New Pack");
     await userEvent.click(screen.getByRole("button", { name: /créer|create/i }));
 
     // serverKeyId is now wired from Step 2 — no more "" fallback

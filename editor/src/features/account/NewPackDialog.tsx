@@ -39,7 +39,7 @@ export function NewPackDialog({ trigger }: NewPackDialogProps = {}) {
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Input
-            placeholder="my_pack"
+            placeholder="my_workspace"
             value={id}
             onChange={(e) => setId(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") submit(); }}

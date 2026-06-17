@@ -34,7 +34,7 @@ function SessionPage() {
   const tokenRef = useRef<string | null>(null);
   const [state, setState] = useState<"loading" | "invalid" | "expired" | "already_used" | "empty" | "trust_gate">("loading");
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
-  const [networkId, setNetworkId] = useState<string | null>(null);
+  const [, setNetworkId] = useState<string | null>(null);
   const wsRef = useRef<EditorWs | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
@@ -340,7 +340,7 @@ function EmptyState({
           <div className="flex gap-2">
             <input
               className="input"
-              placeholder="my_pack"
+              placeholder="my_workspace"
               value={id}
               onChange={(e) => setId(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") submit(); }}

@@ -411,7 +411,7 @@ function PackStep({
         <span className="field-label">{t("linkPage.newPackLabel")}</span>
         <input
           className="input"
-          placeholder="my_pack"
+          placeholder="my_workspace"
           value={newName}
           onChange={(e) => {
             setNewName(e.target.value);

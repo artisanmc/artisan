@@ -1,5 +1,5 @@
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { RevealField } from "@/components/RevealField";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { I18nKey, PackId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import {
@@ -12,7 +12,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { yaml as yamlLang } from "@codemirror/lang-yaml";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
-import { AlertCircle, Check, Copy as CopyIcon, Plus } from "lucide-react";
+import { AlertCircle, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -28,6 +28,37 @@ type Mode = "visual" | "yaml";
 type Filter = "missing" | "translated" | "all";
 
 const looksLikeMM = (s: string): boolean => s.includes("<");
+
+/**
+ * Render a (possibly multi-line) string as MiniMessage. Each line goes
+ * through {@link MiniMessageInline} when it looks like markup, otherwise as
+ * plain text. Shared by the source preview, the editable field's facade, and
+ * the live preview block so all three render identically.
+ */
+function MMLines({ text, className }: { text: string; className?: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, i) =>
+        looksLikeMM(line) ? (
+          <MiniMessageInline
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
+            key={i}
+            source={line}
+            className={`block break-words font-mono ${className ?? "text-[var(--text-mut)]"}`}
+          />
+        ) : (
+          <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
+            key={i}
+            className={`block break-words font-mono ${className ?? "text-[var(--text-mut)]"}`}
+          >
+            {line}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
 
 const CM_THEME = EditorView.theme({
   "&": { background: "transparent", fontSize: "12px" },
@@ -57,6 +88,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
   const setActiveLang = useUiStore((s) => s.setActiveLang);
   const addLanguage = useAccountStore((s) => s.addLanguage);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const removeUnusedI18nKeys = useAccountStore((s) => s.removeUnusedI18nKeys);
   const { t } = useTranslation();
 
   const rows = useMemo(
@@ -83,6 +115,12 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
     translated: rows.filter((r) => r.target.trim() !== "").length,
   };
   const missing = stats.total - stats.translated;
+  const unusedCount = rows.filter((r) => r.context === "(unused)").length;
+
+  const onRemoveUnused = () => {
+    removeUnusedI18nKeys({ packId });
+    toast.success(t("translations.removedUnused", { count: unusedCount }));
+  };
 
   const onAddLang = () => {
     const code = window.prompt(t("langSwitcher.addLanguagePrompt"));
@@ -144,7 +182,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
       {/* Right card — stats + mode/filter + body */}
       <main className="card flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Stats row */}
-        <div className="border-b border-[var(--border-soft)] px-5 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border-soft)] px-5 py-3">
           <div className="flex items-center gap-3 text-[12px] text-[var(--text-mut)]">
             <span>
               {t("translations.statTranslated", {
@@ -161,6 +199,17 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
               <span className="text-[var(--success)]">· {t("translations.statComplete")}</span>
             )}
           </div>
+          {unusedCount > 0 ? (
+            <button
+              type="button"
+              onClick={onRemoveUnused}
+              title={t("translations.removeUnusedHint")}
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            >
+              <Trash2 className="h-3 w-3" />
+              {t("translations.removeUnused", { count: unusedCount })}
+            </button>
+          ) : null}
         </div>
 
         {isOnDefault ? (
@@ -195,8 +244,10 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
           ) : null}
         </div>
 
-        {/* Body */}
-        <div className="min-h-0 flex-1 overflow-hidden">
+        {/* Body — flex column so the inner scroll regions (`flex-1 min-h-0
+            overflow-y-auto` in VisualBody / YamlBody) get a bounded height.
+            A plain block parent left `flex-1` inert and killed scrolling. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {mode === "visual" ? (
             <VisualBody
               activeLang={activeLang}
@@ -418,24 +469,7 @@ function VisualRow({
           <div className="min-w-0 flex-1">
             {row.source ? (
               <div className="flex flex-col">
-                {row.source.split("\n").map((line, i) =>
-                  looksLikeMM(line) ? (
-                    <MiniMessageInline
-                      // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
-                      key={i}
-                      source={line}
-                      className="block break-words font-mono text-[var(--text-mut)]"
-                    />
-                  ) : (
-                    <span
-                      // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
-                      key={i}
-                      className="block break-words font-mono text-[var(--text-mut)]"
-                    >
-                      {line}
-                    </span>
-                  ),
-                )}
+                <MMLines text={row.source} />
               </div>
             ) : (
               <span className="text-[var(--text-faint)] italic">{t("translations.emptySource")}</span>
@@ -444,43 +478,34 @@ function VisualRow({
         </div>
       ) : null}
 
-      {/* Target row (the input). */}
+      {/* Target row (the input). Uses the same focus-reveal field as the
+          title/lore/action editors: a rendered MiniMessage facade until
+          focused, then a raw editor with a live preview below. */}
       <div className="flex items-start gap-2 px-3 pb-2 text-xs">
         <span className="mt-1.5 w-7 shrink-0 font-mono text-[10px] text-[var(--text-faint)] uppercase">
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
-          {isMultiline ? (
-            <textarea
-              value={row.target}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={t("translations.translationPlaceholder")}
-              rows={Math.min(6, Math.max(2, row.target.split("\n").length))}
-              className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface)] p-1.5 font-mono text-xs text-[var(--text)]"
-            />
-          ) : (
-            <Input
-              value={row.target}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={t("translations.translationPlaceholder")}
-              className="h-8 px-2 py-0 font-mono text-xs"
-            />
-          )}
-          {row.target && row.target.split("\n").some(looksLikeMM) ? (
-            <div className="mt-1 flex flex-col rounded border border-[var(--border-soft)] bg-[var(--color-bg)] px-2 py-1">
-              <span className="mb-0.5 font-mono text-[9px] text-[var(--text-faint)] uppercase">
-                {t("translations.previewLabel")}
-              </span>
-              {row.target.split("\n").map((line, i) => (
-                <MiniMessageInline
-                  // biome-ignore lint/suspicious/noArrayIndexKey: stable lore lines
-                  key={i}
-                  source={line}
-                  className="font-mono text-xs"
-                />
-              ))}
-            </div>
-          ) : null}
+          <RevealField
+            value={row.target}
+            onChange={onChange}
+            entries={[]}
+            multiline={isMultiline}
+            rows={Math.min(6, Math.max(2, row.target.split("\n").length))}
+            placeholder={t("translations.translationPlaceholder")}
+            className="font-mono text-xs"
+            facade={<MMLines text={row.target} />}
+            preview={
+              row.target.split("\n").some(looksLikeMM) ? (
+                <div className="mt-1 flex flex-col rounded border border-[var(--border-soft)] bg-[var(--color-bg)] px-2 py-1">
+                  <span className="mb-0.5 font-mono text-[9px] text-[var(--text-faint)] uppercase">
+                    {t("translations.previewLabel")}
+                  </span>
+                  <MMLines text={row.target} />
+                </div>
+              ) : undefined
+            }
+          />
         </div>
       </div>
     </li>
