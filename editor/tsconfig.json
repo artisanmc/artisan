@@ -19,7 +19,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@artisan/editor-sdk": ["src/sdk/index.ts"]
+      "@artisan/editor-sdk": ["packages/editor-sdk/src/index.ts"]
     },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo"
   },
