@@ -29,20 +29,15 @@ User ── Membership ──┐
 
 ### Branches + commits (DAG)
 
-- **pack_commits** : `(id, packId, parentId, parentId2?, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(packId, contentHash)`. `parentId` nullable pour le commit racine (auto-créé à `createPack`). `parentId2` = 2ᵉ parent des merge commits, `null` sur les commits linéaires.
+- **pack_commits** : `(id, packId, parentId, parentId2?, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(packId, contentHash)`. `parentId` nullable pour le commit racine (auto-créé à `createPack`). `parentId2` = 2ᵉ parent des merge commits (colonne conservée mais **plus aucun merge commit créé** depuis le retrait du merge 3-way le 2026-06-17 — cf. ADR `no-branch-conflict-resolution`), `null` sur les commits linéaires.
 - **pack_branches** : `(packId, name, headCommitId, createdAt, updatedAt)`. Unique par `(packId, name)`. V1 : toujours `"main"` (pas d'UI branches).
 - **WIP vs commit** : les plugins lisent **uniquement les commits** via `pack_branches.headCommitId` → `pack_commits.filesJson`. Le WIP (`packs.filesJson`) est le buffer éditeur.
 - **LCA** : `branchStorage.findLCA(a, b)` — BFS bidirectionnel borné à 10 000 steps, walk `parentId` + `parentId2`.
 
-### Merge sémantique par item (Phase 3)
+### Branches — modèle linéaire (FF-only)
 
-- **Granularité** : par item top-level uniquement (`menus`, `commands`, `dialogs`, `templates`, `dataSources` indexés par `id` ; `i18nKeys`, `canvasLayout` en map ; scalaires `defaultLang`/`name`/`description`). Pas de merge field-level intra-item — un item conflictuel est résolu en entier ("use src" / "use dst").
+- **Pas de merge 3-way ni de résolution de conflits.** Le moteur `mergeEngine` + les endpoints `merge-into`/`resolve` ont été retirés le 2026-06-17 (cf. ADR `no-branch-conflict-resolution`) : aucune UI ne les câblait, et la concurrence live est déjà gérée par LWW + présence (`decisions/editor-state-model.md`). Quand les branches reviendront (dev→prod), le flux sera *fast-forward only* (`promote/:dst`). Primitives DAG conservées mais inertes : `pack_commits.parentId2`, `branchStorage.findLCA`.
 - **`canvasLayout`** (`Record<id, {x,y}>`, métadonnée éditeur) : depuis 2026-06-13 c'est l'**ensemble d'appartenance à la planche** (présence d'une entrée = l'élément est sur la planche curée), pas seulement des positions sauvegardées. Pas de changement de schéma DB — seule la sémantique évolue ; `autoLayout` côté éditeur ne retourne que les entrées explicites. Détail : `editor-internals.md` (§ Planche curée).
-- **Auto-merge** : changement non-collisionnel (un seul côté a touché l'item depuis le LCA) → entre dans `mergedState` sans conflit.
-- **Conflit** : modify-modify OU delete-modify. Clés : `"<collection>:<id>"` ou `"scalar:<field>"`.
-- **`mergeEngine.merge`** est pur (pas de DB), opère sur `EditorState` désérialisé, retourne `{ mergedState, conflicts[] }`. Sur conflit, `mergedState` garde `dst` par défaut (renderable avant résolution).
-- **`assets[]` / `importedConnectors[]`** sont SKIP du merge (APIs propres, scope per-pack) — le merge commit hérite de `dst`.
-- **contentHash collision** : `/resolve` ajoute un marker `merge-meta` (lca + src + dst commit ids) au contentHash pour différencier deux merges identiques (sinon viole `pack_commits_pack_content_uniq`).
 
 ## Auth & comptes
 
