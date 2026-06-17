@@ -31,6 +31,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, Redo2, Search, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -78,12 +79,28 @@ export function WorkspaceTopBarControls({
   const displayName = packName ?? pack.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.workspacePanelOpen);
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { tab?: string } | undefined;
+
+  // The elements panel only mounts on the overview tab. From any other tab
+  // (translations / data-sources / history) a plain toggle would flip the
+  // flag with nothing to show — so jump back to overview and make sure the
+  // panel is visible. On overview it stays a simple open/close toggle.
+  const onElementsClick = () => {
+    const ui = useUiStore.getState();
+    if ((search?.tab ?? "overview") !== "overview") {
+      if (!ui.workspacePanelOpen) ui.toggleWorkspacePanel();
+      navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: "overview" }) });
+    } else {
+      ui.toggleWorkspacePanel();
+    }
+  };
 
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-2 pl-14 pr-3 lg:px-5">
       <button
         type="button"
-        onClick={() => useUiStore.getState().toggleWorkspacePanel()}
+        onClick={onElementsClick}
         aria-label={t("workspacePanel.openPanel")}
         aria-pressed={panelOpen}
         className="hidden shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:inline-flex"

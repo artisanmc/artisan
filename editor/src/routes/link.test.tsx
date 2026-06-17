@@ -75,7 +75,7 @@ describe("/link?code=...", () => {
     fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
 
     // Step 2 — type a new pack name
-    fireEvent.change(await screen.findByPlaceholderText(/my_pack/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/my_workspace/i), {
       target: { value: "Lobby" },
     });
     fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);

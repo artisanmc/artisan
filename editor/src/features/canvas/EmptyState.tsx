@@ -15,10 +15,10 @@ export function EmptyState() {
           Bienvenue sur Artisan
         </h1>
         <p className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">
-          Aucun pack encore. Crée ton premier pack pour démarrer — tu pourras y empiler menus,
-          commandes et templates depuis le canvas.
+          Aucun workspace encore. Crée ton premier workspace pour démarrer — tu pourras y empiler
+          menus, commandes et templates depuis le canvas.
         </p>
-        <NewPackDialog trigger={<Button variant="primary">Crée ton premier pack</Button>} />
+        <NewPackDialog trigger={<Button variant="primary">Crée ton premier workspace</Button>} />
       </div>
     </div>
   );

@@ -8,13 +8,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import type { PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { useDraggable } from "@dnd-kit/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { LayoutGrid, MessageSquare, TerminalSquare } from "lucide-react";
+import {
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  LayoutGrid,
+  MessageSquare,
+  TerminalSquare,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { type ElementType, type PackElementItem, buildPackElements } from "./usePackElements";
 
-export const PANEL_DRAG_PREFIX = "panel:";
 const TYPE_ICON: Record<ElementType, typeof LayoutGrid> = {
   menu: LayoutGrid,
   command: TerminalSquare,
@@ -87,15 +91,8 @@ function PanelItem({
 }) {
   const { t } = useTranslation();
   const Icon = TYPE_ICON[item.type];
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${PANEL_DRAG_PREFIX}${item.id}`,
-    data: { nodeId: item.id, type: item.type, label: item.label },
-  });
   return (
-    <div
-      className="group flex items-center gap-1 rounded-[10px] hover:bg-[var(--surface-hover)]"
-      style={{ opacity: isDragging ? 0.4 : 1 }}
-    >
+    <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
       <button
         type="button"
         onClick={onOpen}
@@ -103,21 +100,30 @@ function PanelItem({
       >
         <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
         <span className="flex-1 truncate">{item.label}</span>
-        {item.onBoard && (
-          <span className="shrink-0 text-[9px] text-[var(--brand)]">
-            {t("workspacePanel.onBoard")}
-          </span>
-        )}
       </button>
-      <span
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        className="flex shrink-0 cursor-grab touch-none items-center justify-center p-2 text-[var(--text-faint)]"
-        aria-label={t("workspacePanel.drag")}
-      >
-        ⋮⋮
-      </span>
+      {item.onBoard ? (
+        <button
+          type="button"
+          title={t("workspacePanel.removeFromCanvas")}
+          aria-label={t("workspacePanel.removeFromCanvas")}
+          onClick={() => useAccountStore.getState().removeFromBoard({ packId, nodeId: item.id })}
+          className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--brand)] hover:bg-[var(--surface-raised)] hover:text-[var(--brand-hover)]"
+        >
+          <ArrowLeftToLine className="size-[15px]" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          title={t("workspacePanel.addToCanvas")}
+          aria-label={t("workspacePanel.addToCanvas")}
+          onClick={() =>
+            useAccountStore.getState().addToBoard({ packId, nodeId: item.id, x: 40, y: 40 })
+          }
+          className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] lg:opacity-0 lg:group-hover:opacity-100"
+        >
+          <ArrowRightToLine className="size-[15px]" />
+        </button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex shrink-0 items-center justify-center p-2 text-[var(--text-faint)]"
@@ -127,23 +133,6 @@ function PanelItem({
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem onClick={onOpen}>{t("workspacePanel.edit")}</DropdownMenuItem>
-          {item.onBoard ? (
-            <DropdownMenuItem
-              onClick={() =>
-                useAccountStore.getState().removeFromBoard({ packId, nodeId: item.id })
-              }
-            >
-              {t("workspacePanel.removeFromBoard")}
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem
-              onClick={() =>
-                useAccountStore.getState().addToBoard({ packId, nodeId: item.id, x: 40, y: 40 })
-              }
-            >
-              {t("workspacePanel.addToBoard")}
-            </DropdownMenuItem>
-          )}
           <DropdownMenuItem
             onClick={() =>
               useAccountStore.getState().deleteFromPack({ packId, nodeIds: [item.id] })

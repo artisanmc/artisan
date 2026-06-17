@@ -4,7 +4,12 @@ import { WorkspaceTopBarControls } from "./WorkspaceTopBarControls";
 
 vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
-  return { ...actual, useNavigate: () => () => {}, useParams: () => ({}) };
+  return {
+    ...actual,
+    useNavigate: () => () => {},
+    useParams: () => ({}),
+    useSearch: () => ({ tab: "overview" }),
+  };
 });
 
 describe("WorkspaceTopBarControls", () => {

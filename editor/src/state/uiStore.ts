@@ -1,4 +1,5 @@
 import type { MenuId, PackId } from "@/domain/types";
+import type { ViewportState } from "@/features/canvas/usePanZoom";
 import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -75,9 +76,6 @@ interface UiState {
   setArmedMaterial: (m: string | null) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
-  /** Panel→board drag in progress — drives the DragOverlay ghost. */
-  activeDragPanelItem: { label: string; type: string } | null;
-  setActiveDragPanelItem: (v: { label: string; type: string } | null) => void;
   /**
    * v3 title composer — id of the menu currently selected in the pack canvas.
    * Drives the contents of the 3rd-column LayersPanel. Distinct from the
@@ -158,6 +156,14 @@ interface UiState {
   /** Mode d'interaction du canvas : main (pan, défaut) ou sélection (clic + marquee). Persisté. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
+  /**
+   * Pan/zoom sauvegardé de la planche principale, indexé par packId. Permet de
+   * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
+   * exactement au même endroit + zoom. Session-only : volontairement NON persisté
+   * (un reload repart de la vue centrée par défaut).
+   */
+  canvasViewports: Record<string, ViewportState>;
+  setCanvasViewport: (packId: PackId, viewport: ViewportState) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -198,8 +204,6 @@ export const useUiStore = create<UiState>()(
       setArmedMaterial: (m) => set({ armedMaterial: m }),
       activeDragMaterial: null,
       setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
-      activeDragPanelItem: null,
-      setActiveDragPanelItem: (v) => set({ activeDragPanelItem: v }),
       selectedMenuId: null,
       lastSelectedMenuId: null,
       setSelectedMenuId: (id) =>
@@ -310,6 +314,9 @@ export const useUiStore = create<UiState>()(
       setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
+      canvasViewports: {},
+      setCanvasViewport: (packId, viewport) =>
+        set((s) => ({ canvasViewports: { ...s.canvasViewports, [packId]: viewport } })),
     }),
     {
       name: "artisan:ui",
@@ -322,7 +329,7 @@ export const useUiStore = create<UiState>()(
         // delete (not set undefined) so merge's {...current, ...p} keeps the
         // new default rather than spreading an explicit undefined over it.
         if (version < 1) delete p.canvasMode;
-        return p;
+        return p as UiState;
       },
       // armedMaterial is session state; don't persist it.
       // Title-composer v3 fields (selectedLayerKey, hiddenLayerKeys,

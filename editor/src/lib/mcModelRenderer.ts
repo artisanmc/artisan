@@ -279,7 +279,6 @@ async function renderEntityFlat(itemId: string, version: string): Promise<string
 }
 
 const SHIELD_DISPLAY = { rotation: [15, -25, -5] as [number,number,number], translation: [2, 3, 0] as [number,number,number], scale: [0.65, 0.65, 0.65] as [number,number,number] };
-const BLOCK_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [0.625, 0.625, 0.625] as [number,number,number] };
 // Chests: -45° Y shows south(lock face) + east(right side), matching Minecraft's GUI display.
 const CHEST_DISPLAY = { rotation: [30, -45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [0.625, 0.625, 0.625] as [number,number,number] };
 const CHEST_BOXES: EntityBox[] = [

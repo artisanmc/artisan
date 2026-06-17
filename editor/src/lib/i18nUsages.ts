@@ -94,6 +94,23 @@ export function totalMissing(pack: Pack): number {
   return sum;
 }
 
+/**
+ * Count keys whose value for `lang` is missing or empty — exactly the
+ * "missing" headline the Translations panel shows for the active language
+ * (the empty-`target` rows of {@link buildTranslationRows}). Used by the
+ * sidebar Translations tab badge so the nav count always matches the panel,
+ * including when `lang` is the default (empty source strings count too).
+ */
+export function countMissingForLang(pack: Pack, lang: string): number {
+  let count = 0;
+  for (const entry of Object.values(pack.i18nKeys)) {
+    if (!entry) continue;
+    const v = entry[lang];
+    if (!v || v.trim() === "") count++;
+  }
+  return count;
+}
+
 export function buildTranslationRows(pack: Pack, activeLang: string): TranslationRow[] {
   const usages = findKeyUsages(pack);
   const rows: TranslationRow[] = [];

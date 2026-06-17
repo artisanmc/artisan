@@ -266,13 +266,6 @@ function LayerNode({
       ? Math.max(...fontAsset.fontMeta.glyphMap.map((g) => g.ascent))
       : null;
 
-  // Height of text layer content in MC pixels: from the topmost glyph (ascent
-  // = fontRefAscent, top at y=0) to the bottom of the deepest glyph.
-  const textContentH: number =
-    fontRefAscent != null && fontAsset?.fontMeta?.glyphMap.length
-      ? Math.max(...fontAsset.fontMeta.glyphMap.map((g) => fontRefAscent - g.ascent + g.height))
-      : MC_FONT_HEIGHT_PX;
-
   // Group position. Background and glyph Y are derived from asset.ascent
   // via the empirically confirmed formula: glyph_top = GLYPH_Y_BASE - ascent.
   // Text with a custom font uses the font's max ascent the same way so the

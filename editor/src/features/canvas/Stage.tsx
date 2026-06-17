@@ -52,7 +52,12 @@ export function Stage({ packId }: StageProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom();
+  // Restore the saved pan/zoom for this pack so leaving the board (single
+  // element view) and returning lands on the same spot + zoom. Read once at
+  // mount (non-reactive); persisted back via the effect below.
+  const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
+    useUiStore.getState().canvasViewports[packId],
+  );
   const canvasMode = useUiStore((s) => s.canvasMode);
   const [spaceHeld, setSpaceHeld] = useState(false);
   // Alt held = temporary pan (like Space), so you can navigate without leaving
@@ -108,6 +113,11 @@ export function Stage({ packId }: StageProps) {
     ro.observe(wrapperRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // Persist pan/zoom per pack so it survives leaving/returning to the board.
+  useEffect(() => {
+    useUiStore.getState().setCanvasViewport(packId, viewport);
+  }, [packId, viewport]);
 
   const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
 
@@ -261,7 +271,7 @@ export function Stage({ packId }: StageProps) {
     useHoverStore.getState().setElement(null);
   }, []);
 
-  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Pack not found.</div>;
+  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Workspace not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 

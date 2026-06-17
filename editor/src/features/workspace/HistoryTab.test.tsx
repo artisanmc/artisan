@@ -30,6 +30,22 @@ describe("HistoryTab", () => {
     expect(restoreButtons.length).toBe(1);
   });
 
+  it("renders commits newest-first (HEAD on top, root last) even when the API order and timestamps don't help", async () => {
+    // API returns oldest-first AND every commit shares a timestamp — only the
+    // parent chain disambiguates. orderHeadFirst must still put HEAD on top.
+    vi.spyOn(branchesApi, "listCommits").mockResolvedValue([
+      { id: "c1", packId: "p1", parentId: null, contentHash: "h1", authorUserId: null, message: "Initial commit", createdAt: "2026-06-01T00:00:00Z" },
+      { id: "c2", packId: "p1", parentId: "c1", contentHash: "h2", authorUserId: null, message: "Second", createdAt: "2026-06-01T00:00:00Z" },
+      { id: "c3", packId: "p1", parentId: "c2", contentHash: "h3", authorUserId: null, message: "Third", createdAt: "2026-06-01T00:00:00Z" },
+    ]);
+    render(<HistoryTab pack={{ id: "p1", name: "P" } as Parameters<typeof HistoryTab>[0]["pack"]} networkId="n1" />);
+    await screen.findByText(/Third/);
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Third"); // HEAD (tip)
+    expect(items[0]).toHaveTextContent("HEAD");
+    expect(items[2]).toHaveTextContent("Initial commit"); // root last
+  });
+
   it("shows all commits and Restore buttons for multi-commit non-root entries", async () => {
     vi.spyOn(branchesApi, "listCommits").mockResolvedValue([
       { id: "c3", packId: "p1", parentId: "c2", contentHash: "h3", authorUserId: null, message: "Third", createdAt: "2026-06-02" },

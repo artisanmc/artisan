@@ -6,16 +6,33 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
+import posthog from "posthog-js";
 import { useEffect, useRef } from "react";
+
+posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
+  api_host: import.meta.env.VITE_POSTHOG_HOST,
+  defaults: "2026-01-30",
+  capture_pageview: false,
+});
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
 export function RootLayout() {
+  return (
+    <PostHogProvider client={posthog}>
+      <RootLayoutInner />
+    </PostHogProvider>
+  );
+}
+
+function RootLayoutInner() {
   usePackAutoSave();
+  usePostHogPageView();
   const user = useAuthStore((s) => s.currentUser);
   const sessionToken = useSessionStore((s) => s.accessToken);
   const sidebarOpen = useSidebarStore((s) => s.isOpen);
@@ -62,6 +79,13 @@ export function RootLayout() {
       </main>
     </div>
   );
+}
+
+function usePostHogPageView() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    posthog.capture("$pageview", { $current_url: window.location.href });
+  }, [pathname]);
 }
 
 export function usePackAutoSave() {

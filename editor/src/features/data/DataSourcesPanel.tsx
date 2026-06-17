@@ -1,4 +1,4 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { DataSourceId, PackId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useState } from "react";

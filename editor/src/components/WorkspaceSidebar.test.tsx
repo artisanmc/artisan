@@ -1,12 +1,18 @@
 import * as networksApi from "@/lib/api/networks";
+import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { useUiStore } from "@/state/uiStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 
 const mockParams = vi.hoisted(() => ({
-  current: { networkId: "net_1", serverId: "sk_1" } as { networkId?: string; serverId?: string },
+  current: { networkId: "net_1", serverId: "sk_1" } as {
+    networkId?: string;
+    serverId?: string;
+    workspaceId?: string;
+  },
 }));
 
 vi.mock("@tanstack/react-router", async () => {
@@ -33,6 +39,7 @@ describe("WorkspaceSidebar", () => {
       networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
     } as any);
     useSessionStore.setState({ networkId: "net_1" } as any);
+    useAccountStore.setState({ account: { id: "", packs: [], packOrder: [] } } as any);
   });
 
   it("renders ServerSelector (server label visible)", async () => {
@@ -74,6 +81,26 @@ describe("WorkspaceSidebar", () => {
     // Sort is by id (stable, deterministic), so pack_a comes before pack_b.
     expect(items[0]).toHaveTextContent("Lobby");
     expect(items[1]).toHaveTextContent("Menu principal");
+  });
+
+  it("shows an element-count badge from the pack summary", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [
+        {
+          id: "pack_a",
+          name: "Lobby",
+          hash: "h1",
+          networkId: "net_1",
+          serverKeyId: "sk_1",
+          elementCount: 3,
+        },
+      ],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<WorkspaceSidebar />);
+    await screen.findByRole("link", { name: /Lobby/ });
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
   it("workspace links use the server-scoped URL pattern", async () => {
@@ -149,6 +176,73 @@ describe("WorkspaceSidebar", () => {
     });
     render(<WorkspaceSidebar />);
     expect(await screen.findByText("Survival")).toBeInTheDocument();
+  });
+
+  it("shows a missing-translations badge on the active workspace's Translations sub-tab", async () => {
+    mockParams.current = { networkId: "net_1", serverId: "sk_1", workspaceId: "pack_a" };
+    // Badge mirrors the panel's active-language headline — view "fr".
+    useUiStore.setState({ activeLang: "fr" } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    useAccountStore.setState({
+      account: {
+        id: "",
+        packOrder: [],
+        packs: [
+          {
+            id: "pack_a",
+            name: "Lobby",
+            defaultLang: "en",
+            i18nKeys: {
+              k1: { en: "Hello" }, // missing fr → 1 missing
+              k2: { en: "Bye", fr: "Au revoir" },
+            },
+            menus: [],
+            commands: [],
+            dialogs: [],
+            assets: [],
+          },
+        ],
+      },
+    } as any);
+    render(<WorkspaceSidebar />);
+    await screen.findByRole("link", { name: /Lobby/ });
+    const badge = await screen.findByLabelText(/manquante|missing translation/i);
+    expect(badge).toHaveTextContent("1");
+  });
+
+  it("hides the translations badge when nothing is missing", async () => {
+    mockParams.current = { networkId: "net_1", serverId: "sk_1", workspaceId: "pack_a" };
+    useUiStore.setState({ activeLang: "fr" } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      packs: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    useAccountStore.setState({
+      account: {
+        id: "",
+        packOrder: [],
+        packs: [
+          {
+            id: "pack_a",
+            name: "Lobby",
+            defaultLang: "en",
+            i18nKeys: { k1: { en: "Hello", fr: "Bonjour" } },
+            menus: [],
+            commands: [],
+            dialogs: [],
+            assets: [],
+          },
+        ],
+      },
+    } as any);
+    render(<WorkspaceSidebar />);
+    await screen.findByRole("link", { name: /Lobby/ });
+    expect(screen.queryByLabelText(/manquante|missing translation/i)).not.toBeInTheDocument();
   });
 
   it("refetches when networkId changes", async () => {
