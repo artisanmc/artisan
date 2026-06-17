@@ -30,13 +30,17 @@ class CommandsModuleTest {
     @Test
     fun `onEnable does not throw with a real plugin API`() {
         val module = CommandsModule()
+        val reg = ModuleRegistry()
         val api = ArtisanAPI(
             plugin = plugin,
             dataSources = DataSourceRegistry(),
             commands = CommandRegistry(),
             events = ModuleEventBus(),
             schemas = SchemaRegistry(),
+            modules = reg,
+            coreVersion = "1.0.0",
         )
+        reg.bind(api) {}
         module.onEnable(api)
     }
 }
