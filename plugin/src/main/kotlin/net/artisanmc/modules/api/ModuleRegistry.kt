@@ -39,8 +39,10 @@ class ModuleRegistry {
     @Stable
     fun register(module: ArtisanModule) {
         val boundApi = api ?: error("ModuleRegistry must be bound before registering modules")
-        if (_active.any { it.id == module.id }) throw DuplicateModuleException(module.id)
-        _active.add(module)
+        synchronized(_active) {
+            if (_active.any { it.id == module.id }) throw DuplicateModuleException(module.id)
+            _active.add(module)
+        }
         module.onEnable(boundApi)
         onChange?.invoke()
     }
