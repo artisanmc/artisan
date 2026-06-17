@@ -48,6 +48,14 @@ Trois clarifications successives ont cadré la réponse :
 
 > Asymétrie à noter : le **backend est déjà plus avancé** — `mountModules(app, [menusModule, commandsModule, assistantModule])` (`backend/src/app.ts:62`) monte réellement les routers Hono des modules ; le seam backend est **déjà porteur**. Le gros du travail « rendre porteur » est **côté éditeur**.
 
+### Précisions de l'audit de code (2026-06-17)
+
+Avant de rédiger les plans, un audit des 3 couches a affiné le tableau ci-dessus :
+
+- **Le pipe de présence existe déjà de bout en bout.** Le plugin envoie `installed_modules` au `hello` (`WsClient.kt`), le backend `persistServerModules` (upsert + prune par `server_key`, `hub.ts`), et **l'endpoint de lecture éditeur existe et est testé** : `GET /api/v1/editor-session/:token/modules` (`editorSession.ts`). Le trou « présence » se réduit donc à : (a) l'éditeur ne **consomme** pas l'endpoint, (b) `installed_modules` est sourcé de la liste **hardcodée** `defaultModules()`, pas d'un enregistrement runtime.
+- **Le seam plugin est plus profond que §4 ne le laissait croire.** Aucun moyen aujourd'hui pour un JAR séparé d'enregistrer un module : pas d'interface `ArtisanCorePlugin`, pas de `ModuleRegistry`, pas de `register()`/`isCompatibleWith()`, et `ArtisanAPI` **back-référence** la classe interne `ArtisanPlugin` (donc `api/` ne compile pas seul). C'est l'essentiel de **P1a**.
+- **Conséquence : P1 est découpé en 3 sous-plans** (P1a plugin / P1b éditeur / P1c intégration cross-repo), chacun testable seul. Ordre retenu : **P1b en premier** (preuve la plus directe de l'objectif, va E2E seule grâce au pipe présence déjà en place). Plan : `docs/superpowers/plans/2026-06-17-p1b-editor-module-seam.md`.
+
 ## 5. Découpage en 4 phases
 
 Trop gros pour un seul plan → **4 sous-projets, 1 plan d'implémentation chacun**.
