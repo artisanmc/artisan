@@ -21,7 +21,7 @@
 | `discordOauth.ts` | Lib OAuth Discord (exchange code, fetch user) consommée par `auth.ts`. |
 | `link.ts` | `link/:code/claim` — **login required**, smart-count network (cf. flux ci-dessous). |
 | `userNetworks.ts` | `networks` (CRUD + PATCH `:id` — name/slug, 409 `slug_taken`), `networks/:id` (GET détail — chaque pack porte `elementCount` = menus+commandes+dialogs, pour l'indicateur sidebar/Espaces de travail), `networks/:id/server-keys` (create / PATCH `:keyId` — label/slug / `rotate` / DELETE / `status` / `helloes` / `allowlist`), `networks/:id/packs` (POST — **`serverKeyId` requis**). Les `:id` réseau acceptent id **ou** slug. |
-| `userBranches.ts` | `networks/:id/packs/:packId/branches` (list/create), `commits` (list / POST / `:commitId/content`), `branches/:src/promote/:dst`, `branches/:src/merge-into/:dst` (+ `/resolve`). |
+| `userBranches.ts` | `networks/:id/packs/:packId/branches` (list/create), `commits` (list / POST / `:commitId/content`), `branches/:src/promote/:dst` (**fast-forward only**). Pas de merge 3-way / résolution de conflits — retiré le 2026-06-17 (cf. ADR `no-branch-conflict-resolution`). |
 | `userPacks.ts` | `user/packs/:packId` (GET / PUT, user-auth + membership check). PUT broadcast `bundle_available`. |
 | `networkTransfers.ts` | `networks/:id/transfer/init`, `networks/transfer/:token` (GET / `accept`). Transfert de propriété d'un Network (TTL 24h, clean break). |
 | `editorSession.ts` | `editor-session/:token` (GET, inclut `network_id`), `…/modules` (GET — modules actifs du serveur, activation par présence depuis `server_modules`), `…/custom-items`, `…/packs/:packId/assets` (CRUD + `:id/duplicate`), `…/packs/:packId` (DELETE soft + auto-resolve conflits), `…/resource-pack/rebuild`. |
@@ -37,8 +37,7 @@
 
 ## Flux non-évidents
 
-- **Merge sémantique (handshake en 2 temps)** : `POST …/merge-into/:dst` calcule le plan (`kind: already_merged | fast_forward | auto | conflicts`) mais **ne crée pas de commit** sauf `fast_forward`. Le client résout côté éditeur puis `POST …/merge-into/:dst/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstCommitId, mergedFilesJson, mergedEditorJson}` → crée le merge commit (`parentId = dst.head`, `parentId2 = src.head`). `409 stale_merge` si les heads ont bougé entre les deux. Détail modèle : `entities.md`.
-- **Promotion** : `promote/:dst` est **fast-forward only** → `409 not_fast_forward` si divergence.
+- **Promotion** : `promote/:dst` est **fast-forward only** → `409 not_fast_forward` si divergence. Le merge 3-way / résolution de conflits a été retiré le 2026-06-17 (jamais câblé en UI ; concurrence live gérée par LWW + présence) — cf. ADR `no-branch-conflict-resolution`.
 - **Claim link** (`link/:code/claim`) : **login required**. Smart-count des networks de l'user : 0 → auto-crée "Mon Réseau" ; 1 → l'utilise ; 2+ → `400 must_choose_network` (le client renvoie `{network_id}`).
 - **Conflit = freeze** : tant qu'un `pack_conflicts` est ouvert, `bundle_available` n'est pas broadcast (cf. `CLAUDE.md` § Invariants).
 - **DELETE pack** (`editor-session/:token/packs/:packId`) : soft-delete (`deletedAt`) + auto-résout tout conflit ouvert en `"editor"` + broadcast `pack_deleted`. L'éditeur devient autoritaire.
