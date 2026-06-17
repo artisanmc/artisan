@@ -30,7 +30,6 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     lateinit var api: ArtisanAPI
         private set
-    private val modules: List<ArtisanModule> = defaultModules()
 
     companion object {
         fun defaultModules(): List<ArtisanModule> = listOf(
@@ -49,7 +48,13 @@ open class ArtisanPlugin : JavaPlugin() {
                 modules = registry,
                 coreVersion = plugin.description.version,
             )
-            registry.bind(api) {}
+            registry.bind(api) {
+                if (plugin::menuProvider.isInitialized) {
+                    (plugin.menuProvider as? SyncedMenuProvider)?.notifyModulesChanged(
+                        registry.active().map { mapOf("id" to it.id, "version" to plugin.description.version) },
+                    )
+                }
+            }
             return api
         }
     }
@@ -57,7 +62,6 @@ open class ArtisanPlugin : JavaPlugin() {
     override fun onEnable() {
         saveDefaultConfig()
         api = buildApi(this)
-        modules.forEach { it.onEnable(api) }
         val cfg = PluginConfig.from(config)
         val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
 
@@ -79,14 +83,15 @@ open class ArtisanPlugin : JavaPlugin() {
             sessions         = sessions,
             onReload         = {
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
-                modules.forEach { runCatching { it.onReload() } }
+                api.modules.active().forEach { runCatching { it.onReload() } }
                 api.events.publish(ConfigReloadEvent(moduleId = "menus"))
             },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
-            installedModules = modules.map { mapOf("id" to it.id, "version" to description.version) },
+            installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
         )
+        defaultModules().forEach { api.modules.register(it) }
         // Inject before load() so the initial hello includes the correct custom_items_hash.
         // Nexo/Oraxen fire their "items loaded" events before Artisan enables (softdepend order),
         // so registering hot-reload listeners alone is not sufficient for the first startup.
@@ -146,7 +151,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
-        modules.forEach { runCatching { it.onDisable() } }
+        api.modules.active().forEach { runCatching { it.onDisable() } }
         artisanCommand.shutdown()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
@@ -234,13 +239,13 @@ open class ArtisanPlugin : JavaPlugin() {
             sessions         = sessions,
             onReload         = {
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
-                modules.forEach { runCatching { it.onReload() } }
+                api.modules.active().forEach { runCatching { it.onReload() } }
                 api.events.publish(ConfigReloadEvent(moduleId = "menus"))
             },
             executorProvider = { executor },
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
-            installedModules = modules.map { mapOf("id" to it.id, "version" to description.version) },
+            installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(

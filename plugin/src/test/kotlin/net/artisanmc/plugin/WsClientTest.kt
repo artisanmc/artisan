@@ -64,10 +64,12 @@ class WsClientTest {
             serverKey = "sk_test",
             mcVersion = "1.21.4",
             currentBundleHash = "",
-            installedModules = listOf(
-                mapOf("id" to "menus", "version" to "1.0.0"),
-                mapOf("id" to "commands", "version" to "1.0.0"),
-            ),
+            installedModules = {
+                listOf(
+                    mapOf("id" to "menus", "version" to "1.0.0"),
+                    mapOf("id" to "commands", "version" to "1.0.0"),
+                )
+            },
             onMessage = {},
         )
         client.connect()
