@@ -62,6 +62,7 @@ open class ArtisanPlugin : JavaPlugin() {
     override fun onEnable() {
         saveDefaultConfig()
         api = buildApi(this)
+        server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         val cfg = PluginConfig.from(config)
         val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
 

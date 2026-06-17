@@ -42,4 +42,13 @@ class ArtisanPluginModuleWiringTest {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         assertTrue(plugin.api.isCompatibleWith("1.0.0"))
     }
+
+    @Test
+    fun `ArtisanAPI is exposed via the services manager`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        val provided = plugin.server.servicesManager
+            .getRegistration(ArtisanAPI::class.java)?.provider
+        assertNotNull(provided)
+        assertSame(plugin.api, provided)
+    }
 }
