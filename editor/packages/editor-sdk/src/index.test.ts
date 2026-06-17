@@ -10,6 +10,11 @@ describe("@artisan/editor-sdk public surface", () => {
     expect(typeof sdk.emitModuleEvent).toBe("function");
   });
 
+  it("exposes shared base primitives", () => {
+    expect(sdk.Button).toBeDefined();
+    expect(typeof sdk.cn).toBe("function");
+  });
+
   it("does not leak test-only helpers", () => {
     expect("clearRegistry" in sdk).toBe(false);
     expect("clearModuleBus" in sdk).toBe(false);
