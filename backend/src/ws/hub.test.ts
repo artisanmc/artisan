@@ -32,7 +32,6 @@ import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorag
 import { getPack } from "../lib/packStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
-import { eq } from "drizzle-orm";
 
 async function clearAll() {
   await db.delete(assets);
@@ -625,6 +624,58 @@ describe("protocol_version + unknown message types", () => {
     expect(result.reply).not.toBeNull();
     const reply = JSON.parse(result.reply!);
     expect(reply.type).toBe("hello_ack");
+  });
+});
+
+describe("modules_changed", () => {
+  test("updates server_modules for an already-authenticated connection", async () => {
+    const connId = "conn-modules-changed";
+    registerConn(connId, () => {});
+    const { id: keyId, key } = await seedServerKey();
+
+    // Authenticate via hello first (installs menus/1.0)
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+      installed_modules: [{ id: "menus", version: "1.0.0" }],
+    }));
+    // Fire-and-forget persistServerModules from hello — wait for it
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Now a new module registers at runtime and sends modules_changed
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "modules_changed",
+      server_key: key,
+      installed_modules: [
+        { id: "menus", version: "1.0.0" },
+        { id: "quests", version: "0.1.0" },
+      ],
+    }));
+    expect(result.reply).toBeNull();
+
+    // Wait for the async persistServerModules to land
+    await new Promise((r) => setTimeout(r, 50));
+
+    const rows = await db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId));
+    expect(rows.map((r) => r.moduleId).sort()).toEqual(["menus", "quests"]);
+    expect(rows.find((r) => r.moduleId === "quests")?.version).toBe("0.1.0");
+  });
+
+  test("modules_changed from unauthenticated connection is ignored", async () => {
+    const connId = "conn-modules-changed-unauth";
+    registerConn(connId, () => {});
+
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "modules_changed",
+      installed_modules: [{ id: "quests", version: "0.1.0" }],
+    }));
+    expect(result.reply).toBeNull();
+    // No rows should have been written (connection was never authenticated)
+    const rows = await db.select().from(serverModules);
+    expect(rows).toHaveLength(0);
   });
 });
 
