@@ -1,38 +1,22 @@
 package net.artisanmc.plugin.sync
 
 import java.io.File
-import java.security.MessageDigest
 
 object LocalPushSender {
     /**
-     * Walks the pack dir and produces a `local_push` message body. File paths
-     * are normalized to `plugins/Artisan/packs/<packId>/<relative>` to match
-     * the canonical form the backend stores. Skips `.artisan*` sync metadata.
+     * Builds a `local_push` message body. Files are read via [PackFilesReader.read]
+     * (canonical paths `plugins/Artisan/packs/<packId>/<rel>`) and the hash comes
+     * from the single [BundleHasher] — same algorithm as the backend stores, so the
+     * pushed `hash` matches what the plugin computes from disk. (Previously this had
+     * its own SHA-256 keyed by the full path, which drifted from the backend.)
      */
     fun buildPushMessage(packId: String, packDir: File): Map<String, Any> {
-        val files = sortedMapOf<String, String>()
-        packDir.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".artisan") }
-            .forEach { file ->
-                val rel = file.relativeTo(packDir).path.replace('\\', '/')
-                files["plugins/Artisan/packs/$packId/$rel"] = file.readText(Charsets.UTF_8)
-            }
+        val files = PackFilesReader.read(packDir, packId)
         return mapOf(
             "type" to "local_push",
             "pack_id" to packId,
             "files" to files,
-            "hash" to computeHash(files),
+            "hash" to BundleHasher.hashCanonical(files, packId),
         )
-    }
-
-    private fun computeHash(files: Map<String, String>): String {
-        // Mirror the backend's hashUtils.computeBundleHash logic: sorted keys,
-        // concat `path\ncontent\n`, then SHA-256 hex.
-        val sb = StringBuilder()
-        for ((key, value) in files) {
-            sb.append(key).append('\n').append(value).append('\n')
-        }
-        val digest = MessageDigest.getInstance("SHA-256").digest(sb.toString().toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { "%02x".format(it) }
     }
 }
