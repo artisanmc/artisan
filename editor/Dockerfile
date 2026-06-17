@@ -1,0 +1,29 @@
+# Production image for the Artisan editor (static SPA built with Vite, served by nginx).
+# BUILD CONTEXT MUST BE THE REPO ROOT: editor/src/schema/validateMenuV1.ts imports
+# ../../../docs/schema/menu/v1/schema.json at build time, so docs/ must be present.
+#
+# Coolify: Build Pack = Dockerfile, Base Directory = `/`, Dockerfile = editor/Dockerfile
+# Set the backend URL as build args (baked into the bundle — VITE_* are build-time):
+#   VITE_API_URL=https://api.artisanmc.net
+#   VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin
+#
+#   docker build -f editor/Dockerfile --build-arg VITE_API_URL=https://api.artisanmc.net -t artisan-editor .
+FROM node:22-alpine AS build
+WORKDIR /app
+
+COPY editor/package.json ./
+RUN npm install
+COPY editor ./
+# Needed by validateMenuV1.ts's `../../../docs/...` import → resolves to /docs.
+COPY docs /docs
+
+ARG VITE_API_URL=https://api.artisanmc.net
+ARG VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_PLUGIN_WS_URL=$VITE_PLUGIN_WS_URL
+RUN npm run build
+
+FROM nginx:alpine AS serve
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY editor/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

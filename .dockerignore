@@ -1,0 +1,22 @@
+# Build context = repo root (both backend/ and editor/ Dockerfiles need docs/).
+# Keep the context small: drop everything the web builds don't need.
+**/node_modules
+**/.env
+**/.env.local
+**/.env.*.local
+backend/data
+**/dist
+**/build
+.git
+.gradle
+.idea
+.vscode
+.worktrees
+.superpowers
+.gstack
+.claire
+.claude
+plugin
+docker
+docs-site
+**/*.log
