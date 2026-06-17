@@ -23,4 +23,12 @@ describe("fetchActiveModules", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
     expect(await fetchActiveModules("bad")).toEqual([]);
   });
+
+  it("returns [] when the response body has no modules key", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    }));
+    expect(await fetchActiveModules("tok")).toEqual([]);
+  });
 });
