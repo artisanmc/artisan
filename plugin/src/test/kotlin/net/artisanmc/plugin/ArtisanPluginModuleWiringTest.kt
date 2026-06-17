@@ -15,11 +15,11 @@ class ArtisanPluginModuleWiringTest {
     @Test
     fun `plugin exposes an ArtisanAPI after enable`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        val api = ArtisanPlugin.buildApi(plugin)
-        assertNotNull(api.dataSources)
-        assertNotNull(api.commands)
-        assertNotNull(api.events)
-        assertNotNull(api.schemas)
+        assertNotNull(plugin.api.dataSources)
+        assertNotNull(plugin.api.commands)
+        assertNotNull(plugin.api.events)
+        assertNotNull(plugin.api.schemas)
+        assertNotNull(plugin.api.modules)
     }
 
     @Test
@@ -27,5 +27,19 @@ class ArtisanPluginModuleWiringTest {
         val ids = ArtisanPlugin.defaultModules().map { it.id }
         assertTrue("menus" in ids)
         assertTrue("commands" in ids)
+    }
+
+    @Test
+    fun `core modules flow through registry after enable`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        val activeIds = plugin.api.modules.active().map { it.id }
+        assertTrue("menus" in activeIds, "expected menus in active modules, got $activeIds")
+        assertTrue("commands" in activeIds, "expected commands in active modules, got $activeIds")
+    }
+
+    @Test
+    fun `isCompatibleWith returns true for matching version`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        assertTrue(plugin.api.isCompatibleWith("1.0.0"))
     }
 }
