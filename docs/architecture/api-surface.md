@@ -60,7 +60,7 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
-| `bind(onChange: (List<ArtisanModule>) -> Unit)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
+| `bind(api: ArtisanAPI, onChange: () -> Unit)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 
 Exceptions: `DuplicateModuleException`.
 
