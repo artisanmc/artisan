@@ -1,16 +1,15 @@
-// backend/src/routes/userBranches.ts — B1 + B2 + B3 + B4 + C1 + C2
+// backend/src/routes/userBranches.ts — B1 + B2 + B3 + B4
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { packs, packCommits } from "../db/schema";
-import { listBranchesForPack, getBranch, createBranch, advanceBranchHead, isAncestor, findLCA } from "../lib/branchStorage";
-import { listCommitsByPack, createCommit, getCommit, computeContentHash } from "../lib/commitStorage";
+import { listBranchesForPack, getBranch, createBranch, advanceBranchHead, isAncestor } from "../lib/branchStorage";
+import { listCommitsByPack, createCommit, getCommit } from "../lib/commitStorage";
 import { requireMember } from "../lib/membershipGuard";
 import { getPack } from "../lib/packStorage";
 import { pushBundleAvailable } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
-import { merge as mergeStates, applyResolutions, type EditorState } from "../lib/mergeEngine";
 
 type Vars = { user: AuthUser | null };
 
@@ -225,156 +224,4 @@ userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (
   if (newHead) await pushBundleAvailable(packId, dstName, newHead.contentHash);
 
   return c.json({ ok: true, advanced: true });
-});
-
-// POST /:id/packs/:packId/branches/:src/merge-into/:dst — compute merge plan (FF / already_merged / 3-way)
-userBranchesRouter.post("/:id/packs/:packId/branches/:src/merge-into/:dst", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
-  if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const packId = c.req.param("packId");
-  const srcName = c.req.param("src");
-  const dstName = c.req.param("dst");
-  if (srcName === dstName) return c.json({ error: "same_branch" }, 400);
-
-  const src = await getBranch(packId, srcName);
-  const dst = await getBranch(packId, dstName);
-  if (!src || !dst) return c.json({ error: "branch_not_found" }, 404);
-
-  let lcaId: string;
-  try { lcaId = await findLCA(src.headCommitId, dst.headCommitId); }
-  catch { return c.json({ error: "no_common_ancestor" }, 500); }
-
-  // already_merged: src is ancestor of dst (LCA = src.head)
-  if (lcaId === src.headCommitId) {
-    return c.json({ kind: "already_merged", advanced: false });
-  }
-
-  // fast_forward: dst is ancestor of src (LCA = dst.head) — advance dst to src.head
-  if (lcaId === dst.headCommitId) {
-    await advanceBranchHead(packId, dstName, src.headCommitId);
-    const newHead = await getCommit(src.headCommitId);
-    if (newHead) await pushBundleAvailable(packId, dstName, newHead.contentHash);
-    return c.json({
-      kind: "fast_forward",
-      advanced: true,
-      head_commit_id: src.headCommitId,
-    });
-  }
-
-  // 3-way merge
-  const [baseCommit, srcCommit, dstCommit] = await Promise.all([
-    getCommit(lcaId),
-    getCommit(src.headCommitId),
-    getCommit(dst.headCommitId),
-  ]);
-  if (!baseCommit || !srcCommit || !dstCommit) return c.json({ error: "commit_missing" }, 500);
-
-  const baseState = baseCommit.editorJson ? JSON.parse(baseCommit.editorJson) as EditorState : {};
-  const srcState = srcCommit.editorJson ? JSON.parse(srcCommit.editorJson) as EditorState : {};
-  const dstState = dstCommit.editorJson ? JSON.parse(dstCommit.editorJson) as EditorState : {};
-
-  const result = mergeStates(baseState, srcState, dstState);
-
-  return c.json({
-    kind: result.conflicts.length === 0 ? "auto" : "conflicts",
-    conflicts: result.conflicts,
-    mergedEditorJson: result.mergedState,
-    lcaCommitId: lcaId,
-    srcCommitId: src.headCommitId,
-    dstCommitId: dst.headCommitId,
-  });
-});
-
-// POST /:id/packs/:packId/branches/:src/merge-into/:dst/resolve — apply resolutions + create merge commit
-userBranchesRouter.post("/:id/packs/:packId/branches/:src/merge-into/:dst/resolve", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
-  if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const packId = c.req.param("packId");
-  const srcName = c.req.param("src");
-  const dstName = c.req.param("dst");
-  if (srcName === dstName) return c.json({ error: "same_branch" }, 400);
-
-  let body: {
-    resolutions?: unknown;
-    lcaCommitId?: unknown;
-    srcCommitId?: unknown;
-    dstCommitId?: unknown;
-    mergedFilesJson?: unknown;
-    mergedEditorJson?: unknown;
-    message?: unknown;
-  };
-  try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
-
-  // Stale check: heads must match what client received from /merge-into.
-  const src = await getBranch(packId, srcName);
-  const dst = await getBranch(packId, dstName);
-  if (!src || !dst) return c.json({ error: "branch_not_found" }, 404);
-  if (src.headCommitId !== body.srcCommitId || dst.headCommitId !== body.dstCommitId) {
-    return c.json({ error: "stale_merge" }, 409);
-  }
-
-  // Re-run merge to validate conflicts list (server is source of truth).
-  const lcaId = body.lcaCommitId as string;
-  const [baseCommit, srcCommit, dstCommit] = await Promise.all([
-    getCommit(lcaId),
-    getCommit(src.headCommitId),
-    getCommit(dst.headCommitId),
-  ]);
-  if (!baseCommit || !srcCommit || !dstCommit) return c.json({ error: "commit_missing" }, 500);
-
-  const baseState = baseCommit.editorJson ? JSON.parse(baseCommit.editorJson) as EditorState : {};
-  const srcState = srcCommit.editorJson ? JSON.parse(srcCommit.editorJson) as EditorState : {};
-  const dstState = dstCommit.editorJson ? JSON.parse(dstCommit.editorJson) as EditorState : {};
-  const mergeResult = mergeStates(baseState, srcState, dstState);
-
-  // Validate resolutions: must cover exactly the conflict keys.
-  const resolutions = (body.resolutions ?? {}) as Record<string, "src" | "dst">;
-  const conflictKeys = new Set(mergeResult.conflicts.map((c2) => c2.conflictKey));
-  const resolutionKeys = new Set(Object.keys(resolutions));
-  for (const k of conflictKeys) {
-    if (!resolutionKeys.has(k)) return c.json({ error: "missing_resolutions", missingKey: k }, 400);
-  }
-  for (const k of resolutionKeys) {
-    if (!conflictKeys.has(k)) return c.json({ error: "extra_resolutions", extraKey: k }, 400);
-    if (resolutions[k] !== "src" && resolutions[k] !== "dst") {
-      return c.json({ error: "invalid_resolution_value", key: k }, 400);
-    }
-  }
-
-  // Apply resolutions to get the final editorJson.
-  const finalEditor = applyResolutions(mergeResult.mergedState, mergeResult.conflicts, resolutions);
-
-  const finalFiles = (body.mergedFilesJson ?? {}) as Record<string, string>;
-  const message = typeof body.message === "string" && body.message.trim()
-    ? body.message.trim()
-    : `Merge ${srcName} into ${dstName}`;
-
-  // Create merge commit with both parents.
-  // Direct insert (not createCommit) because createCommit doesn't accept parentId2.
-  // contentHash for merge commits includes the parent IDs as a discriminator so that
-  // a merge producing the same filesJson as an existing commit does not violate the
-  // unique (packId, contentHash) constraint.  The plugin treats contentHash as an
-  // opaque "have I downloaded this version?" token — it just re-downloads when it differs.
-  const contentHash = computeContentHash({
-    ...finalFiles,
-    "\x00merge-meta": `${dst.headCommitId}|${src.headCommitId}`,
-  });
-  const id = "cmt_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  await db.insert(packCommits).values({
-    id,
-    packId,
-    parentId: dst.headCommitId,
-    parentId2: src.headCommitId,
-    contentHash,
-    filesJson: JSON.stringify(finalFiles),
-    editorJson: JSON.stringify(finalEditor),
-    authorUserId: getUserId(c),
-    message,
-    createdAt: new Date(),
-  });
-  await advanceBranchHead(packId, dstName, id);
-  await pushBundleAvailable(packId, dstName, contentHash);
-
-  const commit = await getCommit(id);
-  return c.json({ commit, head_commit_id: id }, 201);
 });
