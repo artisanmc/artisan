@@ -16,5 +16,5 @@ export function resolveModule(
   if (mod && rootRoute) {
     return { kind: "component", component: rootRoute.component };
   }
-  return status === "loading" ? { kind: "loading" } : { kind: "missing" };
+  return status === "ready" ? { kind: "missing" } : { kind: "loading" };
 }

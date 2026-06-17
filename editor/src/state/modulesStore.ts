@@ -19,19 +19,23 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
     if (get().status !== "idle") return;
     set({ status: "loading" });
 
-    const active = await fetchActiveModules(accessToken);
-    const activeIds = new Set(active.map((m) => m.id));
-    const mounted: string[] = [];
+    try {
+      const active = await fetchActiveModules(accessToken);
+      const activeIds = new Set(active.map((m) => m.id));
+      const mounted: string[] = [];
 
-    for (const entry of MODULE_MANIFEST) {
-      if (!activeIds.has(entry.id)) continue;
-      if (!getModule(entry.id)) {
-        const mod = await entry.load();
-        registerModule(mod);
+      for (const entry of MODULE_MANIFEST) {
+        if (!activeIds.has(entry.id)) continue;
+        if (!getModule(entry.id)) {
+          const mod = await entry.load();
+          registerModule(mod);
+        }
+        mounted.push(entry.id);
       }
-      mounted.push(entry.id);
-    }
 
-    set({ mountedIds: mounted, status: "ready" });
+      set({ mountedIds: mounted, status: "ready" });
+    } catch {
+      set({ status: "idle" });
+    }
   },
 }));
