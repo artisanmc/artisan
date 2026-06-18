@@ -3,7 +3,7 @@ package net.artisanmc.plugin.command
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.model.ProjectBundle
 import org.bukkit.Bukkit
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.java.JavaPlugin
@@ -13,7 +13,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
     private val logger: Logger get() = plugin.logger
     private val registered = mutableListOf<String>()
 
-    fun reload(bundles: List<PackBundle>, executor: ActionExecutor, evaluator: ConditionEvaluator) {
+    fun reload(bundles: List<ProjectBundle>, executor: ActionExecutor, evaluator: ConditionEvaluator) {
         unregisterAll()
         val commandMap = Bukkit.getCommandMap()
         val namespace = plugin.name.lowercase()
@@ -22,7 +22,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
         logger.info("[ART-DEBUG] CommandRegistrar.reload: ${bundles.size} bundles, $totalCmds commands total")
 
         for (bundle in bundles) {
-            logger.info("[ART-DEBUG] Bundle ${bundle.packId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
+            logger.info("[ART-DEBUG] Bundle ${bundle.projectId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
             for (cmdYaml in bundle.commands) {
                 val name = cmdYaml.name.lowercase()
                 logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.resolvedActions().size} steps=${cmdYaml.steps.size}")

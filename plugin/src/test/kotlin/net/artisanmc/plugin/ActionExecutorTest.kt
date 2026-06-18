@@ -3,7 +3,7 @@ package net.artisanmc.plugin
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -34,7 +34,7 @@ class ActionExecutorTest {
             lastOpenedDialogId = dialogId
             lastDialogCtx = ctx
         }
-        override fun allBundles(): List<PackBundle> = emptyList()
+        override fun allBundles(): List<ProjectBundle> = emptyList()
     }
 
     private fun executor() = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns, evaluator)

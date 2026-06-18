@@ -9,12 +9,12 @@ import java.util.logging.Logger
 
 class BundleDownloader(
     private val httpClient: OkHttpClient,
-    private val packsDir: File,
+    private val projectsDir: File,
     private val logger: Logger? = null,
 ) {
     private val mapper = ObjectMapper()
 
-    fun download(url: String, serverKey: String, packId: String) {
+    fun download(url: String, serverKey: String, projectId: String) {
         val request = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $serverKey")
@@ -22,7 +22,7 @@ class BundleDownloader(
 
         val responseBody = httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                logger?.warning("Bundle download failed: HTTP ${response.code} for pack $packId")
+                logger?.warning("Bundle download failed: HTTP ${response.code} for pack $projectId")
                 return
             }
             response.body?.string() ?: return
@@ -31,38 +31,38 @@ class BundleDownloader(
         val parsed = runCatching {
             mapper.readValue(responseBody, object : TypeReference<Map<String, Any>>() {})
         }.getOrNull() ?: run {
-            logger?.warning("Bundle download: failed to parse response for pack $packId")
+            logger?.warning("Bundle download: failed to parse response for pack $projectId")
             return
         }
 
         @Suppress("UNCHECKED_CAST")
         val files = parsed["files"] as? Map<String, String> ?: run {
-            logger?.warning("Bundle download: missing 'files' in response for pack $packId")
+            logger?.warning("Bundle download: missing 'files' in response for pack $projectId")
             return
         }
         val backendHash = parsed["hash"] as? String ?: ""
 
-        val prefix = "plugins/Artisan/packs/$packId/"
-        val packDir = File(packsDir, packId)
-        packDir.mkdirs()
+        val prefix = "plugins/Artisan/packs/$projectId/" // TODO(phase4-wire): path literal "packs"
+        val projectDir = File(projectsDir, projectId)
+        projectDir.mkdirs()
 
         // 1) Build expected rel-paths and write incoming files
         val expectedRelPaths = mutableSetOf<String>()
         for ((path, content) in files) {
             val relPath = if (path.startsWith(prefix)) path.removePrefix(prefix) else continue
-            val target = File(packDir, relPath)
-            if (!target.canonicalPath.startsWith(packDir.canonicalPath + File.separator)) continue
+            val target = File(projectDir, relPath)
+            if (!target.canonicalPath.startsWith(projectDir.canonicalPath + File.separator)) continue
             target.parentFile?.mkdirs()
             target.writeText(content, Charsets.UTF_8)
             expectedRelPaths.add(relPath.replace('\\', '/'))
         }
 
         // 2) Sweep: delete local files NOT in the bundle, preserving .artisan* metadata
-        packDir.walkTopDown()
+        projectDir.walkTopDown()
             .filter { it.isFile }
             .filter { !it.name.startsWith(".artisan") }
             .forEach { f ->
-                val relPath = f.relativeTo(packDir).path.replace('\\', '/')
+                val relPath = f.relativeTo(projectDir).path.replace('\\', '/')
                 if (relPath !in expectedRelPaths) {
                     if (!f.delete()) {
                         logger?.warning("Sweep: failed to delete $f (locked or permission denied)")
@@ -70,9 +70,9 @@ class BundleDownloader(
                 }
             }
 
-        // 3) Cleanup empty directories bottom-up (but keep packDir itself)
-        packDir.walkBottomUp()
-            .filter { it.isDirectory && it != packDir }
+        // 3) Cleanup empty directories bottom-up (but keep projectDir itself)
+        projectDir.walkBottomUp()
+            .filter { it.isDirectory && it != projectDir }
             .filter { it.list()?.isEmpty() == true }
             .forEach { dir ->
                 if (!dir.delete()) {
@@ -80,7 +80,7 @@ class BundleDownloader(
                 }
             }
 
-        SyncMetadata.recordSync(packDir, syncedHash = BundleHasher.hash(packDir), backendHash = backendHash)
-        logger?.info("Bundle synced for pack $packId (${expectedRelPaths.size} files, swept)")
+        SyncMetadata.recordSync(projectDir, syncedHash = BundleHasher.hash(projectDir), backendHash = backendHash)
+        logger?.info("Bundle synced for pack $projectId (${expectedRelPaths.size} files, swept)")
     }
 }

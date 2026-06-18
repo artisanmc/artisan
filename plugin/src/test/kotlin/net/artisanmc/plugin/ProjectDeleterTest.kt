@@ -1,6 +1,6 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.sync.PackDeleter
+import net.artisanmc.plugin.sync.ProjectDeleter
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class PackDeleterTest {
+class ProjectDeleterTest {
 
     @Test
     fun `moves pack dir into artisan-trash with timestamp suffix`() {
@@ -17,7 +17,7 @@ class PackDeleterTest {
         File(packDir, "menus").mkdirs()
         File(packDir, "menus/m1.yaml").writeText("id: m1\n")
 
-        val deleter = PackDeleter(packsDir)
+        val deleter = ProjectDeleter(packsDir)
         deleter.delete("p_test")
 
         assertFalse(packDir.exists(), "Original packDir doit disparaître")
@@ -33,7 +33,7 @@ class PackDeleterTest {
     @Test
     fun `noop when pack does not exist`() {
         val packsDir = Files.createTempDirectory("artisan_del_").toFile()
-        val deleter = PackDeleter(packsDir)
+        val deleter = ProjectDeleter(packsDir)
         deleter.delete("nonexistent") // ne doit pas lever
         assertFalse(File(packsDir, ".artisan-trash").exists(),
             "Pas de trash créé si rien à déplacer")
@@ -42,7 +42,7 @@ class PackDeleterTest {
     @Test
     fun `unique timestamp suffix when deleting twice with same packId`() {
         val packsDir = Files.createTempDirectory("artisan_del_").toFile()
-        val deleter = PackDeleter(packsDir)
+        val deleter = ProjectDeleter(packsDir)
 
         File(packsDir, "p").also { it.mkdirs() }.also { File(it, "a.yaml").writeText("first\n") }
         deleter.delete("p")

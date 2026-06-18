@@ -15,7 +15,7 @@ import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.BundleDialog
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.render.DialogRenderer
 import net.artisanmc.plugin.render.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
@@ -24,7 +24,7 @@ import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.LocalPushSender
 import net.artisanmc.plugin.sync.SyncMetadata
 import net.artisanmc.plugin.ws.WsClient
-import net.artisanmc.plugin.yaml.PackReader
+import net.artisanmc.plugin.yaml.ProjectReader
 import okhttp3.OkHttpClient
 import org.bukkit.entity.Player
 import java.io.File
@@ -48,7 +48,7 @@ fun detectSyncAction(diskHash: String, syncedHash: String, backendHash: String):
 }
 
 class SyncedMenuProvider(
-    private val packsDir: File,
+    private val projectsDir: File,
     private val serverKey: String,
     private val wsUrl: String,
     private val logger: Logger?,
@@ -63,7 +63,7 @@ class SyncedMenuProvider(
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
-    @Volatile private var bundles = listOf<PackBundle>()
+    @Volatile private var bundles = listOf<ProjectBundle>()
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()
     private val jsonMapper = ObjectMapper()
@@ -97,7 +97,7 @@ class SyncedMenuProvider(
     override fun load() {
         reloadFromDisk()
         if (serverKey.isNotEmpty()) {
-            val currentHash = BundleHasher.hashAll(packsDir)
+            val currentHash = BundleHasher.hashAll(projectsDir)
             val mcVersion = try {
                 org.bukkit.Bukkit.getServer().minecraftVersion
             } catch (e: Exception) {
@@ -114,7 +114,7 @@ class SyncedMenuProvider(
                 serverKey         = serverKey,
                 mcVersion         = mcVersion,
                 currentBundleHash = currentHash,
-                localPackIds      = bundles.map { it.packId },
+                localProjectIds   = bundles.map { it.projectId },
                 customItemsHash   = "",
                 installedModules  = installedModules,
                 onMessage         = ::handleMessage,
@@ -155,7 +155,7 @@ class SyncedMenuProvider(
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
     override fun listMenuIds(): List<String> = (menus.keys + draftMenus.keys).distinct().sorted()
-    override fun allBundles(): List<PackBundle> = bundles
+    override fun allBundles(): List<ProjectBundle> = bundles
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
         val menu = findMenu(menuId) ?: run {
@@ -203,14 +203,14 @@ class SyncedMenuProvider(
         customItemsManager = manager
     }
 
-    override fun pushLocalPack(packId: String, packDir: java.io.File): String? {
-        val msg = LocalPushSender.buildPushMessage(packId, packDir)
+    override fun pushLocalProject(projectId: String, projectDir: java.io.File): String? {
+        val msg = LocalPushSender.buildPushMessage(projectId, projectDir)
         send(msg)
         return msg["hash"] as? String
     }
 
     private fun reloadFromDisk() {
-        val loaded = PackReader(packsDir, logger).readAll()
+        val loaded = ProjectReader(projectsDir, logger).readAll()
         bundles = loaded
         val freshMenus = ConcurrentHashMap<String, BundleMenu>()
         val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
@@ -247,55 +247,55 @@ class SyncedMenuProvider(
                     }
                 }
 
-                val packHashesNode = node["pack_hashes"] ?: run {
+                val projectHashesNode = node["pack_hashes"] ?: run { // TODO(phase4-wire): wire field "pack_hashes"
                     logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
                     return
                 }
-                val packHashes: Map<String, String> = runCatching {
-                    jsonMapper.convertValue(packHashesNode, object : TypeReference<Map<String, String>>() {})
+                val projectHashes: Map<String, String> = runCatching {
+                    jsonMapper.convertValue(projectHashesNode, object : TypeReference<Map<String, String>>() {})
                 }.getOrDefault(emptyMap())
 
-                val deletedPackIdsNode = node["deleted_pack_ids"]
-                if (deletedPackIdsNode != null && deletedPackIdsNode.isArray) {
-                    deletedPackIdsNode.forEach { idNode ->
-                        val packId = idNode.asText()
-                        if (File(packsDir, packId).exists()) {
-                            logger?.info("hello_ack: reconciling deletion of $packId")
-                            handlePackDeletion(packId)
+                val deletedProjectIdsNode = node["deleted_pack_ids"] // TODO(phase4-wire): wire field "deleted_pack_ids"
+                if (deletedProjectIdsNode != null && deletedProjectIdsNode.isArray) {
+                    deletedProjectIdsNode.forEach { idNode ->
+                        val projectId = idNode.asText()
+                        if (File(projectsDir, projectId).exists()) {
+                            logger?.info("hello_ack: reconciling deletion of $projectId")
+                            handleProjectDeletion(projectId)
                         }
                     }
                 }
 
-                packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { packDir ->
-                    val packId = packDir.name
-                    val backendHash = packHashes[packId] ?: run {
-                            logger?.fine("Pack $packId not found in backend pack_hashes — treating as local-only, no sync")
+                projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { projectDir ->
+                    val projectId = projectDir.name
+                    val backendHash = projectHashes[projectId] ?: run {
+                            logger?.fine("Pack $projectId not found in backend pack_hashes — treating as local-only, no sync")
                             return@forEach
                         }
-                    val diskHash = BundleHasher.hash(packDir)
+                    val diskHash = BundleHasher.hash(projectDir)
 
                     // Backend has an empty stub — auto-push local files via WS local_push
                     if (backendHash.isEmpty() && diskHash.isNotEmpty()) {
-                        logger?.info("Pack $packId: backend reports empty — auto-pushing local content")
+                        logger?.info("Pack $projectId: backend reports empty — auto-pushing local content")
                         httpClient.dispatcher.executorService.execute {
-                            pushLocalPack(packId, packDir)
+                            pushLocalProject(projectId, projectDir)
                         }
                         return@forEach
                     }
 
-                    val meta = SyncMetadata.read(packDir)
+                    val meta = SyncMetadata.read(projectDir)
                     val action = detectSyncAction(diskHash, meta.syncedHash, backendHash)
                     when (action) {
-                        SyncAction.IN_SYNC    -> logger?.fine("Pack $packId is in sync")
-                        SyncAction.AUTO_SYNC  -> logger?.fine("Pack $packId: backend is newer — sync will be applied via bundle_available")
+                        SyncAction.IN_SYNC    -> logger?.fine("Pack $projectId is in sync")
+                        SyncAction.AUTO_SYNC  -> logger?.fine("Pack $projectId: backend is newer — sync will be applied via bundle_available")
                         SyncAction.LOCAL_ONLY, SyncAction.CONFLICT -> {
                             // Plan 1C: backend = source of truth. Local divergence will be overwritten
                             // by the next bundle_available. We log a single WARN line for post-mortem
                             // tracing — no UI, no prompt, no delay. Admins who edited via FTP must use
                             // `/artisan pushLocal <pack_id>` to upload local changes before reconnecting.
                             logger?.warning(
-                                "[Artisan] Local pack '$packId' differs from backend (action=$action). " +
-                                "Backend version will overwrite local. Use /artisan pushLocal $packId if local edits were intentional."
+                                "[Artisan] Local pack '$projectId' differs from backend (action=$action). " +
+                                "Backend version will overwrite local. Use /artisan pushLocal $projectId if local edits were intentional."
                             )
                         }
                     }
@@ -303,24 +303,24 @@ class SyncedMenuProvider(
             }
 
             "bundle_available" -> {
-                val packId = node["pack_id"]?.asText() ?: return
+                val projectId = node["pack_id"]?.asText() ?: return // TODO(phase4-wire): wire field "pack_id"
                 val url    = node["url"]?.asText()     ?: return
-                if (downloadsInFlight.putIfAbsent(packId, true) != null) return
+                if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
                 try {
                     httpClient.dispatcher.executorService.execute {
                         try {
-                            val downloader = BundleDownloader(httpClient, packsDir, logger)
-                            downloader.download(url = url, serverKey = serverKey, packId = packId)
+                            val downloader = BundleDownloader(httpClient, projectsDir, logger)
+                            downloader.download(url = url, serverKey = serverKey, projectId = projectId)
                             reloadFromDisk()
                             draftMenus.clear()
-                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$packId")
+                            logger?.info("[ART-DEBUG] bundle_available: triggering onReload for pack=$projectId")
                             onReload?.invoke()
                         } finally {
-                            downloadsInFlight.remove(packId)
+                            downloadsInFlight.remove(projectId)
                         }
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
-                    downloadsInFlight.remove(packId)
+                    downloadsInFlight.remove(projectId)
                     logger?.warning("Bundle download rejected — plugin is stopping")
                 }
             }
@@ -377,18 +377,18 @@ class SyncedMenuProvider(
                 }
             }
 
-            "pack_deleted" -> {
-                val packId = node["pack_id"]?.asText() ?: return
-                handlePackDeletion(packId)
+            "pack_deleted" -> { // TODO(phase4-wire): wire message type "pack_deleted"
+                val projectId = node["pack_id"]?.asText() ?: return // TODO(phase4-wire): wire field "pack_id"
+                handleProjectDeletion(projectId)
             }
 
             "ping" -> wsClient?.send(mapOf("type" to "pong"))
         }
     }
 
-    private fun handlePackDeletion(packId: String) {
-        // Atomic switch: drop the pack from the in-memory bundles BEFORE touching disk.
-        bundles = bundles.filterNot { it.packId == packId }
+    private fun handleProjectDeletion(projectId: String) {
+        // Atomic switch: drop the project from the in-memory bundles BEFORE touching disk.
+        bundles = bundles.filterNot { it.projectId == projectId }
         val freshMenus = ConcurrentHashMap<String, BundleMenu>()
         val freshDialogs = ConcurrentHashMap<String, BundleDialog>()
         bundles.forEach { b ->
@@ -397,7 +397,7 @@ class SyncedMenuProvider(
         }
         menus = freshMenus
         dialogs = freshDialogs
-        net.artisanmc.plugin.sync.PackDeleter(packsDir, logger).delete(packId)
+        net.artisanmc.plugin.sync.ProjectDeleter(projectsDir, logger).delete(projectId)
         onReload?.invoke()
     }
 

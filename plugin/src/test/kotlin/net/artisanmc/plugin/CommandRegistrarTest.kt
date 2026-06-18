@@ -24,12 +24,12 @@ class CommandRegistrarTest {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<PackBundle> = emptyList()
+        override fun allBundles(): List<ProjectBundle> = emptyList()
     }
     private fun executor() = ActionExecutor(plugin.value, stubProvider, sessions, deps, cooldowns, evaluator)
 
-    private fun bundle(vararg commands: CommandYaml) = PackBundle(
-        packId = "test", defaultLang = "en", languages = emptyList(),
+    private fun bundle(vararg commands: CommandYaml) = ProjectBundle(
+        projectId = "test", defaultLang = "en", languages = emptyList(),
         menus = emptyList(), commands = commands.toList(), dialogs = emptyList(),
     )
 

@@ -11,7 +11,7 @@ class WsClient(
     private val serverKey: String,
     private val mcVersion: String,
     private val currentBundleHash: String = "",
-    private val localPackIds: List<String> = emptyList(),
+    private val localProjectIds: List<String> = emptyList(),
     private val customItemsHash: String = "",
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val onMessage: (String) -> Unit,
@@ -55,7 +55,7 @@ class WsClient(
                 "plugin_version" to "1.0.0",
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
-                "local_pack_ids" to localPackIds,
+                "local_pack_ids" to localProjectIds, // TODO(phase4-wire): wire field "local_pack_ids"
                 "custom_items_hash" to customItemsHash.ifEmpty { null },
                 "installed_modules" to installedModules(),
             )

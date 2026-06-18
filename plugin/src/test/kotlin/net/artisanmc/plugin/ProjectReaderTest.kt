@@ -1,13 +1,13 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.yaml.PackReader
+import net.artisanmc.plugin.yaml.ProjectReader
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.jupiter.api.assertThrows
 
-class PackReaderTest {
+class ProjectReaderTest {
 
     private fun writeTempPack(): File {
         val root = java.nio.file.Files.createTempDirectory("artisan_packs_").toFile()
@@ -47,12 +47,12 @@ class PackReaderTest {
 
     @Test
     fun `reads manifest and resolves menu title for default lang`() {
-        val packsRoot = writeTempPack()
-        val bundles = PackReader(packsRoot).readAll()
+        val projectsRoot = writeTempPack()
+        val bundles = ProjectReader(projectsRoot).readAll()
 
         assertEquals(1, bundles.size)
         val bundle = bundles.first()
-        assertEquals("p_test", bundle.packId)
+        assertEquals("p_test", bundle.projectId)
         assertEquals("en", bundle.defaultLang)
         assertEquals(1, bundle.menus.size)
         assertNotNull(bundle.menus.first())
@@ -62,15 +62,15 @@ class PackReaderTest {
 
     @Test
     fun `resolveTitle for non-default lang`() {
-        val packsRoot = writeTempPack()
-        val bundle = PackReader(packsRoot).readAll().first()
+        val projectsRoot = writeTempPack()
+        val bundle = ProjectReader(projectsRoot).readAll().first()
         assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
     }
 
     @Test
     fun `resolveTitle returns raw tag when lang file absent`() {
-        val packsRoot = writeTempPack()
-        val bundle = PackReader(packsRoot).readAll().first()
+        val projectsRoot = writeTempPack()
+        val bundle = ProjectReader(projectsRoot).readAll().first()
         assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("de"))
     }
 
@@ -107,7 +107,7 @@ class PackReaderTest {
         File(packDir, "lang").mkdirs()
         File(packDir, "lang/en.yaml").writeText("{}\n")
 
-        val bundles = PackReader(root).readAll()
+        val bundles = ProjectReader(root).readAll()
         assertEquals(1, bundles.size)
         val bundle = bundles.first()
         assertEquals(1, bundle.dialogs.size)
@@ -139,9 +139,9 @@ class PackReaderTest {
         File(packDir, "lang").mkdirs()
         File(packDir, "lang/en.yaml").writeText("{}")
 
-        val packs = PackReader(root).readAll()
+        val packs = ProjectReader(root).readAll()
         assertEquals(1, packs.size)
-        assertEquals("test_pack", packs[0].packId)
+        assertEquals("test_pack", packs[0].projectId)
     }
 
     @Test
@@ -166,9 +166,9 @@ class PackReaderTest {
         File(packDir, "lang").mkdirs()
         File(packDir, "lang/en.yaml").writeText("{}")
 
-        val packs = PackReader(root).readAll()
+        val packs = ProjectReader(root).readAll()
         assertEquals(1, packs.size)
-        assertEquals("legacy_pack", packs[0].packId)
+        assertEquals("legacy_pack", packs[0].projectId)
     }
 
     @Test
@@ -195,7 +195,7 @@ class PackReaderTest {
         File(packDir, "lang/en.yaml").writeText("{}")
 
         assertThrows<IllegalArgumentException> {
-            PackReader(root).readAll()
+            ProjectReader(root).readAll()
         }
     }
 
@@ -219,7 +219,7 @@ class PackReaderTest {
         File(packDir, "lang").mkdirs()
         File(packDir, "lang/en.yaml").writeText("{}\n")
 
-        val bundles = PackReader(root).readAll()
+        val bundles = ProjectReader(root).readAll()
         assertEquals(0, bundles.first().dialogs.size)
     }
 }

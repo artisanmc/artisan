@@ -9,7 +9,7 @@ import net.artisanmc.plugin.model.*
 import java.io.File
 import java.util.logging.Logger
 
-class PackReader(private val packsRoot: File, private val logger: Logger? = null) {
+class ProjectReader(private val projectsRoot: File, private val logger: Logger? = null) {
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
@@ -31,43 +31,43 @@ class PackReader(private val packsRoot: File, private val logger: Logger? = null
         )
     }
 
-    fun readAll(): List<PackBundle> =
-        packsRoot.listFiles { f -> f.isDirectory }
-            ?.mapNotNull { readPack(it) }
+    fun readAll(): List<ProjectBundle> =
+        projectsRoot.listFiles { f -> f.isDirectory }
+            ?.mapNotNull { readProject(it) }
             ?: emptyList()
 
-    private fun readPack(packDir: File): PackBundle? {
-        val manifestFile = File(packDir, "manifest.yaml").takeIf { it.exists() } ?: return null
+    private fun readProject(projectDir: File): ProjectBundle? {
+        val manifestFile = File(projectDir, "manifest.yaml").takeIf { it.exists() } ?: return null
         val manifest = mapper.readValue(manifestFile, ManifestYaml::class.java)
         requireSchema(manifestFile, manifest.schema, "manifest/v1")
 
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
-            val langFile = File(packDir, "lang/$lang.yaml")
+            val langFile = File(projectDir, "lang/$lang.yaml")
             if (langFile.exists()) mapper.readValue(langFile, object : TypeReference<Map<String, String>>() {})
             else emptyMap()
         }
 
         val menus = manifest.files.menus.mapNotNull { menuId ->
-            val f = File(packDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
+            val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             val menuYaml = mapper.readValue(f, MenuYaml::class.java)
             requireSchema(f, menuYaml.schema, "menu/v1")
             BundleCompiler.compile(menuYaml, langMaps, logger, defaultLang = manifest.defaultLang)
         }
 
         val commands = manifest.files.commands.mapNotNull { cmdId ->
-            val f = File(packDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
+            val f = File(projectDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             val cmdYaml = mapper.readValue(f, CommandYaml::class.java)
             requireSchema(f, cmdYaml.schema, "command/v1")
             cmdYaml
         }
 
         val dialogs = manifest.files.dialogs.mapNotNull { dialogId ->
-            val f = File(packDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
+            val f = File(projectDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
             val dialogYaml = mapper.readValue(f, DialogYaml::class.java)
             requireSchema(f, dialogYaml.schema, "dialog/v1")
             BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
         }
 
-        return PackBundle(manifest.packId, manifest.defaultLang, manifest.languages, menus, commands, dialogs)
+        return ProjectBundle(manifest.projectId, manifest.defaultLang, manifest.languages, menus, commands, dialogs)
     }
 }
