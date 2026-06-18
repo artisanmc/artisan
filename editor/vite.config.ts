@@ -11,10 +11,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": srcDir,
+      // @artisan/* are unbuilt TS-source workspace packages — alias them to
+      // source so Vite dev (which won't transform .ts inside node_modules) and
+      // build both resolve them. P1c publishes built JS and drops these aliases.
+      "@artisan/editor-sdk": fileURLToPath(new URL("./packages/editor-sdk/src/index.ts", import.meta.url)),
+      "@artisan/quests-editor": fileURLToPath(new URL("./packages/quests-editor/src/index.ts", import.meta.url)),
     },
-  },
-  optimizeDeps: {
-    exclude: ["@artisan/editor-sdk", "@artisan/quests-editor"],
   },
   server: {
     watch: {
