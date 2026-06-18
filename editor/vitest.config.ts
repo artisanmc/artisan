@@ -14,7 +14,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@artisan/editor-sdk": path.resolve(__dirname, "./src/sdk/index.ts"),
     },
   },
 });
