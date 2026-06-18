@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, packs, serverKeys, serverModules, networks } from "../db/schema";
+import { editorSessions, projects, serverKeys, serverModules, networks } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
 import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
@@ -16,7 +16,7 @@ app.route("/api/v1/editor-session", editorSessionRouter);
 // ─── Cleanup ───────────────────────────────────────────────────────────────
 // FK-safe cleanup order for each test
 beforeEach(async () => {
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   // linkCodes references serverKeys — omit if not used in this file
   await db.delete(serverKeys);
@@ -48,12 +48,12 @@ async function seedBoundPack(
   const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId));
   if (skRows.length === 0) throw new Error("seed: server_key absent");
   const networkId = skRows[0].networkId;
-  const { createPack } = await import("../lib/packStorage");
-  await createPack({ networkId, serverKeyId, name: packId, id: packId });
+  const { createProject } = await import("../lib/projectStorage");
+  await createProject({ networkId, serverKeyId, name: packId, id: packId });
   const editorJson = extraEditorJson ? JSON.stringify(extraEditorJson) : JSON.stringify({ id: packId, name: packId });
-  await db.update(packs)
+  await db.update(projects)
     .set({ hash, filesJson: JSON.stringify(files), editorJson })
-    .where(eq(packs.id, packId));
+    .where(eq(projects.id, packId));
 }
 
 async function createRawSession(): Promise<{ urlToken: string; keyId: string }> {
@@ -385,7 +385,7 @@ describe("DELETE /api/v1/editor-session/:token", () => {
 });
 
 describe("GET /api/v1/editor-session/:token/packs", () => {
-  test("200 returns empty array when no packs", async () => {
+  test("200 returns empty array when no projects", async () => {
     const { token } = await createSession();
     const res = await app.request(`/api/v1/editor-session/${token}/packs`);
     expect(res.status).toBe(200);
@@ -527,7 +527,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
     });
     expect(res.status).toBe(201);
     // Pack should now exist in DB with the correct server_key owner
-    const packRows = await db.select().from(packs).where(eq(packs.id, "p_new_deploy"));
+    const packRows = await db.select().from(projects).where(eq(projects.id, "p_new_deploy"));
     expect(packRows.length).toBe(1);
   });
 
@@ -538,7 +538,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pack: { id: "p_chk_deployed", name: "Check" }, files: { "manifest.yaml": "" } }),
     });
-    const rows = await db.select().from(packs).where(eq(packs.id, "p_chk_deployed"));
+    const rows = await db.select().from(projects).where(eq(projects.id, "p_chk_deployed"));
     expect(rows[0].deployedEditorJson).not.toBeNull();
     expect(rows[0].editorJson).not.toBeNull();
   });
@@ -1122,7 +1122,7 @@ describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
     expect(body.deleted).toBe(true);
 
     // Verify soft-delete in DB
-    const rows = await db.select().from(packs).where(eq(packs.id, "p_to_delete"));
+    const rows = await db.select().from(projects).where(eq(projects.id, "p_to_delete"));
     expect(rows[0].deletedAt).not.toBeNull();
   });
 
@@ -1145,11 +1145,11 @@ describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
     expect(res.status).toBe(404);
   });
 
-  test("uses softDeletePack — pack row still in DB with deletedAt set", async () => {
+  test("uses softDeleteProject — pack row still in DB with deletedAt set", async () => {
     const { token, keyId: serverKeyId } = await createSession();
     await seedBoundPack(serverKeyId, "p_soft_only", "h", {});
     await app.request(`/api/v1/editor-session/${token}/packs/p_soft_only`, { method: "DELETE" });
-    const rows = await db.select().from(packs).where(eq(packs.id, "p_soft_only"));
+    const rows = await db.select().from(projects).where(eq(projects.id, "p_soft_only"));
     expect(rows.length).toBe(1);   // row still exists
     expect(rows[0].deletedAt).not.toBeNull();   // but marked deleted
   });

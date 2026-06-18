@@ -6,7 +6,7 @@ import { db } from "../db/index";
 import {
   assets,
   serverKeys,
-  packs,
+  projects,
   networks,
   editorSessions,
   linkCodes,
@@ -15,7 +15,7 @@ import { writeAssetFile, assetRoot } from "./assetStorage";
 import { resourcePackRoot, resourcePackPath } from "./resourcePackStorage";
 import { rebuildResourcePack, currentPackInfo } from "./resourcePack";
 import { createNetwork } from "./networkManager";
-import { createPack } from "./packStorage";
+import { createProject } from "./projectStorage";
 import { join } from "path";
 
 const PNG_1x1 = new Uint8Array([
@@ -30,7 +30,7 @@ const PNG_1x1 = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-async function seedSetup(): Promise<{ serverKeyId: string; packId: string }> {
+async function seedSetup(): Promise<{ serverKeyId: string; projectId: string }> {
   const net = await createNetwork("N");
   const serverKeyId = crypto.randomUUID();
   await db.insert(serverKeys).values({
@@ -39,43 +39,43 @@ async function seedSetup(): Promise<{ serverKeyId: string; packId: string }> {
     networkId: net.id,
     createdAt: new Date(),
   });
-  const pack = await createPack({ networkId: net.id, serverKeyId, name: "p" });
-  return { serverKeyId, packId: pack.id };
+  const project = await createProject({ networkId: net.id, serverKeyId, name: "p" });
+  return { serverKeyId, projectId: project.id };
 }
 
-async function seedGlyph(packId: string, name: string, codepoint: number): Promise<string> {
+async function seedGlyph(projectId: string, name: string, codepoint: number): Promise<string> {
   const id = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   await db.insert(assets).values({
-    id, packId, type: "glyph", name,
+    id, projectId, type: "glyph", name,
     width: 1, height: 1, ascent: 0, codepoint, fontMeta: null,
     contentHash: "h" + name, createdAt: new Date(), updatedAt: new Date(),
   });
-  await writeAssetFile(packId, id, PNG_1x1);
+  await writeAssetFile(projectId, id, PNG_1x1);
   return id;
 }
 
 let serverKeyId: string;
-let packId: string;
+let projectId: string;
 
 beforeEach(async () => {
   // FK-safe cleanup
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(networks);
-  ({ serverKeyId, packId } = await seedSetup());
+  ({ serverKeyId, projectId } = await seedSetup());
 });
 
 afterEach(async () => {
   await rm(join(resourcePackRoot(), serverKeyId), { recursive: true, force: true });
-  await rm(join(assetRoot(), packId), { recursive: true, force: true });
+  await rm(join(assetRoot(), projectId), { recursive: true, force: true });
 });
 
 describe("rebuildResourcePack", () => {
   test("writes a zip and updates server_keys columns", async () => {
-    await seedGlyph(packId, "coin", 0xE000);
+    await seedGlyph(projectId, "coin", 0xE000);
     const { hash, url } = await rebuildResourcePack(serverKeyId);
     expect(hash).toMatch(/^[0-9a-f]{40}$/);
     expect(url).toMatch(new RegExp(`/api/v1/resource-pack/${serverKeyId}/${hash}\\.zip$`));
@@ -87,7 +87,7 @@ describe("rebuildResourcePack", () => {
   });
 
   test("two consecutive rebuilds with same assets produce the same hash", async () => {
-    await seedGlyph(packId, "coin", 0xE000);
+    await seedGlyph(projectId, "coin", 0xE000);
     const r1 = await rebuildResourcePack(serverKeyId);
     const r2 = await rebuildResourcePack(serverKeyId);
     expect(r1.hash).toBe(r2.hash);
@@ -95,14 +95,14 @@ describe("rebuildResourcePack", () => {
 
   test("adding a glyph changes the hash", async () => {
     const r1 = await rebuildResourcePack(serverKeyId);
-    await seedGlyph(packId, "coin", 0xE000);
+    await seedGlyph(projectId, "coin", 0xE000);
     const r2 = await rebuildResourcePack(serverKeyId);
     expect(r2.hash).not.toBe(r1.hash);
   });
 
-  test("keeps at most 3 packs on disk plus the current one", async () => {
+  test("keeps at most 3 projects on disk plus the current one", async () => {
     for (let i = 0; i < 5; i++) {
-      await seedGlyph(packId, `g${i}`, 0xE000 + i);
+      await seedGlyph(projectId, `g${i}`, 0xE000 + i);
       await rebuildResourcePack(serverKeyId);
       await new Promise((r) => setTimeout(r, 15));
     }
@@ -119,7 +119,7 @@ describe("rebuildResourcePack", () => {
   });
 
   test("currentPackInfo returns { url, hash } after a build", async () => {
-    await seedGlyph(packId, "coin", 0xE000);
+    await seedGlyph(projectId, "coin", 0xE000);
     const { hash } = await rebuildResourcePack(serverKeyId);
     const info = await currentPackInfo(serverKeyId);
     expect(info).not.toBeNull();
@@ -127,13 +127,13 @@ describe("rebuildResourcePack", () => {
     expect(info!.url.endsWith(`/api/v1/resource-pack/${serverKeyId}/${hash}.zip`)).toBe(true);
   });
 
-  test("multi-pack: server_key bound to 2 packs with colliding codepoints → asset-index has distinct final codepoints", async () => {
-    // The seedSetup fixture already created `packId` (pack A) for serverKeyId.
+  test("multi-pack: server_key bound to 2 projects with colliding codepoints → asset-index has distinct final codepoints", async () => {
+    // The seedSetup fixture already created `projectId` (pack A) for serverKeyId.
     // Add a second bound pack B with a glyph that collides at the same codepoint.
     const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverKeyId)))[0]!;
-    const packB = await createPack({ networkId: skRow.networkId, serverKeyId, name: "pb" });
+    const packB = await createProject({ networkId: skRow.networkId, serverKeyId, name: "pb" });
 
-    const glyphAId = await seedGlyph(packId, "alpha", 0xE000);
+    const glyphAId = await seedGlyph(projectId, "alpha", 0xE000);
     const glyphBId = await seedGlyph(packB.id, "beta", 0xE000);
 
     const { hash } = await rebuildResourcePack(serverKeyId);

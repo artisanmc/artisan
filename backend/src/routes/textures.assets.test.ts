@@ -14,7 +14,7 @@ mock.module("../ws/hub", () => ({
 import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, packs } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { texturesRouter } from "./textures";
@@ -30,7 +30,7 @@ app.route("/api/v1/editor-session", assetsRouter);
 
 beforeEach(async () => {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(serverKeys);
   await db.delete(networks);
@@ -67,7 +67,7 @@ async function seedSession(): Promise<{ token: string; packId: string }> {
   });
 
   const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  await db.insert(packs).values({
+  await db.insert(projects).values({
     id: packId,
     networkId,
     serverKeyId,
@@ -96,7 +96,7 @@ describe("GET /api/v1/textures/asset/:packId/:assetId", () => {
     const now = new Date();
     await db.insert(assets).values({
       id: assetId,
-      packId,
+      projectId: packId,
       type: "texture",
       name: "tex_serve",
       width: 1,
@@ -152,7 +152,7 @@ describe("GET /api/v1/textures/asset-font/:assetId/*", () => {
     const now = new Date();
     await db.insert(assets).values({
       id: assetId,
-      packId,
+      projectId: packId,
       type: opts.type ?? "font",
       name: "font_" + assetId.slice(6, 12),
       width: 8,

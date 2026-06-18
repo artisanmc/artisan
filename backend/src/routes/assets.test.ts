@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, packs, linkCodes } from "../db/schema";
+import { assets, editorSessions, serverKeys, networks, projects, linkCodes } from "../db/schema";
 import { readFontGlyph, fontDirPaths } from "../lib/fontStorage";
 import { existsSync } from "fs";
 import { assetsRouter } from "./assets";
@@ -32,7 +32,7 @@ app.route("/api/v1/editor-session", assetsRouter);
 
 beforeEach(async () => {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -85,7 +85,7 @@ async function seedSession(): Promise<{ token: string; serverKeyId: string; pack
 
   // Pack (serverKeyId stored directly — no separate binding row)
   const packId = "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  await db.insert(packs).values({
+  await db.insert(projects).values({
     id: packId, networkId, serverKeyId, name: "test-pack",
     hash: "", filesJson: "{}", createdAt: new Date(), updatedAt: new Date(),
   });
@@ -156,7 +156,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/assets", () => {
     const body = await res.json();
     expect(body.asset.type).toBe("texture");
     expect(body.asset.name).toBe("bg_one");
-    expect(body.asset.packId).toBe(packId);
+    expect(body.asset.projectId).toBe(packId);
     expect(body.asset.width).toBe(1);
     expect(body.asset.height).toBe(1);
     expect(body.asset.codepoint).toBeNull();
@@ -585,7 +585,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/assets type=font", ()
     const body = await res.json();
     expect(body.asset.type).toBe("font");
     expect(body.asset.name).toBe("myfont");
-    expect(body.asset.packId).toBe(packId);
+    expect(body.asset.projectId).toBe(packId);
     expect(body.asset.codepoint).toBeNull();
     expect(body.asset.ascent).toBeNull();
     expect(body.asset.contentHash).toMatch(/^[0-9a-f]{40}$/);
@@ -794,8 +794,8 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/assets/:id/duplicate"
     const copyRow = await db.select().from(assets).where(eq(assets.id, copy.id));
     expect(srcRow.length).toBe(1);
     expect(copyRow.length).toBe(1);
-    expect(srcRow[0].packId).toBe(packId);
-    expect(copyRow[0].packId).toBe(packId);
+    expect(srcRow[0].projectId).toBe(packId);
+    expect(copyRow[0].projectId).toBe(packId);
   });
 
   test("copy PNG file exists on disk at expected path", async () => {

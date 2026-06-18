@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { networks, packs, serverKeys } from "../db/schema";
+import { networks, projects, serverKeys } from "../db/schema";
 import { slugify, uniqueSlug } from "./slug";
 
 /**
  * DB-aware slug allocators. Each derives a slug from a name and dedups it
  * against the existing slugs in its uniqueness scope (network = global, server =
- * per network, pack = per server key) — mirroring the unique indexes. The index
- * is the ultimate guard against a concurrent-create race.
+ * per network, project = per server key) — mirroring the unique indexes. The
+ * index is the ultimate guard against a concurrent-create race.
  */
 
 export async function allocNetworkSlug(name: string): Promise<string> {
@@ -28,14 +28,14 @@ export async function allocServerSlug(
 	return uniqueSlug(slugify(label ?? "server", "server"), taken);
 }
 
-export async function allocPackSlug(
+export async function allocProjectSlug(
 	serverKeyId: string,
 	name: string,
 ): Promise<string> {
 	const rows = await db
-		.select({ slug: packs.slug })
-		.from(packs)
-		.where(eq(packs.serverKeyId, serverKeyId));
+		.select({ slug: projects.slug })
+		.from(projects)
+		.where(eq(projects.serverKeyId, serverKeyId));
 	const taken = rows.map((r) => r.slug).filter((s): s is string => !!s);
-	return uniqueSlug(slugify(name, "workspace"), taken);
+	return uniqueSlug(slugify(name, "project"), taken);
 }

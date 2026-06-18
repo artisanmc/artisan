@@ -1,18 +1,18 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
-import { packs } from "../db/schema";
+import { projects } from "../db/schema";
 import { createBranch } from "./branchStorage";
 import { createCommit } from "./commitStorage";
-import { allocPackSlug } from "./slugAlloc";
+import { allocProjectSlug } from "./slugAlloc";
 
-export type Pack = typeof packs.$inferSelect;
+export type Project = typeof projects.$inferSelect;
 
 /**
- * Initial editor JSON shape for a freshly created pack. Mirrors the editor's
- * `Pack` TypeScript type — every collection field is empty so the editor can
- * render an empty workspace without crashing. Without this default, the
- * editor used to get `editor: null` from GET /api/v1/user/packs/:packId and
- * render a black screen.
+ * Initial editor JSON shape for a freshly created project. Mirrors the editor's
+ * `Project` TypeScript type — every collection field is empty so the editor can
+ * render an empty project without crashing. Without this default, the editor
+ * used to get `editor: null` from GET /api/v1/user/packs/:packId and render a
+ * black screen.
  */
 function defaultEditorJson(id: string, name: string, now: Date): string {
 	const iso = now.toISOString();
@@ -35,19 +35,19 @@ function defaultEditorJson(id: string, name: string, now: Date): string {
 	});
 }
 
-export async function createPack(input: {
+export async function createProject(input: {
 	networkId: string;
-	serverKeyId: string; // required: the server_key that owns this pack
+	serverKeyId: string; // required: the server_key that owns this project
 	name: string;
 	description?: string | null;
 	id?: string; // optional, default generated
-}): Promise<Pack> {
+}): Promise<Project> {
 	const id =
 		input.id ?? "pack_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 	const now = new Date();
-	const slug = await allocPackSlug(input.serverKeyId, input.name);
+	const slug = await allocProjectSlug(input.serverKeyId, input.name);
 	const initialEditor = defaultEditorJson(id, input.name, now);
-	await db.insert(packs).values({
+	await db.insert(projects).values({
 		id,
 		networkId: input.networkId,
 		serverKeyId: input.serverKeyId,
@@ -66,7 +66,7 @@ export async function createPack(input: {
 	// the same default editor shape, so any plugin downloading the bundle gets
 	// valid JSON instead of null.
 	const root = await createCommit({
-		packId: id,
+		projectId: id,
 		parentId: null,
 		files: {},
 		editor: JSON.parse(initialEditor),
@@ -74,15 +74,15 @@ export async function createPack(input: {
 		message: "Initial commit",
 	});
 	await createBranch(id, "main", root.id);
-	return (await getPack(id))!;
+	return (await getProject(id))!;
 }
 
-export async function getPack(id: string): Promise<Pack | null> {
-	const rows = await db.select().from(packs).where(eq(packs.id, id));
+export async function getProject(id: string): Promise<Project | null> {
+	const rows = await db.select().from(projects).where(eq(projects.id, id));
 	return rows[0] ?? null;
 }
 
-export async function upsertPackContent(
+export async function upsertProjectContent(
 	id: string,
 	patch: {
 		hash?: string;
@@ -92,21 +92,23 @@ export async function upsertPackContent(
 	},
 ): Promise<void> {
 	await db
-		.update(packs)
+		.update(projects)
 		.set({ ...patch, updatedAt: new Date() })
-		.where(eq(packs.id, id));
+		.where(eq(projects.id, id));
 }
 
-export async function softDeletePack(id: string): Promise<void> {
+export async function softDeleteProject(id: string): Promise<void> {
 	await db
-		.update(packs)
+		.update(projects)
 		.set({ deletedAt: new Date(), updatedAt: new Date() })
-		.where(eq(packs.id, id));
+		.where(eq(projects.id, id));
 }
 
-export async function listPacksForNetwork(networkId: string): Promise<Pack[]> {
+export async function listProjectsForNetwork(
+	networkId: string,
+): Promise<Project[]> {
 	return await db
 		.select()
-		.from(packs)
-		.where(and(eq(packs.networkId, networkId), isNull(packs.deletedAt)));
+		.from(projects)
+		.where(and(eq(projects.networkId, networkId), isNull(projects.deletedAt)));
 }

@@ -1,9 +1,9 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, packBranches, packCommits, packs, serverKeyHelloes, serverKeys, serverModules } from "../db/schema";
+import { editorSessions, linkCodes, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
-import { createPack, getPack, upsertPackContent } from "../lib/packStorage";
+import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -222,43 +222,43 @@ export async function handlePluginMessage(
     const latestHash = await computeAllPacksHash(keyId);
     const needsSync = latestHash !== "" && latestHash !== hello.current_bundle_hash;
 
-    // With 1:1 ownership, "bound packs" = packs owned by this server_key (non-deleted)
-    const boundPacks = await db.select().from(packs).where(
-      and(eq(packs.serverKeyId, keyId), isNull(packs.deletedAt)),
+    // With 1:1 ownership, "bound projects" = projects owned by this server_key (non-deleted)
+    const boundProjects = await db.select().from(projects).where(
+      and(eq(projects.serverKeyId, keyId), isNull(projects.deletedAt)),
     );
     const deletedRows = await db
-      .select({ id: packs.id })
-      .from(packs)
-      .where(and(eq(packs.serverKeyId, keyId), isNotNull(packs.deletedAt)));
-    const deletedPackIds = deletedRows.map((r) => r.id);
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.serverKeyId, keyId), isNotNull(projects.deletedAt)));
+    const deletedProjectIds = deletedRows.map((r) => r.id);
 
     // Build pack_hashes via branch → commit content hash (Phase 2).
-    // Each pack's binding branch is always "main" in the 1:1 model.
-    const bindings = boundPacks.map((p) => ({ packId: p.id, branchName: "main" as const }));
+    // Each project's binding branch is always "main" in the 1:1 model.
+    const bindings = boundProjects.map((p) => ({ projectId: p.id, branchName: "main" as const }));
 
-    const packHashesMap: Record<string, string> = {};
+    const projectHashesMap: Record<string, string> = {};
     for (const b of bindings) {
-      const branch = await db.select().from(packBranches).where(and(
-        eq(packBranches.packId, b.packId), eq(packBranches.name, b.branchName),
+      const branch = await db.select().from(projectBranches).where(and(
+        eq(projectBranches.projectId, b.projectId), eq(projectBranches.name, b.branchName),
       ));
       if (branch.length === 0) continue;
-      const cmt = await db.select({ contentHash: packCommits.contentHash })
-        .from(packCommits)
-        .where(eq(packCommits.id, branch[0].headCommitId));
+      const cmt = await db.select({ contentHash: projectCommits.contentHash })
+        .from(projectCommits)
+        .where(eq(projectCommits.id, branch[0].headCommitId));
       if (cmt.length === 0) continue;
-      packHashesMap[b.packId] = cmt[0].contentHash;
+      projectHashesMap[b.projectId] = cmt[0].contentHash;
     }
 
-    // Create minimal stubs for packs the plugin has on disk but the backend doesn't know about.
-    const knownPackIds = new Set(boundPacks.map((p) => p.id));
-    const localPackIds = hello.local_pack_ids ?? [];
-    const missingPackIds = localPackIds.filter((id) => !knownPackIds.has(id));
-    if (missingPackIds.length > 0) {
+    // Create minimal stubs for projects the plugin has on disk but the backend doesn't know about.
+    const knownProjectIds = new Set(boundProjects.map((p) => p.id));
+    const localProjectIds = hello.local_pack_ids ?? []; // TODO(phase4-wire): hello field `local_pack_ids`
+    const missingProjectIds = localProjectIds.filter((id) => !knownProjectIds.has(id));
+    if (missingProjectIds.length > 0) {
       const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, keyId));
       const sk = skRows[0];
       if (sk) {
-        for (const pid of missingPackIds) {
-          await createPack({ networkId: sk.networkId, serverKeyId: keyId, name: pid, id: pid });
+        for (const pid of missingProjectIds) {
+          await createProject({ networkId: sk.networkId, serverKeyId: keyId, name: pid, id: pid });
         }
       }
     }
@@ -274,20 +274,22 @@ export async function handlePluginMessage(
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
-      pack_hashes: packHashesMap,
-      deleted_pack_ids: deletedPackIds,
+      // TODO(phase4-wire): ack fields `pack_hashes` / `deleted_pack_ids` flip in Phase 4.
+      pack_hashes: projectHashesMap,
+      deleted_pack_ids: deletedProjectIds,
       resource_pack: rp,
     };
 
     const push: string[] = [];
     if (needsSync) {
       for (const b of bindings) {
-        const hash = packHashesMap[b.packId];
+        const hash = projectHashesMap[b.projectId];
         if (!hash) continue;
         const available: BundleAvailableMessage = {
           type: "bundle_available",
-          pack_id: b.packId,
-          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.packId}?branch=${encodeURIComponent(b.branchName)}`,
+          pack_id: b.projectId, // TODO(phase4-wire): field `pack_id` → `project_id`
+          // TODO(phase4-wire): bundle download path `:packId` segment flips in Phase 4.
+          url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.projectId}?branch=${encodeURIComponent(b.branchName)}`,
           hash,
           signature: "",
         };
@@ -417,25 +419,25 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── local_push: plugin pushes local pack files to backend (/artisan pushLocal) ─
+  // ── local_push: plugin pushes local project files to backend (/artisan pushLocal) ─
   if (msg.type === "local_push") {
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
     const raw = msg as Record<string, unknown>;
-    const packId = raw.pack_id as string | undefined;
+    const projectId = raw.pack_id as string | undefined; // TODO(phase4-wire): wire field `pack_id`
     const files = raw.files as Record<string, string> | undefined;
     const hash = raw.hash as string | undefined;
-    if (!packId || !files || !hash) return { reply: null };
+    if (!projectId || !files || !hash) return { reply: null };
 
     const sk = (await db.select().from(serverKeys).where(eq(serverKeys.id, serverId)))[0];
     if (!sk) return { reply: null };
 
-    let pack = await getPack(packId);
-    if (!pack) {
-      pack = await createPack({ networkId: sk.networkId, serverKeyId: serverId, name: packId, id: packId });
+    let project = await getProject(projectId);
+    if (!project) {
+      project = await createProject({ networkId: sk.networkId, serverKeyId: serverId, name: projectId, id: projectId });
     }
-    await upsertPackContent(packId, { hash, filesJson: JSON.stringify(files) });
-    await pushBundleAvailable(packId, "main", hash);
+    await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(files) });
+    await pushBundleAvailable(projectId, "main", hash);
     return { reply: null };
   }
 
@@ -471,21 +473,22 @@ export async function handlePluginMessage(
 }
 
 export async function pushBundleAvailable(
-  packId: string,
+  projectId: string,
   branchName: string,
   contentHash: string,
 ): Promise<void> {
-  // Find the server_key that owns this pack (1:1 via packs.serverKeyId).
+  // Find the server_key that owns this project (1:1 via projects.serverKeyId).
   const targets = await db
-    .select({ serverKeyId: packs.serverKeyId })
-    .from(packs)
-    .where(eq(packs.id, packId));
+    .select({ serverKeyId: projects.serverKeyId })
+    .from(projects)
+    .where(eq(projects.id, projectId));
   if (targets.length === 0) return;
 
-  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${packId}?branch=${encodeURIComponent(branchName)}`;
+  // TODO(phase4-wire): bundle download path `:packId` segment + `pack_id` field flip in Phase 4.
+  const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${projectId}?branch=${encodeURIComponent(branchName)}`;
   const payload = JSON.stringify({
     type: "bundle_available",
-    pack_id: packId,
+    pack_id: projectId,
     url,
     hash: contentHash,
     signature: "",
@@ -501,14 +504,15 @@ export async function pushBundleAvailable(
 
 export function broadcastDraftUpdate(
   serverKeyId: string,
-  packId: string,
+  projectId: string,
   menuId: string,
   menuYaml: string,
   senderSessionId: string,
 ): void {
+  // TODO(phase4-wire): draft_update field `pack_id` → `project_id`.
   const payload = JSON.stringify({
     type: "draft_update",
-    pack_id: packId,
+    pack_id: projectId,
     menu_id: menuId,
     menu_yaml: menuYaml,
     updated_by: senderSessionId,
@@ -525,7 +529,7 @@ export function broadcastDraftUpdate(
     const send = connSenders.get(connId);
     if (send) send(JSON.stringify({
       type: "draft_update",
-      pack_id: packId,
+      pack_id: projectId,
       menu_id: menuId,
       menu_yaml: menuYaml,
     }));
@@ -569,20 +573,21 @@ export function pushResourcePackUpdated(serverKeyId: string, url: string, hash: 
   }
 }
 
-export async function pushPackDeleted(packId: string): Promise<void> {
-  // In the 1:1 model, each pack has exactly one owning server_key via packs.serverKeyId
-  const rows = await db.select({ serverKeyId: packs.serverKeyId }).from(packs).where(eq(packs.id, packId));
+export async function pushProjectDeleted(projectId: string): Promise<void> {
+  // In the 1:1 model, each project has exactly one owning server_key via projects.serverKeyId
+  const rows = await db.select({ serverKeyId: projects.serverKeyId }).from(projects).where(eq(projects.id, projectId));
   const targets = rows.map((r) => r.serverKeyId);
   if (targets.length === 0) return;
-  const payload = JSON.stringify({ type: "pack_deleted", pack_id: packId });
+  // TODO(phase4-wire): message-type string `"pack_deleted"` + field `pack_id` flip in Phase 4.
+  const payload = JSON.stringify({ type: "pack_deleted", pack_id: projectId });
   const targetSet = new Set(targets);
-  // Push to plugin connections for each server_key bound to this pack.
+  // Push to plugin connections for each server_key bound to this project.
   for (const [connId, sId] of connToServerId) {
     if (!targetSet.has(sId)) continue;
     const send = connSenders.get(connId);
     if (send) send(payload);
   }
-  // Push to editor connections (so other open tabs close the pack view).
+  // Push to editor connections (so other open tabs close the project view).
   for (const [sessionId, sId] of editorTokenToServer) {
     if (!targetSet.has(sId)) continue;
     const send = editorSenders.get(sessionId);

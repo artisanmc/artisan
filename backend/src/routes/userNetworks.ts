@@ -14,7 +14,7 @@ import { generateServerKey } from "../lib/auth";
 import { requireMember } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
-import { createPack, listPacksForNetwork } from "../lib/packStorage";
+import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
@@ -23,12 +23,13 @@ import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 type Vars = { user: AuthUser | null };
 
 /**
- * Number of authorable elements (menus + commands + dialogs) inside a pack's
- * editor JSON. Surfaced in the network detail so the sidebar + workspaces list
- * can show an element-count indicator without loading the full pack. Returns 0
- * on missing/corrupt JSON — the count is informational, never load-bearing.
+ * Number of authorable documents (menus + commands + dialogs) inside a
+ * project's editor JSON. Surfaced in the network detail so the sidebar +
+ * project list can show a count indicator without loading the full project.
+ * Returns 0 on missing/corrupt JSON — the count is informational, never
+ * load-bearing.
  */
-function countPackElements(editorJson: string | null): number {
+function countProjectDocuments(editorJson: string | null): number {
 	if (!editorJson) return 0;
 	try {
 		const e = JSON.parse(editorJson) as {
@@ -111,16 +112,18 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	} catch {
 		return c.json({ error: "forbidden" }, 403);
 	}
-	const packsList = await listPacksForNetwork(network.id);
-	const packsWithCounts = packsList.map((p) => ({
+	const projectsList = await listProjectsForNetwork(network.id);
+	const projectsWithCounts = projectsList.map((p) => ({
 		...p,
-		elementCount: countPackElements(p.editorJson),
+		// TODO(phase4-wire): response field `elementCount` is consumed by the editor.
+		elementCount: countProjectDocuments(p.editorJson),
 	}));
 	const skList = await db
 		.select()
 		.from(serverKeys)
 		.where(eq(serverKeys.networkId, network.id));
-	return c.json({ network, packs: packsWithCounts, serverKeys: skList });
+	// TODO(phase4-wire): response key `packs` → `projects`.
+	return c.json({ network, packs: projectsWithCounts, serverKeys: skList });
 });
 
 // PATCH /api/networks/:id — update name and/or slug (member required)
@@ -299,7 +302,8 @@ userNetworksRouter.post(
 	},
 );
 
-// POST /api/networks/:id/packs — create pack in network (V1: pack belongs to one server_key)
+// POST /api/networks/:id/packs — create project in network (V1: project belongs to one server_key)
+// TODO(phase4-wire): route path `/packs` → `/projects`.
 userNetworksRouter.post(
 	"/:id/packs",
 	async (c: Context<{ Variables: Vars }>) => {
@@ -336,13 +340,14 @@ userNetworksRouter.post(
 		if (skRows.length === 0)
 			return c.json({ error: "server_key_not_in_network" }, 403);
 
-		const pack = await createPack({
+		const project = await createProject({
 			networkId,
 			serverKeyId: body.serverKeyId,
 			name: body.name.trim(),
 			description: body.description ?? null,
 		});
-		return c.json({ pack }, 201);
+		// TODO(phase4-wire): response key `pack` → `project`.
+		return c.json({ pack: project }, 201);
 	},
 );
 
@@ -544,7 +549,7 @@ userNetworksRouter.delete(
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
-		// packs.serverKeyId has ON DELETE CASCADE — deleting the server_key cascades to its packs.
+		// projects.serverKeyId has ON DELETE CASCADE — deleting the server_key cascades to its projects.
 		await db
 			.delete(serverKeys)
 			.where(

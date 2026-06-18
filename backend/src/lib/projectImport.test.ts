@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { importPackFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "./packImport";
+import { importProjectFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "./projectImport";
 
 const PACK_ID = "p_layout";
 const base = `plugins/Artisan/packs/${PACK_ID}`;
@@ -54,16 +54,16 @@ describe("readEditorLayoutFromFiles", () => {
   });
 });
 
-describe("importPackFromFiles — canvasLayout", () => {
+describe("importProjectFromFiles — canvasLayout", () => {
   test("populates canvasLayout from manifest.editor_layout", () => {
     const files = manifestWith("editor_layout:\n  shop: { x: 12, y: 34 }\n");
-    const pack = importPackFromFiles(PACK_ID, files) as { canvasLayout: Record<string, { x: number; y: number }> };
-    expect(pack.canvasLayout).toEqual({ shop: { x: 12, y: 34 } });
+    const project = importProjectFromFiles(PACK_ID, files) as { canvasLayout: Record<string, { x: number; y: number }> };
+    expect(project.canvasLayout).toEqual({ shop: { x: 12, y: 34 } });
   });
 
   test("no editor_layout → canvasLayout: {}", () => {
-    const pack = importPackFromFiles(PACK_ID, manifestWith(null)) as { canvasLayout: Record<string, unknown> };
-    expect(pack.canvasLayout).toEqual({});
+    const project = importProjectFromFiles(PACK_ID, manifestWith(null)) as { canvasLayout: Record<string, unknown> };
+    expect(project.canvasLayout).toEqual({});
   });
 });
 
@@ -90,10 +90,10 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
       ].join("\n") + "\n",
       "plugins/Artisan/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
     };
-    const pack = importPackFromFiles("p_mirror", files) as {
+    const project = importProjectFromFiles("p_mirror", files) as {
       canvasLayout: Record<string, { x: number; y: number }>;
     };
-    expect(pack.canvasLayout).toEqual({ shop: { x: 123, y: 456 } });
+    expect(project.canvasLayout).toEqual({ shop: { x: 123, y: 456 } });
   });
 });
 
@@ -128,15 +128,15 @@ describe("readEditorEdgesFromFiles", () => {
   });
 });
 
-describe("importPackFromFiles canvasEdges", () => {
+describe("importProjectFromFiles canvasEdges", () => {
   test("populates canvasEdges from manifest.editor_edges", () => {
     const files = manifestWith("editor_edges:\n  'shop->x': { from: { side: top, t: 0.1 } }\n");
-    const pack = importPackFromFiles(PACK_ID, files);
-    expect(pack.canvasEdges).toEqual({ "shop->x": { from: { side: "top", t: 0.1 } } });
+    const project = importProjectFromFiles(PACK_ID, files);
+    expect(project.canvasEdges).toEqual({ "shop->x": { from: { side: "top", t: 0.1 } } });
   });
 
   test("no editor_edges → canvasEdges: {}", () => {
-    const pack = importPackFromFiles(PACK_ID, manifestWith(null));
-    expect(pack.canvasEdges).toEqual({});
+    const project = importProjectFromFiles(PACK_ID, manifestWith(null));
+    expect(project.canvasEdges).toEqual({});
   });
 });

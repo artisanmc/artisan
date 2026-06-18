@@ -3,20 +3,20 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, serverKeys,
+  memberships, networks, projects, serverKeys,
   editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
-import { userPacksRouter } from "./userPacks";
+import { userProjectsRouter } from "./userProjects";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
-import { createPack, upsertPackContent } from "../lib/packStorage";
+import { createProject, upsertProjectContent } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 
 async function clearAll() {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -41,8 +41,8 @@ async function seedUserWithPack(userId: string) {
   await addMembership(userId, network.id, "owner");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: network.id, createdAt: new Date() });
-  const pack = await createPack({ networkId: network.id, serverKeyId: skId, name: "p" });
-  await upsertPackContent(pack.id, {
+  const pack = await createProject({ networkId: network.id, serverKeyId: skId, name: "p" });
+  await upsertProjectContent(pack.id, {
     hash: "h1",
     filesJson: '{"menus/m.yaml":"id: m"}',
     editorJson: `{"id":"${pack.id}","menus":[]}`,
@@ -53,11 +53,11 @@ async function seedUserWithPack(userId: string) {
 function makeApp() {
   const app = new Hono();
   app.use("/api/v1/user/packs/*", userAuth());
-  app.route("/api/v1/user/packs", userPacksRouter);
+  app.route("/api/v1/user/packs", userProjectsRouter);
   return app;
 }
 
-describe("userPacksRouter — GET", () => {
+describe("userProjectsRouter — GET", () => {
   beforeEach(clearAll);
 
   test("GET /:packId 200 — member gets pack content", async () => {
@@ -98,7 +98,7 @@ describe("userPacksRouter — GET", () => {
   });
 });
 
-describe("userPacksRouter — PUT", () => {
+describe("userProjectsRouter — PUT", () => {
   beforeEach(clearAll);
 
   test("PUT /:packId 200 — member updates pack content", async () => {
@@ -121,8 +121,8 @@ describe("userPacksRouter — PUT", () => {
     expect(body.ok).toBe(true);
 
     // Verify DB updated
-    const { getPack } = await import("../lib/packStorage");
-    const updated = await getPack(packId);
+    const { getProject } = await import("../lib/projectStorage");
+    const updated = await getProject(packId);
     expect(updated?.hash).toBe("h2");
     expect(JSON.parse(updated?.filesJson ?? "{}")).toEqual({ "menus/m.yaml": "id: m\ntitle: Hello" });
   });
