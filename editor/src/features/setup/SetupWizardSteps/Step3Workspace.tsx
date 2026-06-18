@@ -22,9 +22,11 @@ export function Step3Workspace({ state, setState }: Props) {
     if (!state.networkId) return;
     networksApi
       .getNetwork(state.networkId)
-      .then((detail) => setPacks(detail.packs))
+      // A pack belongs to exactly one server_key (1:N). Scope the list to the
+      // server set up in step 2 — never offer workspaces owned by other servers.
+      .then((detail) => setPacks(detail.packs.filter((p) => p.serverKeyId === state.serverKeyId)))
       .catch(console.error);
-  }, [state.networkId]);
+  }, [state.networkId, state.serverKeyId]);
 
   async function handleCreate() {
     if (!newName.trim() || !state.networkId) return;
