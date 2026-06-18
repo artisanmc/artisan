@@ -1,7 +1,7 @@
 import { isNull, eq } from "drizzle-orm";
 import { readFile } from "fs/promises";
 import { db } from "../db/index";
-import { assets, packs } from "../db/schema";
+import { assets, projects } from "../db/schema";
 import { assetPath } from "./assetStorage";
 import { readPngContentWidth } from "./pngDimensions";
 import { rebuildResourcePack } from "./resourcePack";
@@ -17,20 +17,20 @@ import { pushResourcePackUpdated } from "../ws/hub";
  */
 export async function backfillContentWidths(): Promise<void> {
   const rows = await db
-    .select({ id: assets.id, packId: assets.packId })
+    .select({ id: assets.id, projectId: assets.projectId })
     .from(assets)
     .where(isNull(assets.contentWidth));
 
-  const affectedPackIds = new Set<string>();
+  const affectedProjectIds = new Set<string>();
   let updated = 0;
 
   for (const row of rows) {
-    const filePath = assetPath(row.packId, row.id);
+    const filePath = assetPath(row.projectId, row.id);
     try {
       const buf = await readFile(filePath);
       const cw = readPngContentWidth(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
       await db.update(assets).set({ contentWidth: cw }).where(eq(assets.id, row.id));
-      affectedPackIds.add(row.packId);
+      affectedProjectIds.add(row.projectId);
       updated++;
     } catch {
       // PNG file missing (font asset or deleted) — skip silently
@@ -38,15 +38,15 @@ export async function backfillContentWidths(): Promise<void> {
   }
 
   if (updated > 0) {
-    // rebuildResourcePack is keyed by server_key; resolve each affected pack's
-    // server key (a pack may be network-only with no server key → skip it).
+    // rebuildResourcePack is keyed by server_key; resolve each affected project's
+    // server key (a project may be network-only with no server key → skip it).
     const serverKeyIds = new Set<string>();
-    for (const packId of affectedPackIds) {
-      const [pack] = await db
-        .select({ serverKeyId: packs.serverKeyId })
-        .from(packs)
-        .where(eq(packs.id, packId));
-      if (pack?.serverKeyId) serverKeyIds.add(pack.serverKeyId);
+    for (const projectId of affectedProjectIds) {
+      const [project] = await db
+        .select({ serverKeyId: projects.serverKeyId })
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      if (project?.serverKeyId) serverKeyIds.add(project.serverKeyId);
     }
     console.log(`[backfill] contentWidth set for ${updated} asset(s) — rebuilding ${serverKeyIds.size} resource pack(s)`);
     for (const skId of serverKeyIds) {

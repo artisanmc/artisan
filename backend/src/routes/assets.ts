@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { strToU8 } from "fflate";
 import { readFile } from "fs/promises";
 import { db } from "../db/index";
-import { assets, packs } from "../db/schema";
+import { assets, projects } from "../db/schema";
 import { validateAccessToken } from "../lib/auth";
 import { writeAssetFile, deleteAssetFile, assetPath } from "../lib/assetStorage";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
@@ -28,16 +28,16 @@ type BoundResult =
 
 async function assertBound(
   token: string,
-  packId: string,
+  projectId: string,
   c: { json: (body: unknown, status: number) => Response },
 ): Promise<BoundResult> {
   const session = await validateAccessToken(token);
   if (!session) return { ok: false, response: c.json({ error: "Unauthorized" }, 401) };
-  // In the 1:1 model, verify pack is owned by this session's server_key
-  const packRows = await db.select().from(packs).where(
-    and(eq(packs.id, packId), eq(packs.serverKeyId, session.serverKeyId)),
+  // In the 1:1 model, verify project is owned by this session's server_key
+  const projectRows = await db.select().from(projects).where(
+    and(eq(projects.id, projectId), eq(projects.serverKeyId, session.serverKeyId)),
   );
-  if (packRows.length === 0) {
+  if (projectRows.length === 0) {
     return { ok: false, response: c.json({ error: "Pack not bound" }, 403) };
   }
   return { ok: true, session };
@@ -47,8 +47,8 @@ async function assertBound(
 
 assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
 
@@ -107,7 +107,7 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
   // Dedup: same (packId, type, contentHash) → return existing row.
   // Scoped by type so the same bytes can be uploaded as both a texture and a glyph.
   const existing = await db.select().from(assets).where(and(
-    eq(assets.packId, packId),
+    eq(assets.projectId, projectId),
     eq(assets.type, type),
     eq(assets.contentHash, contentHash),
   ));
@@ -121,7 +121,7 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
 
   // Name uniqueness within type — detect early for a clean error message
   const nameClash = await db.select().from(assets).where(
-    and(eq(assets.packId, packId), eq(assets.type, type), eq(assets.name, name)),
+    and(eq(assets.projectId, projectId), eq(assets.type, type), eq(assets.name, name)),
   );
   if (nameClash.length > 0) {
     return c.json({ error: "Asset name already exists" }, 409);
@@ -135,7 +135,7 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
     // `height - 1` pushed large glyphs far above the chest container.)
     ascent = ascentRaw !== null ? parseInt(ascentRaw, 10) : 8;
     if (!Number.isFinite(ascent)) return c.json({ error: "Invalid ascent" }, 400);
-    codepoint = await allocateCodepoint(packId);
+    codepoint = await allocateCodepoint(projectId);
   }
 
   const id = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -161,13 +161,13 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
         chars: [g.char],
       }));
       const fontJsonContent = strToU8(JSON.stringify({ providers }, null, 2));
-      await writeFontAssets(packId, id, fontJsonContent, parsedFont.glyphPngs);
+      await writeFontAssets(projectId, id, fontJsonContent, parsedFont.glyphPngs);
     } else {
-      await writeAssetFile(packId, id, bytes);
+      await writeAssetFile(projectId, id, bytes);
     }
     await db.insert(assets).values({
       id,
-      packId,
+      projectId,
       type,
       name,
       width,
@@ -200,14 +200,14 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
 
 assetsRouter.get("/:token/packs/:packId/assets", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
 
   const typeParam = c.req.query("type");
   const searchParam = c.req.query("search");
 
-  const conditions = [eq(assets.packId, packId)];
+  const conditions = [eq(assets.projectId, projectId)];
   if (typeParam && ["texture", "glyph", "font"].includes(typeParam)) {
     conditions.push(eq(assets.type, typeParam));
   }
@@ -221,27 +221,27 @@ assetsRouter.get("/:token/packs/:packId/assets", async (c) => {
 
 assetsRouter.get("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
+    .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ asset: serialize(rows[0]) });
 });
 
 assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
+    .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   const current = rows[0];
 
@@ -252,7 +252,7 @@ assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
     if (!NAME_RE.test(body.name)) return c.json({ error: "Invalid name" }, 400);
     if (body.name !== current.name) {
       const clash = await db.select().from(assets).where(and(
-        eq(assets.packId, packId),
+        eq(assets.projectId, projectId),
         eq(assets.type, current.type),
         eq(assets.name, body.name),
       ));
@@ -302,14 +302,14 @@ assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
 
 assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
+    .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   const source = rows[0];
 
@@ -318,17 +318,17 @@ assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
   }
 
   // Pick a free name: "<name>_copy", "<name>_copy2", "<name>_copy3", ...
-  const newName = await findFreeCopyName(packId, source.type, source.name);
+  const newName = await findFreeCopyName(projectId, source.type, source.name);
 
   // New unique id
   const newId = "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const newCodepoint = await allocateCodepoint(packId);
+  const newCodepoint = await allocateCodepoint(projectId);
   const now = new Date();
 
   // Copy the source PNG to the new asset path
   let bytes: Uint8Array;
   try {
-    const buf = await readFile(assetPath(packId, source.id));
+    const buf = await readFile(assetPath(projectId, source.id));
     bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
@@ -338,10 +338,10 @@ assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
   }
 
   try {
-    await writeAssetFile(packId, newId, bytes);
+    await writeAssetFile(projectId, newId, bytes);
     await db.insert(assets).values({
       id: newId,
-      packId,
+      projectId,
       type: source.type,
       name: newName,
       width: source.width,
@@ -369,7 +369,7 @@ assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
 });
 
 async function findFreeCopyName(
-  packId: string,
+  projectId: string,
   type: string,
   baseName: string,
 ): Promise<string> {
@@ -378,7 +378,7 @@ async function findFreeCopyName(
     const candidate = i === 1 ? `${baseName}_copy` : `${baseName}_copy${i}`;
     const clash = await db.select().from(assets).where(
       and(
-        eq(assets.packId, packId),
+        eq(assets.projectId, projectId),
         eq(assets.type, type),
         eq(assets.name, candidate),
       ),
@@ -390,22 +390,22 @@ async function findFreeCopyName(
 
 assetsRouter.delete("/:token/packs/:packId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const packId = c.req.param("packId");
-  const check = await assertBound(token, packId, c);
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
 
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
-    .where(and(eq(assets.id, id), eq(assets.packId, packId)));
+    .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
 
   const target = rows[0];
   await db.delete(assets).where(eq(assets.id, id));
   if (target.type === "font") {
-    await deleteFontAssets(packId, id);
+    await deleteFontAssets(projectId, id);
   } else {
-    await deleteAssetFile(packId, id);
+    await deleteAssetFile(projectId, id);
   }
   const _packInfo = await rebuildResourcePack(session.serverKeyId);
   pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
@@ -415,7 +415,7 @@ assetsRouter.delete("/:token/packs/:packId/assets/:id", async (c) => {
 function serialize(row: typeof assets.$inferSelect) {
   return {
     id: row.id,
-    packId: row.packId,
+    projectId: row.projectId,
     type: row.type as "texture" | "glyph" | "font",
     name: row.name,
     width: row.width,

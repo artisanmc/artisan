@@ -1,30 +1,32 @@
-// backend/src/routes/userPacks.ts
+// backend/src/routes/userProjects.ts
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { packs as packsTable } from "../db/schema";
+import { projects as projectsTable } from "../db/schema";
 import { getMcVersion } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { getPack, upsertPackContent } from "../lib/packStorage";
-import { getNetworkOfPack, requireMember } from "../lib/membershipGuard";
+import { getProject, upsertProjectContent } from "../lib/projectStorage";
+import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
 type Vars = { user: AuthUser | null };
 
-export const userPacksRouter = new Hono<{ Variables: Vars }>();
+// TODO(phase4-wire): mount path `/user/packs` + the `:packId` route param + the
+// `pack` response key stay on the old names until the Phase 4 wire flip.
+export const userProjectsRouter = new Hono<{ Variables: Vars }>();
 
 function getUserId(c: Context<{ Variables: Vars }>): string | null {
   return c.get("user")?.id ?? null;
 }
 
-/** Resolve the serverKeyId for the pack (1:1 ownership via packs.serverKeyId). */
-async function getServerKeyIdForPack(packId: string): Promise<string | null> {
+/** Resolve the serverKeyId for the project (1:1 ownership via projects.serverKeyId). */
+async function getServerKeyIdForProject(projectId: string): Promise<string | null> {
   const rows = await db
-    .select({ serverKeyId: packsTable.serverKeyId })
-    .from(packsTable)
-    .where(eq(packsTable.id, packId))
+    .select({ serverKeyId: projectsTable.serverKeyId })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId))
     .limit(1);
   return rows[0]?.serverKeyId ?? null;
 }
@@ -83,14 +85,14 @@ async function loadVanillaItems(
   return null;
 }
 
-// GET /api/user/packs/:packId — read pack (member only)
-userPacksRouter.get("/:packId", async (c: Context<{ Variables: Vars }>) => {
+// GET /api/user/packs/:packId — read project (member only)
+userProjectsRouter.get("/:packId", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
 
-  const networkId = await getNetworkOfPack(packId);
+  const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 
   try {
@@ -99,25 +101,25 @@ userPacksRouter.get("/:packId", async (c: Context<{ Variables: Vars }>) => {
     return c.json({ error: "forbidden" }, 403);
   }
 
-  const pack = await getPack(packId);
-  if (pack === null) return c.json({ error: "not_found" }, 404);
+  const project = await getProject(projectId);
+  if (project === null) return c.json({ error: "not_found" }, 404);
 
   return c.json({
-    pack,
+    pack: project, // TODO(phase4-wire): response key `pack` → `project`
     networkId,
-    serverKeyId: pack.serverKeyId,
-    files: JSON.parse(pack.filesJson),
-    editor: pack.editorJson ? JSON.parse(pack.editorJson) : null,
+    serverKeyId: project.serverKeyId,
+    files: JSON.parse(project.filesJson),
+    editor: project.editorJson ? JSON.parse(project.editorJson) : null,
   });
 });
 
-// GET /api/user/packs/:packId/items — vanilla item bundle for the pack's MC version
-userPacksRouter.get("/:packId/items", async (c: Context<{ Variables: Vars }>) => {
+// GET /api/user/packs/:packId/items — vanilla item bundle for the project's MC version
+userProjectsRouter.get("/:packId/items", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const packId = c.req.param("packId");
-  const networkId = await getNetworkOfPack(packId);
+  const projectId = c.req.param("packId");
+  const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 
   try {
@@ -126,7 +128,7 @@ userPacksRouter.get("/:packId/items", async (c: Context<{ Variables: Vars }>) =>
     return c.json({ error: "forbidden" }, 403);
   }
 
-  const serverKeyId = await getServerKeyIdForPack(packId);
+  const serverKeyId = await getServerKeyIdForProject(projectId);
   const version = serverKeyId ? await getMcVersion(serverKeyId) : undefined;
   const result = await loadVanillaItems(version);
   if (!result) return c.json({ error: "unknown_version" }, 404);
@@ -134,13 +136,13 @@ userPacksRouter.get("/:packId/items", async (c: Context<{ Variables: Vars }>) =>
   return c.json(result);
 });
 
-// GET /api/user/packs/:packId/custom-items — custom item bundle for the pack's server_key
-userPacksRouter.get("/:packId/custom-items", async (c: Context<{ Variables: Vars }>) => {
+// GET /api/user/packs/:packId/custom-items — custom item bundle for the project's server_key
+userProjectsRouter.get("/:packId/custom-items", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const packId = c.req.param("packId");
-  const networkId = await getNetworkOfPack(packId);
+  const projectId = c.req.param("packId");
+  const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 
   try {
@@ -149,7 +151,7 @@ userPacksRouter.get("/:packId/custom-items", async (c: Context<{ Variables: Vars
     return c.json({ error: "forbidden" }, 403);
   }
 
-  const serverKeyId = await getServerKeyIdForPack(packId);
+  const serverKeyId = await getServerKeyIdForProject(projectId);
   if (!serverKeyId) return c.json({ serverKeyId: "", items: [] });
 
   const cacheDir = customItemsCacheDir(serverKeyId);
@@ -157,14 +159,14 @@ userPacksRouter.get("/:packId/custom-items", async (c: Context<{ Variables: Vars
   return c.json({ serverKeyId, items });
 });
 
-// PUT /api/user/packs/:packId — write pack content + broadcast (member only)
-userPacksRouter.put("/:packId", async (c: Context<{ Variables: Vars }>) => {
+// PUT /api/user/packs/:packId — write project content + broadcast (member only)
+userProjectsRouter.put("/:packId", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
 
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
 
-  const networkId = await getNetworkOfPack(packId);
+  const networkId = await getNetworkOfProject(projectId);
   if (networkId === null) return c.json({ error: "not_found" }, 404);
 
   try {
@@ -175,7 +177,7 @@ userPacksRouter.put("/:packId", async (c: Context<{ Variables: Vars }>) => {
 
   const body = await c.req.json<{ hash: string; files: Record<string, string>; editor: unknown }>();
 
-  await upsertPackContent(packId, {
+  await upsertProjectContent(projectId, {
     hash: body.hash,
     filesJson: JSON.stringify(body.files),
     editorJson: body.editor ? JSON.stringify(body.editor) : null,

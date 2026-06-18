@@ -1,30 +1,30 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { packBranches, packCommits } from "../db/schema";
+import { projectBranches, projectCommits } from "../db/schema";
 
-export type Branch = typeof packBranches.$inferSelect;
+export type Branch = typeof projectBranches.$inferSelect;
 
-export async function createBranch(packId: string, name: string, headCommitId: string): Promise<void> {
+export async function createBranch(projectId: string, name: string, headCommitId: string): Promise<void> {
   const now = new Date();
-  await db.insert(packBranches).values({ packId, name, headCommitId, createdAt: now, updatedAt: now });
+  await db.insert(projectBranches).values({ projectId, name, headCommitId, createdAt: now, updatedAt: now });
 }
 
-export async function getBranch(packId: string, name: string): Promise<Branch | null> {
-  const rows = await db.select().from(packBranches).where(and(
-    eq(packBranches.packId, packId), eq(packBranches.name, name),
+export async function getBranch(projectId: string, name: string): Promise<Branch | null> {
+  const rows = await db.select().from(projectBranches).where(and(
+    eq(projectBranches.projectId, projectId), eq(projectBranches.name, name),
   ));
   return rows[0] ?? null;
 }
 
-export async function advanceBranchHead(packId: string, name: string, newHeadCommitId: string): Promise<void> {
-  await db.update(packBranches).set({
+export async function advanceBranchHead(projectId: string, name: string, newHeadCommitId: string): Promise<void> {
+  await db.update(projectBranches).set({
     headCommitId: newHeadCommitId,
     updatedAt: new Date(),
-  }).where(and(eq(packBranches.packId, packId), eq(packBranches.name, name)));
+  }).where(and(eq(projectBranches.projectId, projectId), eq(projectBranches.name, name)));
 }
 
-export async function listBranchesForPack(packId: string): Promise<Branch[]> {
-  return await db.select().from(packBranches).where(eq(packBranches.packId, packId));
+export async function listBranchesForProject(projectId: string): Promise<Branch[]> {
+  return await db.select().from(projectBranches).where(eq(projectBranches.projectId, projectId));
 }
 
 /**
@@ -37,9 +37,9 @@ export async function isAncestor(ancestorId: string, descendantId: string): Prom
   let current: string | null = descendantId;
   for (let step = 0; step < 1000 && current; step++) {
     const rows = await db
-      .select({ parentId: packCommits.parentId })
-      .from(packCommits)
-      .where(eq(packCommits.id, current));
+      .select({ parentId: projectCommits.parentId })
+      .from(projectCommits)
+      .where(eq(projectCommits.id, current));
     if (rows.length === 0) return false;
     current = rows[0].parentId;
     if (current === ancestorId) return true;
@@ -48,7 +48,7 @@ export async function isAncestor(ancestorId: string, descendantId: string): Prom
 }
 
 /**
- * Returns the LCA (lowest common ancestor) of two commits in the same pack's
+ * Returns the LCA (lowest common ancestor) of two commits in the same project's
  * commit DAG. Walks both parentId and parentId2 (the merge commit 2nd parent).
  * Throws "no common ancestor" if the BFS exhausts both queues without overlap.
  *
@@ -70,8 +70,8 @@ export async function findLCA(commitIdA: string, commitIdB: string): Promise<str
     // Step A
     if (queueA.length > 0) {
       const cur = queueA.shift()!;
-      const row = (await db.select({ p1: packCommits.parentId, p2: packCommits.parentId2 })
-        .from(packCommits).where(eq(packCommits.id, cur)))[0];
+      const row = (await db.select({ p1: projectCommits.parentId, p2: projectCommits.parentId2 })
+        .from(projectCommits).where(eq(projectCommits.id, cur)))[0];
       if (row) {
         for (const p of [row.p1, row.p2]) {
           if (!p) continue;
@@ -84,8 +84,8 @@ export async function findLCA(commitIdA: string, commitIdB: string): Promise<str
     // Step B
     if (queueB.length > 0) {
       const cur = queueB.shift()!;
-      const row = (await db.select({ p1: packCommits.parentId, p2: packCommits.parentId2 })
-        .from(packCommits).where(eq(packCommits.id, cur)))[0];
+      const row = (await db.select({ p1: projectCommits.parentId, p2: projectCommits.parentId2 })
+        .from(projectCommits).where(eq(projectCommits.id, cur)))[0];
       if (row) {
         for (const p of [row.p1, row.p2]) {
           if (!p) continue;

@@ -11,15 +11,15 @@ export const CODEPOINT_MIN = 0xE000;   // 57344
 export const CODEPOINT_MAX = 0xF7FF;   // 63487
 
 /**
- * Returns the next free codepoint for glyphs of a given pack.
+ * Returns the next free codepoint for glyphs of a given project.
  * Strategy: pick max(codepoint) + 1, falling back to CODEPOINT_MIN if no glyphs exist.
  * Concurrent insert safety is handled by the unique constraint at the call site.
  */
-export async function allocateCodepoint(packId: string): Promise<number> {
+export async function allocateCodepoint(projectId: string): Promise<number> {
   const rows = await db
     .select({ max: max(assets.codepoint) })
     .from(assets)
-    .where(and(eq(assets.packId, packId), isNotNull(assets.codepoint)));
+    .where(and(eq(assets.projectId, projectId), isNotNull(assets.codepoint)));
 
   const current = rows[0]?.max ?? null;
   const next = current === null ? CODEPOINT_MIN : current + 1;

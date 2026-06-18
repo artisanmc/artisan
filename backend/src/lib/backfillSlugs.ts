@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { networks, packs, serverKeys } from "../db/schema";
+import { networks, projects, serverKeys } from "../db/schema";
 import { slugify, uniqueSlug } from "./slug";
 
 /**
- * One-time backfill: assign URL slugs to networks / server_keys / packs created
- * before the slug columns existed. Idempotent — only rows where `slug IS NULL`
- * are touched. Scopes mirror the unique indexes: network slug is global, server
- * slug is unique per network, pack slug is unique per server key.
+ * One-time backfill: assign URL slugs to networks / server_keys / projects
+ * created before the slug columns existed. Idempotent — only rows where
+ * `slug IS NULL` are touched. Scopes mirror the unique indexes: network slug is
+ * global, server slug is unique per network, project slug is unique per server
+ * key.
  */
 export async function backfillSlugs(): Promise<void> {
 	// Networks — global uniqueness.
@@ -47,26 +48,26 @@ export async function backfillSlugs(): Promise<void> {
 		await db.update(serverKeys).set({ slug }).where(eq(serverKeys.id, k.id));
 	}
 
-	// Packs — unique per server key.
-	const allPacks = await db
+	// Projects — unique per server key.
+	const allProjects = await db
 		.select({
-			id: packs.id,
-			name: packs.name,
-			serverKeyId: packs.serverKeyId,
-			slug: packs.slug,
+			id: projects.id,
+			name: projects.name,
+			serverKeyId: projects.serverKeyId,
+			slug: projects.slug,
 		})
-		.from(packs);
-	const takenPackByKey = new Map<string, Set<string>>();
-	for (const p of allPacks) {
-		const set = takenPackByKey.get(p.serverKeyId) ?? new Set<string>();
+		.from(projects);
+	const takenProjectByKey = new Map<string, Set<string>>();
+	for (const p of allProjects) {
+		const set = takenProjectByKey.get(p.serverKeyId) ?? new Set<string>();
 		if (p.slug) set.add(p.slug);
-		takenPackByKey.set(p.serverKeyId, set);
+		takenProjectByKey.set(p.serverKeyId, set);
 	}
-	for (const p of allPacks) {
+	for (const p of allProjects) {
 		if (p.slug) continue;
-		const set = takenPackByKey.get(p.serverKeyId) as Set<string>;
-		const slug = uniqueSlug(slugify(p.name, "workspace"), set);
+		const set = takenProjectByKey.get(p.serverKeyId) as Set<string>;
+		const slug = uniqueSlug(slugify(p.name, "project"), set);
 		set.add(slug);
-		await db.update(packs).set({ slug }).where(eq(packs.id, p.id));
+		await db.update(projects).set({ slug }).where(eq(projects.id, p.id));
 	}
 }

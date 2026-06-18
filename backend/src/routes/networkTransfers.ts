@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { db } from "../db/index";
-import { memberships, networks, packs, serverKeys, networkTransfers } from "../db/schema";
+import { memberships, networks, projects, serverKeys, networkTransfers } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 import { findSession } from "../lib/sessionManager";
 import { requireMember } from "../lib/membershipGuard";
@@ -47,13 +47,13 @@ networkTransfersRouter.get("/transfer/:token", async (c) => {
 
   const [network] = await db.select().from(networks).where(eq(networks.id, transfer.networkId));
   if (!network) return c.json({ error: "not_found" }, 404);
-  const networkPacks = await db.select({ id: packs.id }).from(packs).where(eq(packs.networkId, transfer.networkId));
+  const networkProjects = await db.select({ id: projects.id }).from(projects).where(eq(projects.networkId, transfer.networkId));
   const networkKeys = await db.select({ id: serverKeys.id }).from(serverKeys).where(eq(serverKeys.networkId, transfer.networkId));
 
   return c.json({
     networkId: transfer.networkId,
     networkName: network.name,
-    packCount: networkPacks.length,
+    projectCount: networkProjects.length,
     serverKeyCount: networkKeys.length,
     expiresAt: transfer.expiresAt.toISOString(),
   });

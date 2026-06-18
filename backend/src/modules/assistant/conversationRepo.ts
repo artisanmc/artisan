@@ -40,7 +40,7 @@ export async function createConversation(
 	await db.insert(assistantConversations).values({
 		id,
 		ownerKey,
-		packId,
+		projectId: packId, // TODO(phase4-wire): rename repo param packId→projectId
 		title: "",
 		messages: [] as unknown[],
 		createdAt: now,
@@ -61,7 +61,7 @@ export async function getConversation(
 	return {
 		id: r.id,
 		ownerKey: r.ownerKey,
-		packId: r.packId,
+		packId: r.projectId, // TODO(phase4-wire): ConversationRow.packId is internal
 		title: r.title,
 		messages: (r.messages ?? []) as LlmMessage[],
 		createdAt: r.createdAt,
@@ -84,7 +84,7 @@ export async function listConversations(
 		.where(
 			and(
 				eq(assistantConversations.ownerKey, ownerKey),
-				eq(assistantConversations.packId, packId),
+				eq(assistantConversations.projectId, packId),
 			),
 		)
 		.orderBy(desc(assistantConversations.updatedAt));

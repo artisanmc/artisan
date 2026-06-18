@@ -2,13 +2,13 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { getCookie } from "hono/cookie";
 import { db } from "../db/index";
-import { linkCodes, serverKeys, memberships, users, packs } from "../db/schema";
+import { linkCodes, serverKeys, memberships, users, projects } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { pushLinkConfirmed } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
 import { findSession } from "../lib/sessionManager";
-import { createPack } from "../lib/packStorage";
+import { createProject } from "../lib/projectStorage";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
@@ -62,8 +62,9 @@ router.post("/:code/claim", async (c) => {
   try { body = await c.req.json(); } catch { /* empty body */ }
   const networkIdInput = typeof body.network_id === "string" ? body.network_id : undefined;
   const networkNameInput = typeof body.network_name === "string" ? body.network_name.trim() : undefined;
-  const packIdInput = typeof body.pack_id === "string" ? body.pack_id : undefined;
-  const packNameInput = typeof body.pack_name === "string" ? body.pack_name.trim() : undefined;
+  // TODO(phase4-wire): request body fields `pack_id` / `pack_name` → `project_*`.
+  const projectIdInput = typeof body.pack_id === "string" ? body.pack_id : undefined;
+  const projectNameInput = typeof body.pack_name === "string" ? body.pack_name.trim() : undefined;
   const serverKeyLabel = typeof body.server_key_label === "string"
     ? body.server_key_label.trim() || null
     : null;
@@ -71,7 +72,7 @@ router.post("/:code/claim", async (c) => {
   if (networkIdInput && networkNameInput) {
     return c.json({ error: "ambiguous_network" }, 400);
   }
-  if (packIdInput && packNameInput) {
+  if (projectIdInput && projectNameInput) {
     return c.json({ error: "ambiguous_pack" }, 400);
   }
 
@@ -105,30 +106,30 @@ router.post("/:code/claim", async (c) => {
     return c.json({ error: "must_choose_network", networks: ownedNetworkIds }, 400);
   }
 
-  // Generate the server key id up-front so it can be embedded in the pack row
-  // (packs.serverKeyId is NOT NULL — pack creation requires an owning key).
+  // Generate the server key id up-front so it can be embedded in the project row
+  // (projects.serverKeyId is NOT NULL — project creation requires an owning key).
   const { id, key, hash } = await generateServerKey();
 
-  // Resolve target pack: explicit id (within target network) > new (with name)
-  // > skip (no pack created).
-  let targetPackId: string | null = null;
-  if (packIdInput) {
-    const packRows = await db.select().from(packs).where(eq(packs.id, packIdInput));
-    if (packRows.length === 0 || packRows[0]?.networkId !== targetNetworkId) {
+  // Resolve target project: explicit id (within target network) > new (with name)
+  // > skip (no project created).
+  let targetProjectId: string | null = null;
+  if (projectIdInput) {
+    const projectRows = await db.select().from(projects).where(eq(projects.id, projectIdInput));
+    if (projectRows.length === 0 || projectRows[0]?.networkId !== targetNetworkId) {
       return c.json({ error: "pack_not_in_network" }, 404);
     }
-    targetPackId = packIdInput;
-  } else if (packNameInput) {
-    if (packNameInput.length === 0) {
+    targetProjectId = projectIdInput;
+  } else if (projectNameInput) {
+    if (projectNameInput.length === 0) {
       return c.json({ error: "invalid_pack_name" }, 422);
     }
-    const pack = await createPack({
+    const project = await createProject({
       networkId: targetNetworkId,
       serverKeyId: id,
-      name: packNameInput,
+      name: projectNameInput,
       description: null,
     });
-    targetPackId = pack.id;
+    targetProjectId = project.id;
   }
 
   await db.transaction(async (tx) => {
@@ -149,7 +150,7 @@ router.post("/:code/claim", async (c) => {
   return c.json({
     server_key_id: id,
     network_id: targetNetworkId,
-    pack_id: targetPackId,
+    pack_id: targetProjectId, // TODO(phase4-wire): response field `pack_id` → `project_id`
   }, 200);
 });
 

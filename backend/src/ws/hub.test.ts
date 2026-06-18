@@ -20,7 +20,7 @@ import {
   serverKeys,
   serverKeyHelloes,
   serverModules,
-  packs,
+  projects,
   networks,
   linkCodes,
   assets,
@@ -28,14 +28,14 @@ import {
 import { generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
-import { createPack, upsertPackContent, softDeletePack } from "../lib/packStorage";
-import { getPack } from "../lib/packStorage";
+import { createProject, upsertProjectContent, softDeleteProject } from "../lib/projectStorage";
+import { getProject } from "../lib/projectStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
 async function clearAll() {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
@@ -61,13 +61,13 @@ async function seedBoundPack(
   editor: Record<string, unknown> = {},
   deleted = false,
 ): Promise<void> {
-  await createPack({ networkId, serverKeyId, name: packId, id: packId });
-  await upsertPackContent(packId, {
+  await createProject({ networkId, serverKeyId, name: packId, id: packId });
+  await upsertProjectContent(packId, {
     hash,
     filesJson: JSON.stringify(files),
     editorJson: JSON.stringify(editor),
   });
-  if (deleted) await softDeletePack(packId);
+  if (deleted) await softDeleteProject(packId);
 }
 
 beforeEach(clearAll);
@@ -224,8 +224,8 @@ describe("handlePluginMessage", () => {
     await seedBoundPack(networkId, keyId, "pa", "ha");
     await seedBoundPack(networkId, keyId, "pb", "hb");
 
-    // pack_hashes reflect the main branch head commit contentHash (not WIP packs.hash).
-    // createPack auto-creates main branch with an initial empty-files commit.
+    // pack_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
+    // createProject auto-creates main branch with an initial empty-files commit.
     const emptyHash = computeContentHash({});
 
     const connId = "conn-hashes";
@@ -250,7 +250,7 @@ describe("handlePluginMessage", () => {
     const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
     const branch = await getBranch("p_c2", "main");
     const commit2 = await createCommit({
-      packId: "p_c2",
+      projectId: "p_c2",
       parentId: branch!.headCommitId,
       files,
       editor: null,
@@ -280,7 +280,7 @@ describe("handlePluginMessage", () => {
     await seedBoundPack(networkId, keyId, "alive", "ha");
     await seedBoundPack(networkId, keyId, "dead", "hd", {}, {}, true);
 
-    // pack_hashes uses branch head commit contentHash. Both packs start with empty-files initial commit.
+    // pack_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
     const emptyHash = computeContentHash({});
 
     const connId = "conn-deleted";
@@ -294,7 +294,7 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    // In the 1:1 model, deleted packs are excluded from pack_hashes (only non-deleted packs included).
+    // In the 1:1 model, deleted projects are excluded from pack_hashes (only non-deleted projects included).
     // Deleted pack still appears in deleted_pack_ids so the plugin can trash it.
     expect(ack.pack_hashes).toEqual({ alive: emptyHash });
     expect(ack.deleted_pack_ids).toEqual(["dead"]);
@@ -574,7 +574,7 @@ describe("local_push", () => {
     }));
     expect(result.reply).toBeNull();
 
-    const pack = await getPack("p_pushed");
+    const pack = await getProject("p_pushed");
     expect(pack).not.toBeNull();
     expect(pack!.networkId).toBe(networkId);
     expect(pack!.hash).toBe("abc123");

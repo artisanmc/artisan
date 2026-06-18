@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { networks, memberships, packs, serverKeys, users } from "../db/schema";
-import { isMember, requireMember, getNetworkOfPack } from "./membershipGuard";
+import { networks, memberships, projects, serverKeys, users } from "../db/schema";
+import { isMember, requireMember, getNetworkOfProject } from "./membershipGuard";
 import { createNetwork } from "./networkManager";
 import { addMembership } from "./membershipManager";
-import { createPack } from "./packStorage";
+import { createProject } from "./projectStorage";
 import { generateServerKey } from "./auth";
 
 async function seedUser(id = "u1") {
@@ -16,9 +16,9 @@ async function seedUser(id = "u1") {
 
 describe("membershipGuard", () => {
   beforeEach(async () => {
-    // FK-safe cleanup order: memberships (refs users+networks), packs (refs networks), networks, users
+    // FK-safe cleanup order: memberships (refs users+networks), projects (refs networks), networks, users
     await db.delete(memberships).catch(() => {});
-    await db.delete(packs).catch(() => {});
+    await db.delete(projects).catch(() => {});
     await db.delete(serverKeys).catch(() => {});
     await db.delete(networks).catch(() => {});
     await db.delete(users).catch(() => {});
@@ -65,16 +65,16 @@ describe("membershipGuard", () => {
     await requireMember("u1", net.id, "admin");
   });
 
-  it("getNetworkOfPack returns the pack's network", async () => {
+  it("getNetworkOfProject returns the pack's network", async () => {
     await seedUser("u1");
     const net = await createNetwork("N");
     const { id: skId, hash: skHash } = await generateServerKey();
     await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
-    const p = await createPack({ networkId: net.id, serverKeyId: skId, name: "main" });
-    expect(await getNetworkOfPack(p.id)).toBe(net.id);
+    const p = await createProject({ networkId: net.id, serverKeyId: skId, name: "main" });
+    expect(await getNetworkOfProject(p.id)).toBe(net.id);
   });
 
-  it("getNetworkOfPack returns null when pack not found", async () => {
-    expect(await getNetworkOfPack("pack_nope")).toBeNull();
+  it("getNetworkOfProject returns null when pack not found", async () => {
+    expect(await getNetworkOfProject("pack_nope")).toBeNull();
   });
 });

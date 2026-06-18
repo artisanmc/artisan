@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, serverKeys, serverKeyHelloes,
+  memberships, networks, projects, serverKeys, serverKeyHelloes,
   editorSessions, linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
@@ -13,7 +13,7 @@ import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
@@ -117,7 +117,7 @@ describe("userNetworksRouter", () => {
   });
 
   // A3 tests
-  test("GET /api/v1/networks/:id returns detail with packs + serverKeys", async () => {
+  test("GET /api/v1/networks/:id returns detail with projects + serverKeys", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
 
@@ -129,7 +129,7 @@ describe("userNetworksRouter", () => {
     });
     const { network } = await create.json();
 
-    // Seed a server_key first (required by createPack), then seed a pack
+    // Seed a server_key first (required by createProject), then seed a pack
     await db.insert(serverKeys).values({
       id: "sk_test_a3",
       hash: "hash_a3",
@@ -137,8 +137,8 @@ describe("userNetworksRouter", () => {
       createdAt: new Date(),
       label: null,
     });
-    const { createPack } = await import("../lib/packStorage");
-    await createPack({ networkId: network.id, serverKeyId: "sk_test_a3", name: "p1" });
+    const { createProject } = await import("../lib/projectStorage");
+    await createProject({ networkId: network.id, serverKeyId: "sk_test_a3", name: "p1" });
 
     const res = await app.request(`/api/v1/networks/${network.id}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
@@ -174,9 +174,9 @@ describe("userNetworksRouter", () => {
       createdAt: new Date(),
       label: null,
     });
-    const { createPack, upsertPackContent } = await import("../lib/packStorage");
-    const pack = await createPack({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
-    await upsertPackContent(pack.id, {
+    const { createProject, upsertProjectContent } = await import("../lib/projectStorage");
+    const pack = await createProject({ networkId: network.id, serverKeyId: "sk_count", name: "pc" });
+    await upsertProjectContent(pack.id, {
       editorJson: JSON.stringify({
         menus: [{ id: "m1" }, { id: "m2" }],
         commands: [{ id: "c1" }],
@@ -259,7 +259,7 @@ describe("userNetworksRouter", () => {
   });
 
   // A5 test
-  test("POST /api/v1/networks/:id/packs creates pack in network", async () => {
+  test("POST /api/v1/networks/:id/packs creates project in network", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
@@ -288,7 +288,7 @@ describe("userNetworksRouter", () => {
     expect(body.pack.networkId).toBe(network.id);
   });
 
-  test("POST /:id/packs returns 422 when serverKeyId is missing", async () => {
+  test("POST /:id/projects returns 422 when serverKeyId is missing", async () => {
     const { sessionId } = await seedUser(`u_p_${Math.random().toString(36).slice(2, 8)}`);
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
@@ -306,7 +306,7 @@ describe("userNetworksRouter", () => {
     expect((await res.json()).error).toBe("missing_server_key");
   });
 
-  test("POST /:id/packs returns 403 when serverKey is in another network", async () => {
+  test("POST /:id/projects returns 403 when serverKey is in another network", async () => {
     const suffix = Math.random().toString(36).slice(2, 8);
     const { sessionId: sessA } = await seedUser(`uA_p_${suffix}`);
     const { sessionId: sessB } = await seedUser(`uB_p_${suffix}`);
@@ -603,7 +603,7 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     expect(row.hash).not.toBe(oldHash);
 
     // Pack still owned by same server_key after rotation
-    const packsAfter = await db.select().from(packs).where(eq(packs.serverKeyId, skId));
+    const packsAfter = await db.select().from(projects).where(eq(projects.serverKeyId, skId));
     expect(packsAfter.length).toBeGreaterThanOrEqual(0); // pack ownership unchanged by rotation
   });
 
@@ -656,7 +656,7 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
 });
 
 describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
-  test("owner can delete a server_key and cascade packs", async () => {
+  test("owner can delete a server_key and cascade projects", async () => {
     const { sessionId } = await seedUser(`u_c4_${Math.random().toString(36).slice(2, 8)}`);
     const app = makeApp();
 
@@ -684,7 +684,7 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const { pack } = await packRes.json();
 
     // Verify pack exists and is owned by the server_key
-    const packsBefore = await db.select().from(packs).where(eq(packs.serverKeyId, skId));
+    const packsBefore = await db.select().from(projects).where(eq(projects.serverKeyId, skId));
     expect(packsBefore).toHaveLength(1);
 
     // Delete server_key
@@ -698,8 +698,8 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, skId));
     expect(skRows).toHaveLength(0);
 
-    // Packs cascade-deleted (packs.serverKeyId ON DELETE CASCADE)
-    const packsAfter = await db.select().from(packs).where(eq(packs.id, pack.id));
+    // Packs cascade-deleted (projects.serverKeyId ON DELETE CASCADE)
+    const packsAfter = await db.select().from(projects).where(eq(projects.id, pack.id));
     expect(packsAfter).toHaveLength(0);
   });
 

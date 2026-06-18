@@ -1,23 +1,23 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { db } from "../db/index";
-import { assets, packs, networks, serverKeys } from "../db/schema";
+import { assets, projects, networks, serverKeys } from "../db/schema";
 import { allocateCodepoint, CODEPOINT_MIN, CODEPOINT_MAX } from "./codepointAllocator";
 import { createNetwork } from "./networkManager";
-import { createPack } from "./packStorage";
+import { createProject } from "./projectStorage";
 import { generateServerKey } from "./auth";
 
 async function seedPack(): Promise<string> {
   const net = await createNetwork("N");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
-  const pack = await createPack({ networkId: net.id, serverKeyId: skId, name: "p_" + crypto.randomUUID().slice(0, 6) });
-  return pack.id;
+  const project = await createProject({ networkId: net.id, serverKeyId: skId, name: "p_" + crypto.randomUUID().slice(0, 6) });
+  return project.id;
 }
 
-async function seedGlyph(packId: string, codepoint: number): Promise<void> {
+async function seedGlyph(projectId: string, codepoint: number): Promise<void> {
   await db.insert(assets).values({
     id: "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12),
-    packId,
+    projectId,
     type: "glyph",
     name: "g" + codepoint,
     width: 8,
@@ -31,10 +31,10 @@ async function seedGlyph(packId: string, codepoint: number): Promise<void> {
   });
 }
 
-async function seedTexture(packId: string): Promise<void> {
+async function seedTexture(projectId: string): Promise<void> {
   await db.insert(assets).values({
     id: "asset_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12),
-    packId,
+    projectId,
     type: "texture",
     name: "tex_" + crypto.randomUUID().slice(0, 8),
     width: 16,
@@ -51,7 +51,7 @@ async function seedTexture(packId: string): Promise<void> {
 describe("allocateCodepoint", () => {
   beforeEach(async () => {
     await db.delete(assets);
-    await db.delete(packs);
+    await db.delete(projects);
     await db.delete(networks);
   });
 
@@ -67,7 +67,7 @@ describe("allocateCodepoint", () => {
     expect(await allocateCodepoint(pk)).toBe(CODEPOINT_MIN + 3);
   });
 
-  test("ignores other packs' codepoints", async () => {
+  test("ignores other projects' codepoints", async () => {
     const pk1 = await seedPack();
     const pk2 = await seedPack();
     await seedGlyph(pk1, CODEPOINT_MIN + 50);

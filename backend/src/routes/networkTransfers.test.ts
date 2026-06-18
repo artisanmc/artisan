@@ -4,13 +4,13 @@ import { app } from "../app";
 import { db } from "../db/index";
 import {
   users, userSessions, networks, memberships, networkTransfers,
-  serverKeys, linkCodes, packs, assets, editorSessions,
+  serverKeys, linkCodes, projects, assets, editorSessions,
 } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -93,7 +93,7 @@ describe("GET /api/v1/networks/transfer/:token", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.networkName).toBe("Source");
-    expect(body.packCount).toBe(0);
+    expect(body.projectCount).toBe(0);
     expect(body.serverKeyCount).toBe(0);
   });
 
