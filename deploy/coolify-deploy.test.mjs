@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,31 @@ const response = (body, { ok = true, status = 200 } = {}) => ({
   ok,
   status,
   json: async () => body,
+});
+
+test("production workflow deploys only the current successful main CI SHA", () => {
+  const workflowPath = fileURLToPath(new URL("../.github/workflows/deploy.yml", import.meta.url));
+  const workflow = readFileSync(workflowPath, "utf8");
+
+  assert.match(workflow, /^name: Deploy production$/m);
+  assert.match(workflow, /^\s{2}workflow_run:$/m);
+  assert.match(workflow, /^\s{4}workflows: \[CI\]$/m);
+  assert.match(workflow, /^\s{4}branches: \[main\]$/m);
+  assert.match(workflow, /^\s{4}types: \[completed\]$/m);
+  assert.match(workflow, /^\s{2}contents: read$/m);
+  assert.match(workflow, /^\s{2}group: production$/m);
+  assert.match(workflow, /^\s{2}cancel-in-progress: false$/m);
+  assert.match(workflow, /^\s{4}if: github\.event\.workflow_run\.conclusion == 'success'$/m);
+  assert.match(workflow, /^\s{4}environment: production$/m);
+  assert.match(workflow, /^\s{8}uses: actions\/checkout@v4$/m);
+  assert.match(workflow, /^\s{10}ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}$/m);
+  assert.match(workflow, /^\s{8}uses: actions\/setup-node@v4$/m);
+  assert.match(workflow, /^\s{10}node-version: 22$/m);
+  assert.match(workflow, /git ls-remote origin refs\/heads\/main/);
+  assert.match(workflow, /if \[ "\$CURRENT_MAIN_SHA" != "\$EXPECTED_SHA" \]; then/);
+  assert.match(workflow, /node deploy\/coolify-deploy\.mjs/);
+  assert.match(workflow, /API_HEALTH_URL: https:\/\/api\.artisanmc\.net\/health/);
+  assert.match(workflow, /EDITOR_HEALTH_URL: https:\/\/editor\.artisanmc\.net\//);
 });
 
 test("buildHeaders returns exactly the Coolify and Cloudflare headers", () => {
