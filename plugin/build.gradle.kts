@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.0.21"
     id("io.github.goooler.shadow") version "8.1.8"
+    `maven-publish`
 }
 
 group = "net.artisanmc"
@@ -64,6 +65,28 @@ tasks.shadowJar {
     // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
     // causing "No BuiltInsLoader implementation was found" at runtime.
     mergeServiceFiles()
+}
+
+// Publishable, self-contained API surface (net.artisanmc.modules.api.**).
+// Business-module plugins compileOnly this + paper-api. The full :api Gradle
+// subproject split is deferred (cf. P1c); this filtered jar proves the boundary.
+val apiJar by tasks.registering(Jar::class) {
+    archiveBaseName.set("artisan-core-api")
+    archiveClassifier.set("")
+    from(sourceSets.main.get().output) {
+        include("net/artisanmc/modules/api/**")
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("coreApi") {
+            groupId = "net.artisanmc"
+            artifactId = "artisan-core-api"
+            version = project.version.toString()
+            artifact(apiJar)
+        }
+    }
 }
 
 val composeDir: File = rootDir.resolve("..").canonicalFile

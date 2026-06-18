@@ -18,6 +18,7 @@ import type {
   HelloAckMessage,
   HelloMessage,
   LinkConfirmedMessage,
+  ModulesChangedMessage,
   ResourcePackUpdatedMessage,
   SessionExpiredMessage,
   SessionTrustedMessage,
@@ -401,6 +402,15 @@ export async function handlePluginMessage(
   }
 
   if (msg.type === "pong") return { reply: null };
+
+  // ── modules_changed: runtime module registration after hello ─────────────
+  if (msg.type === "modules_changed") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const m = msg as ModulesChangedMessage;
+    persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
+    return { reply: null };
+  }
 
   // ── pack_divergence_detected: no-op (Plan 1C: backend-as-truth) ──────────
   if (msg.type === "pack_divergence_detected") {

@@ -33,15 +33,36 @@ Contract implemented by every module.
 
 ### `net.artisanmc.modules.api.ArtisanAPI`
 
-The facade passed to every module at `onEnable(api)`.
+The facade passed to every module at `onEnable(api)`. Also available to external plugins via Bukkit `ServicesManager`:
+
+```kotlin
+val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provider
+    ?: error("Artisan not loaded")
+```
 
 | Member | Type | Since |
 |---|---|---|
-| `plugin` | `ArtisanPlugin` | 1.0.0 |
+| `plugin` | `JavaPlugin` | 1.0.0 (widened from `ArtisanPlugin` in P1a) |
 | `dataSources` | `DataSourceRegistry` | 1.0.0 |
 | `commands` | `CommandRegistry` | 1.0.0 |
 | `events` | `ModuleEventBus` | 1.0.0 |
 | `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | 1.0.0 |
+| `modules` | `ModuleRegistry` | 1.1.0 |
+| `coreVersion` | `String` | 1.1.0 |
+| `isCompatibleWith(minVersion: String)` | `Boolean` | 1.1.0 |
+
+### `net.artisanmc.modules.api.ModuleRegistry`
+
+Manages the set of active modules for a running Artisan instance.
+
+| Member | Stability | Type | Description |
+|---|---|---|---|
+| `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
+| `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
+| `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
+| `bind(api: ArtisanAPI, onChange: () -> Unit)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
+
+Exceptions: `DuplicateModuleException`.
 
 ### `net.artisanmc.modules.api.DataSourceRegistry`
 
@@ -106,6 +127,24 @@ None at this time.
 ## Internal — DO NOT USE
 
 Everything under `net.artisanmc.plugin.*` is implicitly internal. Use the API surface above instead.
+
+## Published artifact
+
+The API surface above is packaged as a standalone Gradle artifact:
+
+```
+net.artisanmc:artisan-core-api:<version>
+```
+
+Published to `mavenLocal` via `./gradlew publishToMavenLocal`. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
+
+```kotlin
+// build.gradle.kts
+repositories { mavenLocal() }
+dependencies { compileOnly("net.artisanmc:artisan-core-api:<version>") }
+```
+
+The artifact contains only the `net.artisanmc.modules.api.*` packages filtered through `apiJar`. Nothing under `net.artisanmc.plugin.*` is included.
 
 ## Protocol surfaces
 

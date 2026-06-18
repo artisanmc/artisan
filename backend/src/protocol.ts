@@ -125,6 +125,14 @@ export interface LocalPushMessage {
   hash: string;
 }
 
+// Plugin → backend: emitted when a module registers after hello (runtime registration seam)
+export interface ModulesChangedMessage {
+  type: "modules_changed";
+  // redundant with the authenticated session; ignored by the backend (kept for payload parity with hello)
+  server_key: string;
+  installed_modules: { id: string; version: string }[];
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -135,7 +143,8 @@ export type PluginToServerMessage =
   | EditorTrustRequestMessage
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage
-  | LocalPushMessage;
+  | LocalPushMessage
+  | ModulesChangedMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";
