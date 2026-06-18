@@ -1,4 +1,4 @@
-import type { Command, Element, ElementId, Menu, MenuId, PackId } from "@/domain/types";
+import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { slotCount } from "./inventoryTypes";
 import { useAccountStore } from "@/state/accountStore";
@@ -18,9 +18,9 @@ import {
  * Locate an element by id within a pack and return enough context
  * (the owning menu) to call element-scoped actions on it.
  */
-const findElement = (packId: PackId, elementId: ElementId): { menuId: MenuId } | null => {
+const findElement = (projectId: ProjectId, elementId: ElementId): { menuId: MenuId } | null => {
   const account = useAccountStore.getState().account;
-  const pack = account.packs.find((p) => p.id === packId);
+  const pack = account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
   for (const menu of pack.menus) {
     for (const layer of menu.layers) {
@@ -39,9 +39,9 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 };
 
-const findSelectedEntities = (packId: PackId, ids: string[]) => {
+const findSelectedEntities = (projectId: ProjectId, ids: string[]) => {
   const account = useAccountStore.getState().account;
-  const pack = account.packs.find((p) => p.id === packId);
+  const pack = account.projects.find((p) => p.id === projectId);
   if (!pack)
     return { menus: [] as Menu[], commands: [] as Command[], elements: [] as ElementCopy[] };
   const idSet = new Set(ids);
@@ -67,9 +67,9 @@ const findSelectedEntities = (packId: PackId, ids: string[]) => {
  *   3. The clipboard's source menu (if it still exists in this pack)
  *   4. The first menu in the pack
  */
-const resolveTargetMenu = (packId: PackId, elements: ElementCopy[]): MenuId | null => {
+const resolveTargetMenu = (projectId: ProjectId, elements: ElementCopy[]): MenuId | null => {
   const account = useAccountStore.getState().account;
-  const pack = account.packs.find((p) => p.id === packId);
+  const pack = account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
   const sel = [...useSelectionStore.getState().ids];
   for (const id of sel) {
@@ -111,14 +111,14 @@ const findFreePositions = (
 };
 
 const placeElements = (
-  packId: PackId,
+  projectId: ProjectId,
   menuId: MenuId,
   elements: ElementCopy[],
   options: { skipSourcePositions: boolean },
   onError?: (m: string) => void,
 ) => {
   const account = useAccountStore.getState().account;
-  const pack = account.packs.find((p) => p.id === packId);
+  const pack = account.projects.find((p) => p.id === projectId);
   const menu = pack?.menus.find((m) => m.id === menuId);
   if (!menu) {
     onError?.("Target menu not found");
@@ -141,16 +141,16 @@ const placeElements = (
     for (const p of fit) extra.add(p);
     const placed: Element = { ...ec.element, positions: formatPositions(fit) };
     try {
-      useAccountStore.getState().addElement({ packId, menuId, element: placed });
+      useAccountStore.getState().addElement({ projectId, menuId, element: placed });
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "paste failed");
     }
   }
 };
 
-const copySelection = async (packId: PackId, ids: string[], onError?: (m: string) => void) => {
+const copySelection = async (projectId: ProjectId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands, elements } = findSelectedEntities(packId, ids);
+  const { menus, commands, elements } = findSelectedEntities(projectId, ids);
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   try {
     await writeClipboard({
@@ -165,7 +165,7 @@ const copySelection = async (packId: PackId, ids: string[], onError?: (m: string
   }
 };
 
-const pasteFromClipboard = async (packId: PackId, onError?: (m: string) => void) => {
+const pasteFromClipboard = async (projectId: ProjectId, onError?: (m: string) => void) => {
   const payload = await readClipboard();
   if (!payload) {
     onError?.("Clipboard is empty");
@@ -179,19 +179,19 @@ const pasteFromClipboard = async (packId: PackId, onError?: (m: string) => void)
   try {
     if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
       useAccountStore.getState().pasteEntities({
-        packId,
+        projectId,
         menus: rewritten.menus,
         commands: rewritten.commands,
         offset: { x: 80, y: 80 },
       });
     }
     if (rewritten.elements.length > 0) {
-      const targetMenu = resolveTargetMenu(packId, rewritten.elements);
+      const targetMenu = resolveTargetMenu(projectId, rewritten.elements);
       if (!targetMenu) {
         onError?.("No target menu — select a menu before pasting");
       } else {
         placeElements(
-          packId,
+          projectId,
           targetMenu,
           rewritten.elements,
           { skipSourcePositions: false },
@@ -204,15 +204,15 @@ const pasteFromClipboard = async (packId: PackId, onError?: (m: string) => void)
   }
 };
 
-const duplicateSelection = (packId: PackId, ids: string[], onError?: (m: string) => void) => {
+const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands, elements } = findSelectedEntities(packId, ids);
+  const { menus, commands, elements } = findSelectedEntities(projectId, ids);
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   const rewritten = rewriteIds({ menus, commands, elements });
   try {
     if (rewritten.menus.length > 0 || rewritten.commands.length > 0) {
       useAccountStore.getState().pasteEntities({
-        packId,
+        projectId,
         menus: rewritten.menus,
         commands: rewritten.commands,
         offset: { x: 24, y: 24 },
@@ -228,7 +228,7 @@ const duplicateSelection = (packId: PackId, ids: string[], onError?: (m: string)
       byMenu.set(ec.sourceMenuId, list);
     }
     for (const [menuId, list] of byMenu) {
-      placeElements(packId, menuId, list, { skipSourcePositions: true }, onError);
+      placeElements(projectId, menuId, list, { skipSourcePositions: true }, onError);
     }
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "duplicate failed");
@@ -236,11 +236,11 @@ const duplicateSelection = (packId: PackId, ids: string[], onError?: (m: string)
 };
 
 interface UseCanvasKeyboardArgs {
-  packId: PackId;
+  projectId: ProjectId;
   onError?: (message: string) => void;
 }
 
-export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): void {
+export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
@@ -271,18 +271,18 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
         if (document.getSelection()?.toString()) return;
         e.preventDefault();
         const ids = [...useSelectionStore.getState().ids];
-        void copySelection(packId, ids, onError);
+        void copySelection(projectId, ids, onError);
         return;
       }
       if (cmdOrCtrl && e.key === "v") {
         e.preventDefault();
-        void pasteFromClipboard(packId, onError);
+        void pasteFromClipboard(projectId, onError);
         return;
       }
       if (cmdOrCtrl && e.key === "d") {
         e.preventDefault();
         const ids = [...useSelectionStore.getState().ids];
-        duplicateSelection(packId, ids, onError);
+        duplicateSelection(projectId, ids, onError);
         return;
       }
 
@@ -300,10 +300,10 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
             if (flow.sub.kind === "step" && ids.length === 1) {
               const id = ids[0]!;
               if (flow.sub.clickType !== undefined && flow.sub.stateIndex !== undefined) {
-                const candidate = findElement(packId, id as ElementId);
+                const candidate = findElement(projectId, id as ElementId);
                 if (candidate) {
                   useAccountStore.getState().removeElementStep({
-                    packId,
+                    projectId,
                     menuId: candidate.menuId,
                     elementId: id as ElementId,
                     appearanceIndex: flow.sub.stateIndex,
@@ -316,7 +316,7 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
               }
               // Command step (no clickType / stateIndex on the sub).
               useAccountStore.getState().removeCommandStep({
-                packId,
+                projectId,
                 commandId: id as never,
                 path: flow.sub.path,
               });
@@ -324,11 +324,11 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
               return;
             }
             if (flow.sub.kind === "state" && ids.length === 1) {
-              const candidate = findElement(packId, ids[0]! as ElementId);
+              const candidate = findElement(projectId, ids[0]! as ElementId);
               if (candidate && flow.sub.stateIndex > 0) {
                 // Default state (index 0) is protected.
                 useAccountStore.getState().removeAppearance({
-                  packId,
+                  projectId,
                   menuId: candidate.menuId,
                   elementId: ids[0]! as ElementId,
                   appearanceIndex: flow.sub.stateIndex,
@@ -350,18 +350,18 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
           //   instance mode (focusedSlot set) → drop only that position
           //   button mode (focusedSlot null)  → delete the whole element
           if (ids.length === 1) {
-            const candidate = findElement(packId, ids[0]! as ElementId);
+            const candidate = findElement(projectId, ids[0]! as ElementId);
             if (candidate) {
               const elementId = ids[0]! as ElementId;
               if (sel.focusedSlot != null) {
                 useAccountStore.getState().clearSlot({
-                  packId,
+                  projectId,
                   menuId: candidate.menuId,
                   position: sel.focusedSlot,
                 });
               } else {
                 useAccountStore.getState().deleteElement({
-                  packId,
+                  projectId,
                   menuId: candidate.menuId,
                   elementId,
                 });
@@ -370,7 +370,7 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
               return;
             }
           }
-          useAccountStore.getState().deleteFromPack({ packId, nodeIds: ids });
+          useAccountStore.getState().deleteFromProject({ projectId, nodeIds: ids });
           useSelectionStore.getState().clear();
         } catch (err) {
           onError?.(err instanceof Error ? err.message : "delete failed");
@@ -389,7 +389,7 @@ export function useCanvasKeyboard({ packId, onError }: UseCanvasKeyboardArgs): v
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [packId, onError]);
+  }, [projectId, onError]);
 }
 
 export const canvasClipboardActions = {

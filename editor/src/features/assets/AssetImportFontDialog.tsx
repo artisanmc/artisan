@@ -1,14 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { PackId } from "@/domain/types";
-import { uploadFontAsset } from "@/lib/packApi";
+import type { ProjectId } from "@/domain/types";
+import { uploadFontAsset } from "@/lib/projectApi";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
 
 interface AssetImportFontDialogProps {
-  packId: PackId;
+  projectId: ProjectId;
   open: boolean;
   onClose: () => void;
 }
@@ -24,7 +24,7 @@ function stripZipExtension(filename: string): string {
   return filename.replace(/\.zip$/i, "");
 }
 
-export function AssetImportFontDialog({ packId, open, onClose }: AssetImportFontDialogProps) {
+export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportFontDialogProps) {
   const token = useSessionStore((s) => s.accessToken);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
@@ -56,7 +56,7 @@ export function AssetImportFontDialog({ packId, open, onClose }: AssetImportFont
     setError(null);
     setWarnings([]);
     try {
-      const result = await uploadFontAsset(token, packId, { name, file });
+      const result = await uploadFontAsset(token, projectId, { name, file });
       upsertAsset(result.asset);
       if (result.warnings && result.warnings.length > 0) {
         // Surface warnings to the user, but still close the dialog after a short delay.

@@ -1,11 +1,11 @@
-import { commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { I18nKey, Pack } from "@/domain/types";
+import { commandId, elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { I18nKey, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { validate } from "./validate";
 
-const makePack = (overrides: Partial<Pack> = {}): Pack =>
+const makeProject = (overrides: Partial<Project> = {}): Project =>
   ({
-    id: packId("p_test"),
+    id: projectId("p_test"),
     name: "Test",
     description: "",
     source: "user_created",
@@ -19,22 +19,22 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
     templates: [],
     canvasLayout: {},
     ...overrides,
-  }) as Pack;
+  }) as Project;
 
 describe("validate", () => {
   it("returns valid for an empty pack", () => {
-    const result = validate(makePack());
+    const result = validate(makeProject());
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
     expect(result.warnings).toHaveLength(0);
   });
 
   it("errors when a referenced key has no entry at all", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
@@ -47,12 +47,12 @@ describe("validate", () => {
   });
 
   it("errors when a referenced key has an empty default-lang value", () => {
-    const pack = makePack({
-      i18nKeys: { "menus.shop.title": { en: "  " } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "  " } } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
@@ -65,8 +65,8 @@ describe("validate", () => {
   });
 
   it("errors on stale undefined entry in i18nKeys", () => {
-    const pack = makePack({
-      i18nKeys: { stale_key: undefined } as unknown as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { stale_key: undefined } as unknown as Project["i18nKeys"],
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
@@ -74,15 +74,15 @@ describe("validate", () => {
   });
 
   it("warns when non-default language is missing a translation", () => {
-    const pack = makePack({
+    const pack = makeProject({
       defaultLang: "en",
       i18nKeys: {
         "menus.shop.title": { en: "Shop", fr: "" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
@@ -95,11 +95,11 @@ describe("validate", () => {
   });
 
   it("validates send_message keys in element click handlers", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -137,7 +137,7 @@ describe("validate", () => {
       ],
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
@@ -147,11 +147,11 @@ describe("validate", () => {
   });
 
   it("validates show_title title and subtitle keys in element click handlers", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -192,7 +192,7 @@ describe("validate", () => {
       ],
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
@@ -209,11 +209,11 @@ describe("validate", () => {
   });
 
   it("validates send_message keys in command steps", () => {
-    const pack = makePack({
+    const pack = makeProject({
       commands: [
         {
           id: commandId("heal"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           name: "heal",
           arguments: [],
           steps: [
@@ -231,15 +231,15 @@ describe("validate", () => {
   });
 
   it("returns valid when all referenced keys have default-lang values", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.title": { en: "Buy" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -266,18 +266,18 @@ describe("validate", () => {
   });
 
   it("validates dialog title keys (previously skipped entirely)", () => {
-    const pack = makePack({
+    const pack = makeProject({
       dialogs: [
         {
           id: "confirm",
-          packId: "p_test",
+          projectId: "p_test",
           title: { key: "dialogs.confirm.title" as I18nKey },
           canCloseWithEscape: true,
           body: [],
           inputs: [],
           buttons: [],
         },
-      ] as unknown as Pack["dialogs"],
+      ] as unknown as Project["dialogs"],
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);
@@ -285,12 +285,12 @@ describe("validate", () => {
   });
 
   it("collects each entry of legacy array-shaped lore without crashing", () => {
-    const pack = makePack({
-      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -308,7 +308,7 @@ describe("validate", () => {
             },
           ],
         },
-      ] as unknown as Pack["menus"],
+      ] as unknown as Project["menus"],
     });
     const result = validate(pack);
     expect(result.valid).toBe(false);

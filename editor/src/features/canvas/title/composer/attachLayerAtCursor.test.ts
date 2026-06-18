@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { MenuId, Pack, PackId } from "@/domain/types";
+import type { MenuId, Project, ProjectId } from "@/domain/types";
 import type { StageGeometry } from "../../stageGeometry";
 
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
 
-const PACK_ID = "p1" as PackId;
+const PACK_ID = "p1" as ProjectId;
 const MENU_A = "menu_a" as MenuId;
 const MENU_B = "menu_b" as MenuId;
 
-function pack(canvasLayout: Record<string, { x: number; y: number }>): Pack {
+function pack(canvasLayout: Record<string, { x: number; y: number }>): Project {
   return {
     id: PACK_ID,
     name: "p",
@@ -17,8 +17,8 @@ function pack(canvasLayout: Record<string, { x: number; y: number }>): Pack {
     createdAt: "",
     updatedAt: "",
     menus: [
-      { id: MENU_A, packId: PACK_ID, title: [], rows: 3, layers: [] },
-      { id: MENU_B, packId: PACK_ID, title: [], rows: 3, layers: [] },
+      { id: MENU_A, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+      { id: MENU_B, projectId: PACK_ID, title: [], rows: 3, layers: [] },
     ],
     commands: [],
     dialogs: [],

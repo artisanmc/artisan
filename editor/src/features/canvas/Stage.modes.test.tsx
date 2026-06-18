@@ -1,7 +1,7 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import type Konva from "konva";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Menu, MenuId, Pack, PackId } from "@/domain/types";
+import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -19,27 +19,27 @@ vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
 vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
 vi.mock("./Edges", () => ({ Edges: () => <div /> }));
 
-const PID = "p1" as PackId;
-function pack(): Pack {
+const PID = "p1" as ProjectId;
+function pack(): Project {
   return { id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [], commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", canvasLayout: {} } as Pack;
+    i18nKeys: {}, defaultLang: "en", canvasLayout: {} } as Project;
 }
 describe("Stage — modes", () => {
-  beforeEach(() => useAccountStore.setState({ account: { id: "a" as any, packs: [pack()], packOrder: [PID] } } as any));
+  beforeEach(() => useAccountStore.setState({ account: { id: "a" as any, projects: [pack()], projectOrder: [PID] } } as any));
   it("hand mode → stage draggable", () => {
     useUiStore.setState({ canvasMode: "hand" } as any);
-    render(<Stage packId={PID} />);
+    render(<Stage projectId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("true");
   });
   it("select mode → stage NOT draggable", () => {
     useUiStore.setState({ canvasMode: "select" } as any);
-    render(<Stage packId={PID} />);
+    render(<Stage projectId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
   });
   it("select mode + Alt held → stage draggable (temporary pan)", () => {
     useUiStore.setState({ canvasMode: "select" } as any);
-    render(<Stage packId={PID} />);
+    render(<Stage projectId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
     act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" })); });
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("true");
@@ -50,14 +50,14 @@ describe("Stage — modes", () => {
 
 // Two on-board 1-row menus: m1 spans (0,0)→(352,266), m2 at (1000,1000).
 function menu(id: string): Menu {
-  return { id: id as MenuId, packId: PID, title: [], rows: 1 } as unknown as Menu;
+  return { id: id as MenuId, projectId: PID, title: [], rows: 1 } as unknown as Menu;
 }
-function packWithMenus(): Pack {
+function projectWithMenus(): Project {
   return {
     ...pack(),
     menus: [menu("m1"), menu("m2")],
     canvasLayout: { m1: { x: 0, y: 0 }, m2: { x: 1000, y: 1000 } },
-  } as Pack;
+  } as Project;
 }
 
 // Konva mouse event with a target that IS the stage (empty-space drag).
@@ -72,7 +72,7 @@ describe("useMarqueeSelection — selection logic", () => {
   });
 
   // Mutable pointer so down/move can report different positions.
-  function renderMarquee(pk: Pack, pointer: { x: number; y: number }) {
+  function renderMarquee(pk: Project, pointer: { x: number; y: number }) {
     const stageRef = {
       current: { getPointerPosition: () => pointer } as unknown as Konva.Stage,
     } as React.RefObject<Konva.Stage | null>;
@@ -89,7 +89,7 @@ describe("useMarqueeSelection — selection logic", () => {
   }
 
   it("sélectionne les menus dont la boîte intersecte le marquee", () => {
-    const pk = packWithMenus();
+    const pk = projectWithMenus();
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
     // down at (10,10)
@@ -103,7 +103,7 @@ describe("useMarqueeSelection — selection logic", () => {
   });
 
   it("shouldConsumeClick returns true once after a drag then false", () => {
-    const pk = packWithMenus();
+    const pk = projectWithMenus();
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
     act(() => hook.result.current.onMouseDown(stageEvent()));
@@ -116,7 +116,7 @@ describe("useMarqueeSelection — selection logic", () => {
   });
 
   it("shift ajoute à la sélection existante", () => {
-    const pk = packWithMenus();
+    const pk = projectWithMenus();
     useSelectionStore.getState().add("m2");
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
@@ -129,7 +129,7 @@ describe("useMarqueeSelection — selection logic", () => {
   });
 
   it("middle button does not start a marquee (reserved for pan)", () => {
-    const pk = packWithMenus();
+    const pk = projectWithMenus();
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
     act(() => hook.result.current.onMouseDown(stageEvent(false, 1)));

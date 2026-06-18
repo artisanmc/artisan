@@ -1,4 +1,4 @@
-import type { MenuId, PackId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import type { ViewportState } from "@/features/canvas/usePanZoom";
 import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
@@ -34,8 +34,8 @@ export interface DraggingNewLayer {
 
 interface UiState {
   /** Last pack the user opened. The index route reads this to redirect. */
-  lastActivePackId: PackId | null;
-  setLastActivePackId: (id: PackId | null) => void;
+  lastActiveProjectId: ProjectId | null;
+  setLastActiveProjectId: (id: ProjectId | null) => void;
   /**
    * Last workspace tab the user viewed (overview / translations /
    * data-sources / history). Persisted so a page reload — which bounces
@@ -132,12 +132,12 @@ interface UiState {
   draggingNewLayer: DraggingNewLayer | null;
   setDraggingNewLayer: (payload: DraggingNewLayer | null) => void;
   /**
-   * Left workspace panel (WorkspacePanel) visible? Persisted — the user's
+   * Left workspace panel (ProjectPanel) visible? Persisted — the user's
    * choice survives reloads.
    */
-  workspacePanelOpen: boolean;
-  setWorkspacePanelOpen: (open: boolean) => void;
-  toggleWorkspacePanel: () => void;
+  projectPanelOpen: boolean;
+  setProjectPanelOpen: (open: boolean) => void;
+  toggleProjectPanel: () => void;
   /**
    * Cmd+K search palette open? Transient session state: deliberately NOT
    * persisted (see partialize).
@@ -157,20 +157,20 @@ interface UiState {
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
   /**
-   * Pan/zoom sauvegardé de la planche principale, indexé par packId. Permet de
+   * Pan/zoom sauvegardé de la planche principale, indexé par projectId. Permet de
    * quitter la planche (ex. ouvrir la vue d'un élément unique) puis d'y revenir
    * exactement au même endroit + zoom. Session-only : volontairement NON persisté
    * (un reload repart de la vue centrée par défaut).
    */
   canvasViewports: Record<string, ViewportState>;
-  setCanvasViewport: (packId: PackId, viewport: ViewportState) => void;
+  setCanvasViewport: (projectId: ProjectId, viewport: ViewportState) => void;
 }
 
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      lastActivePackId: null,
-      setLastActivePackId: (id) => set({ lastActivePackId: id }),
+      lastActiveProjectId: null,
+      setLastActiveProjectId: (id) => set({ lastActiveProjectId: id }),
       lastActiveTab: null,
       setLastActiveTab: (tab) => set({ lastActiveTab: tab }),
       activeLang: detectInitialLang(),
@@ -303,9 +303,9 @@ export const useUiStore = create<UiState>()(
         }),
       draggingNewLayer: null,
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
-      workspacePanelOpen: true,
-      setWorkspacePanelOpen: (open) => set({ workspacePanelOpen: open }),
-      toggleWorkspacePanel: () => set((s) => ({ workspacePanelOpen: !s.workspacePanelOpen })),
+      projectPanelOpen: true,
+      setProjectPanelOpen: (open) => set({ projectPanelOpen: open }),
+      toggleProjectPanel: () => set((s) => ({ projectPanelOpen: !s.projectPanelOpen })),
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
       assistantPanelOpen: false,
@@ -315,8 +315,8 @@ export const useUiStore = create<UiState>()(
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       canvasViewports: {},
-      setCanvasViewport: (packId, viewport) =>
-        set((s) => ({ canvasViewports: { ...s.canvasViewports, [packId]: viewport } })),
+      setCanvasViewport: (projectId, viewport) =>
+        set((s) => ({ canvasViewports: { ...s.canvasViewports, [projectId]: viewport } })),
     }),
     {
       name: "artisan:ui",
@@ -336,7 +336,7 @@ export const useUiStore = create<UiState>()(
       // draggingNewLayer, selectedMenuId, lastSelectedMenuId) are all
       // ephemeral UI state; never persisted.
       partialize: (state) => ({
-        lastActivePackId: state.lastActivePackId,
+        lastActiveProjectId: state.lastActiveProjectId,
         lastActiveTab: state.lastActiveTab,
         activeLang: state.activeLang,
         editorLang: state.editorLang,
@@ -344,7 +344,7 @@ export const useUiStore = create<UiState>()(
         editorPaneWidth: state.editorPaneWidth,
         assistantPaneWidth: state.assistantPaneWidth,
         editorTab: state.editorTab,
-        workspacePanelOpen: state.workspacePanelOpen,
+        projectPanelOpen: state.projectPanelOpen,
         canvasMode: state.canvasMode,
       }),
       // Coerce legacy persisted tab values ("code", "props") to "edit" — the

@@ -6,7 +6,7 @@ import type {
   DialogId,
   I18nKey,
   LText,
-  PackId,
+  ProjectId,
   Step as DomainStep,
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
@@ -25,7 +25,7 @@ export interface DialogImportResult {
 
 export function dialogV1ToDomain(
   src: Json,
-  opts: { packId: PackId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
 ): DialogImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
@@ -98,7 +98,7 @@ export function dialogV1ToDomain(
 
   const dialog: DomainDialog = {
     id: src.id as DialogId,
-    packId: opts.packId,
+    projectId: opts.projectId,
     title: text(src.title),
     canCloseWithEscape: src.can_close_with_escape !== false,
     body,

@@ -81,10 +81,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 
 // Account-scoped local state must not leak across identities. Without this,
-// switching accounts in the same tab keeps the previous account's packs in
+// switching accounts in the same tab keeps the previous account's projects in
 // the sidebar, and clicking one navigates into a network the new user can't
 // access (403 → bounced to /networks). We clear:
-//   - accountStore (in-memory packs of the previous account)
+//   - accountStore (in-memory projects of the previous account)
 //   - uiStore last-active pointers (persisted; used by restore flows)
 // Deliberately NOT cleared on first sign-in (null → user): the trust-dance
 // session may have populated accountStore before the user signs up/logs in,
@@ -108,7 +108,7 @@ useAuthStore.subscribe(async (state) => {
   ]);
   // Logout while a plugin session is live: the session still owns the state.
   if (id === null && useSessionStore.getState().accessToken) return;
-  const emptyAccount: Account = { id: "" as Account["id"], packs: [], packOrder: [] };
+  const emptyAccount: Account = { id: "" as Account["id"], projects: [], projectOrder: [] };
   useAccountStore.getState().setAccount(emptyAccount);
-  useUiStore.getState().setLastActivePackId(null);
+  useUiStore.getState().setLastActiveProjectId(null);
 });

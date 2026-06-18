@@ -1,7 +1,7 @@
-import type { Pack, PackId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { elementLabel } from "@/features/workspace/usePackElements";
+import { documentLabel } from "@/features/project/useProjectDocuments";
 import type Konva from "konva";
 import { useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
@@ -10,9 +10,9 @@ import { nodeBox } from "./menuLayout";
 import { offBoardLinks } from "./offBoardLinks";
 
 interface GhostChipsProps {
-  pack: Pack;
+  pack: Project;
   layout: Record<string, { x: number; y: number }>;
-  packId: PackId;
+  projectId: ProjectId;
 }
 
 const CHIP_H = 22;
@@ -22,7 +22,7 @@ const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
 // If that font/size changes, re-tune this.
 const CHAR_W = 6.2;
 
-export function GhostChips({ pack, layout, packId }: GhostChipsProps) {
+export function GhostChips({ pack, layout, projectId }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const links = useMemo(() => offBoardLinks(deriveEdges(pack), layout), [pack, layout]);
 
@@ -43,7 +43,7 @@ export function GhostChips({ pack, layout, packId }: GhostChipsProps) {
         if (!box) return null;
 
         const i = indexBySource[idx] ?? 0;
-        const label = `→ ${elementLabel(pack, target, activeLang)}`;
+        const label = `→ ${documentLabel(pack, target, activeLang)}`;
         const width = Math.max(48, label.length * CHAR_W + CHIP_PAD * 2);
         // Ancre : coin haut-droit de la source, décalé verticalement par chip.
         const x = box.x + box.width + 8;
@@ -52,7 +52,7 @@ export function GhostChips({ pack, layout, packId }: GhostChipsProps) {
         const onAdd = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
           e.cancelBubble = true;
           useAccountStore.getState().addToBoard({
-            packId,
+            projectId,
             nodeId: target,
             x: box.x + box.width + 40,
             y: box.y + i * (CHIP_H + CHIP_GAP),

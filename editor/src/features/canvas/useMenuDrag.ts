@@ -1,4 +1,4 @@
-import type { MenuId, PackId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import type Konva from "konva";
@@ -6,12 +6,12 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 
 interface UseMenuDragArgs {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   position: { x: number; y: number };
 }
 
-export function useMenuDrag({ packId, menuId, position }: UseMenuDragArgs) {
+export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
 
   const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
@@ -38,7 +38,7 @@ export function useMenuDrag({ packId, menuId, position }: UseMenuDragArgs) {
         cy = evt.changedTouches[0].clientY;
       } else {
         // No pointer info — just persist the new position in this pack.
-        setCanvasPosition({ packId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+        setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
         return;
       }
 
@@ -48,22 +48,22 @@ export function useMenuDrag({ packId, menuId, position }: UseMenuDragArgs) {
         // Skip elements that are display:none / detached (zero rect).
         if (rect.width === 0 && rect.height === 0) continue;
         if (cx < rect.left || cx > rect.right || cy < rect.top || cy > rect.bottom) continue;
-        const targetPackId = m.getAttribute("data-pack-id") as PackId | null;
-        if (!targetPackId || targetPackId === packId) continue;
+        const targetProjectId = m.getAttribute("data-pack-id") as ProjectId | null;
+        if (!targetProjectId || targetProjectId === projectId) continue;
         e.target.position({ x: position.x, y: position.y });
         try {
           useAccountStore
             .getState()
-            .moveMenuToPack({ menuId, fromPackId: packId, toPackId: targetPackId });
-          toast.success(`Moved ${menuId} to ${targetPackId}`);
+            .moveMenuToProject({ menuId, fromProjectId: projectId, toProjectId: targetProjectId });
+          toast.success(`Moved ${menuId} to ${targetProjectId}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "move failed");
         }
         return;
       }
-      setCanvasPosition({ packId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
     },
-    [packId, menuId, position.x, position.y, setCanvasPosition],
+    [projectId, menuId, position.x, position.y, setCanvasPosition],
   );
 
   return { onMenuDragStart, onMenuDragEnd };

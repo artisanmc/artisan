@@ -14,7 +14,7 @@ export interface ServerKeySummary {
   slug?: string;
 }
 
-export interface PackSummary {
+export interface ProjectSummary {
   id: string;
   name: string;
   slug?: string;
@@ -45,7 +45,7 @@ export async function createNetwork(name: string): Promise<NetworkSummary> {
 
 export async function getNetwork(id: string): Promise<{
   network: NetworkSummary;
-  packs: PackSummary[];
+  projects: ProjectSummary[];
   serverKeys: ServerKeySummary[];
 }> {
   const res = await fetch(`${API_URL}/api/v1/networks/${id}`, { credentials: "include" });
@@ -56,7 +56,14 @@ export async function getNetwork(id: string): Promise<{
     err.status = res.status;
     throw err;
   }
-  return res.json();
+  // TODO(phase4-wire): backend returns `{ packs }`; remap to domain `projects`
+  // here at the API boundary until the wire flips in Phase 4.
+  const json = (await res.json()) as {
+    network: NetworkSummary;
+    packs: ProjectSummary[];
+    serverKeys: ServerKeySummary[];
+  };
+  return { network: json.network, projects: json.packs, serverKeys: json.serverKeys };
 }
 
 export async function createServerKey(
@@ -113,12 +120,13 @@ export async function updateServerKey(
   return res.json();
 }
 
-export async function createPack(
+export async function createProject(
   networkId: string,
   serverKeyId: string,
   name: string,
   description?: string,
-): Promise<PackSummary> {
+): Promise<ProjectSummary> {
+  // TODO(phase4-wire): `/packs` path segment + `{ pack }` response key flip in Phase 4.
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs`, {
     method: "POST",
     credentials: "include",
@@ -129,8 +137,8 @@ export async function createPack(
       ...(description !== undefined && { description }),
     }),
   });
-  if (!res.ok) throw new Error(`createPack failed: ${res.status}`);
-  return ((await res.json()) as { pack: PackSummary }).pack;
+  if (!res.ok) throw new Error(`createProject failed: ${res.status}`);
+  return ((await res.json()) as { pack: ProjectSummary }).pack;
 }
 
 // ─── Network transfer ──────────────────────────────────────────────────────
@@ -143,7 +151,7 @@ export interface TransferInitResponse {
 export interface TransferInfo {
   networkId: string;
   networkName: string;
-  packCount: number;
+  projectCount: number;
   serverKeyCount: number;
   expiresAt: string;
 }
@@ -288,10 +296,10 @@ export class ClaimError extends Error {
     public readonly code:
       | "must_choose_network"
       | "ambiguous_network"
-      | "ambiguous_pack"
-      | "pack_not_in_network"
+      | "ambiguous_pack" // TODO(phase4-wire): backend error code
+      | "pack_not_in_network" // TODO(phase4-wire): backend error code
       | "invalid_network_name"
-      | "invalid_pack_name"
+      | "invalid_pack_name" // TODO(phase4-wire): backend error code
       | "unauthorized"
       | "forbidden"
       | "expired"
@@ -307,10 +315,10 @@ export interface ClaimLinkInput {
   networkId?: string;
   /** When provided, a new network with this name is created + claimed. */
   networkName?: string;
-  /** Existing pack to bind to the new server_key. XOR with `packName`. */
-  packId?: string;
-  /** When provided, a new pack with this name is created in the target network + bound. */
-  packName?: string;
+  /** Existing project to bind to the new server_key. XOR with `projectName`. */
+  projectId?: string;
+  /** When provided, a new project with this name is created in the target network + bound. */
+  projectName?: string;
   /** Optional label for the generated server_key (e.g. "Survival-Main"). */
   serverKeyLabel?: string;
 }
@@ -318,12 +326,13 @@ export interface ClaimLinkInput {
 export async function claimLinkCode(
   code: string,
   input: ClaimLinkInput = {},
+  // TODO(phase4-wire): pack_id (response + body), pack_name (body) flip to project_* in Phase 4.
 ): Promise<{ server_key_id: string; network_id: string; pack_id: string | null }> {
   const body: Record<string, string> = {};
   if (input.networkId) body.network_id = input.networkId;
   if (input.networkName) body.network_name = input.networkName;
-  if (input.packId) body.pack_id = input.packId;
-  if (input.packName) body.pack_name = input.packName;
+  if (input.projectId) body.pack_id = input.projectId; // TODO(phase4-wire): pack_id
+  if (input.projectName) body.pack_name = input.projectName; // TODO(phase4-wire): pack_name
   if (input.serverKeyLabel) body.server_key_label = input.serverKeyLabel;
 
   const res = await fetch(`${API_URL}/api/v1/link/${code}/claim`, {

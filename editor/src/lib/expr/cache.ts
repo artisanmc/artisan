@@ -2,7 +2,7 @@ import type { AstNode } from "./ast";
 import { parse } from "./parser";
 
 /**
- * LRU-ish cache for parsed expressions. Key = `${packId}|${version}|${expr}`.
+ * LRU-ish cache for parsed expressions. Key = `${projectId}|${version}|${expr}`.
  *
  * Implementation note: we use insertion-order Map iteration to evict the
  * oldest key when at capacity. On read, we re-insert (delete+set) to mark
@@ -16,8 +16,8 @@ export class AstCache {
     return this.map.size;
   }
 
-  get(packId: string, version: number, expr: string): AstNode {
-    const key = `${packId}|${version}|${expr}`;
+  get(projectId: string, version: number, expr: string): AstNode {
+    const key = `${projectId}|${version}|${expr}`;
     const cached = this.map.get(key);
     if (cached) {
       this.map.delete(key);

@@ -1,4 +1,4 @@
-import type { EdgeAnchor, Pack } from "@/domain/types";
+import type { EdgeAnchor, Project } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -17,11 +17,11 @@ export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; 
 }
 
 interface EdgesProps {
-  pack: Pack;
+  pack: Project;
   layout: Record<string, { x: number; y: number }>;
 }
 
-function deriveHighlightSet(pack: Pack, ids: ReadonlySet<string>): Set<string> {
+function deriveHighlightSet(pack: Project, ids: ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
     if (
@@ -151,7 +151,7 @@ export function Edges({ pack, layout }: EdgesProps) {
           if (!box) return null;
           const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
           const reset = () =>
-            useAccountStore.getState().clearEdgeAnchor({ packId: pack.id, edgeId: edge.id, end });
+            useAccountStore.getState().clearEdgeAnchor({ projectId: pack.id, edgeId: edge.id, end });
           return (
             <Circle
               key={`${edge.id}:${end}`}
@@ -170,7 +170,7 @@ export function Edges({ pack, layout }: EdgesProps) {
               onDragEnd={() => {
                 if (dragOverride) {
                   useAccountStore.getState().setEdgeAnchor({
-                    packId: pack.id,
+                    projectId: pack.id,
                     edgeId: dragOverride.edgeId,
                     end: dragOverride.end,
                     anchor: dragOverride.anchor,

@@ -1,4 +1,4 @@
-import type { I18nKey, Menu, Pack, SourceRef } from "@/domain/types";
+import type { I18nKey, Menu, Project, SourceRef } from "@/domain/types";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
@@ -11,12 +11,12 @@ import { renderTemplate } from "@/lib/expr/template/renderer";
  *
  * Cf. spec §3.5.
  */
-export function resolveSourceRef(ref: SourceRef, pack: Pack): unknown {
+export function resolveSourceRef(ref: SourceRef, pack: Project): unknown {
   const r = String(ref);
   if (r === "" || !r.includes(":")) return undefined;
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
-    const ds = pack.dataSources.find((d) => d.id === (id as Pack["dataSources"][number]["id"]));
+    const ds = pack.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
     return ds?.value;
   }
   const c = pack.importedConnectors.find((x) => x.ref === r);
@@ -49,7 +49,7 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
  * Used by MenuGroup and ItemTooltip preview rendering. Replaces the
  * pre-Plan-C1 sampleContext blob.
  */
-export function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknown> {
+export function buildPreviewScope(menu: Menu, pack: Project): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") {
@@ -78,15 +78,15 @@ const previewCache = new AstCache(256);
 export function renderPreview(
   template: string,
   ctx: Record<string, unknown>,
-  pack: Pack,
+  pack: Project,
   activeLang: string,
 ): string {
   const scope = new Scope(ctx);
   return renderTemplate(template, {
     scope,
     cache: previewCache,
-    packId: pack.id,
-    packVersion: 0,
+    projectId: pack.id,
+    projectVersion: 0,
     i18nLookup: (key) => {
       const entry = pack.i18nKeys[key as I18nKey];
       if (!entry) return undefined;

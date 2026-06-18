@@ -15,7 +15,7 @@ import type {
   ElementId,
   Menu,
   MenuId,
-  PackId,
+  ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
@@ -27,7 +27,7 @@ import {
 } from "@/features/canvas/properties/ActionEditor";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
-import { PackProperties } from "@/features/canvas/properties/PackProperties";
+import { ProjectProperties } from "@/features/canvas/properties/ProjectProperties";
 import { PropertyField } from "@/features/canvas/properties/PropertyField";
 import { AliasesField } from "@/features/canvas/properties/AliasesField";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
@@ -58,14 +58,14 @@ import {
 } from "./PseudocodeView";
 
 interface FlowCanvasProps {
-  packId: PackId;
+  projectId: ProjectId;
 }
 
 const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 
 /**
  * Unified editor for the current selection. Routes by kind:
- *   Pack            → pack-level fields (description, source).
+ *   Project            → pack-level fields (description, source).
  *   Menu            → title / permission / rows / background.
  *   Element         → identity + per-state cards (with all state-level
  *                     fields embedded) + click handlers for the focused state.
@@ -76,10 +76,10 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
  * fields (title, count, lore, conditions) and click handlers belong to a
  * specific state card.
  */
-export function FlowCanvas({ packId }: FlowCanvasProps) {
+export function FlowCanvas({ projectId }: FlowCanvasProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids change is the trigger
@@ -87,14 +87,14 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
     setSub(null);
   }, [setSub, [...ids].sort().join(",")]);
 
-  if (!pack) return <EmptyHint label={t("packNotFound")} />;
+  if (!pack) return <EmptyHint label={t("projectNotFound")} />;
   if (ids.size > 1) {
     return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
   }
   if (ids.size === 0) {
     return (
       <div className="h-full overflow-y-auto p-3">
-        <PackProperties pack={pack} />
+        <ProjectProperties pack={pack} />
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   if (command)
     return (
       <div className="h-full overflow-hidden">
-        <CommandEditor packId={packId} command={command} />
+        <CommandEditor projectId={projectId} command={command} />
       </div>
     );
 
@@ -112,7 +112,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   if (dialog)
     return (
       <div className="h-full overflow-hidden">
-        <DialogEditor packId={packId} dialog={dialog} />
+        <DialogEditor projectId={projectId} dialog={dialog} />
       </div>
     );
 
@@ -122,7 +122,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
       if (el)
         return (
           <div className="h-full overflow-hidden">
-            <ElementEditor packId={packId} menu={menu} element={el} />
+            <ElementEditor projectId={projectId} menu={menu} element={el} />
           </div>
         );
     }
@@ -132,7 +132,7 @@ export function FlowCanvas({ packId }: FlowCanvasProps) {
   if (menu) {
     return (
       <div className="h-full overflow-y-auto p-3">
-        <MenuProperties packId={packId} menu={menu} />
+        <MenuProperties projectId={projectId} menu={menu} />
       </div>
     );
   }
@@ -153,11 +153,11 @@ function EmptyHint({ label }: { label: string }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function ElementEditor({
-  packId,
+  projectId,
   menu,
   element,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   element: Element;
 }) {
@@ -169,7 +169,7 @@ function ElementEditor({
 
   const headerMaterial = focusedState?.material ?? "";
   const headerTextureUrl = useTextureUrl(headerMaterial);
-  const getText = useGetText(packId);
+  const getText = useGetText(projectId);
   const headerTitle = getText(focusedState?.title);
   const menuTitle = getText(getFirstTitleText(menu));
   const { t } = useTranslation();
@@ -205,18 +205,18 @@ function ElementEditor({
       </div>
 
       <div className="flex-1 overflow-auto px-3 py-3">
-        <ElementIdField packId={packId} menuId={menu.id} elementId={element.id} />
-        <PositionsField packId={packId} menuId={menu.id} element={element} />
-        <IterationField packId={packId} menu={menu} element={element} />
+        <ElementIdField projectId={projectId} menuId={menu.id} elementId={element.id} />
+        <PositionsField projectId={projectId} menuId={menu.id} element={element} />
+        <IterationField projectId={projectId} menu={menu} element={element} />
 
         <Lane label={t("flow.states")}>
           <SortableStates
-            packId={packId}
+            projectId={projectId}
             menu={menu}
             element={element}
             focusedStateIndex={focusedStateIndex}
             onAdd={() => {
-              addAppearance({ packId, menuId: menu.id, elementId: element.id });
+              addAppearance({ projectId, menuId: menu.id, elementId: element.id });
               setSub({ kind: "state", stateIndex: element.appearances.length });
             }}
           />
@@ -227,11 +227,11 @@ function ElementEditor({
 }
 
 function IterationField({
-  packId,
+  projectId,
   menu,
   element,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   element: Element;
 }) {
@@ -247,19 +247,19 @@ function IterationField({
   const enable = () => {
     const firstSourceRef = (menu.contextInputs ?? []).find((c) => c.kind === "sourceRef");
     setElementIterates({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       iterates: { source: firstSourceRef?.name ?? "", alias: "item" },
     });
   };
   const disable = () => {
-    setElementIterates({ packId, menuId: menu.id, elementId: element.id, iterates: undefined });
+    setElementIterates({ projectId, menuId: menu.id, elementId: element.id, iterates: undefined });
   };
   const update = (patch: Partial<NonNullable<Element["iterates"]>>) => {
     if (!iterates) return;
     setElementIterates({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       iterates: { ...iterates, ...patch },
@@ -333,13 +333,13 @@ function IterationField({
  * @dnd-kit doesn't re-shuffle anything on the post-drop re-render.
  */
 function SortableStates({
-  packId,
+  projectId,
   menu,
   element,
   focusedStateIndex,
   onAdd,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   element: Element;
   focusedStateIndex: number;
@@ -359,7 +359,7 @@ function SortableStates({
     if (fromIndex < 0 || toIndex < 0) return;
 
     moveAppearance({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       fromIndex,
@@ -386,7 +386,7 @@ function SortableStates({
               // biome-ignore lint/suspicious/noArrayIndexKey: state index stable per list-render
               key={i}
               dragId={ids[i]!}
-              packId={packId}
+              projectId={projectId}
               menu={menu}
               element={element}
               stateIndex={i}
@@ -575,14 +575,14 @@ function useStableAppearanceIds(appearances: readonly Appearance[]): string[] {
 
 function StateCard({
   dragId,
-  packId,
+  projectId,
   menu,
   element,
   stateIndex,
   focused,
 }: {
   dragId: string;
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   element: Element;
   stateIndex: number;
@@ -603,7 +603,7 @@ function StateCard({
   const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
   const activeLang = useUiStore((s) => s.activeLang);
-  const getText = useGetText(packId);
+  const getText = useGetText(projectId);
 
   const appearance = element.appearances[stateIndex];
   if (!appearance) return null;
@@ -635,11 +635,11 @@ function StateCard({
     () => ({ kind: "element" as const, menuId: menu.id, elementId: element.id }),
     [menu.id, element.id],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   // Preview scope — binds the first list item when the element iterates so
   // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const lorePreviewCtx = useMemo(() => {
     if (!pack) return {};
     const base = buildPreviewScope(menu, pack);
@@ -651,7 +651,7 @@ function StateCard({
 
   const update = (field: "material" | "count" | "head", value: string | number) =>
     setAppearanceField({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       appearanceIndex: stateIndex,
@@ -660,7 +660,7 @@ function StateCard({
     });
   const updateTitle = (value: string) =>
     setAppearanceTitle({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       appearanceIndex: stateIndex,
@@ -669,7 +669,7 @@ function StateCard({
     });
   const updateLore = (value: string) =>
     setAppearanceLore({
-      packId,
+      projectId,
       menuId: menu.id,
       elementId: element.id,
       appearanceIndex: stateIndex,
@@ -773,7 +773,7 @@ function StateCard({
                 title={t("flow.removeState")}
                 onClick={() => {
                   removeAppearance({
-                    packId,
+                    projectId,
                     menuId: menu.id,
                     elementId: element.id,
                     appearanceIndex: stateIndex,
@@ -931,7 +931,7 @@ function StateCard({
               onChange={(conditions) => {
                 setSub({ kind: "state", stateIndex });
                 setAppearanceConditions({
-                  packId,
+                  projectId,
                   menuId: menu.id,
                   elementId: element.id,
                   appearanceIndex: stateIndex,
@@ -940,7 +940,7 @@ function StateCard({
               }}
               onJoinChange={(joinIndex, op) =>
                 setAppearanceJoin({
-                  packId,
+                  projectId,
                   menuId: menu.id,
                   elementId: element.id,
                   appearanceIndex: stateIndex,
@@ -956,7 +956,7 @@ function StateCard({
           <div className="mt-1">
             <FieldLabel>{t("flow.clickHandlers")}</FieldLabel>
             <ElementClickHandlersPseudocode
-              packId={packId}
+              projectId={projectId}
               menuId={menu.id}
               elementId={element.id}
               stateIndex={stateIndex}
@@ -1023,7 +1023,7 @@ function elementPlaceholders(menu: Menu, element: Element): readonly Placeholder
   return list;
 }
 
-function CommandIdField({ packId, commandId }: { packId: PackId; commandId: CommandId }) {
+function CommandIdField({ projectId, commandId }: { projectId: ProjectId; commandId: CommandId }) {
   const { t } = useTranslation();
   const setCommandId = useAccountStore((s) => s.setCommandId);
   const [draft, setDraft] = useState(commandId as string);
@@ -1036,7 +1036,7 @@ function CommandIdField({ packId, commandId }: { packId: PackId; commandId: Comm
   const commit = () => {
     if (draft === commandId) return;
     try {
-      setCommandId({ packId, oldId: commandId, newId: draft as CommandId });
+      setCommandId({ projectId, oldId: commandId, newId: draft as CommandId });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
@@ -1073,11 +1073,11 @@ function CommandIdField({ packId, commandId }: { packId: PackId; commandId: Comm
 }
 
 function ElementIdField({
-  packId,
+  projectId,
   menuId,
   elementId,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
 }) {
@@ -1093,7 +1093,7 @@ function ElementIdField({
   const commit = () => {
     if (draft === elementId) return;
     try {
-      setElementId({ packId, menuId, oldId: elementId, newId: draft as ElementId });
+      setElementId({ projectId, menuId, oldId: elementId, newId: draft as ElementId });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
@@ -1130,11 +1130,11 @@ function ElementIdField({
 }
 
 function PositionsField({
-  packId,
+  projectId,
   menuId,
   element,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   element: Element;
 }) {
@@ -1148,7 +1148,7 @@ function PositionsField({
   const commit = () => {
     const canonical = formatPositions(parsePositions(draft));
     if (canonical !== element.positions) {
-      setElementPositions({ packId, menuId, elementId: element.id, positions: canonical });
+      setElementPositions({ projectId, menuId, elementId: element.id, positions: canonical });
     }
     setDraft(canonical);
   };
@@ -1181,7 +1181,7 @@ function PositionsField({
 // Command editor
 // ────────────────────────────────────────────────────────────────────────────
 
-function CommandEditor({ packId, command }: { packId: PackId; command: Command }) {
+function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
   const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
@@ -1200,12 +1200,12 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
           <div className="min-w-0">
             <Lane label={t("flow.propertiesLabel")}>
               <div className="flex flex-col gap-2">
-                <CommandIdField packId={packId} commandId={command.id} />
+                <CommandIdField projectId={projectId} commandId={command.id} />
                 <PropertyField
                   label={t("command.nameLabel")}
                   value={command.name}
                   onChange={(v) =>
-                    setCommandField({ packId, commandId: command.id, field: "name", value: v })
+                    setCommandField({ projectId, commandId: command.id, field: "name", value: v })
                   }
                 />
                 <PropertyField
@@ -1213,7 +1213,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
                   value={command.permission ?? ""}
                   placeholder={t("command.permissionPlaceholder")}
                   onChange={(v) =>
-                    setCommandField({ packId, commandId: command.id, field: "permission", value: v })
+                    setCommandField({ projectId, commandId: command.id, field: "permission", value: v })
                   }
                 />
                 <PropertyField
@@ -1222,7 +1222,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
                   placeholder={t("command.descriptionPlaceholder")}
                   multiline
                   onChange={(v) =>
-                    setCommandField({ packId, commandId: command.id, field: "description", value: v })
+                    setCommandField({ projectId, commandId: command.id, field: "description", value: v })
                   }
                 />
                 <AliasesField
@@ -1230,7 +1230,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
                   aliases={command.aliases ?? []}
                   onChange={(aliases) =>
                     setCommandAliases({
-                      packId,
+                      projectId,
                       commandId: command.id,
                       aliases,
                     })
@@ -1241,7 +1241,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
           </div>
           <div className="min-w-0">
             <Lane label={t("command.argumentsLabel")}>
-              <CommandArgsEditor packId={packId} command={command} />
+              <CommandArgsEditor projectId={projectId} command={command} />
             </Lane>
             <Lane label={t("command.steps")}>
               <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
@@ -1255,7 +1255,7 @@ function CommandEditor({ packId, command }: { packId: PackId; command: Command }
                   }))}
                 >
                   <CommandStepPseudocode
-                    packId={packId}
+                    projectId={projectId}
                     commandId={command.id}
                     steps={command.steps}
                     frames={[]}
@@ -1286,7 +1286,7 @@ function commandSignature(command: Command): string {
   return parts.join(" ");
 }
 
-function CommandArgsEditor({ packId, command }: { packId: PackId; command: Command }) {
+function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
   const addCommandArg = useAccountStore((s) => s.addCommandArg);
   const setCommandArg = useAccountStore((s) => s.setCommandArg);
   const removeCommandArg = useAccountStore((s) => s.removeCommandArg);
@@ -1305,7 +1305,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
     const current = command.arguments[index];
     if (!current) return;
     try {
-      setCommandArg({ packId, commandId: command.id, index, arg: { ...current, ...patch } });
+      setCommandArg({ projectId, commandId: command.id, index, arg: { ...current, ...patch } });
       setOrderError(null);
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
@@ -1314,7 +1314,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
 
   const addArg = () => {
     try {
-      addCommandArg({ packId, commandId: command.id });
+      addCommandArg({ projectId, commandId: command.id });
       setOrderError(null);
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
@@ -1383,7 +1383,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
                 <button
                   type="button"
                   title={t("command.removeArg")}
-                  onClick={() => removeCommandArg({ packId, commandId: command.id, index: i })}
+                  onClick={() => removeCommandArg({ projectId, commandId: command.id, index: i })}
                   className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 >
                   ×
@@ -1445,7 +1445,7 @@ function CommandArgsEditor({ packId, command }: { packId: PackId; command: Comma
 // Dialog editor
 // ────────────────────────────────────────────────────────────────────────────
 
-function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogId }) {
+function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId: DialogId }) {
   const { t } = useTranslation();
   const setDialogId = useAccountStore((s) => s.setDialogId);
   const [draft, setDraft] = useState(dialogId as string);
@@ -1458,7 +1458,7 @@ function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogI
   const commit = () => {
     if (draft === dialogId) return;
     try {
-      setDialogId({ packId, oldId: dialogId, newId: draft as DialogId });
+      setDialogId({ projectId, oldId: dialogId, newId: draft as DialogId });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("dialog.renameRejected"));
@@ -1494,7 +1494,7 @@ function DialogIdField({ packId, dialogId }: { packId: PackId; dialogId: DialogI
   );
 }
 
-function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
+function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dialog }) {
   const { t } = useTranslation();
   const setDialogTitle = useAccountStore((s) => s.setDialogTitle);
   const setDialogField = useAccountStore((s) => s.setDialogField);
@@ -1510,13 +1510,13 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
   const removeDialogButton = useAccountStore((s) => s.removeDialogButton);
   const setDialogButtonLabel = useAccountStore((s) => s.setDialogButtonLabel);
   const activeLang = useUiStore((s) => s.activeLang);
-  const getText = useGetText(packId);
+  const getText = useGetText(projectId);
 
   const titlePlaceholderLocation = useMemo(
     () => ({ kind: "dialog" as const, dialogId: dialog.id }),
     [dialog.id],
   );
-  const titlePlaceholderEntries = usePlaceholderEntries(packId, titlePlaceholderLocation);
+  const titlePlaceholderEntries = usePlaceholderEntries(projectId, titlePlaceholderLocation);
 
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
@@ -1529,7 +1529,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
 
       <div className="flex-1 overflow-auto px-3 py-3">
         <Lane label={t("flow.propertiesLabel")}>
-          <DialogIdField packId={packId} dialogId={dialog.id} />
+          <DialogIdField projectId={projectId} dialogId={dialog.id} />
           <div>
             <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
               {t("dialog.titleLabel", { lang: activeLang })}
@@ -1537,7 +1537,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
             <PlaceholderInput
               value={getText(dialog.title)}
               onChange={(v) =>
-                setDialogTitle({ packId, dialogId: dialog.id, lang: activeLang, value: v })
+                setDialogTitle({ projectId, dialogId: dialog.id, lang: activeLang, value: v })
               }
               entries={titlePlaceholderEntries}
             />
@@ -1549,7 +1549,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 checked={dialog.canCloseWithEscape}
                 onChange={(e) =>
                   setDialogField({
-                    packId,
+                    projectId,
                     dialogId: dialog.id,
                     field: "canCloseWithEscape",
                     value: e.target.checked,
@@ -1578,7 +1578,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       placeholder={t("dialog.bodyTextPlaceholder")}
                       onChange={(e) =>
                         setDialogBodyText({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           lang: activeLang,
@@ -1595,7 +1595,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       placeholder="DIAMOND"
                       onChange={(e) =>
                         setDialogBodyMaterial({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           material: e.target.value.toUpperCase(),
@@ -1613,7 +1613,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                         const n = Number(e.target.value);
                         if (!Number.isNaN(n) && n >= 1 && n <= 64) {
                           setDialogBodyMaterial({
-                            packId,
+                            projectId,
                             dialogId: dialog.id,
                             index: i,
                             material: body.material,
@@ -1627,7 +1627,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 )}
                 <button
                   type="button"
-                  onClick={() => removeDialogBody({ packId, dialogId: dialog.id, index: i })}
+                  onClick={() => removeDialogBody({ projectId, dialogId: dialog.id, index: i })}
                   className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 >
                   ×
@@ -1639,7 +1639,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 type="button"
                 onClick={() =>
                   addDialogBody({
-                    packId,
+                    projectId,
                     dialogId: dialog.id,
                     body: { type: "text", text: { key: "" as Dialog["title"]["key"] } },
                   })
@@ -1652,7 +1652,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 type="button"
                 onClick={() =>
                   addDialogBody({
-                    packId,
+                    projectId,
                     dialogId: dialog.id,
                     body: { type: "item", material: "DIAMOND", count: 1 },
                   })
@@ -1682,7 +1682,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     placeholder={t("dialog.inputIdPlaceholder")}
                     onChange={(e) =>
                       setDialogInput({
-                        packId,
+                        projectId,
                         dialogId: dialog.id,
                         index: i,
                         patch: { id: e.target.value } as Partial<DialogInput>,
@@ -1695,7 +1695,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     placeholder={t("dialog.inputLabelPlaceholder")}
                     onChange={(e) =>
                       setI18nValue({
-                        packId,
+                        projectId,
                         lt: input.label,
                         lang: activeLang,
                         value: e.target.value,
@@ -1706,7 +1706,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   <button
                     type="button"
                     onClick={() =>
-                      removeDialogInput({ packId, dialogId: dialog.id, index: i })
+                      removeDialogInput({ projectId, dialogId: dialog.id, index: i })
                     }
                     className="flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                   >
@@ -1721,7 +1721,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       value={input.min}
                       onChange={(e) =>
                         setDialogInput({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           patch: { min: Number(e.target.value) } as Partial<DialogInput>,
@@ -1735,7 +1735,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       value={input.max}
                       onChange={(e) =>
                         setDialogInput({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           patch: { max: Number(e.target.value) } as Partial<DialogInput>,
@@ -1749,7 +1749,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       value={input.default}
                       onChange={(e) =>
                         setDialogInput({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           patch: { default: Number(e.target.value) } as Partial<DialogInput>,
@@ -1769,7 +1769,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       value={input.maxLength}
                       onChange={(e) =>
                         setDialogInput({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           index: i,
                           patch: { maxLength: Number(e.target.value) } as Partial<DialogInput>,
@@ -1787,7 +1787,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                         checked={input.default}
                         onChange={(e) =>
                           setDialogInput({
-                            packId,
+                            projectId,
                             dialogId: dialog.id,
                             index: i,
                             patch: { default: e.target.checked } as Partial<DialogInput>,
@@ -1807,7 +1807,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                   key={type}
                   type="button"
                   onClick={() =>
-                    addDialogInput({ packId, dialogId: dialog.id, inputType: type })
+                    addDialogInput({ projectId, dialogId: dialog.id, inputType: type })
                   }
                   className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
                 >
@@ -1829,7 +1829,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                     placeholder={t("dialog.buttonLabelPlaceholder")}
                     onChange={(e) =>
                       setDialogButtonLabel({
-                        packId,
+                        projectId,
                         dialogId: dialog.id,
                         buttonIndex: btnIndex,
                         lang: activeLang,
@@ -1843,7 +1843,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                       type="button"
                       onClick={() =>
                         removeDialogButton({
-                          packId,
+                          projectId,
                           dialogId: dialog.id,
                           buttonIndex: btnIndex,
                         })
@@ -1856,7 +1856,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
                 </div>
                 <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
                   <DialogButtonStepPseudocode
-                    packId={packId}
+                    projectId={projectId}
                     dialogId={dialog.id}
                     buttonIndex={btnIndex}
                     steps={btn.steps}
@@ -1867,7 +1867,7 @@ function DialogEditor({ packId, dialog }: { packId: PackId; dialog: Dialog }) {
             ))}
             <button
               type="button"
-              onClick={() => addDialogButton({ packId, dialogId: dialog.id })}
+              onClick={() => addDialogButton({ projectId, dialogId: dialog.id })}
               className="self-start rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
             >
               {t("dialog.addButton")}

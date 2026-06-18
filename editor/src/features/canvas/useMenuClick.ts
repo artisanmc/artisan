@@ -1,4 +1,4 @@
-import type { Menu, MenuId, PackId } from "@/domain/types";
+import type { Menu, MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -8,12 +8,12 @@ import { toast } from "sonner";
 import { hitTestSlot } from "./hitTest";
 
 interface UseMenuClickArgs {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   layout: Record<string, { x: number; y: number }>;
 }
 
-export function useMenuClick({ packId, menu, layout }: UseMenuClickArgs) {
+export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
   const onClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
@@ -32,13 +32,13 @@ export function useMenuClick({ packId, menu, layout }: UseMenuClickArgs) {
             y: (pointer.y - stage.y()) / stage.scaleY(),
           };
           const account = useAccountStore.getState().account;
-          const pack = account.packs.find((p) => p.id === packId);
+          const pack = account.projects.find((p) => p.id === projectId);
           if (pack) {
             const hit = hitTestSlot(pack, layout, world.x, world.y);
             if (hit && hit.menuId === menu.id) {
               try {
                 useAccountStore.getState().setSlotMaterial({
-                  packId,
+                  projectId,
                   menuId: hit.menuId as MenuId,
                   position: hit.position,
                   material: armed,
@@ -72,7 +72,7 @@ export function useMenuClick({ packId, menu, layout }: UseMenuClickArgs) {
       // immediately editable — no manual tab switch.
       if (!additive) useUiStore.getState().setEditorTab("edit");
     },
-    [menu.id, packId, layout],
+    [menu.id, projectId, layout],
   );
   return { onClick };
 }

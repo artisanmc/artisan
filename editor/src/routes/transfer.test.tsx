@@ -54,7 +54,7 @@ describe("/transfer?token=...", () => {
     vi.spyOn(networksApi, "getNetworkTransfer").mockResolvedValue({
       networkId: "n1",
       networkName: "Alpha",
-      packCount: 3,
+      projectCount: 3,
       serverKeyCount: 1,
       expiresAt: "2026-05-23T00:00:00Z",
     });
@@ -64,7 +64,7 @@ describe("/transfer?token=...", () => {
     render(<TransferRoute />);
 
     await screen.findByText(/Alpha/);
-    expect(screen.getByText(/3 workspaces/)).toBeTruthy();
+    expect(screen.getByText(/3 projets/)).toBeTruthy();
     expect(screen.getByText(/1 server_key/)).toBeTruthy();
 
     const acceptButton = screen.getByText(/Accepter/i);

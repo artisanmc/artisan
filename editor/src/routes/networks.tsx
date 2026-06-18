@@ -1,6 +1,6 @@
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { createServerKey, getNetwork, listNetworks } from "@/lib/api/networks";
-import type { NetworkSummary, PackSummary, ServerKeySummary } from "@/lib/api/networks";
+import type { NetworkSummary, ProjectSummary, ServerKeySummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
 import { Link, Outlet, createFileRoute, useChildMatches } from "@tanstack/react-router";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/networks")({ component: NetworksPage });
 interface NetworkData {
   network: NetworkSummary;
   serverKeys: ServerKeySummary[];
-  packs: PackSummary[];
+  projects: ProjectSummary[];
 }
 
 /** Inline modal to reveal a plaintext server key after creation. */
@@ -78,7 +78,7 @@ export function NetworksPage() {
     let cancelled = false;
     Promise.all(
       networks.map((n) =>
-        getNetwork(n.id).then((d) => ({ network: n, serverKeys: d.serverKeys, packs: d.packs })),
+        getNetwork(n.id).then((d) => ({ network: n, serverKeys: d.serverKeys, projects: d.projects })),
       ),
     )
       .then((results) => {
@@ -140,12 +140,12 @@ export function NetworksPage() {
         ) : (
           <div className="flex flex-col gap-8">
             {networkData.map((nd) => {
-              const workspacesByServer = new Map<string, PackSummary[]>();
-              for (const p of nd.packs) {
+              const projectsByServer = new Map<string, ProjectSummary[]>();
+              for (const p of nd.projects) {
                 if (!p.serverKeyId) continue;
-                const list = workspacesByServer.get(p.serverKeyId) ?? [];
+                const list = projectsByServer.get(p.serverKeyId) ?? [];
                 list.push(p);
-                workspacesByServer.set(p.serverKeyId, list);
+                projectsByServer.set(p.serverKeyId, list);
               }
 
               return (
@@ -186,7 +186,7 @@ export function NetworksPage() {
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {nd.serverKeys.map((sk) => {
-                        const wsForServer = workspacesByServer.get(sk.id) ?? [];
+                        const wsForServer = projectsByServer.get(sk.id) ?? [];
                         const wsCount = wsForServer.length;
                         return (
                           <li key={sk.id}>
@@ -203,7 +203,7 @@ export function NetworksPage() {
                                   {displayServerLabel(sk)}
                                 </span>
                                 <span className="text-[11px] text-[var(--text-faint)]">
-                                  {t("networksHub.workspaceCount", { count: wsCount })}
+                                  {t("networksHub.projectCount", { count: wsCount })}
                                 </span>
                               </div>
                               <ArrowRight className="size-[14px] shrink-0 text-[var(--text-faint)]" />

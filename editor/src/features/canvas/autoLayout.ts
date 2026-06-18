@@ -1,16 +1,16 @@
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 
 /**
  * Board layout = appartenance. Ne retourne que les positions EXPLICITES de
  * pack.canvasLayout. Un élément absent de canvasLayout n'est pas sur la planche.
  * (Le grid-fill historique vit désormais dans gridArrange, appelé à la demande.)
  */
-export function autoLayout(pack: Pack): Record<string, { x: number; y: number }> {
+export function autoLayout(pack: Project): Record<string, { x: number; y: number }> {
   return { ...pack.canvasLayout };
 }
 
 /** Grille déterministe sur TOUS les éléments — pour le bouton « Tout arranger ». */
-export function gridArrange(pack: Pack): Record<string, { x: number; y: number }> {
+export function gridArrange(pack: Project): Record<string, { x: number; y: number }> {
   const layout: Record<string, { x: number; y: number }> = {};
   const cellW = 220;
   const cellH = 160;

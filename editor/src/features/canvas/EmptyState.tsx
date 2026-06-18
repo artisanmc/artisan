@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { NewPackDialog } from "@/features/account/NewPackDialog";
+import { NewProjectDialog } from "@/features/account/NewProjectDialog";
 
 export function EmptyState() {
   return (
@@ -18,7 +18,7 @@ export function EmptyState() {
           Aucun workspace encore. Crée ton premier workspace pour démarrer — tu pourras y empiler
           menus, commandes et templates depuis le canvas.
         </p>
-        <NewPackDialog trigger={<Button variant="primary">Crée ton premier workspace</Button>} />
+        <NewProjectDialog trigger={<Button variant="primary">Crée ton premier workspace</Button>} />
       </div>
     </div>
   );

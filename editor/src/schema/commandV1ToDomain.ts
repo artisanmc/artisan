@@ -4,7 +4,7 @@ import type {
   CommandId,
   I18nKey,
   LText,
-  PackId,
+  ProjectId,
   Step as DomainStep,
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
@@ -25,7 +25,7 @@ const ARG_TYPES = new Set(["player", "string", "integer", "number", "boolean"]);
 
 export function commandV1ToDomain(
   src: Json,
-  opts: { packId: PackId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
 ): CommandImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
@@ -68,7 +68,7 @@ export function commandV1ToDomain(
 
   const command: DomainCommand = {
     id: src.id as CommandId,
-    packId: opts.packId,
+    projectId: opts.projectId,
     name: src.name,
     arguments: args,
     steps,

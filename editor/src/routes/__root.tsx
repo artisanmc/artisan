@@ -1,7 +1,7 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
-import type { Pack } from "@/domain/types";
-import { persistPack } from "@/features/pack/persistPack";
+import { ProjectSidebar } from "@/components/ProjectSidebar";
+import type { Project } from "@/domain/types";
+import { persistProject } from "@/features/project/persistProject";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -32,7 +32,7 @@ export function RootLayout() {
 }
 
 function RootLayoutInner() {
-  usePackAutoSave();
+  useProjectAutoSave();
   usePostHogPageView();
   const user = useAuthStore((s) => s.currentUser);
   const sessionToken = useSessionStore((s) => s.accessToken);
@@ -68,7 +68,7 @@ function RootLayoutInner() {
               sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            {isAdminArea ? <AdminSidebar /> : <WorkspaceSidebar />}
+            {isAdminArea ? <AdminSidebar /> : <ProjectSidebar />}
           </aside>
           <button
             type="button"
@@ -94,7 +94,7 @@ function usePostHogPageView() {
   }, [pathname]);
 }
 
-export function usePackAutoSave() {
+export function useProjectAutoSave() {
   // Subscribe whenever EITHER auth mode is live: session token (trust dance
   // via `/artisan setup`) OR signed-in user (signup/login). Previously this
   // hook only ran in session mode, so user-auth edits were silently dropped
@@ -102,18 +102,18 @@ export function usePackAutoSave() {
   const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track which packs need saving: packId → Pack snapshot
-  const pendingRef = useRef<Map<string, Pack>>(new Map());
+  // Track which projects need saving: projectId → Project snapshot
+  const pendingRef = useRef<Map<string, Project>>(new Map());
 
   useEffect(() => {
     if (!token && !user) return;
 
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
-      // Find changed packs
-      for (const pack of state.account.packs) {
-        const prevPack = prev.account.packs.find((p) => p.id === pack.id);
-        if (prevPack !== pack) {
+      // Find changed projects
+      for (const pack of state.account.projects) {
+        const prevProject = prev.account.projects.find((p) => p.id === pack.id);
+        if (prevProject !== pack) {
           pendingRef.current.set(pack.id, pack);
         }
       }
@@ -129,7 +129,7 @@ export function usePackAutoSave() {
         if (!currentToken && !currentUser) return;
         for (const [, pack] of toSave) {
           // Silently ignore save errors — the user sees a stale "saving" indicator.
-          await persistPack(pack, currentToken, !!currentUser).catch(() => {});
+          await persistProject(pack, currentToken, !!currentUser).catch(() => {});
         }
       }, 2000);
     });

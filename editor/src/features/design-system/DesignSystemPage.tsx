@@ -160,7 +160,7 @@ export function DesignSystemPage() {
             <span className="mono text-[11px] text-[var(--text-faint)]">
               .display / --font-display
             </span>
-            <span className="display text-[28px] text-[var(--text)]">Artisan — Menus & Packs</span>
+            <span className="display text-[28px] text-[var(--text)]">Artisan — Menus & Projects</span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="mono text-[11px] text-[var(--text-faint)]">--font-body</span>

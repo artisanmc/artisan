@@ -1,4 +1,4 @@
-import type { MenuId, Pack } from "@/domain/types";
+import type { MenuId, Project } from "@/domain/types";
 import { autoLayout } from "../../autoLayout";
 import { TEX_SCALE, TEX_TITLE_H, menuBoxSize } from "../../menuLayout";
 import type { StageGeometry } from "../../stageGeometry";
@@ -29,7 +29,7 @@ export interface AttachPlacement {
  *     menu origin and dividing by `TEX_SCALE`.
  */
 export function attachLayerAtCursor(
-  pack: Pack,
+  pack: Project,
   geometry: StageGeometry,
   cursor: Cursor,
 ): AttachPlacement | null {

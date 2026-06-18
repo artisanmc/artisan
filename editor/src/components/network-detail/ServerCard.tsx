@@ -11,7 +11,7 @@ interface Server {
   online: boolean;
   lastSeen?: string | null;
 }
-interface Workspace {
+interface Project {
   id: string;
   name: string;
   /** Menus + commands + dialogs count, for the element-count indicator. */
@@ -23,15 +23,15 @@ interface Props {
    *  deploy/history children need the real id, not a slug — see phase 4b). */
   networkId: string;
   server: Server;
-  workspaces: Workspace[];
+  workspaces: Project[];
   onAction: (
     action: "edit" | "show-key" | "rotate" | "history" | "allowlist" | "delete",
     serverId: string,
   ) => void;
-  onCreateWorkspace: (serverId: string) => void;
+  onCreateProject: (serverId: string) => void;
 }
 
-export function ServerCard({ networkId, server, workspaces, onAction, onCreateWorkspace }: Props) {
+export function ServerCard({ networkId, server, workspaces, onAction, onCreateProject }: Props) {
   const { t } = useTranslation();
   return (
     <div className="card flex flex-col gap-3 p-4">
@@ -52,7 +52,7 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreateWo
       </div>
 
       <p className="text-[11.5px] text-[var(--text-faint)]">
-        {t("serverCard.workspaceCount", { count: workspaces.length })}
+        {t("serverCard.projectCount", { count: workspaces.length })}
         {!server.online && server.lastSeen && (
           <>
             {" · "}
@@ -65,8 +65,8 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreateWo
         {workspaces.map((w) => (
           <Link
             key={w.id}
-            to="/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
-            params={{ networkId, serverId: server.id, workspaceId: w.id }}
+            to="/networks/$networkId/servers/$serverId/projects/$projectId"
+            params={{ networkId, serverId: server.id, projectId: w.id }}
             className="group flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="truncate text-[12.5px] text-[var(--text-mut)] group-hover:text-[var(--text)]">
@@ -88,10 +88,10 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreateWo
         ))}
         <button
           type="button"
-          onClick={() => onCreateWorkspace(server.id)}
+          onClick={() => onCreateProject(server.id)}
           className="flex items-center gap-1.5 rounded-[8px] px-2 py-1.5 text-left text-[12px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         >
-          + {t("serverCard.newWorkspace")}
+          + {t("serverCard.newProject")}
         </button>
       </div>
     </div>

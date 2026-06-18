@@ -27,8 +27,8 @@ export const ATLAS_META: Readonly<Record<AtlasName, AtlasMeta>> = {
 };
 
 /** Compact char→cell map. Atlas names are 1-letter to keep the bundle small. */
-type Packed = readonly [atlas: 'a' | 'b' | 'n', col: number, row: number];
-const CELLS: Readonly<Record<number, Packed>> = {
+type Projected = readonly [atlas: 'a' | 'b' | 'n', col: number, row: number];
+const CELLS: Readonly<Record<number, Projected>> = {
   0x0020: ['a', 0, 2],
   0x0021: ['a', 1, 2],
   0x0022: ['a', 2, 2],

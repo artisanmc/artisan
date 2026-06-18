@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type Konva from "konva";
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { screenToWorld } from "./hitTest";
 import { nodeBox } from "./menuLayout";
 import { rectIntersectsBoxes } from "./marqueeHitTest";
@@ -9,7 +9,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 interface Args {
   stageRef: React.RefObject<Konva.Stage | null>;
   viewport: { x: number; y: number; scale: number };
-  pack: Pack | undefined;
+  pack: Project | undefined;
   layout: Record<string, { x: number; y: number }>;
   active: boolean;
 }

@@ -1,4 +1,4 @@
-import type { MenuId, PackId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useUiStore } from "./uiStore";
 
@@ -144,15 +144,15 @@ describe("uiStore — applyLayerDeleted", () => {
 
 describe("uiStore — panel/search flags", () => {
   beforeEach(() => {
-    useUiStore.setState({ workspacePanelOpen: true, searchOpen: false });
+    useUiStore.setState({ projectPanelOpen: true, searchOpen: false });
   });
 
-  it("workspacePanelOpen défaut true, toggle/set le modifient", () => {
-    expect(useUiStore.getState().workspacePanelOpen).toBe(true);
-    useUiStore.getState().setWorkspacePanelOpen(false);
-    expect(useUiStore.getState().workspacePanelOpen).toBe(false);
-    useUiStore.getState().toggleWorkspacePanel();
-    expect(useUiStore.getState().workspacePanelOpen).toBe(true);
+  it("projectPanelOpen défaut true, toggle/set le modifient", () => {
+    expect(useUiStore.getState().projectPanelOpen).toBe(true);
+    useUiStore.getState().setProjectPanelOpen(false);
+    expect(useUiStore.getState().projectPanelOpen).toBe(false);
+    useUiStore.getState().toggleProjectPanel();
+    expect(useUiStore.getState().projectPanelOpen).toBe(true);
   });
   it("searchOpen défaut false, set le modifie", () => {
     expect(useUiStore.getState().searchOpen).toBe(false);
@@ -180,13 +180,13 @@ describe("uiStore — canvasViewports", () => {
   });
 
   it("setCanvasViewport stocke par pack et roundtrip", () => {
-    useUiStore.getState().setCanvasViewport("p1" as PackId, { x: 10, y: 20, scale: 2 });
+    useUiStore.getState().setCanvasViewport("p1" as ProjectId, { x: 10, y: 20, scale: 2 });
     expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 10, y: 20, scale: 2 });
   });
 
-  it("setCanvasViewport laisse les autres packs intacts", () => {
-    useUiStore.getState().setCanvasViewport("p1" as PackId, { x: 1, y: 2, scale: 1 });
-    useUiStore.getState().setCanvasViewport("p2" as PackId, { x: 3, y: 4, scale: 0.5 });
+  it("setCanvasViewport laisse les autres projects intacts", () => {
+    useUiStore.getState().setCanvasViewport("p1" as ProjectId, { x: 1, y: 2, scale: 1 });
+    useUiStore.getState().setCanvasViewport("p2" as ProjectId, { x: 3, y: 4, scale: 0.5 });
     expect(useUiStore.getState().canvasViewports.p1).toEqual({ x: 1, y: 2, scale: 1 });
     expect(useUiStore.getState().canvasViewports.p2).toEqual({ x: 3, y: 4, scale: 0.5 });
   });

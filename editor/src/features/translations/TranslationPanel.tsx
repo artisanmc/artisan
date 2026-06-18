@@ -1,6 +1,6 @@
 import { RevealField } from "@/components/RevealField";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import type { I18nKey, PackId } from "@/domain/types";
+import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import {
   type TranslationRow,
@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 interface TranslationPanelProps {
-  packId: PackId;
+  projectId: ProjectId;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -82,8 +82,8 @@ const CM_THEME = EditorView.theme({
  * Inner content of the Translation panel — all hooks + UI, no Sheet chrome.
  * Used both by the modal wrapper (`TranslationPanel`) and the inline workspace tab.
  */
-export function TranslationPanelContent({ packId }: { packId: PackId }) {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+export function TranslationPanelContent({ projectId }: { projectId: ProjectId }) {
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
   const addLanguage = useAccountStore((s) => s.addLanguage);
@@ -118,7 +118,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
   const unusedCount = rows.filter((r) => r.context === "(unused)").length;
 
   const onRemoveUnused = () => {
-    removeUnusedI18nKeys({ packId });
+    removeUnusedI18nKeys({ projectId });
     toast.success(t("translations.removedUnused", { count: unusedCount }));
   };
 
@@ -127,7 +127,7 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
     if (!code) return;
     const trimmed = code.trim().toLowerCase();
     if (!trimmed) return;
-    addLanguage({ packId, lang: trimmed });
+    addLanguage({ projectId, lang: trimmed });
     setActiveLang(trimmed);
   };
 
@@ -255,12 +255,12 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
               allRows={rows}
               filter={filter}
               onChange={(key, value) =>
-                setI18nValue({ packId, lt: { key }, lang: activeLang, value })
+                setI18nValue({ projectId, lt: { key }, lang: activeLang, value })
               }
             />
           ) : (
             <YamlBody
-              packId={packId}
+              projectId={projectId}
               activeLang={activeLang}
               pack={pack}
               rows={rows}
@@ -288,11 +288,11 @@ export function TranslationPanelContent({ packId }: { packId: PackId }) {
  * @deprecated Use `TranslationPanelContent` for inline rendering.
  * This wrapper kept for backward compat — no callers after workspace migration.
  */
-export function TranslationPanel({ packId, open, onOpenChange }: TranslationPanelProps) {
+export function TranslationPanel({ projectId, open, onOpenChange }: TranslationPanelProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full max-w-[640px] p-0 sm:max-w-[640px]">
-        <TranslationPanelContent packId={packId} />
+        <TranslationPanelContent projectId={projectId} />
       </SheetContent>
     </Sheet>
   );
@@ -513,15 +513,15 @@ function VisualRow({
 }
 
 function YamlBody({
-  packId,
+  projectId,
   activeLang,
   pack,
   rows,
   modeKey,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   activeLang: string;
-  pack: { id: PackId; defaultLang: string };
+  pack: { id: ProjectId; defaultLang: string };
   rows: ReadonlyArray<TranslationRow>;
   modeKey: Mode;
 }) {
@@ -590,7 +590,7 @@ function YamlBody({
         skipped++;
         continue;
       }
-      setI18nValue({ packId, lt: { key: key as I18nKey }, lang: activeLang, value });
+      setI18nValue({ projectId, lt: { key: key as I18nKey }, lang: activeLang, value });
       applied++;
     }
     setError(null);

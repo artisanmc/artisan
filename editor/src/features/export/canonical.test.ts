@@ -1,5 +1,5 @@
-import { elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { I18nKey, Pack } from "@/domain/types";
+import { elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { I18nKey, Project } from "@/domain/types";
 import { validateMenuV1 } from "@/schema/validateMenuV1";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -7,9 +7,9 @@ import { transform } from "./transform";
 
 // A pack exercising: plain + text title layers, multi-appearance element with
 // AND and OR `if`, click step-tree with an if-case, and a spread of actions.
-function goldenPack(): Pack {
+function goldenProject(): Project {
   return {
-    id: packId("p_gold"),
+    id: projectId("p_gold"),
     name: "Gold",
     source: "user_created",
     createdAt: "",
@@ -20,11 +20,11 @@ function goldenPack(): Pack {
       "t.buy.title": { en: "Buy" },
       "t.buy.lore": { en: "Click" },
       "t.buy.msg": { en: "Bought!" },
-    } as Pack["i18nKeys"],
+    } as Project["i18nKeys"],
     menus: [
       {
         id: menuId("shop"),
-        packId: packId("p_gold"),
+        projectId: projectId("p_gold"),
         rows: 3,
         title: [{ kind: "plain", value: { key: "t.title" as I18nKey } }],
         layers: [
@@ -104,12 +104,12 @@ function goldenPack(): Pack {
     dataSources: [],
     importedConnectors: [],
     canvasLayout: {},
-  } as Pack;
+  } as Project;
 }
 
 describe("editor export conforms to canonical menu/v1", () => {
   it("every exported menu validates against the canonical schema", () => {
-    const files = transform(goldenPack());
+    const files = transform(goldenProject());
     const menuYamls = Object.entries(files).filter(([p]) => p.includes("/menus/"));
     expect(menuYamls.length).toBeGreaterThan(0);
     for (const [path, yaml] of menuYamls) {

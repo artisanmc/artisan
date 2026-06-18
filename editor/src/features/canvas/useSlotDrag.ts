@@ -1,4 +1,4 @@
-import type { ElementId, InventoryType, Layer, MenuId, PackId } from "@/domain/types";
+import type { ElementId, InventoryType, Layer, MenuId, ProjectId } from "@/domain/types";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -23,7 +23,7 @@ export type DragState =
     };
 
 interface UseSlotDragArgs {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   position: { x: number; y: number };
   /** Full pack-canvas layout — needed by the slot drag-out handler to
@@ -37,7 +37,7 @@ interface UseSlotDragArgs {
 }
 
 export function useSlotDrag(args: UseSlotDragArgs) {
-  const { packId, menuId, position, layout, menuLayers, inventoryType } = args;
+  const { projectId, menuId, position, layout, menuLayers, inventoryType } = args;
 
   /**
    * Slot-drag state. Two flavours:
@@ -179,7 +179,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const worldX = position.x + localX + TEX_SLOT_STRIDE / 2;
       const worldY = position.y + localY + TEX_SLOT_STRIDE / 2;
       const account = useAccountStore.getState().account;
-      const pack = account.packs.find((p) => p.id === packId);
+      const pack = account.projects.find((p) => p.id === projectId);
       if (!pack) return;
       const hit = hitTestSlot(pack, layout, worldX, worldY);
       const altKey = (e.evt as MouseEvent).altKey;
@@ -195,7 +195,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         if (dCol === 0 && dRow === 0) return;
         try {
           useAccountStore.getState().moveSelectionByDelta({
-            packId,
+            projectId,
             menuId,
             elementIds: captured.elementIds,
             dCol,
@@ -210,7 +210,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       try {
         if (!hit || hit.menuId !== menuId) {
           useAccountStore.getState().clearSlot({
-            packId,
+            projectId,
             menuId,
             position: srcPosition,
           });
@@ -221,14 +221,14 @@ export function useSlotDrag(args: UseSlotDragArgs) {
 
         if (altKey) {
           useAccountStore.getState().addElementPosition({
-            packId,
+            projectId,
             menuId,
             elementId: sourceElementId,
             position: hit.position,
           });
         } else {
           useAccountStore.getState().moveElementPosition({
-            packId,
+            projectId,
             menuId,
             elementId: sourceElementId,
             fromPosition: srcPosition,
@@ -239,7 +239,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
         toast.error(err instanceof Error ? err.message : "slot drag failed");
       }
     },
-    [dragState, packId, menuId, position.x, position.y, layout, inventoryType],
+    [dragState, projectId, menuId, position.x, position.y, layout, inventoryType],
   );
 
   return { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd };

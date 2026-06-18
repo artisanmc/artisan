@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import type { Pack, PackId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { computeAndApplyAlignment, useNodeAlignment } from "./useNodeAlignment";
 
-const PID = "p1" as PackId;
+const PID = "p1" as ProjectId;
 function seed() {
-  useAccountStore.setState({ account: { id: "a" as any, packOrder: [PID], packs: [{
+  useAccountStore.setState({ account: { id: "a" as any, projectOrder: [PID], projects: [{
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [{ id: "m1", packId: PID, title: [], rows: 3, layers: [] } as any,
-            { id: "m2", packId: PID, title: [], rows: 3, layers: [] } as any],
+    menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
+            { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any],
     commands: [], dialogs: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", canvasLayout: { m1: { x: 100, y: 100 }, m2: { x: 104, y: 600 } } as any,
-  } as Pack] } } as any);
+  } as Project] } } as any);
 }
 function fakeNode(x0: number, y0: number) {
   let nx = x0, ny = y0;

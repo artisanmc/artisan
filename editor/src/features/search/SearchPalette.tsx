@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { LayoutGrid, MessageSquare, Search, TerminalSquare } from "lucide-react";
-import type { ElementId, PackId } from "@/domain/types";
+import type { ElementId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -16,14 +16,14 @@ const GROUP_LABEL: Record<SearchGroup, string> = {
   menu: "search.groupMenu", command: "search.groupCommand", dialog: "search.groupDialog", content: "search.groupContent",
 };
 
-export function SearchPalette({ packId }: { packId: PackId }) {
+export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,12 +46,12 @@ export function SearchPalette({ packId }: { packId: PackId }) {
 
   const choose = (entry: SearchEntry | undefined) => {
     if (!entry) return;
-    // workspaceId (URL) == packId (domain) dans le modèle actuel : un pack par workspace.
+    // projectId (URL) == projectId (domain) dans le modèle actuel : un pack par workspace.
     navigate({
-      to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId",
+      to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
       params: {
-        networkId: params.networkId!, serverId: params.serverId!, workspaceId: packId,
-        elementId: entry.target.openId,
+        networkId: params.networkId!, serverId: params.serverId!, projectId: projectId,
+        documentId: entry.target.openId,
       },
     });
     if (entry.target.selectId) {

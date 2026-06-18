@@ -3,10 +3,10 @@ import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDial
 import { EditServerModal } from "@/components/network-detail/EditServerModal";
 import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
-import { NewWorkspaceModal } from "@/components/network-detail/NewWorkspaceModal";
+import { NewProjectModal } from "@/components/network-detail/NewProjectModal";
 import { ServerCard } from "@/components/network-detail/ServerCard";
 import {
-  createPack,
+  createProject,
   createServerKey,
   deleteServerKey,
   getNetwork,
@@ -48,7 +48,7 @@ export function NetworkDetailPage() {
   const [deleteServer, setDeleteServer] = useState<{
     id: string;
     label: string;
-    workspaceCount: number;
+    projectCount: number;
   } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
   const childMatches = useChildMatches();
@@ -73,12 +73,12 @@ export function NetworkDetailPage() {
       </div>
     );
 
-  // Group packs by server (1:N).
+  // Group projects by server (1:N).
   const packsByServer = new Map<
     string,
     Array<{ id: string; name: string; elementCount?: number }>
   >();
-  for (const p of detail.packs) {
+  for (const p of detail.projects) {
     const skId = p.serverKeyId;
     if (!skId) continue;
     const list = packsByServer.get(skId) ?? [];
@@ -106,7 +106,7 @@ export function NetworkDetailPage() {
       const sk = detail.serverKeys.find((k) => k.id === serverId);
       if (!sk) return;
       const count = (packsByServer.get(serverId) ?? []).length;
-      setDeleteServer({ id: serverId, label: displayServerLabel(sk), workspaceCount: count });
+      setDeleteServer({ id: serverId, label: displayServerLabel(sk), projectCount: count });
     }
   };
 
@@ -136,15 +136,15 @@ export function NetworkDetailPage() {
     });
   };
 
-  const handleCreateWorkspace = async (input: { name: string; description?: string }) => {
+  const handleCreateProject = async (input: { name: string; description?: string }) => {
     if (!newWsForServer) return;
-    const created = await createPack(
+    const created = await createProject(
       detail.network.id,
       newWsForServer,
       input.name,
       input.description,
     );
-    setDetail({ ...detail, packs: [...detail.packs, created] });
+    setDetail({ ...detail, projects: [...detail.projects, created] });
     useNetworksStore.getState().bumpRefresh(); // sync the sidebar
   };
 
@@ -155,7 +155,7 @@ export function NetworkDetailPage() {
     setDetail({
       ...detail,
       serverKeys: detail.serverKeys.filter((k) => k.id !== deleteServer.id),
-      packs: detail.packs.filter((p) => p.serverKeyId !== deleteServer.id),
+      projects: detail.projects.filter((p) => p.serverKeyId !== deleteServer.id),
     });
     setDeleteServer(null);
   };
@@ -199,7 +199,7 @@ export function NetworkDetailPage() {
                   server={{ id: sk.id, slug: sk.slug ?? sk.id, label: sk.label, online: false }}
                   workspaces={packsByServer.get(sk.id) ?? []}
                   onAction={handleAction}
-                  onCreateWorkspace={(serverId) => setNewWsForServer(serverId)}
+                  onCreateProject={(serverId) => setNewWsForServer(serverId)}
                 />
               ))}
               <button
@@ -225,14 +225,14 @@ export function NetworkDetailPage() {
         onCreate={handleCreateServer}
       />
       {newWsForServer && (
-        <NewWorkspaceModal
+        <NewProjectModal
           open
           onOpenChange={(o) => !o && setNewWsForServer(null)}
           serverLabel={(() => {
             const sk = detail.serverKeys.find((k) => k.id === newWsForServer);
             return sk ? displayServerLabel(sk) : "";
           })()}
-          onCreate={handleCreateWorkspace}
+          onCreate={handleCreateProject}
         />
       )}
       <EditServerModal

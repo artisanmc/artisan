@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { I18nKey, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { setStageGeometryProvider } from "@/features/canvas/stageGeometry";
 import { useAccountStore } from "@/state/accountStore";
@@ -51,12 +51,12 @@ function dispatchWindowPointer(type: "pointermove" | "pointerup", x: number, y: 
   });
 }
 
-const PACK_ID = "p1" as PackId;
+const PACK_ID = "p1" as ProjectId;
 const MENU_ID = "shop_menu" as MenuId;
 const OTHER_MENU_ID = "other_menu" as MenuId;
 const K = (s: string) => s as I18nKey;
 
-function seedPack(
+function seedProject(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>> = {},
   canvasLayout: Record<string, { x: number; y: number }> = {},
@@ -64,7 +64,7 @@ function seedPack(
   useAccountStore.setState({
     account: {
       id: "acc" as any,
-      packs: [
+      projects: [
         {
           id: PACK_ID,
           name: "my_pack",
@@ -72,8 +72,8 @@ function seedPack(
           createdAt: "",
           updatedAt: "",
           menus: [
-            { id: MENU_ID, packId: PACK_ID, title: layers, rows: 3, layers: [] },
-            { id: OTHER_MENU_ID, packId: PACK_ID, title: [], rows: 3, layers: [] },
+            { id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] },
+            { id: OTHER_MENU_ID, projectId: PACK_ID, title: [], rows: 3, layers: [] },
           ],
           commands: [],
           templates: [],
@@ -86,7 +86,7 @@ function seedPack(
           canvasLayout,
         },
       ],
-      packOrder: [PACK_ID],
+      projectOrder: [PACK_ID],
     },
   } as any);
   useUiStore.setState({ activeLang: "en" } as any);
@@ -115,7 +115,7 @@ beforeEach(() => {
   if (!HTMLElement.prototype.releasePointerCapture) {
     HTMLElement.prototype.releasePointerCapture = function () {};
   }
-  seedPack([]);
+  seedProject([]);
 });
 
 afterEach(() => {
@@ -125,7 +125,7 @@ afterEach(() => {
 
 describe("LayersPanel — body", () => {
   it("shows AddLayerControls + empty LayerEditForm hint for the provided menu", () => {
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
 
     // AddLayerControls present
     expect(screen.getByTestId("add-layer-controls")).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("LayersPanel — body", () => {
 
   it("renders nothing when the menuId doesn't resolve in the pack", () => {
     const { container } = render(
-      <LayersPanel packId={PACK_ID} menuId={"missing_menu" as MenuId} />,
+      <LayersPanel projectId={PACK_ID} menuId={"missing_menu" as MenuId} />,
     );
     // The component returns null — container should be empty.
     expect(container.firstChild).toBeNull();
@@ -149,12 +149,12 @@ describe("LayersPanel — body", () => {
       { kind: "text", value: { key: K("k2") }, x: 0, y: 0 },
       { kind: "text", value: { key: K("k3") }, x: 0, y: 0 },
     ];
-    seedPack(layers, {
+    seedProject(layers, {
       k1: { en: "alpha" },
       k2: { en: "beta" },
       k3: { en: "gamma" },
     });
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
 
     const rows = screen.getAllByTestId("layer-list-item-row");
     expect(rows).toHaveLength(3);
@@ -166,7 +166,7 @@ describe("LayersPanel — body", () => {
 
 describe("LayersPanel — AddLayerControls wiring", () => {
   it("clicking + Image appends a glyph layer to the provided menu and selects it", () => {
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
 
     // Real browsers synthesize a keyboard-activated click with detail=0 when
     // a focused <button> is hit via Enter/Space; AddLayerControls uses that
@@ -174,7 +174,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     // detail=0 which matches that path.
     fireEvent.click(screen.getByTestId("add-layer-image"));
 
-    const title = useAccountStore.getState().account.packs[0]!.menus[0]!.title;
+    const title = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]!.kind).toBe("glyph");
     // Selection moved to the new layer
@@ -182,11 +182,11 @@ describe("LayersPanel — AddLayerControls wiring", () => {
   });
 
   it("clicking + Text appends a text layer with an empty value and selects it", () => {
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
 
     fireEvent.click(screen.getByTestId("add-layer-text"));
 
-    const pack = useAccountStore.getState().account.packs[0]!;
+    const pack = useAccountStore.getState().account.projects[0]!;
     const title = pack.menus[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]!.kind).toBe("text");
@@ -207,12 +207,12 @@ describe("LayersPanel — drag-to-reorder", () => {
       { kind: "text", value: { key: K("k2") }, x: 0, y: 0 },
       { kind: "text", value: { key: K("k3") }, x: 0, y: 0 },
     ];
-    seedPack(layers, {
+    seedProject(layers, {
       k1: { en: "alpha" },
       k2: { en: "beta" },
       k3: { en: "gamma" },
     });
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
 
     const wrappers = screen.getAllByTestId("layer-row-wrapper");
     expect(wrappers).toHaveLength(3);
@@ -235,7 +235,7 @@ describe("LayersPanel — drag-to-reorder", () => {
     fireEvent.dragOver(wrappers[2]!, { dataTransfer });
     fireEvent.drop(wrappers[2]!, { dataTransfer });
 
-    const title = useAccountStore.getState().account.packs[0]!.menus[0]!.title;
+    const title = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
     // alpha moved from 0 → 2, beta and gamma shift left
     expect((title[0] as any).value.key).toBe("k2");
     expect((title[1] as any).value.key).toBe("k3");
@@ -249,7 +249,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     // menu pick is unambiguous. Title-bar center for MENU_ID = (40+176, 40+17)
     // = (216, 57) in canvas coords. With identity viewport + origin wrapper,
     // screen coords == canvas coords.
-    seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
+    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 2000, bottom: 1400 },
@@ -258,7 +258,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
 
     // Render the panel scoped to OTHER_MENU_ID — the cursor-driven attach
     // should override and target MENU_ID instead.
-    render(<LayersPanel packId={PACK_ID} menuId={OTHER_MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={OTHER_MENU_ID} />);
     const btn = screen.getByTestId("add-layer-image");
 
     // Pointerdown on the button, then a window pointermove far enough to
@@ -269,7 +269,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const pack = useAccountStore.getState().account.packs[0]!;
+    const pack = useAccountStore.getState().account.projects[0]!;
     const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
     const otherMenu = pack.menus.find((m) => m.id === OTHER_MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
@@ -289,20 +289,20 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
   it("drag-end far from any menu falls back to the panel's own menuId default placement", () => {
     // Both menus parked at small coords; cursor far away (9000, 9000) is
     // well beyond NEAREST_MENU_THRESHOLD_PX.
-    seedPack([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
+    seedProject([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 10000, bottom: 10000 },
       viewport: { x: 0, y: 0, scale: 1 },
     }));
 
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-image");
     fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
     dispatchWindowPointer("pointermove", 9000, 9000);
     dispatchWindowPointer("pointerup", 9000, 9000);
 
-    const pack = useAccountStore.getState().account.packs[0]!;
+    const pack = useAccountStore.getState().account.projects[0]!;
     const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
     // Fallback path → MENU_ID gets the new layer at default (0, 0) coords
     // (image kind default).
@@ -315,15 +315,15 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
 
   it("drag-end with no Stage geometry registered falls back to default placement", () => {
     // No setStageGeometryProvider call → getStageGeometry returns null.
-    seedPack([], {}, { [MENU_ID]: { x: 40, y: 40 } });
+    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 } });
 
-    render(<LayersPanel packId={PACK_ID} menuId={MENU_ID} />);
+    render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-text");
     fireEvent.pointerDown(btn, { clientX: 10, clientY: 10, pointerId: 1 });
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const pack = useAccountStore.getState().account.packs[0]!;
+    const pack = useAccountStore.getState().account.projects[0]!;
     const targetMenu = pack.menus.find((m) => m.id === MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     const layer = targetMenu.title[0]!;

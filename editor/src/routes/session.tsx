@@ -3,15 +3,15 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { exchangeEditorSession, validateEditorSession, refreshEditorSession } from "@/lib/editorSession";
 import { EditorWs } from "@/lib/editorWs";
-import { loadPacks, savePack } from "@/lib/packApi";
+import { loadProjects, saveProject } from "@/lib/projectApi";
 import { transform } from "@/features/export/transform";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
-import { pickReturnPack } from "@/features/pack/pickReturnPack";
+import { pickReturnProject } from "@/features/project/pickReturnProject";
 import { TrustGatePage } from "@/features/trust/TrustGatePage";
-import type { PackId, AccountId } from "@/domain/types";
+import type { ProjectId, AccountId } from "@/domain/types";
 
 export const Route = createFileRoute("/session")({
   // A logged-in user-auth user who opens /session WITHOUT a token in the URL
@@ -38,7 +38,7 @@ function SessionPage() {
   const wsRef = useRef<EditorWs | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
-  const pendingPackIdRef = useRef<string | null>(null);
+  const pendingProjectIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const setSession = useSessionStore((s) => s.setSession);
   const clearSession = useSessionStore((s) => s.clearSession);
@@ -84,28 +84,28 @@ function SessionPage() {
         const trustCode = info.trust_code;
         setNetworkId(info.network_id);
 
-        const packs = await loadPacks(accessToken);
+        const projects = await loadProjects(accessToken);
         if (!mountedRef.current) return;
 
-        // Merge session packs into the existing accountStore instead of
-        // replacing it — without this, a user who created packs via the
+        // Merge session projects into the existing accountStore instead of
+        // replacing it — without this, a user who created projects via the
         // web UI before running /artisan setup would see their work wiped
-        // the moment a session arrived. Session packs upsert by id;
-        // existing user-mode packs (not bound to this server_key yet)
+        // the moment a session arrived. Session projects upsert by id;
+        // existing user-mode projects (not bound to this server_key yet)
         // stay reachable from the sidebar.
         const current = useAccountStore.getState().account;
-        const byId = new Map(current.packs.map((p) => [p.id, p]));
-        for (const p of packs) byId.set(p.id, p);
-        const mergedPacks = Array.from(byId.values());
-        const existingOrder = current.packOrder;
+        const byId = new Map(current.projects.map((p) => [p.id, p]));
+        for (const p of projects) byId.set(p.id, p);
+        const mergedProjects = Array.from(byId.values());
+        const existingOrder = current.projectOrder;
         const mergedOrder = [
           ...existingOrder,
-          ...packs.map((p) => p.id as PackId).filter((id) => !existingOrder.includes(id)),
+          ...projects.map((p) => p.id as ProjectId).filter((id) => !existingOrder.includes(id)),
         ];
         useAccountStore.getState().setAccount({
           id: info.server_key_id as AccountId,
-          packs: mergedPacks,
-          packOrder: mergedOrder,
+          projects: mergedProjects,
+          projectOrder: mergedOrder,
         });
 
         setSession(accessToken, info.server_key_id, info.network_id, trustCode, info.trusted);
@@ -119,18 +119,18 @@ function SessionPage() {
         const restoreTab = (WS_TABS as readonly string[]).includes(lastTab)
           ? (lastTab as (typeof WS_TABS)[number])
           : "overview";
-        const goToWorkspace = (packId: string) =>
+        const goToProject = (projectId: string) =>
           info.network_id
             ? navigate({
-                to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+                to: "/networks/$networkId/servers/$serverId/projects/$projectId",
                 params: {
                   networkId: info.network_id,
                   serverId: info.server_key_id,
-                  workspaceId: packId,
+                  projectId: projectId,
                 },
                 search: { tab: restoreTab },
               })
-            : navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
+            : navigate({ to: "/project/$projectId", params: { projectId: projectId } });
 
         wsRef.current = new EditorWs(
           accessToken,
@@ -147,9 +147,9 @@ function SessionPage() {
           () => {
             if (!mountedRef.current) return;
             setTrusted(true);
-            const packId = pendingPackIdRef.current;
-            if (packId) {
-              goToWorkspace(packId);
+            const projectId = pendingProjectIdRef.current;
+            if (projectId) {
+              goToProject(projectId);
             } else {
               setState("empty");
             }
@@ -165,15 +165,15 @@ function SessionPage() {
         }, 4 * 60 * 1000);
 
         // Restore the pack the user was last editing instead of always
-        // landing on packs[0]. A page refresh bounces through /session
+        // landing on projects[0]. A page refresh bounces through /session
         // (sessionStore is in-memory), so without this every reload kicked the
-        // user back to the first pack. Falls back to packs[0].
-        const targetPack = pickReturnPack(packs, useUiStore.getState().lastActivePackId);
+        // user back to the first pack. Falls back to projects[0].
+        const targetProject = pickReturnProject(projects, useUiStore.getState().lastActiveProjectId);
         if (!info.trusted) {
-          pendingPackIdRef.current = targetPack?.id ?? null;
+          pendingProjectIdRef.current = targetProject?.id ?? null;
           setState("trust_gate");
-        } else if (targetPack) {
-          await goToWorkspace(targetPack.id);
+        } else if (targetProject) {
+          await goToProject(targetProject.id);
         } else {
           setState("empty");
         }
@@ -298,18 +298,18 @@ function EmptyState({
   const { t } = useTranslation();
   const [id, setId] = useState("");
   const [busy, setBusy] = useState(false);
-  const createPack = useAccountStore((s) => s.createPack);
+  const createProject = useAccountStore((s) => s.createProject);
 
   const submit = async () => {
     const trimmed = id.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     try {
-      const packId = createPack({ id: trimmed });
-      const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId)!;
+      const projectId = createProject({ id: trimmed });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId)!;
       const files = transform(pack);
-      await savePack(tokenRef.current!, pack, files);
-      await navigate({ to: "/workspace/$workspaceId", params: { workspaceId: packId } });
+      await saveProject(tokenRef.current!, pack, files);
+      await navigate({ to: "/project/$projectId", params: { projectId: projectId } });
     } finally {
       setBusy(false);
     }
@@ -323,24 +323,24 @@ function EmptyState({
             <i /><i /><i /><i /><i /><i /><i /><i /><i />
           </span>
           <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
-            {t("sessionPage.firstPackEyebrow")}
+            {t("sessionPage.firstProjectEyebrow")}
           </span>
         </div>
         <h1
           className="display text-[24px] tracking-tight text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          {t("sessionPage.noPack")}
+          {t("sessionPage.noProject")}
         </h1>
         <p className="text-[13.5px] leading-relaxed text-[var(--text-mut)]">
-          {t("sessionPage.noPackBody")}
+          {t("sessionPage.noProjectBody")}
         </p>
         <div className="flex flex-col gap-2">
           <span className="field-label">{t("sessionPage.idLabel")}</span>
           <div className="flex gap-2">
             <input
               className="input"
-              placeholder="my_workspace"
+              placeholder="my_project"
               value={id}
               onChange={(e) => setId(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") submit(); }}

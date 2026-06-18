@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { autoLayout, gridArrange } from "./autoLayout";
 
-function makePack(over: Partial<Pack> = {}): Pack {
+function makeProject(over: Partial<Project> = {}): Project {
   return {
-    id: "p1" as Pack["id"], name: "p", source: "user_created", createdAt: "", updatedAt: "",
+    id: "p1" as Project["id"], name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [], commands: [], templates: [], assets: [], dataSources: [], importedConnectors: [],
     i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: {}, ...over,
-  } as Pack;
+  } as Project;
 }
 
 describe("autoLayout", () => {
   it("ne retourne QUE les entrées explicites de canvasLayout (pas de grid-fill)", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [{ id: "m1" } as any, { id: "m2" } as any],
       canvasLayout: { m1: { x: 10, y: 20 } } as any,
     });
@@ -24,7 +24,7 @@ describe("autoLayout", () => {
 
 describe("gridArrange", () => {
   it("place TOUS les éléments (menus + commandes + dialogs) dans une grille", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [{ id: "m1" } as any], commands: [{ id: "c1" } as any], dialogs: [{ id: "d1" } as any],
     });
     const layout = gridArrange(pack);

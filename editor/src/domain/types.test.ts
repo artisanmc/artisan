@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Action, Condition, Element, Menu, Pack } from "./types";
+import type { Account, Action, Condition, Element, Menu, Project } from "./types";
 
 describe("domain types — compile-time shape", () => {
-  it("an Account composes Packs", () => {
+  it("an Account composes Projects", () => {
     const account: Account = {
       id: "acc_1" as Account["id"],
-      packs: [],
-      packOrder: [],
+      projects: [],
+      projectOrder: [],
     };
-    expect(account.packs).toHaveLength(0);
+    expect(account.projects).toHaveLength(0);
   });
 
   it("an open_menu Action carries a MenuId", () => {
@@ -25,9 +25,9 @@ describe("domain types — compile-time shape", () => {
     expect(el.appearances).toHaveLength(1);
   });
 
-  it("a Pack carries i18n keys scoped to itself", () => {
-    const pack: Pack = {
-      id: "p_1" as Pack["id"],
+  it("a Project carries i18n keys scoped to itself", () => {
+    const pack: Project = {
+      id: "p_1" as Project["id"],
       name: "Personal",
       source: "user_created",
       createdAt: new Date().toISOString(),
@@ -39,7 +39,7 @@ describe("domain types — compile-time shape", () => {
       dataSources: [],
       dialogs: [],
       importedConnectors: [],
-      i18nKeys: { greeting: { en: "Hi" } } as Pack["i18nKeys"],
+      i18nKeys: { greeting: { en: "Hi" } } as Project["i18nKeys"],
       defaultLang: "en",
       canvasLayout: {},
     };

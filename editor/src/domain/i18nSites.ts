@@ -22,7 +22,7 @@ import type {
   I18nKey,
   LText,
   Menu,
-  Pack,
+  Project,
   Step,
   Template,
 } from "./types";
@@ -37,7 +37,7 @@ import type {
  *   - `lText` — the **live** node. Read `.key` to inspect (usages, validation)
  *     or reassign it (rekey, mint) — every i18n lifecycle op folds over this.
  *   - `key`   — the **canonical** position-derived key the site should hold at
- *     deploy time (what `rekeyPack` assigns; what `mint` seeds).
+ *     deploy time (what `rekeyProject` assigns; what `mint` seeds).
  *   - `path`  — the **display** path shown in the Translations panel / YAML
  *     comments. Mostly mirrors `key` but coarser: message index collapses
  *     (`…message` not `…message_1`), `show_title` reads as `…show_title.title`,
@@ -231,7 +231,7 @@ export function* visitDialogLTexts(dialog: Dialog): Generator<LTextSite> {
 }
 
 /** Yield every key site in a pack: menus, commands, templates, dialogs. */
-export function* visitPackLTexts(pack: Pack): Generator<LTextSite> {
+export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
   for (const menu of pack.menus ?? []) yield* visitMenuLTexts(menu);
   for (const cmd of pack.commands ?? []) yield* visitCommandLTexts(cmd);
   for (const tpl of pack.templates ?? []) yield* visitTemplateLTexts(tpl);
@@ -243,22 +243,22 @@ export function* visitPackLTexts(pack: Pack): Generator<LTextSite> {
 // traversal above; idempotent (moveLTextKey no-ops when already correct). Safe
 // inside an immer producer.
 
-function rekey(pack: Pack, sites: Iterable<LTextSite>): void {
+function rekey(pack: Project, sites: Iterable<LTextSite>): void {
   for (const site of sites) moveLTextKey(pack, site.lText, site.key);
 }
 
 /** Canonicalize one menu's LText keys (title layers + every element). */
-export function rekeyMenu(pack: Pack, menu: Menu): void {
+export function rekeyMenu(pack: Project, menu: Menu): void {
   rekey(pack, visitMenuLTexts(menu));
 }
 
 /** Canonicalize one command's LText keys. */
-export function rekeyCommand(pack: Pack, command: Command): void {
+export function rekeyCommand(pack: Project, command: Command): void {
   rekey(pack, visitCommandLTexts(command));
 }
 
 /** Canonicalize one dialog's LText keys. */
-export function rekeyDialog(pack: Pack, dialog: Dialog): void {
+export function rekeyDialog(pack: Project, dialog: Dialog): void {
   rekey(pack, visitDialogLTexts(dialog));
 }
 
@@ -267,8 +267,8 @@ export function rekeyDialog(pack: Pack, dialog: Dialog): void {
  * dialogs. The single deploy-time canonicalizer; replaces the per-entity
  * `for (menu) … for (cmd) …` loops at the export/persist/deploy seams.
  */
-export function rekeyPack(pack: Pack): void {
-  rekey(pack, visitPackLTexts(pack));
+export function rekeyProject(pack: Project): void {
+  rekey(pack, visitProjectLTexts(pack));
 }
 
 // ── Mint / release: per-mutation key lifecycle ───────────────────────────────
@@ -281,7 +281,7 @@ export function rekeyPack(pack: Pack): void {
  * `allocStepLTexts`. Non-sentinel sites (already-keyed titles/lore/labels) are
  * skipped, so it is safe to run over a whole subtree, not just step actions.
  */
-export function mintLTexts(pack: Pack, sites: Iterable<LTextSite>, lang: string): void {
+export function mintLTexts(pack: Project, sites: Iterable<LTextSite>, lang: string): void {
   for (const site of sites) {
     if (site.lText.key === ("" as I18nKey)) {
       createLTextAt(pack, site.key, "", lang);
@@ -296,6 +296,6 @@ export function mintLTexts(pack: Pack, sites: Iterable<LTextSite>, lang: string)
  * `release` ignores each site's canonical `key`, so callers walking a subtree
  * for deletion may pass any key prefix.
  */
-export function releaseLTexts(pack: Pack, sites: Iterable<LTextSite>): void {
+export function releaseLTexts(pack: Project, sites: Iterable<LTextSite>): void {
   for (const site of sites) deleteLText(pack, site.lText);
 }

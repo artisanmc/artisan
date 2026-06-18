@@ -17,7 +17,7 @@ describe("/networks/$id/settings — transfer init", () => {
   it("clicking 'Générer un lien' shows the URL in a readonly input", async () => {
     vi.spyOn(api, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Net", tier: "free" },
-      packs: [],
+      projects: [],
       serverKeys: [],
     });
     vi.spyOn(api, "initNetworkTransfer").mockResolvedValue({
@@ -34,7 +34,7 @@ describe("/networks/$id/settings — transfer init", () => {
   it("error on transfer init shows error message", async () => {
     vi.spyOn(api, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Net", tier: "free" },
-      packs: [],
+      projects: [],
       serverKeys: [],
     });
     vi.spyOn(api, "initNetworkTransfer").mockRejectedValue(new Error("boom"));

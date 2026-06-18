@@ -1,7 +1,7 @@
 export interface PublishOptions {
   apiUrl: string;
   serverKey: string;
-  packId: string;
+  projectId: string;
   files: Record<string, string>;
 }
 
@@ -10,7 +10,9 @@ export interface PublishResult {
 }
 
 export async function publishBundle(opts: PublishOptions): Promise<PublishResult> {
-  const res = await fetch(`${opts.apiUrl}/api/v1/bundles/${opts.packId}`, {
+  // TODO(phase4-wire): `/bundles/:packId` path param flips to `:projectId` in
+  // Phase 4 (the `/bundles` segment stays — Bundle is the canonical artifact).
+  const res = await fetch(`${opts.apiUrl}/api/v1/bundles/${opts.projectId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

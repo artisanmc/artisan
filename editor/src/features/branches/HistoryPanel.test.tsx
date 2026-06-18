@@ -8,17 +8,17 @@ describe("HistoryPanel", () => {
 
   it("lists commits for the branch", async () => {
     vi.spyOn(branchesApi, "listCommits").mockResolvedValue([
-      { id: "cmt_2", packId: "p", parentId: "cmt_1", contentHash: "x", authorUserId: "u", message: "second", createdAt: new Date().toISOString() },
-      { id: "cmt_1", packId: "p", parentId: null, contentHash: "y", authorUserId: null, message: "initial", createdAt: new Date().toISOString() },
+      { id: "cmt_2", projectId: "p", parentId: "cmt_1", contentHash: "x", authorUserId: "u", message: "second", createdAt: new Date().toISOString() },
+      { id: "cmt_1", projectId: "p", parentId: null, contentHash: "y", authorUserId: null, message: "initial", createdAt: new Date().toISOString() },
     ]);
-    render(<HistoryPanel networkId="n1" packId="p1" branch="main" />);
+    render(<HistoryPanel networkId="n1" projectId="p1" branch="main" />);
     await waitFor(() => expect(screen.getByText("second")).toBeTruthy());
     expect(screen.getByText("initial")).toBeTruthy();
   });
 
   it("shows empty state when no commits", async () => {
     vi.spyOn(branchesApi, "listCommits").mockResolvedValue([]);
-    render(<HistoryPanel networkId="n1" packId="p1" branch="main" />);
+    render(<HistoryPanel networkId="n1" projectId="p1" branch="main" />);
     await waitFor(() => expect(screen.getByText(/no commits yet/i)).toBeTruthy());
   });
 });

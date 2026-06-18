@@ -75,7 +75,7 @@ describe("/link?code=...", () => {
     fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
 
     // Step 2 — type a new pack name
-    fireEvent.change(await screen.findByPlaceholderText(/my_workspace/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/my_project/i), {
       target: { value: "Lobby" },
     });
     fireEvent.click(screen.getAllByText(/Suivant|Next/i)[0]!);
@@ -86,8 +86,8 @@ describe("/link?code=...", () => {
       expect(claimSpy).toHaveBeenCalledWith("ABC123", {
         networkId: undefined,
         networkName: "Vaelheim",
-        packId: undefined,
-        packName: "Lobby",
+        projectId: undefined,
+        projectName: "Lobby",
         serverKeyLabel: undefined,
       });
     });
@@ -101,7 +101,7 @@ describe("/link?code=...", () => {
     ]);
     vi.spyOn(api, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "My Net", tier: "free" },
-      packs: [{ id: "p1", name: "menu_principal", hash: "h", updatedAt: "2026-05-01T00:00:00Z" }],
+      projects: [{ id: "p1", name: "menu_principal", hash: "h", updatedAt: "2026-05-01T00:00:00Z" }],
       serverKeys: [],
     });
     const claimSpy = vi
@@ -120,8 +120,8 @@ describe("/link?code=...", () => {
       expect(claimSpy).toHaveBeenCalledWith("ABC123", {
         networkId: "n1",
         networkName: undefined,
-        packId: "p1",
-        packName: undefined,
+        projectId: "p1",
+        projectName: undefined,
         serverKeyLabel: undefined,
       });
     });

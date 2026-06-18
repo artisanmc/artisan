@@ -1,4 +1,4 @@
-import type { I18nKey, Pack } from "@/domain/types";
+import type { I18nKey, Project } from "@/domain/types";
 import {
   clickHandlerKeyPrefix,
   commandKeyPrefix,
@@ -14,15 +14,15 @@ import {
   label,
   visitDialogLTexts,
   visitMenuLTexts,
-  visitPackLTexts,
+  visitProjectLTexts,
 } from "./i18nSites";
 
 const lt = (key: string) => ({ key: key as I18nKey });
 
 /** A pack exercising every key-site kind, indexed messages, multi-title, and a dialog. */
-function makeFixture(): Pack {
+function makeFixture(): Project {
   return {
-    id: "p" as Pack["id"],
+    id: "p" as Project["id"],
     name: "Fix",
     source: "user_created",
     defaultLang: "en",
@@ -33,7 +33,7 @@ function makeFixture(): Pack {
     templates: [
       {
         id: "tpl" as never,
-        packId: "p" as never,
+        projectId: "p" as never,
         name: "T",
         variables: [],
         appearances: [{ title: lt("lt_tt") }],
@@ -42,7 +42,7 @@ function makeFixture(): Pack {
     dialogs: [
       {
         id: "dlg" as never,
-        packId: "p" as never,
+        projectId: "p" as never,
         title: lt("lt_dt"),
         canCloseWithEscape: true,
         body: [
@@ -71,7 +71,7 @@ function makeFixture(): Pack {
     commands: [
       {
         id: "give" as never,
-        packId: "p" as never,
+        projectId: "p" as never,
         name: "give",
         arguments: [],
         steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_cm") } }],
@@ -80,7 +80,7 @@ function makeFixture(): Pack {
     menus: [
       {
         id: "shop" as never,
-        packId: "p" as never,
+        projectId: "p" as never,
         rows: 6,
         title: [
           { kind: "background", assetId: "a" as never },
@@ -124,11 +124,11 @@ function makeFixture(): Pack {
       },
     ],
     canvasLayout: {},
-  } as unknown as Pack;
+  } as unknown as Project;
 }
 
-describe("visitPackLTexts", () => {
-  const sites = [...visitPackLTexts(makeFixture())];
+describe("visitProjectLTexts", () => {
+  const sites = [...visitProjectLTexts(makeFixture())];
   const tuple = (s: LTextSite) => [s.lText.key, s.key, s.path, s.kind];
 
   it("emits every key site, in menus→commands→templates→dialogs order", () => {
@@ -242,7 +242,7 @@ describe("findKeyUsages parity (guards the step-2 refold)", () => {
   it("the visitor reproduces findKeyUsages' key→path map exactly", () => {
     const pack = makeFixture();
     const fromVisitor = new Map<string, string>();
-    for (const s of visitPackLTexts(pack)) fromVisitor.set(s.lText.key, s.path);
+    for (const s of visitProjectLTexts(pack)) fromVisitor.set(s.lText.key, s.path);
     expect(fromVisitor).toEqual(findKeyUsages(pack));
   });
 });

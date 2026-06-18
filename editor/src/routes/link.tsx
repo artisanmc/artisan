@@ -1,7 +1,7 @@
 import {
   ClaimError,
   type NetworkSummary,
-  type PackSummary,
+  type ProjectSummary,
   claimLinkCode,
   getNetwork,
   listNetworks,
@@ -27,14 +27,14 @@ function LinkRoute() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [networks, setNetworks] = useState<NetworkSummary[]>([]);
-  const [packsInNetwork, setPacksInNetwork] = useState<PackSummary[]>([]);
+  const [packsInNetwork, setProjectsInNetwork] = useState<ProjectSummary[]>([]);
 
   // Picker state
   const [step, setStep] = useState<Step>("network");
   const [networkChoice, setNetworkChoice] = useState<
     { mode: "existing"; id: string } | { mode: "new"; name: string } | null
   >(null);
-  const [packChoice, setPackChoice] = useState<
+  const [projectChoice, setProjectChoice] = useState<
     { mode: "existing"; id: string } | { mode: "new"; name: string } | null
   >(null);
   const [serverKeyLabel, setServerKeyLabel] = useState("");
@@ -62,20 +62,20 @@ function LinkRoute() {
       });
   }, [currentUser, isAuthLoading, code, navigate, t]);
 
-  // When the user picks an existing network, fetch its packs so they can bind
-  // to one of them in the pack step. New networks have no packs by definition.
+  // When the user picks an existing network, fetch its projects so they can bind
+  // to one of them in the pack step. New networks have no projects by definition.
   useEffect(() => {
     if (networkChoice?.mode !== "existing") {
-      setPacksInNetwork([]);
+      setProjectsInNetwork([]);
       return;
     }
     let cancelled = false;
     getNetwork(networkChoice.id)
       .then((d) => {
-        if (!cancelled) setPacksInNetwork(d.packs);
+        if (!cancelled) setProjectsInNetwork(d.projects);
       })
       .catch(() => {
-        if (!cancelled) setPacksInNetwork([]);
+        if (!cancelled) setProjectsInNetwork([]);
       });
     return () => {
       cancelled = true;
@@ -83,14 +83,14 @@ function LinkRoute() {
   }, [networkChoice]);
 
   const handleClaim = async () => {
-    if (!code || !networkChoice || !packChoice) return;
+    if (!code || !networkChoice || !projectChoice) return;
     setStatus("claiming");
     try {
       await claimLinkCode(code, {
         networkId: networkChoice.mode === "existing" ? networkChoice.id : undefined,
         networkName: networkChoice.mode === "new" ? networkChoice.name : undefined,
-        packId: packChoice.mode === "existing" ? packChoice.id : undefined,
-        packName: packChoice.mode === "new" ? packChoice.name : undefined,
+        projectId: projectChoice.mode === "existing" ? projectChoice.id : undefined,
+        projectName: projectChoice.mode === "new" ? projectChoice.name : undefined,
         serverKeyLabel: serverKeyLabel.trim() || undefined,
       });
       setStatus("done");
@@ -182,21 +182,21 @@ function LinkRoute() {
           />
         )}
         {step === "pack" && networkChoice && (
-          <PackStep
+          <ProjectStep
             networkChoice={networkChoice}
-            packs={packsInNetwork}
-            choice={packChoice}
-            onChoice={setPackChoice}
+            projects={packsInNetwork}
+            choice={projectChoice}
+            onChoice={setProjectChoice}
             onBack={() => setStep("network")}
             onNext={() => setStep("confirm")}
           />
         )}
-        {step === "confirm" && networkChoice && packChoice && (
+        {step === "confirm" && networkChoice && projectChoice && (
           <ConfirmStep
             networkChoice={networkChoice}
             networks={networks}
-            packChoice={packChoice}
-            packs={packsInNetwork}
+            projectChoice={projectChoice}
+            projects={packsInNetwork}
             serverKeyLabel={serverKeyLabel}
             onServerKeyLabelChange={setServerKeyLabel}
             onBack={() => setStep("pack")}
@@ -212,7 +212,7 @@ function Stepper({ step }: { step: Step }) {
   const { t } = useTranslation();
   const items: { id: Step; label: string }[] = [
     { id: "network", label: t("linkPage.stepNetwork") },
-    { id: "pack", label: t("linkPage.stepPack") },
+    { id: "pack", label: t("linkPage.stepProject") },
     { id: "confirm", label: t("linkPage.stepConfirm") },
   ];
   const idx = items.findIndex((i) => i.id === step);
@@ -342,16 +342,16 @@ function NetworkStep({
   );
 }
 
-function PackStep({
+function ProjectStep({
   networkChoice,
-  packs,
+  projects,
   choice,
   onChoice,
   onBack,
   onNext,
 }: {
   networkChoice: { mode: "existing"; id: string } | { mode: "new"; name: string };
-  packs: PackSummary[];
+  projects: ProjectSummary[];
   choice: { mode: "existing"; id: string } | { mode: "new"; name: string } | null;
   onChoice: (c: { mode: "existing"; id: string } | { mode: "new"; name: string }) => void;
   onBack: () => void;
@@ -369,14 +369,14 @@ function PackStep({
         className="display text-[20px] text-[var(--text)]"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        {t("linkPage.packTitle")}
+        {t("linkPage.projectTitle")}
       </h2>
 
       {isNewNetwork ? (
-        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.newNetworkHasNoPacks")}</p>
-      ) : packs.length > 0 ? (
+        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.newNetworkHasNoProjects")}</p>
+      ) : projects.length > 0 ? (
         <ul className="flex flex-col gap-2">
-          {packs.map((p) => {
+          {projects.map((p) => {
             const isActive = choice?.mode === "existing" && choice.id === p.id;
             return (
               <li key={p.id}>
@@ -402,16 +402,16 @@ function PackStep({
           })}
         </ul>
       ) : (
-        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.networkHasNoPacks")}</p>
+        <p className="text-[12.5px] text-[var(--text-mut)]">{t("linkPage.networkHasNoProjects")}</p>
       )}
 
-      {!isNewNetwork && packs.length > 0 && <div className="rule" />}
+      {!isNewNetwork && projects.length > 0 && <div className="rule" />}
 
       <div className="flex flex-col gap-1.5">
-        <span className="field-label">{t("linkPage.newPackLabel")}</span>
+        <span className="field-label">{t("linkPage.newProjectLabel")}</span>
         <input
           className="input"
-          placeholder="my_workspace"
+          placeholder="my_project"
           value={newName}
           onChange={(e) => {
             setNewName(e.target.value);
@@ -437,8 +437,8 @@ function PackStep({
 function ConfirmStep({
   networkChoice,
   networks,
-  packChoice,
-  packs,
+  projectChoice,
+  projects,
   serverKeyLabel,
   onServerKeyLabelChange,
   onBack,
@@ -446,8 +446,8 @@ function ConfirmStep({
 }: {
   networkChoice: { mode: "existing"; id: string } | { mode: "new"; name: string };
   networks: NetworkSummary[];
-  packChoice: { mode: "existing"; id: string } | { mode: "new"; name: string };
-  packs: PackSummary[];
+  projectChoice: { mode: "existing"; id: string } | { mode: "new"; name: string };
+  projects: ProjectSummary[];
   serverKeyLabel: string;
   onServerKeyLabelChange: (v: string) => void;
   onBack: () => void;
@@ -458,10 +458,10 @@ function ConfirmStep({
     if (networkChoice.mode === "new") return `${networkChoice.name} (${t("linkPage.newSuffix")})`;
     return networks.find((n) => n.id === networkChoice.id)?.name ?? networkChoice.id;
   }, [networkChoice, networks, t]);
-  const packLabel = useMemo(() => {
-    if (packChoice.mode === "new") return `${packChoice.name} (${t("linkPage.newSuffix")})`;
-    return packs.find((p) => p.id === packChoice.id)?.name ?? packChoice.id;
-  }, [packChoice, packs, t]);
+  const projectLabel = useMemo(() => {
+    if (projectChoice.mode === "new") return `${projectChoice.name} (${t("linkPage.newSuffix")})`;
+    return projects.find((p) => p.id === projectChoice.id)?.name ?? projectChoice.id;
+  }, [projectChoice, projects, t]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -474,7 +474,7 @@ function ConfirmStep({
 
       <dl className="flex flex-col gap-2 rounded-[14px] border border-[var(--border-soft)] bg-[var(--surface-inset)] p-4">
         <SummaryRow label={t("linkPage.summaryNetwork")} value={networkLabel} />
-        <SummaryRow label={t("linkPage.summaryPack")} value={packLabel} />
+        <SummaryRow label={t("linkPage.summaryProject")} value={projectLabel} />
       </dl>
 
       <div className="flex flex-col gap-1.5">

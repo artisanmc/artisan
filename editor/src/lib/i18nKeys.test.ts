@@ -1,6 +1,6 @@
 import { rekeyCommand, rekeyMenu } from "@/domain/i18nSites";
 import { commandId, elementId, layerId, menuId } from "@/domain/ids";
-import type { Command, I18nKey, Menu, MenuTitleLayer, Pack } from "@/domain/types";
+import type { Command, I18nKey, Menu, MenuTitleLayer, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import {
   clickHandlerKeyPrefix,
@@ -80,9 +80,9 @@ describe("key generators", () => {
   });
 });
 
-const makePack = (overrides: Partial<Pack> = {}): Pack =>
+const makeProject = (overrides: Partial<Project> = {}): Project =>
   ({
-    id: "p_test" as Pack["id"],
+    id: "p_test" as Project["id"],
     name: "Test",
     description: "",
     source: "user_created",
@@ -96,11 +96,11 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
     templates: [],
     canvasLayout: {},
     ...overrides,
-  }) as Pack;
+  }) as Project;
 
 describe("rekeyMenu", () => {
   it("renames menu title key to semantic key", () => {
-    const pack = makePack({ i18nKeys: { lt_abc: { en: "Shop" } } as Pack["i18nKeys"] });
+    const pack = makeProject({ i18nKeys: { lt_abc: { en: "Shop" } } as Project["i18nKeys"] });
     const titleLayer: MenuTitleLayer = {
       kind: "text",
       value: { key: "lt_abc" as I18nKey },
@@ -109,7 +109,7 @@ describe("rekeyMenu", () => {
     };
     const menu: Menu = {
       id: menuId("shop_main"),
-      packId: pack.id,
+      projectId: pack.id,
       rows: 3,
       title: [titleLayer],
       layers: [],
@@ -125,15 +125,15 @@ describe("rekeyMenu", () => {
   });
 
   it("renames element title and lore keys", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         lt_title: { en: "Buy" },
         lt_lore: { en: "Click to buy" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const menu: Menu = {
       id: menuId("shop"),
-      packId: pack.id,
+      projectId: pack.id,
       rows: 3,
       title: [],
       layers: [
@@ -168,11 +168,11 @@ describe("rekeyMenu", () => {
 
   it("is idempotent when key is already semantic", () => {
     const semanticKey = "menus.shop_main.title" as I18nKey;
-    const pack = makePack({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Pack["i18nKeys"] });
+    const pack = makeProject({ i18nKeys: { [semanticKey]: { en: "Shop" } } as Project["i18nKeys"] });
     const titleLayer: MenuTitleLayer = { kind: "text", value: { key: semanticKey }, x: 8, y: 5 };
     const menu: Menu = {
       id: menuId("shop_main"),
-      packId: pack.id,
+      projectId: pack.id,
       rows: 3,
       title: [titleLayer],
       layers: [],
@@ -187,10 +187,10 @@ describe("rekeyMenu", () => {
   });
 
   it("renames send_message keys in click handlers", () => {
-    const pack = makePack({ i18nKeys: { lt_msg: { en: "Hello!" } } as Pack["i18nKeys"] });
+    const pack = makeProject({ i18nKeys: { lt_msg: { en: "Hello!" } } as Project["i18nKeys"] });
     const menu: Menu = {
       id: menuId("shop"),
-      packId: pack.id,
+      projectId: pack.id,
       rows: 3,
       title: [],
       layers: [
@@ -233,10 +233,10 @@ describe("rekeyMenu", () => {
 
 describe("rekeyCommand", () => {
   it("renames send_message keys to semantic command prefix", () => {
-    const pack = makePack({ i18nKeys: { lt_msg: { en: "Healed!" } } as Pack["i18nKeys"] });
+    const pack = makeProject({ i18nKeys: { lt_msg: { en: "Healed!" } } as Project["i18nKeys"] });
     const cmd: Command = {
       id: commandId("heal"),
-      packId: pack.id,
+      projectId: pack.id,
       name: "heal",
       arguments: [],
       steps: [
@@ -254,15 +254,15 @@ describe("rekeyCommand", () => {
   });
 
   it("disambiguates multiple send_message steps with counter suffix", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         lt_1: { en: "First" },
         lt_2: { en: "Second" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const cmd: Command = {
       id: commandId("greet"),
-      packId: pack.id,
+      projectId: pack.id,
       name: "greet",
       arguments: [],
       steps: [
@@ -284,15 +284,15 @@ describe("rekeyCommand", () => {
   });
 
   it("rekeyCommand assigns canonical show_title and show_subtitle keys", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         "stale.title": { en: "Welcome" },
         "stale.subtitle": { en: "to the shop" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const cmd: Command = {
       id: commandId("heal"),
-      packId: pack.id,
+      projectId: pack.id,
       name: "heal",
       arguments: [],
       steps: [
@@ -320,17 +320,17 @@ describe("rekeyCommand", () => {
   });
 
   it("rekeyCommand counts show_title and send_message independently", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         lt_m1: { en: "M1" },
         lt_t1: { en: "T1" },
         lt_m2: { en: "M2" },
         lt_t2: { en: "T2" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const cmd: Command = {
       id: commandId("x"),
-      packId: pack.id,
+      projectId: pack.id,
       name: "x",
       arguments: [],
       steps: [

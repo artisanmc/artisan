@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { UserMenu } from "./UserMenu";
 
 /**
- * Sidebar shown in place of the WorkspaceSidebar on /admin* routes.
+ * Sidebar shown in place of the ProjectSidebar on /admin* routes.
  * Same shell (brand top, UserMenu bottom), admin section nav in between.
  */
 export function AdminSidebar() {

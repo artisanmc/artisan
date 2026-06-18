@@ -3,7 +3,7 @@ import type { Asset } from "@/domain/asset";
 import { useAssetStore } from "./assetStore";
 
 const a1: Asset = {
-  id: "asset_1", packId: "p1", type: "texture", name: "bg_a",
+  id: "asset_1", projectId: "p1", type: "texture", name: "bg_a",
   width: 16, height: 16, ascent: null, codepoint: null, fontMeta: null,
   contentHash: "hash1", createdAt: "", updatedAt: "",
 };

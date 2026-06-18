@@ -8,7 +8,7 @@ describe("branches API client", () => {
 
   it("listBranches GET", async () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({
-      branches: [{ packId: "p", name: "main", headCommitId: "cmt_1" }],
+      branches: [{ projectId: "p", name: "main", headCommitId: "cmt_1" }],
     }), { status: 200 }));
     const list = await listBranches("n1", "p1");
     expect(list[0].name).toBe("main");
@@ -16,7 +16,7 @@ describe("branches API client", () => {
 
   it("createBranch POST", async () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({
-      branch: { packId: "p", name: "dev", headCommitId: "cmt_1" },
+      branch: { projectId: "p", name: "dev", headCommitId: "cmt_1" },
     }), { status: 201 }));
     const b = await createBranch("n1", "p1", "dev", "main");
     expect(b.name).toBe("dev");

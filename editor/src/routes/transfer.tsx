@@ -74,7 +74,7 @@ function TransferRoute() {
           </p>
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-mut)]">
             <span className="badge">
-              {t("transferPage.packCount", { count: state.packCount })}
+              {t("transferPage.projectCount", { count: state.projectCount })}
             </span>
             <span>·</span>
             <span className="badge">
