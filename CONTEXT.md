@@ -7,6 +7,103 @@ definition wins (or this file gets updated in the same change).
 Terms are listed alphabetically. Each entry is a 1-3 sentence canonical
 definition followed by examples and explicit non-examples where helpful.
 
+## Bundle
+
+The **deployment artifact** of a **Project**: its content compiled to the on-disk
+file tree the plugin downloads and hot-reloads (`packs/<id>/` — manifest, menus,
+dialogs, lang, assets), identified by a **hash** and republished on every edit.
+The backend announces a new Bundle (`bundle_available`), the plugin fetches it
+(`BundleDownloader`), writes it to disk, and atomically reloads. It is the *live*
+representation of a deployed Project, kept in continuous sync.
+
+Non-examples:
+- An **export** is not a Bundle. An export is a one-shot, portable snapshot of a
+  Project (a zip) made for sharing; importing it creates a **new** Project on the
+  target Server. The Bundle is hash-keyed, plugin-facing, and continuously synced;
+  an export is human-facing, copied once, and never live-linked back.
+- The generated **resource pack** (textures/fonts served to players) is not the
+  Bundle either — it's a separate artifact built from the Project's assets and
+  delivered to the player, not the menu/command content the plugin downloads.
+
+## Command
+
+One of the three **Document** kinds: an admin-authored chat/slash command
+(`commands/<id>.yaml`) — a trigger, typed arguments, and the **action chains**
+that run when a player invokes it (`open_menu`, `send_message`, …). Its arguments
+feed a **Menu**'s `contextInputs` by name. Commands are also a cross-module
+composition mechanism: Modules register commands in the `CommandRegistry`
+(`namespace:command`), the command-side mirror of **data sources**.
+
+Non-examples:
+- A button's `open_menu` **action** is not a Command — it's one step in an action
+  chain; a Command is one of the things that *holds* such a chain.
+- A raw Bukkit command from another plugin is not an Artisan Command unless a
+  Module bridges it into the `CommandRegistry`.
+
+## Data source
+
+A named, typed **provider** of data — keyed `namespace:source_id` (e.g.
+`shop:items`, `essentials:warps`) — that a **Module** registers in the shared
+`DataSourceRegistry` and that other modules and menu slots consume. Data sources
+are the **composition mechanism** between Modules: a Module never calls another
+directly; it publishes data sources (and commands) and reads theirs. The same
+registry is how a thin **integration** Module bridges a third-party plugin
+(EssentialsX, LuckPerms) into Artisan — by contributing data sources, not by being
+a new kind of thing.
+
+Examples:
+- The shop add-on registers `shop:items`; a menu's iterable slot pulls from it.
+- An EssentialsX integration registers `essentials:warps` — that integration is
+  just a **Module** whose job is contributing data sources, often with no editor
+  surface of its own.
+
+Non-examples:
+- A **Connector binding** (a menu slot's `source:` → `{ ref, params, filter,
+  sort, limit }`) is **not** a data source — it's the *consumer-side reference*
+  that points at one. Provider vs. reference: the data source yields the data, the
+  binding selects and shapes it for one slot.
+- A **Module** is not a data source; a Module *contributes* zero or more data
+  sources (and commands).
+
+## Dialog
+
+One of the three **Document** kinds: an admin-authored dialog screen
+(`dialogs/<id>.yaml`) — Minecraft's native dialog UI (title, body, inputs,
+buttons), as opposed to the inventory grid of a **Menu**. A standalone document
+with a stable id, deployed in the same **Bundle** as the Project's other Documents.
+
+Non-examples:
+- A **Menu** is not a Dialog — a Menu is an inventory layout (slots/items); a
+  Dialog is a text/form screen. Both are **Document**s, different kinds.
+
+## Document
+
+One of the three editable units a **Project** contains — a **Menu**, a
+**Command**, or a **Dialog** — each one file on disk (`menus/<id>.yaml`,
+`commands/<id>.yaml`, `dialogs/<id>.yaml`), edited as a standalone document with a
+stable id. **Document** is the canonical umbrella; code still counts them as a
+Project's `elementCount` and views one via `ElementView` / `.../element/$id`
+(legacy "element" naming at this level — Document is the term going forward).
+
+Non-examples:
+- An **Element** (a button at a slot *inside* a Menu) is not a Document; it lives
+  within one.
+- A Project's translations and assets are not Documents — they are shared
+  resources the Documents reference.
+
+## Element
+
+A single placed thing inside a **Menu**: a button/item/decoration occupying one
+or more slot positions, with an appearance (material/icon, title, lore) and click
+action chains. A Menu's layers each hold a list of Elements (`menu.layers[]
+.elements[]`, domain type `Element`). The fundamental menu-building block on the
+canvas — "you place Elements in a Menu."
+
+Non-examples:
+- A **Menu** / **Command** / **Dialog** is a **Document**, not an Element.
+- A slot **position** (an index like `13`) is not an Element; it's *where* an
+  Element sits. One Element may span several positions.
+
 ## Key site
 
 A single place in a pack tree that holds an **LText** — e.g. a menu title
@@ -55,3 +152,107 @@ Examples:
 Non-examples:
 - `shop_main_page_2` is **not** a menu name we generate. There is one
   `shop_main` that paginates internally.
+
+## Module
+
+A **capability** of the platform — one coherent vertical of functionality
+(menus, commands, translations, dialogs, shop, quests…) built in three symmetric
+layers: plugin (`ArtisanModule`), backend (`BackendModule`), editor
+(`FrontendModule`), wired through a `ModuleRegistry`. A Module is the *logical*
+unit of capability, deliberately distinct from the artifact that ships it.
+
+Two families, split by **distribution**:
+- **Core module** — bundled in the core Artisan JAR, always present (menus,
+  commands, i18n, dialogs). Installing Artisan gives you every core module.
+- **Add-on module** — distributed separately (its own repo + a Paper plugin JAR
+  that `depend`s on Artisan), optional, switched on per **Server** by **Presence**
+  (shop, quests, kits).
+
+Whether an Add-on is free or paid is an **orthogonal** property — not part of what
+makes something a Module.
+
+Non-examples:
+- A **plugin JAR** is not a Module — it is the *vehicle* that delivers one. An
+  Add-on is *shipped as* a Paper plugin; the Module is the capability inside, not
+  the JAR. (Artisan itself ships as a plugin, yet is the host, not a Module.)
+- **Presence** (a Module being active on a given Server) is not the Module; it's
+  the runtime fact that the Module is installed and connected there.
+
+## Network
+
+A group of **Servers** under one ownership/team — the unit of ownership, access
+(**memberships** with roles), billing (**tier**), and handover (**transfer**).
+**Not** a Minecraft proxy topology: a Network is who-owns-what, not which servers
+sit behind a proxy (the two often coincide but needn't). A User may belong to
+several Networks and a Network has several members — so a Network is **not** a
+User/Account, but the shared container they have access to.
+
+Non-examples:
+- A Bungee/Velocity proxy cluster doesn't define a Network — ownership does;
+  Artisan never sees the proxy topology.
+- The owning **User** is not the Network; users are *members* of Networks.
+
+## Presence
+
+The **observed** runtime state of a **Server**, reported by its connected plugin
+over the WS link — not something authored in the editor. It answers "what is
+actually live on this server right now?": at minimum whether the Server is
+**online** (≥1 plugin instance connected) and **which Modules** are installed
+there (`installed_modules`). The live connection is the source of truth; the
+editor reads a persisted projection of it (`server_modules` rows + an `online`
+boolean) to gate which UI to show.
+
+Examples:
+- The Quests add-on appears in the editor only when the Server's Presence
+  includes the `quests` module — "installed on the server → visible in the editor."
+- A Server reads as online the moment one instance connects; how *many* instances
+  are connected is not surfaced (Presence exposes a boolean, never a count).
+
+Non-examples:
+- **Authored config** is not Presence — Presence is the live mirror, config is the
+  declared intent. A Module may be configured for a Server yet absent from its
+  Presence (not actually installed), or installed yet unconfigured.
+- The **server key** is not Presence — the key is the durable credential; Presence
+  is the transient "is it connected, and with what" fact that the key's instances
+  report.
+
+## Project
+
+The editable, versioned, deployable collection of GUI content for one server —
+its **Menus**, **Commands**, **Dialogs**, translations, and assets — authored in
+the web editor and deployed to the server as a **Bundle**. A Project belongs to
+**exactly one Server**; a Server holds **one or more** Projects. The Project is
+the granular unit of organisation *and* of **portability**: a server's content is
+split into Projects so each can be exported, shared, and imported independently.
+Importing produces a *new* Project on the target server — Projects are copied,
+never live-linked across servers (so "belongs to one Server" always holds).
+
+This is the **canonical** domain term. Code/DB/API call it a **`pack`** (`packs`
+table, `packId`, `createPack`, `/packs`); the UI historically labels it
+**"Workspace"**. Same entity, both. "Pack" is rejected as the domain word because
+it collides with Artisan's own generated **resource pack** (and the Minecraft
+"texture pack" reflex); "Workspace" is rejected because it connotes the editing
+*environment*, not the *content* itself.
+
+Non-examples:
+- The generated **resource pack** (textures/fonts served to players) is **not** a
+  Project — it's a build artifact derived from a Project's assets.
+- A single **Menu** is **not** a Project; it is one Element within a Project.
+
+## Server
+
+A single Minecraft server within a **Network** — what **Projects** attach to and
+deploy onto. Identified and authenticated by its **key** (a rotatable bearer
+secret, hashed in the `server_keys` row); code/DB call the entity `server_key` /
+`serverKeyId`. A Server belongs to one Network and holds one or more Projects.
+
+The **key** is the Server's *credential*, not the Server: rotating it — or running
+several plugin instances on one key — leaves the same Server. Whether a Server is
+**online** (≥1 instance currently connected) is its **Presence**, a runtime fact,
+not part of the entity.
+
+Non-examples:
+- The bearer secret is **not** the Server; it's the credential. Rotation swaps the
+  secret, same Server.
+- A connected plugin process is a runtime *instance* of the Server, not a separate
+  Server (instances may share one key).
