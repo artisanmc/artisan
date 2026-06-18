@@ -8,30 +8,30 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.logging.Logger
 
-object PackFilesReader {
+object ProjectFilesReader {
     /**
-     * The single pack-dir walk. relPath-keyed map (forward slashes), excluding
+     * The single project-dir walk. relPath-keyed map (forward slashes), excluding
      * `.artisan*` sync metadata. Both the hash (`BundleHasher`) and the wire forms
      * (`read`, below) derive from this — no second traversal.
      */
-    fun readRelative(packDir: File): Map<String, String> {
+    fun readRelative(projectDir: File): Map<String, String> {
         val out = mutableMapOf<String, String>()
-        packDir.walkTopDown()
+        projectDir.walkTopDown()
             .filter { it.isFile && !it.name.startsWith(".artisan") }
             .forEach { file ->
-                val rel = file.relativeTo(packDir).path.replace('\\', '/')
+                val rel = file.relativeTo(projectDir).path.replace('\\', '/')
                 out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }
 
     /**
-     * Canonical files map keyed by "plugins/Artisan/packs/<packId>/<relPath>"
+     * Canonical files map keyed by "plugins/Artisan/packs/<projectId>/<relPath>"
      * (the form the backend stores). Thin re-key over [readRelative].
      */
-    fun read(packDir: File, packId: String): Map<String, String> {
-        val prefix = "plugins/Artisan/packs/$packId/"
-        return readRelative(packDir).mapKeys { (rel, _) -> "$prefix$rel" }
+    fun read(projectDir: File, projectId: String): Map<String, String> {
+        val prefix = "plugins/Artisan/packs/$projectId/" // TODO(phase4-wire): path literal "packs"
+        return readRelative(projectDir).mapKeys { (rel, _) -> "$prefix$rel" }
     }
 }
 
@@ -44,25 +44,25 @@ class BundleUploader(
     private val mapper = ObjectMapper()
     private val json = "application/json; charset=utf-8".toMediaType()
 
-    fun upload(packDir: File, packId: String) {
-        val files = PackFilesReader.read(packDir, packId)
+    fun upload(projectDir: File, projectId: String) {
+        val files = ProjectFilesReader.read(projectDir, projectId)
         if (files.isEmpty()) {
-            logger?.fine("BundleUploader: no files in $packId, skipping upload")
+            logger?.fine("BundleUploader: no files in $projectId, skipping upload")
             return
         }
 
         val body = mapper.writeValueAsString(mapOf("files" to files))
         val request = Request.Builder()
-            .url("$apiUrl/api/v1/bundles/$packId")
+            .url("$apiUrl/api/v1/bundles/$projectId")
             .header("Authorization", "Bearer $serverKey")
             .post(body.toRequestBody(json))
             .build()
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
-                logger?.info("Uploaded local pack $packId to backend (${files.size} files)")
+                logger?.info("Uploaded local pack $projectId to backend (${files.size} files)")
             } else {
-                logger?.warning("Bundle upload failed for $packId: HTTP ${response.code}")
+                logger?.warning("Bundle upload failed for $projectId: HTTP ${response.code}")
             }
         }
     }

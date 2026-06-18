@@ -38,7 +38,7 @@ class EditorSessionTest {
 
         val packsDir = Files.createTempDirectory("artisan_test_packs").toFile()
         val provider = SyncedMenuProvider(
-            packsDir  = packsDir,
+            projectsDir = packsDir,
             serverKey = "sk_" + "a".repeat(64),
             wsUrl     = server.url("/ws/plugin").toString(),
             logger    = null,
@@ -77,7 +77,7 @@ class EditorSessionTest {
 
         val packsDir = Files.createTempDirectory("artisan_test_packs2").toFile()
         val provider = SyncedMenuProvider(
-            packsDir  = packsDir,
+            projectsDir = packsDir,
             serverKey = "sk_" + "b".repeat(64),
             wsUrl     = server.url("/ws/plugin").toString(),
             logger    = null,

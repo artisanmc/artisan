@@ -65,7 +65,7 @@ open class ArtisanPlugin : JavaPlugin() {
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         val cfg = PluginConfig.from(config)
-        val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
+        val projectsDir = File(dataFolder, "packs").also { it.mkdirs() } // TODO(phase4-wire): path literal "packs"
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
@@ -77,7 +77,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
         commandRegistrar = CommandRegistrar(this, langManager)
         menuProvider = SyncedMenuProvider(
-            packsDir         = packsDir,
+            projectsDir      = projectsDir,
             serverKey        = cfg.serverKey,
             wsUrl            = cfg.wsUrl,
             logger           = logger,
@@ -227,13 +227,13 @@ open class ArtisanPlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
-        val packsDir = File(dataFolder, "packs").also { it.mkdirs() }
+        val projectsDir = File(dataFolder, "packs").also { it.mkdirs() } // TODO(phase4-wire): path literal "packs"
 
         val softDeps = SoftDepRegistry(this)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(
-            packsDir         = packsDir,
+            projectsDir      = projectsDir,
             serverKey        = cfg.serverKey,
             wsUrl            = cfg.wsUrl,
             logger           = logger,

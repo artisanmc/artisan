@@ -36,7 +36,7 @@ class BundleDownloaderTest {
             downloader.download(
                 url       = server.url("/api/v1/bundles/$packId").toString(),
                 serverKey = "sk_test",
-                packId    = packId,
+                projectId = packId,
             )
 
             assertTrue(File(packsDir, "$packId/manifest.yaml").exists())
@@ -64,7 +64,7 @@ class BundleDownloaderTest {
             downloader.download(
                 url       = server.url("/api/v1/bundles/$packId").toString(),
                 serverKey = "sk_test",
-                packId    = packId,
+                projectId = packId,
             )
 
             val meta = SyncMetadata.read(File(packsDir, packId))
@@ -100,7 +100,7 @@ class BundleDownloaderTest {
             val downloader = BundleDownloader(OkHttpClient(), packsDir)
             downloader.download(
                 url = server.url("/api/v1/bundles/$packId").toString(),
-                serverKey = "sk", packId = packId,
+                serverKey = "sk", projectId = packId,
             )
 
             assertTrue(File(packDir, "menus/keep.yaml").exists(), "keep.yaml doit être conservé")
