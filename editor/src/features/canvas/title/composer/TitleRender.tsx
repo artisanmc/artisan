@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import type { InventoryType, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { InventoryType, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
@@ -123,7 +123,7 @@ const GLYPH_Y_BASE = 13;
 const MC_FONT_HEIGHT_PX = 8;
 
 interface TitleRenderProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   /** Pixel scale (e.g. 2 for the title canvas, smaller for thumbnails). */
   scale: number;
@@ -147,8 +147,8 @@ interface TitleRenderProps {
  *    MiniMessageKonvaText (vector fallback)
  *  - external_glyph → dashed amber placeholder until SP5
  */
-export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const menu = pack?.menus.find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
@@ -212,7 +212,7 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
           <LayerNode
             // biome-ignore lint/suspicious/noArrayIndexKey: layer order is the stable identifier
             key={idx}
-            packId={packId}
+            projectId={projectId}
             menuId={menuId}
             layer={layer}
             index={idx}
@@ -229,7 +229,7 @@ export function TitleRender({ packId, menuId, scale }: TitleRenderProps) {
 }
 
 interface LayerNodeProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   layer: MenuTitleLayer;
   index: number;
@@ -241,7 +241,7 @@ interface LayerNodeProps {
 }
 
 function LayerNode({
-  packId: _packId,
+  projectId: _packId,
   menuId,
   layer,
   index,
@@ -599,7 +599,7 @@ function LayerNode({
               scale={scale}
               onResize={(newWidth) => {
                 useAccountStore.getState().updateMenuTitleLayer({
-                  packId: _packId,
+                  projectId: _packId,
                   menuId,
                   index,
                   patch: { width: newWidth } as Partial<MenuTitleLayer>,

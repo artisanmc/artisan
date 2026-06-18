@@ -2,13 +2,13 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
-import type { MenuId, PackId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 
 interface PlainTitleFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
 }
 
@@ -16,19 +16,19 @@ interface PlainTitleFormProps {
  * Inline editor for a vanilla (plain) title layer. Shown directly in the
  * LayersPanel when vanilla mode is active — no layer selection needed.
  */
-export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
+export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const menu = pack?.menus.find((m) => m.id === menuId);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(
     () => ({ kind: "menu" as const, menuId }),
     [menuId],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   const plainLayer = menu?.title.find((l) => l.kind === "plain");
-  const textEdit = useTextEdit(packId, plainLayer?.kind === "plain" ? plainLayer.value : { key: "" as import("@/domain/types").I18nKey });
+  const textEdit = useTextEdit(projectId, plainLayer?.kind === "plain" ? plainLayer.value : { key: "" as import("@/domain/types").I18nKey });
 
   if (!plainLayer || plainLayer.kind !== "plain") return null;
 
@@ -52,7 +52,7 @@ export function PlainTitleForm({ packId, menuId }: PlainTitleFormProps) {
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
-              packId,
+              projectId,
               lt: plainLayer.value,
               lang: textEdit.lang,
               value: v,

@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/ui/empty-state";
-import type { MenuId, PackId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
@@ -43,12 +43,12 @@ import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
 
 interface StageProps {
-  packId: PackId;
+  projectId: ProjectId;
 }
 
-export function Stage({ packId }: StageProps) {
+export function Stage({ projectId }: StageProps) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -56,7 +56,7 @@ export function Stage({ packId }: StageProps) {
   // element view) and returning lands on the same spot + zoom. Read once at
   // mount (non-reactive); persisted back via the effect below.
   const { viewport, setViewport, onWheel, onTouchMove, onTouchEnd } = usePanZoom(
-    useUiStore.getState().canvasViewports[packId],
+    useUiStore.getState().canvasViewports[projectId],
   );
   const canvasMode = useUiStore((s) => s.canvasMode);
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -116,8 +116,8 @@ export function Stage({ packId }: StageProps) {
 
   // Persist pan/zoom per pack so it survives leaving/returning to the board.
   useEffect(() => {
-    useUiStore.getState().setCanvasViewport(packId, viewport);
-  }, [packId, viewport]);
+    useUiStore.getState().setCanvasViewport(projectId, viewport);
+  }, [projectId, viewport]);
 
   const layout = useMemo(() => (pack ? autoLayout(pack) : {}), [pack]);
 
@@ -150,7 +150,7 @@ export function Stage({ packId }: StageProps) {
           if (hit) {
             try {
               useAccountStore.getState().setSlotMaterial({
-                packId,
+                projectId,
                 menuId: hit.menuId as MenuId,
                 position: hit.position,
                 material: armed,
@@ -172,7 +172,7 @@ export function Stage({ packId }: StageProps) {
         useUiStore.getState().setSelectedLayerKey(null);
       }
     },
-    [pack, layout, viewport, packId, marquee.shouldConsumeClick],
+    [pack, layout, viewport, projectId, marquee.shouldConsumeClick],
   );
 
   const [pendingMenuPos, setPendingMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -220,7 +220,7 @@ export function Stage({ packId }: StageProps) {
       if (!hit) return false;
       try {
         useAccountStore.getState().setSlotMaterial({
-          packId,
+          projectId,
           menuId: hit.menuId as MenuId,
           position: hit.position,
           material,
@@ -232,7 +232,7 @@ export function Stage({ packId }: StageProps) {
       }
     });
     return () => setStageDropTarget(null);
-  }, [pack, layout, viewport, packId]);
+  }, [pack, layout, viewport, projectId]);
 
   // Expose the live wrapper rect + viewport so the 3rd-column LayersPanel can
   // convert drag-end client coords into canvas coords (cursor-based new-layer
@@ -257,7 +257,7 @@ export function Stage({ packId }: StageProps) {
   }, [viewport]);
 
   useCanvasKeyboard({
-    packId,
+    projectId,
     onError: (msg) => toast.error(msg),
   });
 
@@ -271,7 +271,7 @@ export function Stage({ packId }: StageProps) {
     useHoverStore.getState().setElement(null);
   }, []);
 
-  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Workspace not found.</div>;
+  if (!pack) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
 
   const entityIds = ctxMenu.target.kind === "entity" ? ctxMenu.target.selectedIds : [];
 
@@ -293,7 +293,7 @@ export function Stage({ packId }: StageProps) {
         // buttons opt back into pointer events.
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <EmptyState
-            title={t("workspacePanel.empty")}
+            title={t("projectPanel.empty")}
             action={
               <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
                 <button
@@ -321,9 +321,9 @@ export function Stage({ packId }: StageProps) {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => useAccountStore.getState().arrangeAllOnBoard({ packId })}
+                    onClick={() => useAccountStore.getState().arrangeAllOnBoard({ projectId })}
                   >
-                    {t("workspacePanel.arrangeAll")}
+                    {t("projectPanel.arrangeAll")}
                   </button>
                 )}
               </div>
@@ -374,7 +374,7 @@ export function Stage({ packId }: StageProps) {
           {pack.menus.filter((menu) => layout[menu.id]).map((menu) => (
             <MenuGroup
               key={menu.id}
-              packId={packId}
+              projectId={projectId}
               menu={menu}
               position={layout[menu.id]!}
               layout={layout}
@@ -387,7 +387,7 @@ export function Stage({ packId }: StageProps) {
           {pack.commands.filter((command) => layout[command.id]).map((command) => (
             <CommandGroup
               key={command.id}
-              packId={packId}
+              projectId={projectId}
               command={command}
               position={layout[command.id]!}
             />
@@ -395,12 +395,12 @@ export function Stage({ packId }: StageProps) {
           {pack.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
             <DialogGroup
               key={dialog.id}
-              packId={packId}
+              projectId={projectId}
               dialog={dialog}
               position={layout[dialog.id]!}
             />
           ))}
-          <GhostChips pack={pack} layout={layout} packId={packId} />
+          <GhostChips pack={pack} layout={layout} projectId={projectId} />
         </Layer>
         <Layer name="overlay">
           <Selection stageRef={stageRef} />
@@ -408,43 +408,43 @@ export function Stage({ packId }: StageProps) {
           <AlignmentGuides />
         </Layer>
       </KonvaStage>
-      <ItemTooltip packId={packId} />
+      <ItemTooltip projectId={projectId} />
       <EdgeTooltip pack={pack} />
       <ContextMenu
-        packId={packId}
+        projectId={projectId}
         state={ctxMenu}
         onClose={closeCtxMenu}
         onCopy={() => {
-          void canvasClipboardActions.copySelection(packId, entityIds, (m) => toast.error(m));
+          void canvasClipboardActions.copySelection(projectId, entityIds, (m) => toast.error(m));
           closeCtxMenu();
         }}
         onPaste={() => {
-          void canvasClipboardActions.pasteFromClipboard(packId, (m) => toast.error(m));
+          void canvasClipboardActions.pasteFromClipboard(projectId, (m) => toast.error(m));
           closeCtxMenu();
         }}
         onDuplicate={() => {
-          canvasClipboardActions.duplicateSelection(packId, entityIds, (m) => toast.error(m));
+          canvasClipboardActions.duplicateSelection(projectId, entityIds, (m) => toast.error(m));
           closeCtxMenu();
         }}
         onDelete={() => {
           if (entityIds.length === 0) return;
           try {
-            useAccountStore.getState().deleteFromPack({ packId, nodeIds: entityIds });
+            useAccountStore.getState().deleteFromProject({ projectId, nodeIds: entityIds });
             useSelectionStore.getState().clear();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "delete failed");
           }
           closeCtxMenu();
         }}
-        onMoveTo={(toPackId) => {
+        onMoveTo={(toProjectId) => {
           if (entityIds.length !== 1) return;
           try {
-            useAccountStore.getState().moveMenuToPack({
+            useAccountStore.getState().moveMenuToProject({
               menuId: entityIds[0]! as MenuId,
-              fromPackId: packId,
-              toPackId,
+              fromProjectId: projectId,
+              toProjectId,
             });
-            toast.success(`Moved to ${toPackId}`);
+            toast.success(`Moved to ${toProjectId}`);
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "move failed");
           }
@@ -464,7 +464,7 @@ export function Stage({ packId }: StageProps) {
         }}
       />
       <NewMenuDialog
-        packId={packId}
+        projectId={projectId}
         open={pendingMenuPos !== null}
         position={pendingMenuPos ?? undefined}
         onOpenChange={(o) => {
@@ -472,7 +472,7 @@ export function Stage({ packId }: StageProps) {
         }}
       />
       <NewCommandDialog
-        packId={packId}
+        projectId={projectId}
         open={pendingCommandPos !== null}
         position={pendingCommandPos ?? undefined}
         onOpenChange={(o) => {
@@ -480,7 +480,7 @@ export function Stage({ packId }: StageProps) {
         }}
       />
       <NewDialogDialog
-        packId={packId}
+        projectId={projectId}
         open={pendingDialogPos !== null}
         position={pendingDialogPos ?? undefined}
         onOpenChange={(o) => {

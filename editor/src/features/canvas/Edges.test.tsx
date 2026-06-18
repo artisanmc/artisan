@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { packId } from "@/domain/ids";
+import { projectId } from "@/domain/ids";
 import { mockAccount } from "@/mock/fixtures";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
@@ -41,9 +41,9 @@ vi.mock("./deriveEdges", () => ({
   ],
 }));
 
-const PERSONAL = packId("p_personal");
+const PERSONAL = projectId("p_personal");
 const layout = { m_shop_main: { x: 0, y: 0 }, m_profile: { x: 700, y: 0 } };
-const getPack = () => useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+const getProject = () => useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
 
 describe("Edges", () => {
   beforeEach(() => {
@@ -54,7 +54,7 @@ describe("Edges", () => {
   });
 
   it("renders one arrow per edge with distinct anchors for A->B / B->A", () => {
-    render(<Edges pack={getPack()} layout={layout} />);
+    render(<Edges pack={getProject()} layout={layout} />);
     const arrows = screen.getAllByTestId("konva-arrow");
     expect(arrows).toHaveLength(2);
     const p1 = JSON.parse(arrows[0]!.getAttribute("data-points")!) as number[];
@@ -65,7 +65,7 @@ describe("Edges", () => {
 
   it("click selects the edge, clears node selection, shows two handles", () => {
     useSelectionStore.getState().set(["m_about"]);
-    render(<Edges pack={getPack()} layout={layout} />);
+    render(<Edges pack={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
     expect(useEdgeSelectionStore.getState().edgeId).toBe("m_shop_main->m_profile");
     expect(useSelectionStore.getState().ids.size).toBe(0);
@@ -74,14 +74,14 @@ describe("Edges", () => {
 
   it("double-click on a handle clears the override", () => {
     useAccountStore.getState().setEdgeAnchor({
-      packId: PERSONAL,
+      projectId: PERSONAL,
       edgeId: "m_shop_main->m_profile",
       end: "from",
       anchor: { side: "top", t: 0.2 },
     });
-    render(<Edges pack={getPack()} layout={layout} />);
+    render(<Edges pack={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
     fireEvent.doubleClick(screen.getAllByTestId("konva-circle")[0]!);
-    expect(getPack().canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
+    expect(getProject().canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
   });
 });

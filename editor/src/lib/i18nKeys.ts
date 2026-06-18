@@ -1,4 +1,4 @@
-import type { I18nKey, Pack } from "@/domain/types";
+import type { I18nKey, Project } from "@/domain/types";
 
 export const stateLabel = (i: number): string => (i === 0 ? "default" : `state${i}`);
 
@@ -53,7 +53,7 @@ export const dialogButtonKeyPrefix = (dialogId: string, buttonId: string): strin
  * repoint `lt.key`, in place (immer-safe). No-op when already correct. The
  * write primitive that `rekey*` in `@/domain/i18nSites` folds over.
  */
-export function moveLTextKey(pack: Pack, lt: { key: I18nKey }, newKey: I18nKey): void {
+export function moveLTextKey(pack: Project, lt: { key: I18nKey }, newKey: I18nKey): void {
   if (lt.key === newKey) return;
   const value = pack.i18nKeys[lt.key];
   if (value) pack.i18nKeys[newKey] = value;

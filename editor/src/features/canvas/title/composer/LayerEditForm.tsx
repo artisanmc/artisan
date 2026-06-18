@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import type { AssetId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { duplicateAsset, updateAsset } from "@/lib/packApi";
+import { duplicateAsset, updateAsset } from "@/lib/projectApi";
 import { cn } from "@/lib/cx";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
@@ -23,7 +23,7 @@ import { useUiStore } from "@/state/uiStore";
 import { TextSizeSelector } from "./TextSizeSelector";
 
 interface LayerEditFormProps {
-  packId: PackId;
+  projectId: ProjectId;
 }
 
 /**
@@ -34,9 +34,9 @@ interface LayerEditFormProps {
  * Sub-forms intentionally share no abstraction — each layer kind has a
  * distinct shape and we want the dispatch to stay trivially readable.
  */
-export function LayerEditForm({ packId }: LayerEditFormProps) {
+export function LayerEditForm({ projectId }: LayerEditFormProps) {
   const selectedKey = useUiStore((s) => s.selectedLayerKey);
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const menu = pack?.menus.find((m) => m.id === selectedKey?.menuId);
   const layer =
     selectedKey && menu && selectedKey.index >= 0 && selectedKey.index < menu.title.length
@@ -54,7 +54,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (layer.kind === "background" || layer.kind === "glyph") {
     return (
       <ImageLayerForm
-        packId={packId}
+        projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
         layer={layer}
@@ -64,7 +64,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (layer.kind === "text") {
     return (
       <TextLayerForm
-        packId={packId}
+        projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
         layer={layer}
@@ -74,7 +74,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (layer.kind === "plain") {
     return (
       <PlainLayerForm
-        packId={packId}
+        projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
         layer={layer}
@@ -84,7 +84,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (layer.kind === "textarea") {
     return (
       <TextareaLayerForm
-        packId={packId}
+        projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
         layer={layer}
@@ -94,7 +94,7 @@ export function LayerEditForm({ packId }: LayerEditFormProps) {
   if (layer.kind === "external_glyph") {
     return (
       <ExternalGlyphForm
-        packId={packId}
+        projectId={projectId}
         menuId={selectedKey.menuId}
         index={selectedKey.index}
         layer={layer}
@@ -121,7 +121,7 @@ const ASCENT_FOR_CHEST_BACKGROUND = -4;
 const Y_FOR_CHEST_BACKGROUND = 17; // glyph top = chest slot border row
 
 interface ImageLayerFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
   layer:
@@ -129,7 +129,7 @@ interface ImageLayerFormProps {
     | Extract<MenuTitleLayer, { kind: "glyph" }>;
 }
 
-function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
+function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
@@ -144,7 +144,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
 
   const onPick = (picked: Asset) => {
     updateLayer({
-      packId,
+      projectId,
       menuId,
       index,
       patch: { assetId: picked.id as AssetId } as Partial<MenuTitleLayer>,
@@ -163,10 +163,10 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
     }
     setDuplicating(true);
     try {
-      const dup = await duplicateAsset(token, packId, layer.assetId);
+      const dup = await duplicateAsset(token, projectId, layer.assetId);
       upsertAsset(dup);
       updateLayer({
-        packId,
+        projectId,
         menuId,
         index,
         patch: { assetId: dup.id as AssetId } as Partial<MenuTitleLayer>,
@@ -184,13 +184,13 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
     if (!token || !asset) return;
     setPatchingAscent(true);
     try {
-      const updated = await updateAsset(token, packId, asset.id, { ascent: value });
+      const updated = await updateAsset(token, projectId, asset.id, { ascent: value });
       upsertAsset(updated);
       // Keep layer.y in sync with the new ascent so the canvas reflects the
       // change immediately (layer.y = titleLabelY - ascent).
       if (layer.kind === "glyph") {
         updateLayer({
-          packId,
+          projectId,
           menuId,
           index,
           patch: { y: TITLE_LABEL_Y - value } as Partial<MenuTitleLayer>,
@@ -251,7 +251,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ packId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-20 font-mono text-xs"
@@ -291,7 +291,7 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
               onPatchAscent(ASCENT_FOR_CHEST_BACKGROUND);
               if (layer.kind === "glyph") {
                 updateLayer({
-                  packId,
+                  projectId,
                   menuId,
                   index,
                   patch: { x: 0, y: Y_FOR_CHEST_BACKGROUND } as Partial<MenuTitleLayer>,
@@ -323,15 +323,15 @@ function ImageLayerForm({ packId, menuId, index, layer }: ImageLayerFormProps) {
 // ─── Text ──────────────────────────────────────────────────────────────────
 
 interface TextLayerFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
   layer: Extract<MenuTitleLayer, { kind: "text" }>;
 }
 
-function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
+function TextLayerForm({ projectId, menuId, index, layer }: TextLayerFormProps) {
   const { t } = useTranslation();
-  const textEdit = useTextEdit(packId, layer.value);
+  const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
@@ -340,7 +340,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
     () => ({ kind: "menu" as const, menuId }),
     [menuId],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
@@ -356,7 +356,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
-              packId,
+              projectId,
               lt: layer.value,
               lang: textEdit.lang,
               value: v,
@@ -380,7 +380,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           onChange={(e) => {
             const v = e.target.value;
             updateLayer({
-              packId,
+              projectId,
               menuId,
               index,
               patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
@@ -406,7 +406,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
           value={layer.size}
           onChange={(size) =>
             updateLayer({
-              packId,
+              projectId,
               menuId,
               index,
               patch: { size } as Partial<MenuTitleLayer>,
@@ -424,7 +424,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ packId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-full font-mono text-xs"
@@ -438,7 +438,7 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ packId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-full font-mono text-xs"
@@ -455,21 +455,21 @@ function TextLayerForm({ packId, menuId, index, layer }: TextLayerFormProps) {
 // ─── Plain (vanilla) ────────────────────────────────────────────────────────
 
 interface PlainLayerFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
   layer: Extract<MenuTitleLayer, { kind: "plain" }>;
 }
 
-function PlainLayerForm({ packId, menuId, index, layer }: PlainLayerFormProps) {
+function PlainLayerForm({ projectId, menuId, index, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
-  const textEdit = useTextEdit(packId, layer.value);
+  const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(
     () => ({ kind: "menu" as const, menuId }),
     [menuId],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
@@ -490,7 +490,7 @@ function PlainLayerForm({ packId, menuId, index, layer }: PlainLayerFormProps) {
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
-              packId,
+              projectId,
               lt: layer.value,
               lang: textEdit.lang,
               value: v,
@@ -511,13 +511,13 @@ function PlainLayerForm({ packId, menuId, index, layer }: PlainLayerFormProps) {
 // ─── External glyph ────────────────────────────────────────────────────────
 
 interface ExternalGlyphFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
   layer: Extract<MenuTitleLayer, { kind: "external_glyph" }>;
 }
 
-function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormProps) {
+function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFormProps) {
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
 
   return (
@@ -535,7 +535,7 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
           onChange={(e) => {
             const provider = e.target.value as "oraxen" | "nexo" | "itemsadder";
             updateLayer({
-              packId,
+              projectId,
               menuId,
               index,
               patch: { provider } as Partial<MenuTitleLayer>,
@@ -561,7 +561,7 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
           value={layer.glyphName}
           onChange={(e) => {
             updateLayer({
-              packId,
+              projectId,
               menuId,
               index,
               patch: { glyphName: e.target.value } as Partial<MenuTitleLayer>,
@@ -577,15 +577,15 @@ function ExternalGlyphForm({ packId, menuId, index, layer }: ExternalGlyphFormPr
 // ─── Textarea ──────────────────────────────────────────────────────────────
 
 interface TextareaLayerFormProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: import("@/domain/types").MenuId;
   index: number;
   layer: Extract<MenuTitleLayer, { kind: "textarea" }>;
 }
 
-function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormProps) {
+function TextareaLayerForm({ projectId, menuId, index, layer }: TextareaLayerFormProps) {
   const { t } = useTranslation();
-  const textEdit = useTextEdit(packId, layer.value);
+  const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
@@ -594,7 +594,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
     () => ({ kind: "menu" as const, menuId }),
     [menuId],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   // Y-overflow: line i renders at y + i*lineHeight, must be ≤ 140.
   const lines = textEdit.value.split("\n");
@@ -603,7 +603,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
 
   const setAlignment = (a: "left" | "center" | "right") =>
     updateLayer({
-      packId, menuId, index,
+      projectId, menuId, index,
       patch: { alignment: a } as Partial<MenuTitleLayer>,
     });
 
@@ -622,7 +622,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
-              packId,
+              projectId,
               lt: layer.value,
               lang: textEdit.lang,
               value: v,
@@ -653,7 +653,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
               if (!Number.isFinite(raw)) return;
               const clamped = Math.min(32, Math.max(1, raw));
               updateLayer({
-                packId, menuId, index,
+                projectId, menuId, index,
                 patch: { lineHeight: clamped } as Partial<MenuTitleLayer>,
               });
             }}
@@ -663,7 +663,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
             type="button"
             onClick={() =>
               updateLayer({
-                packId, menuId, index,
+                projectId, menuId, index,
                 patch: { lineHeight: (layer.size ?? 8) + 2 } as Partial<MenuTitleLayer>,
               })
             }
@@ -726,7 +726,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
           onChange={(e) => {
             const v = e.target.value;
             updateLayer({
-              packId, menuId, index,
+              projectId, menuId, index,
               patch: { fontAssetId: v || undefined } as Partial<MenuTitleLayer>,
             });
           }}
@@ -745,7 +745,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
           value={layer.size}
           onChange={(size) =>
             updateLayer({
-              packId,
+              projectId,
               menuId,
               index,
               patch: { size } as Partial<MenuTitleLayer>,
@@ -765,7 +765,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
             if (!Number.isFinite(raw)) return;
             const clamped = Math.min(256, Math.max(8, raw));
             updateLayer({
-              packId, menuId, index,
+              projectId, menuId, index,
               patch: { width: clamped } as Partial<MenuTitleLayer>,
             });
           }}
@@ -783,7 +783,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ packId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { x: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-full font-mono text-xs"
@@ -798,7 +798,7 @@ function TextareaLayerForm({ packId, menuId, index, layer }: TextareaLayerFormPr
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               if (Number.isFinite(v)) {
-                updateLayer({ packId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
+                updateLayer({ projectId, menuId, index, patch: { y: v } as Partial<MenuTitleLayer> });
               }
             }}
             className="h-7 w-full font-mono text-xs"

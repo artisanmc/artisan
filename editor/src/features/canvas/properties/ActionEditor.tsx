@@ -2,7 +2,7 @@ import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Action, ClickType, DialogId, ElementId, MenuId, PackId } from "@/domain/types";
+import type { Action, ClickType, DialogId, ElementId, MenuId, ProjectId } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
@@ -13,7 +13,7 @@ import { createContext, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ActionEditorProps {
-  packId: PackId;
+  projectId: ProjectId;
   action: Action;
   onChange: (action: Action) => void;
   /** Present when the action lives inside an element click handler. Used to
@@ -104,20 +104,20 @@ export function ArgInsertBar({ onInsert }: { onInsert: (name: string) => void })
  * action's discriminator and call back with the new action object on every
  * edit (immer/zundo handles undo on the store side).
  */
-export function ActionEditor({ packId, action, onChange, menuId, elementId, clickType }: ActionEditorProps) {
+export function ActionEditor({ projectId, action, onChange, menuId, elementId, clickType }: ActionEditorProps) {
   const { t } = useTranslation();
   switch (action.type) {
     case "open_menu":
-      return <OpenMenuEditor packId={packId} action={action} onChange={onChange} />;
+      return <OpenMenuEditor projectId={projectId} action={action} onChange={onChange} />;
     case "close_menu":
       return <div className="text-[11px] text-[var(--text-faint)]">{t("actionEditor.closeMenuLabel")}</div>;
     case "run_command":
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
     case "broadcast":
-      return <SendMessageEditor packId={packId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
+      return <SendMessageEditor projectId={projectId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "show_title":
-      return <ShowTitleEditor packId={packId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
+      return <ShowTitleEditor projectId={projectId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "give_item":
     case "take_item":
       return <GiveItemEditor action={action} onChange={onChange} />;
@@ -131,14 +131,14 @@ export function ActionEditor({ packId, action, onChange, menuId, elementId, clic
     case "teleport":
       return <TeleportEditor action={action} onChange={onChange} />;
     case "paginate":
-      return <PaginateEditor packId={packId} action={action} onChange={onChange} />;
+      return <PaginateEditor projectId={projectId} action={action} onChange={onChange} />;
     case "set_arg":
       return <SetArgEditor action={action} onChange={onChange} />;
     case "set_arg_cycle_next":
     case "set_arg_cycle_prev":
       return <SetArgCycleEditor action={action} onChange={onChange} />;
     case "open_dialog":
-      return <OpenDialogEditor packId={packId} action={action} onChange={onChange} />;
+      return <OpenDialogEditor projectId={projectId} action={action} onChange={onChange} />;
     case "close_dialog":
       return <div className="text-[11px] text-[var(--text-faint)]">Ferme le dialogue actuel.</div>;
   }
@@ -149,20 +149,20 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function OpenMenuEditor({
-  packId,
+  projectId,
   action,
   onChange,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   action: Extract<Action, { type: "open_menu" }>;
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
-  const menus = useAccountStore((s) => s.account.packs.find((p) => p.id === packId)?.menus ?? []);
+  const menus = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.menus ?? []);
   const targetMenu = menus.find((m) => m.id === action.menuId);
   const targetInputs = targetMenu?.contextInputs ?? [];
   const ctxValues = action.context ?? {};
-  const getText = useGetText(packId);
+  const getText = useGetText(projectId);
 
   const setCtxValue = (name: string, value: string) => {
     const next = { ...ctxValues };
@@ -241,15 +241,15 @@ function OpenMenuEditor({
 }
 
 function OpenDialogEditor({
-  packId,
+  projectId,
   action,
   onChange,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   action: Extract<Action, { type: "open_dialog" }>;
   onChange: (a: Action) => void;
 }) {
-  const dialogs = useAccountStore((s) => s.account.packs.find((p) => p.id === packId)?.dialogs ?? []);
+  const dialogs = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.dialogs ?? []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -333,13 +333,13 @@ function RunCommandEditor({
 }
 
 function SendMessageEditor({
-  packId,
+  projectId,
   action,
   menuId,
   elementId,
   clickType,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   action: Extract<Action, { type: "send_message" | "broadcast" }>;
   menuId?: MenuId;
   elementId?: ElementId;
@@ -351,9 +351,9 @@ function SendMessageEditor({
   // survive the edit. Writing through `setI18nValue` updates the value
   // map under the existing key instead of replacing the action.
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const edit = useTextEdit(packId, action.text);
+  const edit = useTextEdit(projectId, action.text);
   const onTextChange = (value: string) =>
-    setI18nValue({ packId, lt: action.text, lang: edit.lang, value });
+    setI18nValue({ projectId, lt: action.text, lang: edit.lang, value });
 
   const placeholderLocation = useMemo(
     () =>
@@ -364,7 +364,7 @@ function SendMessageEditor({
     [menuId, elementId, clickType],
   );
   const placeholderEntries = usePlaceholderEntries(
-    packId,
+    projectId,
     placeholderLocation,
   );
 
@@ -399,14 +399,14 @@ function SendMessageEditor({
 }
 
 function ShowTitleEditor({
-  packId,
+  projectId,
   action,
   onChange,
   menuId,
   elementId,
   clickType,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   action: Extract<Action, { type: "show_title" }>;
   onChange: (a: Action) => void;
   menuId?: MenuId;
@@ -415,8 +415,8 @@ function ShowTitleEditor({
 }) {
   const { t } = useTranslation();
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const titleEdit = useTextEdit(packId, action.title);
-  const subtitleEdit = useTextEdit(packId, action.subtitle ?? { key: UNALLOCATED_LTEXT_KEY });
+  const titleEdit = useTextEdit(projectId, action.title);
+  const subtitleEdit = useTextEdit(projectId, action.subtitle ?? { key: UNALLOCATED_LTEXT_KEY });
   const hasSubtitle = !!action.subtitle;
 
   const placeholderLocation = useMemo(
@@ -427,13 +427,13 @@ function ShowTitleEditor({
         : ({ kind: "menu" as const, menuId: "" as MenuId }),
     [menuId, elementId, clickType],
   );
-  const placeholderEntries = usePlaceholderEntries(packId, placeholderLocation);
+  const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
   const onTitleChange = (value: string) =>
-    setI18nValue({ packId, lt: action.title, lang: titleEdit.lang, value });
+    setI18nValue({ projectId, lt: action.title, lang: titleEdit.lang, value });
   const onSubtitleChange = (value: string) => {
     if (!action.subtitle) return;
-    setI18nValue({ packId, lt: action.subtitle, lang: subtitleEdit.lang, value });
+    setI18nValue({ projectId, lt: action.subtitle, lang: subtitleEdit.lang, value });
   };
 
   const enableSubtitle = () => {
@@ -783,11 +783,11 @@ function TeleportEditor({
 }
 
 function PaginateEditor({
-  packId,
+  projectId,
   action,
   onChange,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   action: Extract<Action, { type: "paginate" }>;
   onChange: (a: Action) => void;
 }) {
@@ -799,8 +799,8 @@ function PaginateEditor({
   // the store doesn't allocate. Derive `targets` via useMemo so we don't
   // hand zustand a fresh array on every render (that'd loop the identity
   // check, same trap as ItemTooltip's findElementAndMenu).
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
-  const getText = useGetText(packId);
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const getText = useGetText(projectId);
   const targets = useMemo(() => {
     if (!pack) return [];
     const out: { id: ElementId; menuTitle: string; alias: string; source: string }[] = [];

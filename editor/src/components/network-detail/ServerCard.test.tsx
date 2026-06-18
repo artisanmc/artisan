@@ -18,14 +18,14 @@ const workspaces = [
 
 describe("ServerCard", () => {
   it("shows label, online dot, workspaces, count, and 'new workspace' CTA", () => {
-    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateWorkspace={() => {}} />);
+    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateProject={() => {}} />);
     expect(screen.getByText("Survival")).toBeInTheDocument();
-    expect(screen.getByText(/2 workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 projet/i)).toBeInTheDocument();
     // workspace links contain emoji + text — use regex
     expect(screen.getByText(/Shop/)).toBeInTheDocument();
     expect(screen.getByText(/Lobby/)).toBeInTheDocument();
     // CTA button — label varies by locale; match the + prefix
-    expect(screen.getByRole("button", { name: /workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /projet/i })).toBeInTheDocument();
   });
 
   it("shows an element-count badge when provided", () => {
@@ -34,25 +34,25 @@ describe("ServerCard", () => {
       { id: "p2", name: "Lobby" },
     ] as any;
     render(
-      <ServerCard networkId="net_1" server={server} workspaces={withCounts} onAction={() => {}} onCreateWorkspace={() => {}} />,
+      <ServerCard networkId="net_1" server={server} workspaces={withCounts} onAction={() => {}} onCreateProject={() => {}} />,
     );
     expect(screen.getByText("7")).toBeInTheDocument();
   });
 
   it("workspace links point to the server-scoped URL pattern", () => {
-    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateWorkspace={() => {}} />);
+    render(<ServerCard networkId="net_1" server={server} workspaces={workspaces} onAction={() => {}} onCreateProject={() => {}} />);
     const links = screen.getAllByRole("link");
     // Links use TanStack Router `to` pattern as href (mocked Link renders href=to)
     expect(links[0]).toHaveAttribute(
       "href",
-      "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+      "/networks/$networkId/servers/$serverId/projects/$projectId",
     );
   });
 
-  it("invokes onCreateWorkspace when CTA clicked", () => {
+  it("invokes onCreateProject when CTA clicked", () => {
     const onCreate = vi.fn();
-    render(<ServerCard networkId="net_1" server={server} workspaces={[]} onAction={() => {}} onCreateWorkspace={onCreate} />);
-    fireEvent.click(screen.getByRole("button", { name: /workspace/i }));
+    render(<ServerCard networkId="net_1" server={server} workspaces={[]} onAction={() => {}} onCreateProject={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /projet/i }));
     expect(onCreate).toHaveBeenCalledWith("sk1");
   });
 });

@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 
 /**
- * Pack a flat map of path → YAML content into a zip Blob.
+ * Bundle a flat map of path → YAML content into a zip Blob.
  * Paths may contain directory separators (e.g. "plugins/Artisan/menus/shop.yaml")
  * and JSZip will create the intermediate directories automatically.
  */

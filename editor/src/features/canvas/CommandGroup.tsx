@@ -1,4 +1,4 @@
-import type { Command, PackId } from "@/domain/types";
+import type { Command, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -11,15 +11,15 @@ import { COMMAND_BOX } from "./menuLayout";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface CommandGroupProps {
-  packId: PackId;
+  projectId: ProjectId;
   command: Command;
   position: { x: number; y: number };
 }
 
-export function CommandGroup({ packId, command, position }: CommandGroupProps) {
+export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
   const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.ids.has(command.id));
-  const nodeAlign = useNodeAlignment(packId, command.id);
+  const nodeAlign = useNodeAlignment(projectId, command.id);
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -27,10 +27,10 @@ export function CommandGroup({ packId, command, position }: CommandGroupProps) {
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ packId, nodeId: command.id, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: command.id, x: e.target.x(), y: e.target.y() });
       useAlignmentStore.getState().clear();
     },
-    [packId, command.id, setCanvasPosition],
+    [projectId, command.id, setCanvasPosition],
   );
 
   const onClick = useCallback(

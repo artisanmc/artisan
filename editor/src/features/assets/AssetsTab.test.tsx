@@ -17,12 +17,12 @@ vi.mock("@tanstack/react-virtual", () => ({
 }));
 
 const A1 = {
-  id: "asset_1", packId: "p1", type: "texture" as const, name: "bg_one",
+  id: "asset_1", projectId: "p1", type: "texture" as const, name: "bg_one",
   width: 16, height: 16, ascent: null, codepoint: null, fontMeta: null,
   contentHash: "h1", createdAt: "", updatedAt: "",
 };
 const A2 = {
-  id: "asset_2", packId: "p1", type: "glyph" as const, name: "ico_one",
+  id: "asset_2", projectId: "p1", type: "glyph" as const, name: "ico_one",
   width: 8, height: 9, ascent: 7, codepoint: 0xE000, fontMeta: null,
   contentHash: "h2", createdAt: "", updatedAt: "",
 };

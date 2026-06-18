@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { useAssetStore } from "./assetStore";
-import * as packApi from "@/lib/packApi";
+import * as projectApi from "@/lib/projectApi";
 
 vi.mock("@/state/sessionStore", () => ({
   useSessionStore: (sel: (s: { accessToken: string | null }) => unknown) =>
@@ -11,7 +11,7 @@ vi.mock("@/state/sessionStore", () => ({
 
 const fakeAsset = {
   id: "asset_font_1",
-  packId: "p1",
+  projectId: "p1",
   type: "font" as const,
   name: "my_font",
   width: 0,
@@ -34,14 +34,14 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("renders the dialog when open=true", () => {
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
     expect(screen.getByText(/import mcfonts zip/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /import/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
   });
 
   it("defaults the name from the filename, stripping the extension and normalizing", () => {
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
     // Spaces and dots are illegal under [a-z0-9_-]+ and must be replaced with _.
     // Hyphens and underscores are allowed and preserved as-is.
     const file = new File([new Uint8Array([1, 2, 3])], "My Font.v2.zip", { type: "application/zip" });
@@ -52,7 +52,7 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("preserves hyphens and digits in the normalized name", () => {
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
     const file = new File([new Uint8Array([1])], "My-Font-2.ZIP", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
     const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
@@ -61,9 +61,9 @@ describe("AssetImportFontDialog", () => {
 
   it("calls uploadFontAsset with the file and name on Import", async () => {
     const spy = vi
-      .spyOn(packApi, "uploadFontAsset")
+      .spyOn(projectApi, "uploadFontAsset")
       .mockResolvedValue({ asset: fakeAsset });
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={() => {}} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
 
     const file = new File([new Uint8Array([1, 2, 3])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -77,9 +77,9 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("adds the asset to the store and closes on success", async () => {
-    vi.spyOn(packApi, "uploadFontAsset").mockResolvedValue({ asset: fakeAsset });
+    vi.spyOn(projectApi, "uploadFontAsset").mockResolvedValue({ asset: fakeAsset });
     const onClose = vi.fn();
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -90,9 +90,9 @@ describe("AssetImportFontDialog", () => {
   });
 
   it("displays the error and stays open if the upload fails", async () => {
-    vi.spyOn(packApi, "uploadFontAsset").mockRejectedValue(new Error("Bad zip"));
+    vi.spyOn(projectApi, "uploadFontAsset").mockRejectedValue(new Error("Bad zip"));
     const onClose = vi.fn();
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "broken.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
@@ -104,12 +104,12 @@ describe("AssetImportFontDialog", () => {
 
   it("surfaces warnings from the backend in the UI", async () => {
     vi.useFakeTimers();
-    vi.spyOn(packApi, "uploadFontAsset").mockResolvedValue({
+    vi.spyOn(projectApi, "uploadFontAsset").mockResolvedValue({
       asset: fakeAsset,
       warnings: ["skipped malformed glyph X"],
     });
     const onClose = vi.fn();
-    render(<AssetImportFontDialog packId={"p1" as never} open onClose={onClose} />);
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={onClose} />);
 
     const file = new File([new Uint8Array([1])], "my_font.zip", { type: "application/zip" });
     fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });

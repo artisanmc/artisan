@@ -1,6 +1,6 @@
 import { type DragEvent, useState } from "react";
 
-import type { AssetId, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
 import { newI18nKey } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
@@ -14,7 +14,7 @@ import { LayerListItem } from "./LayerListItem";
 import { getStageGeometry } from "../../stageGeometry";
 
 interface LayersPanelProps {
-  packId: PackId;
+  projectId: ProjectId;
   /**
    * The menu whose title layers this panel edits. Provided by the parent
    * (typically `MenuProperties`) — required, no fallback. If the menu id is
@@ -48,11 +48,11 @@ const DND_MIME = "application/x-layer-index";
  * panel switches to the new target (MenuProperties re-renders against
  * whichever menu the selectionStore now points at).
  */
-export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
+export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) {
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const menu = pack?.menus.find((m) => m.id === menuId);
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
@@ -69,7 +69,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
       !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
     ) return;
     setMenuTitleLayers({
-      packId,
+      projectId,
       menuId,
       layers: [{ kind: "plain", value: { key: newI18nKey() } }],
     });
@@ -83,7 +83,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
     const migratedLayers: MenuTitleLayer[] = plainLayer
       ? [{ kind: "text", value: plainLayer.value, x: 8, y: 5 }]
       : [];
-    setMenuTitleLayers({ packId, menuId, layers: migratedLayers });
+    setMenuTitleLayers({ projectId, menuId, layers: migratedLayers });
     setSelectedLayerKey(null);
   };
 
@@ -145,7 +145,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
           if (targetMenu) {
             const newIndex = targetMenu.title.length;
             const layer = buildLayer(kind, { x: placement.x, y: placement.y });
-            addMenuTitleLayer({ packId, menuId: placement.menuId, layer });
+            addMenuTitleLayer({ projectId, menuId: placement.menuId, layer });
             setSelectedMenuId(placement.menuId);
             setSelectedLayerKey({ menuId: placement.menuId, index: newIndex });
             return;
@@ -158,7 +158,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
     if (!menu) return;
     const newIndex = menu.title.length;
     const layer = buildLayer(kind, null);
-    addMenuTitleLayer({ packId, menuId, layer });
+    addMenuTitleLayer({ projectId, menuId, layer });
     setSelectedLayerKey({ menuId, index: newIndex });
   };
 
@@ -195,7 +195,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
     }
     setDragFromIndex(null);
     if (fromIndex === null || fromIndex === toIndex) return;
-    reorderMenuTitleLayers({ packId, menuId, fromIndex, toIndex });
+    reorderMenuTitleLayers({ projectId, menuId, fromIndex, toIndex });
     // Sync uiStore: remap stale selection + hidden flags to the new ordering.
     applyLayerMoved(menuId, fromIndex, toIndex);
   };
@@ -234,13 +234,13 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
               : "text-[var(--text-mut)] hover:text-[var(--text)]",
           )}
         >
-          Composé (Resource Pack)
+          Composé (Resource Project)
         </button>
       </div>
 
       {isVanillaMode ? (
         // Vanilla mode: show the plain layer form directly.
-        <PlainTitleForm packId={packId} menuId={menuId} />
+        <PlainTitleForm projectId={projectId} menuId={menuId} />
       ) : (
         <>
           <AddLayerControls onPlace={onPlace} />
@@ -257,7 +257,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
                 onDrop={onDrop(index)}
               >
                 <LayerListItem
-                  packId={packId}
+                  projectId={projectId}
                   menuId={menuId}
                   index={index}
                   layer={layer}
@@ -267,7 +267,7 @@ export function LayersPanel({ packId, menuId, className }: LayersPanelProps) {
           </div>
 
           <div className="mt-2 border-t border-[var(--border-soft)] pt-2">
-            <LayerEditForm packId={packId} />
+            <LayerEditForm projectId={projectId} />
           </div>
         </>
       )}

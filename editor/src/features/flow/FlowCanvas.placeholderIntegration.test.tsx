@@ -13,15 +13,15 @@ import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { FieldLocation } from "@/lib/placeholderCatalog";
 import { useAccountStore } from "@/state/accountStore";
-import type { Account, ElementId, MenuId, Pack, PackId } from "@/domain/types";
+import type { Account, ElementId, MenuId, Project, ProjectId } from "@/domain/types";
 
 // ── Minimal pack fixture ──────────────────────────────────────────────────────
 
-const PACK_ID = "p_smoke" as PackId;
+const PACK_ID = "p_smoke" as ProjectId;
 const MENU_ID = "m_smoke" as MenuId;
 const ELEMENT_ID = "e_smoke" as ElementId;
 
-function makePack(): Pack {
+function makeProject(): Project {
   return {
     id: PACK_ID,
     name: "smoke",
@@ -31,12 +31,12 @@ function makePack(): Pack {
     menus: [
       {
         id: MENU_ID,
-        packId: PACK_ID,
+        projectId: PACK_ID,
         title: [],
         rows: 3,
         layers: [
           {
-            id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+            id: "l1" as Project["menus"][number]["layers"][number]["id"],
             name: "default",
             elements: [
               { id: ELEMENT_ID, positions: "0", appearances: [] },
@@ -79,8 +79,8 @@ describe("placeholder catalog → hook → PlaceholderInput integration", () => 
   beforeEach(() => {
     const account: Account = {
       id: "acc_smoke" as Account["id"],
-      packs: [makePack()],
-      packOrder: [PACK_ID],
+      projects: [makeProject()],
+      projectOrder: [PACK_ID],
     };
     useAccountStore.setState({ account });
   });

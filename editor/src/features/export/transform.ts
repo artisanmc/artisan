@@ -15,7 +15,7 @@ import type {
   Layer,
   Menu,
   MenuTitleLayer,
-  Pack,
+  Project,
   Step,
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
@@ -133,7 +133,7 @@ function serializeAction(action: Action): unknown {
 
 // ─── step tree serialization ─────────────────────────────────────────────────
 
-function serializeStep(step: Step, pack: Pack): unknown {
+function serializeStep(step: Step, pack: Project): unknown {
   if (step.kind === "action") {
     return { kind: "action", action: serializeAction(step.action) };
   }
@@ -151,13 +151,13 @@ function serializeStep(step: Step, pack: Pack): unknown {
   return out;
 }
 
-function serializeSteps(steps: Step[], pack: Pack): unknown[] {
+function serializeSteps(steps: Step[], pack: Project): unknown[] {
   return steps.map((s) => serializeStep(s, pack));
 }
 
 // ─── appearance serialization ────────────────────────────────────────────────
 
-function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknown> {
+function serializeAppearance(app: Appearance, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (app.if && app.if.length > 0) out.if = serializeIfArray(app.if, app.ifJoins);
   if (app.material) out.material = app.material;
@@ -178,7 +178,7 @@ function serializeAppearance(app: Appearance, pack: Pack): Record<string, unknow
 
 // ─── element serialization ───────────────────────────────────────────────────
 
-function serializeElement(el: Element, pack: Pack): Record<string, unknown> {
+function serializeElement(el: Element, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: el.id,
     positions: el.positions,
@@ -191,7 +191,7 @@ function serializeElement(el: Element, pack: Pack): Record<string, unknown> {
 
 // ─── layer serialization ─────────────────────────────────────────────────────
 
-function serializeLayer(layer: Layer, pack: Pack): Record<string, unknown> {
+function serializeLayer(layer: Layer, pack: Project): Record<string, unknown> {
   return {
     id: layer.id,
     name: layer.name,
@@ -411,7 +411,7 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
  */
 export function serializeMenuToV1(
   menu: Menu,
-  pack: Pack,
+  pack: Project,
 ): { id: string } & Record<string, unknown> {
   const type = menu.inventoryType ?? "chest";
   const out: Record<string, unknown> = {
@@ -440,13 +440,13 @@ export function serializeMenuToV1(
 }
 
 /** Serialize every menu in a pack to canonical `menu/v1` objects (one per menu). */
-export function packToMenuV1(pack: Pack): ({ id: string } & Record<string, unknown>)[] {
+export function packToMenuV1(pack: Project): ({ id: string } & Record<string, unknown>)[] {
   return pack.menus.map((m) => serializeMenuToV1(m, pack));
 }
 
 // ─── command serialization ───────────────────────────────────────────────────
 
-export function serializeCommand(cmd: Command, pack: Pack): Record<string, unknown> {
+export function serializeCommand(cmd: Command, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "command/v1",
     id: cmd.id,
@@ -468,7 +468,7 @@ export function serializeCommand(cmd: Command, pack: Pack): Record<string, unkno
 }
 
 /** Serialize every command in a pack to canonical command/v1 objects. */
-export function packToCommandV1(pack: Pack): Record<string, unknown>[] {
+export function packToCommandV1(pack: Project): Record<string, unknown>[] {
   return pack.commands.map((c) => serializeCommand(c, pack));
 }
 
@@ -531,7 +531,7 @@ export function serializeDialog(dialog: Dialog): Record<string, unknown> {
 }
 
 /** Serialize every dialog in a pack to canonical dialog/v1 objects. */
-export function packToDialogV1(pack: Pack): Record<string, unknown>[] {
+export function packToDialogV1(pack: Project): Record<string, unknown>[] {
   return pack.dialogs.map((d) => serializeDialog(d));
 }
 
@@ -545,7 +545,7 @@ function addActionKeys(action: Action, keys: Set<string>): void {
   }
 }
 
-function collectReferencedKeys(pack: Pack): Set<string> {
+function collectReferencedKeys(pack: Project): Set<string> {
   const keys = new Set<string>();
   for (const menu of pack.menus) {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
@@ -587,7 +587,7 @@ function collectReferencedKeys(pack: Pack): Set<string> {
 }
 
 function serializeLang(
-  pack: Pack,
+  pack: Project,
   lang: string,
   referencedKeys: Set<string>,
 ): Record<string, string> {
@@ -614,14 +614,16 @@ function serializeLang(
 // ─── public API ──────────────────────────────────────────────────────────────
 
 /**
- * Transform a Pack into a flat map of filename → YAML string.
+ * Transform a Project into a flat map of filename → YAML string.
  * Keys use the server-side path (e.g. "plugins/Artisan/menus/shop_main.yaml").
  */
-export function transform(pack: Pack): Record<string, string> {
+export function transform(pack: Project): Record<string, string> {
   const files: Record<string, string> = {};
 
   const yamlOpts = { lineWidth: 0 };
 
+  // TODO(phase4-wire): on-disk path segment `packs/` flips to `projects/` in Phase 4
+  // (plugin-owned dir; flips in lockstep with backend+plugin).
   const base = `plugins/Artisan/packs/${pack.id}`;
 
   for (const menu of pack.menus) {
@@ -656,7 +658,7 @@ export function transform(pack: Pack): Record<string, string> {
 
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
-    pack_id: pack.id,
+    pack_id: pack.id, // TODO(phase4-wire): manifest pack_id
     default_lang: pack.defaultLang,
     languages: langs,
     files: {
@@ -681,7 +683,7 @@ export function transform(pack: Pack): Record<string, string> {
 
   files[`${base}/meta.yaml`] = stringify(
     {
-      pack_id: pack.id,
+      pack_id: pack.id, // TODO(phase4-wire): meta.pack_id
       exported_at: new Date().toISOString(),
       editor_version: "1.0.0",
     },

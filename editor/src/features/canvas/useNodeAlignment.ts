@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type Konva from "konva";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { alignmentGuides, type Box } from "./alignmentGuides";
@@ -9,7 +9,7 @@ import { nodeBox } from "./menuLayout";
 const THRESHOLD = 8;
 
 export function computeAndApplyAlignment(
-  packId: PackId,
+  projectId: ProjectId,
   selfId: string,
   node: { x: (v?: number) => number; y: (v?: number) => number },
   altKey: boolean,
@@ -19,7 +19,7 @@ export function computeAndApplyAlignment(
     align.clear();
     return;
   }
-  const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId);
+  const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
   if (!pack) return;
   const layout = pack.canvasLayout as Record<string, { x: number; y: number }>;
   const selfBox = nodeBox(pack, selfId, layout);
@@ -37,7 +37,7 @@ export function computeAndApplyAlignment(
   align.setGuides(res.guides);
 }
 
-export function useNodeAlignment(packId: PackId, selfId: string) {
+export function useNodeAlignment(projectId: ProjectId, selfId: string) {
   const onDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       // Konva bubbles drag events from child shapes (e.g. menu slots) up to the
@@ -46,13 +46,13 @@ export function useNodeAlignment(packId: PackId, selfId: string) {
       if ((e.target as Konva.Node).id?.() !== selfId) return;
       const alt = (e.evt as unknown as { altKey?: boolean }).altKey ?? false;
       computeAndApplyAlignment(
-        packId,
+        projectId,
         selfId,
         e.target as unknown as { x: (v?: number) => number; y: (v?: number) => number },
         alt,
       );
     },
-    [packId, selfId],
+    [projectId, selfId],
   );
   return { onDragMove };
 }

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Menu, MenuId, PackId } from "@/domain/types";
+import type { Menu, MenuId, ProjectId } from "@/domain/types";
 import { OPEN_ELEMENT_EVENT } from "./canvasEvents";
 
 vi.mock("react-konva", () => ({
@@ -27,8 +27,8 @@ import { MenuGroup } from "./MenuGroup";
 
 describe("MenuGroup solo", () => {
   it("ne pose pas de Group draggable et se rend à l'origine", () => {
-    const menu = { id: "m1" as MenuId, packId: "p1" as PackId, title: [], rows: 3, layers: [] } as Menu;
-    render(<MenuGroup packId={"p1" as PackId} menu={menu} position={{ x: 99, y: 99 }} layout={{}} solo />);
+    const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;
+    render(<MenuGroup projectId={"p1" as ProjectId} menu={menu} position={{ x: 99, y: 99 }} layout={{}} solo />);
     const outer = screen.getAllByTestId("konva-group").find((g) => g.getAttribute("data-name") === "menu:m1")!;
     expect(outer.getAttribute("data-x")).toBe("0");
     expect(outer.getAttribute("data-draggable")).toBe("false");
@@ -37,8 +37,8 @@ describe("MenuGroup solo", () => {
   it("double-clic (mode board) émet ifz:open_element avec l'id du menu", () => {
     const spy = vi.fn();
     window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
-    const menu = { id: "m1" as MenuId, packId: "p1" as PackId, title: [], rows: 3, layers: [] } as Menu;
-    render(<MenuGroup packId={"p1" as PackId} menu={menu} position={{ x: 0, y: 0 }} layout={{ m1: { x: 0, y: 0 } }} />);
+    const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;
+    render(<MenuGroup projectId={"p1" as ProjectId} menu={menu} position={{ x: 0, y: 0 }} layout={{ m1: { x: 0, y: 0 } }} />);
     const g = screen.getAllByTestId("konva-group").find((x) => x.getAttribute("data-name") === "menu:m1")!;
     fireEvent.doubleClick(g);
     expect(spy).toHaveBeenCalled();
@@ -50,8 +50,8 @@ describe("MenuGroup solo", () => {
   it("double-clic en mode solo n'émet pas ifz:open_element", () => {
     const spy = vi.fn();
     window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
-    const menu = { id: "m1" as MenuId, packId: "p1" as PackId, title: [], rows: 3, layers: [] } as Menu;
-    render(<MenuGroup packId={"p1" as PackId} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />);
+    const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;
+    render(<MenuGroup projectId={"p1" as ProjectId} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />);
     const g = screen.getAllByTestId("konva-group").find((x) => x.getAttribute("data-name") === "menu:m1")!;
     fireEvent.doubleClick(g);
     expect(spy).not.toHaveBeenCalled();

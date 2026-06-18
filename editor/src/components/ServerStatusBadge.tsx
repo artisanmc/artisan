@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 interface Props {
   networkId: string | null | undefined;
   serverKeyId: string;
-  packId: string;
+  projectId: string;
 }
 
 export function ServerStatusBadge({ networkId, serverKeyId }: Props) {

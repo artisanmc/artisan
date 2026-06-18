@@ -6,7 +6,7 @@ describe("publishBundle", () => {
     vi.unstubAllGlobals();
   });
 
-  it("POSTs files to /api/v1/bundles/:packId with Bearer auth", async () => {
+  it("POSTs files to /api/v1/bundles/:projectId with Bearer auth", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ hash: "abc123" }),
@@ -17,7 +17,7 @@ describe("publishBundle", () => {
     const result = await publishBundle({
       apiUrl: "http://localhost:3001",
       serverKey: "sk_abc",
-      packId: "p_test",
+      projectId: "p_test",
       files,
     });
 
@@ -37,7 +37,7 @@ describe("publishBundle", () => {
 
   it("throws when response is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }));
-    await expect(publishBundle({ apiUrl: "http://x", serverKey: "k", packId: "p", files: {} }))
+    await expect(publishBundle({ apiUrl: "http://x", serverKey: "k", projectId: "p", files: {} }))
       .rejects.toThrow("401");
   });
 });

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { I18nKey, Pack } from "@/domain/types";
+import type { I18nKey, Project } from "@/domain/types";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { EdgeTooltip } from "./EdgeTooltip";
 
@@ -16,7 +16,7 @@ const pack = {
   menus: [
     {
       id: "m1",
-      packId: "p1",
+      projectId: "p1",
       title: [],
       rows: 3,
       layers: [
@@ -34,7 +34,7 @@ const pack = {
         },
       ],
     },
-    { id: "m2", packId: "p1", title: [], rows: 3, layers: [] },
+    { id: "m2", projectId: "p1", title: [], rows: 3, layers: [] },
   ],
   commands: [],
   templates: [],
@@ -43,7 +43,7 @@ const pack = {
   importedConnectors: [],
   dialogs: [],
   canvasLayout: {},
-} as unknown as Pack;
+} as unknown as Project;
 
 describe("EdgeTooltip", () => {
   beforeEach(() => {

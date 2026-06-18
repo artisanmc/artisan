@@ -1,4 +1,4 @@
-import type { FieldType, Menu, Pack } from "@/domain/types";
+import type { FieldType, Menu, Project } from "@/domain/types";
 import {
   buildPreviewScope,
   SAMPLE_PLAYER_NAME,
@@ -25,7 +25,7 @@ const ORDER: Record<PlaceholderOrigin, number> = {
  * placeholder entries the user can insert in this field. Pure — no
  * side effects, safe to call from useMemo.
  */
-export function compute(pack: Pack, location: FieldLocation): PlaceholderEntry[] {
+export function compute(pack: Project, location: FieldLocation): PlaceholderEntry[] {
   switch (location.kind) {
     case "menu":
     case "element":
@@ -82,7 +82,7 @@ function playerSubfieldEntries(base: string, nameSample: string | null): Placeho
 
 function collectMenuContextInputs(
   menu: Menu,
-  pack: Pack,
+  pack: Project,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
 ): void {
@@ -155,7 +155,7 @@ function primitiveContextInputTypeToPlaceholderType(t: string): PlaceholderType 
   }
 }
 
-function typeOfSourceRef(ref: string, pack: Pack): FieldType | null {
+function typeOfSourceRef(ref: string, pack: Project): FieldType | null {
   if (ref.startsWith("pack:")) {
     const id = ref.slice("pack:".length);
     const ds = pack.dataSources.find((d) => d.id === id);
@@ -186,7 +186,7 @@ function findElement(menu: Menu, elementId: string) {
 function collectIterationLeaves(
   sourcePath: string,
   alias: string,
-  pack: Pack,
+  pack: Project,
   menu: Menu,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],

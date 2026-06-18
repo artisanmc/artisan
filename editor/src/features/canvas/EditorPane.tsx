@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
@@ -9,7 +9,7 @@ import { Library } from "./Library";
 import { useTextureInit } from "./useTextureInit";
 
 interface EditorPaneProps {
-  packId: PackId;
+  projectId: ProjectId;
 }
 
 /**
@@ -17,9 +17,9 @@ interface EditorPaneProps {
  * flat with a sage underline on the active one — the editor pane background
  * uses the raised surface to feel slightly lifted from the canvas.
  */
-export function EditorPane({ packId }: EditorPaneProps) {
+export function EditorPane({ projectId }: EditorPaneProps) {
   useTextureInit();
-  useAssetInit(packId);
+  useAssetInit(projectId);
   const tab = useUiStore((s) => s.editorTab);
   const setTab = useUiStore((s) => s.setEditorTab);
   const { t } = useTranslation();
@@ -38,13 +38,13 @@ export function EditorPane({ packId }: EditorPaneProps) {
           <TabsTrigger value="assets">{t("editorPane.tabAssets")}</TabsTrigger>
         </TabsList>
         <TabsContent value="edit" className="min-h-0 flex-1 overflow-hidden">
-          <FlowCanvas packId={packId} />
+          <FlowCanvas projectId={projectId} />
         </TabsContent>
         <TabsContent value="library" className="min-h-0 flex-1 p-3">
           <Library />
         </TabsContent>
         <TabsContent value="assets" className="h-full m-0 p-0">
-          <AssetsTab packId={packId} />
+          <AssetsTab projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

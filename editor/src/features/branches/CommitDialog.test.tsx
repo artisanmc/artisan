@@ -8,10 +8,10 @@ describe("CommitDialog", () => {
 
   it("calls createCommit with message + currentBranch on submit", async () => {
     const spy = vi.spyOn(branchesApi, "createCommit").mockResolvedValue({
-      id: "cmt_new", packId: "p", parentId: null, contentHash: "", authorUserId: null, message: "", createdAt: "",
+      id: "cmt_new", projectId: "p", parentId: null, contentHash: "", authorUserId: null, message: "", createdAt: "",
     });
     const onClose = vi.fn();
-    render(<CommitDialog networkId="n1" packId="p1" branch="main" open onClose={onClose} />);
+    render(<CommitDialog networkId="n1" projectId="p1" branch="main" open onClose={onClose} />);
     fireEvent.change(screen.getByPlaceholderText(/commit message/i), { target: { value: "hello" } });
     fireEvent.click(screen.getByRole("button", { name: /commit/i }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith("n1", "p1", "main", "hello"));
@@ -19,7 +19,7 @@ describe("CommitDialog", () => {
   });
 
   it("disables button when message empty", () => {
-    render(<CommitDialog networkId="n1" packId="p1" branch="main" open onClose={() => {}} />);
+    render(<CommitDialog networkId="n1" projectId="p1" branch="main" open onClose={() => {}} />);
     expect((screen.getByRole("button", { name: /commit/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

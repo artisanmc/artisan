@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { rewriteIds } from "./clipboard";
 
 describe("rewriteIds", () => {
-  const personal = mockAccount().packs[0]!;
+  const personal = mockAccount().projects[0]!;
 
   it("assigns new menu/command/layer/element ids", () => {
     const { menus } = rewriteIds({ menus: [personal.menus[0]!], commands: [] });

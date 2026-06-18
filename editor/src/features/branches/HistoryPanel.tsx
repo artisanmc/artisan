@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { listCommits, type Commit } from "@/lib/api/branches";
 
-interface Props { networkId: string; packId: string; branch: string; }
+interface Props { networkId: string; projectId: string; branch: string; }
 
-export function HistoryPanel({ networkId, packId, branch }: Props) {
+export function HistoryPanel({ networkId, projectId, branch }: Props) {
   const [commits, setCommits] = useState<Commit[] | null>(null);
 
   useEffect(() => {
-    listCommits(networkId, packId, branch, 50).then(setCommits).catch(console.error);
-  }, [networkId, packId, branch]);
+    listCommits(networkId, projectId, branch, 50).then(setCommits).catch(console.error);
+  }, [networkId, projectId, branch]);
 
   if (commits === null)
     return <div className="px-1 py-1 text-[11.5px] text-[var(--text-mut)]">Loading…</div>;

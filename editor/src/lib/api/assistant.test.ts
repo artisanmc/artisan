@@ -19,7 +19,7 @@ describe("assistant SSE client", () => {
       "fetch",
       vi.fn(async () => new Response(JSON.stringify({ conversationId: "c1" }), { status: 200 })),
     );
-    expect(await openConversation("t", { packId: "p" })).toBe("c1");
+    expect(await openConversation("t", { projectId: "p" })).toBe("c1");
   });
   it("streamAssistant yields parsed events across frames", async () => {
     vi.stubGlobal(
@@ -43,7 +43,7 @@ describe("assistant SSE client", () => {
       async () => new Response(JSON.stringify({ conversationId: "c2" }), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await openConversation(null, { packId: "p" });
+    await openConversation(null, { projectId: "p" });
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.credentials).toBe("include");
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
@@ -53,7 +53,7 @@ describe("assistant SSE client", () => {
       async () => new Response(JSON.stringify({ conversationId: "c3" }), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await openConversation("tok", { packId: "p" });
+    await openConversation("tok", { projectId: "p" });
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
   });
@@ -72,7 +72,7 @@ describe("assistant SSE client", () => {
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe("a");
     expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/api/v1/assistant/conversations?packId=pack_1",
+      "/api/v1/assistant/conversations?projectId=pack_1",
     );
   });
   it("getConversation returns the transcript", async () => {
@@ -83,7 +83,7 @@ describe("assistant SSE client", () => {
           new Response(
             JSON.stringify({
               id: "a",
-              packId: "p",
+              projectId: "p",
               title: "Hi",
               messages: [{ role: "user", content: "yo" }],
               updatedAt: "2026-06-10T00:00:00Z",

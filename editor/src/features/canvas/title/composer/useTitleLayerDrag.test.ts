@@ -2,16 +2,16 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { Asset } from "@/domain/asset";
-import type { AssetId, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
-const PERSONAL = "p_personal" as PackId;
+const PERSONAL = "p_personal" as ProjectId;
 const M_ID = "m_shop_main" as MenuId;
 const ASSET_BG: Asset = {
   id: "asset_bg" as AssetId,
-  packId: "p1",
+  projectId: "p1",
   type: "texture",
   name: "bg",
   width: 200,
@@ -25,7 +25,7 @@ const ASSET_BG: Asset = {
 };
 const ASSET_GLYPH: Asset = {
   id: "asset_glyph" as AssetId,
-  packId: "p1",
+  projectId: "p1",
   type: "glyph",
   name: "ico",
   width: 8,
@@ -40,14 +40,14 @@ const ASSET_GLYPH: Asset = {
 
 const seedMenuTitle = (layers: MenuTitleLayer[]) => {
   useAccountStore.getState().setMenuTitleLayers({
-    packId: PERSONAL,
+    projectId: PERSONAL,
     menuId: M_ID,
     layers,
   });
 };
 
 const getTitle = (): MenuTitleLayer[] => {
-  const pack = useAccountStore.getState().account.packs.find((p) => p.id === PERSONAL)!;
+  const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
   return pack.menus.find((m) => m.id === M_ID)!.title;
 };
 

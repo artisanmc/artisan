@@ -12,12 +12,12 @@ import { newI18nKey } from "@/lib/i18n";
  * pack — is safe.
  *
  * We intentionally type the input as `any` because by definition the
- * pre-migration shape doesn't match the current `Pack` type (titles
+ * pre-migration shape doesn't match the current `Project` type (titles
  * are strings, not LTexts) and modeling both shapes in TS would cost
  * more than it returns.
  */
 // biome-ignore lint/suspicious/noExplicitAny: legacy shape is by definition different from current
-export function migratePackToI18n(pack: any, fallbackDefaultLang: string): void {
+export function migrateProjectToI18n(pack: any, fallbackDefaultLang: string): void {
   if (!pack || typeof pack !== "object") return;
   if (!pack.i18nKeys || typeof pack.i18nKeys !== "object") pack.i18nKeys = {};
   if (typeof pack.defaultLang !== "string" || !pack.defaultLang) {

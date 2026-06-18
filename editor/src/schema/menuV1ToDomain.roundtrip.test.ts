@@ -1,4 +1,4 @@
-import { assetId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
+import { assetId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type {
   Appearance,
   Element,
@@ -6,7 +6,7 @@ import type {
   Layer,
   Menu,
   MenuTitleLayer,
-  Pack,
+  Project,
   SourceRef,
 } from "@/domain/types";
 import { serializeMenuToV1, transform } from "@/features/export/transform";
@@ -30,17 +30,17 @@ import { validateMenuV1 } from "./validateMenuV1";
  *    re-resolve to the same keys + values.
  */
 
-const PACK = packId("p_rt");
+const PACK = projectId("p_rt");
 const LANG = "en";
 
-function lt(pack: Pack, value: string): { key: I18nKey } {
+function lt(pack: Project, value: string): { key: I18nKey } {
   const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
   pack.i18nKeys[key] = { en: value };
   return { key };
 }
 
-function buildPack(): Pack {
-  const pack: Pack = {
+function buildProject(): Project {
+  const pack: Project = {
     id: PACK,
     name: "Round-trip",
     source: "user_created",
@@ -194,7 +194,7 @@ function buildPack(): Pack {
 
   const menu: Menu = {
     id: menuId("shop"),
-    packId: PACK,
+    projectId: PACK,
     title: titleLayers,
     rows: 3,
     permission: "menu.shop",
@@ -213,20 +213,20 @@ function buildPack(): Pack {
 /** Resolve an LText key against the import result's keys, then the pack's. */
 function resolve(
   importedKeys: Record<string, Record<string, string>>,
-  packKeys: Record<string, Record<string, string>>,
+  projectKeys: Record<string, Record<string, string>>,
   key: string,
 ): string | undefined {
-  return importedKeys[key]?.[LANG] ?? packKeys[key]?.[LANG];
+  return importedKeys[key]?.[LANG] ?? projectKeys[key]?.[LANG];
 }
 
 describe("menuV1ToDomain — round-trip oracle", () => {
-  const pack = buildPack();
+  const pack = buildProject();
   const original = pack.menus[0]!;
   const files = transform(pack);
   const menuYaml = files[`plugins/Artisan/packs/${PACK}/menus/shop.yaml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
   const result = menuV1ToDomain(wire, {
-    packId: PACK,
+    projectId: PACK,
     lang: LANG,
     translations: pack.i18nKeys as Record<string, Record<string, string>>,
   });
@@ -408,7 +408,7 @@ describe("serializeMenuToV1 inventory_type", () => {
 
   it("omits inventory_type for chest and uses size = rows*9", () => {
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
-    const menu = { id: "m", packId: "p", title: [], rows: 3, layers: [] } as any;
+    const menu = { id: "m", projectId: "p", title: [], rows: 3, layers: [] } as any;
     const out = serializeMenuToV1(menu, pack);
     expect(out.inventory_type).toBeUndefined();
     expect(out.size).toBe(27);
@@ -416,7 +416,7 @@ describe("serializeMenuToV1 inventory_type", () => {
   it("emits inventory_type=hopper with size 5", () => {
     const menu = {
       id: "m",
-      packId: "p",
+      projectId: "p",
       title: [],
       rows: 1,
       inventoryType: "hopper",
@@ -430,7 +430,7 @@ describe("serializeMenuToV1 inventory_type", () => {
   it("emits inventory_type=dropper with size 9", () => {
     const menu = {
       id: "m",
-      packId: "p",
+      projectId: "p",
       title: [],
       rows: 3,
       inventoryType: "dropper",
@@ -461,7 +461,7 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
     it(`stable for ${type}`, () => {
       const menu = {
         id: "m",
-        packId: "p",
+        projectId: "p",
         title: [],
         rows,
         ...(type !== "chest" ? { inventoryType: type } : {}),
@@ -471,7 +471,7 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
       const v1 = serializeMenuToV1(menu, pack);
       expect(v1.size).toBe(size);
       // biome-ignore lint/suspicious/noExplicitAny: wire object re-fed to importer
-      const back = menuV1ToDomain(v1 as any, { packId: packId("p"), lang: "en" }).menu;
+      const back = menuV1ToDomain(v1 as any, { projectId: projectId("p"), lang: "en" }).menu;
       expect(back.inventoryType).toBe(type === "chest" ? undefined : type);
       expect(back.rows).toBe(rows);
     });

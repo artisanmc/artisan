@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Menu, MenuId, Pack, PackId } from "@/domain/types";
+import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -55,10 +55,10 @@ vi.mock("./title/composer/TitleRender", () => ({
   TitleRender: () => <div data-testid="title-render-stub" />,
 }));
 
-const PACK_ID = "p1" as PackId;
+const PACK_ID = "p1" as ProjectId;
 const MENU_ID = "m1" as MenuId;
 
-function makePack(): Pack {
+function makeProject(): Project {
   return {
     id: PACK_ID,
     name: "p",
@@ -68,7 +68,7 @@ function makePack(): Pack {
     menus: [
       {
         id: MENU_ID,
-        packId: PACK_ID,
+        projectId: PACK_ID,
         title: [],
         rows: 3,
         layers: [],
@@ -90,8 +90,8 @@ beforeEach(() => {
   useAccountStore.setState({
     account: {
       id: "acc" as any,
-      packs: [makePack()],
-      packOrder: [PACK_ID],
+      projects: [makeProject()],
+      projectOrder: [PACK_ID],
     },
   } as any);
   useUiStore.setState({
@@ -105,10 +105,10 @@ beforeEach(() => {
 
 describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   it("clicking the menu's outer Group sets uiStore.selectedMenuId to this menu's id", () => {
-    const menu = useAccountStore.getState().account.packs[0]!.menus[0]!;
+    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
     render(
       <MenuGroup
-        packId={PACK_ID}
+        projectId={PACK_ID}
         menu={menu}
         position={{ x: 0, y: 0 }}
         layout={{ [MENU_ID]: { x: 0, y: 0 } }}
@@ -133,10 +133,10 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   });
 
   it("clicking the menu also sets it in the legacy selectionStore (element-selection store)", () => {
-    const menu = useAccountStore.getState().account.packs[0]!.menus[0]!;
+    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
     render(
       <MenuGroup
-        packId={PACK_ID}
+        projectId={PACK_ID}
         menu={menu}
         position={{ x: 0, y: 0 }}
         layout={{ [MENU_ID]: { x: 0, y: 0 } }}

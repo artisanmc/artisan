@@ -1,5 +1,5 @@
-import { visitPackLTexts } from "@/domain/i18nSites";
-import type { I18nKey, Pack } from "@/domain/types";
+import { visitProjectLTexts } from "@/domain/i18nSites";
+import type { I18nKey, Project } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
 
 export interface ValidationResult {
@@ -8,14 +8,14 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export function validate(pack: Pack): ValidationResult {
+export function validate(pack: Project): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   // Collect all LText keys referenced in the pack — one traversal covering
   // menus, commands, templates, and dialogs (see @/domain/i18nSites).
   const referencedKeys = new Set<string>();
-  for (const site of visitPackLTexts(pack)) referencedKeys.add(site.lText.key);
+  for (const site of visitProjectLTexts(pack)) referencedKeys.add(site.lText.key);
 
   // 1. Every referenced key must have a non-empty value in defaultLang
   for (const key of referencedKeys) {

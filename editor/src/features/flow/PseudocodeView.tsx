@@ -16,7 +16,7 @@ import type {
   IfCase,
   LText,
   MenuId,
-  PackId,
+  ProjectId,
   Step,
 } from "@/domain/types";
 import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
@@ -128,7 +128,7 @@ function useStepIds(steps: Step[]): string[] {
 // ────────────────────────────────────────────────────────────────────────────
 
 interface ElementClickHandlersPseudocodeProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
   stateIndex: number;
@@ -136,7 +136,7 @@ interface ElementClickHandlersPseudocodeProps {
 }
 
 export function ElementClickHandlersPseudocode({
-  packId,
+  projectId,
   menuId,
   elementId,
   stateIndex,
@@ -163,7 +163,7 @@ export function ElementClickHandlersPseudocode({
               type="button"
               title={t("flow.clickRemove")}
               onClick={() =>
-                removeHandler({ packId, menuId, elementId, appearanceIndex: stateIndex, clickType })
+                removeHandler({ projectId, menuId, elementId, appearanceIndex: stateIndex, clickType })
               }
               className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[var(--text-faint)] leading-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             >
@@ -172,7 +172,7 @@ export function ElementClickHandlersPseudocode({
           </div>
           <div className="p-1.5">
             <ElementStepTree
-              packId={packId}
+              projectId={projectId}
               menuId={menuId}
               elementId={elementId}
               stateIndex={stateIndex}
@@ -200,7 +200,7 @@ export function ElementClickHandlersPseudocode({
                 key={opt}
                 onSelect={() =>
                   addHandler({
-                    packId,
+                    projectId,
                     menuId,
                     elementId,
                     appearanceIndex: stateIndex,
@@ -224,7 +224,7 @@ export function ElementClickHandlersPseudocode({
 // ────────────────────────────────────────────────────────────────────────────
 
 interface ElementStepTreeProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
   stateIndex: number;
@@ -235,11 +235,11 @@ interface ElementStepTreeProps {
 }
 
 function ElementStepTree(props: ElementStepTreeProps) {
-  const { packId, menuId, elementId, stateIndex, clickType, steps, frames, indent } = props;
+  const { projectId, menuId, elementId, stateIndex, clickType, steps, frames, indent } = props;
   const addElementStep = useAccountStore((s) => s.addElementStep);
   const moveElementStep = useAccountStore((s) => s.moveElementStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
+    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -247,7 +247,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
 
   const handleAdd = (newStep: Step) => {
     addElementStep({
-      packId,
+      projectId,
       menuId,
       elementId,
       appearanceIndex: stateIndex,
@@ -266,7 +266,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
     const toIndex = ids.indexOf(over.id as string);
     if (fromIndex < 0 || toIndex < 0) return;
     moveElementStep({
-      packId,
+      projectId,
       menuId,
       elementId,
       appearanceIndex: stateIndex,
@@ -290,7 +290,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
               <ElementStepLine
                 step={step}
                 stepIndex={i}
-                packId={packId}
+                projectId={projectId}
                 menuId={menuId}
                 elementId={elementId}
                 stateIndex={stateIndex}
@@ -310,7 +310,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
 function ElementStepLine({
   step,
   stepIndex,
-  packId,
+  projectId,
   menuId,
   elementId,
   stateIndex,
@@ -320,7 +320,7 @@ function ElementStepLine({
 }: {
   step: Step;
   stepIndex: number;
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
   stateIndex: number;
@@ -339,7 +339,7 @@ function ElementStepLine({
 
   const onRemove = () =>
     removeElementStep({
-      packId,
+      projectId,
       menuId,
       elementId,
       appearanceIndex: stateIndex,
@@ -352,13 +352,13 @@ function ElementStepLine({
       <ActionLine
         action={step.action}
         indent={indent}
-        packId={packId}
+        projectId={projectId}
         menuId={menuId}
         elementId={elementId}
         clickType={clickType}
         onChange={(next) =>
           setElementStep({
-            packId,
+            projectId,
             menuId,
             elementId,
             appearanceIndex: stateIndex,
@@ -380,7 +380,7 @@ function ElementStepLine({
       onRemoveStep={onRemove}
       renderCaseChildren={(caseSteps, descend, childIndent) => (
         <ElementStepTree
-          packId={packId}
+          projectId={projectId}
           menuId={menuId}
           elementId={elementId}
           stateIndex={stateIndex}
@@ -392,7 +392,7 @@ function ElementStepLine({
       )}
       onAddCase={() =>
         addIfCase({
-          packId,
+          projectId,
           menuId,
           elementId,
           appearanceIndex: stateIndex,
@@ -403,7 +403,7 @@ function ElementStepLine({
       }
       onRemoveCase={(caseIndex) =>
         removeIfCase({
-          packId,
+          projectId,
           menuId,
           elementId,
           appearanceIndex: stateIndex,
@@ -415,7 +415,7 @@ function ElementStepLine({
       }
       onSetCaseConditions={(caseIndex, conditions) =>
         setIfCaseConditions({
-          packId,
+          projectId,
           menuId,
           elementId,
           appearanceIndex: stateIndex,
@@ -428,7 +428,7 @@ function ElementStepLine({
       }
       onSetCaseJoin={(caseIndex, joinIndex, op) =>
         setIfCaseJoin({
-          packId,
+          projectId,
           menuId,
           elementId,
           appearanceIndex: stateIndex,
@@ -442,7 +442,7 @@ function ElementStepLine({
       }
       onToggleElse={(enabled) =>
         toggleIfElse({
-          packId,
+          projectId,
           menuId,
           elementId,
           appearanceIndex: stateIndex,
@@ -461,14 +461,14 @@ function ElementStepLine({
 // ────────────────────────────────────────────────────────────────────────────
 
 interface CommandStepPseudocodeProps {
-  packId: PackId;
+  projectId: ProjectId;
   commandId: CommandId;
   steps: Step[];
   frames: StepFrame[];
 }
 
 export function CommandStepPseudocode({
-  packId,
+  projectId,
   commandId,
   steps,
   frames,
@@ -476,7 +476,7 @@ export function CommandStepPseudocode({
   return (
     <div className="font-mono text-[12px]">
       <CommandStepTree
-        packId={packId}
+        projectId={projectId}
         commandId={commandId}
         steps={steps}
         frames={frames}
@@ -487,13 +487,13 @@ export function CommandStepPseudocode({
 }
 
 function CommandStepTree({
-  packId,
+  projectId,
   commandId,
   steps,
   frames,
   indent,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   commandId: CommandId;
   steps: Step[];
   frames: StepFrame[];
@@ -502,7 +502,7 @@ function CommandStepTree({
   const addCommandStep = useAccountStore((s) => s.addCommandStep);
   const moveCommandStep = useAccountStore((s) => s.moveCommandStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
+    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -510,7 +510,7 @@ function CommandStepTree({
 
   const handleAdd = (newStep: Step) => {
     addCommandStep({
-      packId,
+      projectId,
       commandId,
       frames,
       index: steps.length,
@@ -525,7 +525,7 @@ function CommandStepTree({
     const fromIndex = ids.indexOf(active.id as string);
     const toIndex = ids.indexOf(over.id as string);
     if (fromIndex < 0 || toIndex < 0) return;
-    moveCommandStep({ packId, commandId, frames, fromIndex, toIndex });
+    moveCommandStep({ projectId, commandId, frames, fromIndex, toIndex });
   };
 
   return (
@@ -541,7 +541,7 @@ function CommandStepTree({
               <CommandStepLine
                 step={step}
                 stepIndex={i}
-                packId={packId}
+                projectId={projectId}
                 commandId={commandId}
                 frames={frames}
                 indent={indent}
@@ -558,14 +558,14 @@ function CommandStepTree({
 function CommandStepLine({
   step,
   stepIndex,
-  packId,
+  projectId,
   commandId,
   frames,
   indent,
 }: {
   step: Step;
   stepIndex: number;
-  packId: PackId;
+  projectId: ProjectId;
   commandId: CommandId;
   frames: StepFrame[];
   indent: number;
@@ -580,17 +580,17 @@ function CommandStepLine({
   const activeLang = useUiStore((s) => s.activeLang);
 
   const onRemove = () =>
-    removeCommandStep({ packId, commandId, path: { frames, index: stepIndex } });
+    removeCommandStep({ projectId, commandId, path: { frames, index: stepIndex } });
 
   if (step.kind === "action") {
     return (
       <ActionLine
         action={step.action}
         indent={indent}
-        packId={packId}
+        projectId={projectId}
         onChange={(next) =>
           setCommandStep({
-            packId,
+            projectId,
             commandId,
             path: { frames, index: stepIndex },
             step: { kind: "action", action: next },
@@ -609,20 +609,20 @@ function CommandStepLine({
       onRemoveStep={onRemove}
       renderCaseChildren={(caseSteps, descend, childIndent) => (
         <CommandStepTree
-          packId={packId}
+          projectId={projectId}
           commandId={commandId}
           steps={caseSteps}
           frames={[...frames, { stepIndex, descend }]}
           indent={childIndent}
         />
       )}
-      onAddCase={() => addCommandIfCase({ packId, commandId, frames, ifStepIndex: stepIndex })}
+      onAddCase={() => addCommandIfCase({ projectId, commandId, frames, ifStepIndex: stepIndex })}
       onRemoveCase={(caseIndex) =>
-        removeCommandIfCase({ packId, commandId, frames, ifStepIndex: stepIndex, caseIndex })
+        removeCommandIfCase({ projectId, commandId, frames, ifStepIndex: stepIndex, caseIndex })
       }
       onSetCaseConditions={(caseIndex, conditions) =>
         setCommandIfCaseConditions({
-          packId,
+          projectId,
           commandId,
           frames,
           ifStepIndex: stepIndex,
@@ -632,7 +632,7 @@ function CommandStepLine({
       }
       onSetCaseJoin={(caseIndex, joinIndex, op) =>
         setCommandIfCaseJoin({
-          packId,
+          projectId,
           commandId,
           frames,
           ifStepIndex: stepIndex,
@@ -642,7 +642,7 @@ function CommandStepLine({
         })
       }
       onToggleElse={(enabled) =>
-        toggleCommandIfElse({ packId, commandId, frames, ifStepIndex: stepIndex, enabled })
+        toggleCommandIfElse({ projectId, commandId, frames, ifStepIndex: stepIndex, enabled })
       }
     />
   );
@@ -655,7 +655,7 @@ function CommandStepLine({
 function ActionLine({
   action,
   indent,
-  packId,
+  projectId,
   onChange,
   onRemove,
   menuId,
@@ -664,7 +664,7 @@ function ActionLine({
 }: {
   action: Action;
   indent: number;
-  packId: PackId;
+  projectId: ProjectId;
   onChange: (next: Action) => void;
   onRemove: () => void;
   menuId?: MenuId;
@@ -674,7 +674,7 @@ function ActionLine({
   const [expanded, setExpanded] = useState(false);
   // Pull the active-lang LText resolver for the inline summary (so
   // `send_message: "Hello"` shows real text, not the LText ref).
-  const getText = useGetText(packId);
+  const getText = useGetText(projectId);
   return (
     <>
       <Row
@@ -690,7 +690,7 @@ function ActionLine({
       {expanded ? (
         <Expansion indent={indent + 1}>
           <ActionEditor
-            packId={packId}
+            projectId={projectId}
             action={action}
             onChange={onChange}
             menuId={menuId}
@@ -1141,7 +1141,7 @@ function summarizeConditions(
 // ────────────────────────────────────────────────────────────────────────────
 
 interface DialogButtonStepPseudocodeProps {
-  packId: PackId;
+  projectId: ProjectId;
   dialogId: DialogId;
   buttonIndex: number;
   steps: Step[];
@@ -1149,7 +1149,7 @@ interface DialogButtonStepPseudocodeProps {
 }
 
 export function DialogButtonStepPseudocode({
-  packId,
+  projectId,
   dialogId,
   buttonIndex,
   steps,
@@ -1158,7 +1158,7 @@ export function DialogButtonStepPseudocode({
   return (
     <div className="font-mono text-[12px]">
       <DialogButtonStepTree
-        packId={packId}
+        projectId={projectId}
         dialogId={dialogId}
         buttonIndex={buttonIndex}
         steps={steps}
@@ -1170,14 +1170,14 @@ export function DialogButtonStepPseudocode({
 }
 
 function DialogButtonStepTree({
-  packId,
+  projectId,
   dialogId,
   buttonIndex,
   steps,
   frames,
   indent,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   dialogId: DialogId;
   buttonIndex: number;
   steps: Step[];
@@ -1187,7 +1187,7 @@ function DialogButtonStepTree({
   const addDialogButtonStep = useAccountStore((s) => s.addDialogButtonStep);
   const moveDialogButtonStep = useAccountStore((s) => s.moveDialogButtonStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.packs.find((p) => p.id === packId)?.menus[0]?.id,
+    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -1195,7 +1195,7 @@ function DialogButtonStepTree({
 
   const handleAdd = (newStep: Step) => {
     addDialogButtonStep({
-      packId,
+      projectId,
       dialogId,
       buttonIndex,
       frames,
@@ -1211,7 +1211,7 @@ function DialogButtonStepTree({
     const fromIndex = ids.indexOf(active.id as string);
     const toIndex = ids.indexOf(over.id as string);
     if (fromIndex < 0 || toIndex < 0) return;
-    moveDialogButtonStep({ packId, dialogId, buttonIndex, frames, fromIndex, toIndex });
+    moveDialogButtonStep({ projectId, dialogId, buttonIndex, frames, fromIndex, toIndex });
   };
 
   return (
@@ -1227,7 +1227,7 @@ function DialogButtonStepTree({
               <DialogButtonStepLine
                 step={step}
                 stepIndex={i}
-                packId={packId}
+                projectId={projectId}
                 dialogId={dialogId}
                 buttonIndex={buttonIndex}
                 frames={frames}
@@ -1245,7 +1245,7 @@ function DialogButtonStepTree({
 function DialogButtonStepLine({
   step,
   stepIndex,
-  packId,
+  projectId,
   dialogId,
   buttonIndex,
   frames,
@@ -1253,7 +1253,7 @@ function DialogButtonStepLine({
 }: {
   step: Step;
   stepIndex: number;
-  packId: PackId;
+  projectId: ProjectId;
   dialogId: DialogId;
   buttonIndex: number;
   frames: StepFrame[];
@@ -1272,7 +1272,7 @@ function DialogButtonStepLine({
 
   const onRemove = () =>
     removeDialogButtonStep({
-      packId,
+      projectId,
       dialogId,
       buttonIndex,
       path: { frames, index: stepIndex },
@@ -1283,10 +1283,10 @@ function DialogButtonStepLine({
       <ActionLine
         action={step.action}
         indent={indent}
-        packId={packId}
+        projectId={projectId}
         onChange={(next) =>
           setDialogButtonStep({
-            packId,
+            projectId,
             dialogId,
             buttonIndex,
             path: { frames, index: stepIndex },
@@ -1306,7 +1306,7 @@ function DialogButtonStepLine({
       onRemoveStep={onRemove}
       renderCaseChildren={(caseSteps, descend, childIndent) => (
         <DialogButtonStepTree
-          packId={packId}
+          projectId={projectId}
           dialogId={dialogId}
           buttonIndex={buttonIndex}
           steps={caseSteps}
@@ -1316,7 +1316,7 @@ function DialogButtonStepLine({
       )}
       onAddCase={() =>
         addDialogButtonIfCase({
-          packId,
+          projectId,
           dialogId,
           buttonIndex,
           frames,
@@ -1325,7 +1325,7 @@ function DialogButtonStepLine({
       }
       onRemoveCase={(caseIndex) =>
         removeDialogButtonIfCase({
-          packId,
+          projectId,
           dialogId,
           buttonIndex,
           frames,
@@ -1335,7 +1335,7 @@ function DialogButtonStepLine({
       }
       onSetCaseConditions={(caseIndex, conditions) =>
         setDialogButtonIfCaseConditions({
-          packId,
+          projectId,
           dialogId,
           buttonIndex,
           frames,
@@ -1346,7 +1346,7 @@ function DialogButtonStepLine({
       }
       onSetCaseJoin={(caseIndex, joinIndex, op) =>
         setDialogButtonIfCaseJoin({
-          packId,
+          projectId,
           dialogId,
           buttonIndex,
           frames,
@@ -1358,7 +1358,7 @@ function DialogButtonStepLine({
       }
       onToggleElse={(enabled) =>
         toggleDialogButtonIfElse({
-          packId,
+          projectId,
           dialogId,
           buttonIndex,
           frames,

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useAccountStore } from "@/state/accountStore";
 import { compute, type FieldLocation, type PlaceholderEntry } from "@/lib/placeholderCatalog";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 
 /**
  * Subscribe to the active pack and recompute the placeholder catalog when
@@ -9,9 +9,9 @@ import type { PackId } from "@/domain/types";
  * resulting `entries` array into `<PlaceholderInput entries={...} />`.
  */
 export function usePlaceholderEntries(
-  packId: PackId,
+  projectId: ProjectId,
   location: FieldLocation,
 ): PlaceholderEntry[] {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   return useMemo(() => (pack ? compute(pack, location) : []), [pack, location]);
 }

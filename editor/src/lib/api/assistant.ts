@@ -20,7 +20,7 @@ function authHeaders(token: string | null): HeadersInit {
 
 export async function openConversation(
   token: string | null,
-  body: { packId: string },
+  body: { projectId: string },
 ): Promise<string> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations`, {
     method: "POST",
@@ -42,10 +42,10 @@ export interface ConversationSummary {
 /** List a workspace's conversations (newest first) — titles + timestamps only. */
 export async function listConversations(
   token: string | null,
-  packId: string,
+  projectId: string,
 ): Promise<ConversationSummary[]> {
   const res = await fetch(
-    `${apiUrl()}/api/v1/assistant/conversations?packId=${encodeURIComponent(packId)}`,
+    `${apiUrl()}/api/v1/assistant/conversations?projectId=${encodeURIComponent(projectId)}`,
     { headers: authHeaders(token), credentials: "include" },
   );
   if (!res.ok) throw new Error(`listConversations failed: ${res.status}`);
@@ -61,7 +61,7 @@ export interface ConversationMessage {
 }
 export interface ConversationDetail {
   id: string;
-  packId: string;
+  projectId: string;
   title: string;
   messages: ConversationMessage[];
   updatedAt: string;

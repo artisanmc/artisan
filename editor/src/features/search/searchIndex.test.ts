@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { Pack, PackId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { buildSearchIndex, groupResultsForDisplay, searchQuery } from "./searchIndex";
 
-const PID = "p1" as PackId;
-function pack(): Pack {
+const PID = "p1" as ProjectId;
+function pack(): Project {
   return {
     id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
     menus: [{
-      id: "m_shop", packId: PID, title: [{ kind: "plain", value: { key: "k_title" } }], rows: 3,
+      id: "m_shop", projectId: PID, title: [{ kind: "plain", value: { key: "k_title" } }], rows: 3,
       layers: [{ id: "L1", name: "default", elements: [
         { id: "el_buy", positions: "13", appearances: [{ material: "DIAMOND", title: { key: "k_buytitle" }, lore: { key: "k_buylore" } }] },
       ] }],
     } as any],
-    commands: [{ id: "c_heal", packId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [{ id: "d_confirm", packId: PID, title: { key: "k_dtitle" }, canCloseWithEscape: true,
+    commands: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+    dialogs: [{ id: "d_confirm", projectId: PID, title: { key: "k_dtitle" }, canCloseWithEscape: true,
       body: [{ type: "text", text: { key: "k_dbody" } }], inputs: [],
       buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }] } as any],
     templates: [], assets: [], dataSources: [], importedConnectors: [],
@@ -22,7 +22,7 @@ function pack(): Pack {
       k_dtitle: { en: "Confirm" }, k_dbody: { en: "Are you sure?" }, k_btn: { en: "OK" },
     } as any,
     defaultLang: "en", canvasLayout: {},
-  } as Pack;
+  } as Project;
 }
 
 describe("buildSearchIndex", () => {

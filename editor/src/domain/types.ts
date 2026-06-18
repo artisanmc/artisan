@@ -10,7 +10,7 @@
  */
 
 export type AccountId = string & { __brand: "AccountId" };
-export type PackId = string & { __brand: "PackId" };
+export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
 export type TemplateId = string & { __brand: "TemplateId" };
@@ -24,13 +24,13 @@ export type DialogId = string & { __brand: "DialogId" };
 
 /**
  * Reference to a localizable string. The actual translations live in
- * `Pack.i18nKeys[key][lang]`. Keys are opaque random ids generated at
+ * `Project.i18nKeys[key][lang]`. Keys are opaque random ids generated at
  * field creation time — stable across renames of the surrounding entity
  * (menu/element/etc.) so translations don't break when ids change.
  *
  * The user never sees keys: the editor reads through `getText` and writes
  * through `setLText`, both of which take the active language from the UI
- * store and fall back to `Pack.defaultLang` when the active language has
+ * store and fall back to `Project.defaultLang` when the active language has
  * no entry yet.
  */
 export interface LText {
@@ -68,12 +68,12 @@ export type MenuTitleLayer =
   | { kind: "external_glyph"; provider: "oraxen" | "nexo" | "itemsadder";
       glyphName: string; x: number; y: number };
 
-export type PackSource = "user_created" | "imported" | "forked";
+export type ProjectSource = "user_created" | "imported" | "forked";
 
 export interface Account {
   id: AccountId;
-  packs: Pack[];
-  packOrder: PackId[];
+  projects: Project[];
+  projectOrder: ProjectId[];
 }
 
 export type AnchorSide = "top" | "right" | "bottom" | "left";
@@ -85,12 +85,12 @@ export interface EdgeAnchor {
   t: number;
 }
 
-export interface Pack {
-  id: PackId;
+export interface Project {
+  id: ProjectId;
   name: string;
   description?: string;
-  source: PackSource;
-  sourcePackId?: PackId;
+  source: ProjectSource;
+  sourceProjectId?: ProjectId;
   sourceVersion?: string;
   serverKeyId?: string;
   createdAt: string;
@@ -117,7 +117,7 @@ export type InventoryType = "chest" | "hopper" | "dropper";
 
 export interface Menu {
   id: MenuId;
-  packId: PackId;
+  projectId: ProjectId;
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   /**
@@ -342,7 +342,7 @@ export type Condition =
 
 export interface Command {
   id: CommandId;
-  packId: PackId;
+  projectId: ProjectId;
   name: string;
   aliases?: string[];
   permission?: string;
@@ -360,7 +360,7 @@ export interface CommandArg {
 
 export interface Template {
   id: TemplateId;
-  packId: PackId;
+  projectId: ProjectId;
   name: string;
   variables: { name: string; type: string }[];
   appearances: Appearance[];
@@ -368,7 +368,7 @@ export interface Template {
 
 export interface Asset {
   id: AssetId;
-  packId: PackId;
+  projectId: ProjectId;
   name: string;
   url: string;
   width: number;
@@ -423,7 +423,7 @@ export interface ConnectorSpec {
 
 export interface Dialog {
   id: DialogId;
-  packId: PackId;
+  projectId: ProjectId;
   title: LText;
   canCloseWithEscape: boolean;
   body: DialogBody[];

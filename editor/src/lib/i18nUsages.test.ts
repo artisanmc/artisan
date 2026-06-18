@@ -1,13 +1,13 @@
-import type { I18nKey, Pack } from "@/domain/types";
+import type { I18nKey, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { buildTranslationRows, findKeyUsages, findUnusedI18nKeys } from "./i18nUsages";
 
 const k = (s: string): I18nKey => s as I18nKey;
 
 /** Minimal pack scaffold; callers override the bits they exercise. */
-function pack(overrides: Partial<Pack>): Pack {
+function pack(overrides: Partial<Project>): Project {
   return {
-    id: "p1" as Pack["id"],
+    id: "p1" as Project["id"],
     name: "P",
     source: "user_created",
     createdAt: "2026-01-01T00:00:00Z",
@@ -32,7 +32,7 @@ describe("findKeyUsages", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [{ kind: "text", value: { key: k("lt_title") }, x: 0, y: 0 }],
           rows: 3,
           layers: [],
@@ -47,7 +47,7 @@ describe("findKeyUsages", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [],
           rows: 3,
           layers: [
@@ -81,7 +81,7 @@ describe("findKeyUsages", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [],
           rows: 3,
           layers: [
@@ -111,7 +111,7 @@ describe("findKeyUsages", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [],
           rows: 3,
           layers: [
@@ -159,7 +159,7 @@ describe("findKeyUsages — dialogs", () => {
       dialogs: [
         {
           id: "d1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: { key: k("lt_d_title") },
           canCloseWithEscape: true,
           body: [
@@ -208,7 +208,7 @@ describe("buildTranslationRows", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [{ kind: "text", value: { key: k("lt_used") }, x: 0, y: 0 }],
           rows: 3,
           layers: [],
@@ -231,7 +231,7 @@ describe("buildTranslationRows", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [{ kind: "text", value: { key: k("lt_used") }, x: 0, y: 0 }],
           rows: 3,
           layers: [],
@@ -253,7 +253,7 @@ describe("findUnusedI18nKeys", () => {
       menus: [
         {
           id: "m1" as never,
-          packId: "p1" as never,
+          projectId: "p1" as never,
           title: [{ kind: "text", value: { key: k("lt_used") }, x: 0, y: 0 }],
           rows: 3,
           layers: [],

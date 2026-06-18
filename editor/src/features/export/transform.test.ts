@@ -1,12 +1,12 @@
-import { commandId, dialogId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { Appearance, AssetId, Condition, Dialog, I18nKey, Pack } from "@/domain/types";
+import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { Appearance, AssetId, Condition, Dialog, I18nKey, Project } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 import { packToCommandV1, packToDialogV1, parseTitleNode, transform } from "./transform";
 
-const makePack = (overrides: Partial<Pack> = {}): Pack =>
+const makeProject = (overrides: Partial<Project> = {}): Project =>
   ({
-    id: packId("p_test"),
+    id: projectId("p_test"),
     name: "Test",
     description: "",
     source: "user_created",
@@ -21,16 +21,16 @@ const makePack = (overrides: Partial<Pack> = {}): Pack =>
     templates: [],
     canvasLayout: {},
     ...overrides,
-  }) as Pack;
+  }) as Project;
 
 describe("transform", () => {
   it("emits manifest.yaml with menu and command ids", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 }], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 }], layers: [] },
       ],
       commands: [
-        { id: commandId("heal"), packId: packId("p_test"), name: "heal", arguments: [], steps: [] },
+        { id: commandId("heal"), projectId: projectId("p_test"), name: "heal", arguments: [], steps: [] },
       ],
     });
     const files = transform(pack);
@@ -42,15 +42,15 @@ describe("transform", () => {
   });
 
   it("emits editor_layout in manifest with menu/command/dialog positions", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       commands: [
-        { id: commandId("heal"), packId: packId("p_test"), name: "heal", arguments: [], steps: [] },
+        { id: commandId("heal"), projectId: projectId("p_test"), name: "heal", arguments: [], steps: [] },
       ],
       dialogs: [
-        { id: dialogId("confirm"), packId: packId("p_test"), title: { key: "k" as I18nKey }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as unknown as Dialog,
+        { id: dialogId("confirm"), projectId: projectId("p_test"), title: { key: "k" as I18nKey }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as unknown as Dialog,
       ],
       canvasLayout: {
         [menuId("shop")]: { x: 40, y: 40 },
@@ -68,9 +68,9 @@ describe("transform", () => {
   });
 
   it("omits editor_layout when canvasLayout is empty", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       canvasLayout: {},
     });
@@ -80,15 +80,15 @@ describe("transform", () => {
   });
 
   it("filters orphaned ids from editor_layout (id no longer in pack)", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       canvasLayout: {
         [menuId("shop")]: { x: 40, y: 40 },
         // "ghost_menu" is NOT in pack.menus — stale entry, should be dropped:
         "ghost_menu": { x: 999, y: 999 },
-      } as Pack["canvasLayout"],
+      } as Project["canvasLayout"],
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
@@ -96,9 +96,9 @@ describe("transform", () => {
   });
 
   it("emits editor_layout in block-style YAML the backend round-trip test parses", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
     });
@@ -115,10 +115,10 @@ describe("transform", () => {
   });
 
   it("emits editor_edges in manifest with live-edge overrides", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
-        { id: menuId("home"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       canvasEdges: {
         "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
@@ -132,8 +132,8 @@ describe("transform", () => {
   });
 
   it("omits editor_edges when canvasEdges is empty or absent", () => {
-    const pack = makePack({
-      menus: [{ id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] }],
+    const pack = makeProject({
+      menus: [{ id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] }],
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
@@ -141,10 +141,10 @@ describe("transform", () => {
   });
 
   it("filters editor_edges whose source or target is no longer in the pack", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
-        { id: menuId("shop"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
-        { id: menuId("home"), packId: packId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
       ],
       canvasEdges: {
         "home->shop": { from: { side: "right", t: 0.5 } },
@@ -160,12 +160,12 @@ describe("transform", () => {
   });
 
   it("emits a menu yaml with title array containing the text layer", () => {
-    const pack = makePack({
-      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
@@ -188,17 +188,17 @@ describe("transform", () => {
   });
 
   it("emits element appearance with title, lore, and click steps", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.title": { en: "Buy" },
         "menus.shop.elements.btn.default.lore": { en: "Click here" },
         "menus.shop.elements.btn.default.click.left.message": { en: "Hello" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -245,11 +245,11 @@ describe("transform", () => {
   });
 
   it("serializes appearance.head", () => {
-    const pack = makePack({
+    const pack = makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [],
           layers: [
@@ -281,16 +281,16 @@ describe("transform", () => {
   });
 
   it("serializes show_title action with snake_case fields including all timings", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
         "menus.shop.elements.btn.default.click.left.show_subtitle": { en: "World" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -341,15 +341,15 @@ describe("transform", () => {
   });
 
   it("serializes show_title action omitting optional subtitle and timings", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -397,12 +397,12 @@ describe("transform", () => {
 
   it("serializes open_menu action with snake_case fields", () => {
     const targetId = menuId("profile");
-    const pack = makePack({
-      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [
@@ -444,10 +444,10 @@ describe("transform", () => {
   });
 
   it("serializes paginate to pagination_next/prev with element_id", () => {
-    const pack = makePack({
-      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
       menus: [{
-        id: menuId("shop"), packId: packId("p_test"), rows: 3,
+        id: menuId("shop"), projectId: projectId("p_test"), rows: 3,
         title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
         layers: [{ id: layerId("l1"), name: "default", elements: [{
           id: elementId("nav"), positions: "0",
@@ -466,11 +466,11 @@ describe("transform", () => {
   });
 
   it("emits a command yaml", () => {
-    const pack = makePack({
+    const pack = makeProject({
       commands: [
         {
           id: commandId("heal"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           name: "heal",
           aliases: ["h"],
           arguments: [{ name: "target", type: "player", required: true }],
@@ -488,17 +488,17 @@ describe("transform", () => {
   });
 
   it("emits one lang file per language with only referenced keys", () => {
-    const pack = makePack({
+    const pack = makeProject({
       defaultLang: "en",
       i18nKeys: {
         "menus.shop.title": { en: "Shop", fr: "Boutique" },
         lt_orphan: { en: "Orphan" },
         greeting: { en: "Welcome" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
           layers: [],
@@ -516,11 +516,11 @@ describe("transform", () => {
   });
 
   it("manifest includes default_lang and languages", () => {
-    const pack = makePack({
+    const pack = makeProject({
       defaultLang: "en",
       i18nKeys: {
         "menus.shop.title": { en: "Shop", fr: "Boutique" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
     });
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/packs/p_test/manifest.yaml"]!);
@@ -530,7 +530,7 @@ describe("transform", () => {
   });
 
   it("emits meta.yaml with pack_id", () => {
-    const pack = makePack();
+    const pack = makeProject();
     const files = transform(pack);
     const meta = parse(files["plugins/Artisan/packs/p_test/meta.yaml"]!);
     expect(meta.pack_id).toBe("p_test");
@@ -542,28 +542,28 @@ describe("transform — dialogs", () => {
   it("emits dialog yaml file", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
-      packId: packId("p_test"),
+      projectId: projectId("p_test"),
       title: { key: "dialogs.d_test.title" as I18nKey },
       canCloseWithEscape: true,
       body: [],
       inputs: [],
       buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
     };
-    const files = transform(makePack({ dialogs: [dialog] }));
+    const files = transform(makeProject({ dialogs: [dialog] }));
     expect(files["plugins/Artisan/packs/p_test/dialogs/d_test.yaml"]).toBeDefined();
   });
 
   it("dialog yaml contains schema, id, title, can_close_with_escape", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
-      packId: packId("p_test"),
+      projectId: projectId("p_test"),
       title: { key: "dialogs.d_test.title" as I18nKey },
       canCloseWithEscape: false,
       body: [],
       inputs: [],
       buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
     };
-    const files = transform(makePack({ dialogs: [dialog] }));
+    const files = transform(makeProject({ dialogs: [dialog] }));
     const yaml = files["plugins/Artisan/packs/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("schema: dialog/v1");
     expect(yaml).toContain("id: d_test");
@@ -574,14 +574,14 @@ describe("transform — dialogs", () => {
   it("manifest includes dialogs list", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
-      packId: packId("p_test"),
+      projectId: projectId("p_test"),
       title: { key: "dialogs.d_test.title" as I18nKey },
       canCloseWithEscape: true,
       body: [],
       inputs: [],
       buttons: [{ id: "btn_confirm", label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey }, steps: [] }],
     };
-    const files = transform(makePack({ dialogs: [dialog] }));
+    const files = transform(makeProject({ dialogs: [dialog] }));
     const manifest = files["plugins/Artisan/packs/p_test/manifest.yaml"]!;
     expect(manifest).toContain("d_test");
   });
@@ -589,7 +589,7 @@ describe("transform — dialogs", () => {
   it("button actions are serialized flat", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
-      packId: packId("p_test"),
+      projectId: projectId("p_test"),
       title: { key: "dialogs.d_test.title" as I18nKey },
       canCloseWithEscape: true,
       body: [],
@@ -600,17 +600,17 @@ describe("transform — dialogs", () => {
         steps: [{ kind: "action", action: { type: "close_dialog" } }],
       }],
     };
-    const files = transform(makePack({ dialogs: [dialog] }));
+    const files = transform(makeProject({ dialogs: [dialog] }));
     const yaml = files["plugins/Artisan/packs/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("close_dialog");
   });
 
   it("open_dialog action uses snake_case dialog_id", () => {
-    const packWithDialog = (dialog: Dialog) => makePack({ dialogs: [dialog] });
-    const pid = packId;
+    const projectWithDialog = (dialog: Dialog) => makeProject({ dialogs: [dialog] });
+    const pid = projectId;
     const dialog: Dialog = {
       id: dialogId("d_test"),
-      packId: pid("p_test"),
+      projectId: pid("p_test"),
       title: { key: "dialogs.d_test.title" as I18nKey },
       canCloseWithEscape: true,
       body: [],
@@ -621,7 +621,7 @@ describe("transform — dialogs", () => {
         steps: [{ kind: "action", action: { type: "open_dialog", dialogId: dialogId("d_other") } }],
       }],
     };
-    const files = transform(packWithDialog(dialog));
+    const files = transform(projectWithDialog(dialog));
     const yaml = files["plugins/Artisan/packs/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("dialog_id: d_other");
     expect(yaml).not.toContain("dialogId");
@@ -629,12 +629,12 @@ describe("transform — dialogs", () => {
 });
 
 describe("transform — title layers", () => {
-  const menuWithTitle = (title: Pack["menus"][number]["title"]): Pack =>
-    makePack({
+  const menuWithTitle = (title: Project["menus"][number]["title"]): Project =>
+    makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title,
           layers: [],
@@ -772,12 +772,12 @@ describe("transform — title layers", () => {
 });
 
 describe("transform — textarea title layer", () => {
-  const menuWithTitle = (title: Pack["menus"][number]["title"]): Pack =>
-    makePack({
+  const menuWithTitle = (title: Project["menus"][number]["title"]): Project =>
+    makeProject({
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title,
           layers: [],
@@ -838,15 +838,15 @@ describe("transform — textarea title layer", () => {
     // Without `textarea` in getTitleTextLayers, the key wasn't in
     // referencedKeys and the lang file came out empty — plugin then rendered
     // `<i18nKey>` literally as the title text.
-    const pack = makePack({
+    const pack = makeProject({
       defaultLang: "en",
       i18nKeys: {
         k_ta: { en: "Hello\nWorld" },
-      } as Pack["i18nKeys"],
+      } as Project["i18nKeys"],
       menus: [
         {
           id: menuId("shop"),
-          packId: packId("p_test"),
+          projectId: projectId("p_test"),
           rows: 3,
           title: [
             {
@@ -1085,10 +1085,10 @@ describe("parseTitleNode — legacy reader", () => {
 
 describe("transform — size field on text/textarea layers", () => {
   it("emits size on text layer when not default (8)", () => {
-    const pack = makePack({
-      i18nKeys: { "k": { en: "Big" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "k": { en: "Big" } } as Project["i18nKeys"],
       menus: [{
-        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        id: menuId("m"), projectId: projectId("p_test"), rows: 3,
         title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 }],
         layers: [],
       }],
@@ -1099,10 +1099,10 @@ describe("transform — size field on text/textarea layers", () => {
   });
 
   it("omits size on text layer when default (8) or undefined", () => {
-    const pack = makePack({
-      i18nKeys: { "k": { en: "Plain" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "k": { en: "Plain" } } as Project["i18nKeys"],
       menus: [{
-        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        id: menuId("m"), projectId: projectId("p_test"), rows: 3,
         title: [
           { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 },
           { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 15, size: 8 },
@@ -1117,10 +1117,10 @@ describe("transform — size field on text/textarea layers", () => {
   });
 
   it("emits size on textarea layer when not default", () => {
-    const pack = makePack({
-      i18nKeys: { "k": { en: "A\nB" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "k": { en: "A\nB" } } as Project["i18nKeys"],
       menus: [{
-        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        id: menuId("m"), projectId: projectId("p_test"), rows: 3,
         title: [{
           kind: "textarea", value: { key: "k" as I18nKey },
           x: 8, y: 20, width: 168, lineHeight: 14, alignment: "left", size: 12,
@@ -1134,10 +1134,10 @@ describe("transform — size field on text/textarea layers", () => {
   });
 
   it("imports size from text/textarea layer YAML", () => {
-    const pack = makePack({
-      i18nKeys: { "k": { en: "X" } } as Pack["i18nKeys"],
+    const pack = makeProject({
+      i18nKeys: { "k": { en: "X" } } as Project["i18nKeys"],
       menus: [{
-        id: menuId("m"), packId: packId("p_test"), rows: 3,
+        id: menuId("m"), projectId: projectId("p_test"), rows: 3,
         title: [
           { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 },
           { kind: "textarea", value: { key: "k" as I18nKey }, x: 8, y: 20,
@@ -1159,7 +1159,7 @@ describe("transform — size field on text/textarea layers", () => {
 describe("transform — appearance conditions", () => {
   const baseMenu = (appearances: Partial<Appearance>[]) => ({
     id: menuId("shop"),
-    packId: packId("p_test"),
+    projectId: projectId("p_test"),
     rows: 3 as const,
     title: [{ kind: "text" as const, value: { key: "t" as I18nKey }, x: 8, y: 5 }],
     layers: [
@@ -1183,13 +1183,13 @@ describe("transform — appearance conditions", () => {
   };
 
   it("single condition is written as a one-element array", () => {
-    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])] });
+    const pack = makeProject({ menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])] });
     const app = getApp(transform(pack));
     expect(app.if).toEqual([{ type: "has_permission", perm: "vip" }]);
   });
 
   it("AND-joined conditions are an ANDed array", () => {
-    const pack = makePack({ menus: [baseMenu([{
+    const pack = makeProject({ menus: [baseMenu([{
       if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_money", amount: 100 } as Condition],
       ifJoins: ["and"],
     }])] });
@@ -1198,7 +1198,7 @@ describe("transform — appearance conditions", () => {
   });
 
   it("OR-joined conditions are wrapped in a single { type: 'or', of: [...] }", () => {
-    const pack = makePack({ menus: [baseMenu([{
+    const pack = makeProject({ menus: [baseMenu([{
       if: [{ type: "has_permission", perm: "vip" } as Condition, { type: "has_permission", perm: "admin" } as Condition],
       ifJoins: ["or"],
     }])] });
@@ -1208,7 +1208,7 @@ describe("transform — appearance conditions", () => {
 
   it("composite 'and' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
+    const pack = makeProject({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
     const app = getApp(transform(pack));
     expect(app.if[0].of).toBeDefined();
     expect(app.if[0].all).toBeUndefined();
@@ -1216,7 +1216,7 @@ describe("transform — appearance conditions", () => {
 
   it("composite 'or' condition uses 'of'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const pack = makePack({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
+    const pack = makeProject({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
     const app = getApp(transform(pack));
     expect(app.if[0].of).toBeDefined();
     expect(app.if[0].any).toBeUndefined();
@@ -1225,10 +1225,10 @@ describe("transform — appearance conditions", () => {
 
 describe("packToCommandV1 / packToDialogV1", () => {
   it("serializes a command to command/v1 with steps", () => {
-    const pack = makePack({
+    const pack = makeProject({
       commands: [
         {
-          id: commandId("heal"), packId: packId("p_test"), name: "heal",
+          id: commandId("heal"), projectId: projectId("p_test"), name: "heal",
           arguments: [{ name: "n", type: "integer", required: true }],
           steps: [{ kind: "action", action: { type: "close_menu" } }],
         },
@@ -1241,11 +1241,11 @@ describe("packToCommandV1 / packToDialogV1", () => {
   });
 
   it("serializes a dialog to dialog/v1 with flat button actions", () => {
-    const pack = makePack({
+    const pack = makeProject({
       i18nKeys: { ["k_t" as I18nKey]: { en: "T" }, ["k_b" as I18nKey]: { en: "OK" } },
       dialogs: [
         {
-          id: dialogId("confirm"), packId: packId("p_test"),
+          id: dialogId("confirm"), projectId: projectId("p_test"),
           title: { key: "k_t" as I18nKey }, canCloseWithEscape: true,
           body: [], inputs: [],
           buttons: [{ id: "ok", label: { key: "k_b" as I18nKey }, steps: [{ kind: "action", action: { type: "close_dialog" } }] }],

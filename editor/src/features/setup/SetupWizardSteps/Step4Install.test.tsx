@@ -5,7 +5,7 @@ import type { WizardState } from "../SetupWizard";
 
 const stateWithKey: WizardState = {
   networkId: "n1",
-  packId: "p1",
+  projectId: "p1",
   serverKey: "artisan_sk_plaintext_abc123",
   serverKeyId: "sk-abc",
 };

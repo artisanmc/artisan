@@ -22,7 +22,7 @@ vi.mock("@/lib/api/networks", () => ({
   getNetwork: vi.fn().mockResolvedValue({
     network: { id: "net_1", name: "Mon Réseau", tier: "free" },
     serverKeys: [{ id: "sk_1", label: "Survival" }],
-    packs: [
+    projects: [
       { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1", elementCount: 5 },
       { id: "p2", name: "Lobby", hash: "h2", networkId: "net_1", serverKeyId: "sk_2" },
     ],
@@ -53,7 +53,7 @@ describe("ServerDetailPage", () => {
     const link = await screen.findByRole("link", { name: /Hub/ });
     expect(link).toHaveAttribute(
       "href",
-      "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+      "/networks/$networkId/servers/$serverId/projects/$projectId",
     );
   });
 });

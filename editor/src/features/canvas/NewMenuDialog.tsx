@@ -6,25 +6,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface NewMenuDialogProps {
-  packId: PackId;
+  projectId: ProjectId;
   open: boolean;
   position?: { x: number; y: number };
   onOpenChange: (open: boolean) => void;
 }
 
-export function NewMenuDialog({ packId, open, position, onOpenChange }: NewMenuDialogProps) {
+export function NewMenuDialog({ projectId, open, position, onOpenChange }: NewMenuDialogProps) {
   const [id, setId] = useState("");
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.packs.find((p) => p.id === packId);
+    const pack = s.account.projects.find((p) => p.id === projectId);
     if (!pack) return "";
     return [
       ...pack.menus.map((m) => m.id),
@@ -40,7 +40,7 @@ export function NewMenuDialog({ packId, open, position, onOpenChange }: NewMenuD
 
   const submit = () => {
     if (!trimmed || conflict) return;
-    const menuId = useAccountStore.getState().createMenu({ packId, id: prefixedId, position });
+    const menuId = useAccountStore.getState().createMenu({ projectId, id: prefixedId, position });
     useSelectionStore.getState().set([menuId]);
     setId("");
     onOpenChange(false);

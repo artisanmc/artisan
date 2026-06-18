@@ -1,4 +1,4 @@
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { type ConversationSummary, listConversations } from "@/lib/api/assistant";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -10,14 +10,14 @@ import { useTranslation } from "react-i18next";
  * AssistantConversations — the list view of a workspace's saved AI
  * conversations (newest first). "New conversation" starts a fresh chat;
  * clicking an item resumes it. Scoped per pack (the backend filters by
- * `ownerKey` + `packId`). Rendered by `AssistantBody`.
+ * `ownerKey` + `projectId`). Rendered by `AssistantBody`.
  */
 export function AssistantConversations({
-  packId,
+  projectId,
   onOpen,
   onNew,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   onOpen: (id: string) => void;
   onNew: () => void;
 }) {
@@ -29,7 +29,7 @@ export function AssistantConversations({
   useEffect(() => {
     if (!token && !user) return;
     let cancelled = false;
-    listConversations(token, packId)
+    listConversations(token, projectId)
       .then((list) => {
         if (!cancelled) setItems(list);
       })
@@ -39,7 +39,7 @@ export function AssistantConversations({
     return () => {
       cancelled = true;
     };
-  }, [token, user, packId]);
+  }, [token, user, projectId]);
 
   return (
     <div data-testid="assistant-conversations" className="flex min-h-0 flex-1 flex-col">

@@ -7,7 +7,7 @@ import type { WizardState } from "../SetupWizard";
 
 const baseState: WizardState = {
   networkId: null,
-  packId: null,
+  projectId: null,
   serverKey: null,
   serverKeyId: null,
 };

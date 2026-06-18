@@ -1,4 +1,4 @@
-import type { ElementId, Menu, PackId } from "@/domain/types";
+import type { ElementId, Menu, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
@@ -39,7 +39,7 @@ import { useMenuDrag } from "./useMenuDrag";
 import { useSlotDrag } from "./useSlotDrag";
 
 interface MenuGroupProps {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
   position: { x: number; y: number };
   /** Full pack-canvas layout — needed by the slot drag-out handler to
@@ -65,7 +65,7 @@ interface MenuGroupProps {
  * texture itself draws the visual slot wells; we just overlay material text
  * + interaction targets.
  */
-export function MenuGroup({ packId, menu, position, layout, solo = false }: MenuGroupProps) {
+export function MenuGroup({ projectId, menu, position, layout, solo = false }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -95,13 +95,13 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
   const box = menuBoxSize(type, menu.rows);
   const single = usesSingleBackground(type);
 
-  const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ packId, menuId: menu.id, position });
-  const nodeAlign = useNodeAlignment(packId, menu.id);
+  const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, menuId: menu.id, position });
+  const nodeAlign = useNodeAlignment(projectId, menu.id);
 
-  const { onClick } = useMenuClick({ packId, menu, layout });
+  const { onClick } = useMenuClick({ projectId, menu, layout });
 
   const { dragState, onSlotDragStart, onSlotDragMove, onSlotDragEnd } = useSlotDrag({
-    packId,
+    projectId,
     menuId: menu.id,
     position,
     layout,
@@ -123,11 +123,11 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
 
   // Active language + pack ref so we can resolve `LText` refs (menu
   // title, appearance titles, lore lines) into the actually-displayed
-  // string. Pack ref is stable thanks to immer; the resolver reads
+  // string. Project ref is stable thanks to immer; the resolver reads
   // `pack.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
   // For `iterates` elements, positions are unrolled against the preview
   // scope; each position i binds the i-th item with placeholder resolution.
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs are resolved against pack.dataSources /
   // pack.importedConnectors (Plan C4).
@@ -378,7 +378,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
           backdrop set this menu as the selected one (and clear any layer
           selection belonging to this menu). All wiring lives in TitleRender;
           no overlay Rect needed here. */}
-      <TitleRender packId={packId} menuId={menu.id} scale={TEX_SCALE} />
+      <TitleRender projectId={projectId} menuId={menu.id} scale={TEX_SCALE} />
       {/* Slot interaction overlays */}
       {Array.from({ length: total }, (_, i) => {
         const { x, y } = slotXY(i, type);
@@ -422,7 +422,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
                     if (armed) {
                       try {
                         useAccountStore.getState().setSlotMaterial({
-                          packId,
+                          projectId,
                           menuId: menu.id,
                           position: i,
                           material: armed,
@@ -478,7 +478,7 @@ export function MenuGroup({ packId, menu, position, layout, solo = false }: Menu
                     if (armed) {
                       try {
                         useAccountStore.getState().setSlotMaterial({
-                          packId,
+                          projectId,
                           menuId: menu.id,
                           position: i,
                           material: armed,

@@ -1,6 +1,6 @@
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { packToCommandV1, packToDialogV1, packToMenuV1 } from "@/features/export/transform";
-import { persistPack } from "@/features/pack/persistPack";
+import { persistProject } from "@/features/project/persistProject";
 import {
   type ConversationMessage,
   getConversation,
@@ -78,16 +78,16 @@ function messagesToEntries(messages: ConversationMessage[]): Entry[] {
  *
  * The SSE loop (`streamAssistant`) renders streamed text incrementally and
  * applies engine events live to the canvas: `menu_written` → `applyAssistantMenu`,
- * `menu_deleted` → `deleteFromPack`. Each message re-seeds the backend working
+ * `menu_deleted` → `deleteFromProject`. Each message re-seeds the backend working
  * copy with `packToMenuV1(pack)` + `attachments`. Auth: a session token OR a
  * logged-in user (cookie); see `lib/api/assistant.ts`.
  */
 export function AssistantChat({
-  packId,
+  projectId,
   conversationId = null,
   onBack,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   conversationId?: string | null;
   onBack?: () => void;
 }) {
@@ -143,13 +143,13 @@ export function AssistantChat({
     setActivity(null);
     setTurnError(null);
     try {
-      const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId);
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
       const lang = pack?.defaultLang ?? "en";
       const menus = pack ? packToMenuV1(pack) : [];
       const commands = pack ? packToCommandV1(pack) : [];
       const dialogs = pack ? packToDialogV1(pack) : [];
       if (!convId.current) {
-        convId.current = await openConversation(token, { packId });
+        convId.current = await openConversation(token, { projectId });
       }
       let dirty = false;
       for await (const ev of streamAssistant(token, convId.current, {
@@ -170,7 +170,7 @@ export function AssistantChat({
           const menu = ev.menu as Record<string, unknown>;
           const unsupported = useAccountStore
             .getState()
-            .applyAssistantMenu({ packId, menuV1: menu, lang });
+            .applyAssistantMenu({ projectId, menuV1: menu, lang });
           if (unsupported.length > 0) {
             toast.warning(
               t("assistant.unsupportedDropped", {
@@ -182,14 +182,14 @@ export function AssistantChat({
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(menu.id) }]);
           dirty = true;
         } else if (ev.type === "menu_deleted") {
-          useAccountStore.getState().deleteFromPack({ packId, nodeIds: [String(ev.id)] });
+          useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
         } else if (ev.type === "command_written") {
           const command = ev.command as Record<string, unknown>;
           const unsupported = useAccountStore
             .getState()
-            .applyAssistantCommand({ packId, commandV1: command, lang });
+            .applyAssistantCommand({ projectId, commandV1: command, lang });
           if (unsupported.length > 0) {
             toast.warning(
               t("assistant.unsupportedDropped", {
@@ -201,14 +201,14 @@ export function AssistantChat({
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(command.id) }]);
           dirty = true;
         } else if (ev.type === "command_deleted") {
-          useAccountStore.getState().deleteFromPack({ packId, nodeIds: [String(ev.id)] });
+          useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
         } else if (ev.type === "dialog_written") {
           const dialog = ev.dialog as Record<string, unknown>;
           const unsupported = useAccountStore
             .getState()
-            .applyAssistantDialog({ packId, dialogV1: dialog, lang });
+            .applyAssistantDialog({ projectId, dialogV1: dialog, lang });
           if (unsupported.length > 0) {
             toast.warning(
               t("assistant.unsupportedDropped", {
@@ -220,7 +220,7 @@ export function AssistantChat({
           setEntries((e) => [...e, { role: "card", kind: "written", id: String(dialog.id) }]);
           dirty = true;
         } else if (ev.type === "dialog_deleted") {
-          useAccountStore.getState().deleteFromPack({ packId, nodeIds: [String(ev.id)] });
+          useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
         } else if (ev.type === "error") {
@@ -232,8 +232,8 @@ export function AssistantChat({
       // AI writes must be durable immediately: the debounced auto-save would
       // lose a just-generated menu on a reload within its 2s window.
       if (dirty) {
-        const updated = useAccountStore.getState().account.packs.find((p) => p.id === packId);
-        if (updated) await persistPack(updated, token, !!user).catch(() => {});
+        const updated = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+        if (updated) await persistProject(updated, token, !!user).catch(() => {});
       }
     } catch {
       toast.error(t("assistant.errorGeneric"));

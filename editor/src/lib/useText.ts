@@ -1,4 +1,4 @@
-import type { LText, PackId } from "@/domain/types";
+import type { LText, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
@@ -13,15 +13,15 @@ import { useCallback } from "react";
  * `useGetText` below — it returns a stable resolver and avoids one
  * subscription per call.
  */
-export function useText(packId: PackId, lt: LText | undefined): string {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+export function useText(projectId: ProjectId, lt: LText | undefined): string {
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   if (!pack || !lt) return "";
   return getText(pack, lt, activeLang);
 }
 
-export function useGetText(packId: PackId): (lt: LText | undefined) => string {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+export function useGetText(projectId: ProjectId): (lt: LText | undefined) => string {
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   return useCallback(
     (lt) => (pack && lt ? getText(pack, lt, activeLang) : ""),
@@ -35,10 +35,10 @@ export function useGetText(packId: PackId): (lt: LText | undefined) => string {
  * `useUiStore` subscription at the call site.
  */
 export function useTextEdit(
-  packId: PackId,
+  projectId: ProjectId,
   lt: LText | undefined,
 ): { value: string; lang: string; isFallback: boolean } {
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   if (!pack || !lt) return { value: "", lang: activeLang, isFallback: false };
   const entry = pack.i18nKeys[lt.key];

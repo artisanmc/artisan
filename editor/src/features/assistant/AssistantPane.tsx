@@ -1,4 +1,4 @@
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { useUiStore } from "@/state/uiStore";
 import { Sparkles, X } from "lucide-react";
@@ -6,12 +6,12 @@ import { useTranslation } from "react-i18next";
 
 /**
  * AssistantPane — DESKTOP presentation of the AI assistant: a full-height
- * column (header + chat) rendered by the workspace route as the resizable
+ * column (header + chat) rendered by the project route as the resizable
  * secondary pane of a `SplitPane`, at the same level as the canvas. The mobile
  * presentation is `AssistantPanel` (a right-side drawer). Both wrap the same
  * `AssistantChat` body. Open/close state lives in `uiStore.assistantPanelOpen`.
  */
-export function AssistantPane({ packId }: { packId: PackId }) {
+export function AssistantPane({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
   return (
@@ -31,7 +31,7 @@ export function AssistantPane({ packId }: { packId: PackId }) {
           <X className="h-4 w-4" />
         </button>
       </div>
-      <AssistantBody packId={packId} />
+      <AssistantBody projectId={projectId} />
     </div>
   );
 }

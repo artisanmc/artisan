@@ -9,7 +9,7 @@ import type { ViewportState } from "./usePanZoom";
 const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 const slotIsFilled = (
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number],
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
   menuId: string,
   position: number,
 ): boolean => {
@@ -22,7 +22,7 @@ const slotIsFilled = (
 };
 
 interface UseStageContextMenuArgs {
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number] | undefined;
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
   layout: Record<string, { x: number; y: number }>;
   viewport: ViewportState;
   wrapperRef: RefObject<HTMLDivElement | null>;

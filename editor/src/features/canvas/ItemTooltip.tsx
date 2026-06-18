@@ -1,4 +1,4 @@
-import type { Element, Menu, PackId } from "@/domain/types";
+import type { Element, Menu, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 
 interface ItemTooltipProps {
-  packId: PackId;
+  projectId: ProjectId;
 }
 
 /**
@@ -21,7 +21,7 @@ interface ItemTooltipProps {
  * it from `useMemo` against a stable pack ref instead.
  */
 const findElementAndMenu = (
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number] | undefined,
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   id: string | null,
 ): { element: Element; menu: Menu } | null => {
   if (!pack || !id) return null;
@@ -53,7 +53,7 @@ const humanize = (material: string): string =>
  *
  * Pointer-events disabled so the tooltip never steals canvas events.
  */
-export function ItemTooltip({ packId }: ItemTooltipProps) {
+export function ItemTooltip({ projectId }: ItemTooltipProps) {
   const elementId = useHoverStore((s) => s.elementId);
   const slotPosition = useHoverStore((s) => s.slotPosition);
   const x = useHoverStore((s) => s.x);
@@ -65,7 +65,7 @@ export function ItemTooltip({ packId }: ItemTooltipProps) {
   // thanks to immer) and derive the {element, menu} pair via useMemo so
   // the tooltip doesn't allocate a new object on every render — a fresh
   // selector return value would loop zustand's identity check.
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const found = useMemo(() => findElementAndMenu(pack, elementId), [pack, elementId]);
   if (!found || !pack) return null;

@@ -1,4 +1,4 @@
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { INVENTORY_TYPES, rowsFor } from "./inventoryTypes";
 import { TEX_SCALE, TEX_SLOT_STRIDE, menuBoxSize } from "./menuLayout";
 
@@ -21,7 +21,7 @@ export interface SlotHit {
  * INVENTORY_TYPES so hopper/dropper hit correctly, not just chest.
  */
 export function hitTestSlot(
-  pack: Pack,
+  pack: Project,
   layout: Record<string, { x: number; y: number }>,
   worldX: number,
   worldY: number,

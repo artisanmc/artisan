@@ -6,12 +6,12 @@ import { listNetworks } from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
 import { Step2Server } from "./SetupWizardSteps/Step2Server";
-import { Step3Workspace } from "./SetupWizardSteps/Step3Workspace";
+import { Step3Project } from "./SetupWizardSteps/Step3Project";
 import { Step4Install } from "./SetupWizardSteps/Step4Install";
 
 export interface WizardState {
   networkId: string | null;
-  packId: string | null;
+  projectId: string | null;
   serverKey: string | null;
   serverKeyId: string | null;
 }
@@ -24,9 +24,9 @@ export interface WizardState {
 export function canNext(step: number, state: WizardState): boolean {
   if (step === 1) return state.networkId !== null;
   if (step === 2) return state.serverKeyId !== null;
-  if (step === 3) return state.packId !== null;
+  if (step === 3) return state.projectId !== null;
   // Step 4 is the final "Install" instruction screen. By the time we got here,
-  // all of networkId / serverKeyId / packId are populated (each prior step
+  // all of networkId / serverKeyId / projectId are populated (each prior step
   // required them to move forward), so the "Terminé" button is always
   // enabled — clicking it exits the wizard into the just-created workspace.
   if (step === 4) return true;
@@ -39,13 +39,13 @@ export function SetupWizard() {
   const stepLabels = [
     t("setupWizard.stepLabels.network"),
     t("setupWizard.stepLabels.server"),
-    t("setupWizard.stepLabels.workspace"),
+    t("setupWizard.stepLabels.project"),
     t("setupWizard.stepLabels.install"),
   ];
   const [step, setStep] = useState(1);
   const [state, setState] = useState<WizardState>({
     networkId: null,
-    packId: null,
+    projectId: null,
     serverKey: null,
     serverKeyId: null,
   });
@@ -72,15 +72,15 @@ export function SetupWizard() {
       } catch {
         // Navigation still proceeds; sidebar will refetch on its own eventually.
       }
-      if (state.packId && state.networkId && state.serverKeyId) {
+      if (state.projectId && state.networkId && state.serverKeyId) {
         // Server-scoped workspace route (a workspace belongs to exactly one
         // server) — not the legacy /workspace/$id. The wizard has all 3 params.
         navigate({
-          to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+          to: "/networks/$networkId/servers/$serverId/projects/$projectId",
           params: {
             networkId: state.networkId,
             serverId: state.serverKeyId,
-            workspaceId: state.packId,
+            projectId: state.projectId,
           },
         });
       } else {
@@ -166,7 +166,7 @@ export function SetupWizard() {
         <div className="flex flex-col gap-4">
           {step === 1 && <Step1Network state={state} setState={setState} />}
           {step === 2 && <Step2Server state={state} setState={setState} />}
-          {step === 3 && <Step3Workspace state={state} setState={setState} />}
+          {step === 3 && <Step3Project state={state} setState={setState} />}
           {step === 4 && <Step4Install state={state} setState={setState} />}
         </div>
 
