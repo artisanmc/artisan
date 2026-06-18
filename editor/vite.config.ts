@@ -11,8 +11,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": srcDir,
-      "@artisan/editor-sdk": fileURLToPath(new URL("./src/sdk/index.ts", import.meta.url)),
     },
+  },
+  optimizeDeps: {
+    exclude: ["@artisan/editor-sdk", "@artisan/quests-editor"],
   },
   server: {
     watch: {
