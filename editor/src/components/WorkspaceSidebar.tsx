@@ -32,6 +32,8 @@ import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-r
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
+import { useModulesStore } from "@/state/modulesStore";
+import { selectModuleNavEntries } from "@/distribution/moduleNav";
 
 export function WorkspaceSidebar() {
   const { t } = useTranslation();
@@ -44,6 +46,8 @@ export function WorkspaceSidebar() {
   const localPacks = useAccountStore((s) => s.account.packs);
   const packOrder = useAccountStore((s) => s.account.packOrder);
   const reorderPacks = useAccountStore((s) => s.reorderPacks);
+  const mountedModuleIds = useModulesStore((s) => s.mountedIds);
+  const moduleNav = selectModuleNavEntries(mountedModuleIds);
   // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverPacks, setServerPacks] = useState<PackSummary[]>([]);
@@ -276,9 +280,27 @@ export function WorkspaceSidebar() {
           <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
             {t("sidebar.installedModules")}
           </div>
-          <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
-            {t("sidebar.noModules")}
-          </div>
+          {moduleNav.length === 0 ? (
+            <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
+              {t("sidebar.noModules")}
+            </div>
+          ) : (
+            <ul className="flex flex-col">
+              {moduleNav.map((m) => (
+                <li key={m.id}>
+                  {/* TODO(P2): render m.sidebar.icon once modules ship real icons */}
+                  <Link
+                    to="/m/$moduleId"
+                    params={{ moduleId: m.id }}
+                    onClick={() => useSidebarStore.getState().close()}
+                    className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  >
+                    <span className="truncate flex-1">{m.sidebar.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

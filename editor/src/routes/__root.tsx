@@ -5,6 +5,7 @@ import { persistPack } from "@/features/pack/persistPack";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { useModulesStore } from "@/state/modulesStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
@@ -41,6 +42,11 @@ function RootLayoutInner() {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
+  useEffect(() => {
+    if (sessionToken) {
+      useModulesStore.getState().integrate(sessionToken);
+    }
+  }, [sessionToken]);
   const showSidebar = !!user || !!sessionToken;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
