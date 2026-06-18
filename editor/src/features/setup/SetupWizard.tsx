@@ -72,8 +72,17 @@ export function SetupWizard() {
       } catch {
         // Navigation still proceeds; sidebar will refetch on its own eventually.
       }
-      if (state.packId) {
-        navigate({ to: "/workspace/$workspaceId", params: { workspaceId: state.packId } });
+      if (state.packId && state.networkId && state.serverKeyId) {
+        // Server-scoped workspace route (a workspace belongs to exactly one
+        // server) — not the legacy /workspace/$id. The wizard has all 3 params.
+        navigate({
+          to: "/networks/$networkId/servers/$serverId/workspaces/$workspaceId",
+          params: {
+            networkId: state.networkId,
+            serverId: state.serverKeyId,
+            workspaceId: state.packId,
+          },
+        });
       } else {
         navigate({ to: "/" });
       }
