@@ -6,14 +6,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface NewCommandDialogProps {
-  packId: PackId;
+  projectId: ProjectId;
   open: boolean;
   position?: { x: number; y: number };
   onOpenChange: (open: boolean) => void;
@@ -31,12 +31,12 @@ function deriveUniqueId(name: string, existingIds: Set<string>): string {
   return `${base}_${n}`;
 }
 
-export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCommandDialogProps) {
+export function NewCommandDialog({ projectId, open, position, onOpenChange }: NewCommandDialogProps) {
   const [name, setName] = useState("");
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.packs.find((p) => p.id === packId);
+    const pack = s.account.projects.find((p) => p.id === projectId);
     if (!pack) return "";
     return [
       ...pack.commands.map((c) => c.id),
@@ -51,7 +51,7 @@ export function NewCommandDialog({ packId, open, position, onOpenChange }: NewCo
   const submit = () => {
     if (!name.trim()) return;
     const id = useAccountStore.getState().createCommand({
-      packId,
+      projectId,
       id: derivedId,
       name: name.trim(),
       position,

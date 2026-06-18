@@ -1,4 +1,4 @@
-import { packId } from "@/domain/ids";
+import { projectId } from "@/domain/ids";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +15,7 @@ afterEach(() => vi.clearAllMocks());
 
 describe("AssistantBody", () => {
   it("opens on the list; New starts a chat; Back returns to the list", async () => {
-    render(<AssistantBody packId={packId("p")} />);
+    render(<AssistantBody projectId={projectId("p")} />);
 
     // Opens on the conversation list.
     expect(screen.getByTestId("assistant-conversations")).toBeTruthy();

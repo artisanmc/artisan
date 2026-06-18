@@ -4,7 +4,7 @@ import {
   acceptNetworkTransfer,
   claimLinkCode,
   createNetwork,
-  createPack,
+  createProject,
   createServerKey,
   deleteServerKey,
   getNetwork,
@@ -67,7 +67,7 @@ describe("networks API client", () => {
         new Response(
           JSON.stringify({
             network: { id: "n1", name: "Network 1", tier: "free" },
-            packs: [{ id: "p1", name: "pack1", hash: "h1" }],
+            packs: [{ id: "p1", name: "pack1", hash: "h1" }], // TODO(phase4-wire): backend wire key
             serverKeys: [{ id: "sk_1", label: null }],
           }),
           { status: 200 },
@@ -75,7 +75,7 @@ describe("networks API client", () => {
     );
     const result = await getNetwork("n1");
     expect(result.network.id).toBe("n1");
-    expect(result.packs).toHaveLength(1);
+    expect(result.projects).toHaveLength(1);
     expect(result.serverKeys).toHaveLength(1);
   });
 
@@ -100,7 +100,7 @@ describe("networks API client", () => {
     );
   });
 
-  it("createPack POST /api/v1/networks/:id/packs returns pack", async () => {
+  it("createProject POST /api/v1/networks/:id/packs returns pack", async () => {
     global.fetch = vi.fn(
       async () =>
         new Response(
@@ -110,7 +110,7 @@ describe("networks API client", () => {
           { status: 201 },
         ),
     );
-    const result = await createPack("n1", "sk1", "new-pack");
+    const result = await createProject("n1", "sk1", "new-pack");
     expect(result.name).toBe("new-pack");
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/v1\/networks\/n1\/packs$/),
@@ -164,7 +164,7 @@ describe("network transfer API clients", () => {
     const info = {
       networkId: "n1",
       networkName: "Alpha",
-      packCount: 2,
+      projectCount: 2,
       serverKeyCount: 1,
       expiresAt: "x",
     };

@@ -1,4 +1,4 @@
-import type { DataSource, PackId } from "@/domain/types";
+import type { DataSource, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { yaml as yamlLang } from "@codemirror/lang-yaml";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
@@ -8,7 +8,7 @@ import { stringify, parse as parseYaml } from "yaml";
 import { inferFieldTypeFromValue, summarizeFieldType } from "./helpers";
 
 interface DataSourceEditorProps {
-  packId: PackId;
+  projectId: ProjectId;
   source: DataSource;
 }
 
@@ -35,11 +35,11 @@ function valueToYaml(value: unknown): string {
   return stringify(value, { lineWidth: 0 });
 }
 
-export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
+export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
-  const renameDataSource = useAccountStore((s) => s.renamePackDataSource);
-  const removeDataSource = useAccountStore((s) => s.removePackDataSource);
-  const setYaml = useAccountStore((s) => s.setPackDataSourceYaml);
+  const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
+  const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
+  const setYaml = useAccountStore((s) => s.setProjectDataSourceYaml);
 
   const [localYaml, setLocalYaml] = useState(() => valueToYaml(source.value));
   const [parseError, setParseError] = useState<string | null>(null);
@@ -63,13 +63,13 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
         try {
           parseYaml(val);
           setParseError(null);
-          setYaml({ packId, id: source.id, yaml: val });
+          setYaml({ projectId, id: source.id, yaml: val });
         } catch (e) {
           setParseError(e instanceof Error ? e.message : String(e));
         }
       }, 400);
     },
-    [packId, source.id, setYaml],
+    [projectId, source.id, setYaml],
   );
 
   const inferredType = (() => {
@@ -87,12 +87,12 @@ export function DataSourceEditor({ packId, source }: DataSourceEditorProps) {
         <input
           type="text"
           value={source.name}
-          onChange={(e) => renameDataSource({ packId, id: source.id, newName: e.target.value })}
+          onChange={(e) => renameDataSource({ projectId, id: source.id, newName: e.target.value })}
           className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-[var(--text)] outline-none focus:border-b focus:border-[var(--brand-line)]"
         />
         <button
           type="button"
-          onClick={() => removeDataSource({ packId, id: source.id })}
+          onClick={() => removeDataSource({ projectId, id: source.id })}
           className="shrink-0 rounded px-2 py-1 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
         >
           {t("dataSources.remove")}

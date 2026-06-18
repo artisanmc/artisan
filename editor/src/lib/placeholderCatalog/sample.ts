@@ -1,4 +1,4 @@
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 
 /**
@@ -6,7 +6,7 @@ import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
  * null when the path isn't resolvable or yields an unrenderable value.
  */
 export function sampleForPath(
-  pack: Pack,
+  pack: Project,
   menuId: string,
   path: string,
 ): string | null {

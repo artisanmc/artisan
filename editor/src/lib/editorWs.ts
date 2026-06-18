@@ -1,6 +1,6 @@
 const WS_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/^http/, "ws");
 
-export type DraftUpdateHandler = (packId: string, menuId: string, menuYaml: string, updatedBy: string) => void;
+export type DraftUpdateHandler = (projectId: string, menuId: string, menuYaml: string, updatedBy: string) => void;
 export type SessionExpiredHandler = () => void;
 
 export class EditorWs {

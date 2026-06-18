@@ -1,5 +1,5 @@
-import { accountId, commandId, elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { Account, I18nKey, MenuTitleLayer, Pack } from "@/domain/types";
+import { accountId, commandId, elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { Account, I18nKey, MenuTitleLayer, Project } from "@/domain/types";
 
 /** Wrap an existing i18n key into a single text MenuTitleLayer (migration helper for fixtures). */
 const textLayer = (key: I18nKey): MenuTitleLayer[] => [
@@ -10,17 +10,17 @@ const ts = "2026-04-30T10:00:00Z";
 
 const k = (key: string): I18nKey => key as I18nKey;
 
-const personalPack = (): Pack => {
+const personalProject = (): Project => {
   const shopMainId = menuId("m_shop_main");
   const profileId = menuId("m_profile");
   const aboutId = menuId("m_about");
   const healCmdId = commandId("c_heal");
-  const pId = packId("p_personal");
+  const pId = projectId("p_personal");
 
   return {
     id: pId,
     name: "Personal",
-    description: "Default workspace",
+    description: "Default project",
     source: "user_created",
     createdAt: ts,
     updatedAt: ts,
@@ -31,7 +31,7 @@ const personalPack = (): Pack => {
       [k("menus.m_profile.title")]: { en: "Profil" },
       [k("menus.m_about.title")]: { en: "About" },
       [k("commands.c_heal.message")]: { en: "Healed!" },
-    } as Pack["i18nKeys"],
+    } as Project["i18nKeys"],
     assets: [],
     templates: [],
     dataSources: [],
@@ -46,7 +46,7 @@ const personalPack = (): Pack => {
     menus: [
       {
         id: shopMainId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_shop_main.title")),
         rows: 3,
         layers: [
@@ -77,14 +77,14 @@ const personalPack = (): Pack => {
       },
       {
         id: profileId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_profile.title")),
         rows: 3,
         layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
       },
       {
         id: aboutId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_about.title")),
         rows: 3,
         layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
@@ -93,7 +93,7 @@ const personalPack = (): Pack => {
     commands: [
       {
         id: healCmdId,
-        packId: pId,
+        projectId: pId,
         name: "heal",
         permission: "artisan.heal",
         arguments: [],
@@ -108,8 +108,8 @@ const personalPack = (): Pack => {
   };
 };
 
-const shopSystemPack = (): Pack => {
-  const pId = packId("p_shop_system");
+const shopSystemProject = (): Project => {
+  const pId = projectId("p_shop_system");
   const shopRootId = menuId("m_shop_root");
   const catArmorsId = menuId("m_cat_armors");
   const catWeaponsId = menuId("m_cat_weapons");
@@ -127,7 +127,7 @@ const shopSystemPack = (): Pack => {
       [k("menus.m_shop_root.title")]: { en: "Shop" },
       [k("menus.m_cat_armors.title")]: { en: "Armors" },
       [k("menus.m_cat_weapons.title")]: { en: "Weapons" },
-    } as Pack["i18nKeys"],
+    } as Project["i18nKeys"],
     assets: [],
     templates: [],
     dataSources: [],
@@ -137,21 +137,21 @@ const shopSystemPack = (): Pack => {
     menus: [
       {
         id: shopRootId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_shop_root.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
       },
       {
         id: catArmorsId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_cat_armors.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
       },
       {
         id: catWeaponsId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_cat_weapons.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
@@ -160,7 +160,7 @@ const shopSystemPack = (): Pack => {
     commands: [
       {
         id: shopCmdId,
-        packId: pId,
+        projectId: pId,
         name: "shop",
         arguments: [],
         steps: [
@@ -171,8 +171,8 @@ const shopSystemPack = (): Pack => {
   };
 };
 
-const dailyQuestsPack = (): Pack => {
-  const pId = packId("p_daily_quests");
+const dailyQuestsProject = (): Project => {
+  const pId = projectId("p_daily_quests");
   const questsMainId = menuId("m_quests_main");
 
   return {
@@ -180,14 +180,14 @@ const dailyQuestsPack = (): Pack => {
     name: "Daily Quests",
     description: "Imported pack from @creator-x",
     source: "imported",
-    sourcePackId: packId("p_remote_daily"),
+    sourceProjectId: projectId("p_remote_daily"),
     sourceVersion: "2.1.0",
     createdAt: ts,
     updatedAt: ts,
     defaultLang: "en",
     i18nKeys: {
       [k("menus.m_quests_main.title")]: { en: "Daily Quests" },
-    } as Pack["i18nKeys"],
+    } as Project["i18nKeys"],
     assets: [],
     templates: [],
     dataSources: [],
@@ -197,7 +197,7 @@ const dailyQuestsPack = (): Pack => {
     menus: [
       {
         id: questsMainId,
-        packId: pId,
+        projectId: pId,
         title: textLayer(k("menus.m_quests_main.title")),
         rows: 6,
         layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
@@ -209,6 +209,6 @@ const dailyQuestsPack = (): Pack => {
 
 export const mockAccount = (): Account => ({
   id: accountId("acc_local"),
-  packs: [personalPack(), shopSystemPack(), dailyQuestsPack()],
-  packOrder: [packId("p_personal"), packId("p_shop_system"), packId("p_daily_quests")],
+  projects: [personalProject(), shopSystemProject(), dailyQuestsProject()],
+  projectOrder: [projectId("p_personal"), projectId("p_shop_system"), projectId("p_daily_quests")],
 });

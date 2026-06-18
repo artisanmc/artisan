@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { DataSourceId, DialogId, ElementId, MenuId, Pack, SourceRef } from "@/domain/types";
+import type { DataSourceId, DialogId, ElementId, MenuId, Project, SourceRef } from "@/domain/types";
 import { compute } from "./compute";
 
-const emptyPack = (): Pack => ({
-  id: "p1" as Pack["id"],
+const emptyProject = (): Project => ({
+  id: "p1" as Project["id"],
   name: "p1",
   source: "user_created",
   createdAt: "2026-05-30",
@@ -29,16 +29,16 @@ const BUILTIN_PLAYER = [
 
 describe("PlaceholderCatalog.compute", () => {
   it("returns [] for a menu location when the menu id is unknown", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     const result = compute(pack, { kind: "menu", menuId: "missing" as MenuId });
     expect(result).toEqual([]);
   });
 
   it("includes the builtin {player} entries for a menu with no contextInputs", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -50,10 +50,10 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 3 tests
   it("emits a primitive contextInput as a single entry with coerced sample", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -79,10 +79,10 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   it("emits dotted subfields for a player-typed contextInput (e.g. command arg `target`)", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -102,15 +102,15 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   it("emits the same primitive entries when locating an element inside the menu", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
             { id: "e1" as ElementId, positions: "0", appearances: [] },
@@ -131,7 +131,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 4 tests
   it("flattens an object-typed dataSource into one entry per leaf", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.dataSources.push({
       id: "ds1" as DataSourceId,
       name: "currentQuest",
@@ -146,7 +146,7 @@ describe("PlaceholderCatalog.compute", () => {
     });
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -163,7 +163,7 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   it("omits list-typed contextInputs at menu scope (only builtins remain)", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.dataSources.push({
       id: "ds2" as DataSourceId,
       name: "questList",
@@ -172,7 +172,7 @@ describe("PlaceholderCatalog.compute", () => {
     });
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -186,7 +186,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 5 tests
   it("emits iteration alias leaves + pagination when the element iterates over a list of objects", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.dataSources.push({
       id: "ds3" as DataSourceId,
       name: "quests",
@@ -204,12 +204,12 @@ describe("PlaceholderCatalog.compute", () => {
     });
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
             {
@@ -240,15 +240,15 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   it("does not emit iteration / pagination entries when the element does not iterate", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
             { id: "e1" as ElementId, positions: "0", appearances: [] },
@@ -266,7 +266,7 @@ describe("PlaceholderCatalog.compute", () => {
   });
 
   it("action location returns the same scope as the parent element", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     // Provide a real dataSource so the iteration entries are non-empty and the
     // assertion verifies genuine delegation rather than two empty arrays.
     pack.dataSources.push({
@@ -285,12 +285,12 @@ describe("PlaceholderCatalog.compute", () => {
     });
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
             { id: "e1" as ElementId, positions: "0", appearances: [], iterates: { source: "list", alias: "item" } },
@@ -319,13 +319,13 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 6 tests
   it("returns the builtin {player} entries for dialog scope (no contextInputs modeled)", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     const out = compute(pack, { kind: "dialog", dialogId: "d1" as DialogId });
     expect(out).toEqual(BUILTIN_PLAYER);
   });
 
   it("returns the builtin {player} entries for dialog-action scope", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     const out = compute(pack, {
       kind: "dialog-action",
       dialogId: "d1" as DialogId,
@@ -336,10 +336,10 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 7 test
   it("omits sourceRef inputs whose dataSource was deleted, and warns once per render", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [],
@@ -357,7 +357,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   // Task 8 test
   it("sorts entries by origin (context → iteration → pagination → source) then alpha by path", () => {
-    const pack = emptyPack();
+    const pack = emptyProject();
     pack.dataSources.push({
       id: "ds4" as DataSourceId,
       name: "quests",
@@ -366,12 +366,12 @@ describe("PlaceholderCatalog.compute", () => {
     });
     pack.menus.push({
       id: "m1" as MenuId,
-      packId: pack.id,
+      projectId: pack.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Pack["menus"][number]["layers"][number]["id"],
+          id: "l1" as Project["menus"][number]["layers"][number]["id"],
           name: "default",
           elements: [
             {

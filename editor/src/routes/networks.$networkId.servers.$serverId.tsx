@@ -1,5 +1,5 @@
 import { getNetwork } from "@/lib/api/networks";
-import type { PackSummary } from "@/lib/api/networks";
+import type { ProjectSummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import {
   Link,
@@ -23,7 +23,7 @@ export default function ServerDetailPage() {
   });
   const navigate = useNavigate();
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
-  const [workspaces, setWorkspaces] = useState<PackSummary[]>([]);
+  const [workspaces, setProjects] = useState<ProjectSummary[]>([]);
   const childMatches = useChildMatches();
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function ServerDetailPage() {
         // serverId param is the server slug (old links may still pass the id).
         const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
         setServerDisplayLabel(sk ? displayServerLabel(sk) : null);
-        setWorkspaces(sk ? d.packs.filter((p) => p.serverKeyId === sk.id) : []);
+        setProjects(sk ? d.projects.filter((p) => p.serverKeyId === sk.id) : []);
       })
       .catch((e: Error & { status?: number }) => {
         if (e?.status === 403 || e?.status === 404) navigate({ to: "/networks", replace: true });
@@ -57,18 +57,18 @@ export default function ServerDetailPage() {
 
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="eyebrow">{t("serverDetail.workspaces")}</h2>
+            <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
           </div>
           {workspaces.length === 0 ? (
-            <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noWorkspaces")}</p>
+            <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {workspaces.map((w) => (
                 <li key={w.id}>
                   <Link
-                    to="/networks/$networkId/servers/$serverId/workspaces/$workspaceId"
-                    params={{ networkId, serverId, workspaceId: w.id }}
+                    to="/networks/$networkId/servers/$serverId/projects/$projectId"
+                    params={{ networkId, serverId, projectId: w.id }}
                     className="card flex items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>

@@ -38,7 +38,7 @@ describe("NetworksPage — hub layout", () => {
     vi.spyOn(networksApi, "getNetwork").mockImplementation(async (id) => ({
       network: { id, name: id === "n1" ? "Survival Network" : "Creative Network", tier: "free" },
       serverKeys: [],
-      packs: [],
+      projects: [],
     }));
 
     render(<NetworksPage />);
@@ -57,9 +57,9 @@ describe("NetworksPage — hub layout", () => {
         { id: "sk_abcd1234efgh", label: "Main Server" },
         { id: "sk_xyz987654321", label: null },
       ],
-      packs: [
-        { id: "p1", name: "Pack A", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
-        { id: "p2", name: "Pack B", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
+      projects: [
+        { id: "p1", name: "Project A", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
+        { id: "p2", name: "Project B", hash: "", updatedAt: "", networkId: "n1", serverKeyId: "sk_abcd1234efgh" },
       ],
     });
 
@@ -68,9 +68,9 @@ describe("NetworksPage — hub layout", () => {
     await waitFor(() => expect(screen.getByText("Main Server")).toBeTruthy());
     // Unlabelled server should show friendly fallback
     expect(screen.getByText("Server xyz9")).toBeTruthy();
-    // Workspace counts — bilingual: tests run in French but English form is accepted too
-    const workspaceCounts = screen.getAllByText(/\d+ workspaces?/i);
-    expect(workspaceCounts.length).toBeGreaterThanOrEqual(1);
+    // Project counts — bilingual: tests run in French but English form is accepted too
+    const projectCounts = screen.getAllByText(/\d+ projets?/i);
+    expect(projectCounts.length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows 'no server yet' state when network has no servers", async () => {
@@ -80,7 +80,7 @@ describe("NetworksPage — hub layout", () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Empty Net", tier: "free" },
       serverKeys: [],
-      packs: [],
+      projects: [],
     });
 
     render(<NetworksPage />);
@@ -91,7 +91,7 @@ describe("NetworksPage — hub layout", () => {
 
   it("shows empty state when user has no networks", async () => {
     vi.spyOn(networksApi, "listNetworks").mockResolvedValue([]);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({ network: { id: "", name: "", tier: "free" }, serverKeys: [], packs: [] });
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({ network: { id: "", name: "", tier: "free" }, serverKeys: [], projects: [] });
 
     render(<NetworksPage />);
 

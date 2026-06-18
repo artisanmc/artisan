@@ -22,10 +22,10 @@ describe("TopBarKebabMenu", () => {
     render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
     expect(screen.getByText(/Exporter vers le serveur|Export to server|topbar\.exportZip/i)).toBeInTheDocument();
-    expect(screen.getByText(/Importer un workspace|Import a workspace|topbar\.import/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exporter le workspace|Export workspace|^topbar\.export$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Importer un projet|Import a project|topbar\.import/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exporter le projet|Export project|^topbar\.export$/i)).toBeInTheDocument();
     expect(screen.getByText(/Patterns|Aide-mémoire|Cheat sheet|patterns\.title/i)).toBeInTheDocument();
-    expect(screen.getByText(/Supprimer|Delete|topbar\.deletePack/i)).toBeInTheDocument();
+    expect(screen.getByText(/Supprimer|Delete|topbar\.deleteProject/i)).toBeInTheDocument();
   });
 
   it("calls onDelete when Delete item is clicked", async () => {
@@ -33,7 +33,7 @@ describe("TopBarKebabMenu", () => {
     const onDelete = vi.fn();
     render(<TopBarKebabMenu {...baseProps} onDelete={onDelete} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
-    await user.click(screen.getByText(/Supprimer|Delete|topbar\.deletePack/i));
+    await user.click(screen.getByText(/Supprimer|Delete|topbar\.deleteProject/i));
     expect(onDelete).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
-import { visitPackLTexts } from "@/domain/i18nSites";
-import type { I18nKey, Pack } from "@/domain/types";
+import { visitProjectLTexts } from "@/domain/i18nSites";
+import type { I18nKey, Project } from "@/domain/types";
 
 /**
  * Label every LText reference in a pack with a dotted-path "context" string
@@ -11,9 +11,9 @@ import type { I18nKey, Pack } from "@/domain/types";
  * vocabulary (`menus.<id>.title`, `…click.<type>.message`, `…body[i]`) lives
  * there as each site's `path`.
  */
-export function findKeyUsages(pack: Pack): Map<I18nKey, string> {
+export function findKeyUsages(pack: Project): Map<I18nKey, string> {
   const out = new Map<I18nKey, string>();
-  for (const site of visitPackLTexts(pack)) out.set(site.lText.key, site.path);
+  for (const site of visitProjectLTexts(pack)) out.set(site.lText.key, site.path);
   return out;
 }
 
@@ -25,7 +25,7 @@ const UNUSED_CONTEXT = "(unused)";
  * are stale leftovers from deleted elements / re-imports — safe to drop. Used
  * by the Translations panel's "remove unused" cleanup.
  */
-export function findUnusedI18nKeys(pack: Pack): I18nKey[] {
+export function findUnusedI18nKeys(pack: Project): I18nKey[] {
   const used = findKeyUsages(pack);
   return (Object.keys(pack.i18nKeys) as I18nKey[]).filter((key) => !used.has(key));
 }
@@ -53,7 +53,7 @@ export interface TranslationRow {
  * alphabetically. A pack with zero translations still returns
  * `[defaultLang]` so the UI can still render the source-edit tab.
  */
-export function listLanguages(pack: Pack): string[] {
+export function listLanguages(pack: Project): string[] {
   const langs = new Set<string>([pack.defaultLang]);
   for (const entry of Object.values(pack.i18nKeys)) {
     if (!entry) continue;
@@ -72,7 +72,7 @@ export function listLanguages(pack: Pack): string[] {
  * dot indicator. Default lang is intentionally excluded — its values
  * are the source, there's nothing to "miss".
  */
-export function countMissingPerLang(pack: Pack): Record<string, number> {
+export function countMissingPerLang(pack: Project): Record<string, number> {
   const out: Record<string, number> = {};
   const allEntries = Object.values(pack.i18nKeys);
   for (const lang of listLanguages(pack)) {
@@ -88,7 +88,7 @@ export function countMissingPerLang(pack: Pack): Record<string, number> {
   return out;
 }
 
-export function totalMissing(pack: Pack): number {
+export function totalMissing(pack: Project): number {
   let sum = 0;
   for (const v of Object.values(countMissingPerLang(pack))) sum += v;
   return sum;
@@ -101,7 +101,7 @@ export function totalMissing(pack: Pack): number {
  * sidebar Translations tab badge so the nav count always matches the panel,
  * including when `lang` is the default (empty source strings count too).
  */
-export function countMissingForLang(pack: Pack, lang: string): number {
+export function countMissingForLang(pack: Project, lang: string): number {
   let count = 0;
   for (const entry of Object.values(pack.i18nKeys)) {
     if (!entry) continue;
@@ -111,7 +111,7 @@ export function countMissingForLang(pack: Pack, lang: string): number {
   return count;
 }
 
-export function buildTranslationRows(pack: Pack, activeLang: string): TranslationRow[] {
+export function buildTranslationRows(pack: Project, activeLang: string): TranslationRow[] {
   const usages = findKeyUsages(pack);
   const rows: TranslationRow[] = [];
   for (const [key, entry] of Object.entries(pack.i18nKeys)) {

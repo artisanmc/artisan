@@ -1,6 +1,6 @@
 import dialogSchema from "../../../../docs/schema/dialog/v1/schema.json";
-import { dialogId, menuId, packId } from "@/domain/ids";
-import type { Dialog, I18nKey, Pack } from "@/domain/types";
+import { dialogId, menuId, projectId } from "@/domain/ids";
+import type { Dialog, I18nKey, Project } from "@/domain/types";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -11,16 +11,16 @@ import { transform } from "./transform";
  * (transform → dialogs/<id>.yaml) must validate against docs/schema/dialog/v1.
  */
 
-const PACK = packId("p_dialog");
+const PACK = projectId("p_dialog");
 
-function lt(pack: Pack, value: string): { key: I18nKey } {
+function lt(pack: Project, value: string): { key: I18nKey } {
   const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
   pack.i18nKeys[key] = { en: value };
   return { key };
 }
 
-function buildPack(): Pack {
-  const pack: Pack = {
+function buildProject(): Project {
+  const pack: Project = {
     id: PACK,
     name: "Dialog fixture",
     source: "user_created",
@@ -40,7 +40,7 @@ function buildPack(): Pack {
 
   const dialog: Dialog = {
     id: dialogId("confirm_purchase"),
-    packId: PACK,
+    projectId: PACK,
     title: lt(pack, "Confirm purchase"),
     canCloseWithEscape: false,
     body: [
@@ -84,7 +84,7 @@ function buildPack(): Pack {
 
 describe("dialog/v1 schema fixture", () => {
   it("the editor's exported dialog YAML validates against docs/schema/dialog/v1", () => {
-    const pack = buildPack();
+    const pack = buildProject();
     const files = transform(pack);
     const yaml = files[`plugins/Artisan/packs/${PACK}/dialogs/confirm_purchase.yaml`];
     expect(yaml).toBeTruthy();

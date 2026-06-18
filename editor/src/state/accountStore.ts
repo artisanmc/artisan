@@ -2,7 +2,7 @@ import {
   mintLTexts,
   rekeyCommand,
   rekeyMenu,
-  rekeyPack,
+  rekeyProject,
   releaseLTexts,
   visitAppearanceLTexts,
   visitCommandLTexts,
@@ -11,7 +11,7 @@ import {
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { commandId, newCommandId, newLayerId, newPackId } from "@/domain/ids";
+import { commandId, newCommandId, newLayerId, newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -42,8 +42,8 @@ import type {
   Menu,
   MenuId,
   MenuTitleLayer,
-  Pack,
-  PackId,
+  Project,
+  ProjectId,
   SourceRef,
   Step,
 } from "@/domain/types";
@@ -63,7 +63,7 @@ import {
   elementTitleKey,
   menuTitleKey,
 } from "@/lib/i18nKeys";
-import { migratePackToI18n } from "@/lib/i18nMigration";
+import { migrateProjectToI18n } from "@/lib/i18nMigration";
 import { findUnusedI18nKeys } from "@/lib/i18nUsages";
 import {
   addPosition,
@@ -85,115 +85,115 @@ type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 interface AccountState {
   account: Account;
   setAccount: (account: Account) => void;
-  createPack: (input: { id: string }) => PackId;
+  createProject: (input: { id: string }) => ProjectId;
   /**
-   * Import a pack object as a *new* pack: assigns a fresh PackId, marks
+   * Import a pack object as a *new* pack: assigns a fresh ProjectId, marks
    * source=imported, retags every contained menu/command with the new
-   * packId. Throws on malformed input.
+   * projectId. Throws on malformed input.
    */
-  importPack: (input: { pack: Pack }) => PackId;
-  replacePack: (pack: Pack) => void;
+  importProject: (input: { pack: Project }) => ProjectId;
+  replaceProject: (pack: Project) => void;
   /**
    * Apply an AI-generated menu/v1: convert to domain, insert/replace in the
    * pack, merge i18n. Returns the constructs dropped during conversion (no
    * domain equivalent) so the caller can warn instead of losing them silently.
    */
   applyAssistantMenu: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuV1: Record<string, unknown>;
     lang: string;
   }) => string[];
   /** Apply an AI-generated command/v1: convert + insert/replace + merge i18n. Returns dropped constructs. */
   applyAssistantCommand: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandV1: Record<string, unknown>;
     lang: string;
   }) => string[];
   /** Apply an AI-generated dialog/v1: convert + insert/replace + merge i18n. Returns dropped constructs. */
   applyAssistantDialog: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogV1: Record<string, unknown>;
     lang: string;
   }) => string[];
   /**
-   * Create a new menu in `packId` with sensible defaults (rows=3, single
+   * Create a new menu in `projectId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
    * autoLayout's grid if omitted. Returns the new id so callers can route
    * to it.
    */
   createMenu: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     id: string;
     rows?: MenuRows;
     position?: { x: number; y: number };
   }) => MenuId;
   /**
-   * Create a new command in `packId` with sensible defaults (no args, no
+   * Create a new command in `projectId` with sensible defaults (no args, no
    * steps). Returns the new id.
    */
   createCommand: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     id?: string;
     name?: string;
     position?: { x: number; y: number };
   }) => CommandId;
   createDialog: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     id: string;
     position?: { x: number; y: number };
   }) => DialogId;
   setDialogTitle: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     lang: string;
     value: string;
   }) => void;
   setDialogField: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     field: "canCloseWithEscape";
     value: boolean;
   }) => void;
-  setDialogId: (input: { packId: PackId; oldId: DialogId; newId: DialogId }) => void;
-  addDialogBody: (input: { packId: PackId; dialogId: DialogId; body: DialogBody }) => void;
-  removeDialogBody: (input: { packId: PackId; dialogId: DialogId; index: number }) => void;
+  setDialogId: (input: { projectId: ProjectId; oldId: DialogId; newId: DialogId }) => void;
+  addDialogBody: (input: { projectId: ProjectId; dialogId: DialogId; body: DialogBody }) => void;
+  removeDialogBody: (input: { projectId: ProjectId; dialogId: DialogId; index: number }) => void;
   setDialogBodyText: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     index: number;
     lang: string;
     value: string;
   }) => void;
   setDialogBodyMaterial: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     index: number;
     material: string;
     count: number;
   }) => void;
   addDialogInput: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     inputType: DialogInput["type"];
   }) => void;
-  removeDialogInput: (input: { packId: PackId; dialogId: DialogId; index: number }) => void;
+  removeDialogInput: (input: { projectId: ProjectId; dialogId: DialogId; index: number }) => void;
   setDialogInput: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     index: number;
     patch: Partial<DialogInput>;
   }) => void;
-  addDialogButton: (input: { packId: PackId; dialogId: DialogId }) => void;
-  removeDialogButton: (input: { packId: PackId; dialogId: DialogId; buttonIndex: number }) => void;
+  addDialogButton: (input: { projectId: ProjectId; dialogId: DialogId }) => void;
+  removeDialogButton: (input: { projectId: ProjectId; dialogId: DialogId; buttonIndex: number }) => void;
   setDialogButtonLabel: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     lang: string;
     value: string;
   }) => void;
   addDialogButtonStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -202,7 +202,7 @@ interface AccountState {
     lang: string;
   }) => void;
   moveDialogButtonStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -210,7 +210,7 @@ interface AccountState {
     toIndex: number;
   }) => void;
   setDialogButtonStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     path: StepPath;
@@ -218,20 +218,20 @@ interface AccountState {
     lang: string;
   }) => void;
   removeDialogButtonStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     path: StepPath;
   }) => void;
   addDialogButtonIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
     ifStepIndex: number;
   }) => void;
   removeDialogButtonIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -239,7 +239,7 @@ interface AccountState {
     caseIndex: number;
   }) => void;
   setDialogButtonIfCaseConditions: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -249,7 +249,7 @@ interface AccountState {
     op?: "and" | "or";
   }) => void;
   setDialogButtonIfCaseJoin: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -259,7 +259,7 @@ interface AccountState {
     op: "and" | "or";
   }) => void;
   toggleDialogButtonIfElse: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
     frames: StepFrame[];
@@ -267,89 +267,89 @@ interface AccountState {
     lang: string;
     enabled: boolean;
   }) => void;
-  removePack: (packId: PackId) => void;
-  reorderPacks: (newOrder: PackId[]) => void;
-  moveMenuToPack: (input: { menuId: MenuId; fromPackId: PackId; toPackId: PackId }) => void;
-  setCanvasPosition: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
-  addToBoard: (input: { packId: PackId; nodeId: string; x: number; y: number }) => void;
-  removeFromBoard: (input: { packId: PackId; nodeId: string }) => void;
-  arrangeAllOnBoard: (input: { packId: PackId }) => void;
+  removeProject: (projectId: ProjectId) => void;
+  reorderProjects: (newOrder: ProjectId[]) => void;
+  moveMenuToProject: (input: { menuId: MenuId; fromProjectId: ProjectId; toProjectId: ProjectId }) => void;
+  setCanvasPosition: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
+  addToBoard: (input: { projectId: ProjectId; nodeId: string; x: number; y: number }) => void;
+  removeFromBoard: (input: { projectId: ProjectId; nodeId: string }) => void;
+  arrangeAllOnBoard: (input: { projectId: ProjectId }) => void;
   /** Override one endpoint of a canvas edge ("source->target" id). */
   setEdgeAnchor: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     edgeId: string;
     end: "from" | "to";
     anchor: EdgeAnchor;
   }) => void;
   /** Remove an endpoint override; drops the entry when both ends are auto again. */
-  clearEdgeAnchor: (input: { packId: PackId; edgeId: string; end: "from" | "to" }) => void;
-  deleteFromPack: (input: { packId: PackId; nodeIds: string[] }) => void;
-  setPackField: (input: { packId: PackId; field: "name" | "description"; value: string }) => void;
+  clearEdgeAnchor: (input: { projectId: ProjectId; edgeId: string; end: "from" | "to" }) => void;
+  deleteFromProject: (input: { projectId: ProjectId; nodeIds: string[] }) => void;
+  setProjectField: (input: { projectId: ProjectId; field: "name" | "description"; value: string }) => void;
   setMenuField: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     field: "permission" | "rows" | "inventoryType";
     value: string | MenuRows;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
-  setMenuTitle: (input: { packId: PackId; menuId: MenuId; lang: string; value: string }) => void;
+  setMenuTitle: (input: { projectId: ProjectId; menuId: MenuId; lang: string; value: string }) => void;
   /** Replace the entire title layer array. */
-  setMenuTitleLayers: (input: { packId: PackId; menuId: MenuId; layers: MenuTitleLayer[] }) => void;
+  setMenuTitleLayers: (input: { projectId: ProjectId; menuId: MenuId; layers: MenuTitleLayer[] }) => void;
   /** Patch a single title layer by index. */
   updateMenuTitleLayer: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     index: number;
     patch: Partial<MenuTitleLayer>;
   }) => void;
   /** Append a new title layer. */
-  addMenuTitleLayer: (input: { packId: PackId; menuId: MenuId; layer: MenuTitleLayer }) => void;
+  addMenuTitleLayer: (input: { projectId: ProjectId; menuId: MenuId; layer: MenuTitleLayer }) => void;
   /** Remove the title layer at `index`. */
-  removeMenuTitleLayer: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
+  removeMenuTitleLayer: (input: { projectId: ProjectId; menuId: MenuId; index: number }) => void;
   /** Move a title layer from `fromIndex` to `toIndex`. */
   reorderMenuTitleLayers: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     fromIndex: number;
     toIndex: number;
   }) => void;
   setCommandField: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     field: "name" | "permission" | "description";
     value: string;
   }) => void;
-  setCommandAliases: (input: { packId: PackId; commandId: CommandId; aliases: string[] }) => void;
+  setCommandAliases: (input: { projectId: ProjectId; commandId: CommandId; aliases: string[] }) => void;
   /** Replace an entire command object in place (whole-command update). */
-  updateCommand: (input: { packId: PackId; command: Command }) => void;
+  updateCommand: (input: { projectId: ProjectId; command: Command }) => void;
   /** Replace an entire dialog object in place (whole-dialog update). */
-  updateDialog: (input: { packId: PackId; dialog: Dialog }) => void;
+  updateDialog: (input: { projectId: ProjectId; dialog: Dialog }) => void;
   /** Append a new argument at the end of a command's argument list. */
-  addCommandArg: (input: { packId: PackId; commandId: CommandId; arg?: CommandArg }) => void;
+  addCommandArg: (input: { projectId: ProjectId; commandId: CommandId; arg?: CommandArg }) => void;
   /** Replace the argument at `index` (whole-arg replace; immer drafts handle the merge). */
   setCommandArg: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     index: number;
     arg: CommandArg;
   }) => void;
-  removeCommandArg: (input: { packId: PackId; commandId: CommandId; index: number }) => void;
+  removeCommandArg: (input: { projectId: ProjectId; commandId: CommandId; index: number }) => void;
   /** Append a new context input to a menu (auto-named ctxN). */
   addMenuContextInput: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     kind?: "primitive" | "sourceRef";
   }) => void;
   setMenuContextInput: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     index: number;
     input: ContextInput;
   }) => void;
-  removeMenuContextInput: (input: { packId: PackId; menuId: MenuId; index: number }) => void;
+  removeMenuContextInput: (input: { projectId: ProjectId; menuId: MenuId; index: number }) => void;
   /** Element iteration: bind this element's slots to a list source in the menu context. */
   setElementIterates: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     iterates: { source: string; alias: string } | undefined;
@@ -360,27 +360,27 @@ interface AccountState {
    * canvasLayout key. Cross-pack refs to this menu (which we don't track)
    * become dangling — runtime handles.
    */
-  setMenuId: (input: { packId: PackId; oldId: MenuId; newId: MenuId }) => void;
+  setMenuId: (input: { projectId: ProjectId; oldId: MenuId; newId: MenuId }) => void;
   /** Rename a command's id. Rejects if newId already exists in the pack. */
-  setCommandId: (input: { packId: PackId; oldId: CommandId; newId: CommandId }) => void;
+  setCommandId: (input: { projectId: ProjectId; oldId: CommandId; newId: CommandId }) => void;
   /** Rename an element's id. Rejects if newId already exists in the same menu. */
   setElementId: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     oldId: ElementId;
     newId: ElementId;
   }) => void;
   setSlotMaterial: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     position: number;
     material: string;
   }) => void;
   /** Removes the element at the given position from the menu's first layer. */
-  clearSlot: (input: { packId: PackId; menuId: MenuId; position: number }) => void;
+  clearSlot: (input: { projectId: ProjectId; menuId: MenuId; position: number }) => void;
   /** Update a scalar field on the element's appearance at the given index (default 0). */
   setAppearanceField: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
@@ -389,7 +389,7 @@ interface AccountState {
   }) => void;
   /** Update an appearance title for the given language. Allocates the LText on first write. */
   setAppearanceTitle: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
@@ -398,7 +398,7 @@ interface AccountState {
   }) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
   setAppearanceLore: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex?: number;
@@ -411,22 +411,22 @@ interface AccountState {
    * appearance title/lore lines, send_message text in actions). Path-
    * based step mutators handle structure; this handles content.
    */
-  setI18nValue: (input: { packId: PackId; lt: LText; lang: string; value: string }) => void;
+  setI18nValue: (input: { projectId: ProjectId; lt: LText; lang: string; value: string }) => void;
   /** Add a new language to the pack (clones empty entries from defaultLang for every existing key). */
-  addLanguage: (input: { packId: PackId; lang: string }) => void;
+  addLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /** Remove a language and all its translations. No-op on `defaultLang`. */
-  removeLanguage: (input: { packId: PackId; lang: string }) => void;
+  removeLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /**
    * Drop every i18n key that's no longer referenced anywhere in the pack
    * (stale leftovers from deleted elements / re-imports). Returns nothing;
    * undoable. See {@link findUnusedI18nKeys}.
    */
-  removeUnusedI18nKeys: (input: { packId: PackId }) => void;
+  removeUnusedI18nKeys: (input: { projectId: ProjectId }) => void;
   /** Change the pack's default language (the fallback when a key has no entry in the active lang). */
-  setPackDefaultLang: (input: { packId: PackId; lang: string }) => void;
+  setProjectDefaultLang: (input: { projectId: ProjectId; lang: string }) => void;
   /** Replace the element's positions string (e.g. "0-8,17,26"). */
   setElementPositions: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     positions: string;
@@ -438,7 +438,7 @@ interface AccountState {
    * (positions are unique across elements within a menu).
    */
   moveElementPosition: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     fromPosition: number;
@@ -449,16 +449,16 @@ interface AccountState {
    * element already owns the position, it loses it.
    */
   addElementPosition: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     position: number;
   }) => void;
   /** Remove an element from its menu, regardless of how many positions it has. */
-  deleteElement: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  deleteElement: (input: { projectId: ProjectId; menuId: MenuId; elementId: ElementId }) => void;
   /** Replace one step inside a click handler's step tree at the given path. */
   setElementStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -473,7 +473,7 @@ interface AccountState {
    * Step[] (negative or out-of-range → append).
    */
   addElementStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -484,7 +484,7 @@ interface AccountState {
     lang: string;
   }) => void;
   removeElementStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -493,7 +493,7 @@ interface AccountState {
   }) => void;
   /** Reorder steps within the same Step[] (same parent). */
   moveElementStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -504,7 +504,7 @@ interface AccountState {
   }) => void;
   /** Add a new case to an if-step. */
   addIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -514,7 +514,7 @@ interface AccountState {
   }) => void;
   /** Remove a case from an if-step. */
   removeIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -525,7 +525,7 @@ interface AccountState {
   }) => void;
   /** Replace the conditions for one case of an if-step. */
   setIfCaseConditions: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -537,7 +537,7 @@ interface AccountState {
   }) => void;
   /** Set the operator for one joiner inside a case (between conditions[i] and [i+1]). */
   setIfCaseJoin: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -550,7 +550,7 @@ interface AccountState {
   }) => void;
   /** Toggle the else-branch of an if-step on or off. */
   toggleIfElse: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -564,7 +564,7 @@ interface AccountState {
    * if a handler already exists there.
    */
   addElementClickHandler: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -572,7 +572,7 @@ interface AccountState {
   }) => void;
   /** Remove the click handler at clickType (with its actions and fallback). */
   removeElementClickHandler: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -583,17 +583,17 @@ interface AccountState {
    * condition so the new state is clearly "conditional" and doesn't shadow the
    * default state (which has no `if`).
    */
-  addAppearance: (input: { packId: PackId; menuId: MenuId; elementId: ElementId }) => void;
+  addAppearance: (input: { projectId: ProjectId; menuId: MenuId; elementId: ElementId }) => void;
   /** Remove the appearance at the given index. The element must keep at least one. */
   removeAppearance: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
   }) => void;
   /** Reorder an element's appearances (priority = position in the array). */
   moveAppearance: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     fromIndex: number;
@@ -604,7 +604,7 @@ interface AccountState {
    * Empty list → unconditional (default state).
    */
   setAppearanceConditions: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -612,7 +612,7 @@ interface AccountState {
   }) => void;
   /** Set the operator for one joiner between if-conditions on an appearance. */
   setAppearanceJoin: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementId: ElementId;
     appearanceIndex: number;
@@ -621,7 +621,7 @@ interface AccountState {
   }) => void;
   /** Replace one step inside a command's step tree at the given path. */
   setCommandStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     path: StepPath;
     step: Step;
@@ -629,7 +629,7 @@ interface AccountState {
   }) => void;
   /** Insert a step into a command's step tree. */
   addCommandStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     index: number;
@@ -637,32 +637,32 @@ interface AccountState {
     lang: string;
   }) => void;
   removeCommandStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     path: StepPath;
   }) => void;
   moveCommandStep: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     fromIndex: number;
     toIndex: number;
   }) => void;
   addCommandIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
   }) => void;
   removeCommandIfCase: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
     caseIndex: number;
   }) => void;
   setCommandIfCaseConditions: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
@@ -670,7 +670,7 @@ interface AccountState {
     conditions: Condition[];
   }) => void;
   setCommandIfCaseJoin: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
@@ -679,7 +679,7 @@ interface AccountState {
     op: "and" | "or";
   }) => void;
   toggleCommandIfElse: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     commandId: CommandId;
     frames: StepFrame[];
     ifStepIndex: number;
@@ -690,7 +690,7 @@ interface AccountState {
    * first layer. Any positions claimed by the new element are stripped from
    * sibling elements (positions are unique within a menu).
    */
-  addElement: (input: { packId: PackId; menuId: MenuId; element: Element }) => void;
+  addElement: (input: { projectId: ProjectId; menuId: MenuId; element: Element }) => void;
   /**
    * Shift every position of every element in `elementIds` by (dCol, dRow)
    * within the menu's grid. Throws if any new position would fall outside
@@ -698,7 +698,7 @@ interface AccountState {
    * elements (takeover semantics, matching addElementPosition).
    */
   moveSelectionByDelta: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menuId: MenuId;
     elementIds: ElementId[];
     dCol: number;
@@ -706,17 +706,17 @@ interface AccountState {
   }) => void;
   /** Paste already-cloned-and-id-rewritten entities into a pack at an offset. */
   pasteEntities: (input: {
-    packId: PackId;
+    projectId: ProjectId;
     menus: Menu[];
     commands: Command[];
     offset: { x: number; y: number };
   }) => void;
-  addPackDataSource: (args: { packId: PackId }) => void;
-  removePackDataSource: (args: { packId: PackId; id: DataSourceId }) => void;
-  renamePackDataSource: (args: { packId: PackId; id: DataSourceId; newName: string }) => void;
-  setPackDataSourceYaml: (args: { packId: PackId; id: DataSourceId; yaml: string }) => void;
-  addImportedConnector: (args: { packId: PackId; spec: ConnectorSpec }) => void;
-  removeImportedConnector: (args: { packId: PackId; ref: string }) => void;
+  addProjectDataSource: (args: { projectId: ProjectId }) => void;
+  removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
+  renameProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId; newName: string }) => void;
+  setProjectDataSourceYaml: (args: { projectId: ProjectId; id: DataSourceId; yaml: string }) => void;
+  addImportedConnector: (args: { projectId: ProjectId; spec: ConnectorSpec }) => void;
+  removeImportedConnector: (args: { projectId: ProjectId; ref: string }) => void;
 }
 
 /**
@@ -725,13 +725,13 @@ interface AccountState {
  */
 function findElementHandler(
   draft: AccountState,
-  packId: PackId,
+  projectId: ProjectId,
   menuId: MenuId,
   elementId: ElementId,
   appearanceIndex: number,
   clickType: ClickType,
 ) {
-  const pack = draft.account.packs.find((p) => p.id === packId);
+  const pack = draft.account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
   const menu = pack.menus.find((m) => m.id === menuId);
   if (!menu) return null;
@@ -745,14 +745,14 @@ function findElementHandler(
   return null;
 }
 
-function findCommand(draft: AccountState, packId: PackId, commandId: CommandId) {
-  const pack = draft.account.packs.find((p) => p.id === packId);
+function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
+  const pack = draft.account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
   return pack.commands.find((c) => c.id === commandId) ?? null;
 }
 
-function touch(draft: AccountState, packId: PackId) {
-  const pack = draft.account.packs.find((p) => p.id === packId);
+function touch(draft: AccountState, projectId: ProjectId) {
+  const pack = draft.account.projects.find((p) => p.id === projectId);
   if (pack) pack.updatedAt = new Date().toISOString();
 }
 
@@ -763,25 +763,25 @@ function touch(draft: AccountState, packId: PackId) {
  * family releases the keys of a removed subtree. Signatures are preserved so
  * the mutation call sites stay put — only the traversal moved out.
  */
-function allocStepLTexts(pack: Pack, steps: Step[], lang: string, keyPrefix: string): void {
+function allocStepLTexts(pack: Project, steps: Step[], lang: string, keyPrefix: string): void {
   mintLTexts(pack, visitStepLTexts(steps, keyPrefix), lang);
 }
-function gcStepLTexts(pack: Pack, steps: Step[]): void {
+function gcStepLTexts(pack: Project, steps: Step[]): void {
   releaseLTexts(pack, visitStepLTexts(steps, ""));
 }
-function gcAppearanceLTexts(pack: Pack, appearance: Appearance): void {
+function gcAppearanceLTexts(pack: Project, appearance: Appearance): void {
   releaseLTexts(pack, visitAppearanceLTexts(appearance, ""));
 }
-function gcElementLTexts(pack: Pack, element: Element): void {
+function gcElementLTexts(pack: Project, element: Element): void {
   releaseLTexts(pack, visitElementLTexts("", element));
 }
-function gcMenuLTexts(pack: Pack, menu: Menu): void {
+function gcMenuLTexts(pack: Project, menu: Menu): void {
   releaseLTexts(pack, visitMenuLTexts(menu));
 }
-function gcCommandLTexts(pack: Pack, command: Command): void {
+function gcCommandLTexts(pack: Project, command: Command): void {
   releaseLTexts(pack, visitCommandLTexts(command));
 }
-function gcDialogLTexts(pack: Pack, dialog: Dialog): void {
+function gcDialogLTexts(pack: Project, dialog: Dialog): void {
   releaseLTexts(pack, visitDialogLTexts(dialog));
 }
 /** Replace a single LText key inside a dialog (title/body/input/button label) — used by setDialogId. */
@@ -841,7 +841,7 @@ function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
 }
 
-function nextElementIdForMaterial(pack: Pack, material: string | undefined): ElementId {
+function nextElementIdForMaterial(pack: Project, material: string | undefined): ElementId {
   const base = (material ?? "button").toLowerCase();
   const prefix = `${base}_`;
   let max = 0;
@@ -886,31 +886,31 @@ function validateArgOrder(args: CommandArg[]): void {
  * `account` slice. Action functions are stable refs, so excluding them via
  * `partialize` keeps the diff narrow.
  *
- * Account-level mutations (createPack, reorderPacks) clear the temporal
+ * Account-level mutations (createProject, reorderProjects) clear the temporal
  * stack themselves so they don't tangle with pack-internal edits in the
- * undo history. Pack-internal mutations (slot material, field edits, canvas
- * position, deleteFromPack, moveMenuToPack) are undoable.
+ * undo history. Project-internal mutations (slot material, field edits, canvas
+ * position, deleteFromProject, moveMenuToProject) are undoable.
  */
 const clearTemporal = () => useAccountStore.temporal.getState().clear();
 
 export const useAccountStore = create<AccountState>()(
   temporal(
     (set, get) => ({
-      account: { id: "" as Account["id"], packs: [], packOrder: [] },
+      account: { id: "" as Account["id"], projects: [], projectOrder: [] },
       setAccount: (account) => {
         clearTemporal();
-        const migratedPacks = account.packs.map((p) => ({
+        const migratedProjects = account.projects.map((p) => ({
           ...p,
           dialogs: p.dialogs ?? [],
           menus: p.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
         }));
-        set({ account: { ...account, packs: migratedPacks } });
+        set({ account: { ...account, projects: migratedProjects } });
       },
-      createPack: ({ id: rawId }) => {
-        const id = rawId as PackId;
+      createProject: ({ id: rawId }) => {
+        const id = rawId as ProjectId;
         set(
           produce((draft: AccountState) => {
-            draft.account.packs.push({
+            draft.account.projects.push({
               id,
               name: rawId,
               source: "user_created",
@@ -927,13 +927,13 @@ export const useAccountStore = create<AccountState>()(
               defaultLang: "en",
               canvasLayout: {},
             });
-            draft.account.packOrder.push(id);
+            draft.account.projectOrder.push(id);
           }),
         );
         clearTemporal();
         return id;
       },
-      importPack: ({ pack: incoming }) => {
+      importProject: ({ pack: incoming }) => {
         // Light shape check — the input came from a user-supplied file so
         // we don't fully trust it, but we don't deep-validate either.
         if (!incoming || typeof incoming !== "object") {
@@ -943,7 +943,7 @@ export const useAccountStore = create<AccountState>()(
         if (!Array.isArray(incoming.menus)) throw new Error("invalid pack: missing menus");
         if (!Array.isArray(incoming.commands)) throw new Error("invalid pack: missing commands");
 
-        const id = newPackId();
+        const id = newProjectId();
         set(
           produce((draft: AccountState) => {
             const next = {
@@ -953,37 +953,37 @@ export const useAccountStore = create<AccountState>()(
               source: "imported" as const,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
-              // Retag children so their packId matches the new pack id.
-              menus: incoming.menus.map((m) => ({ ...m, packId: id })),
-              commands: incoming.commands.map((c) => ({ ...c, packId: id })),
-              templates: (incoming.templates ?? []).map((t) => ({ ...t, packId: id })),
-              assets: (incoming.assets ?? []).map((a) => ({ ...a, packId: id })),
-              dialogs: (incoming.dialogs ?? []).map((d) => ({ ...d, packId: id })),
+              // Retag children so their projectId matches the new pack id.
+              menus: incoming.menus.map((m) => ({ ...m, projectId: id })),
+              commands: incoming.commands.map((c) => ({ ...c, projectId: id })),
+              templates: (incoming.templates ?? []).map((t) => ({ ...t, projectId: id })),
+              assets: (incoming.assets ?? []).map((a) => ({ ...a, projectId: id })),
+              dialogs: (incoming.dialogs ?? []).map((d) => ({ ...d, projectId: id })),
               i18nKeys: incoming.i18nKeys ?? {},
               defaultLang: incoming.defaultLang ?? "en",
               canvasLayout: incoming.canvasLayout ?? {},
             };
             // Imported pack may use the legacy plain-string shape — migrate
             // in place so it lines up with the current LText-based domain.
-            migratePackToI18n(next, next.defaultLang);
+            migrateProjectToI18n(next, next.defaultLang);
             // Migrate menu titles from LText to MenuTitleLayer[].
             for (const menu of next.menus) {
               menu.title = migrateTitle(menu.title);
             }
-            draft.account.packs.push(next);
-            draft.account.packOrder.push(id);
+            draft.account.projects.push(next);
+            draft.account.projectOrder.push(id);
           }),
         );
         clearTemporal();
         return id;
       },
-      replacePack: (pack) => {
+      replaceProject: (pack) => {
         clearTemporal();
         set(
           produce((draft: AccountState) => {
-            const idx = draft.account.packs.findIndex((p) => p.id === pack.id);
+            const idx = draft.account.projects.findIndex((p) => p.id === pack.id);
             if (idx !== -1) {
-              draft.account.packs[idx] = {
+              draft.account.projects[idx] = {
                 ...pack,
                 menus: pack.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
               };
@@ -991,18 +991,18 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
-      applyAssistantMenu: ({ packId: pId, menuV1, lang }) => {
+      applyAssistantMenu: ({ projectId: pId, menuV1, lang }) => {
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const converted = menuV1ToDomain(menuV1, { packId: pId, lang });
+            const converted = menuV1ToDomain(menuV1, { projectId: pId, lang });
             const { menu, i18nKeys } = converted;
             unsupported = converted.unsupported;
-            // The converter already stamps menu.packId from opts.packId; keep
+            // The converter already stamps menu.projectId from opts.projectId; keep
             // this as a safety net so the domain Menu always carries the id.
-            menu.packId = pId;
+            menu.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
               pack.i18nKeys[key as I18nKey] = {
                 ...(pack.i18nKeys[key as I18nKey] ?? {}),
@@ -1017,19 +1017,19 @@ export const useAccountStore = create<AccountState>()(
         );
         return unsupported;
       },
-      applyAssistantCommand: ({ packId: pId, commandV1, lang }) => {
+      applyAssistantCommand: ({ projectId: pId, commandV1, lang }) => {
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const {
               command,
               i18nKeys,
               unsupported: u,
-            } = commandV1ToDomain(commandV1, { packId: pId, lang });
+            } = commandV1ToDomain(commandV1, { projectId: pId, lang });
             unsupported = u;
-            command.packId = pId;
+            command.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
               pack.i18nKeys[key as I18nKey] = {
                 ...(pack.i18nKeys[key as I18nKey] ?? {}),
@@ -1044,19 +1044,19 @@ export const useAccountStore = create<AccountState>()(
         );
         return unsupported;
       },
-      applyAssistantDialog: ({ packId: pId, dialogV1, lang }) => {
+      applyAssistantDialog: ({ projectId: pId, dialogV1, lang }) => {
         let unsupported: string[] = [];
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const {
               dialog,
               i18nKeys,
               unsupported: u,
-            } = dialogV1ToDomain(dialogV1, { packId: pId, lang });
+            } = dialogV1ToDomain(dialogV1, { projectId: pId, lang });
             unsupported = u;
-            dialog.packId = pId;
+            dialog.projectId = pId;
             for (const [key, langs] of Object.entries(i18nKeys)) {
               pack.i18nKeys[key as I18nKey] = {
                 ...(pack.i18nKeys[key as I18nKey] ?? {}),
@@ -1071,19 +1071,19 @@ export const useAccountStore = create<AccountState>()(
         );
         return unsupported;
       },
-      createMenu: ({ packId: pId, id: rawId, rows, position }) => {
+      createMenu: ({ projectId: pId, id: rawId, rows, position }) => {
         const id = rawId as MenuId;
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             pack.menus.push({
               id,
-              packId: pId,
+              projectId: pId,
               // Default to a single Plain (vanilla) title layer. Vanilla mode
               // works without a resource pack and matches what new users expect
               // ("type a title, see a title"). The empty `key` is rekeyed to
-              // `menus.{id}.title` at deploy time by rekeyPack.
+              // `menus.{id}.title` at deploy time by rekeyProject.
               title: [{ kind: "plain", value: { key: "" as I18nKey } }],
               rows: rows ?? 3,
               layers: [{ id: newLayerId(), name: "default", elements: [] }],
@@ -1096,15 +1096,15 @@ export const useAccountStore = create<AccountState>()(
         );
         return id;
       },
-      createCommand: ({ packId: pId, id: explicitId, name, position }) => {
+      createCommand: ({ projectId: pId, id: explicitId, name, position }) => {
         const id = explicitId ? commandId(explicitId) : newCommandId();
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             pack.commands.push({
               id,
-              packId: pId,
+              projectId: pId,
               name: name ?? "newcmd",
               arguments: [],
               steps: [],
@@ -1117,19 +1117,19 @@ export const useAccountStore = create<AccountState>()(
         );
         return id;
       },
-      createDialog: ({ packId: pId, id, position }) => {
+      createDialog: ({ projectId: pId, id, position }) => {
         const dId = id as DialogId;
         const titleKey = dialogTitleKey(id);
         const btnLabelKey = dialogButtonLabelKey(id, "btn_confirm");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             pack.i18nKeys[titleKey] = { [pack.defaultLang]: "" };
             pack.i18nKeys[btnLabelKey] = { [pack.defaultLang]: "Confirm" };
             pack.dialogs.push({
               id: dId,
-              packId: pId,
+              projectId: pId,
               title: { key: titleKey },
               canCloseWithEscape: true,
               body: [],
@@ -1144,10 +1144,10 @@ export const useAccountStore = create<AccountState>()(
         );
         return dId;
       },
-      setDialogTitle: ({ packId: pId, dialogId: dId, lang, value }) =>
+      setDialogTitle: ({ projectId: pId, dialogId: dId, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const dialog = pack.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
@@ -1156,26 +1156,26 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogField: ({ packId: pId, dialogId: dId, field, value }) =>
+      setDialogField: ({ projectId: pId, dialogId: dId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             if (field === "canCloseWithEscape") dialog.canCloseWithEscape = value;
             touch(draft, pId);
           }),
         ),
-      setDialogId: ({ packId: pId, oldId, newId }) => {
+      setDialogId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
         if (!newId) throw new Error("dialog id cannot be empty");
         const state = get();
-        const pack = state.account.packs.find((p) => p.id === pId);
+        const pack = state.account.projects.find((p) => p.id === pId);
         if (!pack) throw new Error("pack not found");
         if (pack.dialogs.some((d) => d.id === newId))
           throw new Error(`dialog id "${newId}" already exists`);
         const next = produce(state.account, (draft) => {
-          const p = draft.packs.find((p) => p.id === pId)!;
+          const p = draft.projects.find((p) => p.id === pId)!;
           const d = p.dialogs.find((d) => d.id === oldId)!;
           d.id = newId;
           const oldPrefix = `dialogs.${oldId}.`;
@@ -1198,10 +1198,10 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      addDialogBody: ({ packId: pId, dialogId: dId, body }) =>
+      addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             if (body.type === "text") {
@@ -1214,10 +1214,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeDialogBody: ({ packId: pId, dialogId: dId, index }) =>
+      removeDialogBody: ({ projectId: pId, dialogId: dId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const body = dialog.body[index];
@@ -1226,10 +1226,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogBodyText: ({ packId: pId, dialogId: dId, index, lang, value }) =>
+      setDialogBodyText: ({ projectId: pId, dialogId: dId, index, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const body = dialog?.body[index];
             if (!body || body.type !== "text") return;
@@ -1238,10 +1238,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogBodyMaterial: ({ packId: pId, dialogId: dId, index, material, count }) =>
+      setDialogBodyMaterial: ({ projectId: pId, dialogId: dId, index, material, count }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const body = dialog?.body[index];
             if (!body || body.type !== "item") return;
@@ -1250,10 +1250,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addDialogInput: ({ packId: pId, dialogId: dId, inputType }) =>
+      addDialogInput: ({ projectId: pId, dialogId: dId, inputType }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const inputId = `input_${dialog.inputs.length}`;
@@ -1297,10 +1297,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeDialogInput: ({ packId: pId, dialogId: dId, index }) =>
+      removeDialogInput: ({ projectId: pId, dialogId: dId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const input = dialog.inputs[index];
@@ -1314,20 +1314,20 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogInput: ({ packId: pId, dialogId: dId, index, patch }) =>
+      setDialogInput: ({ projectId: pId, dialogId: dId, index, patch }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog?.inputs[index]) return;
             Object.assign(dialog.inputs[index]!, patch);
             touch(draft, pId);
           }),
         ),
-      addDialogButton: ({ packId: pId, dialogId: dId }) =>
+      addDialogButton: ({ projectId: pId, dialogId: dId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const btnId = `btn_${dialog.buttons.length}`;
@@ -1337,10 +1337,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeDialogButton: ({ packId: pId, dialogId: dId, buttonIndex }) =>
+      removeDialogButton: ({ projectId: pId, dialogId: dId, buttonIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             if (!dialog) return;
             const btn = dialog.buttons[buttonIndex];
@@ -1359,10 +1359,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogButtonLabel: ({ packId: pId, dialogId: dId, buttonIndex, lang, value }) =>
+      setDialogButtonLabel: ({ projectId: pId, dialogId: dId, buttonIndex, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
@@ -1372,7 +1372,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       addDialogButtonStep: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1382,7 +1382,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!pack || !btn) return;
@@ -1395,7 +1395,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       moveDialogButtonStep: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1404,7 +1404,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
@@ -1417,10 +1417,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
+      setDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!pack || !btn) return;
@@ -1432,10 +1432,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeDialogButtonStep: ({ packId: pId, dialogId: dId, buttonIndex, path }) =>
+      removeDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!pack || !btn) return;
@@ -1446,10 +1446,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addDialogButtonIfCase: ({ packId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
+      addDialogButtonIfCase: ({ projectId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
@@ -1461,7 +1461,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       removeDialogButtonIfCase: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1470,7 +1470,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!pack || !btn) return;
@@ -1486,7 +1486,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setDialogButtonIfCaseConditions: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1497,7 +1497,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
@@ -1513,7 +1513,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setDialogButtonIfCaseJoin: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1524,7 +1524,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!btn) return;
@@ -1539,7 +1539,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       toggleDialogButtonIfElse: ({
-        packId: pId,
+        projectId: pId,
         dialogId: dId,
         buttonIndex,
         frames,
@@ -1549,7 +1549,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const dialog = pack?.dialogs.find((d) => d.id === dId);
             const btn = dialog?.buttons[buttonIndex];
             if (!pack || !btn) return;
@@ -1567,41 +1567,41 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removePack: (packId) => {
+      removeProject: (projectId) => {
         set(
           produce((draft: AccountState) => {
-            draft.account.packs = draft.account.packs.filter((p) => p.id !== packId);
-            draft.account.packOrder = draft.account.packOrder.filter((id) => id !== packId);
+            draft.account.projects = draft.account.projects.filter((p) => p.id !== projectId);
+            draft.account.projectOrder = draft.account.projectOrder.filter((id) => id !== projectId);
           }),
         );
         clearTemporal();
       },
-      reorderPacks: (newOrder) => {
+      reorderProjects: (newOrder) => {
         set(
           produce((draft: AccountState) => {
-            draft.account.packOrder = [...newOrder];
+            draft.account.projectOrder = [...newOrder];
           }),
         );
         clearTemporal();
       },
-      moveMenuToPack: ({ menuId: mId, fromPackId, toPackId }) => {
+      moveMenuToProject: ({ menuId: mId, fromProjectId, toProjectId }) => {
         const next = produce(get().account, (draft) => {
-          const from = draft.packs.find((p) => p.id === fromPackId);
-          const to = draft.packs.find((p) => p.id === toPackId);
+          const from = draft.projects.find((p) => p.id === fromProjectId);
+          const to = draft.projects.find((p) => p.id === toProjectId);
           if (!from || !to) throw new Error("pack not found");
           const idx = from.menus.findIndex((m) => m.id === mId);
           if (idx === -1) throw new Error("menu not found in source pack");
           const [moved] = from.menus.splice(idx, 1);
           if (!moved) return;
-          moved.packId = toPackId;
+          moved.projectId = toProjectId;
           to.menus.push(moved);
         });
         set({ account: next });
       },
-      setCanvasPosition: ({ packId: pId, nodeId, x, y }) =>
+      setCanvasPosition: ({ projectId: pId, nodeId, x, y }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
@@ -1609,74 +1609,74 @@ export const useAccountStore = create<AccountState>()(
       // Board-membership entry point: puts an element ON the board at (x,y).
       // Same write as setCanvasPosition (drag-persist), but a distinct intent —
       // call sites read clearly as "add to board" vs. "node moved".
-      addToBoard: ({ packId: pId, nodeId, x, y }) =>
+      addToBoard: ({ projectId: pId, nodeId, x, y }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
           }),
         ),
-      removeFromBoard: ({ packId: pId, nodeId }) =>
+      removeFromBoard: ({ projectId: pId, nodeId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             delete (pack.canvasLayout as Record<string, { x: number; y: number }>)[nodeId];
           }),
         ),
-      arrangeAllOnBoard: ({ packId: pId }) =>
+      arrangeAllOnBoard: ({ projectId: pId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const grid = gridArrange(current(pack));
             pack.canvasLayout = grid as typeof pack.canvasLayout;
           }),
         ),
-      setEdgeAnchor: ({ packId: pId, edgeId, end, anchor }) =>
+      setEdgeAnchor: ({ projectId: pId, edgeId, end, anchor }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             pack.canvasEdges ??= {};
             pack.canvasEdges[edgeId] = { ...pack.canvasEdges[edgeId], [end]: anchor };
           }),
         ),
-      clearEdgeAnchor: ({ packId: pId, edgeId, end }) =>
+      clearEdgeAnchor: ({ projectId: pId, edgeId, end }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             const entry = pack?.canvasEdges?.[edgeId];
             if (!pack || !entry) return;
             delete entry[end];
             if (!entry.from && !entry.to) delete pack.canvasEdges![edgeId];
           }),
         ),
-      setPackField: ({ packId: pId, field, value }) =>
+      setProjectField: ({ projectId: pId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             if (field === "name") pack.name = value;
             else if (field === "description") pack.description = value || undefined;
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setI18nValue: ({ packId: pId, lt, lang, value }) =>
+      setI18nValue: ({ projectId: pId, lt, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             setLText(pack, lt, lang, value);
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      addLanguage: ({ packId: pId, lang }) => {
+      addLanguage: ({ projectId: pId, lang }) => {
         if (!lang) throw new Error("language code cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             // Idempotent: re-adding an existing lang is a no-op. We
             // don't seed empty entries for every key — fallback to
@@ -1693,10 +1693,10 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
-      removeLanguage: ({ packId: pId, lang }) =>
+      removeLanguage: ({ projectId: pId, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             if (lang === pack.defaultLang) return; // refuse to drop the default
             for (const entry of Object.values(pack.i18nKeys)) {
@@ -1705,10 +1705,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      removeUnusedI18nKeys: ({ packId: pId }) =>
+      removeUnusedI18nKeys: ({ projectId: pId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             // Walk a plain snapshot (`current`) rather than the immer draft —
             // findKeyUsages only reads, and the proxy walk is needless overhead.
@@ -1718,19 +1718,19 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setPackDefaultLang: ({ packId: pId, lang }) =>
+      setProjectDefaultLang: ({ projectId: pId, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             if (!lang) return;
             pack.defaultLang = lang;
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setMenuField: ({ packId: pId, menuId: mId, field, value }) => {
+      setMenuField: ({ projectId: pId, menuId: mId, field, value }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           const menu = pack.menus.find((m) => m.id === mId);
           if (!menu) return;
@@ -1760,10 +1760,10 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      setMenuTitle: ({ packId: pId, menuId: mId, lang, value }) =>
+      setMenuTitle: ({ projectId: pId, menuId: mId, lang, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1790,10 +1790,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setMenuTitleLayers: ({ packId: pId, menuId: mId, layers }) =>
+      setMenuTitleLayers: ({ projectId: pId, menuId: mId, layers }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1801,10 +1801,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      updateMenuTitleLayer: ({ packId: pId, menuId: mId, index, patch }) =>
+      updateMenuTitleLayer: ({ projectId: pId, menuId: mId, index, patch }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1814,10 +1814,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      addMenuTitleLayer: ({ packId: pId, menuId: mId, layer }) =>
+      addMenuTitleLayer: ({ projectId: pId, menuId: mId, layer }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1825,10 +1825,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      removeMenuTitleLayer: ({ packId: pId, menuId: mId, index }) =>
+      removeMenuTitleLayer: ({ projectId: pId, menuId: mId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1836,10 +1836,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      reorderMenuTitleLayers: ({ packId: pId, menuId: mId, fromIndex, toIndex }) =>
+      reorderMenuTitleLayers: ({ projectId: pId, menuId: mId, fromIndex, toIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1848,10 +1848,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setCommandField: ({ packId: pId, commandId: cId, field, value }) =>
+      setCommandField: ({ projectId: pId, commandId: cId, field, value }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = pack.commands.find((c) => c.id === cId);
             if (!cmd) return;
@@ -1861,10 +1861,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setCommandAliases: ({ packId: pId, commandId: cId, aliases }) =>
+      setCommandAliases: ({ projectId: pId, commandId: cId, aliases }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = pack.commands.find((c) => c.id === cId);
             if (!cmd) return;
@@ -1872,10 +1872,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      updateCommand: ({ packId: pId, command }) =>
+      updateCommand: ({ projectId: pId, command }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const idx = pack.commands.findIndex((c) => c.id === command.id);
             if (idx === -1) return;
@@ -1883,10 +1883,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      updateDialog: ({ packId: pId, dialog }) =>
+      updateDialog: ({ projectId: pId, dialog }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const idx = pack.dialogs.findIndex((d) => d.id === dialog.id);
             if (idx === -1) return;
@@ -1894,9 +1894,9 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      addCommandArg: ({ packId: pId, commandId: cId, arg }) => {
+      addCommandArg: ({ projectId: pId, commandId: cId, arg }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           const cmd = pack.commands.find((c) => c.id === cId);
           if (!cmd) return;
@@ -1914,9 +1914,9 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      setCommandArg: ({ packId: pId, commandId: cId, index, arg }) => {
+      setCommandArg: ({ projectId: pId, commandId: cId, index, arg }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           const cmd = pack.commands.find((c) => c.id === cId);
           if (!cmd || index < 0 || index >= cmd.arguments.length) return;
@@ -1928,10 +1928,10 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      removeCommandArg: ({ packId: pId, commandId: cId, index }) =>
+      removeCommandArg: ({ projectId: pId, commandId: cId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = pack.commands.find((c) => c.id === cId);
             if (!cmd || index < 0 || index >= cmd.arguments.length) return;
@@ -1939,10 +1939,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      addMenuContextInput: ({ packId: pId, menuId: mId, kind }) =>
+      addMenuContextInput: ({ projectId: pId, menuId: mId, kind }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -1962,10 +1962,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setMenuContextInput: ({ packId: pId, menuId: mId, index, input }) =>
+      setMenuContextInput: ({ projectId: pId, menuId: mId, index, input }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu?.contextInputs) return;
@@ -1974,10 +1974,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      removeMenuContextInput: ({ packId: pId, menuId: mId, index }) =>
+      removeMenuContextInput: ({ projectId: pId, menuId: mId, index }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu?.contextInputs) return;
@@ -1987,10 +1987,10 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setElementIterates: ({ packId: pId, menuId: mId, elementId: eId, iterates }) =>
+      setElementIterates: ({ projectId: pId, menuId: mId, elementId: eId, iterates }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2004,12 +2004,12 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      setMenuId: ({ packId: pId, oldId, newId }) => {
+      setMenuId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
         if (!newId) throw new Error("menu id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             if (pack.menus.some((m) => m.id === newId)) {
               throw new Error(`menu id "${newId}" already exists in pack`);
@@ -2051,12 +2051,12 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
-      setCommandId: ({ packId: pId, oldId, newId }) => {
+      setCommandId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
         if (!newId) throw new Error("command id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             if (pack.commands.some((c) => c.id === newId)) {
               throw new Error(`command id "${newId}" already exists in pack`);
@@ -2075,12 +2075,12 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
-      setElementId: ({ packId: pId, menuId: mId, oldId, newId }) => {
+      setElementId: ({ projectId: pId, menuId: mId, oldId, newId }) => {
         if (oldId === newId) return;
         if (!newId) throw new Error("element id cannot be empty");
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2100,10 +2100,10 @@ export const useAccountStore = create<AccountState>()(
           }),
         );
       },
-      setSlotMaterial: ({ packId: pId, menuId: mId, position, material }) =>
+      setSlotMaterial: ({ projectId: pId, menuId: mId, position, material }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2132,7 +2132,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setAppearanceField: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex = 0,
@@ -2141,7 +2141,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2168,7 +2168,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setAppearanceTitle: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex = 0,
@@ -2177,7 +2177,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2204,10 +2204,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      setElementPositions: ({ packId: pId, menuId: mId, elementId, positions }) =>
+      setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2221,10 +2221,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      moveElementPosition: ({ packId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
+      moveElementPosition: ({ projectId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2249,10 +2249,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      addElementPosition: ({ packId: pId, menuId: mId, elementId, position }) =>
+      addElementPosition: ({ projectId: pId, menuId: mId, elementId, position }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2275,10 +2275,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      deleteElement: ({ packId: pId, menuId: mId, elementId }) =>
+      deleteElement: ({ projectId: pId, menuId: mId, elementId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2294,7 +2294,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setElementStep: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2305,7 +2305,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const handler = findElementHandler(
               draft,
@@ -2330,7 +2330,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       addElementStep: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2342,7 +2342,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const handler = findElementHandler(
               draft,
@@ -2367,7 +2367,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       removeElementStep: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2376,7 +2376,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const handler = findElementHandler(
               draft,
@@ -2395,7 +2395,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       moveElementStep: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2425,7 +2425,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       addIfCase: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2452,7 +2452,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       removeIfCase: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2463,7 +2463,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const handler = findElementHandler(
               draft,
@@ -2484,7 +2484,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setIfCaseConditions: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2515,7 +2515,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setIfCaseJoin: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2551,7 +2551,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       toggleIfElse: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2562,7 +2562,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const handler = findElementHandler(
               draft,
@@ -2586,7 +2586,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       addElementClickHandler: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2594,7 +2594,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2614,7 +2614,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       removeElementClickHandler: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2622,7 +2622,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2640,10 +2640,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      addAppearance: ({ packId: pId, menuId: mId, elementId }) =>
+      addAppearance: ({ projectId: pId, menuId: mId, elementId }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2660,10 +2660,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      removeAppearance: ({ packId: pId, menuId: mId, elementId, appearanceIndex }) =>
+      removeAppearance: ({ projectId: pId, menuId: mId, elementId, appearanceIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2680,10 +2680,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      moveAppearance: ({ packId: pId, menuId: mId, elementId, fromIndex, toIndex }) =>
+      moveAppearance: ({ projectId: pId, menuId: mId, elementId, fromIndex, toIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2706,7 +2706,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setAppearanceConditions: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2714,7 +2714,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2739,7 +2739,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setAppearanceJoin: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex,
@@ -2748,7 +2748,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2768,10 +2768,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      setCommandStep: ({ packId: pId, commandId: cId, path, step, lang }) =>
+      setCommandStep: ({ projectId: pId, commandId: cId, path, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
@@ -2783,10 +2783,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addCommandStep: ({ packId: pId, commandId: cId, frames, index, step, lang }) =>
+      addCommandStep: ({ projectId: pId, commandId: cId, frames, index, step, lang }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
@@ -2798,10 +2798,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeCommandStep: ({ packId: pId, commandId: cId, path }) =>
+      removeCommandStep: ({ projectId: pId, commandId: cId, path }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
@@ -2812,7 +2812,7 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      moveCommandStep: ({ packId: pId, commandId: cId, frames, fromIndex, toIndex }) =>
+      moveCommandStep: ({ projectId: pId, commandId: cId, frames, fromIndex, toIndex }) =>
         set(
           produce((draft: AccountState) => {
             const cmd = findCommand(draft, pId, cId);
@@ -2826,7 +2826,7 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addCommandIfCase: ({ packId: pId, commandId: cId, frames, ifStepIndex }) =>
+      addCommandIfCase: ({ projectId: pId, commandId: cId, frames, ifStepIndex }) =>
         set(
           produce((draft: AccountState) => {
             const cmd = findCommand(draft, pId, cId);
@@ -2838,10 +2838,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeCommandIfCase: ({ packId: pId, commandId: cId, frames, ifStepIndex, caseIndex }) =>
+      removeCommandIfCase: ({ projectId: pId, commandId: cId, frames, ifStepIndex, caseIndex }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
@@ -2855,7 +2855,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setCommandIfCaseConditions: ({
-        packId: pId,
+        projectId: pId,
         commandId: cId,
         frames,
         ifStepIndex,
@@ -2876,7 +2876,7 @@ export const useAccountStore = create<AccountState>()(
           }),
         ),
       setCommandIfCaseJoin: ({
-        packId: pId,
+        projectId: pId,
         commandId: cId,
         frames,
         ifStepIndex,
@@ -2901,10 +2901,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      toggleCommandIfElse: ({ packId: pId, commandId: cId, frames, ifStepIndex, enabled }) =>
+      toggleCommandIfElse: ({ projectId: pId, commandId: cId, frames, ifStepIndex, enabled }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const cmd = findCommand(draft, pId, cId);
             if (!cmd) return;
@@ -2920,10 +2920,10 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addElement: ({ packId: pId, menuId: mId, element }) =>
+      addElement: ({ projectId: pId, menuId: mId, element }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -2950,7 +2950,7 @@ export const useAccountStore = create<AccountState>()(
             const materialForId = element.appearances[0]?.material ?? undefined;
             const renumberedId = nextElementIdForMaterial(pack, materialForId);
             // Clone LText keys so the added element never shares keys with its source.
-            // Without this, rekeyPack at deploy time would delete the shared key,
+            // Without this, rekeyProject at deploy time would delete the shared key,
             // breaking the original element's translations.
             const elementToAdd: Element = {
               ...element,
@@ -2998,9 +2998,9 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      moveSelectionByDelta: ({ packId: pId, menuId: mId, elementIds, dCol, dRow }) => {
+      moveSelectionByDelta: ({ projectId: pId, menuId: mId, elementIds, dCol, dRow }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           const menu = pack.menus.find((m) => m.id === mId);
           if (!menu) return;
@@ -3050,7 +3050,7 @@ export const useAccountStore = create<AccountState>()(
         set({ account: next });
       },
       setAppearanceLore: ({
-        packId: pId,
+        projectId: pId,
         menuId: mId,
         elementId,
         appearanceIndex = 0,
@@ -3059,7 +3059,7 @@ export const useAccountStore = create<AccountState>()(
       }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -3089,10 +3089,10 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      clearSlot: ({ packId: pId, menuId: mId, position }) =>
+      clearSlot: ({ projectId: pId, menuId: mId, position }) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.packs.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
@@ -3115,9 +3115,9 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      pasteEntities: ({ packId: pId, menus, commands, offset }) => {
+      pasteEntities: ({ projectId: pId, menus, commands, offset }) => {
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           // Clone every LText held by the pasted entities under fresh
           // keys, copying the value map from the source. Otherwise the
@@ -3157,7 +3157,7 @@ export const useAccountStore = create<AccountState>()(
             }
           };
           for (const m of menus) {
-            const stamped: Menu = { ...m, packId: pId };
+            const stamped: Menu = { ...m, projectId: pId };
             // Clone each text layer's LText under a fresh key, copying the
             // value map so the pasted copy doesn't share keys with the original.
             stamped.title = stamped.title.map((titleLayer) => {
@@ -3182,7 +3182,7 @@ export const useAccountStore = create<AccountState>()(
             offset.y += 24;
           }
           for (const c of commands) {
-            const stamped: Command = { ...c, packId: pId };
+            const stamped: Command = { ...c, projectId: pId };
             for (const action of walkActions(stamped.steps)) {
               if (action.type === "send_message" || action.type === "broadcast") {
                 const src = pack.i18nKeys[action.text.key];
@@ -3211,10 +3211,10 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      addPackDataSource: ({ packId }) =>
+      addProjectDataSource: ({ projectId }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             if (!pack.dataSources) pack.dataSources = [];
             const id = generateDataSourceId();
@@ -3224,27 +3224,27 @@ export const useAccountStore = create<AccountState>()(
             pack.dataSources.push({ id, name, type, value });
           }),
         ),
-      removePackDataSource: ({ packId, id }) =>
+      removeProjectDataSource: ({ projectId, id }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             pack.dataSources = pack.dataSources.filter((d) => d.id !== id);
           }),
         ),
-      renamePackDataSource: ({ packId, id, newName }) =>
+      renameProjectDataSource: ({ projectId, id, newName }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === id);
             if (ds) ds.name = newName;
           }),
         ),
-      setPackDataSourceYaml: ({ packId, id, yaml }) =>
+      setProjectDataSourceYaml: ({ projectId, id, yaml }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === id);
             if (!ds) return;
@@ -3253,10 +3253,10 @@ export const useAccountStore = create<AccountState>()(
             ds.type = inferFieldTypeFromValue(ds.value);
           }),
         ),
-      addImportedConnector: ({ packId, spec }) =>
+      addImportedConnector: ({ projectId, spec }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             pack.importedConnectors ??= [];
             const idx = pack.importedConnectors.findIndex((c) => c.ref === spec.ref);
@@ -3264,18 +3264,18 @@ export const useAccountStore = create<AccountState>()(
             else pack.importedConnectors.push(spec);
           }),
         ),
-      removeImportedConnector: ({ packId, ref }) =>
+      removeImportedConnector: ({ projectId, ref }) =>
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.packs.find((p) => p.id === packId);
+            const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             pack.importedConnectors = pack.importedConnectors.filter((c) => c.ref !== ref);
           }),
         ),
-      deleteFromPack: ({ packId: pId, nodeIds }) => {
+      deleteFromProject: ({ projectId: pId, nodeIds }) => {
         const ids = new Set(nodeIds);
         const next = produce(get().account, (draft) => {
-          const pack = draft.packs.find((p) => p.id === pId);
+          const pack = draft.projects.find((p) => p.id === pId);
           if (!pack) return;
           for (const m of pack.menus) {
             if (ids.has(m.id)) gcMenuLTexts(pack, m);
@@ -3315,7 +3315,7 @@ export const useAccountStore = create<AccountState>()(
 );
 
 /** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
-function rewriteCanvasEdgeIds(pack: Pack, oldId: string, newId: string) {
+function rewriteCanvasEdgeIds(pack: Project, oldId: string, newId: string) {
   if (!pack.canvasEdges) return;
   for (const key of Object.keys(pack.canvasEdges)) {
     const [src, tgt] = key.split("->") as [string, string];
@@ -3408,7 +3408,7 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
     appearance.lore = { key: newKey };
   };
 
-  for (const pack of account.packs ?? []) {
+  for (const pack of account.projects ?? []) {
     const i18nKeys = pack.i18nKeys ?? {};
     for (const menu of pack.menus ?? []) {
       for (const layer of menu.layers ?? []) {
@@ -3430,7 +3430,7 @@ const migrateV3ToV4 = (persisted: unknown): unknown => {
 
 /**
  * v4 → v5: convert opaque `lt_xxx` i18n keys to semantic dotted-path keys
- * (e.g. `menus.shop_main.title`). Uses `rekeyPack` from `@/domain/i18nSites`
+ * (e.g. `menus.shop_main.title`). Uses `rekeyProject` from `@/domain/i18nSites`
  * to canonicalize every LText key in each pack.
  */
 // biome-ignore lint/suspicious/noExplicitAny: legacy shape — migration only
@@ -3440,7 +3440,7 @@ const migrateV4ToV5 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.packs ?? []) rekeyPack(pack);
+  for (const pack of account.projects ?? []) rekeyProject(pack);
   return persisted;
 };
 
@@ -3449,7 +3449,7 @@ const migrateV4ToV5 = (persisted: unknown): unknown => {
  * lore lines, send_message text) into an `LText` ref, populating
  * `pack.i18nKeys[key][pack.defaultLang]` with the original value. The
  * actual walker lives in `lib/i18nMigration` so it can be reused for
- * imported packs at runtime.
+ * imported projects at runtime.
  */
 // @ts-ignore — kept as dead code; was used by persist middleware
 const migrateV2ToV3 = (persisted: unknown): unknown => {
@@ -3457,8 +3457,8 @@ const migrateV2ToV3 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy shape
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.packs ?? []) {
-    migratePackToI18n(pack, pack.defaultLang ?? "en");
+  for (const pack of account.projects ?? []) {
+    migrateProjectToI18n(pack, pack.defaultLang ?? "en");
   }
   return persisted;
 };
@@ -3469,7 +3469,7 @@ const migrateV1ToV2 = (persisted: unknown): unknown => {
   // biome-ignore lint/suspicious/noExplicitAny: legacy v1 shape — we don't model it in TS
   const account = (persisted as any).account;
   if (!account) return persisted;
-  for (const pack of account.packs ?? []) {
+  for (const pack of account.projects ?? []) {
     for (const menu of pack.menus ?? []) {
       for (const layer of menu.layers ?? []) {
         for (const el of layer.elements ?? []) {

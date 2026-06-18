@@ -1,7 +1,7 @@
 import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
 import type { Box } from "./edgeRouting";
 import { INVENTORY_TYPES, slotMcXY } from "./inventoryTypes";
@@ -71,7 +71,7 @@ export const menuBoxSize = (type: InventoryType, rows: number) => {
  * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
  */
 export function nodeBox(
-  pack: Pack,
+  pack: Project,
   id: string,
   layout: Record<string, { x: number; y: number }>,
 ): Box | null {

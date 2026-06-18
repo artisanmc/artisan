@@ -12,8 +12,8 @@ import type {
   InventoryType,
   Menu,
   MenuId,
-  Pack,
-  PackId,
+  Project,
+  ProjectId,
   SourceRef,
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
@@ -28,7 +28,7 @@ import { useTranslation } from "react-i18next";
 import { PropertyField } from "./PropertyField";
 
 interface MenuPropertiesProps {
-  packId: PackId;
+  projectId: ProjectId;
   menu: Menu;
 }
 
@@ -42,7 +42,7 @@ const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = 
   "boolean",
 ];
 
-export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
+export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
   const setMenuField = useAccountStore((s) => s.setMenuField);
   const setEditorTab = useUiStore((s) => s.setEditorTab);
   const [rowsError, setRowsError] = useState<string | null>(null);
@@ -58,11 +58,11 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
     0,
   );
   const onTypeChange = (next: InventoryType) =>
-    setMenuField({ packId, menuId: menu.id, field: "inventoryType", value: next });
+    setMenuField({ projectId, menuId: menu.id, field: "inventoryType", value: next });
 
   const onRowsChange = (rows: 1 | 2 | 3 | 4 | 5 | 6) => {
     try {
-      setMenuField({ packId, menuId: menu.id, field: "rows", value: rows });
+      setMenuField({ projectId, menuId: menu.id, field: "rows", value: rows });
       setRowsError(null);
     } catch (e) {
       setRowsError(e instanceof Error ? e.message : t("menuProperties.rowsChangeRejected"));
@@ -87,18 +87,18 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
           </button>
         </div>
       ) : null}
-      <MenuIdField packId={packId} menuId={menu.id} />
+      <MenuIdField projectId={projectId} menuId={menu.id} />
       <div className="flex flex-col gap-1.5" data-testid="menu-properties-title-section">
         <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
           {t("menuProperties.titleSection")}
         </div>
-        <LayersPanel packId={packId} menuId={menu.id} />
+        <LayersPanel projectId={projectId} menuId={menu.id} />
       </div>
       <PropertyField
         label={t("menuProperties.permission")}
         value={menu.permission ?? ""}
         placeholder={t("menuProperties.permissionPlaceholder")}
-        onChange={(v) => setMenuField({ packId, menuId: menu.id, field: "permission", value: v })}
+        onChange={(v) => setMenuField({ projectId, menuId: menu.id, field: "permission", value: v })}
       />
       <div>
         <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
@@ -150,12 +150,12 @@ export function MenuProperties({ packId, menu }: MenuPropertiesProps) {
           {rowsError && <div className="mt-1 text-[10px] text-[var(--danger)]">{rowsError}</div>}
         </div>
       ) : null}
-      <ContextInputsEditor packId={packId} menu={menu} />
+      <ContextInputsEditor projectId={projectId} menu={menu} />
     </div>
   );
 }
 
-function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
+function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: MenuId }) {
   const setMenuId = useAccountStore((s) => s.setMenuId);
   const [draft, setDraft] = useState<string>(menuId);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +171,7 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
       return;
     }
     try {
-      setMenuId({ packId, oldId: menuId, newId: draft as MenuId });
+      setMenuId({ projectId, oldId: menuId, newId: draft as MenuId });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("menuProperties.renameRejected"));
@@ -212,7 +212,7 @@ function MenuIdField({ packId, menuId }: { packId: PackId; menuId: MenuId }) {
   );
 }
 
-function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
+function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
   const addInput = useAccountStore((s) => s.addMenuContextInput);
   const setInput = useAccountStore((s) => s.setMenuContextInput);
   const removeInput = useAccountStore((s) => s.removeMenuContextInput);
@@ -231,7 +231,7 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
   const update = (index: number, patch: Partial<ContextInput>) => {
     const current = inputs[index];
     if (!current) return;
-    setInput({ packId, menuId: menu.id, index, input: { ...current, ...patch } as ContextInput });
+    setInput({ projectId, menuId: menu.id, index, input: { ...current, ...patch } as ContextInput });
   };
 
   return (
@@ -263,15 +263,15 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
                 <PrimitiveInputRow
                   input={input}
                   onChange={(patch) => update(i, patch)}
-                  onRemove={() => removeInput({ packId, menuId: menu.id, index: i })}
+                  onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                   isInvalid={isInvalid}
                 />
               ) : (
                 <SourceRefInputRow
-                  packId={packId}
+                  projectId={projectId}
                   input={input}
                   onChange={(patch) => update(i, patch)}
-                  onRemove={() => removeInput({ packId, menuId: menu.id, index: i })}
+                  onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                 />
               )}
               {isInvalid ? (
@@ -299,13 +299,13 @@ function ContextInputsEditor({ packId, menu }: { packId: PackId; menu: Menu }) {
           className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
         >
           <DropdownMenuItem
-            onSelect={() => addInput({ packId, menuId: menu.id, kind: "primitive" })}
+            onSelect={() => addInput({ projectId, menuId: menu.id, kind: "primitive" })}
             className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
           >
             Primitive (caller-passed)
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => addInput({ packId, menuId: menu.id, kind: "sourceRef" })}
+            onSelect={() => addInput({ projectId, menuId: menu.id, kind: "sourceRef" })}
             className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
           >
             Source ref (manual for now)
@@ -397,18 +397,18 @@ function PrimitiveInputRow({
 }
 
 function SourceRefInputRow({
-  packId,
+  projectId,
   input,
   onChange,
   onRemove,
 }: {
-  packId: PackId;
+  projectId: ProjectId;
   input: Extract<ContextInput, { kind: "sourceRef" }>;
   onChange: (patch: Partial<Extract<ContextInput, { kind: "sourceRef" }>>) => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
 
   const refLabel = (() => {
     if (!input.ref) return null;
@@ -460,18 +460,18 @@ function SourcePickerOptions({
   pack,
   onPick,
 }: {
-  pack: Pack;
+  pack: Project;
   onPick: (ref: SourceRef) => void;
 }) {
   const { t } = useTranslation();
-  const hasPackData = (pack.dataSources ?? []).length > 0;
+  const hasProjectData = (pack.dataSources ?? []).length > 0;
   const hasConnectors = (pack.importedConnectors ?? []).length > 0;
   return (
     <>
-      {hasPackData ? (
+      {hasProjectData ? (
         <>
           <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
-            {t("menuProperties.refSectionPackData")}
+            {t("menuProperties.refSectionProjectData")}
           </DropdownMenuLabel>
           {(pack.dataSources ?? []).map((d) => (
             <DropdownMenuItem
@@ -489,7 +489,7 @@ function SourcePickerOptions({
           ))}
         </>
       ) : null}
-      {hasPackData && hasConnectors ? <DropdownMenuSeparator /> : null}
+      {hasProjectData && hasConnectors ? <DropdownMenuSeparator /> : null}
       {hasConnectors ? (
         <>
           <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
@@ -511,7 +511,7 @@ function SourcePickerOptions({
           ))}
         </>
       ) : null}
-      {!hasPackData && !hasConnectors ? (
+      {!hasProjectData && !hasConnectors ? (
         <DropdownMenuItem
           disabled
           className="cursor-not-allowed text-[11px] text-[var(--text-faint)]"

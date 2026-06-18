@@ -2,7 +2,7 @@ import { Eye, EyeOff, GripVertical, Trash2 } from "lucide-react";
 import type { MouseEvent } from "react";
 
 import type { Asset } from "@/domain/asset";
-import type { AssetId, MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
@@ -10,7 +10,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
 interface LayerListItemProps {
-  packId: PackId;
+  projectId: ProjectId;
   menuId: MenuId;
   index: number;
   /** The layer data — used to derive auto-name and pick icon. */
@@ -33,7 +33,7 @@ interface LayerListItemProps {
  * Row-level click sets `selectedLayerKey`. Sub-button clicks `stopPropagation`
  * so they don't also select the row.
  */
-export function LayerListItem({ packId, menuId, index, layer }: LayerListItemProps) {
+export function LayerListItem({ projectId, menuId, index, layer }: LayerListItemProps) {
   const hidden = useUiStore((s) => s.hiddenLayerKeys.has(`${menuId}:${index}`));
   const selected = useUiStore(
     (s) => s.selectedLayerKey?.menuId === menuId && s.selectedLayerKey?.index === index,
@@ -43,7 +43,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
 
   const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
   const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
-  const pack = useAccountStore((s) => s.account.packs.find((p) => p.id === packId));
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
 
@@ -67,7 +67,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
   const onDeleteClick = (e: MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Supprimer cet élément du titre ?")) {
-      removeLayer({ packId, menuId, index });
+      removeLayer({ projectId, menuId, index });
       // Sync uiStore: clear/shift stale selection + hidden flags. Without
       // this, the next layer (which shifted up) would inherit selection and
       // hidden-eye state from the deleted one.
@@ -150,7 +150,7 @@ export function LayerListItem({ packId, menuId, index, layer }: LayerListItemPro
 function deriveAutoName(
   layer: MenuTitleLayer,
   assets: Asset[],
-  pack: ReturnType<typeof useAccountStore.getState>["account"]["packs"][number] | undefined,
+  pack: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
   activeLang: string,
 ): string {
   if (layer.kind === "background" || layer.kind === "glyph") {

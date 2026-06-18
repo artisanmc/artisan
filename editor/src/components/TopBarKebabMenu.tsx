@@ -42,7 +42,7 @@ export function TopBarKebabMenu({
           onSelect={onDelete}
           className="text-[var(--danger)] focus:text-[var(--danger)]"
         >
-          {t("topbar.deletePack")}
+          {t("topbar.deleteProject")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

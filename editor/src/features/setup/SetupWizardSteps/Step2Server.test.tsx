@@ -8,7 +8,7 @@ import { Step2Server } from "./Step2Server";
 
 const stateReady: WizardState = {
   networkId: "n1",
-  packId: null,
+  projectId: null,
   serverKey: null,
   serverKeyId: null,
 };

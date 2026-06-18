@@ -1,5 +1,5 @@
-import { packId } from "@/domain/ids";
-import { persistPack } from "@/features/pack/persistPack";
+import { projectId } from "@/domain/ids";
+import { persistProject } from "@/features/project/persistProject";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -8,7 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChat } from "./AssistantChat";
 
-vi.mock("@/features/pack/persistPack", () => ({ persistPack: vi.fn(async () => {}) }));
+vi.mock("@/features/project/persistProject", () => ({ persistProject: vi.fn(async () => {}) }));
 
 // Scripted SSE: two text chunks (must coalesce into ONE assistant entry),
 // then a written menu, then done.
@@ -37,7 +37,7 @@ vi.mock("@/lib/api/assistant", () => ({
   }),
   getConversation: vi.fn(async () => ({
     id: "c1",
-    packId: "p",
+    projectId: "p",
     title: "Hi",
     messages: [
       { role: "system", content: "sys" },
@@ -52,10 +52,10 @@ function setup() {
   useSessionStore.setState({ accessToken: "tok" } as never);
   useAccountStore.getState().setAccount({
     id: "a" as never,
-    packs: [],
-    packOrder: [],
+    projects: [],
+    projectOrder: [],
   } as never);
-  useAccountStore.getState().createPack({ id: "p" });
+  useAccountStore.getState().createProject({ id: "p" });
 }
 
 afterEach(() => {
@@ -66,14 +66,14 @@ afterEach(() => {
 describe("AssistantChat", () => {
   it("renders the transcript and composer", () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
     expect(screen.getByTestId("assistant-panel")).toBeTruthy();
     expect(screen.getByRole("textbox")).toBeTruthy();
   });
 
   it("streams assistant text and applies a written menu to the pack", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     const input = screen.getByRole("textbox");
     await userEvent.type(input, "fais un shop");
@@ -86,7 +86,7 @@ describe("AssistantChat", () => {
 
     // (b) the written menu is actually applied to the pack.
     await waitFor(() => {
-      const pack = useAccountStore.getState().account.packs.find((p) => p.id === packId("p"));
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === projectId("p"));
       expect(pack?.menus.find((m) => m.id === "shop")).toBeTruthy();
     });
 
@@ -94,7 +94,7 @@ describe("AssistantChat", () => {
 
     // The generated menu is persisted immediately (not only via the debounced
     // auto-save) so a reload right after can't lose it.
-    await waitFor(() => expect(persistPack).toHaveBeenCalled());
+    await waitFor(() => expect(persistProject).toHaveBeenCalled());
   });
 
   it("applies a command_written event via applyAssistantCommand", async () => {
@@ -108,7 +108,7 @@ describe("AssistantChat", () => {
       };
       yield { type: "done", stopReason: "end_turn" };
     });
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais une commande");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -116,7 +116,7 @@ describe("AssistantChat", () => {
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({
-          packId: packId("p"),
+          projectId: projectId("p"),
           commandV1: expect.objectContaining({ id: "heal" }),
           lang: "en",
         }),
@@ -135,7 +135,7 @@ describe("AssistantChat", () => {
       };
       yield { type: "done", stopReason: "end_turn" };
     });
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais un dialog");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -143,7 +143,7 @@ describe("AssistantChat", () => {
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({
-          packId: packId("p"),
+          projectId: projectId("p"),
           dialogV1: expect.objectContaining({ id: "d" }),
           lang: "en",
         }),
@@ -156,7 +156,7 @@ describe("AssistantChat", () => {
     // Web-login mode: no editor-session token, auth rides the user cookie.
     useSessionStore.setState({ accessToken: null } as never);
     useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais un shop");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -174,7 +174,7 @@ describe("AssistantChat", () => {
       // Stay busy so the indicator remains mounted for the assertion.
       await new Promise((r) => setTimeout(r, 50));
     });
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "regarde les menus");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -192,7 +192,7 @@ describe("AssistantChat", () => {
     vi.mocked(streamAssistant).mockImplementationOnce(async function* () {
       yield { type: "error", message: "boom" };
     });
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais un truc");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -212,7 +212,7 @@ describe("AssistantChat", () => {
       yield { type: "text", text: "hmm" };
       throw new Error("network down");
     });
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     await userEvent.type(screen.getByRole("textbox"), "fais un truc");
     await userEvent.click(screen.getByText(/send|envoyer/i));
@@ -226,7 +226,7 @@ describe("AssistantChat", () => {
 
   it("resumes a conversation: loads its transcript on mount", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} conversationId="c1" />);
+    render(<AssistantChat projectId={projectId("p")} conversationId="c1" />);
     await waitFor(() => {
       const text = screen.getByTestId("assistant-transcript").textContent ?? "";
       expect(text).toMatch(/salut/);
@@ -236,7 +236,7 @@ describe("AssistantChat", () => {
 
   it("lists dropped files with name and size", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     const panel = screen.getByTestId("assistant-panel");
     const content = "name: '&8Menu'\nsize: 54";
@@ -249,7 +249,7 @@ describe("AssistantChat", () => {
 
   it("removes an attachment from the list", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     const panel = screen.getByTestId("assistant-panel");
     fireEvent.drop(panel, {
@@ -263,7 +263,7 @@ describe("AssistantChat", () => {
 
   it("attaches files via the file picker button", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     const input = screen.getByTestId("assistant-file-input");
     fireEvent.change(input, {
@@ -275,7 +275,7 @@ describe("AssistantChat", () => {
 
   it("sends with attachments only: no text required", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     fireEvent.drop(screen.getByTestId("assistant-panel"), {
       dataTransfer: { files: [new File(["size: 54"], "menu.yml", { type: "text/yaml" })] },
@@ -300,14 +300,14 @@ describe("AssistantChat", () => {
 
   it("keeps send disabled with neither text nor attachments", () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
     const sendBtn = screen.getByText(/^(send|envoyer)$/i).closest("button");
     expect(sendBtn?.disabled).toBe(true);
   });
 
   it("sends the attached file contents with the message", async () => {
     setup();
-    render(<AssistantChat packId={packId("p")} />);
+    render(<AssistantChat projectId={projectId("p")} />);
 
     fireEvent.drop(screen.getByTestId("assistant-panel"), {
       dataTransfer: { files: [new File(["size: 54"], "menu.yml", { type: "text/yaml" })] },

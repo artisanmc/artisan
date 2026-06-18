@@ -7,7 +7,7 @@ describe("DeleteServerDialog", () => {
     const onConfirm = vi.fn();
     render(
       <DeleteServerDialog
-        server={{ id: "sk1", label: "Survival", workspaceCount: 2 }}
+        server={{ id: "sk1", label: "Survival", projectCount: 2 }}
         onCancel={() => {}}
         onConfirm={onConfirm}
       />,

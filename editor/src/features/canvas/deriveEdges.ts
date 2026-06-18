@@ -1,5 +1,5 @@
 import { walkActions } from "@/domain/stepPath";
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
@@ -13,7 +13,7 @@ export interface Edge {
   triggers: EdgeTrigger[];
 }
 
-export function deriveEdges(pack: Pack): Edge[] {
+export function deriveEdges(pack: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
 

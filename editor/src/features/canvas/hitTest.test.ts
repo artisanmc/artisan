@@ -1,4 +1,4 @@
-import type { InventoryType, Menu, MenuId, Pack } from "@/domain/types";
+import type { InventoryType, Menu, MenuId, Project } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { autoLayout } from "./autoLayout";
@@ -6,8 +6,8 @@ import { hitTestSlot, screenToWorld } from "./hitTest";
 import { TEX_FIRST_SLOT_X, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
 
 /** Build a one-menu pack of the given inventory type at layout origin {0,0}. */
-function singleMenuPack(inventoryType: InventoryType): {
-  pack: Pack;
+function singleMenuProject(inventoryType: InventoryType): {
+  pack: Project;
   layout: Record<string, { x: number; y: number }>;
   menuId: MenuId;
 } {
@@ -19,12 +19,12 @@ function singleMenuPack(inventoryType: InventoryType): {
     inventoryType,
     layers: [],
   } as unknown as Menu;
-  const pack = { menus: [menu], commands: [], dialogs: [] } as unknown as Pack;
+  const pack = { menus: [menu], commands: [], dialogs: [] } as unknown as Project;
   return { pack, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
 }
 
 describe("hitTestSlot", () => {
-  const personal = mockAccount().packs[0]!;
+  const personal = mockAccount().projects[0]!;
   const layout = autoLayout(personal);
 
   it("returns null when point is outside any menu box", () => {
@@ -61,7 +61,7 @@ describe("hitTestSlot", () => {
   });
 
   it("hits a chest menu at layout origin (slot 0 and slot 9)", () => {
-    const { pack, layout: lay, menuId } = singleMenuPack("chest");
+    const { pack, layout: lay, menuId } = singleMenuProject("chest");
     // slot 0 center MC (7+8,17+8)=(15,25) → canvas ×2 = (30,50)
     expect(hitTestSlot(pack, lay, 30, 50)).toEqual({ menuId, position: 0 });
     // slot 9 (second row, col 0) center MC (15, 43) → (30, 86)
@@ -69,7 +69,7 @@ describe("hitTestSlot", () => {
   });
 
   it("hits a hopper menu (5 cols, 1 row, origin 44,20)", () => {
-    const { pack, layout: lay, menuId } = singleMenuPack("hopper");
+    const { pack, layout: lay, menuId } = singleMenuProject("hopper");
     // slot 0 center MC (44+8,20+8)=(52,28) → ×2 = (104,56)
     expect(hitTestSlot(pack, lay, 104, 56)).toEqual({ menuId, position: 0 });
     // slot 4 center MC (44+4*18+8,28)=(124,28) → (248,56)
@@ -79,7 +79,7 @@ describe("hitTestSlot", () => {
   });
 
   it("hits a dropper menu (3 cols, 3 rows, origin 62,17)", () => {
-    const { pack, layout: lay, menuId } = singleMenuPack("dropper");
+    const { pack, layout: lay, menuId } = singleMenuProject("dropper");
     // slot 0 center MC (62+8,17+8)=(70,25) → (140,50)
     expect(hitTestSlot(pack, lay, 140, 50)).toEqual({ menuId, position: 0 });
     // slot 4 (center of 3×3) MC (62+18+8,17+18+8)=(88,43) → (176,86)

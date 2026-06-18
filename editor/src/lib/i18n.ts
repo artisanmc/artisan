@@ -1,4 +1,4 @@
-import type { I18nKey, LText, Pack } from "@/domain/types";
+import type { I18nKey, LText, Project } from "@/domain/types";
 
 /**
  * Generate an opaque i18n key. Random base36 — the user never sees this,
@@ -19,7 +19,7 @@ export const newI18nKey = (): I18nKey =>
  * Pure read — safe to call outside an immer producer. Returns "" for
  * undefined `lt` so render code can treat empty fields uniformly.
  */
-export function getText(pack: Pack, lt: LText | undefined, activeLang: string): string {
+export function getText(pack: Project, lt: LText | undefined, activeLang: string): string {
   if (!lt) return "";
   const entry = pack.i18nKeys[lt.key];
   if (!entry) return "";
@@ -33,7 +33,7 @@ export function getText(pack: Pack, lt: LText | undefined, activeLang: string): 
  * immer draft (this writes through the proxy). No-op if `value` is the
  * same as the current entry.
  */
-export function setLText(pack: Pack, lt: LText, lang: string, value: string): void {
+export function setLText(pack: Project, lt: LText, lang: string, value: string): void {
   let entry = pack.i18nKeys[lt.key];
   if (!entry) {
     entry = {};
@@ -47,7 +47,7 @@ export function setLText(pack: Pack, lt: LText, lang: string, value: string): vo
  * return an `LText` ref the caller can plug into the domain field.
  * Caller must hold an immer draft.
  */
-export function createLText(pack: Pack, initialValue: string, lang: string): LText {
+export function createLText(pack: Project, initialValue: string, lang: string): LText {
   const key = newI18nKey();
   pack.i18nKeys[key] = { [lang]: initialValue };
   return { key };
@@ -58,7 +58,7 @@ export function createLText(pack: Pack, initialValue: string, lang: string): LTe
  * one. If the key already exists in the pack, the existing entry is kept
  * (idempotent). Caller must hold an immer draft.
  */
-export function createLTextAt(pack: Pack, key: I18nKey, initialValue: string, lang: string): LText {
+export function createLTextAt(pack: Project, key: I18nKey, initialValue: string, lang: string): LText {
   if (!pack.i18nKeys[key]) {
     pack.i18nKeys[key] = { [lang]: initialValue };
   }
@@ -71,7 +71,7 @@ export function createLTextAt(pack: Pack, key: I18nKey, initialValue: string, la
  * around isn't fatal (they just take space) but a leak in the editor's
  * source of truth is awkward.
  */
-export function deleteLText(pack: Pack, lt: LText | undefined): void {
+export function deleteLText(pack: Project, lt: LText | undefined): void {
   if (!lt) return;
   delete pack.i18nKeys[lt.key];
 }
@@ -80,6 +80,6 @@ export function deleteLText(pack: Pack, lt: LText | undefined): void {
  * GC every key referenced by the given LText array (e.g. an entire
  * `appearance.lore` array, or all titles/lores in a deleted appearance).
  */
-export function deleteLTexts(pack: Pack, lts: ReadonlyArray<LText | undefined>): void {
+export function deleteLTexts(pack: Project, lts: ReadonlyArray<LText | undefined>): void {
   for (const lt of lts) deleteLText(pack, lt);
 }

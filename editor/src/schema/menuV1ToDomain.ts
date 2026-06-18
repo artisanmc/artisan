@@ -14,7 +14,7 @@ import type {
   LText,
   MenuId,
   MenuTitleLayer,
-  PackId,
+  ProjectId,
   TextSize,
 } from "@/domain/types";
 import { INVENTORY_TYPES } from "@/features/canvas/inventoryTypes";
@@ -39,7 +39,7 @@ export interface ImportResult {
 
 export function menuV1ToDomain(
   src: Json,
-  opts: { packId: PackId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
 ): ImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];
@@ -204,7 +204,7 @@ export function menuV1ToDomain(
   const contextInputs = (src.context_inputs as Json[] | undefined)?.map(contextInput);
   const menu: DomainMenu = {
     id: src.id as MenuId,
-    packId: opts.packId,
+    projectId: opts.projectId,
     title,
     rows,
     ...(inventoryType !== "chest" ? { inventoryType } : {}),

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { commandV1ToDomain } from "./commandV1ToDomain";
-import { packId } from "@/domain/ids";
+import { projectId } from "@/domain/ids";
 
-const opts = { packId: packId("p1"), lang: "en" };
+const opts = { projectId: projectId("p1"), lang: "en" };
 
 describe("commandV1ToDomain", () => {
   it("maps id/name/aliases/permission/description and steps", () => {
@@ -23,7 +23,7 @@ describe("commandV1ToDomain", () => {
     expect(command.aliases).toEqual(["h"]);
     expect(command.permission).toBe("a.heal");
     expect(command.description).toBe("Heal");
-    expect(command.packId).toBe("p1");
+    expect(command.projectId).toBe("p1");
     expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
   });
 

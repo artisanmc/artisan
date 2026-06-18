@@ -1,5 +1,5 @@
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -7,7 +7,7 @@ import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
 
 interface EdgeTooltipProps {
-  pack: Pack;
+  pack: Project;
 }
 
 export function EdgeTooltip({ pack }: EdgeTooltipProps) {

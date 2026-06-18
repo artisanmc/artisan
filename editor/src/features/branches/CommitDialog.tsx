@@ -6,13 +6,13 @@ import { createCommit } from "@/lib/api/branches";
 
 interface Props {
   networkId: string;
-  packId: string;
+  projectId: string;
   branch: string;
   open: boolean;
   onClose: () => void;
 }
 
-export function CommitDialog({ networkId, packId, branch, open, onClose }: Props) {
+export function CommitDialog({ networkId, projectId, branch, open, onClose }: Props) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function CommitDialog({ networkId, packId, branch, open, onClose }: Props
     setBusy(true);
     setError(null);
     try {
-      await createCommit(networkId, packId, branch, message.trim());
+      await createCommit(networkId, projectId, branch, message.trim());
       setMessage("");
       onClose();
     } catch (e) {

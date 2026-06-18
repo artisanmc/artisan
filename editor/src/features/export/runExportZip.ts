@@ -1,5 +1,5 @@
-import { rekeyPack } from "@/domain/i18nSites";
-import type { Pack } from "@/domain/types";
+import { rekeyProject } from "@/domain/i18nSites";
+import type { Project } from "@/domain/types";
 import { buildZip } from "./buildZip";
 import { transform } from "./transform";
 import { validate } from "./validate";
@@ -15,16 +15,16 @@ export interface ExportZipResult {
  * triggers a browser download. Returns validation errors/warnings so the
  * caller can surface them (validation failures abort the download).
  */
-export async function runExportZip(pack: Pack): Promise<ExportZipResult> {
-  const exportPack = structuredClone(pack);
-  rekeyPack(exportPack);
+export async function runExportZip(pack: Project): Promise<ExportZipResult> {
+  const exportProject = structuredClone(pack);
+  rekeyProject(exportProject);
 
-  const result = validate(exportPack);
+  const result = validate(exportProject);
   if (!result.valid) {
     return { ok: false, errors: result.errors, warnings: result.warnings };
   }
 
-  const files = transform(exportPack);
+  const files = transform(exportProject);
   const blob = await buildZip(files);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

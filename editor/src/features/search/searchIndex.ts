@@ -1,4 +1,4 @@
-import type { Pack } from "@/domain/types";
+import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import { parsePositions } from "@/lib/positions";
@@ -21,7 +21,7 @@ function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
 }
 
 /** Flatten a pack into searchable entries (element-level + content-level). Pure. */
-export function buildSearchIndex(pack: Pack, activeLang: string): SearchEntry[] {
+export function buildSearchIndex(pack: Project, activeLang: string): SearchEntry[] {
   const out: SearchEntry[] = [];
 
   for (const menu of pack.menus ?? []) {

@@ -6,25 +6,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface NewDialogDialogProps {
-  packId: PackId;
+  projectId: ProjectId;
   open: boolean;
   position?: { x: number; y: number };
   onOpenChange: (open: boolean) => void;
 }
 
-export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDialogDialogProps) {
+export function NewDialogDialog({ projectId, open, position, onOpenChange }: NewDialogDialogProps) {
   const [id, setId] = useState("");
   const { t } = useTranslation();
 
   const existingIdsStr = useAccountStore((s) => {
-    const pack = s.account.packs.find((p) => p.id === packId);
+    const pack = s.account.projects.find((p) => p.id === projectId);
     if (!pack) return "";
     return [
       ...pack.dialogs.map((d) => d.id),
@@ -40,7 +40,7 @@ export function NewDialogDialog({ packId, open, position, onOpenChange }: NewDia
 
   const submit = () => {
     if (!trimmed || conflict) return;
-    const dialogId = useAccountStore.getState().createDialog({ packId, id: prefixedId, position });
+    const dialogId = useAccountStore.getState().createDialog({ projectId, id: prefixedId, position });
     useSelectionStore.getState().set([dialogId]);
     setId("");
     onOpenChange(false);

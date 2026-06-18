@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { dialogV1ToDomain } from "./dialogV1ToDomain";
-import { packId } from "@/domain/ids";
+import { projectId } from "@/domain/ids";
 
-const opts = { packId: packId("p1"), lang: "en" };
+const opts = { projectId: projectId("p1"), lang: "en" };
 
 describe("dialogV1ToDomain", () => {
   it("maps title, escape default true, and a text button action → steps", () => {
@@ -16,7 +16,7 @@ describe("dialogV1ToDomain", () => {
       opts,
     );
     expect(dialog.id).toBe("confirm");
-    expect(dialog.packId).toBe("p1");
+    expect(dialog.projectId).toBe("p1");
     expect(dialog.canCloseWithEscape).toBe(true);
     expect(i18nKeys[dialog.title.key]).toEqual({ en: "Sure?" });
     expect(dialog.buttons[0]!.steps).toEqual([{ kind: "action", action: { type: "close_dialog" } }]);

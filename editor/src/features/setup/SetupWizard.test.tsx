@@ -40,9 +40,9 @@ describe("SetupWizard", () => {
 describe("SetupWizard — final step (canNext)", () => {
   it("step 4 always allows Next regardless of state (so the Done button is enabled)", async () => {
     const { canNext } = await import("./SetupWizard");
-    const empty: WizardState = { networkId: null, packId: null, serverKey: null, serverKeyId: null };
+    const empty: WizardState = { networkId: null, projectId: null, serverKey: null, serverKeyId: null };
     const full: WizardState = {
-      networkId: "n1", packId: "p1", serverKey: "sk_plain", serverKeyId: "sk1",
+      networkId: "n1", projectId: "p1", serverKey: "sk_plain", serverKeyId: "sk1",
     };
     // The bug was: canNext(4, *) returned false. The fix: always true on step 4.
     expect(canNext(4, empty)).toBe(true);
@@ -51,14 +51,14 @@ describe("SetupWizard — final step (canNext)", () => {
 
   it("steps 1-3 still gate on their respective fields (server before workspace)", async () => {
     const { canNext } = await import("./SetupWizard");
-    const empty: WizardState = { networkId: null, packId: null, serverKey: null, serverKeyId: null };
+    const empty: WizardState = { networkId: null, projectId: null, serverKey: null, serverKeyId: null };
     expect(canNext(1, empty)).toBe(false);
     expect(canNext(2, empty)).toBe(false);
     expect(canNext(3, empty)).toBe(false);
     expect(canNext(1, { ...empty, networkId: "n1" })).toBe(true);
     // Step 2 is now Server — gates on serverKeyId
     expect(canNext(2, { ...empty, serverKeyId: "sk1" })).toBe(true);
-    // Step 3 is now Workspace — gates on packId
-    expect(canNext(3, { ...empty, packId: "p1" })).toBe(true);
+    // Step 3 is now Project — gates on projectId
+    expect(canNext(3, { ...empty, projectId: "p1" })).toBe(true);
   });
 });

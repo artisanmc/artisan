@@ -1,8 +1,8 @@
-import { packId } from "@/domain/ids";
+import { projectId } from "@/domain/ids";
 import { describe, expect, it } from "vitest";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 
-const opts = { packId: packId("p"), lang: "en" };
+const opts = { projectId: projectId("p"), lang: "en" };
 
 describe("menuV1ToDomain — i18n + conditions", () => {
   it("allocates a fresh key for literal text and stores the value", () => {

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Props {
-  server: { id: string; label: string; workspaceCount: number };
+  server: { id: string; label: string; projectCount: number };
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -20,9 +20,9 @@ export function DeleteServerDialog({ server, onCancel, onConfirm }: Props) {
           <DialogTitle>{t("deleteServerDialog.title", { label: server.label })}</DialogTitle>
         </DialogHeader>
         <p className="mt-2 text-[13px] text-[var(--text-mut)]">{t("deleteServerDialog.warning")}</p>
-        {server.workspaceCount > 0 && (
+        {server.projectCount > 0 && (
           <p className="mt-2 text-[13px] text-[var(--danger)]">
-            {t("deleteServerDialog.workspacesAlsoDeleted", { count: server.workspaceCount })}
+            {t("deleteServerDialog.projectsAlsoDeleted", { count: server.projectCount })}
           </p>
         )}
         <label className="mt-3 flex flex-col gap-1 text-[12px]">

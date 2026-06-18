@@ -12,8 +12,8 @@ describe("renderTemplate", () => {
       renderTemplate("hello", {
         scope: new Scope({}),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: noI18n,
       }),
     ).toBe("hello");
@@ -24,8 +24,8 @@ describe("renderTemplate", () => {
       renderTemplate("Hi {name}!", {
         scope: new Scope({ name: "Steve" }),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: noI18n,
       }),
     ).toBe("Hi Steve!");
@@ -36,8 +36,8 @@ describe("renderTemplate", () => {
       renderTemplate(`Tags: {xs.join(", ")}`, {
         scope: new Scope({ xs: ["a", "b", "c"] }),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: noI18n,
       }),
     ).toBe("Tags: a, b, c");
@@ -48,8 +48,8 @@ describe("renderTemplate", () => {
       renderTemplate(`{x > 5 ? "big" : "small"}`, {
         scope: new Scope({ x: 10 }),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: noI18n,
       }),
     ).toBe("big");
@@ -60,8 +60,8 @@ describe("renderTemplate", () => {
       renderTemplate("X {i18n:greeting} {name}", {
         scope: new Scope({ name: "Steve" }),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: (k) => (k === "greeting" ? "Hello" : undefined),
       }),
     ).toBe("X Hello Steve");
@@ -71,8 +71,8 @@ describe("renderTemplate", () => {
     const out = renderTemplate("{ invalid !! syntax }", {
       scope: new Scope({}),
       cache: noopCache,
-      packId: "p1",
-      packVersion: 1,
+      projectId: "p1",
+      projectVersion: 1,
       i18nLookup: noI18n,
     });
     expect(out).toContain("⚠️");
@@ -82,8 +82,8 @@ describe("renderTemplate", () => {
     const out = renderTemplate(`{"hi" - 1}`, {
       scope: new Scope({}),
       cache: noopCache,
-      packId: "p1",
-      packVersion: 1,
+      projectId: "p1",
+      projectVersion: 1,
       i18nLookup: noI18n,
     });
     // string - number → null, toStringValue(null) = ""
@@ -95,8 +95,8 @@ describe("renderTemplate", () => {
       renderTemplate(`Solde: %eco% / Bonus: {%eco% > 100 ? "OK" : "low"}`, {
         scope: new Scope({}, { papi: (k) => (k === "eco" ? "150" : "") }),
         cache: noopCache,
-        packId: "p1",
-        packVersion: 1,
+        projectId: "p1",
+        projectVersion: 1,
         i18nLookup: noI18n,
       }),
     ).toBe("Solde: 150 / Bonus: OK");

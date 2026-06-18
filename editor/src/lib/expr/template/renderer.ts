@@ -10,8 +10,8 @@ import { tokenizeTemplate } from "./tokenizer";
 export interface RenderOptions {
   scope: Scope;
   cache: AstCache;
-  packId: string;
-  packVersion: number;
+  projectId: string;
+  projectVersion: number;
   /** Translation lookup (raw template string for an i18n key, or undefined). */
   i18nLookup: (key: string) => string | undefined;
 }
@@ -58,7 +58,7 @@ export function renderTemplate(template: string, opts: RenderOptions): string {
 function evalSegment(expr: string, opts: RenderOptions): string {
   let ast: AstNode;
   try {
-    ast = opts.cache.get(opts.packId, opts.packVersion, expr);
+    ast = opts.cache.get(opts.projectId, opts.projectVersion, expr);
   } catch (e) {
     if (e instanceof ParseError) {
       return `⚠️ ${e.message}`;

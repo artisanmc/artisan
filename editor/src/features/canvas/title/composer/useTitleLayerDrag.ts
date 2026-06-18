@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { MenuId, MenuTitleLayer, PackId } from "@/domain/types";
+import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 
 export interface UseTitleLayerDragArgs {
@@ -12,11 +12,11 @@ export interface UseTitleLayerDragHandlers {
   onPositionChange: (newPos: { x: number; y: number }) => void;
 }
 
-function findMenu(menuId: MenuId): { packId: PackId; layer: MenuTitleLayer[] } | null {
-  const packs = useAccountStore.getState().account.packs;
-  for (const pack of packs) {
+function findMenu(menuId: MenuId): { projectId: ProjectId; layer: MenuTitleLayer[] } | null {
+  const projects = useAccountStore.getState().account.projects;
+  for (const pack of projects) {
     const menu = pack.menus.find((m) => m.id === menuId);
-    if (menu) return { packId: pack.id, layer: menu.title };
+    if (menu) return { projectId: pack.id, layer: menu.title };
   }
   return null;
 }
@@ -26,7 +26,7 @@ function findMenu(menuId: MenuId): { packId: PackId; layer: MenuTitleLayer[] } |
  *
  * Updates layer.x / layer.y in the local account store. Asset.ascent is NOT
  * patched here — it is synced at deploy time (see syncGlyphAscents in
- * pack.$packId.tsx) so we don't rebuild the resource pack on every drag.
+ * pack.$projectId.tsx) so we don't rebuild the resource pack on every drag.
  */
 export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDragHandlers {
   const { menuId, layerIndex } = args;
@@ -39,7 +39,7 @@ export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDra
       if (!layer || layer.kind === "background") return;
 
       useAccountStore.getState().updateMenuTitleLayer({
-        packId: found.packId,
+        projectId: found.projectId,
         menuId,
         index: layerIndex,
         patch: { x: newPos.x, y: newPos.y } as Partial<MenuTitleLayer>,

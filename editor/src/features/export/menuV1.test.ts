@@ -1,22 +1,22 @@
-import { elementId, layerId, menuId, packId } from "@/domain/ids";
-import type { I18nKey, Pack } from "@/domain/types";
+import { elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { I18nKey, Project } from "@/domain/types";
 import { validateMenuV1 } from "@/schema/validateMenuV1";
 import { describe, expect, it } from "vitest";
 import { packToMenuV1, serializeMenuToV1 } from "./transform";
 
-function pack(): Pack {
+function pack(): Project {
   return {
-    id: packId("p"),
+    id: projectId("p"),
     name: "P",
     source: "user_created",
     createdAt: "",
     updatedAt: "",
     defaultLang: "en",
-    i18nKeys: { k: { en: "Shop" } } as Pack["i18nKeys"],
+    i18nKeys: { k: { en: "Shop" } } as Project["i18nKeys"],
     menus: [
       {
         id: menuId("shop"),
-        packId: packId("p"),
+        projectId: projectId("p"),
         rows: 3,
         title: [{ kind: "plain", value: { key: "k" as I18nKey } }],
         layers: [
@@ -37,7 +37,7 @@ function pack(): Pack {
     dataSources: [],
     importedConnectors: [],
     canvasLayout: {},
-  } as Pack;
+  } as Project;
 }
 
 describe("serializeMenuToV1 / packToMenuV1", () => {

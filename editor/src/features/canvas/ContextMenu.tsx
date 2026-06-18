@@ -8,7 +8,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { PackId } from "@/domain/types";
+import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,21 +27,21 @@ interface ContextMenuState {
 }
 
 interface ContextMenuProps {
-  packId: PackId;
+  projectId: ProjectId;
   state: ContextMenuState;
   onClose: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onMoveTo: (toPackId: PackId) => void;
+  onMoveTo: (toProjectId: ProjectId) => void;
   onCreateMenuAt: (world: { x: number; y: number }) => void;
   onCreateCommandAt: (world: { x: number; y: number }) => void;
   onCreateDialogAt: (world: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({
-  packId,
+  projectId,
   state,
   onClose,
   onCopy,
@@ -55,8 +55,8 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const { t } = useTranslation();
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
-  const packs = useAccountStore((s) => s.account.packs);
-  const otherPacks = useMemo(() => packs.filter((p) => p.id !== packId), [packs, packId]);
+  const projects = useAccountStore((s) => s.account.projects);
+  const otherProjects = useMemo(() => projects.filter((p) => p.id !== projectId), [projects, projectId]);
 
   return (
     <DropdownMenu open={state.open} onOpenChange={(o) => !o && onClose()}>
@@ -124,12 +124,12 @@ export function ContextMenu({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger
-                disabled={state.target.selectedIds.length === 0 || otherPacks.length === 0}
+                disabled={state.target.selectedIds.length === 0 || otherProjects.length === 0}
               >
                 Move to pack
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                {otherPacks.map((p) => (
+                {otherProjects.map((p) => (
                   <DropdownMenuItem key={p.id} onSelect={() => onMoveTo(p.id)}>
                     {p.name}
                   </DropdownMenuItem>

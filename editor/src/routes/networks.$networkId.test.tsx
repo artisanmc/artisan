@@ -19,7 +19,7 @@ describe("NetworkDetailPage", () => {
   it("renders network name + one server card per server, with workspaces nested", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Alpha", tier: "free" },
-      packs: [
+      projects: [
         { id: "p1", name: "Shop", hash: "h", serverKeyId: "sk1" },
         { id: "p2", name: "Lobby", hash: "h", serverKeyId: "sk1" },
         { id: "p3", name: "Welcome", hash: "h", serverKeyId: "sk2" },
@@ -41,7 +41,7 @@ describe("NetworkDetailPage", () => {
   it("shows empty state when network has no servers", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "n1", name: "Empty", tier: "free" },
-      packs: [],
+      projects: [],
       serverKeys: [],
     });
     render(<NetworkDetailPage />);
