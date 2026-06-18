@@ -18,19 +18,19 @@ data class SyncMetadata(
         private const val FILENAME = ".artisan-sync.yaml"
         private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
-        fun read(packDir: File): SyncMetadata {
-            val file = File(packDir, FILENAME)
+        fun read(projectDir: File): SyncMetadata {
+            val file = File(projectDir, FILENAME)
             if (!file.exists()) return SyncMetadata()
             return runCatching { mapper.readValue(file, SyncMetadata::class.java) }
                 .getOrDefault(SyncMetadata())
         }
 
-        fun write(packDir: File, meta: SyncMetadata) {
-            mapper.writeValue(File(packDir, FILENAME), meta)
+        fun write(projectDir: File, meta: SyncMetadata) {
+            mapper.writeValue(File(projectDir, FILENAME), meta)
         }
 
-        fun recordSync(packDir: File, syncedHash: String, backendHash: String) {
-            write(packDir, SyncMetadata(
+        fun recordSync(projectDir: File, syncedHash: String, backendHash: String) {
+            write(projectDir, SyncMetadata(
                 syncedHash  = syncedHash,
                 syncedAt    = Instant.now().toString(),
                 backendHash = backendHash,

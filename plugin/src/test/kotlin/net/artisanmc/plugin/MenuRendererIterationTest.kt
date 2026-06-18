@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -116,7 +116,7 @@ class MenuRendererIterationTest {
             override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
                 sessions.set(player, MenuRenderer.open(player, menu, lang, ctx))
             }
-            override fun allBundles(): List<PackBundle> = emptyList()
+            override fun allBundles(): List<ProjectBundle> = emptyList()
         }
         val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
 

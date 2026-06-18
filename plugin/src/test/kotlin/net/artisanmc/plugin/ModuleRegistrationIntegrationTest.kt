@@ -115,7 +115,7 @@ class ModuleRegistrationIntegrationTest {
             server.start()
 
             provider = SyncedMenuProvider(
-                packsDir         = packsDir,
+                projectsDir      = packsDir,
                 serverKey        = "sk_modreg_test",
                 wsUrl            = server.url("/ws/plugin").toString(),
                 logger           = null,

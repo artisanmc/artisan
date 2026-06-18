@@ -45,10 +45,10 @@ class ArtisanCommand(
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
                 listOf("revoke").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
-                val packsDir = java.io.File(plugin.dataFolder, "packs")
-                val packIds = packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
+                val projectsDir = java.io.File(plugin.dataFolder, "packs") // TODO(phase4-wire): path literal "packs"
+                val projectIds = projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
                     ?.map { it.name } ?: emptyList()
-                (packIds + "--all").filter { it.startsWith(args[1]) }
+                (projectIds + "--all").filter { it.startsWith(args[1]) }
             }
             else -> emptyList()
         }
@@ -201,35 +201,35 @@ class ArtisanCommand(
 
     private fun handlePushLocal(sender: CommandSender, args: List<String>) {
         val target = args.getOrNull(0) ?: run {
-            sender.sendMessage("Usage: /artisan pushLocal <pack_id|--all>")
+            sender.sendMessage("Usage: /artisan pushLocal <pack_id|--all>") // TODO(phase4-wire): CLI help "pack_id"
             return
         }
-        val packsDir = java.io.File(plugin.dataFolder, "packs")
-        if (!packsDir.exists()) {
+        val projectsDir = java.io.File(plugin.dataFolder, "packs") // TODO(phase4-wire): path literal "packs"
+        if (!projectsDir.exists()) {
             sender.sendMessage("No packs directory found.")
             return
         }
-        val packIds = if (target == "--all") {
-            packsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
+        val projectIds = if (target == "--all") {
+            projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
                 ?.map { it.name } ?: emptyList()
         } else {
             listOf(target)
         }
-        if (packIds.isEmpty()) {
+        if (projectIds.isEmpty()) {
             sender.sendMessage("No packs found to push.")
             return
         }
-        for (packId in packIds) {
-            val dir = java.io.File(packsDir, packId)
+        for (projectId in projectIds) {
+            val dir = java.io.File(projectsDir, projectId)
             if (!dir.isDirectory) {
-                sender.sendMessage("Pack '$packId' not found on disk; skipping.")
+                sender.sendMessage("Pack '$projectId' not found on disk; skipping.")
                 continue
             }
-            val hash = plugin.menuProvider.pushLocalPack(packId, dir)
+            val hash = plugin.menuProvider.pushLocalProject(projectId, dir)
             if (hash != null) {
-                sender.sendMessage("Pushed pack '$packId' to backend (hash=${hash.take(8)}…).")
+                sender.sendMessage("Pushed pack '$projectId' to backend (hash=${hash.take(8)}…).")
             } else {
-                sender.sendMessage("Pack '$packId': not connected to backend — push skipped.")
+                sender.sendMessage("Pack '$projectId': not connected to backend — push skipped.")
             }
         }
     }

@@ -5,7 +5,7 @@ import net.artisanmc.plugin.command.*
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.PackBundle
+import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -25,7 +25,7 @@ class PackCommandTest {
         override fun load() {}
         override fun findMenu(menuId: String): BundleMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<PackBundle> = emptyList()
+        override fun allBundles(): List<ProjectBundle> = emptyList()
     }
     private fun executor() = ActionExecutor(plugin.value, stubProvider, sessions, deps, cooldowns, evaluator)
 

@@ -14,7 +14,7 @@ internal fun extractFromSteps(steps: List<Map<String, Any>>): List<Map<String, A
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",
-    @JsonProperty("pack_id") val packId: String = "",
+    @JsonProperty("pack_id") val projectId: String = "", // TODO(phase4-wire): wire field "pack_id"
     @JsonProperty("default_lang") val defaultLang: String = "en",
     val languages: List<String> = emptyList(),
     val files: ManifestFiles = ManifestFiles(),
@@ -183,9 +183,9 @@ data class CommandYaml(
     fun resolvedActions(): List<Map<String, Any>> = actions.ifEmpty { extractFromSteps(steps) }
 }
 
-/** Assembled result for one pack — all menus plus their lang maps. */
-data class PackBundle(
-    val packId: String,
+/** Assembled result for one project — all menus plus their lang maps. */
+data class ProjectBundle(
+    val projectId: String,
     val defaultLang: String,
     val languages: List<String>,
     val menus: List<BundleMenu>,
