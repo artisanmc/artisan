@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ClaimError,
   acceptNetworkTransfer,
-  bindPackToServerKey,
   claimLinkCode,
   createNetwork,
   createPack,
@@ -12,7 +11,6 @@ import {
   getNetworkTransfer,
   initNetworkTransfer,
   listNetworks,
-  unbindPack,
   updateNetwork,
   updateServerKey,
 } from "./networks";
@@ -117,24 +115,6 @@ describe("networks API client", () => {
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/v1\/networks\/n1\/packs$/),
       expect.objectContaining({ method: "POST" }),
-    );
-  });
-
-  it("bindPackToServerKey POST returns ok", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 201 }));
-    await bindPackToServerKey("n1", "p1", "sk_1");
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
-      expect.objectContaining({ method: "POST" }),
-    );
-  });
-
-  it("unbindPack DELETE returns ok", async () => {
-    global.fetch = vi.fn(async () => new Response(null, { status: 204 }));
-    await unbindPack("n1", "p1", "sk_1");
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs\/p1\/bindings\/sk_1$/),
-      expect.objectContaining({ method: "DELETE" }),
     );
   });
 });
