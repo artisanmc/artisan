@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  memberships, networks, packs, serverKeys,
-  editorSessions, linkCodes, packCommits, packBranches, assets,
+  memberships, networks, projects, serverKeys,
+  editorSessions, linkCodes, projectCommits, projectBranches, assets,
   users, userSessions,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
@@ -13,14 +13,14 @@ import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
-import { createPack } from "../lib/packStorage";
+import { createProject } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
 
 async function clearAll() {
-  await db.delete(packBranches);
-  await db.delete(packCommits);
+  await db.delete(projectBranches);
+  await db.delete(projectCommits);
   await db.delete(assets);
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -40,7 +40,7 @@ async function seedUserWithPack(userId = "u1") {
   await addMembership(userId, net.id, "owner");
   const { id: skId, hash: skHash } = await generateServerKey();
   await db.insert(serverKeys).values({ id: skId, hash: skHash, label: null, networkId: net.id, createdAt: new Date() });
-  const pack = await createPack({ networkId: net.id, serverKeyId: skId, name: "p" });
+  const pack = await createProject({ networkId: net.id, serverKeyId: skId, name: "p" });
   return { userId, sessionId: sess.id, networkId: net.id, packId: pack.id };
 }
 
@@ -56,7 +56,7 @@ function makeApp() {
 describe("userBranchesRouter — GET branches + commits", () => {
   beforeEach(clearAll);
 
-  test("GET /:netId/packs/:packId/branches returns main after createPack", async () => {
+  test("GET /:netId/packs/:packId/branches returns main after createProject", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
@@ -235,10 +235,10 @@ describe("userBranchesRouter — POST /commits", () => {
   test("POST /commits creates commit from current WIP and advances branch head", async () => {
     const { sessionId, networkId, packId, userId } = await seedUserWithPack();
 
-    await db.update(packs).set({
+    await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m" }),
       editorJson: JSON.stringify({ id: packId, menus: [{ id: "m" }] }),
-    }).where(eq(packs.id, packId));
+    }).where(eq(projects.id, packId));
 
     const app = makeApp();
     const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
@@ -287,9 +287,9 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     });
 
     // Update WIP + commit on dev (so dev.head > main.head in parent chain)
-    await db.update(packs).set({
+    await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m\n" }),
-    }).where(eq(packs.id, packId));
+    }).where(eq(projects.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
@@ -320,7 +320,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     });
 
     // Commit on dev
-    await db.update(packs).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(packs.id, packId));
+    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(projects.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
@@ -328,7 +328,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     });
 
     // Commit on main (separately)
-    await db.update(packs).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(packs.id, packId));
+    await db.update(projects).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(projects.id, packId));
     await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },

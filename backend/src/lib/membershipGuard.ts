@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { memberships, packs } from "../db/schema";
+import { memberships, projects } from "../db/schema";
 
 export type Role = "owner" | "admin";
 
@@ -22,7 +22,7 @@ export async function requireMember(userId: string, networkId: string, role?: Ro
   }
 }
 
-export async function getNetworkOfPack(packId: string): Promise<string | null> {
-  const rows = await db.select({ networkId: packs.networkId }).from(packs).where(eq(packs.id, packId));
+export async function getNetworkOfProject(projectId: string): Promise<string | null> {
+  const rows = await db.select({ networkId: projects.networkId }).from(projects).where(eq(projects.id, projectId));
   return rows[0]?.networkId ?? null;
 }

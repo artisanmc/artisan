@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { db } from "../db/index";
-import { assets, packs, serverKeys } from "../db/schema";
+import { assets, projects, serverKeys } from "../db/schema";
 import { assetPath } from "./assetStorage";
 import { fontDirPaths } from "./fontStorage";
 import { buildResourcePackZip, type FontMeta } from "./resourcePackBuilder";
@@ -36,18 +36,18 @@ export interface PackInfo {
 }
 
 export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo> {
-  // Stable order: oldest pack first → its codepoints win in case of collisions.
-  const boundPacks = await db.select().from(packs).where(
-    and(eq(packs.serverKeyId, serverKeyId), isNull(packs.deletedAt)),
+  // Stable order: oldest project first → its codepoints win in case of collisions.
+  const boundProjects = await db.select().from(projects).where(
+    and(eq(projects.serverKeyId, serverKeyId), isNull(projects.deletedAt)),
   );
-  boundPacks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  boundProjects.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-  // Aggregate assets across all bound packs, capturing per-pack glyph contributions
-  // for the codepoint merger.
+  // Aggregate assets across all bound projects, capturing per-project glyph
+  // contributions for the codepoint merger.
   const allAssets: (typeof assets.$inferSelect)[] = [];
   const contribs: GlyphContribution[] = [];
-  for (const p of boundPacks) {
-    const rows = await db.select().from(assets).where(eq(assets.packId, p.id));
+  for (const p of boundProjects) {
+    const rows = await db.select().from(assets).where(eq(assets.projectId, p.id));
     contribs.push({
       packId: p.id,
       glyphs: rows
@@ -58,11 +58,11 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
   }
   const { finalCodepoints } = mergeCodepoints(contribs);
 
-  // Read PNGs from disk (each asset lives under its pack's subdir).
+  // Read PNGs from disk (each asset lives under its project's subdir).
   const glyphPngs = new Map<string, Uint8Array>();
   for (const a of allAssets) {
     if (a.type !== "glyph" || a.codepoint === null) continue;
-    const p = assetPath(a.packId, a.id);
+    const p = assetPath(a.projectId, a.id);
     if (!existsSync(p)) continue;
     glyphPngs.set(a.id, new Uint8Array(await readFile(p)));
   }
@@ -73,7 +73,7 @@ export async function rebuildResourcePack(serverKeyId: string): Promise<PackInfo
     const meta = a.fontMeta as FontMeta | null;
     const glyphMap = meta && Array.isArray(meta.glyphMap) ? meta.glyphMap : [];
     const fontMap = new Map<string, Uint8Array>();
-    const { dir } = fontDirPaths(a.packId, a.id);
+    const { dir } = fontDirPaths(a.projectId, a.id);
     for (const g of glyphMap) {
       const filePath = join(dir, g.texture);
       if (!existsSync(filePath)) continue;

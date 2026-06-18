@@ -54,7 +54,7 @@ router.get("/asset-font/:assetId/*", async (c) => {
   const row = rows[0];
   if (!row || row.type !== "font") return c.newResponse(null, 404);
 
-  const bytes = await readFontGlyph(row.packId, assetId, rest);
+  const bytes = await readFontGlyph(row.projectId, assetId, rest);
   if (!bytes) return c.newResponse(null, 404);
 
   return new Response(bytes, {

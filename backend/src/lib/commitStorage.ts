@@ -1,9 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "../db/index";
-import { packCommits } from "../db/schema";
+import { projectCommits } from "../db/schema";
 
-export type Commit = typeof packCommits.$inferSelect;
+export type Commit = typeof projectCommits.$inferSelect;
 
 /**
  * Deterministic content hash: SHA-256 of `(key\nvalue\n)*` over sorted keys.
@@ -18,7 +18,7 @@ export function computeContentHash(files: Record<string, string>): string {
 }
 
 export interface CreateCommitInput {
-  packId: string;
+  projectId: string;
   parentId: string | null;
   files: Record<string, string>;
   editor: unknown | null;
@@ -29,10 +29,10 @@ export interface CreateCommitInput {
 export async function createCommit(input: CreateCommitInput): Promise<Commit> {
   const contentHash = computeContentHash(input.files);
 
-  // Dedup: if a commit with this (packId, contentHash) already exists, return it.
-  const existing = await db.select().from(packCommits).where(and(
-    eq(packCommits.packId, input.packId),
-    eq(packCommits.contentHash, contentHash),
+  // Dedup: if a commit with this (projectId, contentHash) already exists, return it.
+  const existing = await db.select().from(projectCommits).where(and(
+    eq(projectCommits.projectId, input.projectId),
+    eq(projectCommits.contentHash, contentHash),
   ));
   if (existing.length > 0) return existing[0];
 
@@ -40,9 +40,9 @@ export async function createCommit(input: CreateCommitInput): Promise<Commit> {
   const filesJson = JSON.stringify(input.files);
   const editorJson = input.editor ? JSON.stringify(input.editor) : null;
   const now = new Date();
-  await db.insert(packCommits).values({
+  await db.insert(projectCommits).values({
     id,
-    packId: input.packId,
+    projectId: input.projectId,
     parentId: input.parentId,
     contentHash,
     filesJson,
@@ -55,15 +55,15 @@ export async function createCommit(input: CreateCommitInput): Promise<Commit> {
 }
 
 export async function getCommit(id: string): Promise<Commit | null> {
-  const rows = await db.select().from(packCommits).where(eq(packCommits.id, id));
+  const rows = await db.select().from(projectCommits).where(eq(projectCommits.id, id));
   return rows[0] ?? null;
 }
 
-export async function listCommitsByPack(packId: string, limit: number): Promise<Commit[]> {
+export async function listCommitsByProject(projectId: string, limit: number): Promise<Commit[]> {
   return await db
     .select()
-    .from(packCommits)
-    .where(eq(packCommits.packId, packId))
-    .orderBy(desc(packCommits.createdAt))
+    .from(projectCommits)
+    .where(eq(projectCommits.projectId, projectId))
+    .orderBy(desc(projectCommits.createdAt))
     .limit(limit);
 }

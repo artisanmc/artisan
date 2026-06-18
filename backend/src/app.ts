@@ -14,7 +14,7 @@ import { authRouter } from "./routes/auth";
 import { discordOauthRouter } from "./routes/discordOauth";
 import { userNetworksRouter } from "./routes/userNetworks";
 import { networkTransfersRouter } from "./routes/networkTransfers";
-import { userPacksRouter } from "./routes/userPacks";
+import { userProjectsRouter } from "./routes/userProjects";
 import { userBranchesRouter } from "./routes/userBranches";
 import { userAuth } from "./middleware/userAuth";
 import { requireAdmin } from "./middleware/requireAdmin";
@@ -51,8 +51,9 @@ app.use("/api/v1/networks/*", userAuth());
 app.route("/api/v1/networks", networkTransfersRouter);
 app.route("/api/v1/networks", userNetworksRouter);
 app.route("/api/v1/networks", userBranchesRouter);
+// TODO(phase4-wire): mount path `/api/v1/user/packs` flips to `/projects` in Phase 4.
 app.use("/api/v1/user/packs/*", userAuth());
-app.route("/api/v1/user/packs", userPacksRouter);
+app.route("/api/v1/user/packs", userProjectsRouter);
 
 app.use("/api/v1/admin/*", userAuth());
 app.use("/api/v1/admin/*", requireAdmin());

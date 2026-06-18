@@ -111,8 +111,9 @@ export interface EditorDraftUpdateMessage {
   updated_by: string;
 }
 
-// Backend → plugin : pack supprimé côté éditeur
-export interface PackDeletedMessage {
+// Backend → plugin : project supprimé côté éditeur
+// TODO(phase4-wire): message-type string `"pack_deleted"` + field `pack_id` flip in Phase 4.
+export interface ProjectDeletedMessage {
   type: "pack_deleted";
   pack_id: string;
 }
@@ -162,4 +163,4 @@ export type ServerToPluginMessage =
   | EditorSessionReadyMessage
   | CustomItemsRequestMessage
   | ResourcePackUpdatedMessage
-  | PackDeletedMessage;
+  | ProjectDeletedMessage;

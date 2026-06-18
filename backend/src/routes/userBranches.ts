@@ -3,11 +3,11 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { packs, packCommits } from "../db/schema";
-import { listBranchesForPack, getBranch, createBranch, advanceBranchHead, isAncestor } from "../lib/branchStorage";
-import { listCommitsByPack, createCommit, getCommit } from "../lib/commitStorage";
+import { projects, projectCommits } from "../db/schema";
+import { listBranchesForProject, getBranch, createBranch, advanceBranchHead, isAncestor } from "../lib/branchStorage";
+import { listCommitsByProject, createCommit, getCommit } from "../lib/commitStorage";
 import { requireMember } from "../lib/membershipGuard";
-import { getPack } from "../lib/packStorage";
+import { getProject } from "../lib/projectStorage";
 import { pushBundleAvailable } from "../ws/hub";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -20,14 +20,14 @@ function getUserId(c: Context<{ Variables: Vars }>): string | null {
 async function checkAccess(
   c: Context<{ Variables: Vars }>,
   networkId: string,
-  packId: string,
+  projectId: string,
 ): Promise<{ ok: true } | { ok: false; status: 401 | 403 | 404 }> {
   const userId = getUserId(c);
   if (!userId) return { ok: false, status: 401 };
   try { await requireMember(userId, networkId); }
   catch { return { ok: false, status: 403 }; }
-  const packRows = await db.select({ networkId: packs.networkId }).from(packs).where(eq(packs.id, packId));
-  if (packRows.length === 0 || packRows[0].networkId !== networkId) return { ok: false, status: 404 };
+  const projectRows = await db.select({ networkId: projects.networkId }).from(projects).where(eq(projects.id, projectId));
+  if (projectRows.length === 0 || projectRows[0].networkId !== networkId) return { ok: false, status: 404 };
   return { ok: true };
 }
 
@@ -35,30 +35,33 @@ const BRANCH_NAME_RE = /^[a-zA-Z0-9_\-./]+$/;
 
 export const userBranchesRouter = new Hono<{ Variables: Vars }>();
 
-// GET /:id/packs/:packId/branches — list branches for a pack, augmented with
+// TODO(phase4-wire): every `/packs` path segment + `:packId` route param below
+// stays on the old name until the Phase 4 wire flip.
+
+// GET /:id/packs/:packId/branches — list branches for a project, augmented with
 // each branch's head commit contentHash so the editor can detect a divergence
-// between the WIP buffer (packs.hash) and the branch HEAD (uncommitted edits).
+// between the WIP buffer (projects.hash) and the branch HEAD (uncommitted edits).
 userBranchesRouter.get("/:id/packs/:packId/branches", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const list = await listBranchesForPack(c.req.param("packId"));
+  const list = await listBranchesForProject(c.req.param("packId"));
   const headIds = Array.from(new Set(list.map((b) => b.headCommitId)));
   const heads = headIds.length > 0
     ? await db
-        .select({ id: packCommits.id, contentHash: packCommits.contentHash })
-        .from(packCommits)
-        .where(eq(packCommits.id, headIds[0]!))
+        .select({ id: projectCommits.id, contentHash: projectCommits.contentHash })
+        .from(projectCommits)
+        .where(eq(projectCommits.id, headIds[0]!))
     : [];
   // The single eq() above only fetches one head — extend to an `in` clause if
-  // we ever need multiple heads in a single round-trip. For now most packs
+  // we ever need multiple heads in a single round-trip. For now most projects
   // have ≤ 3 branches so one lookup per branch is fine.
   const byId = new Map<string, string>();
   for (const h of heads) byId.set(h.id, h.contentHash);
   for (const id of headIds.slice(1)) {
     const rows = await db
-      .select({ id: packCommits.id, contentHash: packCommits.contentHash })
-      .from(packCommits)
-      .where(eq(packCommits.id, id));
+      .select({ id: projectCommits.id, contentHash: projectCommits.contentHash })
+      .from(projectCommits)
+      .where(eq(projectCommits.id, id));
     if (rows[0]) byId.set(rows[0].id, rows[0].contentHash);
   }
   const enriched = list.map((b) => ({
@@ -73,20 +76,20 @@ userBranchesRouter.get("/:id/packs/:packId/branches", async (c) => {
 // mode to restore the last committed (deployed) state, replacing the WIP.
 userBranchesRouter.get("/:id/packs/:packId/branches/:branch/head", async (c) => {
   const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
   const branchName = c.req.param("branch");
-  const access = await checkAccess(c, networkId, packId);
+  const access = await checkAccess(c, networkId, projectId);
   if (!access.ok) return c.json({ error: "denied" }, access.status);
 
-  const branch = await getBranch(packId, branchName);
+  const branch = await getBranch(projectId, branchName);
   if (!branch) return c.json({ error: "branch_not_found" }, 404);
 
   const commit = await getCommit(branch.headCommitId);
   if (!commit) return c.json({ error: "commit_not_found" }, 404);
 
-  // editorJson may be null on an empty-initial commit (auto-created at pack
+  // editorJson may be null on an empty-initial commit (auto-created at project
   // creation). Return an empty object so the client can still call
-  // `replacePack` without crashing — same shape it would have stored.
+  // `replaceProject` without crashing — same shape it would have stored.
   const editor = commit.editorJson ? JSON.parse(commit.editorJson) : {};
   const files = commit.filesJson ? JSON.parse(commit.filesJson) : {};
 
@@ -106,13 +109,13 @@ userBranchesRouter.get("/:id/packs/:packId/branches/:branch/head", async (c) => 
 // tab Restore action to fetch any past commit's editor + files JSON.
 userBranchesRouter.get("/:id/packs/:packId/commits/:commitId/content", async (c) => {
   const networkId = c.req.param("id");
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
   const commitId = c.req.param("commitId");
-  const access = await checkAccess(c, networkId, packId);
+  const access = await checkAccess(c, networkId, projectId);
   if (!access.ok) return c.json({ error: "denied" }, access.status);
 
   const commit = await getCommit(commitId);
-  if (!commit || commit.packId !== packId) {
+  if (!commit || commit.projectId !== projectId) {
     return c.json({ error: "commit_not_found" }, 404);
   }
 
@@ -125,14 +128,14 @@ userBranchesRouter.get("/:id/packs/:packId/commits/:commitId/content", async (c)
   });
 });
 
-// GET /:id/packs/:packId/commits — list commits for a pack (optional ?branch=, ?limit=)
+// GET /:id/packs/:packId/commits — list commits for a project (optional ?branch=, ?limit=)
 userBranchesRouter.get("/:id/packs/:packId/commits", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
   // `branch` filter accepted but ignored for MVP — commits exist in a pool, branches are pointers.
   const _branch = c.req.query("branch");
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
-  const list = await listCommitsByPack(c.req.param("packId"), limit);
+  const list = await listCommitsByProject(c.req.param("packId"), limit);
   return c.json({ commits: list });
 });
 
@@ -140,7 +143,7 @@ userBranchesRouter.get("/:id/packs/:packId/commits", async (c) => {
 userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
 
   let body: { name?: unknown; from?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
@@ -150,14 +153,14 @@ userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
     return c.json({ error: "invalid_name" }, 422);
   }
 
-  if (await getBranch(packId, name)) {
+  if (await getBranch(projectId, name)) {
     return c.json({ error: "branch_exists" }, 409);
   }
-  const source = await getBranch(packId, from);
+  const source = await getBranch(projectId, from);
   if (!source) return c.json({ error: "source_branch_not_found" }, 404);
 
-  await createBranch(packId, name, source.headCommitId);
-  const created = await getBranch(packId, name);
+  await createBranch(projectId, name, source.headCommitId);
+  const created = await getBranch(projectId, name);
   return c.json({ branch: created }, 201);
 });
 
@@ -165,34 +168,34 @@ userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
 userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
 
   let body: { branch?: unknown; message?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
   const branchName = typeof body.branch === "string" ? body.branch : "main";
   const message = typeof body.message === "string" ? body.message : "";
 
-  const branch = await getBranch(packId, branchName);
+  const branch = await getBranch(projectId, branchName);
   if (!branch) return c.json({ error: "branch_not_found" }, 404);
 
-  const pack = await getPack(packId);
-  if (!pack) return c.json({ error: "pack_not_found" }, 404);
+  const project = await getProject(projectId);
+  if (!project) return c.json({ error: "pack_not_found" }, 404);
 
-  const files = JSON.parse(pack.filesJson) as Record<string, string>;
-  const editor = pack.editorJson ? JSON.parse(pack.editorJson) : null;
+  const files = JSON.parse(project.filesJson) as Record<string, string>;
+  const editor = project.editorJson ? JSON.parse(project.editorJson) : null;
 
   const commit = await createCommit({
-    packId,
+    projectId,
     parentId: branch.headCommitId,
     files,
     editor,
     authorUserId: getUserId(c),
     message,
   });
-  await advanceBranchHead(packId, branchName, commit.id);
+  await advanceBranchHead(projectId, branchName, commit.id);
 
-  // Broadcast bundle_available to all server_keys bound to (packId, branchName).
-  await pushBundleAvailable(packId, branchName, commit.contentHash);
+  // Broadcast bundle_available to all server_keys bound to (projectId, branchName).
+  await pushBundleAvailable(projectId, branchName, commit.contentHash);
 
   return c.json({ commit }, 201);
 });
@@ -201,13 +204,13 @@ userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
 userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (c) => {
   const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
   const srcName = c.req.param("src");
   const dstName = c.req.param("dst");
   if (srcName === dstName) return c.json({ error: "same_branch" }, 400);
 
-  const src = await getBranch(packId, srcName);
-  const dst = await getBranch(packId, dstName);
+  const src = await getBranch(projectId, srcName);
+  const dst = await getBranch(projectId, dstName);
   if (!src || !dst) return c.json({ error: "branch_not_found" }, 404);
 
   // Fast-forward check: dst.head must be an ancestor of src.head.
@@ -218,10 +221,10 @@ userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (
     return c.json({ ok: true, advanced: false });
   }
 
-  await advanceBranchHead(packId, dstName, src.headCommitId);
-  // Broadcast bundle_available to all server_keys bound to (packId, dstName).
+  await advanceBranchHead(projectId, dstName, src.headCommitId);
+  // Broadcast bundle_available to all server_keys bound to (projectId, dstName).
   const newHead = await getCommit(src.headCommitId);
-  if (newHead) await pushBundleAvailable(packId, dstName, newHead.contentHash);
+  if (newHead) await pushBundleAvailable(projectId, dstName, newHead.contentHash);
 
   return c.json({ ok: true, advanced: true });
 });

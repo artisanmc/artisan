@@ -114,7 +114,7 @@ afterAll(async () => {
 	__setProviderForTests(null);
 	await db
 		.delete(assistantConversations)
-		.where(eq(assistantConversations.packId, PACK_ID));
+		.where(eq(assistantConversations.projectId, PACK_ID));
 	await db.delete(editorSessions).where(eq(editorSessions.token, URL_TOKEN));
 	await db.delete(serverKeys).where(eq(serverKeys.id, SRV));
 	await db.delete(users).where(eq(users.id, USER_ID)); // cascades userSessions

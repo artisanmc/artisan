@@ -212,8 +212,8 @@ export const memberships = pgTable(
 	],
 );
 
-export const packs = pgTable(
-	"packs",
+export const projects = pgTable(
+	"projects",
 	{
 		id: text("id").primaryKey(),
 		networkId: text("network_id")
@@ -223,7 +223,7 @@ export const packs = pgTable(
 			.notNull()
 			.references(() => serverKeys.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
-		// URL slug, unique per server key (workspace). Nullable during backfill.
+		// URL slug, unique per server key. Nullable during backfill.
 		slug: text("slug"),
 		description: text("description"),
 		hash: text("hash").notNull().default(""),
@@ -235,20 +235,20 @@ export const packs = pgTable(
 		updatedAt: timestamp("updated_at").notNull(),
 	},
 	(t) => [
-		index("packs_network_idx").on(t.networkId),
-		index("packs_network_deleted_idx").on(t.networkId, t.deletedAt),
-		index("packs_server_key_idx").on(t.serverKeyId),
-		uniqueIndex("packs_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
+		index("projects_network_idx").on(t.networkId),
+		index("projects_network_deleted_idx").on(t.networkId, t.deletedAt),
+		index("projects_server_key_idx").on(t.serverKeyId),
+		uniqueIndex("projects_serverkey_slug_uniq").on(t.serverKeyId, t.slug),
 	],
 );
 
-export const packCommits = pgTable(
-	"pack_commits",
+export const projectCommits = pgTable(
+	"project_commits",
 	{
 		id: text("id").primaryKey(),
-		packId: text("pack_id")
+		projectId: text("project_id")
 			.notNull()
-			.references(() => packs.id, { onDelete: "cascade" }),
+			.references(() => projects.id, { onDelete: "cascade" }),
 		parentId: text("parent_id"),
 		parentId2: text("parent_id_2"),
 		contentHash: text("content_hash").notNull(),
@@ -259,28 +259,28 @@ export const packCommits = pgTable(
 		createdAt: timestamp("created_at").notNull(),
 	},
 	(t) => [
-		index("pack_commits_pack_idx").on(t.packId),
-		index("pack_commits_pack_created_idx").on(t.packId, t.createdAt),
-		uniqueIndex("pack_commits_pack_content_uniq").on(t.packId, t.contentHash),
+		index("project_commits_project_idx").on(t.projectId),
+		index("project_commits_project_created_idx").on(t.projectId, t.createdAt),
+		uniqueIndex("project_commits_project_content_uniq").on(t.projectId, t.contentHash),
 	],
 );
 
-export const packBranches = pgTable(
-	"pack_branches",
+export const projectBranches = pgTable(
+	"project_branches",
 	{
-		packId: text("pack_id")
+		projectId: text("project_id")
 			.notNull()
-			.references(() => packs.id, { onDelete: "cascade" }),
+			.references(() => projects.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
 		headCommitId: text("head_commit_id")
 			.notNull()
-			.references(() => packCommits.id, { onDelete: "restrict" }),
+			.references(() => projectCommits.id, { onDelete: "restrict" }),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
 	},
 	(t) => [
-		uniqueIndex("pack_branches_uniq").on(t.packId, t.name),
-		index("pack_branches_head_idx").on(t.headCommitId),
+		uniqueIndex("project_branches_uniq").on(t.projectId, t.name),
+		index("project_branches_head_idx").on(t.headCommitId),
 	],
 );
 
@@ -288,9 +288,9 @@ export const assets = pgTable(
 	"assets",
 	{
 		id: text("id").primaryKey(),
-		packId: text("pack_id")
+		projectId: text("project_id")
 			.notNull()
-			.references(() => packs.id, { onDelete: "cascade" }),
+			.references(() => projects.id, { onDelete: "cascade" }),
 		type: text("type").notNull(), // "texture" | "glyph" | "font"
 		name: text("name").notNull(),
 		width: integer("width").notNull(),
@@ -304,11 +304,11 @@ export const assets = pgTable(
 		updatedAt: timestamp("updated_at").notNull(),
 	},
 	(t) => [
-		uniqueIndex("assets_pack_name_type_uniq").on(t.packId, t.type, t.name),
-		uniqueIndex("assets_pack_codepoint_uniq")
-			.on(t.packId, t.codepoint)
+		uniqueIndex("assets_project_name_type_uniq").on(t.projectId, t.type, t.name),
+		uniqueIndex("assets_project_codepoint_uniq")
+			.on(t.projectId, t.codepoint)
 			.where(sql`codepoint IS NOT NULL`),
-		index("assets_pack_type_idx").on(t.packId, t.type),
+		index("assets_project_type_idx").on(t.projectId, t.type),
 	],
 );
 
@@ -322,21 +322,21 @@ export const appSettings = pgTable("app_settings", {
 	updatedBy: text("updated_by").references(() => users.id),
 });
 
-// AI assistant conversation history. Scoped per `(ownerKey, packId)` so the
-// panel can list a workspace's past conversations and resume them. `messages`
+// AI assistant conversation history. Scoped per `(ownerKey, projectId)` so the
+// panel can list a project's past conversations and resume them. `messages`
 // holds the full LLM transcript (LlmMessage[]) — the working copy is rebuilt
-// from the live pack on each turn, so it is NOT persisted here. `ownerKey`
+// from the live project on each turn, so it is NOT persisted here. `ownerKey`
 // mirrors routes.ts `resolveOwnerKey`: `sk:<serverKeyId>` or `user:<userId>`.
 export const assistantConversations = pgTable(
 	"assistant_conversations",
 	{
 		id: text("id").primaryKey(),
 		ownerKey: text("owner_key").notNull(),
-		packId: text("pack_id").notNull(),
+		projectId: text("project_id").notNull(),
 		title: text("title").notNull().default(""),
 		messages: jsonb("messages").notNull().$type<unknown[]>(),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
 	},
-	(t) => [index("assistant_conv_owner_pack_idx").on(t.ownerKey, t.packId)],
+	(t) => [index("assistant_conv_owner_project_idx").on(t.ownerKey, t.projectId)],
 );

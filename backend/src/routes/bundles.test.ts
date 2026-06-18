@@ -2,11 +2,11 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { networks, serverKeys, packs, editorSessions, linkCodes, packCommits, packBranches } from "../db/schema";
+import { networks, serverKeys, projects, editorSessions, linkCodes, projectCommits, projectBranches } from "../db/schema";
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
-import { createPack } from "../lib/packStorage";
+import { createProject } from "../lib/projectStorage";
 import { createCommit, computeContentHash } from "../lib/commitStorage";
 import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 
@@ -35,7 +35,7 @@ async function seedServerKey(label: string): Promise<{ key: string; id: string; 
 }
 
 beforeEach(async () => {
-  await db.delete(packs);
+  await db.delete(projects);
   await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
@@ -67,7 +67,7 @@ describe("bundle upload/download", () => {
     const uploadBody = (await uploadRes.json()) as { ok: boolean };
     expect(uploadBody.ok).toBe(true);
 
-    // GET serves branch head commit — createPack auto-creates main with empty initial commit.
+    // GET serves branch head commit — createProject auto-creates main with empty initial commit.
     const downloadRes = await app.request("/api/v1/bundles/p_test", {
       headers: { "Authorization": `Bearer ${key}` },
     });
@@ -83,13 +83,13 @@ describe("bundle upload/download", () => {
     const { key, id: skId, networkId } = await seedServerKey("c3-test");
 
     // Create pack via DB helper (binding now implicit via serverKeyId column)
-    const pack = await createPack({ networkId, serverKeyId: skId, name: "c3-pack", id: "p_c3" });
+    const pack = await createProject({ networkId, serverKeyId: skId, name: "c3-pack", id: "p_c3" });
 
     // Add a second commit with concrete files and advance main head
     const files = { "menus/shop.yaml": "id: shop\nsize: 27\n" };
     const branch = await getBranch(pack.id, "main");
     const commit2 = await createCommit({
-      packId: pack.id,
+      projectId: pack.id,
       parentId: branch!.headCommitId,
       files,
       editor: null,
@@ -145,7 +145,7 @@ describe("bundle upload/download", () => {
     expect(res2.status).toBe(200);
 
     // Only one pack row should exist (no duplicate created on second POST)
-    const packRows = await db.select().from(packs).where(eq(packs.id, "p_reuse"));
+    const packRows = await db.select().from(projects).where(eq(projects.id, "p_reuse"));
     expect(packRows.length).toBe(1);
 
     // GET serves branch head commit (initial empty commit) — NOT the WIP files from POST.

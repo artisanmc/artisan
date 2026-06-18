@@ -3,24 +3,24 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, packs, serverKeys, serverModules } from "../db/schema";
+import { editorSessions, projects, serverKeys, serverModules } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
-import { broadcastDraftUpdate, pushBundleAvailable, pushPackDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
+import { broadcastDraftUpdate, pushBundleAvailable, pushProjectDeleted, getMcVersion, trackEditorIp } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "../lib/packImport";
-import { getPack, upsertPackContent, createPack, softDeletePack } from "../lib/packStorage";
+import { readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "../lib/projectImport";
+import { getProject, upsertProjectContent, createProject, softDeleteProject } from "../lib/projectStorage";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
 
-function buildEditorJsonWithLayout(rawPack: unknown, files: Record<string, string>, packId: string): string {
-  // Spread to a fresh object — mutating rawPack in place is a footgun for any
+function buildEditorJsonWithLayout(rawProject: unknown, files: Record<string, string>, projectId: string): string {
+  // Spread to a fresh object — mutating rawProject in place is a footgun for any
   // caller that later reads body.pack.
-  const pack = { ...(rawPack as Record<string, unknown>) };
-  pack.canvasLayout = readEditorLayoutFromFiles(files, packId); // files win
-  pack.canvasEdges = readEditorEdgesFromFiles(files, packId);
-  return JSON.stringify(pack);
+  const project = { ...(rawProject as Record<string, unknown>) };
+  project.canvasLayout = readEditorLayoutFromFiles(files, projectId); // files win
+  project.canvasEdges = readEditorEdgesFromFiles(files, projectId);
+  return JSON.stringify(project);
 }
 
 const router = new Hono();
@@ -132,14 +132,16 @@ router.get("/:token/modules", async (c) => {
   return c.json({ modules: rows.map((r) => ({ id: r.moduleId, version: r.version })) });
 });
 
+// TODO(phase4-wire): every `/packs` path segment, `:packId` param, `packs` response
+// array key and `pack`/`pack_id` body/response field below stays until Phase 4.
 router.get("/:token/packs", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const packList = await db.select().from(packs).where(
-    and(eq(packs.serverKeyId, session.serverKeyId), isNull(packs.deletedAt)),
+  const projectList = await db.select().from(projects).where(
+    and(eq(projects.serverKeyId, session.serverKeyId), isNull(projects.deletedAt)),
   );
   return c.json({
-    packs: packList.map((p) => ({
+    packs: projectList.map((p) => ({
       pack_id: p.id,
       name: p.name,
       hash: p.hash,
@@ -152,30 +154,30 @@ router.get("/:token/packs", async (c) => {
 router.put("/:token/packs/:packId", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
 
   const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
   if (body.pack == null || typeof body.pack !== "object") {
     return c.json({ error: "missing_or_invalid_pack" }, 400);
   }
 
-  // server_key → network → pack must be in same network
+  // server_key → network → project must be in same network
   const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, session.serverKeyId));
   if (skRows.length === 0) return c.json({ error: "Server key missing" }, 500);
   const sk = skRows[0];
 
-  let pack = await getPack(packId);
-  if (!pack) {
-    pack = await createPack({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: packId, id: packId });
-  } else if (pack.networkId !== sk.networkId) {
+  let project = await getProject(projectId);
+  if (!project) {
+    project = await createProject({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: projectId, id: projectId });
+  } else if (project.networkId !== sk.networkId) {
     return c.json({ error: "Cross-network pack" }, 403);
   }
 
-  const hash = await computeBundleHash(body.files, packId);
+  const hash = await computeBundleHash(body.files, projectId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
+  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, projectId);
 
-  await upsertPackContent(packId, { hash, filesJson, editorJson });
+  await upsertProjectContent(projectId, { hash, filesJson, editorJson });
 
   return c.json({ hash }, 201);
 });
@@ -183,7 +185,7 @@ router.put("/:token/packs/:packId", async (c) => {
 router.post("/:token/packs/:packId/deploy", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const packId = c.req.param("packId");
+  const projectId = c.req.param("packId");
 
   if (!session.trusted) return c.json({ error: "session_not_trusted" }, 403);
   if (session.trustedIp !== clientIp(c)) return c.json({ error: "session_not_trusted" }, 403);
@@ -193,23 +195,23 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
     return c.json({ error: "missing_or_invalid_pack" }, 400);
   }
 
-  // server_key → network → pack must be in same network
+  // server_key → network → project must be in same network
   const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, session.serverKeyId));
   if (skRows.length === 0) return c.json({ error: "Server key missing" }, 500);
   const sk = skRows[0];
 
-  let pack = await getPack(packId);
-  if (!pack) {
-    pack = await createPack({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: packId, id: packId });
-  } else if (pack.networkId !== sk.networkId) {
+  let project = await getProject(projectId);
+  if (!project) {
+    project = await createProject({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: projectId, id: projectId });
+  } else if (project.networkId !== sk.networkId) {
     return c.json({ error: "Cross-network pack" }, 403);
   }
 
-  const hash = await computeBundleHash(body.files, packId);
+  const hash = await computeBundleHash(body.files, projectId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, packId);
+  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, projectId);
 
-  await upsertPackContent(packId, {
+  await upsertProjectContent(projectId, {
     hash,
     filesJson,
     editorJson,
@@ -218,21 +220,21 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
 
   // Phase 2: deploy = commit on main + advance branch head, so the plugin
   // (which reads via branch → commit) actually receives the new files.
-  const branch = await getBranch(packId, "main");
+  const branch = await getBranch(projectId, "main");
   if (branch) {
     const editor = JSON.parse(editorJson);
     const commit = await createCommit({
-      packId,
+      projectId,
       parentId: branch.headCommitId,
       files: body.files,
       editor,
       authorUserId: null,
       message: "deploy",
     });
-    await advanceBranchHead(packId, "main", commit.id);
-    await pushBundleAvailable(packId, "main", commit.contentHash);
+    await advanceBranchHead(projectId, "main", commit.id);
+    await pushBundleAvailable(projectId, "main", commit.contentHash);
   } else {
-    await pushBundleAvailable(packId, "main", hash);
+    await pushBundleAvailable(projectId, "main", hash);
   }
   return c.json({ hash }, 201);
 });
@@ -240,20 +242,20 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
 router.get("/:token/packs/:packId/deployed", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const pack = await getPack(c.req.param("packId"));
-  if (!pack || !pack.deployedEditorJson) return c.json({ deployed: null });
-  return c.json({ deployed: JSON.parse(pack.deployedEditorJson) });
+  const project = await getProject(c.req.param("packId"));
+  if (!project || !project.deployedEditorJson) return c.json({ deployed: null });
+  return c.json({ deployed: JSON.parse(project.deployedEditorJson) });
 });
 
 router.delete("/:token/packs/:packId", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const packId = c.req.param("packId");
-  const pack = await getPack(packId);
-  if (!pack || pack.deletedAt) return c.json({ error: "Not found" }, 404);
+  const projectId = c.req.param("packId");
+  const project = await getProject(projectId);
+  if (!project || project.deletedAt) return c.json({ error: "Not found" }, 404);
 
-  await softDeletePack(packId);
-  await pushPackDeleted(packId);
+  await softDeleteProject(projectId);
+  await pushProjectDeleted(projectId);
   return c.json({ deleted: true });
 });
 
@@ -261,6 +263,7 @@ router.post("/:token/draft", async (c) => {
   const token = c.req.param("token");
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
+  // TODO(phase4-wire): request body field `pack_id` → `project_id`.
   const body = await c.req.json<{ pack_id: string; menu_id: string; menu_yaml: string }>();
   broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, session.sessionId);
   return c.json({ ok: true });

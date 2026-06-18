@@ -124,7 +124,7 @@ function importDialogButton(b: Record<string, unknown>): unknown {
 // ─── YAML schema types ────────────────────────────────────────────────────────
 
 interface ManifestYaml {
-  pack_id?: string;
+  pack_id?: string; // TODO(phase4-wire): manifest field `pack_id` → `project_id`
   default_lang?: string;
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
   editor_layout?: Record<string, unknown>;
@@ -160,8 +160,10 @@ interface DialogYaml {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function getFile(files: Record<string, string>, packId: string, rel: string): string | null {
-  return files[`plugins/Artisan/packs/${packId}/${rel}`] ?? null;
+function getFile(files: Record<string, string>, projectId: string, rel: string): string | null {
+  // TODO(phase4-wire): on-disk/manifest path prefix `plugins/Artisan/packs/` →
+  // `projects/`, flipped in lockstep with the plugin.
+  return files[`plugins/Artisan/packs/${projectId}/${rel}`] ?? null;
 }
 
 function tryParse<T>(text: string | null): T | null {
@@ -186,9 +188,9 @@ function parseEditorLayout(raw: unknown): Record<string, { x: number; y: number 
 
 export function readEditorLayoutFromFiles(
   files: Record<string, string>,
-  packId: string,
+  projectId: string,
 ): Record<string, { x: number; y: number }> {
-  const m = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
+  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   return parseEditorLayout(m.editor_layout);
 }
 
@@ -226,16 +228,16 @@ function parseEditorEdges(
 
 export function readEditorEdgesFromFiles(
   files: Record<string, string>,
-  packId: string,
+  projectId: string,
 ): Record<string, { from?: EdgeAnchorJson; to?: EdgeAnchorJson }> {
-  const m = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
+  const m = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   return parseEditorEdges(m.editor_edges);
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
-export function importPackFromFiles(packId: string, files: Record<string, string>): Record<string, unknown> {
-  const manifest = tryParse<ManifestYaml>(getFile(files, packId, "manifest.yaml")) ?? {};
+export function importProjectFromFiles(projectId: string, files: Record<string, string>): Record<string, unknown> {
+  const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
   const commandIds  = manifest.files?.commands ?? [];
   const dialogIds   = manifest.files?.dialogs  ?? [];
@@ -243,10 +245,10 @@ export function importPackFromFiles(packId: string, files: Record<string, string
   const now         = new Date().toISOString();
 
   const commands = commandIds.map((cmdId) => {
-    const y = tryParse<CommandYaml>(getFile(files, packId, `commands/${cmdId}.yaml`)) ?? {};
+    const y = tryParse<CommandYaml>(getFile(files, projectId, `commands/${cmdId}.yaml`)) ?? {};
     return {
       id: y.id ?? cmdId,
-      packId,
+      projectId,
       name: y.name ?? cmdId,
       aliases: y.aliases ?? [],
       permission: y.permission,
@@ -262,10 +264,10 @@ export function importPackFromFiles(packId: string, files: Record<string, string
   });
 
   const dialogs = dialogIds.map((dlgId) => {
-    const y = tryParse<DialogYaml>(getFile(files, packId, `dialogs/${dlgId}.yaml`)) ?? {};
+    const y = tryParse<DialogYaml>(getFile(files, projectId, `dialogs/${dlgId}.yaml`)) ?? {};
     return {
       id: y.id ?? dlgId,
-      packId,
+      projectId,
       title: ltext(y.title ?? `{i18n:dialogs.${dlgId}.title}`),
       canCloseWithEscape: y.can_close_with_escape ?? true,
       body: (y.body ?? []).map(importDialogBody),
@@ -275,11 +277,11 @@ export function importPackFromFiles(packId: string, files: Record<string, string
   });
 
   const menus = menuIds.map((menuId) => {
-    const y = tryParse<MenuYaml>(getFile(files, packId, `menus/${menuId}.yaml`)) ?? {};
+    const y = tryParse<MenuYaml>(getFile(files, projectId, `menus/${menuId}.yaml`)) ?? {};
     const rows = y.rows ?? (y.size ? Math.max(1, Math.min(6, Math.ceil(y.size / 9))) : 3);
     return {
       id: y.id ?? menuId,
-      packId,
+      projectId,
       title: ltext(y.title ?? `{i18n:menus.${menuId}.title}`),
       rows: rows as 1 | 2 | 3 | 4 | 5 | 6,
       layers: Array.isArray(y.layers) ? y.layers : [{ id: "layer_default", name: "Default", elements: [] }],
@@ -287,8 +289,8 @@ export function importPackFromFiles(packId: string, files: Record<string, string
   });
 
   return {
-    id: packId,
-    name: packId,
+    id: projectId,
+    name: projectId,
     source: "imported",
     createdAt: now,
     updatedAt: now,
@@ -322,7 +324,7 @@ export function isEmptyStub(editorJson: string | null | undefined): boolean {
       return true;
 
     // Imported stub where every command has empty steps and every dialog has empty body/inputs/buttons.
-    // This catches packs imported before full YAML parsing was implemented.
+    // This catches projects imported before full YAML parsing was implemented.
     if (p.source === "imported") {
       const allCmdsEmpty = (p.commands ?? []).every((c) => (c.steps?.length ?? 0) === 0);
       const allDlgsEmpty = (p.dialogs ?? []).every(

@@ -71,6 +71,13 @@
       "when": 1781532041897,
       "tag": "0009_abnormal_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781789446005,
+      "tag": "0010_pack_to_project_rename",
+      "breakpoints": true
     }
   ]
 }
