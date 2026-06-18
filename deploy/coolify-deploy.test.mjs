@@ -113,25 +113,25 @@ test("waitForDeployment explicitly rejects non-2xx polls", async () => {
 
 test("waitForDeployment retries pending states then succeeds", async () => {
   const statuses = ["queued", "in_progress", "finished"];
-  let sleeps = 0;
+  const sleepDelays = [];
   await waitForDeployment(
     async () => response({ status: statuses.shift() }),
     env,
     "deploy-123",
-    async () => { sleeps += 1; },
+    async (delay) => { sleepDelays.push(delay); },
   );
-  assert.equal(sleeps, 2);
+  assert.deepEqual(sleepDelays, [10_000, 10_000]);
 });
 
 test("waitForHealth retries non-2xx and network errors before success", async () => {
   const outcomes = [response({}, { ok: false, status: 503 }), new Error("network down"), response({})];
-  let sleeps = 0;
+  const sleepDelays = [];
   await waitForHealth(async () => {
     const outcome = outcomes.shift();
     if (outcome instanceof Error) throw outcome;
     return outcome;
-  }, env.API_HEALTH_URL, async () => { sleeps += 1; });
-  assert.equal(sleeps, 2);
+  }, env.API_HEALTH_URL, async (delay) => { sleepDelays.push(delay); });
+  assert.deepEqual(sleepDelays, [5_000, 5_000]);
 });
 
 test("waitForDeployment times out after exactly 60 polls", async () => {
@@ -174,8 +174,33 @@ test("deployProduction never triggers editor after backend failure", async () =>
   assert.equal(urls.some((url) => url.includes("editor%20uuid")), false);
 });
 
+test("deployProduction never triggers editor after backend health failure", async () => {
+  const urls = [];
+  await assert.rejects(
+    deployProduction({
+      fetchImpl: async (url) => {
+        urls.push(url);
+        if (url.includes("/api/v1/deploy?")) {
+          return response({ deployments: [{ deployment_uuid: "backend-deployment" }] });
+        }
+        if (url.includes("/api/v1/deployments/")) return response({ status: "finished" });
+        return response({}, { ok: false, status: 503 });
+      },
+      sleep: async () => {},
+    }, env),
+    (error) => error.message.includes(env.API_HEALTH_URL),
+  );
+  assert.equal(urls.some((url) => url.includes("editor%20uuid")), false);
+});
+
 test("main-module failure is nonzero and does not expose secrets", () => {
-  const childEnv = { ...process.env, ...env, COOLIFY_BASE_URL: "http://127.0.0.1:1" };
+  const childEnv = {
+    ...process.env,
+    ...env,
+    COOLIFY_API_TOKEN: "cli-secret-token",
+    CF_ACCESS_CLIENT_SECRET: "cli-access-secret",
+    API_HEALTH_URL: "",
+  };
   const scriptPath = fileURLToPath(new URL("./coolify-deploy.mjs", import.meta.url));
   const result = spawnSync(process.execPath, [scriptPath], {
     env: childEnv,
@@ -184,7 +209,7 @@ test("main-module failure is nonzero and does not expose secrets", () => {
   });
   const output = `${result.stdout}${result.stderr}`;
   assert.notEqual(result.status, 0);
-  assert.equal(output.includes(env.COOLIFY_API_TOKEN), false);
-  assert.equal(output.includes(env.CF_ACCESS_CLIENT_SECRET), false);
+  assert.equal(output.includes(childEnv.COOLIFY_API_TOKEN), false);
+  assert.equal(output.includes(childEnv.CF_ACCESS_CLIENT_SECRET), false);
   assert.match(output, /deployment failed/i);
 });
