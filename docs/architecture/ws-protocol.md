@@ -12,7 +12,8 @@
 
 | Message | Sens | Contenu clé |
 |---|---|---|
-| `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?`, `installed_modules?: {id, version}[]` — modules enregistrés par le plugin Core ; le backend persiste par server_key (`server_modules`), l'éditeur lit pour gater la visibilité des modules (activation par présence, spec 2026-06-15 §8). Absent sur anciens plugins. |
+| `hello` | plugin → backend | `server_key`, `current_bundle_hash`, `custom_items_hash?`, `installed_modules?: {id, version}[]` — modules enregistrés dans le `ModuleRegistry` au moment de la connexion ; le backend persiste par server_key (`server_modules`), l'éditeur lit pour gater la visibilité des modules (activation par présence, spec 2026-06-15 §8). Absent sur anciens plugins. |
+| `modules_changed` | plugin → backend | `{ type, server_key, installed_modules: {id, version}[] }` — émis quand un module se `register()`-e après l'envoi du `hello` (ex: plugin tiers `onEnable`). Le backend re-exécute `persistServerModules` pour la même session. Absent sur anciens plugins. |
 | `hello_ack` | backend → plugin | `pack_hashes`, `needs_sync`, `api_url`, `resource_pack: { url, hash } \| null`, `deleted_pack_ids: string[]` — liste des packs supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les packs locaux correspondants. **Phase 2** : `pack_hashes[packId]` = `branch.head_commit.contentHash` (branche `"main"` en V1 ; le pack est résolu via `packs.serverKeyId`). |
 | `bundle_available` | backend → plugin | `pack_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
