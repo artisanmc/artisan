@@ -9,7 +9,7 @@ mappings:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
-  - touches: "plugin/src/main/kotlin/**/IfzCommand.kt"
+  - touches: "plugin/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "CLAUDE.md"
@@ -74,10 +74,10 @@ mappings:
       - "CLAUDE.md"
     reason: "Network endpoints (section Modèle d'entités + Custom Items — endpoints et cache)"
 
-  - touches: "backend/src/routes/userPacks.ts"
+  - touches: "backend/src/routes/userProjects.ts"
     updates:
       - "CLAUDE.md"
-    reason: "Pack endpoints (Custom Items — endpoints et cache section)"
+    reason: "Project endpoints (Custom Items — endpoints et cache section)"
 
   - touches: "backend/src/lib/membershipGuard.ts"
     updates:
@@ -129,7 +129,7 @@ mappings:
       - "CLAUDE.md"
     reason: "Delete server-key endpoint (Plan accounts × networks UX — endpoints)"
 
-  - touches: "plugin/src/main/kotlin/gg/interfaze/modules/api/"
+  - touches: "plugin/src/main/kotlin/net/artisanmc/modules/api/"
     updates:
       - "CLAUDE.md"
       - "docs/architecture/modules.md"
@@ -176,17 +176,17 @@ mappings:
       - "CLAUDE.md"
     reason: "/settings is user-facing — section list + Apparence flow documented in CLAUDE.md UI shell section"
 
-  - touches: "editor/src/components/WorkspaceTabs.tsx"
+  - touches: "editor/src/components/ProjectTabs.tsx"
     updates:
       - "CLAUDE.md"
-    reason: "Workspace tab structure (Overview / Translations / Data Sources) — UI shell mapping in CLAUDE.md"
+    reason: "Project tab structure (Overview / Translations / Data Sources) — UI shell mapping in CLAUDE.md"
 
-  - touches: "editor/src/components/WorkspaceSidebar.tsx"
+  - touches: "editor/src/components/ProjectSidebar.tsx"
     updates:
       - "CLAUDE.md"
-    reason: "Sidebar structure (Network dropdown + Workspaces + Modules + Settings button)"
+    reason: "Sidebar structure (Network dropdown + Projects + Modules + Settings button)"
 
-  - touches: "editor/src/routes/workspace.$workspaceId.tsx"
+  - touches: "editor/src/routes/networks.$networkId.servers.$serverId.projects.$projectId.tsx"
     updates:
       - "CLAUDE.md"
-    reason: "Workspace shell layout (top bar + tab strip + content per ?tab=) — UI shell mapping"
+    reason: "Project shell layout (top bar + tab strip + content per ?tab=) — UI shell mapping"

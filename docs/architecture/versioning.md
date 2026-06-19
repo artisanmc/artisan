@@ -312,7 +312,7 @@ Chaque message peut aussi avoir son propre versioning local :
 {
   "type": "bundle_available",
   "v": 2,
-  "pack_id": "shop",
+  "project_id": "shop",
   "url": "https://cdn.artisanmc.net/...",
   "hash": "sha256:abc...",
   "signed_url": "..."     // ajouté en v2

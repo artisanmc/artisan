@@ -14,7 +14,7 @@
  *   - "ContextInput" : slot nommée et typée que le menu déclare via Menu.contextInputs. Peuplée à l'ouverture
  *                      par auto-binding par nom (depuis l'appelant) ou via un ConnectorBinding attaché.
  *                      Exposée comme {name} dans les champs du menu. Cf. main-spec §14, §15.4.
- *   - "ConnectorBinding" : référence vers un connecteur (homemade Artisan ou registered par plugin tier en V2)
+ *   - "ConnectorBinding" : référence (côté consommateur) vers une data source (homemade Artisan ou registered par plugin tier en V2)
  *                          qui expose une liste/objet typé. Attaché à un ContextInput via `source`. Les Elements
  *                          itèrent via `iterates: { source: <input_name>, alias }` et accèdent aux champs
  *                          de l'item courant via {alias.field}.
@@ -86,16 +86,16 @@ export interface ContextInput {
   /** Slug exposé comme {name} dans les champs du menu. Unique au sein du menu. */
   name: string;
   type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
-  /** Valeur fallback si l'appelant ne passe rien et qu'aucun connecteur n'est attaché. Supporte les placeholders. */
+  /** Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders. */
   default?: string;
-  /** Si présent, la valeur de la slot est fetchée par un connecteur au lieu d'être passée par l'appelant. Valide uniquement sur type="list" ou type="object". */
+  /** Si présent, la valeur de la slot est fetchée par une data source au lieu d'être passée par l'appelant. Valide uniquement sur type="list" ou type="object". */
   source?: ConnectorBinding;
 }
 
 export interface ConnectorBinding {
   /** "namespace:source", ex: "chestshop:items", "essentials:warps", "jobs:list". */
   ref: string;
-  /** Paramètres passés au connecteur (varient par connecteur). Supportent {name} pour interpoler les autres contextInputs du menu. */
+  /** Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu. */
   params?: Record<string, string>;
   /** Filtres appliqués sur les champs de la data avant render. Supportent {name} pour interpoler les autres contextInputs. Ex: { category: "{category}" } pour filtrer par la valeur de l'input "category". */
   filter?: Record<string, string>;
@@ -141,7 +141,7 @@ export interface Element {
   /**
    * Si présent, l'Element devient itératif : pour chaque item du contextInput nommé `source`
    * (de type "list"), le moteur évalue les appearances avec l'item courant exposé sous `alias`,
-   * accessible via {alias.field}. La liste source peut venir de l'appelant ou d'un connecteur —
+   * accessible via {alias.field}. La liste source peut venir de l'appelant ou d'une data source —
    * transparent côté Element. Mutuellement exclusif avec component_ref dans une appearance.
    */
   iterates?: { source: string; alias: string };

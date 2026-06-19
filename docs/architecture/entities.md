@@ -5,7 +5,7 @@
 
 ## Modèle courant (depuis 2026-06-03 — "Servers UX simplification")
 
-**1 pack = 1 server_key** (relation **1:N**). `packs.serverKeyId` est NOT NULL avec FK cascade vers `server_keys.id`. La table `pack_bindings` (ancien M:N) a été supprimée.
+**1 project = 1 server_key** (relation **1:N**). `projects.serverKeyId` est NOT NULL avec FK cascade vers `server_keys.id`. La table `project_bindings` (ancien M:N) a été supprimée.
 
 ```
 User ── Membership ──┐
@@ -14,30 +14,30 @@ User ── Membership ──┐
                    │ owns
        ┌───────────┼───────────┐
        ▼                       ▼
-   ServerKey (1) ───────────► Pack (N, first-class)
-                              packs.serverKeyId (NOT NULL, FK cascade)
-                              1 server_key → N packs
+   ServerKey (1) ───────────► Project (N, first-class)
+                              projects.serverKeyId (NOT NULL, FK cascade)
+                              1 server_key → N projects
 
-                              Pack → PackBranch ← PackCommit  (DAG, branches + commits)
+                              Project → ProjectBranch ← ProjectCommit  (DAG, branches + commits)
 ```
 
-- **Pack** : entité first-class — `id`, `networkId`, `serverKeyId`, `name`, `description`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. `filesJson`/`editorJson`/`hash` = buffer éditeur **WIP** live.
+- **Project** : entité first-class — `id`, `networkId`, `serverKeyId`, `name`, `description`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. `filesJson`/`editorJson`/`hash` = buffer éditeur **WIP** live.
 - **server_keys.networkId** NOT NULL. À la création (claim / `/api/server-keys` / WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
 - **IDs server_key** (`generateServerKey` dans `lib/auth.ts`) : row id = `srv_<hex>` (utilisé dans les URLs `/networks/.../servers/srv_xxx`), clé plaintext = `sk_<hex>` (montrée une seule fois). Préfixes distincts volontairement pour ne pas confondre l'identifiant de ligne et le secret. Affichage UI via `displayServerLabel()`.
-- **Assets per-pack** : `assets.packId`, codepoint allocator scopé au pack, disque `data/assets/{packId}/...`.
-- **WS hub** : `hello_ack.pack_hashes` et `pushBundleAvailable(packId, hash)` résolvent les targets via `packs.serverKeyId`. `pushPackDeleted(packId)` idem.
+- **Assets per-project** : `assets.projectId`, codepoint allocator scopé au project, disque `data/assets/{projectId}/...`.
+- **WS hub** : `hello_ack.project_hashes` et `pushBundleAvailable(projectId, hash)` résolvent les targets via `projects.serverKeyId`. `pushProjectDeleted(projectId)` idem.
 
 ### Branches + commits (DAG)
 
-- **pack_commits** : `(id, packId, parentId, parentId2?, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(packId, contentHash)`. `parentId` nullable pour le commit racine (auto-créé à `createPack`). `parentId2` = 2ᵉ parent des merge commits (colonne conservée mais **plus aucun merge commit créé** depuis le retrait du merge 3-way le 2026-06-17 — cf. ADR `no-branch-conflict-resolution`), `null` sur les commits linéaires.
-- **pack_branches** : `(packId, name, headCommitId, createdAt, updatedAt)`. Unique par `(packId, name)`. V1 : toujours `"main"` (pas d'UI branches).
-- **WIP vs commit** : les plugins lisent **uniquement les commits** via `pack_branches.headCommitId` → `pack_commits.filesJson`. Le WIP (`packs.filesJson`) est le buffer éditeur.
+- **project_commits** : `(id, projectId, parentId, parentId2?, contentHash, filesJson, editorJson, authorUserId, message, createdAt)`. Snapshot complet par commit. Dedup par `(projectId, contentHash)`. `parentId` nullable pour le commit racine (auto-créé à `createProject`). `parentId2` = 2ᵉ parent des merge commits (colonne conservée mais **plus aucun merge commit créé** depuis le retrait du merge 3-way le 2026-06-17 — cf. ADR `no-branch-conflict-resolution`), `null` sur les commits linéaires.
+- **project_branches** : `(projectId, name, headCommitId, createdAt, updatedAt)`. Unique par `(projectId, name)`. V1 : toujours `"main"` (pas d'UI branches).
+- **WIP vs commit** : les plugins lisent **uniquement les commits** via `project_branches.headCommitId` → `project_commits.filesJson`. Le WIP (`projects.filesJson`) est le buffer éditeur.
 - **LCA** : `branchStorage.findLCA(a, b)` — BFS bidirectionnel borné à 10 000 steps, walk `parentId` + `parentId2`.
 
 ### Branches — modèle linéaire (FF-only)
 
-- **Pas de merge 3-way ni de résolution de conflits.** Le moteur `mergeEngine` + les endpoints `merge-into`/`resolve` ont été retirés le 2026-06-17 (cf. ADR `no-branch-conflict-resolution`) : aucune UI ne les câblait, et la concurrence live est déjà gérée par LWW + présence (`decisions/editor-state-model.md`). Quand les branches reviendront (dev→prod), le flux sera *fast-forward only* (`promote/:dst`). Primitives DAG conservées mais inertes : `pack_commits.parentId2`, `branchStorage.findLCA`.
-- **`canvasLayout`** (`Record<id, {x,y}>`, métadonnée éditeur) : depuis 2026-06-13 c'est l'**ensemble d'appartenance à la planche** (présence d'une entrée = l'élément est sur la planche curée), pas seulement des positions sauvegardées. Pas de changement de schéma DB — seule la sémantique évolue ; `autoLayout` côté éditeur ne retourne que les entrées explicites. Détail : `editor-internals.md` (§ Planche curée).
+- **Pas de merge 3-way ni de résolution de conflits.** Le moteur `mergeEngine` + les endpoints `merge-into`/`resolve` ont été retirés le 2026-06-17 (cf. ADR `no-branch-conflict-resolution`) : aucune UI ne les câblait, et la concurrence live est déjà gérée par LWW + présence (`decisions/editor-state-model.md`). Quand les branches reviendront (dev→prod), le flux sera *fast-forward only* (`promote/:dst`). Primitives DAG conservées mais inertes : `project_commits.parentId2`, `branchStorage.findLCA`.
+- **`canvasLayout`** (`Record<id, {x,y}>`, métadonnée éditeur) : depuis 2026-06-13 c'est l'**ensemble d'appartenance à la planche** (présence d'une entrée = le Document est sur la planche curée), pas seulement des positions sauvegardées. Pas de changement de schéma DB — seule la sémantique évolue ; `autoLayout` côté éditeur ne retourne que les entrées explicites. Détail : `editor-internals.md` (§ Planche curée).
 
 ## Auth & comptes
 
@@ -53,14 +53,14 @@ User ── Membership ──┐
 
 ## Assistant IA — conversations
 
-- **`assistant_conversations`** (migration 0007) : historique du chat assistant, scopé par `(owner_key, pack_id)` (index `assistant_conv_owner_pack_idx`). `(id PK, owner_key TEXT, pack_id TEXT, title TEXT, messages JSONB — transcript LLM complet pour la reprise, created_at, updated_at)`. `owner_key` = `sk:<serverKeyId>` (session plugin) ou `user:<userId>` (login web), miroir de `resolveOwnerKey` (`modules/assistant/routes.ts`). La working-copy n'est **pas** persistée (reconstruite depuis le pack vivant à chaque tour). `title` dérivé du 1er message utilisateur. Pas de FK sur `pack_id`/`owner_key` — des conversations orphelines sont tolérées si le pack est supprimé.
+- **`assistant_conversations`** (migration 0007) : historique du chat assistant, scopé par `(owner_key, project_id)` (index `assistant_conv_owner_project_idx`). `(id PK, owner_key TEXT, project_id TEXT, title TEXT, messages JSONB — transcript LLM complet pour la reprise, created_at, updated_at)`. `owner_key` = `sk:<serverKeyId>` (session plugin) ou `user:<userId>` (login web), miroir de `resolveOwnerKey` (`modules/assistant/routes.ts`). La working-copy n'est **pas** persistée (reconstruite depuis le project vivant à chaque tour). `title` dérivé du 1er message utilisateur. Pas de FK sur `project_id`/`owner_key` — des conversations orphelines sont tolérées si le project est supprimé.
 
 ## Transferts & désaffectation
 
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Token partageable 24h pour transférer la propriété d'un Network entier. Memberships swap **clean break** — ancien owner perd l'accès.
-- **Server key deletion** : DELETE server_key (owner-only) → cascade les packs liés (`packs.serverKeyId` FK cascade). Le plugin perd la connexion au prochain hello.
-- **Désaffectation sans transfert** : delete la server_key, re-setup côté plugin → l'auto-push (`local_push` au hello) recharge les packs dans le nouveau network. Pas de mutation cross-account.
-- **Bootstrap auto-push** : au hello, les packs disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push` (plus de `/artisan pushLocal` manuel pour le first-time setup).
+- **Server key deletion** : DELETE server_key (owner-only) → cascade les projects liés (`projects.serverKeyId` FK cascade). Le plugin perd la connexion au prochain hello.
+- **Désaffectation sans transfert** : delete la server_key, re-setup côté plugin → l'auto-push (`local_push` au hello) recharge les projects dans le nouveau network. Pas de mutation cross-account.
+- **Bootstrap auto-push** : au hello, les projects disque inconnus du backend (`disk_hash != "" && backend_hash == ""`) sont auto-pushés via `local_push` (plus de `/artisan pushLocal` manuel pour le first-time setup).
 
 ## Custom items cache
 
@@ -70,7 +70,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 
 ## Présence des modules (`server_modules`)
 
-`server_modules(server_key_id, module_id, version, last_seen)` — ensemble des modules actifs par serveur, **remplacé à chaque `hello`** depuis `installed_modules` (upsert + prune dans `persistServerModules`, `hub.ts`). PK composite `(server_key_id, module_id)`, FK → `server_keys` cascade. **Présence uniquement** : pilote la visibilité des modules dans l'éditeur ; cacher un module (retirer la ligne) **ne supprime jamais** le contenu authored (qui vit dans `packs`/etc.). Cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md` §8.
+`server_modules(server_key_id, module_id, version, last_seen)` — ensemble des modules actifs par serveur, **remplacé à chaque `hello`** depuis `installed_modules` (upsert + prune dans `persistServerModules`, `hub.ts`). PK composite `(server_key_id, module_id)`, FK → `server_keys` cascade. **Présence uniquement** : pilote la visibilité des modules dans l'éditeur ; cacher un module (retirer la ligne) **ne supprime jamais** le contenu authored (qui vit dans `projects`/etc.). Cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md` §8.
 
 ---
 
@@ -79,8 +79,8 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 L'évolution qui a mené au modèle ci-dessus. Conservé pour comprendre les migrations.
 
 - **Plan 1A — accounts foundation** : `users`, `user_sessions`, `discord_accounts`.
-- **Plan 1B — multi-server networks** : Pack devient first-class (plus de scope par `server_key`). Tables ajoutées : `networks`, `memberships`, `packs`, ~~`pack_bindings`~~. Table supprimée : `pack_bundles` (fusionnée dans `packs`). Le **M:N `pack_bindings`** (un pack ↔ N server_keys) a existé ici **puis a été supprimé en 2026-06-03** au profit du 1:N.
-- **Phase 2 — branches + commits** : tables `pack_commits`, `pack_branches`. (À l'époque, `pack_bindings.branchName` ciblait une branche ; disparu avec `pack_bindings`.)
-- **Phase 3 — merge sémantique par item** : column `pack_commits.parentId2` (DAG / LCA).
+- **Plan 1B — multi-server networks** : Project devient first-class (plus de scope par `server_key`). Tables ajoutées : `networks`, `memberships`, `projects`, ~~`project_bindings`~~. Table supprimée : `project_bundles` (fusionnée dans `projects`). Le **M:N `project_bindings`** (un project ↔ N server_keys) a existé ici **puis a été supprimé en 2026-06-03** au profit du 1:N. (Ces tables étaient nommées `pack*` avant le renommage `pack`→`project` de 2026-06-18.)
+- **Phase 2 — branches + commits** : tables `project_commits`, `project_branches`. (À l'époque, `project_bindings.branchName` ciblait une branche ; disparu avec `project_bindings`.)
+- **Phase 3 — merge sémantique par item** : column `project_commits.parentId2` (DAG / LCA).
 - **Accounts × networks UX** : claim login-required + smart-count, `network_transfers`, rotation/audit/allowlist server_key.
-- **Servers UX simplification (2026-06-03)** : M:N → 1:N (`pack_bindings` supprimée, `packs.serverKeyId` NOT NULL). UI branches retirée (toujours `"main"` backend) → onglet History + Restore par commit. Sync multi-serveur = V2 hors-scope. Spec : `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md`.
+- **Servers UX simplification (2026-06-03)** : M:N → 1:N (`project_bindings` supprimée, `projects.serverKeyId` NOT NULL). UI branches retirée (toujours `"main"` backend) → onglet History + Restore par commit. Sync multi-serveur = V2 hors-scope. Spec : `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md`.
