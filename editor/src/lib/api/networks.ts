@@ -64,6 +64,40 @@ export async function getNetwork(id: string): Promise<{
   return { network: json.network, projects: json.projects, serverKeys: json.serverKeys };
 }
 
+export interface ServerStatusEntry {
+  id: string;
+  label: string | null;
+  online: boolean;
+  instanceCount: number;
+  lastMcVersion: string | null;
+  /** ISO timestamp of the last *accepted* hello; null = never connected. */
+  lastSeenAt: string | null;
+  lastSeenIp: string | null;
+  isCurrent: boolean;
+}
+
+export interface NetworkServersStatus {
+  servers: ServerStatusEntry[];
+  online: number;
+  total: number;
+}
+
+/** Topbar linked-servers aggregate: live online state + last-seen per server key. */
+export async function getNetworkServersStatus(
+  networkId: string,
+  currentServerKeyId?: string,
+): Promise<NetworkServersStatus> {
+  const q = currentServerKeyId
+    ? `?current=${encodeURIComponent(currentServerKeyId)}`
+    : "";
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/servers-status${q}`,
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`getNetworkServersStatus failed: ${res.status}`);
+  return res.json();
+}
+
 export async function createServerKey(
   networkId: string,
   label?: string,
