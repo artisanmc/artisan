@@ -87,11 +87,10 @@ export function NetworkDetailPage() {
   }
 
   const handleAction = async (action: string, serverId: string) => {
-    if (action === "show-key") {
-      // V1: "Show key" generates a fresh one (only way to surface plaintext).
-      const result = await rotateServerKey(detail.network.id, serverId);
-      setRevealedKey({ keyId: serverId, key: result.key });
-    } else if (action === "rotate") {
+    if (action === "rotate") {
+      // V1: secrets are never stored in clear (hash only), so generating a new
+      // key is the only way to surface a usable plaintext value — used both for
+      // first-time retrieval and deliberate rotation. Always confirm.
       if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
       const result = await rotateServerKey(detail.network.id, serverId);
       setRevealedKey({ keyId: serverId, key: result.key });
