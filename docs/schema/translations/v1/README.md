@@ -1,15 +1,15 @@
 # Artisan — Translations schema v1
 
-Format des traductions d'un workspace Artisan. Une **clé** = un texte traduisible scoped au workspace, référencée depuis les menus et commandes via la syntaxe inline `{i18n:<key>}`.
+Format des traductions d'un project Artisan. Une **clé** = un texte traduisible scoped au project, référencée depuis les menus et commandes via la syntaxe inline `{i18n:<key>}`.
 
 ## Vocabulaire
 
 | Terme | Sens |
 |---|---|
-| **Clé i18n** | Identifiant slug hiérarchique (`menu.shop_main.btn_buy.title`). Stable, unique au sein du workspace. |
+| **Clé i18n** | Identifiant slug hiérarchique (`menu.shop_main.btn_buy.title`). Stable, unique au sein du project. |
 | **Translation** | Valeur d'une clé pour une langue donnée. Format **MiniMessage** (cf. plus bas). |
-| **default_lang** | Langue de référence du workspace. Toute clé doit l'avoir. Fallback ultime si une autre langue manque. |
-| **Workspace scope** | Les clés vivent au niveau workspace de l'admin, pas par pack ni par menu. Pas de partage entre admins. |
+| **default_lang** | Langue de référence du project. Toute clé doit l'avoir. Fallback ultime si une autre langue manque. |
+| **Project scope** | Les clés vivent au niveau project de l'admin, pas par menu. Pas de partage entre admins. |
 
 ## Fichiers
 
@@ -17,8 +17,8 @@ Format des traductions d'un workspace Artisan. Une **clé** = un texte traduisib
 |---|---|
 | `schema.json` | JSON Schema Draft 2020-12, source de vérité validable par machine |
 | `types.ts` | Types TypeScript + helpers (validateTranslations, extractI18nRefs, generateAutoKey, ...) |
-| `examples/minimal.json` | Workspace 2 langues (fr, en) avec 5 clés. |
-| `examples/full-workspace.json` | Workspace 4 langues avec menu shop + commandes traduits. |
+| `examples/minimal.json` | Project 2 langues (fr, en) avec 5 clés. |
+| `examples/full-project.json` | Project 4 langues avec menu shop + commandes traduits. |
 
 ## Format de contenu : MiniMessage
 
@@ -33,7 +33,7 @@ Ressources :
 - Documentation officielle : https://docs.advntr.dev/minimessage/format.html
 - Tester : https://webui.advntr.dev/
 
-Les **codes legacy** (`§a`, `&a`) sont **acceptés en input** pour l'admin qui colle un texte d'un autre plugin, mais sont **convertis en MiniMessage au save** (canonicalisation backend, opt-out possible dans les settings workspace).
+Les **codes legacy** (`§a`, `&a`) sont **acceptés en input** pour l'admin qui colle un texte d'un autre plugin, mais sont **convertis en MiniMessage au save** (canonicalisation backend, opt-out possible dans les settings project).
 
 ## Référence depuis menus / commandes
 
@@ -70,8 +70,8 @@ Trois modes configurables côté plugin (`config.yml`) :
 
 | Mode | Comportement |
 |---|---|
-| `server_default` | Tout le serveur parle une langue unique (la default_lang du workspace, ou override config). |
-| `per_player_locale` *(recommandé)* | Langue dérivée de `Player#locale()` (locale Minecraft client). Mappée vers la langue workspace la plus proche, fallback default. |
+| `server_default` | Tout le serveur parle une langue unique (la default_lang du project, ou override config). |
+| `per_player_locale` *(recommandé)* | Langue dérivée de `Player#locale()` (locale Minecraft client). Mappée vers la langue project la plus proche, fallback default. |
 | `per_player_placeholder` | Langue dérivée d'un placeholder PAPI custom (ex: `%player_lang%` si l'admin a déjà une commande `/lang` via un autre plugin). |
 
 Le plugin charge toutes les traductions en mémoire au sync (les fichiers `i18n/<lang>.json` du bundle runtime).
@@ -103,17 +103,17 @@ Format de chaque fichier (lookup O(1) côté plugin) :
 
 Notes :
 - On n'utilise **pas** le système `translatable_key` vanilla Minecraft (qui passerait par les `lang/<locale>.json` du resource pack côté client). Notre approche serveur-side est plus flexible : on choisit la langue, on compose avec PAPI, on log les clés manquantes.
-- Le bundle inclut **toutes** les clés du workspace, même celles non référencées par les menus actifs sur ce serveur. Coût de stockage négligeable, simplicité de génération.
+- Le bundle inclut **toutes** les clés du project, même celles non référencées par les menus actifs sur ce serveur. Coût de stockage négligeable, simplicité de génération.
 
 ## UX éditeur
 
 Sur tout champ texte du dashboard (titre menu, lore d'un Element, send_message text, command description, etc.) :
 
 1. **Tape librement** : pas besoin d'utiliser i18n si tu ne veux pas. Le texte direct fonctionne (rendu littéral pour tous les joueurs).
-2. **Insère une clé** : touche `{` déclenche l'autocomplete fuzzy sur les clés du workspace. Sélection → insertion `{i18n:key}` au curseur. Bouton `</>` à droite ouvre une popover avec recherche + bouton "+ Nouvelle clé".
+2. **Insère une clé** : touche `{` déclenche l'autocomplete fuzzy sur les clés du project. Sélection → insertion `{i18n:key}` au curseur. Bouton `</>` à droite ouvre une popover avec recherche + bouton "+ Nouvelle clé".
 3. **Crée une nouvelle clé inline** : "+ Nouvelle clé" extrait automatiquement le texte en cours dans le champ comme valeur par défaut (langue de référence), pré-remplit la clé avec un slug auto-généré basé sur le contexte (`menu.<menu_id>.<element_id>.title`), et permet d'éditer la clé (avec validation d'unicité live).
 4. **Édite une traduction existante** : click sur la clé surlignée dans le champ → mini-modal avec les valeurs par langue et un live preview MiniMessage à côté.
-5. **Détache une clé** : remplace `{i18n:key}` par la valeur courante en clair. La clé reste dans le workspace pour les autres usages.
+5. **Détache une clé** : remplace `{i18n:key}` par la valeur courante en clair. La clé reste dans le project pour les autres usages.
 
 ## Auto-extract du texte existant
 
@@ -127,7 +127,7 @@ Aucune manipulation manuelle du fichier translations.
 
 ## Conflits à l'import de pack `.itfz`
 
-Quand un pack importé contient un fichier `translations.json`, l'import merge dans le workspace cible :
+Quand un pack importé contient un fichier `translations.json`, l'import merge dans le project cible :
 
 - **Clé absente** localement → ajoutée.
 - **Clé présente, valeurs identiques** dans toutes les langues → ignorée (no-op).
@@ -140,7 +140,7 @@ L'option par défaut est **renommer** — la moins destructive.
 
 ## Validation
 
-Au save dans le workspace, le backend vérifie via `validateTranslations` :
+Au save dans le project, le backend vérifie via `validateTranslations` :
 
 - `default_lang` est dans `languages[]`.
 - Chaque clé a au minimum la `default_lang`.
@@ -150,7 +150,7 @@ Au save dans le workspace, le backend vérifie via `validateTranslations` :
 
 Limitations connues (non-exprimables en JSON Schema mais à check au load/build) :
 
-- Les clés référencées par les menus/commandes du workspace doivent toutes exister dans `keys`. Sinon warning éditeur ("Clé `menu.foo.title` référencée par btn_buy mais non définie").
+- Les clés référencées par les menus/commandes du project doivent toutes exister dans `keys`. Sinon warning éditeur ("Clé `menu.foo.title` référencée par btn_buy mais non définie").
 - Les références circulaires (clé A pointe vers clé B qui pointe vers clé A) doivent être détectées. Limite de profondeur de résolution = 10 par sécurité.
 
 ## Comment l'utiliser
@@ -186,5 +186,5 @@ node validate-translations.mjs
 |---|---|
 | V1 MVP | Format plat, fr + en, 3 modes de détection langue côté plugin, UX inline dans l'éditeur, conflits à l'import géré. |
 | V1.5 | Statistiques de complétion par langue dans le dashboard. Bouton "exporter en .po/.csv pour traducteur externe". Detection auto des clés non utilisées. |
-| V2 | Pluralisation (`<plural:count:zero=...:one=...:other=...>`). Variables typées dans les clés (déclarées par clé, pour plus de sécurité). Glossaire workspace (forcer un terme cohérent : "Boutique" toujours utilisé pour "Shop" en FR). |
+| V2 | Pluralisation (`<plural:count:zero=...:one=...:other=...>`). Variables typées dans les clés (déclarées par clé, pour plus de sécurité). Glossaire project (forcer un terme cohérent : "Boutique" toujours utilisé pour "Shop" en FR). |
 | V3 | Marketplace de packs i18n (un créateur peut vendre un set de traductions pour des packs populaires). |
