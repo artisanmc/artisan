@@ -1,4 +1,4 @@
-import { ServerStatusBadge } from "@/components/ServerStatusBadge";
+import { LinkedServersDropdown } from "@/components/LinkedServersDropdown";
 import { TopBarKebabMenu } from "@/components/TopBarKebabMenu";
 /**
  * ProjectTopBarControls
@@ -115,10 +115,9 @@ export function ProjectTopBarControls({
         />
         <span className="truncate">{displayName}</span>
       </div>
-      <ServerStatusBadge
+      <LinkedServersDropdown
         networkId={networkId}
-        serverKeyId={pack.serverKeyId ?? ""}
-        projectId={projectId}
+        currentServerKeyId={pack.serverKeyId ?? undefined}
       />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
