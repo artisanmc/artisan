@@ -10,9 +10,9 @@ Quand tu modifies du code, tu dois aussi mettre à jour les docs correspondants 
 | Endpoints REST (`backend/src/routes/*.ts`) | `docs/architecture/rest-endpoints.md` (index — pointe vers le fichier de route) |
 | Schéma DB (`backend/src/db/schema.ts`) | migration dans `backend/drizzle/` (`db:generate`) + `docs/architecture/entities.md` |
 | Schéma (`docs/schema/*/v1/schema.json`) | aligner les types à la main (éditeur `types.ts` + plugin) + exemples/fixtures verts (`editor/src/schema/validateMenuV1`) + `docs/architecture/schemas-codegen.md` |
-| Internals éditeur / rendu titre (title composer, canvas, édition d'élément, SchemaForm) | `docs/architecture/editor-internals.md` |
+| Internals éditeur / rendu titre (title composer, canvas, édition de Document, SchemaForm) | `docs/architecture/editor-internals.md` |
 | Stack / dépendances | `docs/decisions/stack.md` + tableau "Pivots" si c'est un changement de choix |
-| Termes du domaine (Pack, Menu, Element…) | `CONTEXT.md` |
+| Termes du domaine (Project, Menu, Document…) | `CONTEXT.md` |
 | Commandes plugin (`ArtisanCommand.kt`) | Ce fichier, section Commandes + `docs-site/src/content/docs/getting-started/install-admin.md` (table commandes) |
 | Variables d'environnement | `.env.example` + ce fichier |
 | Config plugin (`config.yml`, defaults) | `docs-site/src/content/docs/getting-started/install-admin.md` (sections Config / Reference) |
@@ -33,7 +33,7 @@ Ce fichier garde l'**opérationnel** (commandes, invariants, env vars) + l'**ori
 |---|---|
 | `docs/architecture/rest-endpoints.md` | Index des routes REST (quel fichier ouvrir) + conventions + flux non-évidents. La source de vérité = `backend/src/routes/*.ts`. |
 | `docs/architecture/ws-protocol.md` | Table des messages WS plugin ↔ backend + flux de données. |
-| `docs/architecture/entities.md` | Modèle de données (Pack/Network/ServerKey/commits/branches/merge), auth, transferts, historique des phases. |
+| `docs/architecture/entities.md` | Modèle de données (Project/Network/ServerKey/commits/branches/merge), auth, transferts, historique des phases. |
 | `docs/architecture/editor-internals.md` | Title composer (YAML, pixel offsets, fonts), édition d'élément (onglet Edit / FlowCanvas), canvas layout, `<SchemaForm>`, UI shell. |
 | `docs/architecture/modules.md` | Modular monolith — comment ajouter un module. |
 | `docs/architecture/versioning.md` / `api-surface.md` | Disciplines de versioning + surface API publique stable. |
@@ -53,9 +53,9 @@ cd plugin
 ```
 
 **Commandes plugin** — `/artisan` subcommands:
-- `/artisan menu <packId> <menuId>` — open menu editor session
-- `/artisan reload` — reload all packs from disk
-- `/artisan pushLocal <packId>` — push local pack changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
+- `/artisan menu <projectId> <menuId>` — open menu editor session
+- `/artisan reload` — reload all projects from disk
+- `/artisan pushLocal <projectId>` — push local project changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
 
 ### Backend (Bun + Hono + PostgreSQL)
 
@@ -161,7 +161,7 @@ Cible : `docs/architecture/versioning.md`. Surface stable : `docs/architecture/a
 ```
 [Editor browser]
    │ WS ws://backend:3001/ws/plugin  (pluginBridge.ts)
-   │ POST /api/v1/bundles/:packId    (bundlePublisher.ts)
+   │ POST /api/v1/bundles/:projectId (bundlePublisher.ts)
    ▼
 [Backend Bun/Hono]
    │ WS /ws/plugin                   (hub.ts)
@@ -169,7 +169,7 @@ Cible : `docs/architecture/versioning.md`. Surface stable : `docs/architecture/a
    ▼
 [Plugin Kotlin]
    │ hello → hello_ack + bundle_available
-   │ GET /api/v1/bundles/:packId     (BundleDownloader.kt)
+   │ GET /api/v1/bundles/:projectId  (BundleDownloader.kt)
    └ écrit sur disque → hot-reload menus
 ```
 
@@ -189,7 +189,7 @@ Détail des couches de tokens : `docs/architecture/editor-internals.md` (section
 
 ## Invariants critiques
 
-**Hash byte-order sort + maison unique** — le hash de pack a **une seule implémentation par langage** : `BundleHasher` (plugin) et `hashUtils.computeBundleHash` (backend). Tous deux hashent une map **relPath-keyed** triée par ordre byte natif (`<`/`>` Kotlin/JS — jamais `localeCompare`/`compareToIgnoreCase`, sinon divergence plugin↔backend). Côté plugin, disque (`hash`), `local_push` (`hashCanonical`) et upload passent **tous** par `BundleHasher` — pas de second SHA-256 ad-hoc (un hash dupliqué dans `LocalPushSender` avait silencieusement divergé en keyant sur le chemin complet ; corrigé 2026-06-17). L'égalité cross-langage est verrouillée par le vecteur partagé `testdata/pack-hash-conformance.json`, asservi par `BundleHashConformanceTest` (plugin) **et** `hashUtils.test.ts` (backend) — changer l'algo = mettre à jour les deux + régénérer le vecteur.
+**Hash byte-order sort + maison unique** — le hash de project a **une seule implémentation par langage** : `BundleHasher` (plugin) et `hashUtils.computeBundleHash` (backend). Tous deux hashent une map **relPath-keyed** triée par ordre byte natif (`<`/`>` Kotlin/JS — jamais `localeCompare`/`compareToIgnoreCase`, sinon divergence plugin↔backend). Côté plugin, disque (`hash`), `local_push` (`hashCanonical`) et upload passent **tous** par `BundleHasher` — pas de second SHA-256 ad-hoc (un hash dupliqué dans `LocalPushSender` avait silencieusement divergé en keyant sur le chemin complet ; corrigé 2026-06-17). L'égalité cross-langage est verrouillée par le vecteur partagé `testdata/pack-hash-conformance.json`, asservi par `BundleHashConformanceTest` (plugin) **et** `hashUtils.test.ts` (backend) — changer l'algo = mettre à jour les deux + régénérer le vecteur.
 
 **Sentinel `""`** — chaîne vide = "jamais synchronisé / pas de contenu" dans tous les contextes hash. `BundleHasher.hash()` renvoie `""` pour un répertoire vide. `SyncMetadata.syncedHash` est `""` par défaut.
 
@@ -199,23 +199,23 @@ Détail des couches de tokens : `docs/architecture/editor-internals.md` (section
 
 **Reload atomique** — `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` entier, puis l'assigne à `@Volatile var menus`. Ne jamais modifier le map en place.
 
-**Conflit = freeze** — tant que `pack_conflicts.resolved_at IS NULL` côté backend, aucun `bundle_available` n'est broadcast pour ce `(server_id, pack_id)`. Implémenté dans `pushBundleAvailable` (hub.ts) qui consulte la table en début de fonction. Empêche tout écrasement silencieux pendant qu'une décision est en attente.
+**Conflit = freeze** — tant que `project_conflicts.resolved_at IS NULL` côté backend, aucun `bundle_available` n'est broadcast pour ce `(server_id, project_id)`. Implémenté dans `pushBundleAvailable` (hub.ts) qui consulte la table en début de fonction. Empêche tout écrasement silencieux pendant qu'une décision est en attente.
 
-**Auto-resolution sur DELETE pack** — `DELETE /api/editor-session/:token/packs/:packId` marque tout conflit ouvert pour ce pack comme `resolution: "editor"` et envoie `pack_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
+**Auto-resolution sur DELETE project** — `DELETE /api/editor-session/:token/projects/:projectId` marque tout conflit ouvert pour ce project comme `resolution: "editor"` et envoie `project_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
 
-**`.artisan-trash/` is sacred** — répertoire au top de `packsDir` créé par `PackDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.artisan*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
+**`.artisan-trash/` is sacred** — répertoire au top de `projectsDir` créé par `ProjectDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.artisan*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
 
-**Suppressions propagées** — `BundleDownloader.download` walk le packDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.artisan*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
+**Suppressions propagées** — `BundleDownloader.download` walk le projectDir après écriture et supprime les fichiers locaux absents du bundle (filtre `.artisan*` préservé). Le sweep résout le bug historique où supprimer un menu dans l'éditeur ne le retirait pas du disque serveur.
 
 **Custom items hash inline** — `CustomItemsManager.buildBundle()` calcule le hash en inline à partir des items/textures déjà collectés (ne rappelle pas `computeHash()` séparément) pour garantir la cohérence hash ↔ data.
 
 ---
 
-## Structure des packs sur disque
+## Structure des projects sur disque
 
 ```
-plugins/Artisan/packs/
-  <pack_id>/
+plugins/Artisan/projects/
+  <project_id>/
     manifest.yaml
     menus/<menu_id>.yaml
     dialogs/<dialog_id>.yaml
@@ -266,9 +266,9 @@ Couverture par couche (zones, pas liste de fichiers — `glob **/*.test.*` donne
 
 | Couche | Lancer | Zones couvertes |
 |---|---|---|
-| Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, editor-session, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), conflicts, pack import. |
-| Plugin (~45 fichiers) | `./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, pack deleter, local push. |
-| Éditeur (≥120 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + édition d'élément, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
+| Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, editor-session, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), conflicts, project import. |
+| Plugin (~45 fichiers) | `./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, project deleter, local push. |
+| Éditeur (≥120 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + édition de Document, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
 | E2E éditeur | `npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |
 
 > ⚠️ **`bun run test` — JAMAIS `bun test` direct** (le wrapper redirige vers `artisan_test` ; le direct wipe la DB dev — cf. section Commandes Backend).

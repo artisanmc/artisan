@@ -13,7 +13,7 @@ Format intermédiaire d'un menu Artisan. C'est le **contrat** entre l'éditeur w
 | `examples/paginated-quests.json` | Liste paginée avec boutons prev/next auto-bind. |
 | `examples/multi-paginated.json` | Deux listes paginées dans le même menu, binding explicite via `element_id`. |
 | `examples/deco-with-conditional-button.json` | Pattern phare : layer décoration + layer items, fall-through quand un bouton est conditionnel. |
-| `examples/data-driven-shop.json` | Element itératif sur un `contextInput` de type `list` peuplé par le connecteur `chestshop:items` — un slot par item shop, avec apparences conditionnelles sur `{shop.rarity}`. |
+| `examples/data-driven-shop.json` | Element itératif sur un `contextInput` de type `list` peuplé par la data source `chestshop:items` — un slot par item shop, avec apparences conditionnelles sur `{shop.rarity}`. |
 
 ## Vocabulaire
 
@@ -23,7 +23,7 @@ Pour éviter la confusion :
 - **Element** (Artisan) : l'objet manipulé par l'admin (bouton, décoration, liste paginée...). Un Element occupe une ou plusieurs positions et a une ou plusieurs apparences.
 - **Layer** : conteneur qui groupe des Elements liés thématiquement (décoration, items, navigation...). Les layers sont ordonnés bottom→top et permettent du chevauchement contrôlé entre couches.
 - **Appearance** : variante visuelle d'un Element. Évaluée dans l'ordre, première dont la condition matche gagne.
-- **Bundle** (séparé du Pack) : artefact runtime signé que le plugin télécharge depuis le CDN. Concept distinct du pack.
+- **Bundle** (séparé du Project) : artefact runtime signé que le plugin télécharge depuis le CDN. Concept distinct du project.
 
 ## Modèle conceptuel
 
@@ -63,7 +63,7 @@ Les Layers sont des entités à part entière (`Layer` avec id, name, elements),
 
 - **Copy-paste cross-menus** : on copie un layer entier d'un menu à un autre, en une opération atomique
 - **Symbols / Templates de layers** (V2) : un layer "navigation moderne" devient un Symbol instanciable
-- **Marketplace** (V3) : un créateur peut vendre un pack "Layer décoration médiéval"
+- **Marketplace** (V3) : un créateur peut vendre un project "Layer décoration médiéval"
 - **Mental model** : Photoshop / Figma traitent les layers comme des conteneurs avec enfants
 
 ### Appearances unifiées (pas de partial override)
@@ -108,9 +108,9 @@ Entre layers différents, l'overlap est **intentionnel** (c'est le pattern fall-
 Tous les champs texte du schéma (`title`, `lore[]`, `send_message.text`, `broadcast.text`, `cooldown.message`, `give_item.name`, `give_item.lore[]`, etc.) suivent une convention de contenu unifiée :
 
 - **Format MiniMessage** (Adventure / Paper) — tags `<color>`, `<bold>`, `<gradient>`, `<click>`, `<hover>`, etc. Cf. https://docs.advntr.dev/minimessage/format.html
-- **Référence i18n inline** : `{i18n:menu.shop.title}` est résolu à l'exécution depuis le fichier translations du workspace (cf. `translations/v1`).
+- **Référence i18n inline** : `{i18n:menu.shop.title}` est résolu à l'exécution depuis le fichier translations du project (cf. `translations/v1`).
 - **Placeholders PAPI** : `%player_name%`, `%vault_eco_balance%`, `%args_target%` (si ouvert depuis une commande), etc.
-- **Codes legacy `§a`** acceptés en input mais convertis en MiniMessage au save (canonicalisation backend, opt-out workspace).
+- **Codes legacy `§a`** acceptés en input mais convertis en MiniMessage au save (canonicalisation backend, opt-out project).
 
 Ordre de résolution côté plugin : (1) `{i18n:...}` → valeur stockée pour la langue active, (2) `%placeholder%` → résolu via PAPI, (3) parse MiniMessage final → Component Adventure envoyé au joueur.
 
@@ -118,13 +118,13 @@ Schéma : aucun changement — les champs restent `string`. C'est une convention
 
 ## Contexte du menu et data sources
 
-Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'un connecteur tier — passe par `Menu.contextInputs`. Chaque entrée est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources :
+Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'une data source tierce — passe par `Menu.contextInputs`. Chaque entrée est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources :
 
 - **Appelant** : la commande ou le menu parent passe la valeur à l'ouverture (auto-binding par nom, cf. main-spec §15.4).
-- **Connecteur** : la slot porte un `source: ConnectorBinding` ; le moteur appelle le connecteur référencé et stocke le résultat.
+- **Data source** : la slot porte un `source: ConnectorBinding` ; le moteur appelle la data source référencée et stocke le résultat.
 - **Default** : valeur littérale fallback.
 
-Un Element devient itératif en pointant `iterates: { source, alias }` vers une slot de type `"list"` (peu importe que la liste vienne de l'appelant ou d'un connecteur — c'est opaque côté Element). Les champs accèdent à l'item courant via `{alias.field}`. Concept détaillé en `main-spec.md` section 14.
+Un Element devient itératif en pointant `iterates: { source, alias }` vers une slot de type `"list"` (peu importe que la liste vienne de l'appelant ou d'une data source — c'est opaque côté Element). Les champs accèdent à l'item courant via `{alias.field}`. Concept détaillé en `main-spec.md` section 14.
 
 ```json
 {
@@ -168,7 +168,7 @@ Règles :
 - `iterates.source` doit pointer vers un `contextInput` déclaré et de type `"list"`. `validateMenuLayout` flag les erreurs.
 - `ConnectorBinding.source` est valide uniquement sur `type: "list"` et `type: "object"`.
 - Les valeurs `params` / `filter` du `ConnectorBinding` interpolent les autres `contextInputs` du menu via `{name}`.
-- Pas de cycle dans les dépendances entre `contextInputs` : si `filter` réfère `{X}`, la slot `X` doit être résoluble en amont (appelant ou connecteur sans dépendance circulaire).
+- Pas de cycle dans les dépendances entre `contextInputs` : si `filter` réfère `{X}`, la slot `X` doit être résoluble en amont (appelant ou data source sans dépendance circulaire).
 - Conditions sur les champs de l'item d'iteration : utiliser `placeholder_equals` / `placeholder_match` avec `{alias.field}` comme placeholder. Les anciennes conditions `data_field_*` ont été retirées.
 - Le namespace du `ref` (`chestshop`, `essentials`, `jobs`, ...) est ajouté automatiquement à `metadata.uses_plugins`.
 

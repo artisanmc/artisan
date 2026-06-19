@@ -65,7 +65,7 @@ To revoke the active editor session at any time:
 /artisan editor revoke
 ```
 
-Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first pack and menu, add slots, and wire up actions.
+Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
 ## 4. Useful commands
 

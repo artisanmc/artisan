@@ -75,14 +75,14 @@ L'encoder plugin est **lenient** : ne lève jamais d'exception, retourne `""` si
 
 ## Custom fonts (SP4)
 
-Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). Le backend parse/valide/stocke (`data/assets/{packId}/fonts/{asset_id}/`) et crée une row `Asset` `type=font` + `fontMeta = { namespace, glyphMap }`. À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
+Import MCFonts via "Import font" dans l'AssetsTab : drop d'un `.zip` (`font.json` + glyph PNGs). Le backend parse/valide/stocke (`data/assets/{projectId}/fonts/{asset_id}/`) et crée une row `Asset` `type=font` + `fontMeta = { namespace, glyphMap }`. À la régén RP : `assets/artisan/font/<name>.json` + `textures/font/<name>/*.png` embarqués. Éditeur : `TitleRender` rend pixel-perfect via `McFontText` (composition Konva des glyph PNGs).
 
 Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm` (Background) expose "Calibrer pour coffre" → `ascent = -11` (zone des slots). Pour couvrir depuis le haut (y=0) : `ascent = 6`. Formule : `ascent = titleLabelY(6) - targetY`.
 
 ## Title Composer UX v3
 
-- **Édition in-place** : les layers sont édités **directement sur le pack canvas** via une 3ᵉ colonne (`LayersPanel`, ~280 px, toujours visible). Plus de focus mode dédié au titre.
-- **Layout 3 colonnes** : Pack canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendu dans l'onglet `overview` du workspace (route server-scoped ci-dessous ; `pack.$packId.tsx` n'est plus qu'un redirect legacy).
+- **Édition in-place** : les layers sont édités **directement sur le project canvas** via une 3ᵉ colonne (`LayersPanel`, ~280 px, toujours visible). Plus de focus mode dédié au titre.
+- **Layout 3 colonnes** : Project canvas | `MenuProperties` (rows/permission/actions) | `LayersPanel`. Rendu dans l'onglet `overview` du project (route server-scoped ci-dessous ; `project.$projectId.tsx` n'est plus qu'un redirect legacy).
 - **`LayersPanel`** = Header + `AddLayerControls` (`+ Image` / `+ Text`) + liste drag-reorderable de `LayerListItem` + `LayerEditForm`.
 - **Sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` ; `uiStore.lastSelectedMenuId` sticky (le panel survit aux clics dans le vide).
 - **Types UI** : 2 visibles — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, Image se split runtime en `background`/`glyph`. Glyphs externes : branche propre, pas de bouton dédié en v3.
@@ -93,13 +93,13 @@ Background = "gros glyph" : ascent calibré pour couvrir la zone. `LayerEditForm
 - **Fichiers v3** sous `editor/src/features/canvas/title/composer/` : `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `ResizeHandles.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts` ; `stageGeometry.ts` (dans `features/canvas/`).
 - **Supprimés vs v2** : `FocusComposer.tsx`, `ComposerCanvas.tsx`, `AddLayerBar.tsx`, `LayerSidePanel.tsx`, `TitleThumbnail.tsx` (+ tests).
 
-## Édition d'un élément — onglet « Edit » du `EditorPane`
+## Édition d'un Document — onglet « Edit » du `EditorPane`
 
-L'élément sélectionné s'édite dans le panneau de droite. L'ancien **mode focus** plein-écran (forké, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) a été retiré 2026-06-06 : doublon de l'onglet Edit + bugs de routing. Le 2026-06-13, une **vue individuelle** deep-linkable l'a remplacé sur des bases saines — un seul rendu partagé avec la planche, pas d'éditeur forké (cf. section « Planche curée » plus bas). La route `.../element/$elementId` est donc à nouveau présente, mais avec une implémentation différente.
+Le Document sélectionné s'édite dans le panneau de droite. L'ancien **mode focus** plein-écran (forké, `features/element-editor/` + `FocusButton` + `useElementDblClickNav`) a été retiré 2026-06-06 : doublon de l'onglet Edit + bugs de routing. Le 2026-06-13, une **vue individuelle** deep-linkable l'a remplacé sur des bases saines — un seul rendu partagé avec la planche, pas d'éditeur forké (cf. section « Planche curée » plus bas). La route `.../document.$documentId` est donc à nouveau présente, mais avec une implémentation différente.
 
 - **`features/canvas/EditorPane.tsx`** — `Tabs` à 3 onglets : **Edit / Library / Assets** (`uiStore.editorTab`). L'onglet `edit` rend `<FlowCanvas>`.
 - **`features/flow/FlowCanvas.tsx`** — éditeur unifié de la sélection courante (`useSelectionStore`). Route par type :
-  - 0 sélection → `PackProperties`
+  - 0 sélection → `ProjectProperties`
   - menu → `MenuProperties` (+ `LayersPanel` titre)
   - élément (slot) → state cards (material / title / lore / conditions + click handlers en pseudo-code)
   - command → identité + args + step tree
@@ -110,7 +110,7 @@ L'élément sélectionné s'édite dans le panneau de droite. L'ancien **mode fo
 
 ## Canvas component layout (refactor 2026-06-02)
 
-`features/canvas/MenuGroup.tsx` (1066 → 591 lignes) éclaté : `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (fanout positionnel pur, testé), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-pack via pack-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt).
+`features/canvas/MenuGroup.tsx` (1066 → 591 lignes) éclaté : `SlotItem.tsx`, `PaginationControls.tsx`, `menuFanout.ts` (fanout positionnel pur, testé), `useMenuClick.ts` (armed-material tap-to-place), `useMenuDrag.ts` (cross-project via project-mini DOM walk), `useSlotDrag.ts` (selection drag + Alt).
 
 `features/canvas/Stage.tsx` (528 → 351 lignes) éclaté : `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
 
@@ -139,59 +139,59 @@ au bord (longueur ∝ distance, clamp 24–160 px). Rendu : `Edges.tsx` en Konva
 (tête de flèche côté cible), hover → `EdgeTooltip`, clic → sélection + 2 poignées
 draggables le long du bord (snap périmètre via `closestAnchorOnBox`).
 
-Overrides manuels : `pack.canvasEdges[edgeId] = { from?, to? }` avec
+Overrides manuels : `project.canvasEdges[edgeId] = { from?, to? }` avec
 `EdgeAnchor = { side, t∈[0,1] }` (ratio → survit au resize). Edge id = `"source->target"`.
 Les overrides sont des pins exacts : jamais écartés par la séparation auto — deux ancres
 manuelles peuvent se superposer ; seules les ancres auto cèdent le gap minimal.
 Actions store : `setEdgeAnchor` / `clearEdgeAnchor` (double-clic poignée = reset) ;
-pruning sur `deleteFromPack`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
+pruning sur `deleteFromProject`, rekey sur rename d'id (`setMenuId`/`setCommandId`/`setDialogId`).
 Persistance : `editor_edges` dans `manifest.yaml` (miroir d'`editor_layout`),
-round-trip backend dans `packImport.ts`.
+round-trip backend dans `projectImport.ts`.
 
 ## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
 
-Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type d'élément, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode.
+Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode.
 
 ### `canvasLayout` = appartenance à la planche
 
-Un élément est **sur la planche ssi** il a une entrée explicite `pack.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
+Un Document est **sur la planche ssi** il a une entrée explicite `project.canvasLayout[id] = {x,y}` (présence = appartenance, plus seulement position sauvegardée).
 
-- `autoLayout(pack)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
-- `gridArrange(pack)` (même fichier) construit une grille complète sur tous les éléments — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({packId})`.
-- Trois actions `accountStore` distinctes : `addToBoard({packId, nodeId, x, y})` / `removeFromBoard({packId, nodeId})` manipulent `canvasLayout` (l'élément reste dans le pack) ; `deleteFromPack({packId, nodeIds})` (existant) retire l'élément du pack.
+- `autoLayout(project)` (`features/canvas/autoLayout.ts`) ne remplit **plus** la grille : il ne retourne que les entrées explicites de `canvasLayout`.
+- `gridArrange(project)` (même fichier) construit une grille complète sur tous les Documents — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({projectId})`.
+- Trois actions `accountStore` distinctes : `addToBoard({projectId, nodeId, x, y})` / `removeFromBoard({projectId, nodeId})` manipulent `canvasLayout` (le Document reste dans le project) ; `deleteFromProject({projectId, nodeIds})` (existant) retire le Document du project.
 
-### `WorkspacePanel` — panneau gauche source de vérité
+### `ProjectPanel` — panneau gauche source de vérité
 
-`features/workspace/WorkspacePanel.tsx` : liste **tout** le pack groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildPackElements(pack, lang)` (`usePackElements.ts`).
+`features/project/ProjectPanel.tsx` : liste **tout** le project groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildProjectDocuments(project, lang)` (`useProjectDocuments.ts`).
 
 - Recherche texte.
-- **Bouton toggle « canvas »** par ligne (remplace l'ancien drag-and-drop, retiré) : flèche entrante `title="Ajouter au canvas"` → `addToBoard` quand l'élément est hors planche ; flèche sortante colorée `--brand` `title="Retirer du canvas"` → `removeFromBoard` quand il est présent. La couleur `--brand` du bouton « retirer » sert aussi d'indicateur d'état (remplace l'ancien badge texte « sur la planche »).
-- **Clic** sur le label → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel `···`** : éditer / supprimer du pack (l'ajout/retrait passe par le bouton toggle).
+- **Bouton toggle « canvas »** par ligne (remplace l'ancien drag-and-drop, retiré) : flèche entrante `title="Ajouter au canvas"` → `addToBoard` quand le Document est hors planche ; flèche sortante colorée `--brand` `title="Retirer du canvas"` → `removeFromBoard` quand il est présent. La couleur `--brand` du bouton « retirer » sert aussi d'indicateur d'état (remplace l'ancien badge texte « sur la planche »).
+- **Clic** sur le label → ouvre la vue individuelle (n'ajoute pas à la planche). **Menu contextuel `···`** : éditer / supprimer du project (l'ajout/retrait passe par le bouton toggle).
 - Terminologie user-facing : « canvas » (les actions/identifiants internes gardent `board` : `addToBoard`, `removeFromBoard`, `canvasLayout`).
 - 3ᵉ zone du layout overview desktop (panneau · planche · `EditorPane`).
-- Helper de label partagé `elementLabel(pack, id, lang)` (`usePackElements.ts`) — utilisé aussi par l'en-tête de `ElementView`.
+- Helper de label partagé `documentLabel(project, id, lang)` (`useProjectDocuments.ts`) — utilisé aussi par l'en-tête de `DocumentView`.
 
 ### Vue individuelle (deep-linkable)
 
-`features/workspace/ElementView.tsx`, monté par la route enfant `…/workspaces/$workspaceId/element/$elementId.tsx`. La route overview bascule dessus via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — donc rechargement, bouton retour navigateur et lien partageable fonctionnent.
+`features/project/DocumentView.tsx`, monté par la route enfant `…/projects/$projectId/document.$documentId.tsx`. La route overview bascule dessus via `useChildMatches()` (`childMatches.length > 0 → <Outlet/>`) — donc rechargement, bouton retour navigateur et lien partageable fonctionnent.
 
-- **Dispatch par type** : menu → `SoloMenuStage` (`features/workspace/SoloMenuStage.tsx`, hôte d'un `<MenuGroup>` en mode solo) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
-- Sélection posée via `useSelectionStore.set([elementId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
-- **INVARIANT** : `ElementView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
-- **Échap = retour planche** : `ElementView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
-- **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[packId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par packId, **session-only** (hors `partialize`) : quitter pour une vue d'élément puis revenir garde la position + le zoom ; un reload repart de la vue par défaut.
+- **Dispatch par type** : menu → `SoloMenuStage` (`features/project/SoloMenuStage.tsx`, hôte d'un `<MenuGroup>` en mode solo) en `primary` d'un `SplitPane` + `EditorPane` en `secondary` ; commande / dialog → `FlowCanvas` centré (`max-w-3xl`).
+- Sélection posée via `useSelectionStore.set([documentId])` au montage → `FlowCanvas` (clé sur la sélection) et `MenuGroup` éditent par le **même** chemin que la planche. Introuvable → `EmptyState`.
+- **INVARIANT** : `DocumentView` ne réimplémente aucun éditeur — il monte les mêmes renderers que la planche (`MenuGroup` en solo, `FlowCanvas`). Pas de second éditeur (≠ focus mode 2026-06-02, forké puis reverté).
+- **Échap = retour planche** : `DocumentView` pose un listener `keydown` window qui rappelle `back()` sur `Escape`, **sauf** si le focus est dans un `INPUT`/`TEXTAREA`/`contentEditable`, si une modale/menu/liste est ouverte (`[role=dialog|menu|listbox]`), ou si l'événement est déjà `defaultPrevented`. Le bouton « Retour au canvas » affiche un badge clavier `<kbd>Esc</kbd>`.
+- **Mémorisation pan/zoom** : le `Stage` de la planche restaure son `viewport` au montage depuis `uiStore.canvasViewports[projectId]` (lu non-réactivement via `getState()` ; passé en `initial` à `usePanZoom`) et le réécrit à chaque changement via un effet. Indexé par projectId, **session-only** (hors `partialize`) : quitter pour une vue de Document puis revenir garde la position + le zoom ; un reload repart de la vue par défaut.
 
 ### Chips fantômes (liens hors-planche)
 
-`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible` (clic = `addToBoard`). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(pack, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
+`features/canvas/GhostChips.tsx` + `offBoardLinks.ts`. Un nœud sur la planche qui référence une cible **absente** de la planche affiche un chip cliquable `→ cible` (clic = `addToBoard`). `offBoardLinks(edges, layout)` retourne les liens (source on-board, cible off-board), dédupliqués. `visibleEdges(edges, layout)` (`Edges.tsx`) ne trace des edges qu'entre nœuds présents. Helper de géométrie partagé `nodeBox(project, id, layout)` (`menuLayout.ts`) utilisé par `Edges` **et** `GhostChips`.
 
 ### Entrées dans la vue individuelle
 
-Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route élément.
+Clic dans le panneau, ou **double-clic** sur un nœud de la planche : `dispatchOpenElement(id)` (`features/canvas/canvasEvents.ts`) émet le CustomEvent `artisan:open_element` (`OPEN_ELEMENT_EVENT`), écouté par la route overview qui `navigate` vers la route Document.
 
 ### Mobile (< lg)
 
-Le `WorkspacePanel` vit dans un **drawer gauche** (`Sheet`, `side="left"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
+Le `ProjectPanel` vit dans un **drawer gauche** (`Sheet`, `side="left"`) ouvert par un bouton dédié ; les 3 zones desktop deviennent mono-panneau + drawers.
 
 ## Modes d'interaction + guides d'alignement (depuis 2026-06-14)
 
@@ -227,40 +227,40 @@ Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.
 
 ### Module de recherche (`editor/src/features/search/`)
 
-- **`searchIndex.ts`** — `buildSearchIndex(pack, lang) → SearchEntry[]` : index plat couvrant les noms de menus/commandes/dialogs, les matériaux des items de menu, et les textes i18n (titres/lores d'items, corps/labels de boutons de dialogs). Chaque `SearchEntry` porte un contexte structuré `{ key, owner }` (clé de traduction i18n + id du propriétaire) traduit dans la palette via `t()` — aucune string en dur. `searchQuery(entries, query)` filtre et ranke ; `groupResultsForDisplay(results)` regroupe par catégorie pour l'affichage.
-- **`SearchPalette.tsx`** — overlay combobox/listbox (conforme a11y). Navigation clavier ↑/↓/Enter/Esc. Sur sélection : navigue vers la vue individuelle de l'élément (`…/element/$elementId`) ; pour les matches d'items de menu, sous-sélectionne le slot correspondant. Ouverte via `useGlobalSearchShortcut` **ou** le bouton 🔍 de la topbar.
+- **`searchIndex.ts`** — `buildSearchIndex(project, lang) → SearchEntry[]` : index plat couvrant les noms de menus/commandes/dialogs, les matériaux des items de menu, et les textes i18n (titres/lores d'items, corps/labels de boutons de dialogs). Chaque `SearchEntry` porte un contexte structuré `{ key, owner }` (clé de traduction i18n + id du propriétaire) traduit dans la palette via `t()` — aucune string en dur. `searchQuery(entries, query)` filtre et ranke ; `groupResultsForDisplay(results)` regroupe par catégorie pour l'affichage.
+- **`SearchPalette.tsx`** — overlay combobox/listbox (conforme a11y). Navigation clavier ↑/↓/Enter/Esc. Sur sélection : navigue vers la vue individuelle du Document (`…/document.$documentId`) ; pour les matches d'items de menu, sous-sélectionne le slot correspondant. Ouverte via `useGlobalSearchShortcut` **ou** le bouton 🔍 de la topbar.
 - **`useGlobalSearchShortcut.ts`** — écoute Cmd+K (Mac) / Ctrl+K (Windows/Linux) ; ignore Shift. Monte/démonte le listener de façon propre.
 
 ### Panneau toggleable
 
-`uiStore.workspacePanelOpen` (booléen, **persisté** via `partialize`) contrôle la visibilité du `WorkspacePanel` sur desktop. Le bouton « Éléments » dans la topbar (`PanelLeftClose`/`PanelLeftOpen`, icône lucide-react, desktop-only) bascule cet état. En desktop (≥lg), la colonne de 240 px est rendue conditionnellement selon `workspacePanelOpen`. En mobile (<lg), le panneau reste dans son **drawer Sheet** gauche, indépendant du toggle. La barre de recherche inline qui existait dans le `WorkspacePanel` a été **supprimée** — la palette Cmd+K la remplace intégralement.
+`uiStore.projectPanelOpen` (booléen, **persisté** via `partialize`) contrôle la visibilité du `ProjectPanel` sur desktop. Le bouton « Éléments » dans la topbar (`PanelLeftClose`/`PanelLeftOpen`, icône lucide-react, desktop-only) bascule cet état. En desktop (≥lg), la colonne de 240 px est rendue conditionnellement selon `projectPanelOpen`. En mobile (<lg), le panneau reste dans son **drawer Sheet** gauche, indépendant du toggle. La barre de recherche inline qui existait dans le `ProjectPanel` a été **supprimée** — la palette Cmd+K la remplace intégralement.
 
-## UI shell — Workspace + Settings (depuis 2026-05-27)
+## UI shell — Project + Settings (depuis 2026-05-27)
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`WorkspaceSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Workspaces filtrées par server actif (drag-reorder via `account.packOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de packs ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, packs sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
-- **`/networks/$networkId/servers/$serverId/workspaces/$workspaceId`** — route canonique server-scoped (`/workspace/$workspaceId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
-- **Top bar** : pack name, `LangSwitcher` (contenu pack), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete pack).
+- **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/networks`) en haut + `ServerSelector` (label via `displayServerLabel`, **masqué en session-mode**) + section Projects filtrée par server actif (drag-reorder via `account.projectOrder`) + section Modules (empty V1) + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de projects ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). En **session-mode** (trust dance, sans cookie user) : pas d'appel `listNetworks`, projects sourcés depuis `accountStore` **sans filtre `serverKeyId`** (déjà server-scoped).
+- **`/networks/$networkId/servers/$serverId/projects/$projectId`** — route canonique server-scoped (`/project/$projectId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent` inline), `data-sources` (`DataSourcesPanelContent` inline), `history` (`HistoryTab` — liste des commits + Restore par commit, depuis la Servers UX simplification).
+- **Top bar** : project name, `LangSwitcher` (contenu project), `UndoRedoButtons`, `ExportButton` (zip deploy), `DeployButtons`, `TopBarKebabMenu ⋮` (Import / Export JSON / Patterns / ─── / Delete project).
 - **`/settings`** — sidebar de sections (V1 = Apparence, héberge `EditorLangSwitcher`) + main content.
-- **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `WorkspaceSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
+- **`/admin`** — console super-admin. `routes/admin.tsx` est un **layout route** (gate admin + `<Outlet/>`) avec pages enfants `admin.index.tsx` (IA, `AssistantConfigForm`) et `admin.design.tsx` (`DesignSystemPage`). Pas d'onglets : sur `/admin*` (et user admin), `__root.tsx` remplace la `ProjectSidebar` par **`AdminSidebar`** (`components/AdminSidebar.tsx`) — même shell (brand top, `UserMenu` bottom, drawer mobile conservé), nav de sections IA / Design system + lien « Retour à l'éditeur » (→ `/networks`). **Gate côté composant** via `authStore` (mirror de `account.tsx`) : retourne `null` tant que `isLoading`, puis « admins only » si `!currentUser.isAdmin` (le `isAdmin` vient du `/me`). Le backend reste de toute façon gardé `requireAdmin` sur `/api/v1/admin/*`. Le client API (`lib/api/adminConfig.ts`) est en **cookie** (`credentials:"include"`). L'entrée « Console admin » sur `/account` n'apparaît que pour les admins. Clé API **write-only** : le GET ne renvoie jamais la clé (`keySet: boolean`), le champ vide laisse la clé inchangée.
 
 ## Import `menu/v1 → domain` (inverse de l'export)
 
-`editor/src/schema/menuV1ToDomain.ts` est l'inverse pur de `features/export/transform.ts` : il prend un objet `menu/v1` canonique (wire, snake_case, ce que valide `validateMenuV1.ts`) et reconstruit un `Menu` domain. Signature `menuV1ToDomain(src, { packId, lang, translations? }) → { menu, i18nKeys, unsupported }`. **Pur** : aucune mutation de pack — les clés i18n allouées sont retournées dans `i18nKeys` (l'appelant les merge dans `pack.i18nKeys`).
+`editor/src/schema/menuV1ToDomain.ts` est l'inverse pur de `features/export/transform.ts` : il prend un objet `menu/v1` canonique (wire, snake_case, ce que valide `validateMenuV1.ts`) et reconstruit un `Menu` domain. Signature `menuV1ToDomain(src, { projectId, lang, translations? }) → { menu, i18nKeys, unsupported }`. **Pur** : aucune mutation de project — les clés i18n allouées sont retournées dans `i18nKeys` (l'appelant les merge dans `project.i18nKeys`).
 
 - **Pont i18n** : un champ texte `menu/v1` est une `string`. Littéral → nouvelle clé (`newI18nKey`), valeur rangée sous `lang`. `{i18n:KEY}` → réf `LText{key:KEY}` ; si `translations[KEY]` fourni, copié dans `i18nKeys`. Les title-layers portent déjà `value:{key}` → réf directe. `lore` (string[]) → un seul `LText` (lignes jointes par `\n`).
 - **Vocab sous-ensemble** : seules les actions/conditions représentables côté domain sont mappées explicitement (un-snake + drop des champs absents du domain, p.ex. `has_money.currency`). Tout autre type (`has_item`, `give_money`, `teleport`…) part dans `unsupported` plutôt que de crasher.
 - **Remaps** : `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` selon présence de `ref`).
-- **Round-trip** : l'oracle `menuV1ToDomain.roundtrip.test.ts` exporte un pack domain riche puis le ré-importe. Note : un `if` d'appearance OR-joiné ne round-trip **pas** structurellement (l'export enrobe une liste pure-OR en une condition composite `{type:"or", of:[…]}`) — l'oracle utilise donc des AND-joins.
+- **Round-trip** : l'oracle `menuV1ToDomain.roundtrip.test.ts` exporte un project domain riche puis le ré-importe. Note : un `if` d'appearance OR-joiné ne round-trip **pas** structurellement (l'export enrobe une liste pure-OR en une condition composite `{type:"or", of:[…]}`) — l'oracle utilise donc des AND-joins.
 
 ## Pipeline d'application IA (panel assistant — sous-plan 4a)
 
 La logique qui relie le moteur backend SSE à l'éditeur (avant l'UI 4b) tient en trois morceaux découplés :
 
-- **Seed** (`features/export/transform.ts`) : `packToMenuV1(pack)` → `serializeMenuToV1(menu, pack)[]` produit les objets canoniques `menu/v1` qui seedent une conversation (`openConversation`). Même fonction que l'export fichier (`transform()` l'appelle) → la forme wire envoyée à l'IA est identique à celle déployée.
+- **Seed** (`features/export/transform.ts`) : `packToMenuV1(project)` → `serializeMenuToV1(menu, project)[]` produit les objets canoniques `menu/v1` qui seedent une conversation (`openConversation`). Même fonction que l'export fichier (`transform()` l'appelle) → la forme wire envoyée à l'IA est identique à celle déployée.
 - **Client SSE** (`lib/api/assistant.ts`) : l'endpoint étant **POST** (avec corps + auth Bearer), `EventSource` est inutilisable. `streamAssistant(token, conversationId, body)` est un async generator qui `fetch`, lit `response.body` via un reader, bufferise et découpe les frames sur `\n\n`, parsant chaque `event:`/`data:` en `{ type, ...payload }`.
-- **Apply** (`state/accountStore.ts` → `applyAssistantMenu`) : à réception d'un event `menu_written`, l'UI appelle l'action qui convertit le `menu/v1` via `menuV1ToDomain`, merge les clés i18n retournées dans `pack.i18nKeys`, et insert/replace le menu par id. La suppression (`menu_deleted`) réutilise `deleteFromPack` existant — pas de nouvelle action.
+- **Apply** (`state/accountStore.ts` → `applyAssistantMenu`) : à réception d'un event `menu_written`, l'UI appelle l'action qui convertit le `menu/v1` via `menuV1ToDomain`, merge les clés i18n retournées dans `project.i18nKeys`, et insert/replace le menu par id. La suppression (`menu_deleted`) réutilise `deleteFromProject` existant — pas de nouvelle action.
 
 Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssistant` → `menuV1ToDomain` → `applyAssistantMenu`.
 
@@ -268,14 +268,14 @@ Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssista
 
 L'assistant a deux présentations, toutes deux pilotées par le flag transitoire `uiStore.assistantPanelOpen` (jamais persisté — absent du `partialize`) et partageant le même corps `AssistantChat` :
 
-- **Desktop (≥lg)** : `features/assistant/AssistantPane.tsx`, pane inline redimensionnable monté par la route workspace via `SplitPane`, docké **sous la topbar** au même niveau que le canvas et son pane properties (la topbar reste pleine largeur). Largeur persistée (`uiStore.assistantPaneWidth`).
+- **Desktop (≥lg)** : `features/assistant/AssistantPane.tsx`, pane inline redimensionnable monté par la route project via `SplitPane`, docké **sous la topbar** au même niveau que le canvas et son pane properties (la topbar reste pleine largeur). Largeur persistée (`uiStore.assistantPaneWidth`).
 - **Mobile (<lg)** : `features/assistant/AssistantPanel.tsx`, un **overlay** : `Sheet` (radix dialog, `side="right"`, couvre le petit viewport). `open` est gaté sur `!isDesktop` pour ne jamais montrer les deux présentations à la fois.
 
-- **Ouverture** : bouton `Sparkles` (`lucide-react`) dans `WorkspaceTopBarControls` (`AssistantButton`) → `setAssistantPanelOpen(true)`. Le panel est monté inconditionnellement dans la route workspace (à côté de `DeletePackDialog`) avec le pack actif (`pId`) ; le `Sheet` gère sa propre visibilité.
+- **Ouverture** : bouton `Sparkles` (`lucide-react`) dans `ProjectTopBarControls` (`AssistantButton`) → `setAssistantPanelOpen(true)`. Le panel est monté inconditionnellement dans la route project (à côté de `DeleteProjectDialog`) avec le project actif (`pId`) ; le `Sheet` gère sa propre visibilité.
 - **Composer** : `<textarea>` (Enter = envoyer, Shift+Enter = nouvelle ligne) + bouton Envoyer (désactivé tant que vide / pendant le stream). Drag-drop de fichiers sur le panel → `file.text()` est stocké dans l'état `attachments` (`{ [filename]: contenu }`), un compteur s'affiche. Les `attachments` sont ré-envoyés à chaque message.
-- **Boucle SSE** : `send()` résout le pack via `useAccountStore.getState()`, calcule `menus = packToMenuV1(pack)` + `lang = pack.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromPack` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
+- **Boucle SSE** : `send()` résout le project via `useAccountStore.getState()`, calcule `menus = packToMenuV1(project)` + `lang = project.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromProject` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
 
-Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le pack entre deux messages.
+Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le project entre deux messages.
 
 ## Design system (tokens + composants)
 
