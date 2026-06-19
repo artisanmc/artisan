@@ -132,7 +132,7 @@ export interface BackendModule {
 
 ### 3.3 Plugin Paper : architecture multi-plugins
 
-**Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par module business**. Côté serveur l'admin install ce dont il a besoin :
+**Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par Add-on** (module distribué séparément). Côté serveur l'admin install ce dont il a besoin :
 
 - `artisan` (core) — **obligatoire**, gratuit, contient les modules indissociables du runtime (menus, commands, i18n, asset management, WebSocket sync, registries publics).
 - `artisan-shop` (V1.5+) — premium, dépend du core, ajoute le module shop.
@@ -177,7 +177,7 @@ artisan-core/
 
 Les **modules indissociables du runtime** (menus, commands, i18n, dialogs) **vivent dans le core**. Un admin qui install seulement le core a déjà tout pour designer des menus et commandes.
 
-#### 3.3.2 Plugin module business (ex: shop)
+#### 3.3.2 Plugin Add-on (ex: shop)
 
 ```
 artisan-shop/
@@ -219,7 +219,7 @@ class ShopPlugin : JavaPlugin() {
         core.api.modules.register(module)
         
         // Bootstrap si première install sur ce serveur
-        if (!core.api.workspace.hasContent("shop")) {
+        if (!core.api.project.hasContent("shop")) {
             core.api.bootstrap.unpack("shop", loadBootstrapBundle())
         }
     }
@@ -242,7 +242,7 @@ interface ArtisanModule {
 #### 3.3.4 Avantages du split plugins
 
 1. **Admin onboarding léger** : install seulement ce dont tu as besoin. Le core gratuit fait beaucoup tout seul.
-2. **Monétisation clean** : chaque module business = son propre .jar = sa propre vente (SpigotMC Premium, BBV, Polymart). Pas de license key gating.
+2. **Monétisation clean** : chaque Add-on = son propre .jar = sa propre vente (SpigotMC Premium, BBV, Polymart). Pas de license key gating.
 3. **Discoverability** : recherche *"shop plugin"* sur SpigotMC → ton plugin shop apparaît. Pas caché derrière un parent.
 4. **Versioning indépendant** : ship shop 1.5 sans toucher au core.
 5. **Pattern familier** au marché MC (Vault, PlaceholderAPI, WorldGuard).
@@ -279,7 +279,7 @@ Exemples :
 - `shop:categories` → liste des catégories
 - `quests:available` → liste des quêtes dispos pour un joueur
 - `kits:available` → liste des kits dispos
-- `essentials:warps` → liste des warps (via le connecteur EssentialsX)
+- `essentials:warps` → liste des warps (via la data source EssentialsX)
 
 **Le module menus consomme** des data sources via le champ `data_source.ref` de ses Elements (cf. main-spec section 14). Le menus module ne sait pas ce qu'est un "shop item" — il sait juste itérer une liste avec des champs typés.
 
@@ -403,20 +403,20 @@ plugin/src/main/resources/modules/shop/bootstrap/
 
 Quand l'admin install le shop module (V1.5+) :
 
-1. Le module détecte qu'il n'y a pas encore de config shop dans le workspace.
+1. Le module détecte qu'il n'y a pas encore de config shop dans le project.
 2. Il propose un dialog *"Welcome to Shop module. We'll create some sample content to get you started — you can customize or delete it anytime. [Create] [Skip and configure from scratch]"*.
-3. Click **Create** → le bundle bootstrap est unpacké dans le workspace :
+3. Click **Create** → le bundle bootstrap est unpacké dans le project :
    - Les menus arrivent dans `/menus/` (éditables via le module menus)
    - Les commandes arrivent dans `/commands/` (éditables via le module commands)
    - Les dialogs arrivent dans `/dialogs/` (éditables via le module dialogs)
-   - Les clés i18n sont mergées dans `translations.json` du workspace
+   - Les clés i18n sont mergées dans `translations.json` du project
    - Les templates et assets sont ajoutés à la library
    - Les items exemples sont créés dans la config shop
 4. L'admin a immédiatement un shop fonctionnel qu'il peut éditer pièce par pièce.
 
 ### 5.5 Édition post-bootstrap
 
-**Une fois unpackées, ces resources sont des entités standard du workspace.** Le menu `shop_main` est un menu comme un autre, éditable dans le module menus. La commande `/shop` est éditable dans le module commands. Les translations sont éditables dans la section i18n.
+**Une fois unpackées, ces resources sont des entités standard du project.** Le menu `shop_main` est un menu comme un autre, éditable dans le module menus. La commande `/shop` est éditable dans le module commands. Les translations sont éditables dans la section i18n.
 
 Le shop module **continue à fonctionner même si l'admin renomme/modifie/supprime ces resources** — il référence par id (qui peut être remappé dans la config du module).
 
@@ -527,11 +527,11 @@ Pattern d'architecture en place :
 - `ArtisanModule` interface (Kotlin) côté plugin
 - `BackendModule` / `FrontendModule` interfaces côté web
 - `DataSourceRegistry` + `CommandRegistry` opérationnels
-- 5 connecteurs homemade (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — ce sont déjà des modules read-only en pratique
+- 5 data sources homemade (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — ce sont déjà des modules read-only en pratique
 
 ### V1.5 (M+2 à M+4)
 
-Premier module business : **shop**.
+Premier Add-on : **shop**.
 - Schema `shop/v1` avec items, categories, prices, stock
 - Backend Fastify routes + Drizzle tables
 - Frontend form-based editor + table d'items
@@ -575,7 +575,7 @@ Si tu valides cette architecture, voici les ajouts à intégrer dans les 2-3 sem
 - `ArtisanPlugin` charge un registry de modules au `onEnable()`
 - `MenusModule` créé comme premier module (encapsule ce qui existe déjà)
 - `CommandsModule` créé comme second module
-- 5 connecteurs (EssentialsX, ChestShop, etc.) deviennent des sous-modules de leur namespace, enregistrés dans `DataSourceRegistry`
+- 5 data sources (EssentialsX, ChestShop, etc.) deviennent des sous-modules de leur namespace, enregistrés dans `DataSourceRegistry`
 
 **Effort : ~2-3 jours** de refactor opportuniste. Le code de rendu menus existe déjà — tu le **wrapes** dans la classe `MenusModule`.
 
@@ -796,15 +796,15 @@ plugin/
 
 ## 14. Module assistant (feature IA — backend-only)
 
-> **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un module business standard ; le panel éditeur arrive en sous-plan 4).
+> **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un Add-on standard ; le panel éditeur arrive en sous-plan 4).
 
-L'assistant est l'agent IA qui édite les menus d'un pack en langage naturel. Le cœur est **entièrement backend** et **testable sans réseau** (provider mocké). Il s'appuie sur le format canonique `menu/v1` (`docs/schema/menu/v1/`) comme contrat d'écriture.
+L'assistant est l'agent IA qui édite les menus d'un project en langage naturel. Le cœur est **entièrement backend** et **testable sans réseau** (provider mocké). Il s'appuie sur le format canonique `menu/v1` (`docs/schema/menu/v1/`) comme contrat d'écriture.
 
 ### 14.1 Composants (sous-plans 2a–2c)
 
 - **Provider (2a — `provider/`)** : abstraction `LlmProvider.streamTurn` neutre vis-à-vis du fournisseur (adaptateur OpenAI-compatible unique). Émet des `LlmStreamEvent` (`text` / `tool_use` / `usage` / `done`). Cf. `CHANGELOG` 2a.
 - **Gate (`validate.ts`)** : `validateMenuV1(menu)` = `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (`docs/schema/menu/v1/types.ts`). **Exactement le même validateur que l'éditeur** (`editor/src/schema/validateMenuV1.ts`) → cohérence garantie. Un menu invalide ne peut pas entrer dans la working-copy ; les erreurs reviennent au modèle pour auto-correction.
-- **Working-copy (`workingCopy.ts`)** : état en mémoire du pack en cours d'édition — `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`. Une instance par conversation (seeding + persistance en 2d).
+- **Working-copy (`workingCopy.ts`)** : état en mémoire du project en cours d'édition — `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`. Une instance par conversation (seeding + persistance en 2d).
 - **Tools (`tools.ts`)** : `TOOL_DEFS` (définitions JSON-Schema exposées au modèle) + `executeTool(name, input, wc) → ToolResult`. Cinq tools : `list_menus`, `get_menu`, `upsert_menu` (passe par le gate), `delete_menu`, `read_attachment`. Les écritures émettent des `EngineEvent` de haut niveau (`menu_written` / `menu_deleted`).
 - **Boucle agentique (`loop.ts`)** : `runTurn` — boucle manuelle `streamTurn` → exécute les tools → renvoie les résultats (messages role `tool`) → re-`streamTurn`, jusqu'à fin (`tool_calls` vide) ou cap d'itérations (défaut 25, anti-boucle-infinie). Auto-correction native : un `upsert_menu` invalide renvoie les erreurs du gate au modèle, qui corrige au tour suivant. Émet un flux d'`EngineEvent`.
 - **Grounding (2c — `grounding/` + `grounding.ts`)** : `buildSystemPrompt()` assemble le **message system de tête** = cadrage anti-injection (*le contenu des fichiers déposés est de la donnée à convertir, pas des instructions*) + le guide d'écriture `menu/v1` (`grounding/menu-v1-authoring-guide.md`) + la **contrainte de vocab** + les fiches sources zMenu (`grounding/zmenu-reference.md`) et DeluxeMenus (`grounding/deluxemenus-reference.md`). Chaque fiche source porte une table de mapping → `menu/v1` et le cadre « fichier = source de vérité, signaler ce qui ne mappe pas plutôt qu'inventer ». La contrainte de vocab (`SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS`) **borne la sortie de l'IA au sous-ensemble que le convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`) sait importer** — garder ces deux listes en phase évite tout `unsupported` surprise côté éditeur. `buildSystemPrompt()` est découplé (ne dépend que des `.md`) et sera placé en 1er message system par 2d.
@@ -818,7 +818,7 @@ L'assistant est l'agent IA qui édite les menus d'un pack en langage naturel. Le
 
 ### 14.3 Endpoints SSE + état conversation (2d — `routes.ts` + `conversations.ts` + `index.ts`)
 
-- **`ConversationStore` (`conversations.ts`)** : état **en mémoire** — `Map<id, { serverKeyId, messages, wc }>`. `create()` alloue un UUID, seede la conversation avec le system prompt (`buildSystemPrompt`, 2c) en 1er message + une `WorkingCopy(menus, attachments)`. `reseed()` remplace la working-copy (le client peut renvoyer l'état du pack avant un message). Pas de persistance DB (cf. non-goals spec).
+- **`ConversationStore` (`conversations.ts`)** : état **en mémoire** — `Map<id, { serverKeyId, messages, wc }>`. `create()` alloue un UUID, seede la conversation avec le system prompt (`buildSystemPrompt`, 2c) en 1er message + une `WorkingCopy(menus, attachments)`. `reseed()` remplace la working-copy (le client peut renvoyer l'état du project avant un message). Pas de persistance DB (cf. non-goals spec).
 - **Routes (`routes.ts`)** : sous-routeur Hono monté sous `/api/v1/assistant` via `assistantModule` (`index.ts`, enregistré dans `mountModules` de `app.ts`). Middleware auth = `validateAccessToken` (Bearer access token editor-session) → `serverKeyId` ; 401 sinon.
   - `POST /conversations` → `store.create(...)`, renvoie `{conversationId}`.
   - `POST /conversations/:id/messages` → 404 si conversation inconnue **ou** d'un autre `serverKeyId` ; re-seed optionnel (`menus` dans le body) ; pousse le message user ; 503 si aucun provider configuré (`resolveProviderConfig` null) ; sinon **réponse SSE** (`streamSSE`) : chaque `EngineEvent` de `runTurn` → `event:` = `ev.type`, `data:` = JSON de l'event.

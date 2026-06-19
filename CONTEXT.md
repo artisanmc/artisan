@@ -10,7 +10,7 @@ definition followed by examples and explicit non-examples where helpful.
 ## Bundle
 
 The **deployment artifact** of a **Project**: its content compiled to the on-disk
-file tree the plugin downloads and hot-reloads (`packs/<id>/` — manifest, menus,
+file tree the plugin downloads and hot-reloads (`projects/<id>/` — manifest, menus,
 dialogs, lang, assets), identified by a **hash** and republished on every edit.
 The backend announces a new Bundle (`bundle_available`), the plugin fetches it
 (`BundleDownloader`), writes it to disk, and atomically reloads. It is the *live*
@@ -81,9 +81,10 @@ Non-examples:
 One of the three editable units a **Project** contains — a **Menu**, a
 **Command**, or a **Dialog** — each one file on disk (`menus/<id>.yaml`,
 `commands/<id>.yaml`, `dialogs/<id>.yaml`), edited as a standalone document with a
-stable id. **Document** is the canonical umbrella; code still counts them as a
-Project's `elementCount` and views one via `ElementView` / `.../element/$id`
-(legacy "element" naming at this level — Document is the term going forward).
+stable id. **Document** is the canonical umbrella, and code now matches: a Project's
+`documentCount`, the `DocumentView` component, and the `.../document.$documentId`
+route. (The CustomEvent `artisan:open_element` / `OPEN_ELEMENT_EVENT` retains the
+legacy "element" name internally — Document is the term going forward.)
 
 Non-examples:
 - An **Element** (a button at a slot *inside* a Menu) is not a Document; it lives
@@ -106,13 +107,13 @@ Non-examples:
 
 ## Key site
 
-A single place in a pack tree that holds an **LText** — e.g. a menu title
+A single place in a project tree that holds an **LText** — e.g. a menu title
 layer, an element appearance's title/lore, a `send_message` action's text, a
 dialog input label. Each key site has a **canonical key** derived purely from
 its position (`menus.<id>.elements.<id>.<state>.title`, `…click.left.message_1`,
 `dialogs.<id>.title`). One traversal (`visitLTexts` / per-node `visitMenuLTexts`,
 `visitStepLTexts`, `visitDialogLTexts`, …) enumerates every key site; reads
-(usage labels, validation), key assignment (`rekeyPack`), minting, and release
+(usage labels, validation), key assignment (`rekeyProject`), minting, and release
 are all folds over it.
 
 Examples:
@@ -127,7 +128,7 @@ Non-examples:
 
 ## LText
 
-A reference to a localizable string: a stable **key** into the pack's
+A reference to a localizable string: a stable **key** into the project's
 `i18nKeys` map, which holds the per-language values. Domain objects carry the
 LText (the key), never the resolved string — resolution happens at render/export
 against the active language with a fallback chain. A fresh LText is minted with
@@ -227,12 +228,15 @@ split into Projects so each can be exported, shared, and imported independently.
 Importing produces a *new* Project on the target server — Projects are copied,
 never live-linked across servers (so "belongs to one Server" always holds).
 
-This is the **canonical** domain term. Code/DB/API call it a **`pack`** (`packs`
-table, `packId`, `createPack`, `/packs`); the UI historically labels it
-**"Workspace"**. Same entity, both. "Pack" is rejected as the domain word because
-it collides with Artisan's own generated **resource pack** (and the Minecraft
-"texture pack" reflex); "Workspace" is rejected because it connotes the editing
-*environment*, not the *content* itself.
+This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
+(`projects` table, `projectId`, `createProject`, `/projects` routes, `project_id` /
+`project_hashes` WS fields, the `plugins/Artisan/projects/` disk dir, and the
+editor UI). It was historically called **`pack`** in code/DB/API and labelled
+**"Workspace"** in the UI; the 2026-06-18 full-stack rename brought every layer onto
+`project`. "Pack" was rejected as the domain word because it collides with Artisan's
+own generated **resource pack** (and the Minecraft "texture pack" reflex);
+"Workspace" was rejected because it connotes the editing *environment*, not the
+*content* itself.
 
 Non-examples:
 - The generated **resource pack** (textures/fonts served to players) is **not** a

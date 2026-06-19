@@ -189,11 +189,11 @@
         },
         "default": {
           "type": "string",
-          "description": "Valeur fallback si l'appelant ne passe rien et qu'aucun connecteur n'est attaché. Supporte les placeholders."
+          "description": "Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders."
         },
         "source": {
           "$ref": "#/$defs/ConnectorBinding",
-          "description": "Si présent, la valeur de la slot est fetchée par un connecteur au lieu d'être passée par l'appelant. Valide uniquement sur type=\"list\" ou type=\"object\"."
+          "description": "Si présent, la valeur de la slot est fetchée par une data source au lieu d'être passée par l'appelant. Valide uniquement sur type=\"list\" ou type=\"object\"."
         }
       }
     },
@@ -201,17 +201,17 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["ref"],
-      "description": "Référence vers un connecteur (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle le connecteur au render et obtient une liste/objet typé qui peuple la slot.",
+      "description": "Référence (côté consommateur) vers une data source (homemade Artisan ou registered par un plugin tiers en V2). Attaché à un ContextInput via `source`. Le plugin appelle la data source au render et obtient une liste/objet typé qui peuple la slot.",
       "properties": {
         "ref": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$",
-          "description": "Identifiant du connecteur sous forme \"namespace:source\". Ex: \"chestshop:items\", \"essentials:warps\", \"jobs:list\"."
+          "description": "Identifiant de la data source sous forme \"namespace:source\". Ex: \"chestshop:items\", \"essentials:warps\", \"jobs:list\"."
         },
         "params": {
           "type": "object",
           "additionalProperties": { "type": "string" },
-          "description": "Paramètres passés au connecteur (varient par connecteur). Supportent {name} pour interpoler les autres contextInputs du menu, ainsi que placeholders PAPI et {i18n:key}."
+          "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu, ainsi que placeholders PAPI et {i18n:key}."
         },
         "filter": {
           "type": "object",
