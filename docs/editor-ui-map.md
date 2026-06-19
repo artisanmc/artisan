@@ -12,7 +12,7 @@ Description exhaustive de chaque écran de l'éditeur web — sidebars, panels, 
 
 | Région | Position | Largeur | Visibilité |
 |---|---|---|---|
-| `WorkspaceSidebar` | Gauche, sticky | 192 px (`w-48`) | Uniquement si authentifié |
+| `ProjectSidebar` | Gauche, sticky | 192 px (`w-48`) | Uniquement si authentifié |
 | `<Outlet />` (route active) | Droite, `flex-1` | reste | Toujours |
 
 Bordure droite zinc-800, fond zinc-950 sur la sidebar.
@@ -70,9 +70,9 @@ Colonne `max-w-3xl mx-auto p-8`, gap-8.
 
 Trois sections (heading uppercase tracking-wider chacune) :
 
-1. **Packs**
-   - Vide → "Aucun pack"
-   - Rempli → liste verticale de cards (`p-3 border rounded`) qui ouvrent `/workspace/$workspaceId`
+1. **Projects**
+   - Vide → "Aucun project"
+   - Rempli → liste verticale de cards (`p-3 border rounded`) qui ouvrent `networks.$networkId.servers.$serverId.projects.$projectId`
 2. **Server Keys**
    - Vide → "Aucune server_key"
    - Rempli → liste de cards `flex justify-between` avec `id` en font-mono à gauche et bouton "Supprimer" rouge à droite
@@ -97,7 +97,7 @@ Split horizontal `flex h-full` :
 | Pane | Largeur | Contenu |
 |---|---|---|
 | **Nav gauche** | 224 px (`w-56`) | Bordure droite, padding 3. Section unique active "Appearance" (bouton `bg-zinc-800 px-3 py-2 text-left text-sm`) |
-| **Contenu droit** | `flex-1 overflow-auto p-6` | `AppearanceSection` (héberge entre autres l'`EditorLangSwitcher` — langue de l'UI elle-même, pas du pack) |
+| **Contenu droit** | `flex-1 overflow-auto p-6` | `AppearanceSection` (héberge entre autres l'`EditorLangSwitcher` — langue de l'UI elle-même, pas du project) |
 
 ---
 
@@ -110,7 +110,7 @@ Header : indicateur d'étape (`text-xs text-muted-foreground` aligné à droite)
 **4 étapes en séquence** :
 
 1. **Step 1 — Network** : liste des networks existants (boutons p-3 border rounded ; sélectionné = `border-primary bg-muted`) + champ "Nouveau network" avec bouton "Créer" en dessous
-2. **Step 2 — Pack** : même structure que step 1 mais pour les packs
+2. **Step 2 — Project** : même structure que step 1 mais pour les projects
 3. **Step 3 — Server Key** : bouton "Générer une clé serveur" → la clé apparaît dans un code-block `bg-muted px-3 py-2 font-mono break-all` avec la mention "copie-la maintenant — affichée une seule fois"
 4. **Step 4 — Installation** : trois blocs `<pre>` avec instructions de config, la server_key, et la commande de reload
 
@@ -137,9 +137,9 @@ Header : indicateur d'étape (`text-xs text-muted-foreground` aligné à droite)
 `min-h-screen flex items-center justify-center`. États :
 - **Loading** → "Chargement…"
 - **Invalid/Expired** → message rouge + instructions
-- **Empty (aucun pack sur la session)** → centre vertical, input pour nom de pack + bouton "Créer" (border emerald)
+- **Empty (aucun project sur la session)** → centre vertical, input pour nom de project + bouton "Créer" (border emerald)
 - **Trust gate** → `TrustGatePage` (voir ci-dessous)
-- **Session active** → redirige vers `/workspace/$workspaceId`
+- **Session active** → redirige vers `networks.$networkId.servers.$serverId.projects.$projectId`
 
 #### `TrustGatePage`
 
@@ -158,16 +158,16 @@ Conteneur centré `max-w-md flex flex-col items-center gap-5 text-center` :
 **Ready-to-accept** :
 - Titre "Transférer la propriété" (`text-2xl`)
 - Phrase "Tu vas devenir owner de `{networkName}`"
-- Métadonnées `{packCount} packs · {serverKeyCount} server_keys` (text-sm zinc-400)
+- Métadonnées `{projectCount} projects · {serverKeyCount} server_keys` (text-sm zinc-400)
 - Bouton "Accepter" (`bg-blue-600`)
 
 **Accepted** : message + redirection auto vers `/networks/$networkId`.
 
 ---
 
-## 7. Workspace — l'écran principal d'édition
+## 7. Project — l'écran principal d'édition
 
-Route : `/workspace/$workspaceId`. Layout vertical (top bar → tabs → contenu).
+Route : `networks.$networkId.servers.$serverId.projects.$projectId`. Layout vertical (top bar → tabs → contenu).
 
 ### 7.1 Top bar (hauteur fixe 48 px / `h-12`)
 
@@ -177,14 +177,14 @@ De gauche à droite :
 
 | Élément | Détails |
 |---|---|
-| **Nom du pack** | `flex-1 truncate font-mono text-sm text-zinc-200` |
-| **`LangSwitcher`** | Bouton h-9 text-xs font-mono avec le code langue + caret ▾ — change la langue du **contenu du pack** (pas l'UI) |
+| **Nom du project** | `flex-1 truncate font-mono text-sm text-zinc-200` |
+| **`LangSwitcher`** | Bouton h-9 text-xs font-mono avec le code langue + caret ▾ — change la langue du **contenu du project** (pas l'UI) |
 | **Undo / Redo** | Deux `TopBarIconButton` (`h-9 w-9`), icônes `Undo2` / `Redo2` (lucide-react), désactivés si rien à défaire |
 | **Revert** | Bouton h-8 text-xs zinc-400, label "Annuler" |
 | **Deploy** | Bouton h-8 emerald-700, label "Déployer" / "Déploiement…" |
 | **`TopBarKebabMenu` ⋮** | Icône MoreVertical h-8 w-8 — ouvre un menu avec : Export ZIP / Import / Export / Patterns / ─── / Delete (rouge) |
 
-### 7.2 Tab strip (sous le top bar, si pack chargé)
+### 7.2 Tab strip (sous le top bar, si project chargé)
 
 `role=tablist border-b border-zinc-800 px-2`. 3 onglets :
 
@@ -214,11 +214,11 @@ Section `border-b border-zinc-800 p-3 flex flex-col gap-2` au-dessus du contenu 
 - **Stage** (haut, min 200 px)
 - **EditorPane** (bas, ~120 px, min 120)
 
-### 7.5 Floating overlays (sur le workspace)
+### 7.5 Floating overlays (sur le project)
 
 - **`PatternsGallery`** : side sheet (Radix Sheet) déclenché depuis le kebab
 - **Dialog d'erreurs d'export** : modal avec liste de validation errors
-- **`DeletePackDialog`** : confirmation rouge (voir §11)
+- **`DeleteProjectDialog`** : confirmation rouge (voir §11)
 - **`LibraryDragOverlay`** : ghost flottant qui suit le curseur pendant un drag depuis la Library
 - **Draft notice banner** : `fixed top-4 right-4 z-50`, fond amber, auto-dismiss 5 s
 
@@ -267,7 +267,7 @@ Conteneur observe sa taille via `ResizeObserver`. À l'intérieur : un `<Stage>`
 
 | Sélection | Composant rendu |
 |---|---|
-| Pack | `PackProperties` |
+| Project | `ProjectProperties` |
 | Menu | `MenuProperties` |
 | Element | `ElementEditor` (layout custom — voir ci-dessous) |
 | Command | `CommandEditor` |
@@ -396,8 +396,8 @@ Layout vertical :
 
 | Dialog | Trigger | Contenu |
 |---|---|---|
-| **`NewWorkspaceDialog`** | Bouton "+ Nouveau workspace" dans `WorkspaceSidebar` | Input nom + erreur conditionnelle + footer Cancel/Create |
-| **`DeletePackDialog`** | Kebab menu "Delete" | Confirmation "Êtes-vous sûr ?" + warning irréversible + bouton "Supprimer" rouge |
+| **`NewProjectDialog`** | Bouton "+ Nouveau project" dans `ProjectSidebar` | Input nom + erreur conditionnelle + footer Cancel/Create |
+| **`DeleteProjectDialog`** | Kebab menu "Delete" | Confirmation "Êtes-vous sûr ?" + warning irréversible + bouton "Supprimer" rouge |
 | **`AssetUploadDialog`** | Bouton "Upload" dans AssetsTab | Drag-drop zone + champs ascent/height/name + preview |
 | **`AssetImportFontDialog`** | Bouton "Importer une font" | Drag-drop zip MCFont + parse preview |
 | **`CommitDialog`** | Bouton "Commit" dans la branch toolbar | Input message + footer Commit/Cancel |
@@ -408,7 +408,7 @@ Toutes basées sur `Radix Dialog` via le primitive shadcn `Dialog` (`DialogConte
 
 ---
 
-## 13. `WorkspaceSidebar` (détaillé)
+## 13. `ProjectSidebar` (détaillé)
 
 `<nav>` `flex h-full flex-col gap-3 p-2`. Bordure droite zinc-800, fond zinc-950.
 
@@ -424,7 +424,7 @@ De haut en bas :
      - Divider
      - Lien "Gérer les networks →" (`text-xs text-zinc-400`)
 
-2. **Section "Mes Workspaces"** (`flex-1 overflow-auto`)
+2. **Section "Mes Projects"** (`flex-1 overflow-auto`)
    - Heading `px-2 py-1 text-[10px] uppercase`
    - DnD-kit context + Sortable
    - Chaque item :
@@ -432,9 +432,9 @@ De haut en bas :
      - Actif : `bg-zinc-800`
      - Drag handle `absolute right-1` (opacity 0 desktop, visible au hover ou mobile)
 
-3. **Bouton "+ Nouveau workspace"** (conditionnel si `activeNetworkId`)
+3. **Bouton "+ Nouveau project"** (conditionnel si `activeNetworkId`)
    - `mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200`
-   - Ouvre `NewWorkspaceDialog`
+   - Ouvre `NewProjectDialog`
 
 4. **Section "Modules installés"** (`mt-3`)
    - Heading uppercase
@@ -447,7 +447,7 @@ De haut en bas :
 
 ## 14. Top bar — détail des boutons
 
-### `LangSwitcher` (langue du pack)
+### `LangSwitcher` (langue du project)
 
 - **Trigger** : bouton `h-9 text-xs font-mono` affichant le code langue + caret ▾
 - **Menu** (`align=end border-zinc-700 bg-zinc-900`)
@@ -479,8 +479,8 @@ De haut en bas :
 
 | État | Visuel |
 |---|---|
-| Pas authentifié | `WorkspaceSidebar` masquée, routes protégées redirigent vers `/login` |
-| Pas de pack chargé | Le tab strip Overview/Translations/Data-Sources ne s'affiche pas ; le contenu montre un empty state ou le wizard |
+| Pas authentifié | `ProjectSidebar` masquée, routes protégées redirigent vers `/login` |
+| Pas de project chargé | Le tab strip Overview/Translations/Data-Sources ne s'affiche pas ; le contenu montre un empty state ou le wizard |
 | Conflit de sync | Bannière `fixed top-4 right-4 z-50 amber` qui s'auto-dismiss 5 s |
 | Drag depuis Library | `LibraryDragOverlay` (ghost 48×48 px, `border-2 border-emerald-500/70`, `shadow-2xl`) qui suit le curseur |
 | Erreur réseau | `Toaster` (sonner) en bas à droite |
@@ -498,13 +498,13 @@ Tous dans `editor/src/components/ui/`.
 
 ## 17. Inventaire des composants custom (par feature)
 
-**Layout** : `WorkspaceSidebar`, `WorkspaceTabs`, `NetworkDropdown`, `NewWorkspaceDialog`, `TopBarKebabMenu`, `SplitPane`, `Toaster`, `EditorLangSwitcher`.
+**Layout** : `ProjectSidebar`, `ProjectTabs`, `NetworkDropdown`, `NewProjectDialog`, `TopBarKebabMenu`, `SplitPane`, `Toaster`, `EditorLangSwitcher`.
 
 **Canvas (`features/canvas/`)** : `Stage`, `MenuGroup`, `CommandGroup`, `DialogGroup`, `Edges`, `Selection`, `ContextMenu`, `EdgeTooltip`, `ItemTooltip`, `TextEditor`, `ArmedBanner`, `EmptyState`, `ConditionListEditor`.
 
 **Title composer (`features/canvas/title/composer/`)** : `LayersPanel`, `LayerListItem`, `LayerEditForm`, `AddLayerControls`, `ResizeHandles`, `WidthResizeHandle`, `TextSizeSelector`, `TitleRender`, `PlainTitleForm`.
 
-**EditorPane** : `FlowCanvas`, `PackProperties`, `MenuProperties`, `ElementEditor`, `CommandEditor`, `DialogEditor`, `Library`, `ItemTile`, `MaterialPicker`, `LibraryDragOverlay`, `LibraryDragGhost`.
+**EditorPane** : `FlowCanvas`, `ProjectProperties`, `MenuProperties`, `ElementEditor`, `CommandEditor`, `DialogEditor`, `Library`, `ItemTile`, `MaterialPicker`, `LibraryDragOverlay`, `LibraryDragGhost`.
 
 **Assets (`features/assets/`)** : `AssetsTab`, `AssetGrid`, `AssetDetailPanel`, `AssetUploadDialog`, `AssetImportFontDialog`.
 
@@ -514,7 +514,7 @@ Tous dans `editor/src/components/ui/`.
 
 **Auth (`features/auth/`)** : `LoginForm`, `SignupForm`, `LogoutButton`, `DiscordLoginButton`.
 
-**Setup (`features/setup/`)** : `SetupWizard`, `Step1Network`, `Step2Pack`, `Step3ServerKey`, `Step4Install`.
+**Setup (`features/setup/`)** : `SetupWizard`, `Step1Network`, `Step2Server`, `Step3Project`, `Step4Install`.
 
 **Trust (`features/trust/`)** : `TrustGatePage`, `TrustBanner`.
 
@@ -524,4 +524,4 @@ Tous dans `editor/src/components/ui/`.
 
 **Top bar** : `TopBarIconButton`, `UndoRedoButtons`, `LangSwitcher`.
 
-**Misc** : `DeletePackDialog`, `SchemaForm` (générateur de formulaires depuis JSON Schema, utilisé par les futurs modules).
+**Misc** : `DeleteProjectDialog`, `SchemaForm` (générateur de formulaires depuis JSON Schema, utilisé par les futurs modules).
