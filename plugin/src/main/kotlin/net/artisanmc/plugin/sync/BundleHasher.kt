@@ -32,12 +32,12 @@ object BundleHasher {
     fun hash(projectDir: File): String = hashFiles(ProjectFilesReader.readRelative(projectDir))
 
     /**
-     * Hash a canonical-path-keyed map (`plugins/Artisan/packs/<projectId>/<rel>`),
+     * Hash a canonical-path-keyed map (`plugins/Artisan/projects/<projectId>/<rel>`),
      * mirroring the backend: strip the prefix to relPath, then hash. Keys outside
      * the prefix are ignored (same filter as the backend).
      */
     fun hashCanonical(files: Map<String, String>, projectId: String): String {
-        val prefix = "plugins/Artisan/packs/$projectId/" // TODO(phase4-wire): path literal "packs"
+        val prefix = "plugins/Artisan/projects/$projectId/"
         val rel = files.entries
             .filter { it.key.startsWith(prefix) }
             .associate { it.key.removePrefix(prefix) to it.value }

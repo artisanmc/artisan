@@ -35,16 +35,13 @@ const BRANCH_NAME_RE = /^[a-zA-Z0-9_\-./]+$/;
 
 export const userBranchesRouter = new Hono<{ Variables: Vars }>();
 
-// TODO(phase4-wire): every `/packs` path segment + `:packId` route param below
-// stays on the old name until the Phase 4 wire flip.
-
-// GET /:id/packs/:packId/branches — list branches for a project, augmented with
+// GET /:id/projects/:projectId/branches — list branches for a project, augmented with
 // each branch's head commit contentHash so the editor can detect a divergence
 // between the WIP buffer (projects.hash) and the branch HEAD (uncommitted edits).
-userBranchesRouter.get("/:id/packs/:packId/branches", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+userBranchesRouter.get("/:id/projects/:projectId/branches", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const list = await listBranchesForProject(c.req.param("packId"));
+  const list = await listBranchesForProject(c.req.param("projectId"));
   const headIds = Array.from(new Set(list.map((b) => b.headCommitId)));
   const heads = headIds.length > 0
     ? await db
@@ -71,12 +68,12 @@ userBranchesRouter.get("/:id/packs/:packId/branches", async (c) => {
   return c.json({ branches: enriched });
 });
 
-// GET /:id/packs/:packId/branches/:branch/head — content of the head commit
+// GET /:id/projects/:projectId/branches/:branch/head — content of the head commit
 // of a branch. Used by the editor's "Revert / Discard" action in user-auth
 // mode to restore the last committed (deployed) state, replacing the WIP.
-userBranchesRouter.get("/:id/packs/:packId/branches/:branch/head", async (c) => {
+userBranchesRouter.get("/:id/projects/:projectId/branches/:branch/head", async (c) => {
   const networkId = c.req.param("id");
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
   const branchName = c.req.param("branch");
   const access = await checkAccess(c, networkId, projectId);
   if (!access.ok) return c.json({ error: "denied" }, access.status);
@@ -105,11 +102,11 @@ userBranchesRouter.get("/:id/packs/:packId/branches/:branch/head", async (c) => 
   });
 });
 
-// GET /:id/packs/:packId/commits/:commitId/content — used by the History
+// GET /:id/projects/:projectId/commits/:commitId/content — used by the History
 // tab Restore action to fetch any past commit's editor + files JSON.
-userBranchesRouter.get("/:id/packs/:packId/commits/:commitId/content", async (c) => {
+userBranchesRouter.get("/:id/projects/:projectId/commits/:commitId/content", async (c) => {
   const networkId = c.req.param("id");
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
   const commitId = c.req.param("commitId");
   const access = await checkAccess(c, networkId, projectId);
   if (!access.ok) return c.json({ error: "denied" }, access.status);
@@ -128,22 +125,22 @@ userBranchesRouter.get("/:id/packs/:packId/commits/:commitId/content", async (c)
   });
 });
 
-// GET /:id/packs/:packId/commits — list commits for a project (optional ?branch=, ?limit=)
-userBranchesRouter.get("/:id/packs/:packId/commits", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+// GET /:id/projects/:projectId/commits — list commits for a project (optional ?branch=, ?limit=)
+userBranchesRouter.get("/:id/projects/:projectId/commits", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
   // `branch` filter accepted but ignored for MVP — commits exist in a pool, branches are pointers.
   const _branch = c.req.query("branch");
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
-  const list = await listCommitsByProject(c.req.param("packId"), limit);
+  const list = await listCommitsByProject(c.req.param("projectId"), limit);
   return c.json({ commits: list });
 });
 
-// POST /:id/packs/:packId/branches — create a new branch from an existing one
-userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+// POST /:id/projects/:projectId/branches — create a new branch from an existing one
+userBranchesRouter.post("/:id/projects/:projectId/branches", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
   let body: { name?: unknown; from?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
@@ -164,11 +161,11 @@ userBranchesRouter.post("/:id/packs/:packId/branches", async (c) => {
   return c.json({ branch: created }, 201);
 });
 
-// POST /:id/packs/:packId/commits — commit current WIP onto a branch
-userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+// POST /:id/projects/:projectId/commits — commit current WIP onto a branch
+userBranchesRouter.post("/:id/projects/:projectId/commits", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
   let body: { branch?: unknown; message?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "invalid_body" }, 400); }
@@ -200,11 +197,11 @@ userBranchesRouter.post("/:id/packs/:packId/commits", async (c) => {
   return c.json({ commit }, 201);
 });
 
-// POST /:id/packs/:packId/branches/:src/promote/:dst — fast-forward only promotion
-userBranchesRouter.post("/:id/packs/:packId/branches/:src/promote/:dst", async (c) => {
-  const access = await checkAccess(c, c.req.param("id"), c.req.param("packId"));
+// POST /:id/projects/:projectId/branches/:src/promote/:dst — fast-forward only promotion
+userBranchesRouter.post("/:id/projects/:projectId/branches/:src/promote/:dst", async (c) => {
+  const access = await checkAccess(c, c.req.param("id"), c.req.param("projectId"));
   if (!access.ok) return c.json({ error: "denied" }, access.status);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
   const srcName = c.req.param("src");
   const dstName = c.req.param("dst");
   if (srcName === dstName) return c.json({ error: "same_branch" }, 400);

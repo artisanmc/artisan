@@ -232,7 +232,7 @@ export async function handlePluginMessage(
       .where(and(eq(projects.serverKeyId, keyId), isNotNull(projects.deletedAt)));
     const deletedProjectIds = deletedRows.map((r) => r.id);
 
-    // Build pack_hashes via branch → commit content hash (Phase 2).
+    // Build project_hashes via branch → commit content hash (Phase 2).
     // Each project's binding branch is always "main" in the 1:1 model.
     const bindings = boundProjects.map((p) => ({ projectId: p.id, branchName: "main" as const }));
 
@@ -251,7 +251,7 @@ export async function handlePluginMessage(
 
     // Create minimal stubs for projects the plugin has on disk but the backend doesn't know about.
     const knownProjectIds = new Set(boundProjects.map((p) => p.id));
-    const localProjectIds = hello.local_pack_ids ?? []; // TODO(phase4-wire): hello field `local_pack_ids`
+    const localProjectIds = hello.local_project_ids ?? [];
     const missingProjectIds = localProjectIds.filter((id) => !knownProjectIds.has(id));
     if (missingProjectIds.length > 0) {
       const skRows = await db.select().from(serverKeys).where(eq(serverKeys.id, keyId));
@@ -274,9 +274,8 @@ export async function handlePluginMessage(
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
-      // TODO(phase4-wire): ack fields `pack_hashes` / `deleted_pack_ids` flip in Phase 4.
-      pack_hashes: projectHashesMap,
-      deleted_pack_ids: deletedProjectIds,
+      project_hashes: projectHashesMap,
+      deleted_project_ids: deletedProjectIds,
       resource_pack: rp,
     };
 
@@ -287,8 +286,7 @@ export async function handlePluginMessage(
         if (!hash) continue;
         const available: BundleAvailableMessage = {
           type: "bundle_available",
-          pack_id: b.projectId, // TODO(phase4-wire): field `pack_id` → `project_id`
-          // TODO(phase4-wire): bundle download path `:packId` segment flips in Phase 4.
+          project_id: b.projectId,
           url: `${BUNDLE_BASE_URL}/api/v1/bundles/${b.projectId}?branch=${encodeURIComponent(b.branchName)}`,
           hash,
           signature: "",
@@ -424,7 +422,7 @@ export async function handlePluginMessage(
     const serverId = connToServerId.get(connId);
     if (!serverId) return { reply: null };
     const raw = msg as Record<string, unknown>;
-    const projectId = raw.pack_id as string | undefined; // TODO(phase4-wire): wire field `pack_id`
+    const projectId = raw.project_id as string | undefined;
     const files = raw.files as Record<string, string> | undefined;
     const hash = raw.hash as string | undefined;
     if (!projectId || !files || !hash) return { reply: null };
@@ -484,11 +482,10 @@ export async function pushBundleAvailable(
     .where(eq(projects.id, projectId));
   if (targets.length === 0) return;
 
-  // TODO(phase4-wire): bundle download path `:packId` segment + `pack_id` field flip in Phase 4.
   const url = `${BUNDLE_BASE_URL}/api/v1/bundles/${projectId}?branch=${encodeURIComponent(branchName)}`;
   const payload = JSON.stringify({
     type: "bundle_available",
-    pack_id: projectId,
+    project_id: projectId,
     url,
     hash: contentHash,
     signature: "",
@@ -509,10 +506,9 @@ export function broadcastDraftUpdate(
   menuYaml: string,
   senderSessionId: string,
 ): void {
-  // TODO(phase4-wire): draft_update field `pack_id` → `project_id`.
   const payload = JSON.stringify({
     type: "draft_update",
-    pack_id: projectId,
+    project_id: projectId,
     menu_id: menuId,
     menu_yaml: menuYaml,
     updated_by: senderSessionId,
@@ -529,7 +525,7 @@ export function broadcastDraftUpdate(
     const send = connSenders.get(connId);
     if (send) send(JSON.stringify({
       type: "draft_update",
-      pack_id: projectId,
+      project_id: projectId,
       menu_id: menuId,
       menu_yaml: menuYaml,
     }));
@@ -578,8 +574,7 @@ export async function pushProjectDeleted(projectId: string): Promise<void> {
   const rows = await db.select({ serverKeyId: projects.serverKeyId }).from(projects).where(eq(projects.id, projectId));
   const targets = rows.map((r) => r.serverKeyId);
   if (targets.length === 0) return;
-  // TODO(phase4-wire): message-type string `"pack_deleted"` + field `pack_id` flip in Phase 4.
-  const payload = JSON.stringify({ type: "pack_deleted", pack_id: projectId });
+  const payload = JSON.stringify({ type: "project_deleted", project_id: projectId });
   const targetSet = new Set(targets);
   // Push to plugin connections for each server_key bound to this project.
   for (const [connId, sId] of connToServerId) {

@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import type { BackendModule } from "@artisan/backend-sdk";
 
 /**
- * V1 backend MenusModule — owns the legacy /api/user/packs/* and /api/bundles/* routes.
+ * V1 backend MenusModule — owns the legacy /api/user/projects/* and /api/bundles/* routes.
  *
- * The existing routers in backend/src/routes/userPacks.ts and routes/bundles.ts
+ * The existing routers in backend/src/routes/userProjects.ts and routes/bundles.ts
  * remain mounted in app.ts for backward compatibility. This module additionally
  * exposes a /api/modules/menus/health endpoint as a marker for the new layout,
  * and is the foundation other modules will follow.

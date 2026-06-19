@@ -22,7 +22,7 @@ interface NewProjectDialogProps {
 }
 
 /**
- * Creates a workspace on the backend (`POST /api/v1/networks/:id/packs`), not just
+ * Creates a workspace on the backend (`POST /api/v1/networks/:id/projects`), not just
  * in local state. Unlike the legacy NewProjectDialog, the new workspace persists
  * across reloads and is bound to a real network.
  */

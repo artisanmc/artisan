@@ -8,12 +8,11 @@ import { getProject, createProject, upsertProjectContent } from "../lib/projectS
 
 const router = new Hono();
 
-// TODO(phase4-wire): the `:packId` route param stays on the old name until Phase 4.
-router.post("/:packId", async (c) => {
+router.post("/:projectId", async (c) => {
   const serverKeyId = await validateServerKeyHeader(c);
   if (!serverKeyId) return c.json({ error: "Unauthorized" }, 401);
 
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
   const body = await c.req.json<{ files: Record<string, string> }>();
   const hash = await computeBundleHash(body.files, projectId);
@@ -29,11 +28,11 @@ router.post("/:packId", async (c) => {
   return c.json({ ok: true, hash });
 });
 
-router.get("/:packId", async (c) => {
+router.get("/:projectId", async (c) => {
   const serverKeyId = await validateServerKeyHeader(c);
   if (!serverKeyId) return c.json({ error: "Unauthorized" }, 401);
 
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
   // Verify the project belongs to this server_key (1:1 ownership via projects.serverKeyId)
   const projectRow = (await db.select().from(projects).where(and(

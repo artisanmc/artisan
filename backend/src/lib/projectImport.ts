@@ -124,7 +124,7 @@ function importDialogButton(b: Record<string, unknown>): unknown {
 // ─── YAML schema types ────────────────────────────────────────────────────────
 
 interface ManifestYaml {
-  pack_id?: string; // TODO(phase4-wire): manifest field `pack_id` → `project_id`
+  project_id?: string;
   default_lang?: string;
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
   editor_layout?: Record<string, unknown>;
@@ -161,9 +161,7 @@ interface DialogYaml {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function getFile(files: Record<string, string>, projectId: string, rel: string): string | null {
-  // TODO(phase4-wire): on-disk/manifest path prefix `plugins/Artisan/packs/` →
-  // `projects/`, flipped in lockstep with the plugin.
-  return files[`plugins/Artisan/packs/${projectId}/${rel}`] ?? null;
+  return files[`plugins/Artisan/projects/${projectId}/${rel}`] ?? null;
 }
 
 function tryParse<T>(text: string | null): T | null {

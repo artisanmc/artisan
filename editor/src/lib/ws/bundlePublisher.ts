@@ -10,8 +10,7 @@ export interface PublishResult {
 }
 
 export async function publishBundle(opts: PublishOptions): Promise<PublishResult> {
-  // TODO(phase4-wire): `/bundles/:packId` path param flips to `:projectId` in
-  // Phase 4 (the `/bundles` segment stays — Bundle is the canonical artifact).
+  // The `/bundles` segment stays — Bundle is the canonical artifact.
   const res = await fetch(`${opts.apiUrl}/api/v1/bundles/${opts.projectId}`, {
     method: "POST",
     headers: {

@@ -16,7 +16,7 @@ import { createCommit } from "../lib/commitStorage";
 
 function buildEditorJsonWithLayout(rawProject: unknown, files: Record<string, string>, projectId: string): string {
   // Spread to a fresh object — mutating rawProject in place is a footgun for any
-  // caller that later reads body.pack.
+  // caller that later reads body.project.
   const project = { ...(rawProject as Record<string, unknown>) };
   project.canvasLayout = readEditorLayoutFromFiles(files, projectId); // files win
   project.canvasEdges = readEditorEdgesFromFiles(files, projectId);
@@ -132,17 +132,15 @@ router.get("/:token/modules", async (c) => {
   return c.json({ modules: rows.map((r) => ({ id: r.moduleId, version: r.version })) });
 });
 
-// TODO(phase4-wire): every `/packs` path segment, `:packId` param, `packs` response
-// array key and `pack`/`pack_id` body/response field below stays until Phase 4.
-router.get("/:token/packs", async (c) => {
+router.get("/:token/projects", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
   const projectList = await db.select().from(projects).where(
     and(eq(projects.serverKeyId, session.serverKeyId), isNull(projects.deletedAt)),
   );
   return c.json({
-    packs: projectList.map((p) => ({
-      pack_id: p.id,
+    projects: projectList.map((p) => ({
+      project_id: p.id,
       name: p.name,
       hash: p.hash,
       files: JSON.parse(p.filesJson),
@@ -151,14 +149,14 @@ router.get("/:token/packs", async (c) => {
   });
 });
 
-router.put("/:token/packs/:packId", async (c) => {
+router.put("/:token/projects/:projectId", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
-  const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
-  if (body.pack == null || typeof body.pack !== "object") {
-    return c.json({ error: "missing_or_invalid_pack" }, 400);
+  const body = await c.req.json<{ project: unknown; files: Record<string, string> }>();
+  if (body.project == null || typeof body.project !== "object") {
+    return c.json({ error: "missing_or_invalid_project" }, 400);
   }
 
   // server_key → network → project must be in same network
@@ -170,29 +168,29 @@ router.put("/:token/packs/:packId", async (c) => {
   if (!project) {
     project = await createProject({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: projectId, id: projectId });
   } else if (project.networkId !== sk.networkId) {
-    return c.json({ error: "Cross-network pack" }, 403);
+    return c.json({ error: "Cross-network project" }, 403);
   }
 
   const hash = await computeBundleHash(body.files, projectId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, projectId);
+  const editorJson = buildEditorJsonWithLayout(body.project, body.files, projectId);
 
   await upsertProjectContent(projectId, { hash, filesJson, editorJson });
 
   return c.json({ hash }, 201);
 });
 
-router.post("/:token/packs/:packId/deploy", async (c) => {
+router.post("/:token/projects/:projectId/deploy", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
 
   if (!session.trusted) return c.json({ error: "session_not_trusted" }, 403);
   if (session.trustedIp !== clientIp(c)) return c.json({ error: "session_not_trusted" }, 403);
 
-  const body = await c.req.json<{ pack: unknown; files: Record<string, string> }>();
-  if (body.pack == null || typeof body.pack !== "object") {
-    return c.json({ error: "missing_or_invalid_pack" }, 400);
+  const body = await c.req.json<{ project: unknown; files: Record<string, string> }>();
+  if (body.project == null || typeof body.project !== "object") {
+    return c.json({ error: "missing_or_invalid_project" }, 400);
   }
 
   // server_key → network → project must be in same network
@@ -204,12 +202,12 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   if (!project) {
     project = await createProject({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: projectId, id: projectId });
   } else if (project.networkId !== sk.networkId) {
-    return c.json({ error: "Cross-network pack" }, 403);
+    return c.json({ error: "Cross-network project" }, 403);
   }
 
   const hash = await computeBundleHash(body.files, projectId);
   const filesJson = JSON.stringify(body.files);
-  const editorJson = buildEditorJsonWithLayout(body.pack, body.files, projectId);
+  const editorJson = buildEditorJsonWithLayout(body.project, body.files, projectId);
 
   await upsertProjectContent(projectId, {
     hash,
@@ -239,18 +237,18 @@ router.post("/:token/packs/:packId/deploy", async (c) => {
   return c.json({ hash }, 201);
 });
 
-router.get("/:token/packs/:packId/deployed", async (c) => {
+router.get("/:token/projects/:projectId/deployed", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const project = await getProject(c.req.param("packId"));
+  const project = await getProject(c.req.param("projectId"));
   if (!project || !project.deployedEditorJson) return c.json({ deployed: null });
   return c.json({ deployed: JSON.parse(project.deployedEditorJson) });
 });
 
-router.delete("/:token/packs/:packId", async (c) => {
+router.delete("/:token/projects/:projectId", async (c) => {
   const session = await validateAccessToken(c.req.param("token"));
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const projectId = c.req.param("packId");
+  const projectId = c.req.param("projectId");
   const project = await getProject(projectId);
   if (!project || project.deletedAt) return c.json({ error: "Not found" }, 404);
 
@@ -263,9 +261,8 @@ router.post("/:token/draft", async (c) => {
   const token = c.req.param("token");
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  // TODO(phase4-wire): request body field `pack_id` → `project_id`.
-  const body = await c.req.json<{ pack_id: string; menu_id: string; menu_yaml: string }>();
-  broadcastDraftUpdate(session.serverKeyId, body.pack_id, body.menu_id, body.menu_yaml, session.sessionId);
+  const body = await c.req.json<{ project_id: string; menu_id: string; menu_yaml: string }>();
+  broadcastDraftUpdate(session.serverKeyId, body.project_id, body.menu_id, body.menu_yaml, session.sessionId);
   return c.json({ ok: true });
 });
 

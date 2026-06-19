@@ -14,7 +14,7 @@ class ManifestYamlIgnoresEditorLayoutTest {
     @Test fun `editor_layout field is silently ignored on parse`() {
         val src = """
             schema: manifest/v1
-            pack_id: p_test
+            project_id: p_test
             default_lang: en
             languages: [en]
             files:

@@ -22,8 +22,8 @@ export interface ProjectSummary {
   updatedAt?: string;
   networkId: string;
   serverKeyId: string;
-  /** Menus + commands + dialogs count, for the element-count indicator. */
-  elementCount?: number;
+  /** Menus + commands + dialogs count, for the document-count indicator. */
+  documentCount?: number;
 }
 
 export async function listNetworks(): Promise<NetworkSummary[]> {
@@ -56,14 +56,12 @@ export async function getNetwork(id: string): Promise<{
     err.status = res.status;
     throw err;
   }
-  // TODO(phase4-wire): backend returns `{ packs }`; remap to domain `projects`
-  // here at the API boundary until the wire flips in Phase 4.
   const json = (await res.json()) as {
     network: NetworkSummary;
-    packs: ProjectSummary[];
+    projects: ProjectSummary[];
     serverKeys: ServerKeySummary[];
   };
-  return { network: json.network, projects: json.packs, serverKeys: json.serverKeys };
+  return { network: json.network, projects: json.projects, serverKeys: json.serverKeys };
 }
 
 export async function createServerKey(
@@ -126,8 +124,7 @@ export async function createProject(
   name: string,
   description?: string,
 ): Promise<ProjectSummary> {
-  // TODO(phase4-wire): `/packs` path segment + `{ pack }` response key flip in Phase 4.
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -138,7 +135,7 @@ export async function createProject(
     }),
   });
   if (!res.ok) throw new Error(`createProject failed: ${res.status}`);
-  return ((await res.json()) as { pack: ProjectSummary }).pack;
+  return ((await res.json()) as { project: ProjectSummary }).project;
 }
 
 // ─── Network transfer ──────────────────────────────────────────────────────
@@ -296,10 +293,10 @@ export class ClaimError extends Error {
     public readonly code:
       | "must_choose_network"
       | "ambiguous_network"
-      | "ambiguous_pack" // TODO(phase4-wire): backend error code
-      | "pack_not_in_network" // TODO(phase4-wire): backend error code
+      | "ambiguous_project"
+      | "project_not_in_network"
       | "invalid_network_name"
-      | "invalid_pack_name" // TODO(phase4-wire): backend error code
+      | "invalid_project_name"
       | "unauthorized"
       | "forbidden"
       | "expired"
@@ -326,13 +323,12 @@ export interface ClaimLinkInput {
 export async function claimLinkCode(
   code: string,
   input: ClaimLinkInput = {},
-  // TODO(phase4-wire): pack_id (response + body), pack_name (body) flip to project_* in Phase 4.
-): Promise<{ server_key_id: string; network_id: string; pack_id: string | null }> {
+): Promise<{ server_key_id: string; network_id: string; project_id: string | null }> {
   const body: Record<string, string> = {};
   if (input.networkId) body.network_id = input.networkId;
   if (input.networkName) body.network_name = input.networkName;
-  if (input.projectId) body.pack_id = input.projectId; // TODO(phase4-wire): pack_id
-  if (input.projectName) body.pack_name = input.projectName; // TODO(phase4-wire): pack_name
+  if (input.projectId) body.project_id = input.projectId;
+  if (input.projectName) body.project_name = input.projectName;
   if (input.serverKeyLabel) body.server_key_label = input.serverKeyLabel;
 
   const res = await fetch(`${API_URL}/api/v1/link/${code}/claim`, {
@@ -348,13 +344,14 @@ export async function claimLinkCode(
     throw new ClaimError("must_choose_network");
   if (res.status === 400 && errorCode === "ambiguous_network")
     throw new ClaimError("ambiguous_network");
-  if (res.status === 400 && errorCode === "ambiguous_pack") throw new ClaimError("ambiguous_pack");
-  if (res.status === 404 && errorCode === "pack_not_in_network")
-    throw new ClaimError("pack_not_in_network");
+  if (res.status === 400 && errorCode === "ambiguous_project")
+    throw new ClaimError("ambiguous_project");
+  if (res.status === 404 && errorCode === "project_not_in_network")
+    throw new ClaimError("project_not_in_network");
   if (res.status === 422 && errorCode === "invalid_network_name")
     throw new ClaimError("invalid_network_name");
-  if (res.status === 422 && errorCode === "invalid_pack_name")
-    throw new ClaimError("invalid_pack_name");
+  if (res.status === 422 && errorCode === "invalid_project_name")
+    throw new ClaimError("invalid_project_name");
   if (res.status === 401) throw new ClaimError("unauthorized");
   if (res.status === 403) throw new ClaimError("forbidden");
   if (res.status === 409) throw new ClaimError("already_claimed");

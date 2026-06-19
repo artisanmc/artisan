@@ -18,8 +18,8 @@ class BundleDownloaderTest {
     private val mapper = ObjectMapper()
 
     private fun makeBundle(packId: String): Map<String, String> = mapOf(
-        "plugins/Artisan/packs/$packId/manifest.yaml" to "schema: manifest/v1\npack_id: $packId\n",
-        "plugins/Artisan/packs/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
+        "plugins/Artisan/projects/$packId/manifest.yaml" to "schema: manifest/v1\nproject_id: $packId\n",
+        "plugins/Artisan/projects/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
     )
 
     @Test
@@ -41,7 +41,7 @@ class BundleDownloaderTest {
 
             assertTrue(File(packsDir, "$packId/manifest.yaml").exists())
             assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
-            assertEquals("schema: manifest/v1\npack_id: $packId\n",
+            assertEquals("schema: manifest/v1\nproject_id: $packId\n",
                 File(packsDir, "$packId/manifest.yaml").readText())
         }
     }
@@ -89,7 +89,7 @@ class BundleDownloaderTest {
 
             // Bundle backend : seulement keep.yaml (stale.yaml a été supprimé dans l'éditeur)
             val files = mapOf(
-                "plugins/Artisan/packs/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
+                "plugins/Artisan/projects/$packId/menus/keep.yaml" to "id: keep\nsize: 27\n"
             )
             server.enqueue(
                 MockResponse()
@@ -148,7 +148,7 @@ class BundleDownloaderTest {
 
             // Bundle ne garde que menus/m1.yaml — dialogs/ doit disparaitre
             val files = mapOf(
-                "plugins/Artisan/packs/$packId/menus/m1.yaml" to "id: m1\n"
+                "plugins/Artisan/projects/$packId/menus/m1.yaml" to "id: m1\n"
             )
             server.enqueue(
                 MockResponse()
@@ -175,7 +175,7 @@ class BundleDownloaderTest {
             val outsideTarget = File(packsDir, "outside.txt")
 
             val files = mapOf(
-                "plugins/Artisan/packs/$packId/../outside.txt" to "pwned"
+                "plugins/Artisan/projects/$packId/../outside.txt" to "pwned"
             )
             server.enqueue(
                 MockResponse()

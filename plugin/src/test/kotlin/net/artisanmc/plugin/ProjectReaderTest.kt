@@ -15,7 +15,7 @@ class ProjectReaderTest {
 
         File(packDir, "manifest.yaml").writeText("""
             schema: manifest/v1
-            pack_id: p_test
+            project_id: p_test
             default_lang: en
             languages:
               - en
@@ -81,7 +81,7 @@ class ProjectReaderTest {
 
         File(packDir, "manifest.yaml").writeText("""
             schema: manifest/v1
-            pack_id: p_dial
+            project_id: p_dial
             default_lang: en
             languages:
               - en
@@ -121,7 +121,7 @@ class ProjectReaderTest {
         val packDir = File(root, "test_pack").apply { mkdirs() }
         File(packDir, "manifest.yaml").writeText("""
             schema: "manifest/v1"
-            pack_id: test_pack
+            project_id: test_pack
             default_lang: en
             languages: ["en"]
             files:
@@ -149,7 +149,7 @@ class ProjectReaderTest {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_legacy_").toFile()
         val packDir = File(root, "legacy_pack").apply { mkdirs() }
         File(packDir, "manifest.yaml").writeText("""
-            pack_id: legacy_pack
+            project_id: legacy_pack
             default_lang: en
             languages: ["en"]
             files:
@@ -176,7 +176,7 @@ class ProjectReaderTest {
         val root = java.nio.file.Files.createTempDirectory("artisan_schema_bad_").toFile()
         val packDir = File(root, "future_pack").apply { mkdirs() }
         File(packDir, "manifest.yaml").writeText("""
-            pack_id: future_pack
+            project_id: future_pack
             default_lang: en
             languages: ["en"]
             files:
@@ -206,7 +206,7 @@ class ProjectReaderTest {
 
         File(packDir, "manifest.yaml").writeText("""
             schema: manifest/v1
-            pack_id: p_skip
+            project_id: p_skip
             default_lang: en
             languages: [en]
             files:

@@ -14,8 +14,8 @@ interface Server {
 interface Project {
   id: string;
   name: string;
-  /** Menus + commands + dialogs count, for the element-count indicator. */
-  elementCount?: number;
+  /** Menus + commands + dialogs count, for the document-count indicator. */
+  documentCount?: number;
 }
 
 interface Props {
@@ -73,13 +73,13 @@ export function ServerCard({ networkId, server, workspaces, onAction, onCreatePr
               📋 {w.name}
             </span>
             <div className="flex shrink-0 items-center gap-1.5">
-              {w.elementCount != null && (
+              {w.documentCount != null && (
                 <span
-                  title={t("serverDetail.elementCount", { count: w.elementCount })}
-                  aria-label={t("serverDetail.elementCount", { count: w.elementCount })}
+                  title={t("serverDetail.documentCount", { count: w.documentCount })}
+                  aria-label={t("serverDetail.documentCount", { count: w.documentCount })}
                   className="rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
                 >
-                  {w.elementCount}
+                  {w.documentCount}
                 </span>
               )}
               <ArrowRight className="size-[13px] text-[var(--text-faint)]" />

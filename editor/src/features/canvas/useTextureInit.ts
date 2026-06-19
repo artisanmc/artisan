@@ -16,7 +16,7 @@ import { useTextureStore } from "./textureStore";
  *  - **Session mode** (`/artisan editor` flow) — items resolved via the
  *    session token, which carries the bound server_key + its MC version.
  *  - **User-auth mode** (web login → workspace) — items resolved via
- *    `/api/v1/user/packs/{projectId}/items`, which picks a representative
+ *    `/api/v1/user/projects/{projectId}/items`, which picks a representative
  *    server_key binding and falls back to the newest available items.json
  *    if no MC version is known yet.
  */

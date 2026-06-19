@@ -30,7 +30,7 @@ describe("ServerCard", () => {
 
   it("shows an element-count badge when provided", () => {
     const withCounts = [
-      { id: "p1", name: "Shop", elementCount: 7 },
+      { id: "p1", name: "Shop", documentCount: 7 },
       { id: "p2", name: "Lobby" },
     ] as any;
     render(

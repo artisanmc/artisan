@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { importProjectFromFiles, readEditorEdgesFromFiles, readEditorLayoutFromFiles } from "./projectImport";
 
 const PACK_ID = "p_layout";
-const base = `plugins/Artisan/packs/${PACK_ID}`;
+const base = `plugins/Artisan/projects/${PACK_ID}`;
 
 function manifestWith(editorLayout: string | null): Record<string, string> {
   const body = [
     "schema: manifest/v1",
-    `pack_id: ${PACK_ID}`,
+    `project_id: ${PACK_ID}`,
     "default_lang: en",
     "files:",
     "  menus: [shop]",
@@ -72,9 +72,9 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
     // Mirror of editor/src/features/export/transform.test.ts:
     // "emits editor_layout in block-style YAML the backend round-trip test parses"
     const files = {
-      "plugins/Artisan/packs/p_mirror/manifest.yaml": [
+      "plugins/Artisan/projects/p_mirror/manifest.yaml": [
         "schema: manifest/v1",
-        "pack_id: p_mirror",
+        "project_id: p_mirror",
         "default_lang: en",
         "languages:",
         "  - en",
@@ -88,7 +88,7 @@ describe("round-trip mirror — backend parses what the editor emits", () => {
         "    x: 123",
         "    y: 456",
       ].join("\n") + "\n",
-      "plugins/Artisan/packs/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
+      "plugins/Artisan/projects/p_mirror/menus/shop.yaml": "id: shop\nsize: 27\n",
     };
     const project = importProjectFromFiles("p_mirror", files) as {
       canvasLayout: Record<string, { x: number; y: number }>;

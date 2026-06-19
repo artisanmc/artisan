@@ -169,7 +169,7 @@ export function DesignSystemPage() {
           <div className="flex flex-col gap-1">
             <span className="mono text-[11px] text-[var(--text-faint)]">.mono / --font-mono</span>
             <span className="mono text-[12.5px] text-[var(--text)]">
-              pack_id · menu.yaml · %player_name%
+              project_id · menu.yaml · %player_name%
             </span>
           </div>
           <div className="flex flex-col gap-1">

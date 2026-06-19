@@ -22,7 +22,7 @@ describe("useWsStore", () => {
     }
 
     handleMessage(
-      JSON.stringify({ type: "hello_ack", server_id: "srv1", api_url: "http://localhost:3001", tier: "free", session_id: "s1", needs_sync: false, latest_bundle_hash: "", pack_hashes: {} }),
+      JSON.stringify({ type: "hello_ack", server_id: "srv1", api_url: "http://localhost:3001", tier: "free", session_id: "s1", needs_sync: false, latest_bundle_hash: "", project_hashes: {} }),
       "sk_test",
     );
 

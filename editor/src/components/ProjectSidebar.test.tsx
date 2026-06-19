@@ -93,7 +93,7 @@ describe("ProjectSidebar", () => {
           hash: "h1",
           networkId: "net_1",
           serverKeyId: "sk_1",
-          elementCount: 3,
+          documentCount: 3,
         },
       ],
       serverKeys: [{ id: "sk_1", label: "Survival" }],

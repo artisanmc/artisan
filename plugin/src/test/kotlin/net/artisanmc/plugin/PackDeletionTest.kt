@@ -13,7 +13,7 @@ class PackDeletionTest {
     private val mapper = ObjectMapper()
 
     @Test
-    fun `pack_deleted runtime message moves pack dir to artisan-trash`() {
+    fun `project_deleted runtime message moves pack dir to artisan-trash`() {
         val packsDir = Files.createTempDirectory("artisan_pd_").toFile()
         val packDir = File(packsDir, "p_kill").also { it.mkdirs() }
         File(packDir, "menus").mkdirs()
@@ -26,9 +26,9 @@ class PackDeletionTest {
             logger = null,
         )
 
-        // Simuler la réception d'un message pack_deleted via le hook interne
+        // Simuler la réception d'un message project_deleted via le hook interne
         provider.handleMessageForTesting(
-            mapper.writeValueAsString(mapOf("type" to "pack_deleted", "pack_id" to "p_kill"))
+            mapper.writeValueAsString(mapOf("type" to "project_deleted", "project_id" to "p_kill"))
         )
 
         assertFalse(packDir.exists(), "packDir doit avoir été déplacé")

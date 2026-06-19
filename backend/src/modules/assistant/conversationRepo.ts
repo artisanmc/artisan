@@ -6,14 +6,14 @@ import type { LlmMessage } from "./provider/types";
 /**
  * DB-backed conversation history for the AI assistant. A conversation stores
  * the full LLM transcript (`messages`) so it can be resumed; the working copy
- * is rebuilt from the live pack on each turn, so it is NOT persisted here.
- * Scoped per `(ownerKey, packId)` — `ownerKey` mirrors routes.ts
+ * is rebuilt from the live project on each turn, so it is NOT persisted here.
+ * Scoped per `(ownerKey, projectId)` — `ownerKey` mirrors routes.ts
  * `resolveOwnerKey` (`sk:<serverKeyId>` or `user:<userId>`).
  */
 export interface ConversationRow {
 	id: string;
 	ownerKey: string;
-	packId: string;
+	projectId: string;
 	title: string;
 	messages: LlmMessage[];
 	createdAt: Date;
@@ -33,14 +33,14 @@ export interface ConversationSummary {
  */
 export async function createConversation(
 	ownerKey: string,
-	packId: string,
+	projectId: string,
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	const now = new Date();
 	await db.insert(assistantConversations).values({
 		id,
 		ownerKey,
-		projectId: packId, // TODO(phase4-wire): rename repo param packId→projectId
+		projectId,
 		title: "",
 		messages: [] as unknown[],
 		createdAt: now,
@@ -61,7 +61,7 @@ export async function getConversation(
 	return {
 		id: r.id,
 		ownerKey: r.ownerKey,
-		packId: r.projectId, // TODO(phase4-wire): ConversationRow.packId is internal
+		projectId: r.projectId,
 		title: r.title,
 		messages: (r.messages ?? []) as LlmMessage[],
 		createdAt: r.createdAt,
@@ -69,10 +69,10 @@ export async function getConversation(
 	};
 }
 
-/** Summaries for a workspace, newest first (no message bodies). */
+/** Summaries for a project, newest first (no message bodies). */
 export async function listConversations(
 	ownerKey: string,
-	packId: string,
+	projectId: string,
 ): Promise<ConversationSummary[]> {
 	return db
 		.select({
@@ -84,7 +84,7 @@ export async function listConversations(
 		.where(
 			and(
 				eq(assistantConversations.ownerKey, ownerKey),
-				eq(assistantConversations.projectId, packId),
+				eq(assistantConversations.projectId, projectId),
 			),
 		)
 		.orderBy(desc(assistantConversations.updatedAt));

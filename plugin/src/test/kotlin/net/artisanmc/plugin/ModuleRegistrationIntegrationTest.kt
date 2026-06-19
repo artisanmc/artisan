@@ -99,8 +99,8 @@ class ModuleRegistrationIntegrationTest {
                                 "type"               to "hello_ack",
                                 "session_id"         to "sess_modreg",
                                 "needs_sync"         to false,
-                                "pack_hashes"        to emptyMap<String, String>(),
-                                "deleted_pack_ids"   to emptyList<String>(),
+                                "project_hashes"     to emptyMap<String, String>(),
+                                "deleted_project_ids" to emptyList<String>(),
                             )))
                             helloLatch.countDown()
                         }

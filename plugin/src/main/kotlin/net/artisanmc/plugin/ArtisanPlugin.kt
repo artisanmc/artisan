@@ -65,7 +65,7 @@ open class ArtisanPlugin : JavaPlugin() {
         api = buildApi(this)
         server.servicesManager.register(ArtisanAPI::class.java, api, this, org.bukkit.plugin.ServicePriority.Normal)
         val cfg = PluginConfig.from(config)
-        val projectsDir = File(dataFolder, "packs").also { it.mkdirs() } // TODO(phase4-wire): path literal "packs"
+        val projectsDir = File(dataFolder, "projects").also { it.mkdirs() }
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
@@ -227,7 +227,7 @@ open class ArtisanPlugin : JavaPlugin() {
     fun reinit(cfg: PluginConfig) {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
-        val projectsDir = File(dataFolder, "packs").also { it.mkdirs() } // TODO(phase4-wire): path literal "packs"
+        val projectsDir = File(dataFolder, "projects").also { it.mkdirs() }
 
         val softDeps = SoftDepRegistry(this)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)

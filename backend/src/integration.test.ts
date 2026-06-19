@@ -55,12 +55,12 @@ async function uploadBundle(key: string, packId: string, files: Record<string, s
 }
 
 const PACK_FILES = {
-  "plugins/Artisan/packs/p_shop/manifest.yaml": "schema: manifest/v1\npack_id: p_shop\n",
-  "plugins/Artisan/packs/p_shop/menus/shop.yaml": "id: shop\nsize: 27\n",
+  "plugins/Artisan/projects/p_shop/manifest.yaml": "schema: manifest/v1\nproject_id: p_shop\n",
+  "plugins/Artisan/projects/p_shop/menus/shop.yaml": "id: shop\nsize: 27\n",
 };
 
 describe("full-stack integration: WS handshake + bundle sync", () => {
-  test("hello → hello_ack contains pack_hashes and api_url", async () => {
+  test("hello → hello_ack contains project_hashes and api_url", async () => {
     const key = await createKey("integ-basic");
     const ws = await connectWs();
     const msgs = collectMessages(ws, 1);
@@ -76,7 +76,7 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     const [raw] = await msgs;
     const ack = JSON.parse(raw);
     expect(ack.type).toBe("hello_ack");
-    expect(typeof ack.pack_hashes).toBe("object");
+    expect(typeof ack.project_hashes).toBe("object");
     expect(ack.api_url).toContain("localhost");
     expect(ack.needs_sync).toBe(false);
     ws.close();
@@ -102,11 +102,11 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     const ack = JSON.parse(ackRaw);
     expect(ack.type).toBe("hello_ack");
     expect(ack.needs_sync).toBe(true);
-    expect(ack.pack_hashes["p_shop"]).toMatch(/^[0-9a-f]{64}$/);
+    expect(ack.project_hashes["p_shop"]).toMatch(/^[0-9a-f]{64}$/);
 
     const avail = JSON.parse(availRaw);
     expect(avail.type).toBe("bundle_available");
-    expect(avail.pack_id).toBe("p_shop");
+    expect(avail.project_id).toBe("p_shop");
     expect(avail.url).toContain("/api/v1/bundles/p_shop");
     expect(avail.hash).toMatch(/^[0-9a-f]{64}$/);
     ws.close();
@@ -137,13 +137,13 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     ws2.close();
   });
 
-  test("GET /api/v1/bundles/:packId serves branch head commit content (not WIP)", async () => {
+  test("GET /api/v1/bundles/:projectId serves branch head commit content (not WIP)", async () => {
     const key = await createKey("integ-download");
     // Use a unique pack id to avoid collision with other tests that also uploaded p_shop
     const uniquePackId = "p_dl_" + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     // POST writes WIP only — GET serves the main branch head commit (initial empty commit).
     await uploadBundle(key, uniquePackId, {
-      [`plugins/Artisan/packs/${uniquePackId}/manifest.yaml`]: "schema: manifest/v1\n",
+      [`plugins/Artisan/projects/${uniquePackId}/manifest.yaml`]: "schema: manifest/v1\n",
     });
 
     const downloadRes = await app.request(`/api/v1/bundles/${uniquePackId}`, {

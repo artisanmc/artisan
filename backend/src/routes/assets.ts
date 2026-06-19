@@ -45,9 +45,9 @@ async function assertBound(
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
+assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
@@ -198,9 +198,9 @@ assetsRouter.post("/:token/packs/:packId/assets", async (c) => {
   return c.json(body, 201);
 });
 
-assetsRouter.get("/:token/packs/:packId/assets", async (c) => {
+assetsRouter.get("/:token/projects/:projectId/assets", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
 
@@ -219,9 +219,9 @@ assetsRouter.get("/:token/packs/:packId/assets", async (c) => {
   return c.json({ assets: rows.map(serialize) });
 });
 
-assetsRouter.get("/:token/packs/:packId/assets/:id", async (c) => {
+assetsRouter.get("/:token/projects/:projectId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
 
@@ -232,9 +232,9 @@ assetsRouter.get("/:token/packs/:packId/assets/:id", async (c) => {
   return c.json({ asset: serialize(rows[0]) });
 });
 
-assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
+assetsRouter.patch("/:token/projects/:projectId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
@@ -300,9 +300,9 @@ assetsRouter.patch("/:token/packs/:packId/assets/:id", async (c) => {
   return c.json({ asset: serialize(updated) });
 });
 
-assetsRouter.post("/:token/packs/:packId/assets/:id/duplicate", async (c) => {
+assetsRouter.post("/:token/projects/:projectId/assets/:id/duplicate", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;
@@ -388,9 +388,9 @@ async function findFreeCopyName(
   throw new Error("Could not find a free copy name after 1000 attempts");
 }
 
-assetsRouter.delete("/:token/packs/:packId/assets/:id", async (c) => {
+assetsRouter.delete("/:token/projects/:projectId/assets/:id", async (c) => {
   const token = c.req.param("token");
-  const projectId = c.req.param("packId"); // TODO(phase4-wire): :packId path param
+  const projectId = c.req.param("projectId");
   const check = await assertBound(token, projectId, c);
   if (!check.ok) return check.response;
   const session = check.session;

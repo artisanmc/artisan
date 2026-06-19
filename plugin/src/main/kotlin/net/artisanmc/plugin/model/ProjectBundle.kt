@@ -14,7 +14,7 @@ internal fun extractFromSteps(steps: List<Map<String, Any>>): List<Map<String, A
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",
-    @JsonProperty("pack_id") val projectId: String = "", // TODO(phase4-wire): wire field "pack_id"
+    @JsonProperty("project_id") val projectId: String = "",
     @JsonProperty("default_lang") val defaultLang: String = "en",
     val languages: List<String> = emptyList(),
     val files: ManifestFiles = ManifestFiles(),

@@ -384,31 +384,31 @@ describe("DELETE /api/v1/editor-session/:token", () => {
   });
 });
 
-describe("GET /api/v1/editor-session/:token/packs", () => {
+describe("GET /api/v1/editor-session/:token/projects", () => {
   test("200 returns empty array when no projects", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs`);
+    const res = await app.request(`/api/v1/editor-session/${token}/projects`);
     expect(res.status).toBe(200);
-    const body = await res.json() as { packs: unknown[] };
-    expect(Array.isArray(body.packs)).toBe(true);
-    expect(body.packs.length).toBe(0);
+    const body = await res.json() as { projects: unknown[] };
+    expect(Array.isArray(body.projects)).toBe(true);
+    expect(body.projects.length).toBe(0);
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs");
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/projects");
     expect(res.status).toBe(401);
   });
 });
 
-describe("PUT /api/v1/editor-session/:token/packs/:packId", () => {
+describe("PUT /api/v1/editor-session/:token/projects/:projectId", () => {
   test("201 upserts pack and returns hash", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_test", name: "Test Pack", menus: [] };
-    const fakeFiles = { "plugins/Artisan/packs/p_test/manifest.yaml": "pack_id: p_test\n" };
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_test`, {
+    const fakeFiles = { "plugins/Artisan/projects/p_test/manifest.yaml": "project_id: p_test\n" };
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_test`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
     const body = await res.json() as { hash: string };
@@ -419,53 +419,53 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId", () => {
   test("GET after PUT returns the saved pack", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_roundtrip", name: "Round Trip", menus: [] };
-    const fakeFiles = { "plugins/Artisan/packs/p_roundtrip/manifest.yaml": "pack_id: p_roundtrip\n" };
-    await app.request(`/api/v1/editor-session/${token}/packs/p_roundtrip`, {
+    const fakeFiles = { "plugins/Artisan/projects/p_roundtrip/manifest.yaml": "project_id: p_roundtrip\n" };
+    await app.request(`/api/v1/editor-session/${token}/projects/p_roundtrip`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
-    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
-    const body = await getRes.json() as { packs: { pack_id: string; editor: { id: string; name: string } | null }[] };
-    expect(body.packs.some((p) => p.pack_id === "p_roundtrip")).toBe(true);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await getRes.json() as { projects: { project_id: string; editor: { id: string; name: string } | null }[] };
+    expect(body.projects.some((p) => p.project_id === "p_roundtrip")).toBe(true);
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_test", {
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/projects/p_test", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: {}, files: {} }),
+      body: JSON.stringify({ project: {}, files: {} }),
     });
     expect(res.status).toBe(401);
   });
 });
 
-describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
+describe("DELETE /api/v1/editor-session/:token/projects/:projectId", () => {
   test("200 deletes pack and it no longer appears in GET", async () => {
     const { token } = await createSession();
     const fakePack = { id: "p_delete", name: "To Delete", menus: [] };
-    await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_delete`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: { "plugins/Artisan/packs/p_delete/manifest.yaml": "" } }),
+      body: JSON.stringify({ project: fakePack, files: { "plugins/Artisan/projects/p_delete/manifest.yaml": "" } }),
     });
-    const delRes = await app.request(`/api/v1/editor-session/${token}/packs/p_delete`, { method: "DELETE" });
+    const delRes = await app.request(`/api/v1/editor-session/${token}/projects/p_delete`, { method: "DELETE" });
     expect(delRes.status).toBe(200);
-    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
-    const body = await getRes.json() as { packs: { pack_id: string }[] };
-    expect(body.packs.some((p) => p.pack_id === "p_delete")).toBe(false);
+    const getRes = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await getRes.json() as { projects: { project_id: string }[] };
+    expect(body.projects.some((p) => p.project_id === "p_delete")).toBe(false);
   });
 });
 
-describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — trust gate", () => {
+describe("POST /api/v1/editor-session/:token/projects/:projectId/deploy — trust gate", () => {
   const fakePayload = {
-    pack: { id: "p_trust", name: "Trust Test", menus: [] },
-    files: { "manifest.yaml": "pack_id: p_trust\n" },
+    project: { id: "p_trust", name: "Trust Test", menus: [] },
+    files: { "manifest.yaml": "project_id: p_trust\n" },
   };
 
   test("403 session_not_trusted when not trusted", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_trust/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fakePayload),
@@ -482,7 +482,7 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — trust gate
       .set({ trustedAt: new Date(), trustedIp: "5.5.5.5" })
       .where(eq(editorSessions.token, rows[0].token));
 
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_trust/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fakePayload),
@@ -493,25 +493,25 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — trust gate
 
   test("201 when session is trusted with matching IP", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_trust_ok/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_trust_ok/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: { id: "p_trust_ok", name: "ok" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_trust_ok", name: "ok" }, files: { "manifest.yaml": "" } }),
     });
     expect(res.status).toBe(201);
   });
 });
 
-describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
+describe("POST /api/v1/editor-session/:token/projects/:projectId/deploy", () => {
   test("201 deploys pack, sets deployed_editor_json, pushes bundle", async () => {
     const { token } = await createTrustedSession();
     const fakePack = { id: "p_deploy", name: "Deploy Me", menus: [] };
-    const fakeFiles = { "manifest.yaml": "pack_id: p_deploy\n" };
+    const fakeFiles = { "manifest.yaml": "project_id: p_deploy\n" };
 
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_deploy/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_deploy/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
     const body = await res.json() as { hash: string };
@@ -520,10 +520,10 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
 
   test("201 auto-creates pack+binding when pack does not exist yet", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_new_deploy/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_new_deploy/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: { id: "p_new_deploy", name: "New" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_new_deploy", name: "New" }, files: { "manifest.yaml": "" } }),
     });
     expect(res.status).toBe(201);
     // Pack should now exist in DB with the correct server_key owner
@@ -533,10 +533,10 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
 
   test("sets deployedEditorJson after deploy (not just editorJson)", async () => {
     const { token } = await createTrustedSession();
-    await app.request(`/api/v1/editor-session/${token}/packs/p_chk_deployed/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_chk_deployed/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: { id: "p_chk_deployed", name: "Check" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_chk_deployed", name: "Check" }, files: { "manifest.yaml": "" } }),
     });
     const rows = await db.select().from(projects).where(eq(projects.id, "p_chk_deployed"));
     expect(rows[0].deployedEditorJson).not.toBeNull();
@@ -544,25 +544,25 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy", () => {
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_x/deploy", {
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/projects/p_x/deploy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: {}, files: {} }),
+      body: JSON.stringify({ project: {}, files: {} }),
     });
     expect(res.status).toBe(401);
   });
 });
 
-describe("GET /api/v1/editor-session/:token/packs/:packId/deployed", () => {
+describe("GET /api/v1/editor-session/:token/projects/:projectId/deployed", () => {
   test("returns null when pack never deployed", async () => {
     const { token } = await createSession();
     // Save a draft but never deploy
-    await app.request(`/api/v1/editor-session/${token}/packs/p_nodeploy`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_nodeploy`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: { id: "p_nodeploy" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_nodeploy" }, files: { "manifest.yaml": "" } }),
     });
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_nodeploy/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_nodeploy/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: null };
     expect(body.deployed).toBeNull();
@@ -572,12 +572,12 @@ describe("GET /api/v1/editor-session/:token/packs/:packId/deployed", () => {
     const { token } = await createTrustedSession();
     const fakePack = { id: "p_getdeployed", name: "Get Deployed", menus: [] };
     // Deploy it
-    await app.request(`/api/v1/editor-session/${token}/packs/p_getdeployed/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_getdeployed/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: fakePack, files: { "manifest.yaml": "" } }),
     });
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_getdeployed/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_getdeployed/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: { id: string; name: string } };
     expect(body.deployed?.name).toBe("Get Deployed");
@@ -585,7 +585,7 @@ describe("GET /api/v1/editor-session/:token/packs/:packId/deployed", () => {
 
   test("returns null when pack does not exist at all", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/pack_never_existed/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/pack_never_existed/deployed`);
     expect(res.status).toBe(200);
     const body = await res.json() as { deployed: null };
     expect(body.deployed).toBeNull();
@@ -593,27 +593,27 @@ describe("GET /api/v1/editor-session/:token/packs/:packId/deployed", () => {
 
   test("deployed field is independent of editorJson (draft-deploy roundtrip)", async () => {
     const { token } = await createTrustedSession();
-    const packPayload = { pack: { id: "p_indep", name: "Indep" }, files: { "manifest.yaml": "" } };
+    const packPayload = { project: { id: "p_indep", name: "Indep" }, files: { "manifest.yaml": "" } };
     // Deploy once
-    await app.request(`/api/v1/editor-session/${token}/packs/p_indep/deploy`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_indep/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(packPayload),
     });
     // Save a draft (PUT) with different name — should NOT touch deployedEditorJson
-    await app.request(`/api/v1/editor-session/${token}/packs/p_indep`, {
+    await app.request(`/api/v1/editor-session/${token}/projects/p_indep`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" } }),
     });
     // Deployed still returns the original
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_indep/deployed`);
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_indep/deployed`);
     const body = await res.json() as { deployed: { name: string } };
     expect(body.deployed?.name).toBe("Indep");
   });
 
   test("401 for invalid token", async () => {
-    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/packs/p_x/deployed");
+    const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/projects/p_x/deployed");
     expect(res.status).toBe(401);
   });
 });
@@ -624,7 +624,7 @@ describe("POST /api/v1/editor-session/:token/draft", () => {
     const res = await app.request(`/api/v1/editor-session/${token}/draft`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack_id: "pack1", menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
+      body: JSON.stringify({ project_id: "pack1", menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
     });
     expect(res.status).toBe(200);
   });
@@ -633,7 +633,7 @@ describe("POST /api/v1/editor-session/:token/draft", () => {
     const res = await app.request("/api/v1/editor-session/badtoken00000000000000000000000/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack_id: "p", menu_id: "m", menu_yaml: "" }),
+      body: JSON.stringify({ project_id: "p", menu_id: "m", menu_yaml: "" }),
     });
     expect(res.status).toBe(401);
   });
@@ -988,7 +988,7 @@ describe("custom_items_changed edge cases", () => {
   });
 });
 
-describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasLayout (files win)", () => {
+describe("PUT /api/v1/editor-session/:token/projects/:projectId — canvasLayout (files win)", () => {
   test("manifest editor_layout overrides pack.canvasLayout in stored editorJson", async () => {
     const { token } = await createSession();
     const fakePack = {
@@ -998,28 +998,28 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasLayout (file
       canvasLayout: { shop: { x: 1, y: 1 } }, // STALE — files should win
     };
     const fakeFiles = {
-      "plugins/Artisan/packs/p_files_win/manifest.yaml": [
-        "schema: manifest/v1", "pack_id: p_files_win", "default_lang: en",
+      "plugins/Artisan/projects/p_files_win/manifest.yaml": [
+        "schema: manifest/v1", "project_id: p_files_win", "default_lang: en",
         "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
         "editor_layout:", "  shop: { x: 77, y: 88 }",
       ].join("\n") + "\n",
     };
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_files_win`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_files_win`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
 
-    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
-    const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
-    const p = body.packs.find((x) => x.pack_id === "p_files_win")!;
+    const getRes = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await getRes.json() as { projects: Array<{ project_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
+    const p = body.projects.find((x) => x.project_id === "p_files_win")!;
     expect(p.editor?.canvasLayout).toEqual({ shop: { x: 77, y: 88 } });
     expect(p.editor?.id).toBe("p_files_win");
   });
 });
 
-describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasEdges", () => {
+describe("PUT /api/v1/editor-session/:token/projects/:projectId — canvasEdges", () => {
   test("manifest editor_edges lands in stored editorJson", async () => {
     const { token } = await createSession();
     const fakePack = {
@@ -1028,27 +1028,27 @@ describe("PUT /api/v1/editor-session/:token/packs/:packId — canvasEdges", () =
       menus: [],
     };
     const fakeFiles = {
-      "plugins/Artisan/packs/p_edges/manifest.yaml": [
-        "schema: manifest/v1", "pack_id: p_edges", "default_lang: en",
+      "plugins/Artisan/projects/p_edges/manifest.yaml": [
+        "schema: manifest/v1", "project_id: p_edges", "default_lang: en",
         "files:", "  menus: [shop]", "  commands: []", "  dialogs: []",
         "editor_edges:", "  'shop->x': { from: { side: right, t: 0.5 } }",
       ].join("\n") + "\n",
     };
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_edges`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_edges`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
 
-    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
-    const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasEdges: Record<string, unknown> } | null }> };
-    const stored = body.packs.find((x) => x.pack_id === "p_edges")!.editor!;
+    const getRes = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await getRes.json() as { projects: Array<{ project_id: string; editor: { id: string; canvasEdges: Record<string, unknown> } | null }> };
+    const stored = body.projects.find((x) => x.project_id === "p_edges")!.editor!;
     expect(stored.canvasEdges).toEqual({ "shop->x": { from: { side: "right", t: 0.5 } } });
   });
 });
 
-describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — canvasLayout (files win)", () => {
+describe("POST /api/v1/editor-session/:token/projects/:projectId/deploy — canvasLayout (files win)", () => {
   test("deploy applies manifest editor_layout to stored editorJson", async () => {
     const { token } = await createTrustedSession();
     const fakePack = {
@@ -1058,63 +1058,63 @@ describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — canvasLayo
       canvasLayout: { foo: { x: 0, y: 0 } }, // stale
     };
     const fakeFiles = {
-      "plugins/Artisan/packs/p_deploy_layout/manifest.yaml": [
-        "schema: manifest/v1", "pack_id: p_deploy_layout", "default_lang: en",
+      "plugins/Artisan/projects/p_deploy_layout/manifest.yaml": [
+        "schema: manifest/v1", "project_id: p_deploy_layout", "default_lang: en",
         "files:", "  menus: []", "  commands: []", "  dialogs: []",
         "editor_layout:", "  bar: { x: 200, y: 300 }",
       ].join("\n") + "\n",
     };
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_deploy_layout/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_deploy_layout/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: fakePack, files: fakeFiles }),
+      body: JSON.stringify({ project: fakePack, files: fakeFiles }),
     });
     expect(res.status).toBe(201);
 
-    const getRes = await app.request(`/api/v1/editor-session/${token}/packs`);
-    const body = await getRes.json() as { packs: Array<{ pack_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
-    const p = body.packs.find((x) => x.pack_id === "p_deploy_layout")!;
+    const getRes = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await getRes.json() as { projects: Array<{ project_id: string; editor: { id: string; canvasLayout: Record<string, { x: number; y: number }> } | null }> };
+    const p = body.projects.find((x) => x.project_id === "p_deploy_layout")!;
     expect(p.editor?.canvasLayout).toEqual({ bar: { x: 200, y: 300 } });
     expect(p.editor?.id).toBe("p_deploy_layout");
   });
 });
 
-describe("PUT /api/v1/editor-session/:token/packs/:packId — invalid pack rejection", () => {
+describe("PUT /api/v1/editor-session/:token/projects/:projectId — invalid pack rejection", () => {
   test("400 when body.pack is null", async () => {
     const { token } = await createSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_null`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_null`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
+      body: JSON.stringify({ project: null, files: { "x.yaml": "" } }),
     });
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toBe("missing_or_invalid_pack");
+    expect(body.error).toBe("missing_or_invalid_project");
   });
 });
 
-describe("POST /api/v1/editor-session/:token/packs/:packId/deploy — invalid pack rejection", () => {
+describe("POST /api/v1/editor-session/:token/projects/:projectId/deploy — invalid pack rejection", () => {
   test("400 when body.pack is null", async () => {
     const { token } = await createTrustedSession();
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_null/deploy`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_null/deploy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pack: null, files: { "x.yaml": "" } }),
+      body: JSON.stringify({ project: null, files: { "x.yaml": "" } }),
     });
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toBe("missing_or_invalid_pack");
+    expect(body.error).toBe("missing_or_invalid_project");
   });
 });
 
-describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
-  test("soft-deletes pack, broadcasts pack_deleted, returns 200", async () => {
+describe("DELETE /api/v1/editor-session/:token/projects/:projectId", () => {
+  test("soft-deletes project, broadcasts project_deleted, returns 200", async () => {
     const { token, keyId: serverKeyId } = await createSession();
 
     // Seed a bound pack using the new approach
     await seedBoundPack(serverKeyId, "p_to_delete", "h", {});
 
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_to_delete`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_to_delete`, {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
@@ -1129,7 +1129,7 @@ describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
   test("returns 404 for unknown pack", async () => {
     const { token } = await createSession();
 
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/nonexistent`, {
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/nonexistent`, {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
@@ -1139,16 +1139,16 @@ describe("DELETE /api/v1/editor-session/:token/packs/:packId", () => {
     const { token, keyId: serverKeyId } = await createSession();
     await seedBoundPack(serverKeyId, "p_already_deleted", "h", {});
     // Delete once — succeeds
-    await app.request(`/api/v1/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    await app.request(`/api/v1/editor-session/${token}/projects/p_already_deleted`, { method: "DELETE" });
     // Delete again — 404
-    const res = await app.request(`/api/v1/editor-session/${token}/packs/p_already_deleted`, { method: "DELETE" });
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_already_deleted`, { method: "DELETE" });
     expect(res.status).toBe(404);
   });
 
   test("uses softDeleteProject — pack row still in DB with deletedAt set", async () => {
     const { token, keyId: serverKeyId } = await createSession();
     await seedBoundPack(serverKeyId, "p_soft_only", "h", {});
-    await app.request(`/api/v1/editor-session/${token}/packs/p_soft_only`, { method: "DELETE" });
+    await app.request(`/api/v1/editor-session/${token}/projects/p_soft_only`, { method: "DELETE" });
     const rows = await db.select().from(projects).where(eq(projects.id, "p_soft_only"));
     expect(rows.length).toBe(1);   // row still exists
     expect(rows[0].deletedAt).not.toBeNull();   // but marked deleted

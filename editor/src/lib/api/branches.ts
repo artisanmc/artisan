@@ -17,13 +17,13 @@ export interface Branch {
 export interface Commit { id: string; projectId: string; parentId: string | null; contentHash: string; authorUserId: string | null; message: string; createdAt: string; }
 
 export async function listBranches(networkId: string, projectId: string): Promise<Branch[]> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/branches`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/branches`, { credentials: "include" });
   if (!res.ok) throw new Error(`listBranches failed: ${res.status}`);
   return ((await res.json()) as { branches: Branch[] }).branches;
 }
 
 export async function createBranch(networkId: string, projectId: string, name: string, from: string): Promise<Branch> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/branches`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/branches`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -34,7 +34,7 @@ export async function createBranch(networkId: string, projectId: string, name: s
 }
 
 export async function listCommits(networkId: string, projectId: string, branch: string, limit = 50): Promise<Commit[]> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/commits?branch=${encodeURIComponent(branch)}&limit=${limit}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/commits?branch=${encodeURIComponent(branch)}&limit=${limit}`, { credentials: "include" });
   if (!res.ok) throw new Error(`listCommits failed: ${res.status}`);
   return ((await res.json()) as { commits: Commit[] }).commits;
 }
@@ -50,7 +50,7 @@ export async function getBranchHead(
   branch: string,
 ): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
   const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/branches/${encodeURIComponent(branch)}/head`,
+    `${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/branches/${encodeURIComponent(branch)}/head`,
     { credentials: "include" },
   );
   if (res.status === 404) return null;
@@ -59,7 +59,7 @@ export async function getBranchHead(
 }
 
 export async function createCommit(networkId: string, projectId: string, branch: string, message: string): Promise<Commit> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/commits`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/commits`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -70,7 +70,7 @@ export async function createCommit(networkId: string, projectId: string, branch:
 }
 
 export async function promoteBranch(networkId: string, projectId: string, src: string, dst: string): Promise<{ ok: boolean; advanced: boolean }> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/branches/${src}/promote/${dst}`, {
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/branches/${src}/promote/${dst}`, {
     method: "POST",
     credentials: "include",
   });
@@ -92,7 +92,7 @@ export async function getCommitContent(
   commitId: string,
 ): Promise<{ commit: { id: string; contentHash: string; message: string; createdAt: string }; editor: Record<string, unknown>; files: Record<string, string> } | null> {
   const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/packs/${projectId}/commits/${commitId}/content`,
+    `${API_URL}/api/v1/networks/${networkId}/projects/${projectId}/commits/${commitId}/content`,
     { credentials: "include" },
   );
   if (res.status === 404) return null;

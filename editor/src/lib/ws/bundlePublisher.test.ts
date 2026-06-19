@@ -13,7 +13,7 @@ describe("publishBundle", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    const files = { "plugins/Artisan/packs/p_test/manifest.yaml": "schema: manifest/v1\n" };
+    const files = { "plugins/Artisan/projects/p_test/manifest.yaml": "schema: manifest/v1\n" };
     const result = await publishBundle({
       apiUrl: "http://localhost:3001",
       serverKey: "sk_abc",
