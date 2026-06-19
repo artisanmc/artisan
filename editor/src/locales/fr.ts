@@ -825,6 +825,7 @@ const fr: typeof en = {
     projectCount_other: "{{count}} projets",
     projectCount: "{{count}} projets",
     networkSettings: "Paramètres du network",
+    manageServers: "Gérer les serveurs",
     serverCreated: "Clé serveur créée",
     serverCreatedHint:
       "Copie cette clé maintenant et colle-la dans config.yml. Elle ne sera plus affichée.",
@@ -841,7 +842,7 @@ const fr: typeof en = {
     rotateKey: "Renouveler",
     loading: "Chargement…",
     confirmRotateKey:
-      "Renouveler cette clé ? L'ancienne valeur cesse de fonctionner immédiatement ; il faudra coller la nouvelle dans le config.yml du serveur.",
+      "Générer une nouvelle clé pour ce serveur ? Toute clé déjà en place cesse de fonctionner immédiatement — il faudra coller la nouvelle dans le config.yml de chaque serveur qui l'utilise. (Le secret n'est jamais stocké en clair, c'est donc la seule façon d'obtenir une clé utilisable.)",
     rotateRevealTitle: "Nouvelle clé générée",
     rotateRevealHint:
       "Copie la clé maintenant et colle-la dans le config.yml du serveur. Pour des raisons de sécurité, elle ne sera plus jamais affichée.",
@@ -861,8 +862,7 @@ const fr: typeof en = {
   serverKebab: {
     actions: "Actions du serveur",
     edit: "Modifier le serveur…",
-    showKey: "Voir la clé du serveur…",
-    rotate: "Renouveler la clé…",
+    rotate: "Générer une nouvelle clé…",
     history: "Historique de connexion",
     allowlist: "Allowlist d'IP",
     delete: "Supprimer le serveur…",
