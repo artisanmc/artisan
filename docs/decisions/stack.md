@@ -2,7 +2,7 @@
 
 Décisions consolidées sur la stack du produit, avec rationale et alternatives écartées. Document vivant : à mettre à jour quand on revisite un choix.
 
-Dernière révision : 2026-05-05.
+Dernière révision : 2026-06-19.
 
 ---
 
@@ -29,6 +29,7 @@ Dernière révision : 2026-05-05.
 | **Tests editor** | Vitest + Playwright | Jest, Cypress | Vitest s'intègre à Vite. Playwright > Cypress en 2026. |
 | **Tests plugin** | JUnit 5 + MockBukkit + MockWebServer | - | Standards Paper/Bukkit. MockWebServer (OkHttp) pour simuler le backend en intégration. |
 | **Lint / format** | Biome (editor) | ESLint + Prettier | Un binaire, plus rapide. |
+| **Hosting production** | OVH VPS 4 vCPU/8 Go, Ubuntu 26.04, Coolify, PostgreSQL 16 privé, nginx, Cloudflare Tunnel + Access, livraison GitHub Actions gated | Hébergement managé réparti | Une stack regroupée réduit la fragmentation opérationnelle tout en restant exploitable par une seule personne. Le Tunnel masque l'origine et évite d'exposer des ports web entrants. |
 
 ---
 
@@ -41,6 +42,7 @@ La spec initiale documentait Node 22 + Fastify + PostgreSQL + React Flow. L'impl
 | Java 21 | **Kotlin 2.0** | Null-safety et data classes réduisent le boilerplate sur les modèles de domaine. |
 | Node 22 + Fastify | **Bun + Hono** | MVP : Bun simplifie le toolchain (pas de transpilation). Fastify n'apporte rien de concret à cette échelle. |
 | React Flow | **Konva** | Le modèle visuel est un canvas d'inventaires Minecraft, pas un graphe de nœuds. Konva donne le contrôle pixel-perfect nécessaire. |
+| Hébergement managé réparti entre plusieurs fournisseurs | **OVH + Coolify + PostgreSQL privé + nginx + Cloudflare Tunnel/Access** | Moins de fragmentation opérationnelle et une exploitation solo plus pratique, avec des releases toujours conditionnées par la CI GitHub Actions. |
 
 **Condition de migration vers Fastify :** si on a besoin de la validation JSON Schema intégrée sur les routes bundle upload (quand le schéma menu v2 arrive), ou si on atteint les limites de Hono en production.
 
@@ -110,9 +112,12 @@ TanStack Query n'est pas utilisé (pas de data fetching server-side côté edito
 ## Hosting (cible production)
 
 - **Plugin** : distribué aux admins, pas hosté par nous.
-- **Backend** : Fly.io (WS persistants bénéficient de la régionalité) ou Railway.
-- **Editor** : Cloudflare Pages.
-- **Assets/bundles** : Cloudflare R2 + CDN (pas d'egress fees).
+- **Hôte** : VPS OVH 4 vCPU / 8 Go sous Ubuntu 26.04, administré par Coolify.
+- **Backend** : image Docker Bun gérée par Coolify, volume persistant `/app/data`.
+- **Editor** : image Docker multi-stage, fichiers statiques servis par nginx.
+- **Données** : PostgreSQL 16 privé sur le réseau Coolify ; assets et bundles sur `/app/data` sauvegardé hors hôte.
+- **Entrée web** : Cloudflare Tunnel nommé pour `api.artisanmc.net`, `editor.artisanmc.net` et `coolify.artisanmc.net`; Cloudflare Access protège Coolify.
+- **Livraison** : GitHub Actions déploie uniquement la révision `main` validée par CI ; l'auto-deploy direct de Coolify est désactivé.
 - **Auth** : Discord OAuth custom (pas NextAuth — bound à Next.js).
 - **Paiement** : Stripe Subscriptions.
 
