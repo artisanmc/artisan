@@ -25,7 +25,7 @@ interface Props {
   server: Server;
   workspaces: Project[];
   onAction: (
-    action: "edit" | "show-key" | "rotate" | "history" | "allowlist" | "delete",
+    action: "edit" | "rotate" | "history" | "allowlist" | "delete",
     serverId: string,
   ) => void;
   onCreateProject: (serverId: string) => void;

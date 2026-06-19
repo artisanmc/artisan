@@ -159,6 +159,14 @@ export function NetworksPage() {
                       {nd.network.name}
                     </h2>
                     <Link
+                      to="/networks/$networkId"
+                      params={{ networkId: nd.network.slug ?? nd.network.id }}
+                      className="flex items-center gap-1 text-[12px] text-[var(--text-faint)] hover:text-[var(--brand)]"
+                    >
+                      {t("networksHub.manageServers")}
+                      <ArrowRight className="size-[12px]" />
+                    </Link>
+                    <Link
                       to="/networks/$networkId/settings"
                       params={{ networkId: nd.network.slug ?? nd.network.id }}
                       className="flex items-center gap-1 text-[12px] text-[var(--text-faint)] hover:text-[var(--brand)]"

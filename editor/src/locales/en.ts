@@ -815,6 +815,7 @@ export default {
     projectCount_other: "{{count}} projects",
     projectCount: "{{count}} projects",
     networkSettings: "Network settings",
+    manageServers: "Manage servers",
     serverCreated: "Server key created",
     serverCreatedHint:
       "Copy this key now and paste it into config.yml. It will never be shown again.",
@@ -831,7 +832,7 @@ export default {
     rotateKey: "Rotate",
     loading: "Loading…",
     confirmRotateKey:
-      "Rotate this key? The current value will stop working immediately and you'll need to paste the new one into the server's config.yml.",
+      "Generate a new key for this server? Any key already in use stops working immediately — you'll need to paste the new one into the config.yml of every server using it. (The secret is never stored in clear, so this is the only way to get a usable key.)",
     rotateRevealTitle: "New key generated",
     rotateRevealHint:
       "Copy this key now and paste it into the server's config.yml. For security, it will never be shown again.",
@@ -851,8 +852,7 @@ export default {
   serverKebab: {
     actions: "Server actions",
     edit: "Edit server…",
-    showKey: "Show server key…",
-    rotate: "Rotate key…",
+    rotate: "Generate new key…",
     history: "Connection history",
     allowlist: "IP allowlist",
     delete: "Delete server…",
