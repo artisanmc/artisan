@@ -156,6 +156,64 @@ describe("userNetworksRouter", () => {
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
   });
 
+  test("GET /:id/servers-status returns online/total + last accepted hello, ignores rejected", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "NS" }),
+    });
+    const { network } = await create.json();
+
+    await db.insert(serverKeys).values([
+      { id: "sk_a", hash: "h_a", networkId: network.id, createdAt: new Date(), label: "Survival", lastMcVersion: "1.21.4" },
+      { id: "sk_b", hash: "h_b", networkId: network.id, createdAt: new Date(), label: "Lobby" },
+    ]);
+
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000);
+    await db.insert(serverKeyHelloes).values([
+      { id: "he1", serverKeyId: "sk_a", ip: "1.2.3.4", mcVersion: "1.21.4", helloAt: earlier, rejectedReason: null },
+      { id: "he2", serverKeyId: "sk_a", ip: "9.9.9.9", mcVersion: "1.21.4", helloAt: now, rejectedReason: "ip_not_allowed" },
+    ]);
+    // sk_b: never connected (no hello rows)
+
+    const res = await app.request(`/api/v1/networks/${network.id}/servers-status?current=sk_a`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(2);
+    expect(body.online).toBe(0); // no live WS connections in test
+
+    const a = body.servers.find((s: { id: string }) => s.id === "sk_a");
+    const b = body.servers.find((s: { id: string }) => s.id === "sk_b");
+    expect(a.label).toBe("Survival");
+    expect(a.lastSeenIp).toBe("1.2.3.4"); // accepted hello, NOT the rejected one
+    expect(new Date(a.lastSeenAt).getTime()).toBe(earlier.getTime());
+    expect(a.isCurrent).toBe(true);
+    expect(b.isCurrent).toBe(false);
+    expect(b.lastSeenAt).toBeNull(); // never connected
+    expect(b.lastSeenIp).toBeNull();
+  });
+
+  test("GET /:id/servers-status 403 for non-member", async () => {
+    const owner = await seedUser("owner1");
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${owner.sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "NS2" }),
+    });
+    const { network } = await create.json();
+    const stranger = await seedUser("stranger1");
+    const res = await app.request(`/api/v1/networks/${network.id}/servers-status`, {
+      headers: { Cookie: `artisan_user_session=${stranger.sessionId}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
   test("GET /api/v1/networks/:id reports documentCount from the pack editor JSON", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();

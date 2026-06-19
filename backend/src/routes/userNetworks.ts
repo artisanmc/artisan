@@ -1,6 +1,6 @@
 // backend/src/routes/userNetworks.ts
 
-import { and, desc, eq, inArray, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { db } from "../db/index";
@@ -529,6 +529,69 @@ userNetworksRouter.get(
 			);
 		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
 		return c.json({ online: getInstanceCount(keyId) > 0 });
+	},
+);
+
+// GET /api/networks/:id/servers-status?current=<serverKeyId> — member access.
+// Read-only aggregate for the topbar linked-servers badge + dropdown: one row
+// per server key with live online state (in-memory instance count) and the
+// last *accepted* hello (last-seen time + IP). Polled by the editor.
+userNetworksRouter.get(
+	"/:id/servers-status",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const current = c.req.query("current") ?? null;
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const keys = await db
+			.select()
+			.from(serverKeys)
+			.where(eq(serverKeys.networkId, networkId));
+
+		const ids = keys.map((k) => k.id);
+		const lastHelloes = ids.length
+			? await db
+					.selectDistinctOn([serverKeyHelloes.serverKeyId], {
+						serverKeyId: serverKeyHelloes.serverKeyId,
+						ip: serverKeyHelloes.ip,
+						helloAt: serverKeyHelloes.helloAt,
+					})
+					.from(serverKeyHelloes)
+					.where(
+						and(
+							inArray(serverKeyHelloes.serverKeyId, ids),
+							isNull(serverKeyHelloes.rejectedReason),
+						),
+					)
+					.orderBy(
+						serverKeyHelloes.serverKeyId,
+						desc(serverKeyHelloes.helloAt),
+					)
+			: [];
+		const helloById = new Map(lastHelloes.map((h) => [h.serverKeyId, h]));
+
+		const servers = keys.map((k) => {
+			const instanceCount = getInstanceCount(k.id);
+			const hello = helloById.get(k.id);
+			return {
+				id: k.id,
+				label: k.label,
+				online: instanceCount > 0,
+				instanceCount,
+				lastMcVersion: k.lastMcVersion,
+				lastSeenAt: hello ? hello.helloAt.toISOString() : null,
+				lastSeenIp: hello ? hello.ip : null,
+				isCurrent: k.id === current,
+			};
+		});
+		const online = servers.filter((s) => s.online).length;
+		return c.json({ servers, online, total: servers.length });
 	},
 );
 
