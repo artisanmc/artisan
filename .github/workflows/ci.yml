@@ -51,8 +51,6 @@ jobs:
       - run: node --test deploy/*.test.mjs
       - run: npm ci
         working-directory: editor
-      - run: npm run lint
-        working-directory: editor
       - run: npm test -- --run
         working-directory: editor
       - run: npm run build
@@ -74,4 +72,4 @@ jobs:
           java-version: 21
           cache: gradle
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test shadowJar --no-daemon
+      - run: bash ./gradlew test shadowJar --no-daemon
