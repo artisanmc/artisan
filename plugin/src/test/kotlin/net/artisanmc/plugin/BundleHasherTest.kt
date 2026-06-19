@@ -10,7 +10,7 @@ import kotlin.test.assertNotEquals
 class BundleHasherTest {
 
     private fun makePack(dir: File) {
-        File(dir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: p_test\n")
+        File(dir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: p_test\n")
         File(dir, "menus").mkdirs()
         File(dir, "menus/shop.yaml").writeText("id: shop\nsize: 27\n")
         File(dir, "lang").mkdirs()

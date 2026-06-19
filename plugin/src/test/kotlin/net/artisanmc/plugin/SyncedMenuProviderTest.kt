@@ -29,7 +29,7 @@ class SyncedMenuProviderTest {
         val packDir = File(packsRoot, "p_test").apply { mkdirs() }
         File(packDir, "manifest.yaml").writeText("""
             schema: manifest/v1
-            pack_id: p_test
+            project_id: p_test
             default_lang: en
             languages: [en]
             files:
@@ -139,7 +139,7 @@ class SyncedMenuProviderTest {
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
-        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"resource_pack":{"url":"http://x/$hash.zip","hash":"$hash"}}"""
+        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"resource_pack":{"url":"http://x/$hash.zip","hash":"$hash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)
@@ -158,7 +158,7 @@ class SyncedMenuProviderTest {
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
-        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
+        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${hash}.zip","hash":"$hash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)
@@ -176,7 +176,7 @@ class SyncedMenuProviderTest {
         provider.load()
         // First seed apiUrl via a hello_ack.
         val helloHash = "a".repeat(40)
-        val hello = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
+        val hello = """{"type":"hello_ack","session_id":"s","project_hashes":{},"bundle_url":"http://backend:3001","resource_pack":{"url":"http://localhost:3001/api/v1/resource-pack/sk/${helloHash}.zip","hash":"$helloHash"}}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, hello)
@@ -207,7 +207,7 @@ class SyncedMenuProviderTest {
         mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
         val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null, resourcePackManager = mgr)
         provider.load()
-        val raw = """{"type":"hello_ack","session_id":"s","pack_hashes":{},"resource_pack":null}"""
+        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"resource_pack":null}"""
         val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
         handle.isAccessible = true
         handle.invoke(provider, raw)

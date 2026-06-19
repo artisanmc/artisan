@@ -25,7 +25,7 @@ describe("useProjectLoader", () => {
   it("uses user mode when only currentUser set", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
     vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
-      pack: { id: "p1", name: "p", hash: "h" },
+      project: { id: "p1", name: "p", hash: "h" },
       files: {},
       editor: { id: "p1", menus: [] },
     } as never);

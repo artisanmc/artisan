@@ -42,8 +42,8 @@ class FullSyncIntegrationTest {
     }
 
     private fun packFiles(packId: String) = mapOf(
-        "plugins/Artisan/packs/$packId/manifest.yaml" to "schema: manifest/v1\npack_id: $packId\n",
-        "plugins/Artisan/packs/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
+        "plugins/Artisan/projects/$packId/manifest.yaml" to "schema: manifest/v1\nproject_id: $packId\n",
+        "plugins/Artisan/projects/$packId/menus/shop.yaml" to "id: shop\nsize: 27\n",
     )
 
     private fun helloAck(server: MockWebServer, packId: String, backendHash: String, needsSync: Boolean = true) =
@@ -55,13 +55,13 @@ class FullSyncIntegrationTest {
             "needs_sync"          to needsSync,
             "latest_bundle_hash"  to backendHash,
             "api_url"             to server.url("/api").toString(),
-            "pack_hashes"         to mapOf(packId to backendHash),
+            "project_hashes"      to mapOf(packId to backendHash),
         ))
 
     private fun bundleAvailable(server: MockWebServer, packId: String, backendHash: String) =
         mapper.writeValueAsString(mapOf(
             "type"      to "bundle_available",
-            "pack_id"   to packId,
+            "project_id" to packId,
             "url"       to server.url("/api/v1/bundles/$packId").toString(),
             "hash"      to backendHash,
             "signature" to "",
@@ -110,7 +110,7 @@ class FullSyncIntegrationTest {
 
                 assertTrue(manifest.exists(), "manifest.yaml should be written by BundleDownloader")
                 assertTrue(File(packsDir, "$packId/menus/shop.yaml").exists())
-                assertEquals("schema: manifest/v1\npack_id: $packId\n", manifest.readText())
+                assertEquals("schema: manifest/v1\nproject_id: $packId\n", manifest.readText())
 
                 val meta = SyncMetadata.read(File(packsDir, packId))
                 assertEquals(backendHash, meta.backendHash)
@@ -132,7 +132,7 @@ class FullSyncIntegrationTest {
 
             // Simulate a previous successful sync
             val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: $packId\n")
+            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
             val syncedHash = BundleHasher.hash(packDir)
             SyncMetadata.recordSync(packDir, syncedHash = syncedHash, backendHash = syncedHash)
 
@@ -187,7 +187,7 @@ class FullSyncIntegrationTest {
 
             // Simulate a previous sync
             val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: $packId\n")
+            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
             val syncedHash = BundleHasher.hash(packDir)
             SyncMetadata.recordSync(packDir, syncedHash = syncedHash, backendHash = syncedHash)
 
@@ -241,7 +241,7 @@ class FullSyncIntegrationTest {
             val packId = "p_auto_push"
             val packsDir = Files.createTempDirectory("artisan_auto_").toFile()
             val packDir = File(packsDir, packId).apply { mkdirs() }
-            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\npack_id: $packId\n")
+            File(packDir, "manifest.yaml").writeText("schema: manifest/v1\nproject_id: $packId\n")
             File(packDir, "menus").mkdirs()
             File(packDir, "menus/m.yaml").writeText("id: m\nsize: 27\n")
 
@@ -260,8 +260,8 @@ class FullSyncIntegrationTest {
                                     "type" to "hello_ack",
                                     "session_id" to "sess_test",
                                     "needs_sync" to false,
-                                    "pack_hashes" to mapOf(packId to ""),
-                                    "deleted_pack_ids" to emptyList<String>(),
+                                    "project_hashes" to mapOf(packId to ""),
+                                    "deleted_project_ids" to emptyList<String>(),
                                 )))
                                 helloLatch.countDown()
                             }
@@ -288,7 +288,7 @@ class FullSyncIntegrationTest {
 
                 val push = received.firstOrNull { it["type"] == "local_push" }
                 assertNotNull(push, "Expected an auto-pushed local_push message. Received: $received")
-                assertEquals(packId, push!!["pack_id"])
+                assertEquals(packId, push!!["project_id"])
 
                 provider.unload()
             }
@@ -316,8 +316,8 @@ class FullSyncIntegrationTest {
                                 "type" to "hello_ack",
                                 "session_id" to "sess_proto",
                                 "needs_sync" to false,
-                                "pack_hashes" to emptyMap<String, String>(),
-                                "deleted_pack_ids" to emptyList<String>(),
+                                "project_hashes" to emptyMap<String, String>(),
+                                "deleted_project_ids" to emptyList<String>(),
                             )))
                         }
                     }
@@ -377,7 +377,7 @@ class FullSyncIntegrationTest {
         }
 
         // hello_ack: backend hash == last_synced → disk differs → LOCAL_ONLY
-        val ack = """{"type":"hello_ack","pack_hashes":{"p_local":"old_synced_hash"},"deleted_pack_ids":[],"bundle_url":"http://backend"}"""
+        val ack = """{"type":"hello_ack","project_hashes":{"p_local":"old_synced_hash"},"deleted_project_ids":[],"bundle_url":"http://backend"}"""
         provider.handleMessageForTesting(ack)
 
         Thread.sleep(300)  // settle any background dispatcher

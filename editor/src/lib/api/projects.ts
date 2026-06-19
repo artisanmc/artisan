@@ -5,12 +5,11 @@ export interface DeleteProjectOptions {
 }
 
 export async function deleteProject({ apiUrl, token, projectId }: DeleteProjectOptions): Promise<void> {
-  // TODO(phase4-wire): `/packs` path segment flips to `/projects` in Phase 4.
-  const res = await fetch(`${apiUrl}/api/v1/editor-session/${token}/packs/${projectId}`, {
+  const res = await fetch(`${apiUrl}/api/v1/editor-session/${token}/projects/${projectId}`, {
     method: "DELETE",
   });
   if (!res.ok) {
-    if (res.status === 404) throw new Error("pack_not_found"); // TODO(phase4-wire): pack_not_found error code
+    if (res.status === 404) throw new Error("project_not_found");
     throw new Error(`delete_failed_${res.status}`);
   }
 }

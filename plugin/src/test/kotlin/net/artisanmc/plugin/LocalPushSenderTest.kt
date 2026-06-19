@@ -19,12 +19,12 @@ class LocalPushSenderTest {
 
         val msg = LocalPushSender.buildPushMessage("p_test", packDir.toFile())
         assertEquals("local_push", msg["type"])
-        assertEquals("p_test", msg["pack_id"])
+        assertEquals("p_test", msg["project_id"])
         @Suppress("UNCHECKED_CAST")
         val files = msg["files"] as Map<String, String>
         assertEquals(2, files.size)
-        assertTrue(files.containsKey("plugins/Artisan/packs/p_test/manifest.yaml"))
-        assertTrue(files["plugins/Artisan/packs/p_test/manifest.yaml"]!!.contains("manifest/v1"))
+        assertTrue(files.containsKey("plugins/Artisan/projects/p_test/manifest.yaml"))
+        assertTrue(files["plugins/Artisan/projects/p_test/manifest.yaml"]!!.contains("manifest/v1"))
         assertTrue((msg["hash"] as String).matches(Regex("[0-9a-f]{64}")))
     }
 
@@ -39,7 +39,7 @@ class LocalPushSenderTest {
         @Suppress("UNCHECKED_CAST")
         val files = msg["files"] as Map<String, String>
         assertEquals(1, files.size)
-        assertTrue(files.containsKey("plugins/Artisan/packs/p_meta/manifest.yaml"))
+        assertTrue(files.containsKey("plugins/Artisan/projects/p_meta/manifest.yaml"))
     }
 
     @Test

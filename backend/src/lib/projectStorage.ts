@@ -11,7 +11,7 @@ export type Project = typeof projects.$inferSelect;
  * Initial editor JSON shape for a freshly created project. Mirrors the editor's
  * `Project` TypeScript type — every collection field is empty so the editor can
  * render an empty project without crashing. Without this default, the editor
- * used to get `editor: null` from GET /api/v1/user/packs/:packId and render a
+ * used to get `editor: null` from GET /api/v1/user/projects/:projectId and render a
  * black screen.
  */
 function defaultEditorJson(id: string, name: string, now: Date): string {

@@ -6,7 +6,7 @@ export interface HelloMessage {
   plugin_version: string;
   minecraft_version?: string;
   current_bundle_hash: string;
-  local_pack_ids?: string[];
+  local_project_ids?: string[];
   custom_items_hash?: string | null;   // null/absent means no custom item plugin detected
   // Modules the Core plugin currently has registered. Drives editor visibility
   // (presence activation). Absent/empty on older plugins → no modules reported.
@@ -22,14 +22,14 @@ export interface HelloAckMessage {
   latest_bundle_hash: string;
   api_url: string;
   bundle_url: string;  // plugin-internal URL for bundle downloads/uploads (may differ from api_url in Docker)
-  pack_hashes: Record<string, string>;  // packId → latest stored hash on backend
-  deleted_pack_ids: string[];
+  project_hashes: Record<string, string>;  // projectId → latest stored hash on backend
+  deleted_project_ids: string[];
   resource_pack: { url: string; hash: string } | null;
 }
 
 export interface BundleAvailableMessage {
   type: "bundle_available";
-  pack_id: string;
+  project_id: string;
   url: string;
   hash: string;
   signature: string;
@@ -37,7 +37,7 @@ export interface BundleAvailableMessage {
 
 export interface DraftUpdateMessage {
   type: "draft_update";
-  pack_id: string;
+  project_id: string;
   menu_id: string;
   menu_yaml: string;
 }
@@ -105,23 +105,22 @@ export interface EditorSessionReadyMessage {
 export interface SessionExpiredMessage { type: "session_expired" }
 export interface EditorDraftUpdateMessage {
   type: "draft_update";
-  pack_id: string;
+  project_id: string;
   menu_id: string;
   menu_yaml: string;
   updated_by: string;
 }
 
 // Backend → plugin : project supprimé côté éditeur
-// TODO(phase4-wire): message-type string `"pack_deleted"` + field `pack_id` flip in Phase 4.
 export interface ProjectDeletedMessage {
-  type: "pack_deleted";
-  pack_id: string;
+  type: "project_deleted";
+  project_id: string;
 }
 
-// Plugin → backend: push local pack files to backend (/artisan pushLocal flow)
+// Plugin → backend: push local project files to backend (/artisan pushLocal flow)
 export interface LocalPushMessage {
   type: "local_push";
-  pack_id: string;
+  project_id: string;
   files: Record<string, string>;
   hash: string;
 }

@@ -26,11 +26,11 @@ object ProjectFilesReader {
     }
 
     /**
-     * Canonical files map keyed by "plugins/Artisan/packs/<projectId>/<relPath>"
+     * Canonical files map keyed by "plugins/Artisan/projects/<projectId>/<relPath>"
      * (the form the backend stores). Thin re-key over [readRelative].
      */
     fun read(projectDir: File, projectId: String): Map<String, String> {
-        val prefix = "plugins/Artisan/packs/$projectId/" // TODO(phase4-wire): path literal "packs"
+        val prefix = "plugins/Artisan/projects/$projectId/"
         return readRelative(projectDir).mapKeys { (rel, _) -> "$prefix$rel" }
     }
 }

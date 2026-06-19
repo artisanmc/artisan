@@ -54,7 +54,7 @@ export async function saveDraft(
   const res = await fetch(`${API_URL}/api/v1/editor-session/${accessToken}/draft`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pack_id: projectId, menu_id: menuId, menu_yaml: menuYaml }),
+    body: JSON.stringify({ project_id: projectId, menu_id: menuId, menu_yaml: menuYaml }),
     credentials: "include",
   });
   if (!res.ok) throw new Error("Échec de la sauvegarde du draft");

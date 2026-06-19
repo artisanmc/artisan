@@ -3,12 +3,8 @@ import type { Asset, AssetType } from "@/domain/asset";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-// TODO(phase4-wire): every `/packs` path segment + `pack_id` JSON field in this
-// file is the OLD wire shape. They flip to `/projects` + `project_id` atomically
-// with the backend in Phase 4. Renamed only the TS symbols around them here.
-
 interface ProjectListRow {
-  pack_id: string; // TODO(phase4-wire): pack_id
+  project_id: string;
   name: string;
   hash: string;
   files: Record<string, string>;
@@ -16,10 +12,10 @@ interface ProjectListRow {
 }
 
 function rowToProject(row: ProjectListRow): Project {
-  if (row.editor) return { ...row.editor, id: row.pack_id as ProjectId, name: row.name }; // TODO(phase4-wire): pack_id
+  if (row.editor) return { ...row.editor, id: row.project_id as ProjectId, name: row.name };
   const now = new Date().toISOString();
   return {
-    id: row.pack_id as ProjectId, // TODO(phase4-wire): pack_id
+    id: row.project_id as ProjectId,
     name: row.name,
     source: "user_created",
     createdAt: now,
@@ -52,11 +48,10 @@ export interface LibraryData {
 }
 
 export async function loadProjects(token: string): Promise<Project[]> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects`);
   if (!res.ok) throw new Error("Failed to load projects");
-  // TODO(phase4-wire): backend returns `{ packs }`; read the wire key here.
-  const data = (await res.json()) as { packs: ProjectListRow[] };
-  return data.packs.map(rowToProject);
+  const data = (await res.json()) as { projects: ProjectListRow[] };
+  return data.projects.map(rowToProject);
 }
 
 export async function saveProject(
@@ -64,7 +59,7 @@ export async function saveProject(
   pack: Project,
   files: Record<string, string>,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${pack.id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${pack.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
@@ -73,7 +68,7 @@ export async function saveProject(
 }
 
 export async function deleteProject(token: string, projectId: string): Promise<void> {
-  await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}`, {
+  await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}`, {
     method: "DELETE",
   });
 }
@@ -89,7 +84,7 @@ export async function deployProject(
   pack: Project,
   files: Record<string, string>,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${pack.id}/deploy`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${pack.id}/deploy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pack, files }),
@@ -102,10 +97,10 @@ export async function deployProject(
 }
 
 export async function getDeployedProject(token: string, projectId: string): Promise<Project | null> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/deployed`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/deployed`);
   if (!res.ok) throw new Error("Impossible de récupérer la version déployée");
-  const data = (await res.json()) as { pack: Project | null };
-  return data.pack;
+  const data = (await res.json()) as { project: Project | null };
+  return data.project;
 }
 
 export async function fetchItems(token: string): Promise<LibraryData> {
@@ -138,7 +133,7 @@ export async function listAssets(
   if (filters.type) params.set("type", filters.type);
   if (filters.search) params.set("search", filters.search);
   const qs = params.toString();
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets${qs ? "?" + qs : ""}`);
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to load assets");
   const data = (await res.json()) as { assets: Asset[] };
   return data.assets;
@@ -154,7 +149,7 @@ export async function uploadAsset(
   fd.set("name", input.name);
   if (input.ascent !== undefined) fd.set("ascent", String(input.ascent));
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -175,7 +170,7 @@ export async function uploadFontAsset(
   fd.set("type", "font");
   fd.set("name", input.name);
   fd.set("file", input.file);
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets`, {
     method: "POST",
     body: fd,
   });
@@ -198,7 +193,7 @@ export async function updateAsset(
   // optimistic-only in `assetStore` and never sent here.
   patch: { name?: string; ascent?: number; height?: number },
 ): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets/${id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -212,7 +207,7 @@ export async function updateAsset(
 }
 
 export async function deleteAsset(token: string, projectId: string, id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets/${id}`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Delete failed");
@@ -221,14 +216,14 @@ export async function deleteAsset(token: string, projectId: string, id: string):
 /**
  * Duplicate an existing asset (typically a glyph) into a new asset row.
  *
- *   POST /api/v1/editor-session/:token/packs/:projectId/assets/:id/duplicate
+ *   POST /api/v1/editor-session/:token/projects/:projectId/assets/:id/duplicate
  *   → 200 { asset: Asset }
  *
  * Caller is responsible for upserting the returned asset into `assetStore`
  * and (optionally) re-pointing any referencing layer to the new id.
  */
 export async function duplicateAsset(token: string, projectId: string, id: string): Promise<Asset> {
-  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/packs/${projectId}/assets/${id}/duplicate`, {
+  const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${projectId}/assets/${id}/duplicate`, {
     method: "POST",
   });
   if (!res.ok) {

@@ -42,7 +42,7 @@ class BundleDownloader(
         }
         val backendHash = parsed["hash"] as? String ?: ""
 
-        val prefix = "plugins/Artisan/packs/$projectId/" // TODO(phase4-wire): path literal "packs"
+        val prefix = "plugins/Artisan/projects/$projectId/"
         val projectDir = File(projectsDir, projectId)
         projectDir.mkdirs()
 

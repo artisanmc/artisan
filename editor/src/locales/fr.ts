@@ -1000,10 +1000,10 @@ const fr: typeof en = {
     serverKeyLabelHint: "Optionnel — sert juste à reconnaître ce serveur dans l'éditeur.",
     errors: {
       ambiguous_network: "Tu ne peux pas à la fois choisir et créer un network.",
-      ambiguous_pack: "Tu ne peux pas à la fois choisir et créer un projet.",
-      pack_not_in_network: "Ce projet n'appartient pas au network choisi.",
+      ambiguous_project: "Tu ne peux pas à la fois choisir et créer un projet.",
+      project_not_in_network: "Ce projet n'appartient pas au network choisi.",
       invalid_network_name: "Le nom de network est invalide.",
-      invalid_pack_name: "Le nom de projet est invalide.",
+      invalid_project_name: "Le nom de projet est invalide.",
       must_choose_network: "Plusieurs networks disponibles — choisis-en un.",
       already_claimed: "Ce code a déjà été utilisé.",
       expired: "Ce code a expiré.",
@@ -1155,8 +1155,8 @@ const fr: typeof en = {
   serverDetail: {
     projects: "Projets",
     noProjects: "Aucun projet sur ce serveur.",
-    elementCount_one: "{{count}} élément",
-    elementCount_other: "{{count}} éléments",
+    documentCount_one: "{{count}} élément",
+    documentCount_other: "{{count}} éléments",
   },
   redirect: {
     redirecting: "Redirection en cours…",

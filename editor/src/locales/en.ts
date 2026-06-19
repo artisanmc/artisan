@@ -990,10 +990,10 @@ export default {
     serverKeyLabelHint: "Optional — just to recognize this server in the editor.",
     errors: {
       ambiguous_network: "You can't both pick and create a network.",
-      ambiguous_pack: "You can't both pick and create a project.",
-      pack_not_in_network: "This project doesn't belong to the chosen network.",
+      ambiguous_project: "You can't both pick and create a project.",
+      project_not_in_network: "This project doesn't belong to the chosen network.",
       invalid_network_name: "Invalid network name.",
-      invalid_pack_name: "Invalid project name.",
+      invalid_project_name: "Invalid project name.",
       must_choose_network: "Several networks available — pick one.",
       already_claimed: "This code has already been used.",
       expired: "This code has expired.",
@@ -1097,8 +1097,8 @@ export default {
   serverDetail: {
     projects: "Projects",
     noProjects: "No projects on this server yet.",
-    elementCount_one: "{{count}} element",
-    elementCount_other: "{{count}} elements",
+    documentCount_one: "{{count}} element",
+    documentCount_other: "{{count}} elements",
   },
   redirect: {
     redirecting: "Redirecting…",

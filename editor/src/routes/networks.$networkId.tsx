@@ -76,13 +76,13 @@ export function NetworkDetailPage() {
   // Group projects by server (1:N).
   const packsByServer = new Map<
     string,
-    Array<{ id: string; name: string; elementCount?: number }>
+    Array<{ id: string; name: string; documentCount?: number }>
   >();
   for (const p of detail.projects) {
     const skId = p.serverKeyId;
     if (!skId) continue;
     const list = packsByServer.get(skId) ?? [];
-    list.push({ id: p.id, name: p.name, elementCount: p.elementCount });
+    list.push({ id: p.id, name: p.name, documentCount: p.documentCount });
     packsByServer.set(skId, list);
   }
 

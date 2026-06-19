@@ -247,15 +247,15 @@ class SyncedMenuProvider(
                     }
                 }
 
-                val projectHashesNode = node["pack_hashes"] ?: run { // TODO(phase4-wire): wire field "pack_hashes"
-                    logger?.warning("Backend did not send pack_hashes — sync check skipped (old backend?)")
+                val projectHashesNode = node["project_hashes"] ?: run {
+                    logger?.warning("Backend did not send project_hashes — sync check skipped (old backend?)")
                     return
                 }
                 val projectHashes: Map<String, String> = runCatching {
                     jsonMapper.convertValue(projectHashesNode, object : TypeReference<Map<String, String>>() {})
                 }.getOrDefault(emptyMap())
 
-                val deletedProjectIdsNode = node["deleted_pack_ids"] // TODO(phase4-wire): wire field "deleted_pack_ids"
+                val deletedProjectIdsNode = node["deleted_project_ids"]
                 if (deletedProjectIdsNode != null && deletedProjectIdsNode.isArray) {
                     deletedProjectIdsNode.forEach { idNode ->
                         val projectId = idNode.asText()
@@ -269,7 +269,7 @@ class SyncedMenuProvider(
                 projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { projectDir ->
                     val projectId = projectDir.name
                     val backendHash = projectHashes[projectId] ?: run {
-                            logger?.fine("Pack $projectId not found in backend pack_hashes — treating as local-only, no sync")
+                            logger?.fine("Project $projectId not found in backend project_hashes — treating as local-only, no sync")
                             return@forEach
                         }
                     val diskHash = BundleHasher.hash(projectDir)
@@ -292,7 +292,7 @@ class SyncedMenuProvider(
                             // Plan 1C: backend = source of truth. Local divergence will be overwritten
                             // by the next bundle_available. We log a single WARN line for post-mortem
                             // tracing — no UI, no prompt, no delay. Admins who edited via FTP must use
-                            // `/artisan pushLocal <pack_id>` to upload local changes before reconnecting.
+                            // `/artisan pushLocal <project_id>` to upload local changes before reconnecting.
                             logger?.warning(
                                 "[Artisan] Local pack '$projectId' differs from backend (action=$action). " +
                                 "Backend version will overwrite local. Use /artisan pushLocal $projectId if local edits were intentional."
@@ -303,7 +303,7 @@ class SyncedMenuProvider(
             }
 
             "bundle_available" -> {
-                val projectId = node["pack_id"]?.asText() ?: return // TODO(phase4-wire): wire field "pack_id"
+                val projectId = node["project_id"]?.asText() ?: return
                 val url    = node["url"]?.asText()     ?: return
                 if (downloadsInFlight.putIfAbsent(projectId, true) != null) return
                 try {
@@ -377,8 +377,8 @@ class SyncedMenuProvider(
                 }
             }
 
-            "pack_deleted" -> { // TODO(phase4-wire): wire message type "pack_deleted"
-                val projectId = node["pack_id"]?.asText() ?: return // TODO(phase4-wire): wire field "pack_id"
+            "project_deleted" -> {
+                val projectId = node["project_id"]?.asText() ?: return
                 handleProjectDeletion(projectId)
             }
 

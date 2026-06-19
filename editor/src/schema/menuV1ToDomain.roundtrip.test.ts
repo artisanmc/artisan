@@ -223,7 +223,7 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   const pack = buildProject();
   const original = pack.menus[0]!;
   const files = transform(pack);
-  const menuYaml = files[`plugins/Artisan/packs/${PACK}/menus/shop.yaml`]!;
+  const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
   const result = menuV1ToDomain(wire, {
     projectId: PACK,
