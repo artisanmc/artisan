@@ -672,6 +672,17 @@ const fr: typeof en = {
     titleOnline: "Serveur en ligne — cliquer pour ouvrir le Network",
     titleOffline: "Serveur hors-ligne — cliquer pour ouvrir le Network",
   },
+  linkedServers: {
+    title: "Serveurs liés",
+    count: "{{online}}/{{total}}",
+    trigger: "Serveurs liés — {{online}} sur {{total}} en ligne",
+    online: "En ligne",
+    instances: "×{{count}}",
+    lastSeen: "Vu {{when}}",
+    neverConnected: "Jamais connecté",
+    current: "courant",
+    empty: "Aucun serveur lié",
+  },
   sidebar: {
     settings: "Paramètres",
     brand: "Artisan",

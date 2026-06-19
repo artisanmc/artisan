@@ -662,6 +662,17 @@ export default {
     titleOnline: "Server is online — click to open Network",
     titleOffline: "Server is offline — click to open Network",
   },
+  linkedServers: {
+    title: "Linked servers",
+    count: "{{online}}/{{total}}",
+    trigger: "Linked servers — {{online}} of {{total}} online",
+    online: "Online",
+    instances: "×{{count}}",
+    lastSeen: "Last seen {{when}}",
+    neverConnected: "Never connected",
+    current: "current",
+    empty: "No servers linked",
+  },
   sidebar: {
     settings: "Settings",
     brand: "Artisan",
