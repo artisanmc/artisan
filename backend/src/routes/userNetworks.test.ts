@@ -146,17 +146,17 @@ describe("userNetworksRouter", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.network.id).toBe(network.id);
-    expect(body.packs).toHaveLength(1);
-    expect(body.packs[0].name).toBe("p1");
-    expect(body.packs[0]).toHaveProperty("networkId");
-    expect(body.packs[0]).toHaveProperty("serverKeyId");
+    expect(body.projects).toHaveLength(1);
+    expect(body.projects[0].name).toBe("p1");
+    expect(body.projects[0]).toHaveProperty("networkId");
+    expect(body.projects[0]).toHaveProperty("serverKeyId");
     // Fresh pack has no menus/commands/dialogs yet.
-    expect(body.packs[0].elementCount).toBe(0);
+    expect(body.projects[0].documentCount).toBe(0);
     expect(body.serverKeys).toHaveLength(1);
     expect(body.serverKeys[0].id).toBe("sk_test_a3");
   });
 
-  test("GET /api/v1/networks/:id reports elementCount from the pack editor JSON", async () => {
+  test("GET /api/v1/networks/:id reports documentCount from the pack editor JSON", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
 
@@ -188,7 +188,7 @@ describe("userNetworksRouter", () => {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const body = await res.json();
-    expect(body.packs[0].elementCount).toBe(4);
+    expect(body.projects[0].documentCount).toBe(4);
   });
 
   test("GET /api/v1/networks/:id 403 when not member", async () => {
@@ -259,7 +259,7 @@ describe("userNetworksRouter", () => {
   });
 
   // A5 test
-  test("POST /api/v1/networks/:id/packs creates project in network", async () => {
+  test("POST /api/v1/networks/:id/projects creates project in network", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
@@ -276,16 +276,16 @@ describe("userNetworksRouter", () => {
     });
     const { id: skId } = await skRes.json();
 
-    const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "my-pack", description: "desc", serverKeyId: skId }),
     });
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.pack.name).toBe("my-pack");
-    expect(body.pack.description).toBe("desc");
-    expect(body.pack.networkId).toBe(network.id);
+    expect(body.project.name).toBe("my-pack");
+    expect(body.project.description).toBe("desc");
+    expect(body.project.networkId).toBe(network.id);
   });
 
   test("POST /:id/projects returns 422 when serverKeyId is missing", async () => {
@@ -297,7 +297,7 @@ describe("userNetworksRouter", () => {
       body: JSON.stringify({ name: "N" }),
     })).json();
 
-    const res = await app.request(`/api/v1/networks/${network.id}/packs`, {
+    const res = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p1" }),
@@ -325,7 +325,7 @@ describe("userNetworksRouter", () => {
       method: "POST", headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "NB" }),
     })).json();
-    const res = await app.request(`/api/v1/networks/${netB.id}/packs`, {
+    const res = await app.request(`/api/v1/networks/${netB.id}/projects`, {
       method: "POST", headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "p1", serverKeyId: skId }),
     });
@@ -578,12 +578,12 @@ describe("POST /api/v1/networks/:id/server-keys/:keyId/rotate", () => {
     const oldHash = await sha256(oldKey);
 
     // Create a pack owned by this server_key to verify ownership survives rotation.
-    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "rot-pack", serverKeyId: skId }),
     });
-    const { pack } = await packRes.json();
+    const { project: pack } = await packRes.json();
 
     const rotateRes = await app.request(`/api/v1/networks/${network.id}/server-keys/${skId}/rotate`, {
       method: "POST",
@@ -676,12 +676,12 @@ describe("DELETE /api/v1/networks/:id/server-keys/:keyId", () => {
     const { id: skId } = await skRes.json();
 
     // Create a pack owned by this server_key
-    const packRes = await app.request(`/api/v1/networks/${network.id}/packs`, {
+    const packRes = await app.request(`/api/v1/networks/${network.id}/projects`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "c4-pack", serverKeyId: skId }),
     });
-    const { pack } = await packRes.json();
+    const { project: pack } = await packRes.json();
 
     // Verify pack exists and is owned by the server_key
     const packsBefore = await db.select().from(projects).where(eq(projects.serverKeyId, skId));

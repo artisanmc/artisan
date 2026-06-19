@@ -3,10 +3,7 @@ import { db } from "../db/index";
 import { projects } from "../db/schema";
 
 export async function computeBundleHash(files: Record<string, string>, projectId: string): Promise<string> {
-  // TODO(phase4-wire): on-disk/manifest prefix literal `plugins/Artisan/packs/` —
-  // flips to `projects/` in lockstep with the plugin (hash is prefix-stripped, so
-  // the relPath-keyed map and expectedHash are unaffected by the rename itself).
-  const prefix = `plugins/Artisan/packs/${projectId}/`;
+  const prefix = `plugins/Artisan/projects/${projectId}/`;
   const sorted = Object.entries(files)
     .filter(([k]) => k.startsWith(prefix))
     .map(([k, v]) => ({ path: k.slice(prefix.length), content: v }))

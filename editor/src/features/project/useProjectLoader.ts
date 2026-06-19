@@ -7,7 +7,7 @@ import { loadUserProject } from "@/lib/api/userProjects";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
 /**
- * A fresh pack created via POST /api/v1/networks/:id/packs has editorJson=null
+ * A fresh pack created via POST /api/v1/networks/:id/projects has editorJson=null
  * server-side, so loadUserProject returns editor=null. The editor expects a
  * valid Project shape — fall back to this empty default so the canvas renders
  * an empty workspace instead of crashing into a black screen.
@@ -65,9 +65,9 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
       setMode("user");
       loadUserProject(projectId)
         .then((res) => {
-          // loadUserProject returns { pack, files, editor, networkId }; editor is the full Project JSON.
+          // loadUserProject returns { project, files, editor, networkId }; editor is the full Project JSON.
           // Fresh projects have editor=null server-side — fall back to an empty Project shape.
-          const loaded = (res.editor as Project | null) ?? emptyProject(res.pack.id, res.pack.name);
+          const loaded = (res.editor as Project | null) ?? emptyProject(res.project.id, res.project.name);
           setProject(loaded);
           setNetworkId(res.networkId);
           // Mirror into accountStore so descendants (FlowCanvas, EditorPane,

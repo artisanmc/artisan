@@ -55,7 +55,7 @@ class WsClient(
                 "plugin_version" to "1.0.0",
                 "minecraft_version" to mcVersion,
                 "current_bundle_hash" to currentBundleHash,
-                "local_pack_ids" to localProjectIds, // TODO(phase4-wire): wire field "local_pack_ids"
+                "local_project_ids" to localProjectIds,
                 "custom_items_hash" to customItemsHash.ifEmpty { null },
                 "installed_modules" to installedModules(),
             )

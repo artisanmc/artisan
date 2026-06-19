@@ -45,7 +45,7 @@ class ArtisanCommand(
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
                 listOf("revoke").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
-                val projectsDir = java.io.File(plugin.dataFolder, "packs") // TODO(phase4-wire): path literal "packs"
+                val projectsDir = java.io.File(plugin.dataFolder, "projects")
                 val projectIds = projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
                     ?.map { it.name } ?: emptyList()
                 (projectIds + "--all").filter { it.startsWith(args[1]) }
@@ -201,10 +201,10 @@ class ArtisanCommand(
 
     private fun handlePushLocal(sender: CommandSender, args: List<String>) {
         val target = args.getOrNull(0) ?: run {
-            sender.sendMessage("Usage: /artisan pushLocal <pack_id|--all>") // TODO(phase4-wire): CLI help "pack_id"
+            sender.sendMessage("Usage: /artisan pushLocal <project_id|--all>")
             return
         }
-        val projectsDir = java.io.File(plugin.dataFolder, "packs") // TODO(phase4-wire): path literal "packs"
+        val projectsDir = java.io.File(plugin.dataFolder, "projects")
         if (!projectsDir.exists()) {
             sender.sendMessage("No packs directory found.")
             return

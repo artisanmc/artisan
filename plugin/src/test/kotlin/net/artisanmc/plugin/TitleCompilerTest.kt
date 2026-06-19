@@ -723,7 +723,7 @@ class TitleCompilerTest {
 
     @Test
     fun `compileLayerBody textarea user-reported scenario — cursor ends at last line right edge`() {
-        // Mirrors docker/server/plugins/Artisan/packs/test/menus/test.yaml:
+        // Mirrors docker/server/plugins/Artisan/projects/test/menus/test.yaml:
         // Textarea(x=24, y=57, width=177, lineHeight=10, LEFT) with the lang value
         // from lang/en.yaml. The textarea wraps into 3 sub-lines. Returned cursor
         // must be the END of the LAST sub-line so a subsequent layer can compute

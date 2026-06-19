@@ -67,7 +67,7 @@ describe("networks API client", () => {
         new Response(
           JSON.stringify({
             network: { id: "n1", name: "Network 1", tier: "free" },
-            packs: [{ id: "p1", name: "pack1", hash: "h1" }], // TODO(phase4-wire): backend wire key
+            projects: [{ id: "p1", name: "pack1", hash: "h1" }],
             serverKeys: [{ id: "sk_1", label: null }],
           }),
           { status: 200 },
@@ -100,12 +100,12 @@ describe("networks API client", () => {
     );
   });
 
-  it("createProject POST /api/v1/networks/:id/packs returns pack", async () => {
+  it("createProject POST /api/v1/networks/:id/projects returns project", async () => {
     global.fetch = vi.fn(
       async () =>
         new Response(
           JSON.stringify({
-            pack: { id: "p_new", name: "new-pack", hash: "h_new" },
+            project: { id: "p_new", name: "new-pack", hash: "h_new" },
           }),
           { status: 201 },
         ),
@@ -113,7 +113,7 @@ describe("networks API client", () => {
     const result = await createProject("n1", "sk1", "new-pack");
     expect(result.name).toBe("new-pack");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/v1\/networks\/n1\/packs$/),
+      expect.stringMatching(/\/api\/v1\/networks\/n1\/projects$/),
       expect.objectContaining({ method: "POST" }),
     );
   });

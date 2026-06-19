@@ -55,16 +55,15 @@ router.post("/:code/claim", async (c) => {
   let body: {
     network_id?: unknown;
     network_name?: unknown;
-    pack_id?: unknown;
-    pack_name?: unknown;
+    project_id?: unknown;
+    project_name?: unknown;
     server_key_label?: unknown;
   } = {};
   try { body = await c.req.json(); } catch { /* empty body */ }
   const networkIdInput = typeof body.network_id === "string" ? body.network_id : undefined;
   const networkNameInput = typeof body.network_name === "string" ? body.network_name.trim() : undefined;
-  // TODO(phase4-wire): request body fields `pack_id` / `pack_name` → `project_*`.
-  const projectIdInput = typeof body.pack_id === "string" ? body.pack_id : undefined;
-  const projectNameInput = typeof body.pack_name === "string" ? body.pack_name.trim() : undefined;
+  const projectIdInput = typeof body.project_id === "string" ? body.project_id : undefined;
+  const projectNameInput = typeof body.project_name === "string" ? body.project_name.trim() : undefined;
   const serverKeyLabel = typeof body.server_key_label === "string"
     ? body.server_key_label.trim() || null
     : null;
@@ -73,7 +72,7 @@ router.post("/:code/claim", async (c) => {
     return c.json({ error: "ambiguous_network" }, 400);
   }
   if (projectIdInput && projectNameInput) {
-    return c.json({ error: "ambiguous_pack" }, 400);
+    return c.json({ error: "ambiguous_project" }, 400);
   }
 
   // Resolve target network: explicit id > new (with name) > smart count fallback.
@@ -116,12 +115,12 @@ router.post("/:code/claim", async (c) => {
   if (projectIdInput) {
     const projectRows = await db.select().from(projects).where(eq(projects.id, projectIdInput));
     if (projectRows.length === 0 || projectRows[0]?.networkId !== targetNetworkId) {
-      return c.json({ error: "pack_not_in_network" }, 404);
+      return c.json({ error: "project_not_in_network" }, 404);
     }
     targetProjectId = projectIdInput;
   } else if (projectNameInput) {
     if (projectNameInput.length === 0) {
-      return c.json({ error: "invalid_pack_name" }, 422);
+      return c.json({ error: "invalid_project_name" }, 422);
     }
     const project = await createProject({
       networkId: targetNetworkId,
@@ -150,7 +149,7 @@ router.post("/:code/claim", async (c) => {
   return c.json({
     server_key_id: id,
     network_id: targetNetworkId,
-    pack_id: targetProjectId, // TODO(phase4-wire): response field `pack_id` → `project_id`
+    project_id: targetProjectId,
   }, 200);
 });
 

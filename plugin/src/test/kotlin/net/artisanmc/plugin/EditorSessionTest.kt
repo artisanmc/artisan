@@ -24,7 +24,7 @@ class EditorSessionTest {
 
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
-                val ack = """{"type":"hello_ack","session_id":"s1","server_id":"srv1","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","pack_hashes":{}}"""
+                val ack = """{"type":"hello_ack","session_id":"s1","server_id":"srv1","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","project_hashes":{}}"""
                 ws.send(ack)
             }
             override fun onMessage(ws: WebSocket, text: String) {
@@ -65,7 +65,7 @@ class EditorSessionTest {
 
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
-                val ack = """{"type":"hello_ack","session_id":"s2","server_id":"srv2","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","pack_hashes":{}}"""
+                val ack = """{"type":"hello_ack","session_id":"s2","server_id":"srv2","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","project_hashes":{}}"""
                 ws.send(ack)
             }
             override fun onMessage(ws: WebSocket, text: String) {

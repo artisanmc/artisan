@@ -21,7 +21,7 @@ function loadFixture(): { packId: string; files: Record<string, string>; expecte
 describe("computeBundleHash — cross-language conformance", () => {
   test("matches the shared vector for a canonical-keyed file map", async () => {
     const fx = loadFixture();
-    const prefix = `plugins/Artisan/packs/${fx.packId}/`;
+    const prefix = `plugins/Artisan/projects/${fx.packId}/`;
     const canonical: Record<string, string> = {};
     for (const [rel, content] of Object.entries(fx.files)) canonical[prefix + rel] = content;
 

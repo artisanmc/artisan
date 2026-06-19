@@ -115,15 +115,13 @@ userNetworksRouter.get("/:id", async (c: Context<{ Variables: Vars }>) => {
 	const projectsList = await listProjectsForNetwork(network.id);
 	const projectsWithCounts = projectsList.map((p) => ({
 		...p,
-		// TODO(phase4-wire): response field `elementCount` is consumed by the editor.
-		elementCount: countProjectDocuments(p.editorJson),
+		documentCount: countProjectDocuments(p.editorJson),
 	}));
 	const skList = await db
 		.select()
 		.from(serverKeys)
 		.where(eq(serverKeys.networkId, network.id));
-	// TODO(phase4-wire): response key `packs` → `projects`.
-	return c.json({ network, packs: projectsWithCounts, serverKeys: skList });
+	return c.json({ network, projects: projectsWithCounts, serverKeys: skList });
 });
 
 // PATCH /api/networks/:id — update name and/or slug (member required)
@@ -302,10 +300,9 @@ userNetworksRouter.post(
 	},
 );
 
-// POST /api/networks/:id/packs — create project in network (V1: project belongs to one server_key)
-// TODO(phase4-wire): route path `/packs` → `/projects`.
+// POST /api/networks/:id/projects — create project in network (V1: project belongs to one server_key)
 userNetworksRouter.post(
-	"/:id/packs",
+	"/:id/projects",
 	async (c: Context<{ Variables: Vars }>) => {
 		const userId = getUserId(c);
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -346,8 +343,7 @@ userNetworksRouter.post(
 			name: body.name.trim(),
 			description: body.description ?? null,
 		});
-		// TODO(phase4-wire): response key `pack` → `project`.
-		return c.json({ pack: project }, 201);
+		return c.json({ project }, 201);
 	},
 );
 

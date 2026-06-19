@@ -182,12 +182,12 @@ export function ProjectSidebar() {
 
   // Element count per pack: prefer the live count from a fully-loaded pack in
   // the account store (updates as the user edits), else the summary's
-  // backend-computed elementCount. Null when neither is available.
+  // backend-computed documentCount. Null when neither is available.
   const liveCount = new Map(
     localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
   );
   const countFor = (p: ProjectSummary): number | null =>
-    liveCount.get(p.id as ProjectId) ?? p.elementCount ?? null;
+    liveCount.get(p.id as ProjectId) ?? p.documentCount ?? null;
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -365,8 +365,8 @@ function SortableProjectItem({
           <span className="truncate flex-1">{name}</span>
           {count != null && (
             <span
-              title={t("serverDetail.elementCount", { count })}
-              aria-label={t("serverDetail.elementCount", { count })}
+              title={t("serverDetail.documentCount", { count })}
+              aria-label={t("serverDetail.documentCount", { count })}
               className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
             >
               {count}

@@ -86,7 +86,7 @@ describe("dialog/v1 schema fixture", () => {
   it("the editor's exported dialog YAML validates against docs/schema/dialog/v1", () => {
     const pack = buildProject();
     const files = transform(pack);
-    const yaml = files[`plugins/Artisan/packs/${PACK}/dialogs/confirm_purchase.yaml`];
+    const yaml = files[`plugins/Artisan/projects/${PACK}/dialogs/confirm_purchase.yaml`];
     expect(yaml).toBeTruthy();
     const wire = parse(yaml!) as Record<string, unknown>;
 

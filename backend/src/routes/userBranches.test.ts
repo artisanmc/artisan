@@ -56,10 +56,10 @@ function makeApp() {
 describe("userBranchesRouter — GET branches + commits", () => {
   beforeEach(clearAll);
 
-  test("GET /:netId/packs/:packId/branches returns main after createProject", async () => {
+  test("GET /:netId/projects/:projectId/branches returns main after createProject", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -68,10 +68,10 @@ describe("userBranchesRouter — GET branches + commits", () => {
     expect(body.branches[0].name).toBe("main");
   });
 
-  test("GET /:netId/packs/:packId/commits?branch=main returns the initial commit", async () => {
+  test("GET /:netId/projects/:projectId/commits?branch=main returns the initial commit", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits?branch=main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits?branch=main`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
@@ -88,7 +88,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     });
     const sessB = (await createSession("uB")).id;
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessB}` },
     });
     expect(res.status).toBe(403);
@@ -98,7 +98,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/packs/${packId}/branches/main/head`,
+      `/api/v1/networks/${networkId}/projects/${packId}/branches/main/head`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(200);
@@ -113,7 +113,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/packs/${packId}/branches/does-not-exist/head`,
+      `/api/v1/networks/${networkId}/projects/${packId}/branches/does-not-exist/head`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(404);
@@ -129,7 +129,7 @@ describe("userBranchesRouter — GET branches + commits", () => {
     const sessB = (await createSession("uB2")).id;
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/packs/${packId}/branches/main/head`,
+      `/api/v1/networks/${networkId}/projects/${packId}/branches/main/head`,
       { headers: { Cookie: `artisan_user_session=${sessB}` } },
     );
     expect(res.status).toBe(403);
@@ -145,14 +145,14 @@ describe("userBranchesRouter — GET /commits/:commitId/content", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     // Get the initial commit's id via the branches list
-    const branchRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const branchRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const { branches } = await branchRes.json();
     const commitId = branches[0].headCommitId;
 
     const res = await app.request(
-      `/api/v1/networks/${networkId}/packs/${packId}/commits/${commitId}/content`,
+      `/api/v1/networks/${networkId}/projects/${packId}/commits/${commitId}/content`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(200);
@@ -166,7 +166,7 @@ describe("userBranchesRouter — GET /commits/:commitId/content", () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
     const res = await app.request(
-      `/api/v1/networks/${networkId}/packs/${packId}/commits/does-not-exist/content`,
+      `/api/v1/networks/${networkId}/projects/${packId}/commits/does-not-exist/content`,
       { headers: { Cookie: `artisan_user_session=${sessionId}` } },
     );
     expect(res.status).toBe(404);
@@ -181,7 +181,7 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches creates a new branch from an existing branch", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -190,7 +190,7 @@ describe("userBranchesRouter — POST /branches", () => {
     const body = await res.json();
     expect(body.branch.name).toBe("dev");
     // dev should point to the same head commit as main initially
-    const branchesRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const branchesRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     const { branches } = await branchesRes.json();
@@ -202,7 +202,7 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches 422 when name missing or invalid", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "", from: "main" }),
@@ -213,12 +213,12 @@ describe("userBranchesRouter — POST /branches", () => {
   test("POST /branches 409 when name already exists", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
     });
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -241,7 +241,7 @@ describe("userBranchesRouter — POST /commits", () => {
     }).where(eq(projects.id, packId));
 
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "first real commit" }),
@@ -261,7 +261,7 @@ describe("userBranchesRouter — POST /commits", () => {
   test("POST /commits 404 when branch does not exist", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "ghost", message: "x" }),
@@ -280,7 +280,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     const app = makeApp();
 
     // Create dev branch (= main head)
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -290,14 +290,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
     await db.update(projects).set({
       filesJson: JSON.stringify({ "menus/m.yaml": "id: m\n" }),
     }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev work" }),
     });
 
     // Promote dev → main
-    const promoteRes = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
+    const promoteRes = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -313,7 +313,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
   test("POST /branches/.../promote/... 409 when dst has diverged (not fast-forward)", async () => {
     const { sessionId, networkId, packId } = await seedUserWithPack();
     const app = makeApp();
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: "dev", from: "main" }),
@@ -321,7 +321,7 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
 
     // Commit on dev
     await db.update(projects).set({ filesJson: JSON.stringify({ "f": "dev" }) }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "dev", message: "dev1" }),
@@ -329,14 +329,14 @@ describe("userBranchesRouter — POST /branches/:src/promote/:dst", () => {
 
     // Commit on main (separately)
     await db.update(projects).set({ filesJson: JSON.stringify({ "f": "main" }) }).where(eq(projects.id, packId));
-    await app.request(`/api/v1/networks/${networkId}/packs/${packId}/commits`, {
+    await app.request(`/api/v1/networks/${networkId}/projects/${packId}/commits`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
       body: JSON.stringify({ branch: "main", message: "main1" }),
     });
 
     // Now promote dev → main : not FF
-    const res = await app.request(`/api/v1/networks/${networkId}/packs/${packId}/branches/dev/promote/main`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/projects/${packId}/branches/dev/promote/main`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });

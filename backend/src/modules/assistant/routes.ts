@@ -95,7 +95,7 @@ export function buildAssistantRouter(): Hono {
 			return c.json({ error: "Not found" }, 404);
 		return c.json({
 			id: conv.id,
-			packId: conv.packId,
+			packId: conv.projectId,
 			title: conv.title,
 			messages: conv.messages,
 			updatedAt: conv.updatedAt,

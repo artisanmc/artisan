@@ -37,8 +37,8 @@ export const useWsStore = create<WsState>((set, get) => ({
             apiUrl:    msg.api_url   as string,
             serverKey,
           });
-        } else if (msg.type === "pack_deleted") {
-          window.dispatchEvent(new CustomEvent("ifz:pack_deleted", { detail: { projectId: msg.pack_id } }));
+        } else if (msg.type === "project_deleted") {
+          window.dispatchEvent(new CustomEvent("ifz:project_deleted", { detail: { projectId: msg.project_id } }));
         } else if (msg.type === "module_event") {
           emitModuleEvent(msg.payload as ModuleEvent);
         }

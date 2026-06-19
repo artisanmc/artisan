@@ -219,12 +219,12 @@ describe("handlePluginMessage", () => {
     expect(result.reply).not.toBeNull();
   });
 
-  test("hello_ack contains pack_hashes from branch → commit content hash", async () => {
+  test("hello_ack contains project_hashes from branch → commit content hash", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "pa", "ha");
     await seedBoundPack(networkId, keyId, "pb", "hb");
 
-    // pack_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
+    // project_hashes reflect the main branch head commit contentHash (not WIP projects.hash).
     // createProject auto-creates main branch with an initial empty-files commit.
     const emptyHash = computeContentHash({});
 
@@ -239,10 +239,10 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    expect(ack.pack_hashes).toEqual({ pa: emptyHash, pb: emptyHash });
+    expect(ack.project_hashes).toEqual({ pa: emptyHash, pb: emptyHash });
   });
 
-  test("hello_ack.pack_hashes uses branch head commit contentHash (not WIP pack.hash)", async () => {
+  test("hello_ack.project_hashes uses branch head commit contentHash (not WIP pack.hash)", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "p_c2", "wip-hash");
 
@@ -271,8 +271,8 @@ describe("handlePluginMessage", () => {
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
     // Should match commit2's contentHash, NOT "wip-hash"
-    expect(ack.pack_hashes["p_c2"]).toBe(commit2.contentHash);
-    expect(ack.pack_hashes["p_c2"]).not.toBe("wip-hash");
+    expect(ack.project_hashes["p_c2"]).toBe(commit2.contentHash);
+    expect(ack.project_hashes["p_c2"]).not.toBe("wip-hash");
   });
 
   test("hello_ack includes soft-deleted pack ids", async () => {
@@ -280,7 +280,7 @@ describe("handlePluginMessage", () => {
     await seedBoundPack(networkId, keyId, "alive", "ha");
     await seedBoundPack(networkId, keyId, "dead", "hd", {}, {}, true);
 
-    // pack_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
+    // project_hashes uses branch head commit contentHash. Both projects start with empty-files initial commit.
     const emptyHash = computeContentHash({});
 
     const connId = "conn-deleted";
@@ -294,10 +294,10 @@ describe("handlePluginMessage", () => {
     };
     const result = await handlePluginMessage(connId, JSON.stringify(hello));
     const ack = JSON.parse(result.reply!) as HelloAckMessage;
-    // In the 1:1 model, deleted projects are excluded from pack_hashes (only non-deleted projects included).
-    // Deleted pack still appears in deleted_pack_ids so the plugin can trash it.
-    expect(ack.pack_hashes).toEqual({ alive: emptyHash });
-    expect(ack.deleted_pack_ids).toEqual(["dead"]);
+    // In the 1:1 model, deleted projects are excluded from project_hashes (only non-deleted projects included).
+    // Deleted pack still appears in deleted_project_ids so the plugin can trash it.
+    expect(ack.project_hashes).toEqual({ alive: emptyHash });
+    expect(ack.deleted_project_ids).toEqual(["dead"]);
   });
 });
 
@@ -568,7 +568,7 @@ describe("local_push", () => {
 
     const result = await handlePluginMessage(connId, JSON.stringify({
       type: "local_push",
-      pack_id: "p_pushed",
+      project_id: "p_pushed",
       files: { "menus/m.yaml": "id: m" },
       hash: "abc123",
     }));
@@ -591,7 +591,7 @@ describe("local_push", () => {
     const connId = "conn-local-push-unauth";
     registerConn(connId, () => {});
     const result = await handlePluginMessage(connId, JSON.stringify({
-      type: "local_push", pack_id: "p", files: {}, hash: "h",
+      type: "local_push", project_id: "p", files: {}, hash: "h",
     }));
     expect(result.reply).toBeNull();
   });

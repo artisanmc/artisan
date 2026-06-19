@@ -622,9 +622,7 @@ export function transform(pack: Project): Record<string, string> {
 
   const yamlOpts = { lineWidth: 0 };
 
-  // TODO(phase4-wire): on-disk path segment `packs/` flips to `projects/` in Phase 4
-  // (plugin-owned dir; flips in lockstep with backend+plugin).
-  const base = `plugins/Artisan/packs/${pack.id}`;
+  const base = `plugins/Artisan/projects/${pack.id}`;
 
   for (const menu of pack.menus) {
     files[`${base}/menus/${menu.id}.yaml`] = stringify(serializeMenuToV1(menu, pack), yamlOpts);
@@ -658,7 +656,7 @@ export function transform(pack: Project): Record<string, string> {
 
   const manifest: Record<string, unknown> = {
     schema: "manifest/v1",
-    pack_id: pack.id, // TODO(phase4-wire): manifest pack_id
+    project_id: pack.id,
     default_lang: pack.defaultLang,
     languages: langs,
     files: {
@@ -683,7 +681,7 @@ export function transform(pack: Project): Record<string, string> {
 
   files[`${base}/meta.yaml`] = stringify(
     {
-      pack_id: pack.id, // TODO(phase4-wire): meta.pack_id
+      project_id: pack.id,
       exported_at: new Date().toISOString(),
       editor_version: "1.0.0",
     },

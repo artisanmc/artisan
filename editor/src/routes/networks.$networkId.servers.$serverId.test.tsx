@@ -23,7 +23,7 @@ vi.mock("@/lib/api/networks", () => ({
     network: { id: "net_1", name: "Mon Réseau", tier: "free" },
     serverKeys: [{ id: "sk_1", label: "Survival" }],
     projects: [
-      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1", elementCount: 5 },
+      { id: "p1", name: "Hub", hash: "h1", networkId: "net_1", serverKeyId: "sk_1", documentCount: 5 },
       { id: "p2", name: "Lobby", hash: "h2", networkId: "net_1", serverKeyId: "sk_2" },
     ],
   }),

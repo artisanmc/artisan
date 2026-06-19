@@ -64,7 +64,7 @@ describe("/link?code=...", () => {
     vi.spyOn(api, "listNetworks").mockResolvedValue([]);
     const claimSpy = vi
       .spyOn(api, "claimLinkCode")
-      .mockResolvedValue({ server_key_id: "sk", network_id: "n_new", pack_id: "p_new" });
+      .mockResolvedValue({ server_key_id: "sk", network_id: "n_new", project_id: "p_new" });
     const { default: LinkRoute } = await import("./link");
     render(<LinkRoute />);
 
@@ -106,7 +106,7 @@ describe("/link?code=...", () => {
     });
     const claimSpy = vi
       .spyOn(api, "claimLinkCode")
-      .mockResolvedValue({ server_key_id: "sk", network_id: "n1", pack_id: "p1" });
+      .mockResolvedValue({ server_key_id: "sk", network_id: "n1", project_id: "p1" });
     const { default: LinkRoute } = await import("./link");
     render(<LinkRoute />);
 

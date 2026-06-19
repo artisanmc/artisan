@@ -52,29 +52,29 @@ async function seedUserWithPack(userId: string) {
 
 function makeApp() {
   const app = new Hono();
-  app.use("/api/v1/user/packs/*", userAuth());
-  app.route("/api/v1/user/packs", userProjectsRouter);
+  app.use("/api/v1/user/projects/*", userAuth());
+  app.route("/api/v1/user/projects", userProjectsRouter);
   return app;
 }
 
 describe("userProjectsRouter — GET", () => {
   beforeEach(clearAll);
 
-  test("GET /:packId 200 — member gets pack content", async () => {
+  test("GET /:projectId 200 — member gets pack content", async () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.pack.id).toBe(packId);
-    expect(body.pack.hash).toBe("h1");
+    expect(body.project.id).toBe(packId);
+    expect(body.project.hash).toBe("h1");
     expect(body.files).toEqual({ "menus/m.yaml": "id: m" });
     expect(body.editor).toEqual({ id: packId, menus: [] });
   });
 
-  test("GET /:packId 403 — non-member gets forbidden", async () => {
+  test("GET /:projectId 403 — non-member gets forbidden", async () => {
     const { packId } = await seedUserWithPack("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
@@ -82,16 +82,16 @@ describe("userProjectsRouter — GET", () => {
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
       headers: { Cookie: `artisan_user_session=${sess2.id}` },
     });
     expect(res.status).toBe(403);
   });
 
-  test("GET /:packId 404 — pack does not exist", async () => {
+  test("GET /:projectId 404 — pack does not exist", async () => {
     const { sessionId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request("/api/v1/user/packs/pack_nonexistent", {
+    const res = await app.request("/api/v1/user/projects/pack_nonexistent", {
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
     expect(res.status).toBe(404);
@@ -101,10 +101,10 @@ describe("userProjectsRouter — GET", () => {
 describe("userProjectsRouter — PUT", () => {
   beforeEach(clearAll);
 
-  test("PUT /:packId 200 — member updates pack content", async () => {
+  test("PUT /:projectId 200 — member updates pack content", async () => {
     const { sessionId, packId } = await seedUserWithPack("u1");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: {
         Cookie: `artisan_user_session=${sessionId}`,
@@ -127,7 +127,7 @@ describe("userProjectsRouter — PUT", () => {
     expect(JSON.parse(updated?.filesJson ?? "{}")).toEqual({ "menus/m.yaml": "id: m\ntitle: Hello" });
   });
 
-  test("PUT /:packId 403 — non-member cannot write", async () => {
+  test("PUT /:projectId 403 — non-member cannot write", async () => {
     const { packId } = await seedUserWithPack("u1");
     await db.insert(users).values({
       id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
@@ -135,7 +135,7 @@ describe("userProjectsRouter — PUT", () => {
     });
     const sess2 = await createSession("u2");
     const app = makeApp();
-    const res = await app.request(`/api/v1/user/packs/${packId}`, {
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
       method: "PUT",
       headers: {
         Cookie: `artisan_user_session=${sess2.id}`,

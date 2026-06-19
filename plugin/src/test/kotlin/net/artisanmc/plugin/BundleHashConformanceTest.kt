@@ -38,7 +38,7 @@ class BundleHashConformanceTest {
     }
 
     private fun canonical(fx: Fixture): Map<String, String> =
-        fx.files.mapKeys { (rel, _) -> "plugins/Artisan/packs/${fx.packId}/$rel" }
+        fx.files.mapKeys { (rel, _) -> "plugins/Artisan/projects/${fx.packId}/$rel" }
 
     @Test
     fun `hashFiles matches the cross-language vector (relPath-keyed)`() {

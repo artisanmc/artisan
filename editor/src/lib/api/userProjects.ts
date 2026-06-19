@@ -1,10 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-// TODO(phase4-wire): every `/user/packs` path segment in this file flips to
-// `/user/projects` atomically with the backend in Phase 4.
-
 export interface UserProjectLoadResult {
-  pack: { id: string; name: string; hash: string; serverKeyId?: string };
+  project: { id: string; name: string; hash: string; serverKeyId?: string };
   networkId: string;
   serverKeyId: string;
   files: Record<string, string>;
@@ -12,7 +9,7 @@ export interface UserProjectLoadResult {
 }
 
 export async function loadUserProject(projectId: string): Promise<UserProjectLoadResult> {
-  const res = await fetch(`${API_URL}/api/v1/user/packs/${projectId}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, { credentials: "include" });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
   return res.json();
 }
@@ -30,7 +27,7 @@ export async function saveUserProject(
   projectId: string,
   body: { hash: string; files: Record<string, string>; editor: unknown },
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/user/packs/${projectId}`, {
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -46,7 +43,7 @@ export async function saveUserProject(
 import type { LibraryData, CustomItemsData } from "@/lib/projectApi";
 
 export async function fetchUserItems(projectId: string): Promise<LibraryData> {
-  const res = await fetch(`${API_URL}/api/v1/user/packs/${projectId}/items`, {
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/items`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`fetchUserItems failed: ${res.status}`);
@@ -55,7 +52,7 @@ export async function fetchUserItems(projectId: string): Promise<LibraryData> {
 
 export async function fetchUserCustomItems(projectId: string): Promise<CustomItemsData> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/user/packs/${projectId}/custom-items`, {
+    const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/custom-items`, {
       credentials: "include",
     });
     if (!res.ok) return { serverKeyId: "", items: [] };

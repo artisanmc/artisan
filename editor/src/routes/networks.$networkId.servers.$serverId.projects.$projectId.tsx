@@ -178,8 +178,8 @@ export function ProjectCanvasPage() {
         navigate({ to: "/" });
       }
     }
-    window.addEventListener("ifz:pack_deleted", onProjectDeleted);
-    return () => window.removeEventListener("ifz:pack_deleted", onProjectDeleted);
+    window.addEventListener("ifz:project_deleted", onProjectDeleted);
+    return () => window.removeEventListener("ifz:project_deleted", onProjectDeleted);
   }, [pId, navigate]);
 
   // Open the individual element view on double-click (dispatched from board nodes).
