@@ -3,7 +3,6 @@ package net.artisanmc.plugin
 import net.artisanmc.plugin.ws.WsClient
 import okhttp3.Response
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.util.concurrent.CountDownLatch
@@ -17,7 +16,7 @@ class WsClientTest {
     fun `sends hello on connect and receives hello_ack`() {
         val server = MockWebServer()
         server.enqueue(
-            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onMessage(ws: WebSocket, text: String) {
                     ws.send(
                         """{"type":"hello_ack","session_id":"s1","server_id":"srv1","tier":"free","needs_sync":false,"latest_bundle_hash":""}"""
@@ -50,7 +49,7 @@ class WsClientTest {
         val helloText = java.util.concurrent.atomic.AtomicReference<String>()
         val latch = CountDownLatch(1)
         server.enqueue(
-            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onMessage(ws: WebSocket, text: String) {
                     helloText.set(text)
                     latch.countDown()
