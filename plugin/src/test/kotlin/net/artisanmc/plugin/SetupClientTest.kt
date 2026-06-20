@@ -3,7 +3,6 @@ package net.artisanmc.plugin
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.ws.SetupClient
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.util.concurrent.CountDownLatch
@@ -21,11 +20,7 @@ class SetupClientTest {
         val codeLatch = CountDownLatch(1)
         var receivedCode = ""
 
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
-            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-                ws.close(code, reason)
-            }
-
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
             override fun onMessage(ws: WebSocket, text: String) {
                 val node = mapper.readTree(text)
                 assertEquals("setup_request", node["type"].asText())
@@ -54,11 +49,7 @@ class SetupClientTest {
         val linkedLatch = CountDownLatch(1)
         var receivedKey = ""
 
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
-            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-                ws.close(code, reason)
-            }
-
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
             override fun onMessage(ws: WebSocket, text: String) {
                 val node = mapper.readTree(text)
                 assertEquals("setup_claim", node["type"].asText())
