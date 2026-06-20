@@ -3,7 +3,6 @@ package net.artisanmc.plugin
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.nio.file.Files
@@ -22,11 +21,7 @@ class EditorSessionTest {
         val readyLatch = CountDownLatch(1)
         var receivedUrl = ""
 
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
-            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-                ws.close(code, reason)
-            }
-
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
                 val ack = """{"type":"hello_ack","session_id":"s1","server_id":"srv1","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","pack_hashes":{}}"""
                 ws.send(ack)
@@ -67,11 +62,7 @@ class EditorSessionTest {
         val server = MockWebServer()
         val revokeLatch = CountDownLatch(1)
 
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
-            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-                ws.close(code, reason)
-            }
-
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
                 val ack = """{"type":"hello_ack","session_id":"s2","server_id":"srv2","tier":"free","needs_sync":false,"latest_bundle_hash":"","api_url":"http://localhost","pack_hashes":{}}"""
                 ws.send(ack)
