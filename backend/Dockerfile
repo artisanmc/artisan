@@ -9,9 +9,11 @@
 FROM oven/bun:1 AS runtime
 WORKDIR /app
 
-# Deps first for layer caching (only re-installs when package.json changes).
-COPY backend/package.json ./
-RUN bun install
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Deps first for layer caching (only re-installs when manifests change).
+COPY backend/package.json backend/bun.lock ./
+RUN bun install --frozen-lockfile
 
 # App source (node_modules + data/ excluded via .dockerignore) ...
 COPY backend ./
