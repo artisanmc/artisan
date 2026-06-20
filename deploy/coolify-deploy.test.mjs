@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import {
   buildHeaders,
   deployProduction,
+  fetchWithTimeout,
+  pinApplicationRevision,
   triggerDeployment,
   waitForDeployment,
   waitForHealth,
@@ -21,6 +23,7 @@ const env = {
   CF_ACCESS_CLIENT_SECRET: "access-client-secret",
   API_HEALTH_URL: "https://api.artisanmc.net/health",
   EDITOR_HEALTH_URL: "https://editor.artisanmc.net/health",
+  EXPECTED_SHA: "0123456789abcdef0123456789abcdef01234567",
 };
 
 const response = (body, { ok = true, status = 200 } = {}) => ({
@@ -50,6 +53,8 @@ test("production workflow deploys only the current successful main CI SHA", () =
   assert.match(workflow, /git ls-remote origin refs\/heads\/main/);
   assert.match(workflow, /if \[ "\$CURRENT_MAIN_SHA" != "\$EXPECTED_SHA" \]; then/);
   assert.match(workflow, /node deploy\/coolify-deploy\.mjs/);
+  assert.match(workflow, /^\s{4}timeout-minutes: 30$/m);
+  assert.match(workflow, /EXPECTED_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
   assert.match(workflow, /API_HEALTH_URL: https:\/\/api\.artisanmc\.net\/health/);
   assert.match(workflow, /EDITOR_HEALTH_URL: https:\/\/editor\.artisanmc\.net\//);
 });
@@ -82,20 +87,57 @@ test("deployProduction strictly deploys and health-checks backend before editor"
       const uuid = url.includes("backend%20uuid") ? "backend-deployment" : "editor-deployment";
       return response({ deployments: [{ deployment_uuid: uuid }] });
     }
-    if (url.includes("/api/v1/deployments/")) return response({ status: "finished" });
+    if (url.includes("/api/v1/deployments/")) {
+      return response({ status: "finished", commit: env.EXPECTED_SHA });
+    }
     return response({});
   };
 
   await deployProduction({ fetchImpl, sleep: async () => {} }, env);
 
   assert.deepEqual(calls, [
+    ["https://coolify.example.test/api/v1/applications/backend%20uuid", "PATCH"],
     ["https://coolify.example.test/api/v1/deploy?uuid=backend%20uuid&force=false", "POST"],
     ["https://coolify.example.test/api/v1/deployments/backend-deployment", "GET"],
     ["https://api.artisanmc.net/health", "GET"],
+    ["https://coolify.example.test/api/v1/applications/editor%20uuid", "PATCH"],
     ["https://coolify.example.test/api/v1/deploy?uuid=editor%20uuid&force=false", "POST"],
     ["https://coolify.example.test/api/v1/deployments/editor-deployment", "GET"],
     ["https://editor.artisanmc.net/health", "GET"],
   ]);
+});
+
+test("pinApplicationRevision sends the validated SHA to Coolify", async () => {
+  let request;
+  await pinApplicationRevision(async (url, options) => {
+    request = { url, options };
+    return response({ message: "updated" });
+  }, env, "backend uuid");
+
+  assert.equal(request.url, "https://coolify.example.test/api/v1/applications/backend%20uuid");
+  assert.equal(request.options.method, "PATCH");
+  assert.equal(request.options.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(request.options.body), { git_commit_sha: env.EXPECTED_SHA });
+});
+
+test("waitForDeployment rejects a deployment of another commit", async () => {
+  await assert.rejects(
+    waitForDeployment(
+      async () => response({ status: "finished", commit: "f".repeat(40) }),
+      env,
+      "deploy-123",
+      async () => {},
+    ),
+    /unexpected commit/i,
+  );
+});
+
+test("fetchWithTimeout aborts a stalled request", async () => {
+  const stalledFetch = (_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener("abort", () => reject(signal.reason));
+  });
+
+  await assert.rejects(fetchWithTimeout(stalledFetch, "https://example.test", {}, 5), /timed out/i);
 });
 
 test("triggerDeployment rejects non-2xx responses", async () => {
@@ -116,7 +158,7 @@ test("waitForDeployment accepts finished and encodes its UUID", async () => {
   let requestedUrl;
   await waitForDeployment(async (url) => {
     requestedUrl = url;
-    return response({ status: "finished" });
+    return response({ status: "finished", commit: env.EXPECTED_SHA });
   }, env, "deployment / one", async () => {});
   assert.equal(requestedUrl, "https://coolify.example.test/api/v1/deployments/deployment%20%2F%20one");
 });
@@ -141,7 +183,7 @@ test("waitForDeployment retries pending states then succeeds", async () => {
   const statuses = ["queued", "in_progress", "finished"];
   const sleepDelays = [];
   await waitForDeployment(
-    async () => response({ status: statuses.shift() }),
+    async () => response({ status: statuses.shift(), commit: env.EXPECTED_SHA }),
     env,
     "deploy-123",
     async (delay) => { sleepDelays.push(delay); },
@@ -206,10 +248,13 @@ test("deployProduction never triggers editor after backend health failure", asyn
     deployProduction({
       fetchImpl: async (url) => {
         urls.push(url);
+        if (url.includes("/api/v1/applications/")) return response({});
         if (url.includes("/api/v1/deploy?")) {
           return response({ deployments: [{ deployment_uuid: "backend-deployment" }] });
         }
-        if (url.includes("/api/v1/deployments/")) return response({ status: "finished" });
+        if (url.includes("/api/v1/deployments/")) {
+          return response({ status: "finished", commit: env.EXPECTED_SHA });
+        }
         return response({}, { ok: false, status: 503 });
       },
       sleep: async () => {},

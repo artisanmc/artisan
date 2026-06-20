@@ -77,7 +77,10 @@ A required GitHub Actions CI workflow runs for pull requests and pushes to
 
 - Backend: install with Bun, provision PostgreSQL for the isolated test database,
   and run `bun run test` through the repository's safe test wrapper.
-- Editor: run `npm ci`, lint, unit tests, and the production build.
+- Editor: run `npm ci`, unit tests, and the production build. Repository-wide
+  Biome lint becomes a required gate only after its pre-existing baseline is
+  cleaned; enabling it now would reject `main` with hundreds of unrelated
+  formatting errors.
 - Plugin: run Gradle tests and build `shadowJar` on Java 21.
 
 Dependency caches reduce repeat build times. The existing schema validation is
@@ -91,6 +94,8 @@ to `main`. No workflow ever runs `bun test` directly against the backend.
 
 Coolify's direct push auto-deploy is disabled. A deployment workflow runs only
 for a successful CI result on `main` and has one active deployment at a time.
+Before each deployment it pins the Coolify application's `git_commit_sha` to
+the CI revision and rejects any deployment reporting a different commit.
 
 The workflow performs this sequence:
 

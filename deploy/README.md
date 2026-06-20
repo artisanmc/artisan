@@ -51,7 +51,7 @@ Dans l'environnement GitHub `production`, définir exactement :
 | Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
 | Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
 
-Le workflow déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/`. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
+Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
 
 ## Vérification et rollback
 
