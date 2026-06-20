@@ -22,6 +22,10 @@ class SetupClientTest {
         var receivedCode = ""
 
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+                ws.close(code, reason)
+            }
+
             override fun onMessage(ws: WebSocket, text: String) {
                 val node = mapper.readTree(text)
                 assertEquals("setup_request", node["type"].asText())
@@ -51,6 +55,10 @@ class SetupClientTest {
         var receivedKey = ""
 
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+                ws.close(code, reason)
+            }
+
             override fun onMessage(ws: WebSocket, text: String) {
                 val node = mapper.readTree(text)
                 assertEquals("setup_claim", node["type"].asText())

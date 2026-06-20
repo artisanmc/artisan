@@ -1,5 +1,6 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
+import { vitestWorkerExecArgv } from "./vitest-worker-args.mjs";
 
 export default defineConfig({
   test: {
@@ -9,7 +10,7 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/dist/**", "tests/e2e/**"],
     // Node 25 enabled native Web Storage by default; its localStorage shadows
     // jsdom's polyfill but exposes methods as non-functions in the test pool.
-    execArgv: ["--no-webstorage"],
+    execArgv: vitestWorkerExecArgv(),
   },
   resolve: {
     alias: {
