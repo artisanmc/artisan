@@ -11,8 +11,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-COPY editor/package.json ./
-RUN npm install
+COPY editor/package.json editor/package-lock.json ./
+RUN npm ci
 COPY editor ./
 # Needed by validateMenuV1.ts's `../../../docs/...` import → resolves to /docs.
 COPY docs /docs
