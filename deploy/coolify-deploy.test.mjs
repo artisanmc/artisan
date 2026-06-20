@@ -46,9 +46,9 @@ test("production workflow deploys only the current successful main CI SHA", () =
   assert.match(workflow, /^\s{2}cancel-in-progress: false$/m);
   assert.match(workflow, /^\s{4}if: github\.event\.workflow_run\.conclusion == 'success'$/m);
   assert.match(workflow, /^\s{4}environment: production$/m);
-  assert.match(workflow, /^\s{8}uses: actions\/checkout@v4$/m);
+  assert.match(workflow, /^\s{8}uses: actions\/checkout@v5$/m);
   assert.match(workflow, /^\s{10}ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}$/m);
-  assert.match(workflow, /^\s{8}uses: actions\/setup-node@v4$/m);
+  assert.match(workflow, /^\s{8}uses: actions\/setup-node@v5$/m);
   assert.match(workflow, /^\s{10}node-version: 22$/m);
   assert.match(workflow, /git ls-remote origin refs\/heads\/main/);
   assert.match(workflow, /if \[ "\$CURRENT_MAIN_SHA" != "\$EXPECTED_SHA" \]; then/);
