@@ -1,142 +1,74 @@
-# Déploiement Artisan (backend + éditeur) — VPS OVH + Coolify
+# Déploiement production Artisan
 
-Cible : **fiable + pas cher**. Le backend (Bun + WebSockets + disque) et l'éditeur
-(SPA statique) tournent sur **ton VPS OVH** via **Coolify** (PaaS open-source). Ton
-serveur dédié MC reste **intouché** — les plugins se connectent en *sortie* au backend,
-ils n'ouvrent aucun nouveau port entrant côté MC.
+La production tourne sur un VPS OVH 4 vCPU / 8 Go sous Ubuntu 26.04, avec Coolify. Le serveur Minecraft reste externe : le plugin ouvre uniquement une connexion sortante vers `wss://api.artisanmc.net/ws/plugin`.
 
-```
-joueurs + plugins ──HTTPS/WSS──┐
-navigateur (éditeur) ──HTTPS──┐ │
-                              ▼ ▼
-        app.artisanmc.net   api.artisanmc.net
-          (éditeur nginx)     (backend Bun) ── volume /app/data (icônes + data runtime)
-                  └──── VPS OVH (Coolify, anti-DDoS OVH) ────┘ ── Postgres (Coolify)
-```
+## Réseau et Cloudflare
 
-DDoS : l'**anti-DDoS OVH (VAC)** couvre le VPS gratuitement. Cloudflare en façade =
-option (voir § *Cloudflare*), avec une réserve sur le cap 100 Mo.
+Cloudflare gère les nameservers de `artisanmc.net`. Créer un Tunnel nommé et y publier :
 
----
+| Hostname public | Service Coolify |
+|---|---|
+| `api.artisanmc.net` | backend, port 3001 |
+| `editor.artisanmc.net` | éditeur nginx, port 80 |
+| `coolify.artisanmc.net` | interface Coolify |
 
-## Pré-requis
+Ne créer aucun enregistrement A/AAAA vers l'origine. Le firewall du VPS n'expose directement aucun port entrant 80, 443 ou 8000 ; l'accès web passe par le Tunnel. Protéger `coolify.artisanmc.net` avec Cloudflare Access. Créer un service token Access dédié à GitHub Actions, sans réutiliser un jeton utilisateur.
 
-- VPS OVH **réinstallé propre en Ubuntu 24.04 LTS** (2 vCore / 4 Go suffisent).
-- Accès **DNS** de `artisanmc.net`.
-- Le repo GitHub `artisanmc/artisan` (déjà en place) avec **`main` poussée à jour**
-  (Coolify déploie depuis une branche).
+La limite du plan Cloudflare actif s'applique au corps de chaque requête HTTP d'upload entrante. Chaque upload de bundle ou custom item doit rester sous cette limite. Elle ne régit pas les téléchargements de resource packs.
 
----
+## Ressources Coolify
 
-## 1. Installer Coolify sur le VPS
+Créer un projet Artisan contenant :
 
-En SSH sur le VPS :
+- PostgreSQL 16, privé sur le réseau Coolify, sans port public ;
+- le backend depuis le contexte `/` et `backend/Dockerfile`, domaine `https://api.artisanmc.net`, health check `/health`, stockage persistant monté sur `/app/data` ;
+- l'éditeur depuis le contexte `/` et `editor/Dockerfile`, domaine `https://editor.artisanmc.net`, avec les build args `VITE_API_URL=https://api.artisanmc.net` et `VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin`.
+
+Copier les variables backend de [`.env.production.example`](.env.production.example), remplacer seulement les exemples/secrets dans Coolify, et conserver les valeurs publiques canoniques. `DATABASE_URL` doit utiliser la connection string interne de PostgreSQL. Générer et conserver durablement `CONFIG_ENC_KEY`; ne jamais le committer.
+
+Le volume `/app/data` contient les données runtime et les assets. Après sa création, le seed initial peut être envoyé depuis la racine du repo :
 
 ```bash
-curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
-```
-
-Puis ouvre `http://<IP_DU_VPS>:8000`, crée le compte admin. (Coolify s'occupe de
-Docker, Traefik/TLS, etc. — rien d'autre à installer.)
-
-## 2. DNS
-
-Chez OVH (ou Cloudflare si tu l'utilises), crée deux **enregistrements A** vers l'IP du VPS :
-
-| Nom | Type | Valeur |
-|---|---|---|
-| `api.artisanmc.net` | A | `<IP_DU_VPS>` |
-| `app.artisanmc.net` | A | `<IP_DU_VPS>` |
-
-(Coolify générera les certificats Let's Encrypt automatiquement une fois les domaines posés.)
-
-## 3. Connecter GitHub
-
-Coolify → **Sources** → GitHub → installe l'app GitHub sur l'org `artisanmc`, autorise le repo `artisan`.
-
-## 4. Base de données Postgres
-
-Coolify → **Databases** → **PostgreSQL 16** → crée-la dans un projet « artisan ».
-- Note la **connection string interne** (réseau Coolify) → ce sera `DATABASE_URL`.
-- Active les **Scheduled Backups** (ex. quotidien).
-
-## 5. Déployer le backend
-
-Coolify → **New Resource** → ton repo GitHub `artisan` → branche `main`.
-- **Build Pack** : `Dockerfile`
-- **Base Directory** : `/`   ← important (le build a besoin de `docs/`)
-- **Dockerfile** : `backend/Dockerfile`
-- **Domaine** : `https://api.artisanmc.net`  · **Port exposé** : `3001`
-- **Health check path** : `/health`
-- **Environment** : colle les variables de [`deploy/.env.production.example`](.env.production.example)
-  (mets le vrai `DATABASE_URL` interne, génère `CONFIG_ENC_KEY` via `openssl rand -hex 32`,
-  ton email dans `ADMIN_BOOTSTRAP_EMAILS`).
-- **Storages** → ajoute un **Persistent Storage** monté sur `/app/data`.
-- **Deploy**. (Au boot : `db:migrate` puis `start` ; le migrate retente si la DB n'est pas encore prête.)
-
-## 6. Seed du volume data (les 2,2 Go d'icônes)
-
-Une fois le volume `/app/data` créé, peuple-le **une fois** depuis ton poste (repo root) :
-
-```bash
-VPS_HOST=root@<IP_DU_VPS> \
-VOLUME_PATH=<chemin hôte du volume /app/data, vu dans Coolify → Storages> \
+VPS_HOST=root@<VPS_HOST> \
+VOLUME_PATH=<COOLIFY_BACKEND_VOLUME_PATH> \
 ./deploy/seed-data.sh
 ```
 
-Puis **redéploie/redémarre** le backend. (Sans ça, les icônes 3D manquent ; le backend
-re-télécharge les assets MC bruts depuis Mojang à la volée, mais pas les icônes pré-rendues.)
+Les placeholders doivent être remplacés par les valeurs réelles affichées dans les dashboards ; aucun UUID ou token fictif n'est une valeur déployable.
 
-## 7. Déployer l'éditeur
+## Livraison GitHub Actions
 
-Coolify → **New Resource** → même repo → branche `main`.
-- **Build Pack** : `Dockerfile` · **Base Directory** : `/` · **Dockerfile** : `editor/Dockerfile`
-- **Build args** (cruciaux — `VITE_*` sont bakés au build) :
-  - `VITE_API_URL=https://api.artisanmc.net`
-  - `VITE_PLUGIN_WS_URL=wss://api.artisanmc.net/ws/plugin`
-- **Domaine** : `https://app.artisanmc.net` · **Port** : `80`
-- **Deploy**.
+Désactiver l'auto-deploy Coolify sur push. Les seules releases automatiques passent par `.github/workflows/ci.yml`, puis `.github/workflows/deploy.yml` sur la révision courante validée de `main`.
 
-## 8. Vérifier
+Dans l'environnement GitHub `production`, définir exactement :
 
-- `https://api.artisanmc.net/health` → `{"ok":true}`
-- `https://app.artisanmc.net` → l'éditeur charge, et la console réseau tape `api.artisanmc.net`
-  (REST + `wss://api.artisanmc.net/ws/editor`), pas `localhost`.
+| Type | Nom | Valeur attendue |
+|---|---|---|
+| Variable | `COOLIFY_BASE_URL` | `https://coolify.artisanmc.net` |
+| Variable | `COOLIFY_BACKEND_UUID` | UUID réel de la ressource backend Coolify |
+| Variable | `COOLIFY_EDITOR_UUID` | UUID réel de la ressource éditeur Coolify |
+| Secret | `COOLIFY_API_TOKEN` | token API Coolify dédié au déploiement |
+| Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
+| Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
 
-## 9. Brancher les plugins
+Le workflow reçoit le SHA validé par CI, épingle `git_commit_sha` sur chaque application Coolify avant son déploiement, puis vérifie que Coolify rapporte exactement ce commit. Il déploie le backend en premier, attend `https://api.artisanmc.net/health`, puis déploie et vérifie `https://editor.artisanmc.net/`. Chaque requête réseau et le job complet ont un délai maximal. Les WebSockets sont vérifiés séparément après la release. Ne dupliquer aucune de ces valeurs dans le dépôt.
 
-Dans la config du plugin Artisan (serveurs MC), pointe le WS sur
-`wss://api.artisanmc.net/ws/plugin` (ou utilise l'assistant de setup de l'éditeur, dont
-le défaut affiché vient de `VITE_PLUGIN_WS_URL`). Les plugins se connectent **en sortie** —
-aucun port à ouvrir côté dédié MC.
+## Vérification et rollback
 
----
+Après une release :
 
-## Mises à jour
+1. vérifier que `/health` répond correctement sur l'API ;
+2. vérifier l'ouverture des WebSockets éditeur et plugin via `wss://api.artisanmc.net` ;
+3. charger l'éditeur et confirmer que ses requêtes ciblent `api.artisanmc.net`, jamais `localhost:3001` ;
+4. confirmer qu'un plugin externe se reconnecte et reçoit les événements attendus.
 
-`git push` sur `main` → Coolify rebuild + redéploie (active l'auto-deploy sur webhook).
-Migrations DB : appliquées automatiquement au boot du backend (idempotent).
+En cas d'échec, consulter les logs de la ressource concernée puis utiliser le rollback du workflow/Coolify vers la dernière image saine. Les migrations DB sont forward-only et s'exécutent au démarrage du backend : ne jamais supposer qu'un rollback applicatif annule le schéma. Si une migration rend l'ancienne image incompatible, corriger en avant avec une nouvelle migration et une nouvelle release.
 
-## Sauvegardes / ops
+## Sauvegardes
 
-- **Postgres** : backups planifiés Coolify (§4). Teste une restauration au moins une fois.
-- **Volume `/app/data`** : surtout `custom-items/` et `resource-packs/` (data runtime par
-  serveur). `mc-assets/` est re-seedable. Pense à un backup périodique du volume (snapshot
-  OVH ou `tar` cron → stockage externe).
-- Coolify se met à jour depuis son dashboard ; garde l'OS du VPS patché.
+- Exécuter chaque jour un backup PostgreSQL vers un stockage hors VPS.
+- Sauvegarder chaque jour `/app/data` hors VPS ; `mc-assets/` reste re-seedable, les données runtime ne le sont pas toutes.
+- Documenter la rétention et les alertes avec les valeurs du fournisseur réellement choisi.
+- Effectuer régulièrement un exercice de restauration PostgreSQL et `/app/data` dans un environnement isolé, puis consigner durée et résultat.
 
-## Cloudflare (optionnel — protection L7 + IP d'origine cachée)
-
-L'anti-DDoS OVH suffit pour démarrer. Si tu ajoutes Cloudflare :
-- Mets `api.artisanmc.net` et `app.artisanmc.net` en **proxy (nuage orange)** → cache l'IP,
-  absorbe le L7. WebSockets supportés en plan gratuit.
-- **Piège** : CF gratuit limite chaque requête à **100 Mo**. Les **uploads de bundles /
-  custom-items** (plugin → backend) et le **téléchargement du resource pack** (joueurs)
-  peuvent dépasser. Mitigation : crée `bundles.artisanmc.net` en **DNS only (nuage gris)**
-  vers le VPS, et bascule côté backend :
-  - `BUNDLE_BASE_URL=https://bundles.artisanmc.net`
-  - `RESOURCE_PACK_BASE_URL=https://bundles.artisanmc.net`
-  - et le WS plugin sur `wss://bundles.artisanmc.net/ws/plugin` (custom-items passent par le WS).
-  Ce sous-domaine reste couvert par l'anti-DDoS OVH.
-- Firewall le VPS pour n'accepter le 80/443 que depuis les [IPs Cloudflare](https://www.cloudflare.com/ips/)
-  (sauf le port du sous-domaine gris si tu veux l'exposer largement).
+Garder Ubuntu et Coolify patchés. Un backup n'est considéré fiable qu'après une restauration réussie.
