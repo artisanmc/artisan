@@ -73,8 +73,9 @@ describe("bundle upload/download", () => {
     });
     expect(downloadRes.status).toBe(200);
     const body = (await downloadRes.json()) as { files: Record<string, string>; hash: string };
-    expect(body.hash).toMatch(/^[0-9a-f]{64}$/);
     // Initial commit has empty files — POST WIP is NOT reflected until a commit is created.
+    // Empty content hashes to "" (sentinel), consistent with the plugin's BundleHasher.
+    expect(body.hash).toBe("");
     expect(body.files).toEqual({});
   });
 

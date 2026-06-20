@@ -32,6 +32,12 @@ describe("commitStorage", () => {
     expect(h1).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("computeContentHash returns '' for empty files (empty-content sentinel)", () => {
+    // Invariant: "" = no content, consistent with BundleHasher/computeBundleHash.
+    // The plugin's auto-push relies on an empty backend project hashing to "".
+    expect(computeContentHash({})).toBe("");
+  });
+
   it("createCommit inserts with cmt_ id and computed contentHash", async () => {
     const { projectId } = await seedSetup();
     const cmt = await createCommit({

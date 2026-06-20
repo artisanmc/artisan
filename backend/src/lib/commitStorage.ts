@@ -10,6 +10,12 @@ export type Commit = typeof projectCommits.$inferSelect;
  * Matches the plugin's LocalPushSender.computeHash() so client & server agree.
  */
 export function computeContentHash(files: Record<string, string>): string {
+  // Empty-content sentinel: "" means "no content", consistent with
+  // BundleHasher.hash() (plugin) and hashUtils.computeBundleHash() (backend).
+  // A freshly-created project stub (empty initial commit) must hash to "" so
+  // the plugin's auto-push path (backendHash.isEmpty()) fires instead of
+  // mistaking the stub for divergent content and overwriting local files.
+  if (Object.keys(files).length === 0) return "";
   const sb: string[] = [];
   for (const key of Object.keys(files).sort()) {
     sb.push(key, "\n", files[key], "\n");
