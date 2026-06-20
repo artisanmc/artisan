@@ -242,6 +242,30 @@ describe("handlePluginMessage", () => {
     expect(ack.project_hashes).toEqual({ pa: emptyHash, pb: emptyHash });
   });
 
+  test("hello creates stubs for unknown local projects and advertises them as '' in the same ack", async () => {
+    const { id: keyId, key } = await seedServerKey();
+    // No bound projects — the plugin has "plocal" on disk that the backend doesn't know.
+
+    const connId = "conn-local-stub";
+    registerConn(connId, () => {});
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+      local_project_ids: ["plocal"],
+    };
+    const result = await handlePluginMessage(connId, JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+
+    // Stub must exist AND be advertised in this same ack as "" so the plugin's
+    // backendHash.isEmpty() auto-push fires on the first connect (no restart needed).
+    expect(await getProject("plocal")).not.toBeNull();
+    expect(ack.project_hashes["plocal"]).toBe("");
+    void keyId;
+  });
+
   test("hello_ack.project_hashes uses branch head commit contentHash (not WIP pack.hash)", async () => {
     const { id: keyId, key, networkId } = await seedServerKey();
     await seedBoundPack(networkId, keyId, "p_c2", "wip-hash");

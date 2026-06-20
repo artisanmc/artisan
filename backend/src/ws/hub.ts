@@ -259,6 +259,11 @@ export async function handlePluginMessage(
       if (sk) {
         for (const pid of missingProjectIds) {
           await createProject({ networkId: sk.networkId, serverKeyId: keyId, name: pid, id: pid });
+          // Advertise the fresh (empty) stub in THIS ack so the plugin's
+          // backendHash.isEmpty() auto-push fires on the first connect — without
+          // it, the stub is missing from project_hashes and the plugin treats the
+          // project as local-only (no upload) until a later reconnect.
+          projectHashesMap[pid] = "";
         }
       }
     }

@@ -1,5 +1,9 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { app, websocket } from "./app";
+import { db } from "./db/index";
+import { networks, serverKeys, projects, editorSessions, linkCodes } from "./db/schema";
+import { createCommit } from "./lib/commitStorage";
+import { getBranch, advanceBranchHead } from "./lib/branchStorage";
 
 // Start a real Bun HTTP/WS server on a random port for full-stack integration tests.
 let server: ReturnType<typeof Bun.serve>;
@@ -10,6 +14,16 @@ beforeAll(() => {
 
 afterAll(() => {
   server.stop(true);
+});
+
+// Each test creates its own server key + p_shop. Clear shared state so a fixed
+// project id can't leak ownership across tests (or across reused test-DB runs).
+beforeEach(async () => {
+  await db.delete(projects);
+  await db.delete(editorSessions);
+  await db.delete(linkCodes);
+  await db.delete(serverKeys);
+  await db.delete(networks);
 });
 
 async function connectWs(): Promise<WebSocket> {
@@ -54,6 +68,23 @@ async function uploadBundle(key: string, packId: string, files: Record<string, s
   return ((await res.json()) as { hash: string }).hash;
 }
 
+// Commit content onto the project's main branch and advance the head, so the branch
+// head carries real (non-empty) content — the state in which the backend pushes a
+// bundle_available. POST /bundles only writes WIP; sync serves the committed head.
+async function commitToMain(packId: string, files: Record<string, string>): Promise<string> {
+  const branch = await getBranch(packId, "main");
+  const cmt = await createCommit({
+    projectId: packId,
+    parentId: branch!.headCommitId,
+    files,
+    editor: null,
+    authorUserId: null,
+    message: "integration content",
+  });
+  await advanceBranchHead(packId, "main", cmt.id);
+  return cmt.contentHash;
+}
+
 const PACK_FILES = {
   "plugins/Artisan/projects/p_shop/manifest.yaml": "schema: manifest/v1\nproject_id: p_shop\n",
   "plugins/Artisan/projects/p_shop/menus/shop.yaml": "id: shop\nsize: 27\n",
@@ -85,6 +116,9 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
   test("upload bundle → stale hash → hello_ack needs_sync=true + bundle_available pushed", async () => {
     const key = await createKey("integ-sync");
     await uploadBundle(key, "p_shop", PACK_FILES);
+    // Commit the content so the branch head is non-empty — only then is a
+    // bundle_available pushed (an empty head hashes to "" and is correctly skipped).
+    await commitToMain("p_shop", PACK_FILES);
 
     const ws = await connectWs();
     const msgs = collectMessages(ws, 2); // hello_ack + bundle_available
@@ -102,6 +136,7 @@ describe("full-stack integration: WS handshake + bundle sync", () => {
     const ack = JSON.parse(ackRaw);
     expect(ack.type).toBe("hello_ack");
     expect(ack.needs_sync).toBe(true);
+    // Branch head now carries committed content → non-empty content hash.
     expect(ack.project_hashes["p_shop"]).toMatch(/^[0-9a-f]{64}$/);
 
     const avail = JSON.parse(availRaw);
