@@ -6,7 +6,6 @@ import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.SyncMetadata
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.io.File
@@ -27,12 +26,6 @@ import kotlin.test.*
 class FullSyncIntegrationTest {
 
     private val mapper = ObjectMapper()
-
-    private abstract class ClosingWebSocketListener : WebSocketListener() {
-        override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-            ws.close(code, reason)
-        }
-    }
 
     private fun makeLogger(logs: MutableList<String>): Logger {
         val log = Logger.getLogger("artisan.integ.${System.nanoTime()}")
