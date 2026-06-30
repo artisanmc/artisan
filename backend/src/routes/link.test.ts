@@ -1,7 +1,7 @@
 import { describe, expect, test, it, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, linkCodes, serverKeys, networks, users, userSessions, memberships } from "../db/schema";
+import { editorSessions, linkCodes, serverKeys, networks, users, userSessions, memberships, packs } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { app } from "../app";
 
@@ -201,5 +201,23 @@ describe("POST /api/v1/link/:code/claim — smart-count network selection", () =
     const foreign = await createNetwork("foreign");
     const res = await makeClaim(sessionId, { network_id: foreign.id });
     expect(res.status).toBe(403);
+  });
+
+  it("creates the server key before creating a new pack during claim", async () => {
+    const { sessionId } = await seedUserAndSession();
+    const res = await makeClaim(sessionId, {
+      network_name: "Prod Test",
+      pack_name: "Survival",
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      server_key_id: string;
+      network_id: string;
+      pack_id: string;
+    };
+    const [pack] = await db.select().from(packs).where(eq(packs.id, body.pack_id));
+    expect(pack.networkId).toBe(body.network_id);
+    expect(pack.serverKeyId).toBe(body.server_key_id);
   });
 });

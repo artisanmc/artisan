@@ -38,7 +38,7 @@
 ## Flux non-évidents
 
 - **Promotion** : `promote/:dst` est **fast-forward only** → `409 not_fast_forward` si divergence. Le merge 3-way / résolution de conflits a été retiré le 2026-06-17 (jamais câblé en UI ; concurrence live gérée par LWW + présence) — cf. ADR `no-branch-conflict-resolution`.
-- **Claim link** (`link/:code/claim`) : **login required**. Smart-count des networks de l'user : 0 → auto-crée "Mon Réseau" ; 1 → l'utilise ; 2+ → `400 must_choose_network` (le client renvoie `{network_id}`).
+- **Claim link** (`link/:code/claim`) : **login required**. Smart-count des networks de l'user : 0 → auto-crée "Mon Réseau" ; 1 → l'utilise ; 2+ → `400 must_choose_network` (le client renvoie `{network_id}`). Le body peut aussi sélectionner/créer le pack (`pack_id` XOR `pack_name`) dans le network cible ; la `server_key` est créée avant un nouveau pack pour satisfaire `packs.serverKeyId`.
 - **Conflit = freeze** : tant qu'un `pack_conflicts` est ouvert, `bundle_available` n'est pas broadcast (cf. `CLAUDE.md` § Invariants).
 - **DELETE pack** (`editor-session/:token/packs/:packId`) : soft-delete (`deletedAt`) + auto-résout tout conflit ouvert en `"editor"` + broadcast `pack_deleted`. L'éditeur devient autoritaire.
 - **Custom items** : `editor-session/:token/custom-items` lit le **cache disque** (`data/custom-items/{sk}/{hash.txt,items.json,textures/}`), peuplé par le plugin via WS `custom_items_bundle`. `items: []` si pas encore synchronisé.
