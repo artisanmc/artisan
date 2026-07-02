@@ -1,6 +1,7 @@
 import { app, websocket } from "./app";
 import { backfillSlugs } from "./lib/backfillSlugs";
 import { backfillContentWidths } from "./lib/contentWidthBackfill";
+import { seedAiCatalogFromLegacy } from "./modules/ai/seed";
 
 const port = Number(process.env.PORT ?? 3001);
 
@@ -22,3 +23,4 @@ backfillContentWidths().catch((err) =>
 	console.error("[backfill] contentWidth failed:", err),
 );
 backfillSlugs().catch((err) => console.error("[backfill] slugs failed:", err));
+seedAiCatalogFromLegacy().catch((err) => console.error("[ai] legacy seed failed:", err));
