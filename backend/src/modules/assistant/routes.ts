@@ -1,9 +1,18 @@
 import type { Context } from "hono";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
+import { db } from "../../db/index";
+import { projects } from "../../db/schema";
 import { validateAccessToken } from "../../lib/auth";
 import { findSession } from "../../lib/sessionManager";
+import { getBalance } from "../ai/creditsRepo";
+import { resolveModel, type AiModel } from "../ai/modelRepo";
+import { computeCreditsCharged, sumUsage } from "../ai/pricing";
+import { createProviderFor } from "../ai/providers";
+import { getAiSettings } from "../ai/settings";
+import { recordDebitedTurn, recordErrorTurn } from "../ai/usageRepo";
 import {
 	createConversation,
 	getConversation,
@@ -12,9 +21,7 @@ import {
 } from "./conversationRepo";
 import { buildSystemPrompt } from "./grounding";
 import { runTurn } from "./loop";
-import { createProvider } from "./provider/config";
-import { loadAssistantProviderConfig } from "./provider/dbConfig";
-import type { LlmProvider } from "./provider/types";
+import type { LlmProvider, LlmUsage } from "./provider/types";
 import { WorkingCopy } from "./workingCopy";
 
 /** Prefix marking the transient system note that lists a turn's attachments. */
@@ -26,14 +33,17 @@ export function __setProviderForTests(p: LlmProvider | null): void {
 	providerOverride = p;
 }
 
-async function resolve(): Promise<{
-	provider: LlmProvider;
-	model: string;
-} | null> {
-	if (providerOverride)
-		return { provider: providerOverride, model: "test-model" };
-	const cfg = await loadAssistantProviderConfig();
-	return cfg ? { provider: createProvider(cfg), model: cfg.model } : null;
+/** Model from the catalog (requested → default → fallback), provider from the
+ *  model's credentials. providerOverride short-circuits the provider only —
+ *  the catalog still resolves, so tests exercise real pricing. */
+async function resolveTurn(
+	requestedModelId?: string | null,
+): Promise<{ provider: LlmProvider; model: AiModel } | null> {
+	const model = await resolveModel(requestedModelId);
+	if (!model) return null;
+	if (providerOverride) return { provider: providerOverride, model };
+	const provider = await createProviderFor(model);
+	return provider ? { provider, model } : null;
 }
 
 /**
@@ -131,15 +141,32 @@ export function buildAssistantRouter(): Hono {
 				: {};
 		const dialogs = Array.isArray((body as any).dialogs) ? (body as any).dialogs : [];
 		const commands = Array.isArray((body as any).commands) ? (body as any).commands : [];
-		const pm = await resolve();
+		const modelId =
+			typeof (body as any).modelId === "string" ? (body as any).modelId : null;
+		const pm = await resolveTurn(modelId);
 		if (!pm)
 			return c.json(
-				{
-					error:
-						"Assistant disabled: no provider configured (set ASSISTANT_API_KEY).",
-				},
+				{ error: "Assistant disabled: no active model/provider configured." },
 				503,
 			);
+
+		// The conversation's project carries the debited network (spec 2026-07-02).
+		const projRows = await db
+			.select({ networkId: projects.networkId })
+			.from(projects)
+			.where(eq(projects.id, conv.projectId));
+		if (projRows.length === 0)
+			return c.json({ error: "project_not_found" }, 404);
+		const networkId = projRows[0].networkId;
+
+		const balance = await getBalance(networkId);
+		if (balance <= 0)
+			return c.json({ error: "insufficient_credits", balance }, 402);
+
+		const settings = await getAiSettings();
+		const ownerKey = c.get("ownerKey") as string;
+		const actorUserId = ownerKey.startsWith("user:") ? ownerKey.slice(5) : null;
+		const actorServerKeyId = ownerKey.startsWith("sk:") ? ownerKey.slice(3) : null;
 
 		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
 		const wc = new WorkingCopy(menus, attachments, dialogs, commands);
@@ -165,23 +192,53 @@ export function buildAssistantRouter(): Hono {
 			conv.title || text.slice(0, 60) || attachedNames.join(", ").slice(0, 60);
 
 		return streamSSE(c, async (stream) => {
+			const t0 = performance.now();
+			const usages: LlmUsage[] = [];
+			const usageInput = () => ({
+				networkId,
+				userId: actorUserId,
+				serverKeyId: actorServerKeyId,
+				model: pm.model,
+				conversationId: conv.id,
+				usage: sumUsage(usages),
+				durationMs: Math.round(performance.now() - t0),
+				promptPreview: text,
+			});
 			try {
 				for await (const ev of runTurn({
 					provider: pm.provider,
-					model: pm.model,
+					model: pm.model.providerModelId,
 					messages: conv.messages,
 					wc,
 					system: buildSystemPrompt(),
 				})) {
+					if (ev.type === "usage") usages.push(ev.usage);
 					await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
+					if (
+						ev.type === "usage" &&
+						settings.maxCreditsPerTurn != null &&
+						computeCreditsCharged(sumUsage(usages), pm.model) >=
+							settings.maxCreditsPerTurn
+					) {
+						// Loop guard: stop cleanly after the current iteration's usage
+						// lands; the consumed tokens ARE debited below.
+						await stream.writeSSE({
+							event: "error",
+							data: JSON.stringify({ message: "turn_budget_exceeded" }),
+						});
+						break;
+					}
 				}
-			} catch (e) {
+				const { debited, balance: newBalance } = await recordDebitedTurn(usageInput());
 				await stream.writeSSE({
-					event: "error",
-					data: JSON.stringify({
-						message: e instanceof Error ? e.message : String(e),
-					}),
+					event: "credits",
+					data: JSON.stringify({ debited, balance: newBalance }),
 				});
+			} catch (e) {
+				const message = e instanceof Error ? e.message : String(e);
+				// Provider failure: log consumed tokens for admin visibility — no debit.
+				await recordErrorTurn({ ...usageInput(), errorMessage: message }).catch(() => {});
+				await stream.writeSSE({ event: "error", data: JSON.stringify({ message }) });
 			} finally {
 				// runTurn mutates conv.messages in place; persist the full transcript.
 				await saveConversation(conv.id, conv.messages, title);
