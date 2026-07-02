@@ -27,6 +27,7 @@ import { mountModules } from "@artisan/backend-sdk";
 import { menusModule } from "./modules/menus";
 import { commandsModule } from "./modules/commands";
 import { assistantModule } from "./modules/assistant";
+import { aiModule } from "./modules/ai";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 export const app = new Hono();
@@ -61,7 +62,7 @@ app.route("/api/v1/admin", buildAssistantAdminRouter());
 app.route("/api/v1/admin", buildAdminUsersRouter());
 app.route("/api/v1/admin", buildAiAdminRouter());
 
-mountModules(app, [menusModule, commandsModule, assistantModule]);
+mountModules(app, [menusModule, commandsModule, assistantModule, aiModule]);
 
 app.get(
   "/ws/plugin",
