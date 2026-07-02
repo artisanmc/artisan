@@ -63,6 +63,18 @@ describe("providers config", () => {
 		await putProvider("openai", { apiKey: "sk-yes" }, null);
 		expect(await createProviderFor(m)).not.toBeNull();
 	});
+
+	it("putProvider with a key while encryption is unconfigured → error, nothing stored", async () => {
+		const saved = process.env.CONFIG_ENC_KEY;
+		delete process.env.CONFIG_ENC_KEY;
+		try {
+			const res = await putProvider("openai", { apiKey: "sk-nope" }, null);
+			expect(res).toEqual({ ok: false, error: "encryption_not_configured" });
+			expect((await getStoredProviders()).openai).toBeUndefined();
+		} finally {
+			process.env.CONFIG_ENC_KEY = saved;
+		}
+	});
 });
 
 describe("ai settings", () => {
