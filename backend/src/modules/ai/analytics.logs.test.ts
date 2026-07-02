@@ -71,6 +71,13 @@ describe("listUsageLogs", () => {
 		// newest first
 		expect(page1.logs[0].createdAt > page1.logs[1].createdAt).toBe(true);
 	});
+
+	it("ignores a malformed cursor without separator (falls back to first page)", async () => {
+		const bounds = { from: new Date("2020-02-10T00:00:00Z"), to: new Date("2020-02-11T00:00:00Z") };
+		const first = await listUsageLogs(bounds, undefined, 2);
+		const malformed = await listUsageLogs(bounds, "1720000000000", 2);
+		expect(malformed.logs.map((l) => l.id)).toEqual(first.logs.map((l) => l.id));
+	});
 });
 
 describe("GET /api/v1/admin/ai/usage/logs", () => {
