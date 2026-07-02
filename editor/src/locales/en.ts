@@ -813,6 +813,7 @@ export default {
           "Encryption key not configured on the server — secrets can't be stored. Set CONFIG_ENC_KEY.",
         addCustom: "Add custom provider",
         slug: "Slug",
+        label: "Provider name",
       },
       settings: {
         title: "AI settings",

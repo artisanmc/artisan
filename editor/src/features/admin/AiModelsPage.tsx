@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AiModelForm } from "./AiModelForm";
+import { AiProvidersSection } from "./AiProvidersSection";
+import { AiSettingsSection } from "./AiSettingsSection";
 
 const badgeVariant = { cheap: "sage", balanced: "amber", premium: "terra" } as const;
 
@@ -195,6 +197,9 @@ export function AiModelsPage() {
           }}
         />
       )}
+
+      <AiProvidersSection />
+      <AiSettingsSection />
     </div>
   );
 }
