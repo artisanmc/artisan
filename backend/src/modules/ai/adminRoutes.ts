@@ -18,7 +18,7 @@ import { computeCreditsCharged, computeRealCostMicroUsd, sumUsage } from "./pric
 import { db } from "../../db/index";
 import { networks } from "../../db/schema";
 import { grantCredits } from "./creditsRepo";
-import { usageSummary, listUsageLogs, usageLogsCsv, type UsageLogFilters } from "./analytics";
+import { usageSummary, listUsageLogs, usageLogsCsv, userFocus, type UsageLogFilters } from "./analytics";
 
 let aiTestProvider: LlmProvider | null = null;
 /** Test hook: inject a fake provider for POST /ai/models/:id/test. */
@@ -221,6 +221,16 @@ export function buildAiAdminRouter(): Hono {
 		}
 		const limit = Math.min(Math.max(Number(q("limit") ?? 50) || 50, 1), 200);
 		return c.json(await listUsageLogs(filters, q("cursor"), limit));
+	});
+
+	r.get("/ai/users/:userId", async (c) => {
+		const to = c.req.query("to") ? new Date(c.req.query("to") as string) : new Date();
+		const from = c.req.query("from")
+			? new Date(c.req.query("from") as string)
+			: new Date(to.getTime() - 30 * 24 * 3_600_000);
+		if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()))
+			return c.json({ error: "invalid_range" }, 400);
+		return c.json(await userFocus(c.req.param("userId"), from, to));
 	});
 
 	return r;
