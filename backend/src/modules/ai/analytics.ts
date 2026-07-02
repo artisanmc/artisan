@@ -99,16 +99,20 @@ export async function listUsageLogs(
 	const conds = filterConds(filters);
 	if (cursor) {
 		const sep = cursor.indexOf("_");
-		const ms = Number(cursor.slice(0, sep));
-		const id = cursor.slice(sep + 1);
-		if (!Number.isNaN(ms) && id) {
-			const at = new Date(ms);
-			conds.push(
-				or(
-					lt(aiUsageLog.createdAt, at),
-					and(eq(aiUsageLog.createdAt, at), lt(aiUsageLog.id, id)),
-				)!,
-			);
+		// No separator = malformed cursor → ignore it (first page) instead of
+		// letting slice(0, -1) fabricate a bogus (at, id) pair.
+		if (sep > 0) {
+			const ms = Number(cursor.slice(0, sep));
+			const id = cursor.slice(sep + 1);
+			if (!Number.isNaN(ms) && id) {
+				const at = new Date(ms);
+				conds.push(
+					or(
+						lt(aiUsageLog.createdAt, at),
+						and(eq(aiUsageLog.createdAt, at), lt(aiUsageLog.id, id)),
+					)!,
+				);
+			}
 		}
 	}
 	const rows = await db
