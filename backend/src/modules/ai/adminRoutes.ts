@@ -18,7 +18,7 @@ import { computeCreditsCharged, computeRealCostMicroUsd, sumUsage } from "./pric
 import { db } from "../../db/index";
 import { networks } from "../../db/schema";
 import { grantCredits } from "./creditsRepo";
-import { usageSummary } from "./analytics";
+import { usageSummary, listUsageLogs, usageLogsCsv, type UsageLogFilters } from "./analytics";
 
 let aiTestProvider: LlmProvider | null = null;
 /** Test hook: inject a fake provider for POST /ai/models/:id/test. */
@@ -199,6 +199,28 @@ export function buildAiAdminRouter(): Hono {
 		if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()))
 			return c.json({ error: "invalid_range" }, 400);
 		return c.json(await usageSummary(from, to));
+	});
+
+	r.get("/ai/usage/logs", async (c) => {
+		const q = (k: string) => c.req.query(k) || undefined;
+		const parseDate = (k: string) => {
+			const v = q(k);
+			if (!v) return undefined;
+			const d = new Date(v);
+			return Number.isNaN(d.getTime()) ? undefined : d;
+		};
+		const filters: UsageLogFilters = {
+			userId: q("userId"), modelId: q("modelId"), provider: q("provider"),
+			actionType: q("actionType"), status: q("status"),
+			from: parseDate("from"), to: parseDate("to"),
+		};
+		if (q("format") === "csv") {
+			c.header("Content-Type", "text/csv; charset=utf-8");
+			c.header("Content-Disposition", 'attachment; filename="ai-usage.csv"');
+			return c.body(await usageLogsCsv(filters));
+		}
+		const limit = Math.min(Math.max(Number(q("limit") ?? 50) || 50, 1), 200);
+		return c.json(await listUsageLogs(filters, q("cursor"), limit));
 	});
 
 	return r;
