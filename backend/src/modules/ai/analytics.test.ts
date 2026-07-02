@@ -21,7 +21,7 @@ function row(over: Partial<typeof aiUsageLog.$inferInsert>): typeof aiUsageLog.$
 		inputTokens: 1000, outputTokens: 100, cachedInputTokens: 0,
 		creditsCharged: 10, realCostMicroUsd: 5000, durationMs: 100,
 		status: "success", errorMessage: null, promptPreview: "",
-		createdAt: new Date("2026-07-01T10:00:00Z"),
+		createdAt: new Date("2020-01-15T10:00:00Z"),
 		...over,
 	};
 }
@@ -34,9 +34,9 @@ beforeAll(async () => {
 	await setSetting(AI_SETTINGS_KEY, { creditUsdMicroRate: 10_000, maxCreditsPerTurn: null }, null);
 	await db.insert(aiUsageLog).values([
 		row({}),
-		row({ modelName: "M2", provider: "anthropic", providerModelId: "m2", creditsCharged: 90, realCostMicroUsd: 400_000, createdAt: new Date("2026-07-02T09:00:00Z") }),
+		row({ modelName: "M2", provider: "anthropic", providerModelId: "m2", creditsCharged: 90, realCostMicroUsd: 400_000, createdAt: new Date("2020-01-16T09:00:00Z") }),
 		row({ status: "error", creditsCharged: 0 }),
-		row({ createdAt: new Date("2026-05-01T00:00:00Z") }), // out of range
+		row({ createdAt: new Date("2019-12-01T00:00:00Z") }), // out of range
 	]);
 });
 
@@ -48,8 +48,10 @@ afterAll(async () => {
 });
 
 describe("usageSummary", () => {
-	const from = new Date("2026-06-30T00:00:00Z");
-	const to = new Date("2026-07-03T00:00:00Z");
+	// Far-past window: sibling tests insert rows at new Date() — a real-clock
+	// date can never land in 2020, so leftover rows can't contaminate the sums.
+	const from = new Date("2020-01-14T00:00:00Z");
+	const to = new Date("2020-01-17T00:00:00Z");
 
 	it("totals within range, margin computed at the credit rate", async () => {
 		const s = await usageSummary(from, to);
@@ -65,14 +67,14 @@ describe("usageSummary", () => {
 		const s = await usageSummary(from, to);
 		expect(s.byModel.map((m) => m.modelName).sort()).toEqual(["M1", "M2"]);
 		expect(s.byProvider.find((p) => p.provider === "anthropic")?.creditsCharged).toBe(90);
-		expect(s.daily.map((d) => d.date)).toEqual(["2026-07-01", "2026-07-02"]);
+		expect(s.daily.map((d) => d.date)).toEqual(["2020-01-15", "2020-01-16"]);
 	});
 });
 
 describe("GET /api/v1/admin/ai/usage/summary", () => {
 	it("serves the summary to admins", async () => {
 		const res = await app.request(
-			"/api/v1/admin/ai/usage/summary?from=2026-06-30T00:00:00Z&to=2026-07-03T00:00:00Z",
+			"/api/v1/admin/ai/usage/summary?from=2020-01-14T00:00:00Z&to=2020-01-17T00:00:00Z",
 			{ headers: { Cookie: `artisan_user_session=${adminSession}` } },
 		);
 		expect(res.status).toBe(200);
