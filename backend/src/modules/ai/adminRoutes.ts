@@ -18,6 +18,7 @@ import { computeCreditsCharged, computeRealCostMicroUsd, sumUsage } from "./pric
 import { db } from "../../db/index";
 import { networks } from "../../db/schema";
 import { grantCredits } from "./creditsRepo";
+import { usageSummary } from "./analytics";
 
 let aiTestProvider: LlmProvider | null = null;
 /** Test hook: inject a fake provider for POST /ai/models/:id/test. */
@@ -188,6 +189,16 @@ export function buildAiAdminRouter(): Hono {
 			createdBy: c.get("user")?.id ?? null,
 		});
 		return c.json({ ok: true, balance });
+	});
+
+	r.get("/ai/usage/summary", async (c) => {
+		const to = c.req.query("to") ? new Date(c.req.query("to") as string) : new Date();
+		const from = c.req.query("from")
+			? new Date(c.req.query("from") as string)
+			: new Date(to.getTime() - 30 * 24 * 3_600_000);
+		if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()))
+			return c.json({ error: "invalid_range" }, 400);
+		return c.json(await usageSummary(from, to));
 	});
 
 	return r;
