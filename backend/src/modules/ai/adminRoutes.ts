@@ -10,8 +10,16 @@ import {
 	type AiModel,
 	type AiModelInput,
 } from "./modelRepo";
-import { hasUsableKey, listProvidersForAdmin, putProvider } from "./providers";
+import { hasUsableKey, listProvidersForAdmin, putProvider, createProviderFor } from "./providers";
 import { getAiSettings, putAiSettings, type AiSettings } from "./settings";
+import type { LlmProvider, LlmUsage } from "../assistant/provider/types";
+import { computeCreditsCharged, computeRealCostMicroUsd, sumUsage } from "./pricing";
+
+let aiTestProvider: LlmProvider | null = null;
+/** Test hook: inject a fake provider for POST /ai/models/:id/test. */
+export function __setAiTestProviderForTests(p: LlmProvider | null): void {
+	aiTestProvider = p;
+}
 
 function toDto(m: AiModel) {
 	return { ...m, createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() };
@@ -96,6 +104,37 @@ export function buildAiAdminRouter(): Hono {
 		if (!m.isActive) return c.json({ error: "model_inactive" }, 400);
 		await setDefaultModel(m.id);
 		return c.json({ ok: true });
+	});
+
+	r.post("/ai/models/:id/test", async (c) => {
+		const m = await getModel(c.req.param("id"));
+		if (!m) return c.json({ error: "not_found" }, 404);
+		const provider = aiTestProvider ?? (await createProviderFor(m));
+		if (!provider) return c.json({ ok: false, error: "provider_key_missing" });
+		const t0 = performance.now();
+		const usages: LlmUsage[] = [];
+		try {
+			let sawDone = false;
+			for await (const ev of provider.streamTurn({
+				messages: [{ role: "user", content: "Reply with OK." }],
+				tools: [],
+				model: m.providerModelId,
+			})) {
+				if (ev.type === "usage") usages.push(ev.usage);
+				if (ev.type === "done") sawDone = true;
+			}
+			const usage = sumUsage(usages);
+			return c.json({
+				ok: sawDone,
+				latencyMs: Math.round(performance.now() - t0),
+				inputTokens: usage.inputTokens,
+				outputTokens: usage.outputTokens,
+				creditsCost: computeCreditsCharged(usage, m),
+				realCostMicroUsd: computeRealCostMicroUsd(usage, m),
+			});
+		} catch (e) {
+			return c.json({ ok: false, error: e instanceof Error ? e.message : "error" });
+		}
 	});
 
 	r.get("/ai/providers", async (c) => {
