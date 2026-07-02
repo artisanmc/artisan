@@ -3,15 +3,19 @@ import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
 import {
+	aiModels,
 	assistantConversations,
 	editorSessions,
 	networks,
+	projects,
 	serverKeys,
 	users,
 } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
 import { saveConversation } from "./conversationRepo";
+import { grantCredits } from "../ai/creditsRepo";
+import { createModel, setDefaultModel } from "../ai/modelRepo";
 import type { LlmProvider, LlmStreamEvent } from "./provider/types";
 import { ATTACHMENT_NOTE_PREFIX, __setProviderForTests } from "./routes";
 
@@ -95,6 +99,36 @@ beforeAll(async () => {
 			accessExpiresAt: future,
 		})
 		.onConflictDoNothing();
+	// The turn now debits the network of the conversation's project → the
+	// project must exist, the catalog must hold an active default model, and
+	// the network needs a positive balance.
+	await db
+		.insert(projects)
+		.values({
+			id: PACK_ID,
+			networkId,
+			serverKeyId: SRV,
+			name: "Assistant Test Project",
+			hash: "",
+			filesJson: "{}",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		})
+		.onConflictDoNothing();
+	const testModel = await createModel({
+		displayName: "Routes Test Model",
+		description: "",
+		badge: "balanced",
+		provider: "openai",
+		providerModelId: "test-model",
+		creditsPerMInput: 1000,
+		creditsPerMOutput: 2000,
+		realUsdPerMInput: 0,
+		realUsdPerMOutput: 0,
+		isActive: true,
+	});
+	await setDefaultModel(testModel.id);
+	await grantCredits({ networkId, amount: 100_000 });
 	// User + user-session for the cookie-auth (web login) path.
 	await db
 		.insert(users)
@@ -118,6 +152,7 @@ afterAll(async () => {
 	await db.delete(editorSessions).where(eq(editorSessions.token, URL_TOKEN));
 	await db.delete(serverKeys).where(eq(serverKeys.id, SRV));
 	await db.delete(users).where(eq(users.id, USER_ID)); // cascades userSessions
+	await db.delete(aiModels);
 	if (networkId) await db.delete(networks).where(eq(networks.id, networkId));
 });
 
