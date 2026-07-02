@@ -141,6 +141,10 @@ export const users = pgTable(
 		editorLanguage: text("editor_language"), // null = no preference set
 		theme: text("theme"), // "dark" | "light" | null
 		isAdmin: boolean("is_admin").notNull().default(false),
+		// Last AI model picked in the assistant selector (plain id, no FK:
+		// ai_models is declared later in this file and models are never
+		// hard-deleted; a dangling id falls back to the default model at read time).
+		preferredAiModelId: text("preferred_ai_model_id"),
 		createdAt: timestamp("created_at").notNull(),
 		updatedAt: timestamp("updated_at").notNull(),
 	},
@@ -339,4 +343,100 @@ export const assistantConversations = pgTable(
 		updatedAt: timestamp("updated_at").notNull(),
 	},
 	(t) => [index("assistant_conv_owner_project_idx").on(t.ownerKey, t.projectId)],
+);
+
+// AI model catalog (admin-managed). Prices are integers: credits per 1M tokens,
+// real provider cost in micro-USD per 1M tokens ($0.075 → 75_000) — no floats
+// in DB. Models referenced by usage history are never hard-deleted: deactivate
+// instead. Cf. docs/superpowers/specs/2026-07-02-ai-model-system-design.md.
+export const aiModels = pgTable(
+	"ai_models",
+	{
+		id: text("id").primaryKey(),
+		displayName: text("display_name").notNull(),
+		description: text("description").notNull().default(""),
+		badge: text("badge").notNull(), // "cheap" | "balanced" | "premium"
+		provider: text("provider").notNull(), // slug into app_settings.ai_providers
+		providerModelId: text("provider_model_id").notNull(),
+		creditsPerMInput: integer("credits_per_m_input").notNull(),
+		creditsPerMOutput: integer("credits_per_m_output").notNull(),
+		realUsdPerMInput: integer("real_usd_per_m_input").notNull(),
+		realUsdPerMOutput: integer("real_usd_per_m_output").notNull(),
+		isActive: boolean("is_active").notNull().default(true),
+		isDefault: boolean("is_default").notNull().default(false),
+		createdAt: timestamp("created_at").notNull(),
+		updatedAt: timestamp("updated_at").notNull(),
+	},
+	(t) => [
+		// Partial unique index: at most ONE row may have is_default = true.
+		uniqueIndex("ai_models_default_uniq")
+			.on(t.isDefault)
+			.where(sql`is_default`),
+	],
+);
+
+// One row per assistant turn (or future AI action — action_type is extensible).
+// model_name/provider/provider_model_id are SNAPSHOTS so history survives
+// renames. The only stored content is prompt_preview (~200 chars): full
+// transcripts live in assistant_conversations; the admin "full view" links to
+// the conversation.
+export const aiUsageLog = pgTable(
+	"ai_usage_log",
+	{
+		id: text("id").primaryKey(),
+		networkId: text("network_id")
+			.notNull()
+			.references(() => networks.id, { onDelete: "cascade" }),
+		userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+		serverKeyId: text("server_key_id").references(() => serverKeys.id, {
+			onDelete: "set null",
+		}),
+		modelId: text("model_id").references(() => aiModels.id, {
+			onDelete: "set null", // snapshots keep the log readable
+		}),
+		modelName: text("model_name").notNull(),
+		provider: text("provider").notNull(),
+		providerModelId: text("provider_model_id").notNull(),
+		actionType: text("action_type").notNull().default("chat"),
+		conversationId: text("conversation_id"),
+		inputTokens: integer("input_tokens").notNull().default(0),
+		outputTokens: integer("output_tokens").notNull().default(0),
+		cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+		creditsCharged: integer("credits_charged").notNull().default(0),
+		realCostMicroUsd: integer("real_cost_micro_usd").notNull().default(0),
+		durationMs: integer("duration_ms"),
+		status: text("status").notNull(), // "success" | "error"
+		errorMessage: text("error_message"),
+		promptPreview: text("prompt_preview").notNull().default(""),
+		createdAt: timestamp("created_at").notNull(),
+	},
+	(t) => [
+		index("ai_usage_network_time_idx").on(t.networkId, t.createdAt),
+		index("ai_usage_user_time_idx").on(t.userId, t.createdAt),
+		index("ai_usage_model_idx").on(t.modelId),
+		index("ai_usage_time_idx").on(t.createdAt),
+	],
+);
+
+// Credit ledger, one row per grant/debit. Balance(network) = SUM(delta).
+// No materialized balance in V1 — the indexed SUM is enough.
+export const aiCreditLedger = pgTable(
+	"ai_credit_ledger",
+	{
+		id: text("id").primaryKey(),
+		networkId: text("network_id")
+			.notNull()
+			.references(() => networks.id, { onDelete: "cascade" }),
+		delta: integer("delta").notNull(), // grant > 0, debit < 0
+		reason: text("reason").notNull(), // "grant" | "debit" | "refund" | "adjustment"
+		usageLogId: text("usage_log_id").references(() => aiUsageLog.id, {
+			onDelete: "set null",
+		}),
+		note: text("note"),
+		createdBy: text("created_by").references(() => users.id, {
+			onDelete: "set null",
+		}),
+		createdAt: timestamp("created_at").notNull(),
+	},
+	(t) => [index("ai_ledger_network_time_idx").on(t.networkId, t.createdAt)],
 );
