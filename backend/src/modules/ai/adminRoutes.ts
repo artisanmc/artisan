@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { eq } from "drizzle-orm";
 import {
 	AI_BADGES,
 	createModel,
@@ -14,6 +15,9 @@ import { hasUsableKey, listProvidersForAdmin, putProvider, createProviderFor } f
 import { getAiSettings, putAiSettings, type AiSettings } from "./settings";
 import type { LlmProvider, LlmUsage } from "../assistant/provider/types";
 import { computeCreditsCharged, computeRealCostMicroUsd, sumUsage } from "./pricing";
+import { db } from "../../db/index";
+import { networks } from "../../db/schema";
+import { grantCredits } from "./creditsRepo";
 
 let aiTestProvider: LlmProvider | null = null;
 /** Test hook: inject a fake provider for POST /ai/models/:id/test. */
@@ -167,6 +171,23 @@ export function buildAiAdminRouter(): Hono {
 		else if (typeof body.maxCreditsPerTurn === "number" && Number.isInteger(body.maxCreditsPerTurn) && body.maxCreditsPerTurn > 0)
 			patch.maxCreditsPerTurn = body.maxCreditsPerTurn;
 		return c.json(await putAiSettings(patch, c.get("user")?.id ?? null));
+	});
+
+	r.post("/ai/credits/grant", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const networkId = typeof body.networkId === "string" ? body.networkId : "";
+		const amount = body.amount;
+		if (typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0)
+			return c.json({ error: "invalid_amount" }, 400);
+		const net = await db.select({ id: networks.id }).from(networks).where(eq(networks.id, networkId));
+		if (net.length === 0) return c.json({ error: "network_not_found" }, 404);
+		const { balance } = await grantCredits({
+			networkId,
+			amount,
+			note: typeof body.note === "string" ? body.note : undefined,
+			createdBy: c.get("user")?.id ?? null,
+		});
+		return c.json({ ok: true, balance });
 	});
 
 	return r;
