@@ -12,6 +12,10 @@ vi.mock("@/lib/api/adminModels", () => ({
   setDefaultModel: (id: string) => setDefaultMock(id),
   testModel: (id: string) => testMock(id),
   updateModel: (id: string, p: unknown) => updateMock(id, p),
+  listProviders: () => Promise.resolve(null),
+  putProvider: vi.fn(),
+  getAiSettings: () => Promise.resolve(null),
+  putAiSettings: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

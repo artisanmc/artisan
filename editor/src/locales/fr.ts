@@ -823,6 +823,7 @@ const fr: typeof en = {
           "Clé de chiffrement non configurée côté serveur — impossible de stocker les secrets. Définis CONFIG_ENC_KEY.",
         addCustom: "Ajouter un provider personnalisé",
         slug: "Slug",
+        label: "Nom du provider",
       },
       settings: {
         title: "Paramètres IA",
