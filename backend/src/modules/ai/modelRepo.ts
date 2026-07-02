@@ -63,13 +63,17 @@ export async function updateModel(
 /** Make `id` the single default (transaction: unset old, set new). False if unknown. */
 export async function setDefaultModel(id: string): Promise<boolean> {
 	return db.transaction(async (tx) => {
+		const target = await tx
+			.select({ id: aiModels.id })
+			.from(aiModels)
+			.where(eq(aiModels.id, id));
+		if (target.length === 0) return false;
 		await tx.update(aiModels).set({ isDefault: false }).where(eq(aiModels.isDefault, true));
-		const rows = await tx
+		await tx
 			.update(aiModels)
 			.set({ isDefault: true, updatedAt: new Date() })
-			.where(eq(aiModels.id, id))
-			.returning();
-		return rows.length > 0;
+			.where(eq(aiModels.id, id));
+		return true;
 	});
 }
 
