@@ -20,6 +20,7 @@ import { userAuth } from "./middleware/userAuth";
 import { requireAdmin } from "./middleware/requireAdmin";
 import { buildAssistantAdminRouter } from "./modules/assistant/adminRoutes";
 import { buildAdminUsersRouter } from "./routes/adminUsers";
+import { buildAiAdminRouter } from "./modules/ai/adminRoutes";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 import { mountModules } from "@artisan/backend-sdk";
@@ -58,6 +59,7 @@ app.use("/api/v1/admin/*", userAuth());
 app.use("/api/v1/admin/*", requireAdmin());
 app.route("/api/v1/admin", buildAssistantAdminRouter());
 app.route("/api/v1/admin", buildAdminUsersRouter());
+app.route("/api/v1/admin", buildAiAdminRouter());
 
 mountModules(app, [menusModule, commandsModule, assistantModule]);
 
