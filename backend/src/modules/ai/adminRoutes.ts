@@ -85,7 +85,8 @@ export function buildAiAdminRouter(): Hono {
 		if (willBeActive && !(await hasUsableKey(provider)))
 			return c.json({ error: "provider_key_missing" }, 400);
 		const m = await updateModel(existing.id, patch);
-		return c.json(toDto(m as AiModel));
+		if (!m) return c.json({ error: "not_found" }, 404);
+		return c.json(toDto(m));
 	});
 
 	r.put("/ai/models/:id/default", async (c) => {

@@ -98,7 +98,43 @@ describe("admin ai models routes", () => {
 		expect(inactive.status).toBe(200);
 	});
 
-	it("PUT /:id patches; PUT /:id/default enforces single active default", async () => {
+	it("PUT /:id patches fields; unknown id → 404; activating without key → 400", async () => {
+		const m = await createModel({ ...validBody, displayName: "Patchable" });
+		const put = await app.request(`/api/v1/admin/ai/models/${m.id}`, {
+			method: "PUT",
+			headers: adminHeaders(),
+			body: JSON.stringify({ creditsPerMInput: 77, description: "updated" }),
+		});
+		expect(put.status).toBe(200);
+		const dto = await put.json();
+		expect(dto.creditsPerMInput).toBe(77);
+		expect(dto.description).toBe("updated");
+		expect((await getModel(m.id))?.creditsPerMInput).toBe(77);
+
+		const missing = await app.request("/api/v1/admin/ai/models/nope", {
+			method: "PUT",
+			headers: adminHeaders(),
+			body: JSON.stringify({ description: "x" }),
+		});
+		expect(missing.status).toBe(404);
+
+		// Inactive model on a keyless provider: activating it must be refused.
+		const dormant = await createModel({
+			...validBody,
+			displayName: "Dormant",
+			provider: "deepseek",
+			isActive: false,
+		});
+		const activate = await app.request(`/api/v1/admin/ai/models/${dormant.id}`, {
+			method: "PUT",
+			headers: adminHeaders(),
+			body: JSON.stringify({ isActive: true }),
+		});
+		expect(activate.status).toBe(400);
+		expect((await activate.json()).error).toBe("provider_key_missing");
+	});
+
+	it("PUT /:id/default enforces single active default", async () => {
 		const a = await createModel({ ...validBody, displayName: "A" });
 		const b = await createModel({ ...validBody, displayName: "B" });
 		await setDefaultModel(a.id);
