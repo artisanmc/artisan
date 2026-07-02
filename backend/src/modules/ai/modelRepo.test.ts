@@ -51,6 +51,13 @@ describe("modelRepo CRUD", () => {
 		const all = await listModels();
 		expect(all.filter((m) => m.isDefault).map((m) => m.displayName)).toEqual(["B"]);
 	});
+
+	it("setDefaultModel with an unknown id returns false and keeps the existing default", async () => {
+		const a = await createModel({ ...base, displayName: "A" });
+		await setDefaultModel(a.id);
+		expect(await setDefaultModel("nope")).toBe(false);
+		expect((await getModel(a.id))?.isDefault).toBe(true);
+	});
 });
 
 describe("resolveModel", () => {
