@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../../db/index";
-import { memberships, projects, users } from "../../db/schema";
+import { users } from "../../db/schema";
 import { resolveOwnerKey } from "../../lib/ownerKey";
+import { resolveProjectAccess } from "../../lib/projectAccess";
 import { getBalance } from "./creditsRepo";
 import { getModel, listModels, type AiModel } from "./modelRepo";
 import { computeCreditsCharged } from "./pricing";
@@ -61,28 +62,10 @@ export function buildAiRouter(): Hono {
 
 	r.get("/balance", async (c) => {
 		const projectId = c.req.query("projectId") ?? "";
-		const rows = await db
-			.select({ networkId: projects.networkId, serverKeyId: projects.serverKeyId })
-			.from(projects)
-			.where(eq(projects.id, projectId));
-		if (rows.length === 0) return c.json({ error: "project_not_found" }, 404);
-		const proj = rows[0];
-		const ownerKey = c.get("ownerKey") as string;
-		if (ownerKey.startsWith("sk:")) {
-			if (proj.serverKeyId !== ownerKey.slice(3)) return c.json({ error: "forbidden" }, 403);
-		} else {
-			const member = await db
-				.select({ id: memberships.id })
-				.from(memberships)
-				.where(
-					and(
-						eq(memberships.userId, ownerKey.slice(5)),
-						eq(memberships.networkId, proj.networkId),
-					),
-				);
-			if (member.length === 0) return c.json({ error: "forbidden" }, 403);
-		}
-		return c.json({ balance: await getBalance(proj.networkId) });
+		const access = await resolveProjectAccess(c.get("ownerKey") as string, projectId);
+		if (!access.ok)
+			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
+		return c.json({ balance: await getBalance(access.networkId) });
 	});
 
 	r.put("/preferred-model", async (c) => {

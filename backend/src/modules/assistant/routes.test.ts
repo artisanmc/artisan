@@ -6,6 +6,7 @@ import {
 	aiModels,
 	assistantConversations,
 	editorSessions,
+	memberships,
 	networks,
 	projects,
 	serverKeys,
@@ -139,6 +140,10 @@ beforeAll(async () => {
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		})
+		.onConflictDoNothing();
+	await db
+		.insert(memberships)
+		.values({ id: "mem_test_assistant", userId: USER_ID, networkId, role: "owner", createdAt: new Date() })
 		.onConflictDoNothing();
 	userSessionId = (await createSession(USER_ID)).id;
 	__setProviderForTests(fakeProvider());

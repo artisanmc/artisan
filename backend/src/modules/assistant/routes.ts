@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { db } from "../../db/index";
-import { projects } from "../../db/schema";
 import { resolveOwnerKey } from "../../lib/ownerKey";
+import { resolveProjectAccess } from "../../lib/projectAccess";
 import { getBalance } from "../ai/creditsRepo";
 import { resolveModel, type AiModel } from "../ai/modelRepo";
 import { computeCreditsCharged, sumUsage } from "../ai/pricing";
@@ -70,6 +68,9 @@ export function buildAssistantRouter(): Hono {
 			.catch(() => ({}) as Record<string, unknown>);
 		const packId =
 			typeof (body as any).packId === "string" ? (body as any).packId : "";
+		const access = await resolveProjectAccess(c.get("ownerKey") as string, packId);
+		if (!access.ok)
+			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
 		const id = await createConversation(c.get("ownerKey") as string, packId);
 		return c.json({ conversationId: id });
 	});
@@ -91,8 +92,9 @@ export function buildAssistantRouter(): Hono {
 	// Send a user message and stream the assistant's turn (SSE). The transcript
 	// is persisted after the stream so the conversation can be resumed later.
 	r.post("/conversations/:id/messages", async (c) => {
+		const ownerKey = c.get("ownerKey") as string;
 		const conv = await getConversation(c.req.param("id"));
-		if (!conv || conv.ownerKey !== (c.get("ownerKey") as string))
+		if (!conv || conv.ownerKey !== ownerKey)
 			return c.json({ error: "Not found" }, 404);
 		// Migration: conversations created before per-turn grounding persisted the
 		// grounding system prompt at index 0. Drop it — grounding is now injected
@@ -126,21 +128,18 @@ export function buildAssistantRouter(): Hono {
 				503,
 			);
 
-		// The conversation's project carries the debited network (spec 2026-07-02).
-		const projRows = await db
-			.select({ networkId: projects.networkId })
-			.from(projects)
-			.where(eq(projects.id, conv.projectId));
-		if (projRows.length === 0)
-			return c.json({ error: "project_not_found" }, 404);
-		const networkId = projRows[0].networkId;
+		// Tenant re-check on every send: guards legacy conversations created
+		// before the creation-time guard existed.
+		const access = await resolveProjectAccess(ownerKey, conv.projectId);
+		if (!access.ok)
+			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
+		const networkId = access.networkId;
 
 		const balance = await getBalance(networkId);
 		if (balance <= 0)
 			return c.json({ error: "insufficient_credits", balance }, 402);
 
 		const settings = await getAiSettings();
-		const ownerKey = c.get("ownerKey") as string;
 		const actorUserId = ownerKey.startsWith("user:") ? ownerKey.slice(5) : null;
 		const actorServerKeyId = ownerKey.startsWith("sk:") ? ownerKey.slice(3) : null;
 
@@ -213,7 +212,9 @@ export function buildAssistantRouter(): Hono {
 			} catch (e) {
 				const message = e instanceof Error ? e.message : String(e);
 				// Provider failure: log consumed tokens for admin visibility — no debit.
-				await recordErrorTurn({ ...usageInput(), errorMessage: message }).catch(() => {});
+				await recordErrorTurn({ ...usageInput(), errorMessage: message }).catch((logErr) =>
+					console.warn("[assistant] failed to record error turn:", logErr),
+				);
 				await stream.writeSSE({ event: "error", data: JSON.stringify({ message }) });
 			} finally {
 				// runTurn mutates conv.messages in place; persist the full transcript.
