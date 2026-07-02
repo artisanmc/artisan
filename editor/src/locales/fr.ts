@@ -790,6 +790,7 @@ const fr: typeof en = {
       appComponents: "Composants partagés de l'app",
       searchPalette: "Palette de recherche (Cmd+K)",
       canvasToolbar: "Toolbar canvas (sélecteur de mode)",
+      dataViz: "Data viz",
     },
     groups: {
       surfaces: "Surfaces",
