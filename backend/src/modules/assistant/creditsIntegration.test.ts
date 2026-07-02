@@ -11,12 +11,14 @@ import {
 	networks,
 	projects,
 	serverKeys,
+	users,
 } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { getBalance, grantCredits } from "../ai/creditsRepo";
 import { createModel, setDefaultModel, type AiModel } from "../ai/modelRepo";
 import { AI_SETTINGS_KEY } from "../ai/settings";
 import { setSetting } from "../../lib/appSettings";
+import { createSession } from "../../lib/sessionManager";
 import type { LlmProvider } from "./provider/types";
 import { __setProviderForTests } from "./routes";
 
@@ -171,13 +173,46 @@ describe("assistant credits integration", () => {
 		expect(await getBalance(networkId)).toBe(before - 700); // one usage event consumed
 	});
 
-	it("unknown project on the conversation → 404 project_not_found", async () => {
+	it("unknown project at conversation creation → 404 project_not_found", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST", headers: auth, body: JSON.stringify({ packId: "ghost_project" }),
 		});
-		const { conversationId } = await created.json();
-		const res = await sendMessage(conversationId, { text: "hi" });
-		expect(res.status).toBe(404);
-		expect((await res.json()).error).toBe("project_not_found");
+		expect(created.status).toBe(404);
+		expect((await created.json()).error).toBe("project_not_found");
+	});
+
+	it("user without membership cannot open a conversation on the project", async () => {
+		const now = new Date();
+		await db.insert(users).values({
+			id: "usr_credits_outsider", email: "credits-outsider@example.com", name: "Out",
+			createdAt: now, updatedAt: now,
+		}).onConflictDoNothing();
+		const outsiderSession = (await createSession("usr_credits_outsider")).id;
+		try {
+			const res = await app.request("/api/v1/assistant/conversations", {
+				method: "POST",
+				headers: { Cookie: `artisan_user_session=${outsiderSession}`, "Content-Type": "application/json" },
+				body: JSON.stringify({ packId: PROJECT_ID }),
+			});
+			expect(res.status).toBe(403);
+			expect((await res.json()).error).toBe("forbidden");
+		} finally {
+			await db.delete(users).where(eq(users.id, "usr_credits_outsider"));
+		}
+	});
+
+	it("sk: session cannot open a conversation on another server key's project", async () => {
+		const now = new Date();
+		const future = new Date(Date.now() + 3_600_000);
+		await db.insert(serverKeys).values({ id: "srv_credits_other", hash: "h_credits_other", networkId, createdAt: now }).onConflictDoNothing();
+		await db.insert(projects).values({
+			id: "proj_credits_other", networkId, serverKeyId: "srv_credits_other",
+			name: "Other", hash: "", filesJson: "{}", createdAt: now, updatedAt: now,
+		}).onConflictDoNothing();
+		const res = await app.request("/api/v1/assistant/conversations", {
+			method: "POST", headers: auth, body: JSON.stringify({ packId: "proj_credits_other" }),
+		});
+		expect(res.status).toBe(403);
+		// cleanup: cascades when the network is deleted in afterAll
 	});
 });

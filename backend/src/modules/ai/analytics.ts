@@ -4,11 +4,13 @@ import { aiUsageLog, memberships, networks } from "../../db/schema";
 import { getAiSettings } from "./settings";
 import { getBalance, listGrants } from "./creditsRepo";
 
+// ::float8, not ::int — sum() of int4 returns bigint and an ::int cast throws
+// past 2.1e9; float8 is exact for integers up to 2^53 and stays a JS number.
 const sums = {
-	inputTokens: sql<number>`coalesce(sum(${aiUsageLog.inputTokens}), 0)::int`,
-	outputTokens: sql<number>`coalesce(sum(${aiUsageLog.outputTokens}), 0)::int`,
-	creditsCharged: sql<number>`coalesce(sum(${aiUsageLog.creditsCharged}), 0)::int`,
-	realCostMicroUsd: sql<number>`coalesce(sum(${aiUsageLog.realCostMicroUsd}), 0)::int`,
+	inputTokens: sql<number>`coalesce(sum(${aiUsageLog.inputTokens}), 0)::float8`,
+	outputTokens: sql<number>`coalesce(sum(${aiUsageLog.outputTokens}), 0)::float8`,
+	creditsCharged: sql<number>`coalesce(sum(${aiUsageLog.creditsCharged}), 0)::float8`,
+	realCostMicroUsd: sql<number>`coalesce(sum(${aiUsageLog.realCostMicroUsd}), 0)::float8`,
 	turns: sql<number>`count(*)::int`,
 };
 
@@ -30,7 +32,7 @@ export async function usageSummary(from: Date, to: Date): Promise<UsageSummary> 
 	const [totals] = await db
 		.select({
 			...sums,
-			cachedInputTokens: sql<number>`coalesce(sum(${aiUsageLog.cachedInputTokens}), 0)::int`,
+			cachedInputTokens: sql<number>`coalesce(sum(${aiUsageLog.cachedInputTokens}), 0)::float8`,
 			errors: sql<number>`count(*) filter (where ${aiUsageLog.status} = 'error')::int`,
 		})
 		.from(aiUsageLog)
