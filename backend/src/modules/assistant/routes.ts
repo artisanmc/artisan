@@ -1,12 +1,9 @@
-import type { Context } from "hono";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
 import { db } from "../../db/index";
 import { projects } from "../../db/schema";
-import { validateAccessToken } from "../../lib/auth";
-import { findSession } from "../../lib/sessionManager";
+import { resolveOwnerKey } from "../../lib/ownerKey";
 import { getBalance } from "../ai/creditsRepo";
 import { resolveModel, type AiModel } from "../ai/modelRepo";
 import { computeCreditsCharged, sumUsage } from "../ai/pricing";
@@ -44,27 +41,6 @@ async function resolveTurn(
 	if (providerOverride) return { provider: providerOverride, model };
 	const provider = await createProviderFor(model);
 	return provider ? { provider, model } : null;
-}
-
-/**
- * The assistant panel lives in the user-auth web editor, so the common path is
- * the user-session cookie; the editor-session Bearer token covers the
- * plugin-initiated trust-dance flow. Accept either and return an owner key
- * (`sk:<serverKeyId>` or `user:<userId>`) that scopes conversations per tenant.
- */
-async function resolveOwnerKey(c: Context): Promise<string | null> {
-	const h = c.req.header("Authorization");
-	const bearer = h?.startsWith("Bearer ") ? h.slice(7) : "";
-	if (bearer) {
-		const session = await validateAccessToken(bearer);
-		if (session) return `sk:${session.serverKeyId}`;
-	}
-	const sessionId = getCookie(c, "artisan_user_session");
-	if (sessionId) {
-		const us = await findSession(sessionId);
-		if (us) return `user:${us.userId}`;
-	}
-	return null;
 }
 
 export function buildAssistantRouter(): Hono {
