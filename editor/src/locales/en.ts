@@ -780,6 +780,7 @@ export default {
       appComponents: "Shared app components",
       searchPalette: "Search palette (Cmd+K)",
       canvasToolbar: "Canvas toolbar (mode switcher)",
+      dataViz: "Data viz",
     },
     groups: {
       surfaces: "Surfaces",
