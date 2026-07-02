@@ -33,7 +33,7 @@ beforeAll(async () => {
 		await createModel({
 			displayName: "Sonnet 5", description: "", badge: "balanced",
 			provider: "anthropic", providerModelId: "claude-sonnet-5",
-			creditsPerMInput: 1_000_000, creditsPerMOutput: 1_000_000,
+			creditsPerMInput: 1_000_000, creditsPerMOutput: 2_000_000,
 			realUsdPerMInput: 3_000_000, realUsdPerMOutput: 15_000_000, isActive: true,
 		})
 	).id;
@@ -60,8 +60,30 @@ describe("admin ai model test route", () => {
 		expect(typeof body.latencyMs).toBe("number");
 		expect(body.inputTokens).toBe(12);
 		expect(body.outputTokens).toBe(2);
-		// 1 credit per token at these prices: ceil((12+2)·1M/1M)=14
-		expect(body.creditsCost).toBe(14);
+		// Asymmetric prices pin the per-direction weights:
+		// ceil((12·1M + 2·2M)/1M) = 12 + 4 = 16
+		expect(body.creditsCost).toBe(16);
+		// round((12·3M + 2·15M)/1M) = 36 + 30 = 66 micro-USD
+		expect(body.realCostMicroUsd).toBe(66);
+	});
+
+	it("model on a keyless provider → ok:false provider_key_missing", async () => {
+		__setAiTestProviderForTests(null); // let the route resolve the real provider
+		try {
+			const keyless = await createModel({
+				displayName: "Keyless", description: "", badge: "cheap",
+				provider: "deepseek", providerModelId: "ds-x",
+				creditsPerMInput: 1, creditsPerMOutput: 1,
+				realUsdPerMInput: 0, realUsdPerMOutput: 0, isActive: false,
+			});
+			const res = await app.request(`/api/v1/admin/ai/models/${keyless.id}/test`, {
+				method: "POST", headers: adminHeaders(),
+			});
+			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ ok: false, error: "provider_key_missing" });
+		} finally {
+			__setAiTestProviderForTests(fakeProvider());
+		}
 	});
 
 	it("unknown model → 404", async () => {
