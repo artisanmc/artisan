@@ -1,7 +1,8 @@
 import { and, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "../../db/index";
-import { aiUsageLog } from "../../db/schema";
+import { aiUsageLog, memberships, networks } from "../../db/schema";
 import { getAiSettings } from "./settings";
+import { getBalance, listLedger } from "./creditsRepo";
 
 const sums = {
 	inputTokens: sql<number>`coalesce(sum(${aiUsageLog.inputTokens}), 0)::int`,
@@ -140,6 +141,47 @@ function csvCell(v: unknown): string {
 	if (v === null || v === undefined) return "";
 	const s = String(v);
 	return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+}
+
+export interface UserFocusData {
+	totals: { inputTokens: number; outputTokens: number; creditsCharged: number; realCostMicroUsd: number; turns: number; errors: number };
+	byModel: ({ modelId: string | null; modelName: string; provider: string } & SumRow)[];
+	networks: { id: string; name: string; balance: number; grants: { id: string; delta: number; reason: string; note: string | null; createdBy: string | null; createdAt: string }[] }[];
+}
+
+export async function userFocus(userId: string, from: Date, to: Date): Promise<UserFocusData> {
+	const range = and(
+		eq(aiUsageLog.userId, userId),
+		gte(aiUsageLog.createdAt, from),
+		lte(aiUsageLog.createdAt, to),
+	);
+	const [totals] = await db
+		.select({
+			...sums,
+			errors: sql<number>`count(*) filter (where ${aiUsageLog.status} = 'error')::int`,
+		})
+		.from(aiUsageLog)
+		.where(range);
+	const byModel = await db
+		.select({ modelId: aiUsageLog.modelId, modelName: aiUsageLog.modelName, provider: aiUsageLog.provider, ...sums })
+		.from(aiUsageLog)
+		.where(range)
+		.groupBy(aiUsageLog.modelId, aiUsageLog.modelName, aiUsageLog.provider);
+	const nets = await db
+		.select({ id: networks.id, name: networks.name })
+		.from(memberships)
+		.innerJoin(networks, eq(memberships.networkId, networks.id))
+		.where(eq(memberships.userId, userId));
+	const withCredits = await Promise.all(
+		nets.map(async (n) => ({
+			...n,
+			balance: await getBalance(n.id),
+			grants: (await listLedger(n.id, 100))
+				.filter((e) => e.reason !== "debit")
+				.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+		})),
+	);
+	return { totals, byModel, networks: withCredits };
 }
 
 /** Filtered export, hard-capped at 10k rows (silent truncation would lie —
