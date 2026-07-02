@@ -1,0 +1,100 @@
+import { Hono } from "hono";
+import {
+	AI_BADGES,
+	createModel,
+	getModel,
+	listModels,
+	setDefaultModel,
+	updateModel,
+	type AiBadge,
+	type AiModel,
+	type AiModelInput,
+} from "./modelRepo";
+import { hasUsableKey } from "./providers";
+
+function toDto(m: AiModel) {
+	return { ...m, createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() };
+}
+
+/** null si invalide. `partial` autorise les champs manquants (PUT patch). */
+function parseModelBody(
+	body: Record<string, unknown>,
+	partial: boolean,
+): Partial<AiModelInput> | null {
+	const out: Partial<AiModelInput> = {};
+	const str = (k: string) => (typeof body[k] === "string" ? (body[k] as string) : undefined);
+	const int = (k: string) =>
+		typeof body[k] === "number" && Number.isInteger(body[k]) && (body[k] as number) >= 0
+			? (body[k] as number)
+			: undefined;
+	const strFields = ["displayName", "description", "provider", "providerModelId"] as const;
+	for (const k of strFields) {
+		const v = str(k);
+		if (v !== undefined) (out as Record<string, unknown>)[k] = v;
+	}
+	const intFields = ["creditsPerMInput", "creditsPerMOutput", "realUsdPerMInput", "realUsdPerMOutput"] as const;
+	for (const k of intFields) {
+		const v = int(k);
+		if (v !== undefined) (out as Record<string, unknown>)[k] = v;
+	}
+	if (typeof body.badge === "string") {
+		if (!AI_BADGES.includes(body.badge as AiBadge)) return null;
+		out.badge = body.badge as AiBadge;
+	}
+	if (typeof body.isActive === "boolean") out.isActive = body.isActive;
+	if (!partial) {
+		if (!out.displayName || !out.provider || !out.providerModelId || !out.badge) return null;
+		for (const k of intFields) if (out[k] === undefined) return null;
+		out.description ??= "";
+		out.isActive ??= true;
+	}
+	if (out.displayName === "") return null;
+	return out;
+}
+
+export function buildAiAdminRouter(): Hono {
+	const r = new Hono();
+
+	r.get("/ai/models", async (c) => {
+		return c.json({ models: (await listModels()).map(toDto) });
+	});
+
+	r.post("/ai/models", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const input = parseModelBody(body, false);
+		if (!input) return c.json({ error: "invalid_model" }, 400);
+		if (input.isActive && !(await hasUsableKey(input.provider as string)))
+			return c.json({ error: "provider_key_missing" }, 400);
+		const m = await createModel(input as AiModelInput);
+		return c.json(toDto(m));
+	});
+
+	r.get("/ai/models/:id", async (c) => {
+		const m = await getModel(c.req.param("id"));
+		return m ? c.json(toDto(m)) : c.json({ error: "not_found" }, 404);
+	});
+
+	r.put("/ai/models/:id", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const patch = parseModelBody(body, true);
+		if (!patch) return c.json({ error: "invalid_model" }, 400);
+		const existing = await getModel(c.req.param("id"));
+		if (!existing) return c.json({ error: "not_found" }, 404);
+		const willBeActive = patch.isActive ?? existing.isActive;
+		const provider = (patch.provider as string) ?? existing.provider;
+		if (willBeActive && !(await hasUsableKey(provider)))
+			return c.json({ error: "provider_key_missing" }, 400);
+		const m = await updateModel(existing.id, patch);
+		return c.json(toDto(m as AiModel));
+	});
+
+	r.put("/ai/models/:id/default", async (c) => {
+		const m = await getModel(c.req.param("id"));
+		if (!m) return c.json({ error: "not_found" }, 404);
+		if (!m.isActive) return c.json({ error: "model_inactive" }, 400);
+		await setDefaultModel(m.id);
+		return c.json({ ok: true });
+	});
+
+	return r;
+}
