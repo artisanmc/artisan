@@ -10,7 +10,8 @@ import {
 	type AiModel,
 	type AiModelInput,
 } from "./modelRepo";
-import { hasUsableKey } from "./providers";
+import { hasUsableKey, listProvidersForAdmin, putProvider } from "./providers";
+import { getAiSettings, putAiSettings, type AiSettings } from "./settings";
 
 function toDto(m: AiModel) {
 	return { ...m, createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() };
@@ -95,6 +96,38 @@ export function buildAiAdminRouter(): Hono {
 		if (!m.isActive) return c.json({ error: "model_inactive" }, 400);
 		await setDefaultModel(m.id);
 		return c.json({ ok: true });
+	});
+
+	r.get("/ai/providers", async (c) => {
+		return c.json({ providers: await listProvidersForAdmin() });
+	});
+
+	r.put("/ai/providers/:slug", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const res = await putProvider(
+			c.req.param("slug"),
+			{
+				label: typeof body.label === "string" ? body.label : undefined,
+				baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
+				apiKey: typeof body.apiKey === "string" ? body.apiKey : undefined,
+			},
+			c.get("user")?.id ?? null,
+		);
+		if (!res.ok) return c.json({ error: res.error }, 503);
+		return c.json({ ok: true });
+	});
+
+	r.get("/ai/settings", async (c) => c.json(await getAiSettings()));
+
+	r.put("/ai/settings", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const patch: Partial<AiSettings> = {};
+		if (typeof body.creditUsdMicroRate === "number" && Number.isInteger(body.creditUsdMicroRate) && body.creditUsdMicroRate >= 0)
+			patch.creditUsdMicroRate = body.creditUsdMicroRate;
+		if (body.maxCreditsPerTurn === null) patch.maxCreditsPerTurn = null;
+		else if (typeof body.maxCreditsPerTurn === "number" && Number.isInteger(body.maxCreditsPerTurn) && body.maxCreditsPerTurn > 0)
+			patch.maxCreditsPerTurn = body.maxCreditsPerTurn;
+		return c.json(await putAiSettings(patch, c.get("user")?.id ?? null));
 	});
 
 	return r;
