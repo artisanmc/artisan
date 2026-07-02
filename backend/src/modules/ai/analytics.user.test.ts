@@ -5,7 +5,7 @@ import { db } from "../../db/index";
 import { aiCreditLedger, aiUsageLog, memberships, networks, users } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
-import { grantCredits } from "./creditsRepo";
+import { grantCredits, listGrants } from "./creditsRepo";
 import { userFocus } from "./analytics";
 
 const ADMIN_ID = "user_admin_aifocus";
@@ -80,10 +80,14 @@ describe("userFocus", () => {
 			createdAt: new Date(Date.now() - i * 1000),
 		}));
 		await db.insert(aiCreditLedger).values(debits);
+		// Direct proof of SQL-side filter-before-limit: with limit=3 and 5 newer
+		// debits, a limit-then-filter implementation would return zero grants.
+		const grants = await listGrants(networkId, 3);
+		expect(grants.length).toBe(1);
+		expect(grants[0].reason).toBe("grant");
+		// Endpoint-level: grant present, documented shape only.
 		const f = await userFocus("usr_focus_ai", from, to);
 		expect(f.networks[0].grants.length).toBe(1);
-		expect(f.networks[0].grants[0].reason).toBe("grant");
-		// Documented contract only — no networkId/usageLogId leak.
 		expect(Object.keys(f.networks[0].grants[0]).sort()).toEqual(
 			["createdAt", "createdBy", "delta", "id", "note", "reason"],
 		);
