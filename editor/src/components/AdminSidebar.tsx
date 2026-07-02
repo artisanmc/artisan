@@ -1,6 +1,6 @@
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Bot, Palette, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, Palette, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { UserMenu } from "./UserMenu";
 
@@ -13,7 +13,8 @@ export function AdminSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const entries = [
-    { to: "/admin", label: t("admin.nav.ai"), Icon: Bot },
+    { to: "/admin/ai", label: t("admin.nav.aiModels"), Icon: Bot },
+    { to: "/admin/ai/usage", label: t("admin.nav.aiUsage"), Icon: BarChart3 },
     { to: "/admin/users", label: t("admin.nav.users"), Icon: Users },
     { to: "/admin/design", label: t("admin.nav.design"), Icon: Palette },
   ] as const;
@@ -59,10 +60,10 @@ export function AdminSidebar() {
         </div>
         <ul className="flex flex-col gap-0.5">
           {entries.map(({ to, label, Icon }) => {
-            // "/admin" is the AI page, not a prefix of every admin route;
+            // "/admin/ai" is the AI models page, not a prefix of every admin route;
             // section entries stay active on their subpages (/admin/users/:id).
             const isActive =
-              to === "/admin"
+              to === "/admin/ai"
                 ? pathname === to || pathname === `${to}/`
                 : pathname === to || pathname.startsWith(`${to}/`);
             return (
