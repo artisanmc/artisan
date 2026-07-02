@@ -21,7 +21,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
+import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
+import { StatCard } from "@/components/ui/stat-card";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import {
   Sheet,
   SheetBody,
@@ -486,6 +489,48 @@ export function DesignSystemPage() {
                 minPrimary={120}
               />
             </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Data viz ──────────────────────────────────────────────────── */}
+      <Section id="dataViz" title={t("adminDesign.sections.dataViz")}>
+        <div className="card flex flex-col gap-6 p-5">
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<StatCard>"}</span>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <StatCard label="Requests" value="1,204" sub="last 24h" />
+              <StatCard label="Margin" value="+$12.30" tone="positive" sub="vs cost" />
+              <StatCard label="Margin" value="-$0.50" tone="negative" sub="vs cost" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<HBar>"}</span>
+            <div className="flex max-w-md flex-col gap-3">
+              <HBar label="gpt-4o-mini" value={75} max={100} caption="75%" />
+              <HBar label="claude-3-haiku" value={25} max={100} caption="25%" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Table>"}</span>
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Model</TH>
+                  <TH align="right">Cost</TH>
+                </TR>
+              </THead>
+              <TBody>
+                <TR>
+                  <TD>gpt-4o-mini</TD>
+                  <TD align="right">$0.42</TD>
+                </TR>
+                <TR>
+                  <TD>claude-3-haiku</TD>
+                  <TD align="right">$0.18</TD>
+                </TR>
+              </TBody>
+            </Table>
           </div>
         </div>
       </Section>
