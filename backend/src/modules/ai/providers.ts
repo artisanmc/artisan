@@ -30,12 +30,6 @@ export async function getStoredProviders(): Promise<StoredAiProviders> {
 	return (await getSetting<StoredAiProviders>(AI_PROVIDERS_SETTING_KEY)) ?? {};
 }
 
-/** Effective baseUrl for a slug: stored override, else preset, else "". */
-async function effectiveBaseUrl(slug: string): Promise<string> {
-	const stored = (await getStoredProviders())[slug];
-	return stored?.baseUrl || PROVIDER_PRESETS[slug]?.baseUrl || "";
-}
-
 export async function listProvidersForAdmin(): Promise<
 	Record<string, { label: string; baseUrl: string; keySet: boolean; preset: boolean }>
 > {
