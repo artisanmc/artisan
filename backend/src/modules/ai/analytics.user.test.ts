@@ -69,6 +69,25 @@ describe("userFocus", () => {
 		expect(f.networks[0].grants.length).toBe(1);
 		expect(f.networks[0].grants[0].reason).toBe("grant");
 	});
+
+	it("grants survive being older than a flood of debit rows", async () => {
+		// 5 debits newer than the grant — a recency-limited window would evict it.
+		const debits = Array.from({ length: 5 }, (_, i) => ({
+			id: crypto.randomUUID(),
+			networkId,
+			delta: -10,
+			reason: "debit",
+			createdAt: new Date(Date.now() - i * 1000),
+		}));
+		await db.insert(aiCreditLedger).values(debits);
+		const f = await userFocus("usr_focus_ai", from, to);
+		expect(f.networks[0].grants.length).toBe(1);
+		expect(f.networks[0].grants[0].reason).toBe("grant");
+		// Documented contract only — no networkId/usageLogId leak.
+		expect(Object.keys(f.networks[0].grants[0]).sort()).toEqual(
+			["createdAt", "createdBy", "delta", "id", "note", "reason"],
+		);
+	});
 });
 
 describe("GET /api/v1/admin/ai/users/:userId", () => {
