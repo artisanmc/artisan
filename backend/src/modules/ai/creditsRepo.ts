@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../../db/index";
 import { aiCreditLedger } from "../../db/schema";
 
@@ -46,6 +46,17 @@ export async function listLedger(networkId: string, limit = 50): Promise<LedgerE
 		.select()
 		.from(aiCreditLedger)
 		.where(eq(aiCreditLedger.networkId, networkId))
+		.orderBy(desc(aiCreditLedger.createdAt), desc(aiCreditLedger.id))
+		.limit(limit);
+}
+
+/** Non-debit ledger entries (grants/refunds/adjustments) — the network's
+ *  "purchase history". Filtered in SQL so debit rows can't crowd the window. */
+export async function listGrants(networkId: string, limit = 100): Promise<LedgerEntry[]> {
+	return db
+		.select()
+		.from(aiCreditLedger)
+		.where(and(eq(aiCreditLedger.networkId, networkId), ne(aiCreditLedger.reason, "debit")))
 		.orderBy(desc(aiCreditLedger.createdAt), desc(aiCreditLedger.id))
 		.limit(limit);
 }

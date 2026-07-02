@@ -2,7 +2,7 @@ import { and, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "../../db/index";
 import { aiUsageLog, memberships, networks } from "../../db/schema";
 import { getAiSettings } from "./settings";
-import { getBalance, listLedger } from "./creditsRepo";
+import { getBalance, listGrants } from "./creditsRepo";
 
 const sums = {
 	inputTokens: sql<number>`coalesce(sum(${aiUsageLog.inputTokens}), 0)::int`,
@@ -176,9 +176,14 @@ export async function userFocus(userId: string, from: Date, to: Date): Promise<U
 		nets.map(async (n) => ({
 			...n,
 			balance: await getBalance(n.id),
-			grants: (await listLedger(n.id, 100))
-				.filter((e) => e.reason !== "debit")
-				.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+			grants: (await listGrants(n.id, 100)).map((e) => ({
+				id: e.id,
+				delta: e.delta,
+				reason: e.reason,
+				note: e.note,
+				createdBy: e.createdBy,
+				createdAt: e.createdAt.toISOString(),
+			})),
 		})),
 	);
 	return { totals, byModel, networks: withCredits };
