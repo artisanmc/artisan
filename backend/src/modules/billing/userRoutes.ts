@@ -1,7 +1,9 @@
 import { Hono } from "hono";
-import { getPack } from "./packsRepo";
-import { getPlan } from "./plansRepo";
+import { getPack, listPacks, creditsForPack } from "./packsRepo";
+import { getPlan, listPlans } from "./plansRepo";
 import { ensureCustomer, getNetworkBilling, isMember } from "./networkBillingRepo";
+import { listPurchases } from "./purchasesRepo";
+import { getBucketBalances } from "../ai/creditsRepo";
 import { getStripeGateway } from "./stripe";
 
 const editorUrl = (): string => process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -67,6 +69,67 @@ export function buildBillingUserRouter(): Hono {
 			returnUrl: portalReturnUrl(),
 		});
 		return c.json({ url });
+	});
+
+	r.get("/balance", async (c) => {
+		const user = c.get("user");
+		const networkId = c.req.query("networkId") ?? "";
+		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		const b = await getBucketBalances(networkId);
+		const billing = await getNetworkBilling(networkId);
+		let subscriptionQuota = 0;
+		if (billing?.planId) {
+			const plan = await getPlan(billing.planId);
+			subscriptionQuota = plan?.creditsPerPeriod ?? 0;
+		}
+		return c.json({ ...b, subscriptionQuota, periodEnd: billing?.currentPeriodEnd?.toISOString() ?? null });
+	});
+
+	r.get("/packs", async (c) => {
+		const packs = (await listPacks())
+			.filter((p) => p.isActive)
+			.map((p) => ({
+				id: p.id, name: p.name, priceCents: p.priceCents, currency: p.currency,
+				credits: p.credits, bonusPct: p.bonusPct, creditsGranted: creditsForPack(p),
+			}));
+		return c.json({ packs });
+	});
+
+	r.get("/plans", async (c) => {
+		const plans = (await listPlans())
+			.filter((p) => p.isActive)
+			.map((p) => ({
+				id: p.id, name: p.name, interval: p.interval, priceCents: p.priceCents,
+				currency: p.currency, creditsPerPeriod: p.creditsPerPeriod, rolloverCap: p.rolloverCap, features: p.features,
+			}));
+		return c.json({ plans });
+	});
+
+	r.get("/subscription", async (c) => {
+		const user = c.get("user");
+		const networkId = c.req.query("networkId") ?? "";
+		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		const billing = await getNetworkBilling(networkId);
+		if (!billing?.status) return c.json({ status: null });
+		const plan = billing.planId ? await getPlan(billing.planId) : null;
+		return c.json({
+			status: billing.status,
+			planId: billing.planId,
+			planName: plan?.name ?? null,
+			currentPeriodEnd: billing.currentPeriodEnd?.toISOString() ?? null,
+			graceUntil: billing.graceUntil?.toISOString() ?? null,
+		});
+	});
+
+	r.get("/purchases", async (c) => {
+		const user = c.get("user");
+		const networkId = c.req.query("networkId") ?? "";
+		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		const purchases = (await listPurchases(networkId)).map((p) => ({
+			id: p.id, amountCents: p.amountCents, currency: p.currency, credits: p.credits,
+			stripeInvoiceUrl: p.stripeInvoiceUrl, createdAt: p.createdAt.toISOString(),
+		}));
+		return c.json({ purchases });
 	});
 
 	return r;
