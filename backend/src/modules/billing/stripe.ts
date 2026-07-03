@@ -9,6 +9,15 @@ export interface StripeGateway {
 		currency: string;
 		recurring?: { interval: "month" | "year" };
 	}): Promise<{ productId: string; priceId: string }>;
+	/** Create a new price for an existing product (for repricing without orphaning the product). */
+	createPriceForProduct(input: {
+		productId: string;
+		amountCents: number;
+		currency: string;
+		recurring?: { interval: "month" | "year" };
+	}): Promise<{ priceId: string }>;
+	/** Update a product's name in Stripe. */
+	updateProductName(productId: string, name: string): Promise<void>;
 	/** Archive a price (Stripe prices are immutable; deactivating/repricing
 	 *  archives the old one). */
 	archivePrice(priceId: string): Promise<void>;
@@ -46,6 +55,23 @@ class RealStripeGateway implements StripeGateway {
 			...(input.recurring ? { recurring: { interval: input.recurring.interval } } : {}),
 		});
 		return { productId: product.id, priceId: price.id };
+	}
+	async createPriceForProduct(input: {
+		productId: string;
+		amountCents: number;
+		currency: string;
+		recurring?: { interval: "month" | "year" };
+	}): Promise<{ priceId: string }> {
+		const price = await this.stripe.prices.create({
+			product: input.productId,
+			unit_amount: input.amountCents,
+			currency: input.currency,
+			...(input.recurring ? { recurring: { interval: input.recurring.interval } } : {}),
+		});
+		return { priceId: price.id };
+	}
+	async updateProductName(productId: string, name: string): Promise<void> {
+		await this.stripe.products.update(productId, { name });
 	}
 	async archivePrice(priceId: string): Promise<void> {
 		await this.stripe.prices.update(priceId, { active: false });
