@@ -1362,6 +1362,27 @@ const fr: typeof en = {
     attachFiles: "Joindre des fichiers",
     attachRemove: "Retirer {{name}}",
     sentFiles: "Fichiers envoyés : {{names}}",
+    model: {
+      label: "Modèle",
+      pick: "Choisir le modèle de l'assistant",
+      estChat: "~{{n}} cr / message",
+      estMigration: "~{{n}} cr / migration de menu",
+      badge: {
+        cheap: "Économique",
+        balanced: "Équilibré",
+        premium: "Premium",
+      },
+    },
+    balance: {
+      label: "Solde",
+      credits: "{{n}} crédits",
+    },
+    outOfCredits: {
+      title: "Plus de crédits",
+      body: "Tu as utilisé tous tes crédits assistant. Obtiens-en plus pour continuer à discuter.",
+      cta: "Obtenir des crédits",
+      soon: "Achat bientôt disponible",
+    },
   },
   search: {
     placeholder: "Rechercher menus, commandes, items, texte…",
