@@ -29,6 +29,16 @@ describe("buildProjectDocuments", () => {
     expect(dlgs.items[0].label).toBe("Confirm");
   });
 
+  it("menu label is always the id, even when the menu has a title", () => {
+    const p = pack();
+    // Give the menu a resolvable text title; the panel must STILL show the id.
+    (p.menus as any)[0].title = [{ kind: "text", value: { key: "k_m1" } }];
+    (p.i18nKeys as any).k_m1 = { en: "Shop" };
+    const groups = buildProjectDocuments(p, "en");
+    const menus = groups.find((g) => g.type === "menu")!;
+    expect(menus.items[0].label).toBe("m1");
+  });
+
   it("dialog label falls back to id when title has no matching key", () => {
     const p = pack();
     // Remove the i18nKeys entry so getText returns ""
