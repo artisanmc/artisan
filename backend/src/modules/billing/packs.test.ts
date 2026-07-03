@@ -95,6 +95,24 @@ describe("admin packs routes", () => {
 		expect(archived).toContain(oldPriceId); // old price archived
 	});
 
+	it("PUT re-provisions when only the currency changes", async () => {
+		const created = await (await app.request("/api/v1/admin/billing/packs", {
+			method: "POST", headers: adminHeaders(),
+			body: JSON.stringify({ name: "P", priceCents: 1000, credits: 500, currency: "eur" }),
+		})).json();
+		const oldPriceId = created.stripePriceId;
+		expect(created.currency).toBe("eur");
+		const put = await app.request(`/api/v1/admin/billing/packs/${created.id}`, {
+			method: "PUT", headers: adminHeaders(),
+			body: JSON.stringify({ currency: "usd" }),
+		});
+		expect(put.status).toBe(200);
+		const updated = await put.json();
+		expect(updated.currency).toBe("usd");
+		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
+		expect(archived).toContain(oldPriceId); // old price archived
+	});
+
 	it("deactivate flips is_active", async () => {
 		const created = await (await app.request("/api/v1/admin/billing/packs", {
 			method: "POST", headers: adminHeaders(),
