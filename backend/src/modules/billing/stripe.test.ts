@@ -7,7 +7,12 @@ describe("StripeGateway injection", () => {
 	it("getStripeGateway returns the injected fake", () => {
 		const fake: StripeGateway = {
 			async createProductWithPrice() { return { productId: "prod_x", priceId: "price_x" }; },
+			async createPriceForProduct() { return { priceId: "price_y" }; },
+			async updateProductName() {},
 			async archivePrice() {},
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
 		};
 		__setStripeGatewayForTests(fake);
 		expect(getStripeGateway()).toBe(fake);
@@ -17,15 +22,24 @@ describe("StripeGateway injection", () => {
 		const calls: unknown[] = [];
 		const fake: StripeGateway = {
 			async createProductWithPrice(input) { calls.push(input); return { productId: "p1", priceId: "pr1" }; },
+			async createPriceForProduct(input) { calls.push({ createPrice: input }); return { priceId: "pr2" }; },
+			async updateProductName(id, name) { calls.push({ updateName: [id, name] }); },
 			async archivePrice(id) { calls.push({ archive: id }); },
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
 		};
 		__setStripeGatewayForTests(fake);
 		const g = getStripeGateway();
 		const r = await g.createProductWithPrice({ name: "Pack 10", amountCents: 1000, currency: "eur" });
 		expect(r).toEqual({ productId: "p1", priceId: "pr1" });
+		await g.createPriceForProduct({ productId: "p1", amountCents: 2000, currency: "eur" });
+		await g.updateProductName("p1", "New Name");
 		await g.archivePrice("pr1");
 		expect(calls).toEqual([
 			{ name: "Pack 10", amountCents: 1000, currency: "eur" },
+			{ createPrice: { productId: "p1", amountCents: 2000, currency: "eur" } },
+			{ updateName: ["p1", "New Name"] },
 			{ archive: "pr1" },
 		]);
 	});
