@@ -9,12 +9,13 @@ import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
 
 const ADMIN_ID = "user_admin_packs";
 let adminSession = "";
+let archived: string[] = [];
 
 function fakeGateway(): StripeGateway {
 	let n = 0;
 	return {
 		async createProductWithPrice() { n++; return { productId: `prod_${n}`, priceId: `price_${n}` }; },
-		async archivePrice() {},
+		async archivePrice(id: string) { archived.push(id); },
 	};
 }
 
@@ -25,7 +26,10 @@ beforeAll(async () => {
 	__setStripeGatewayForTests(fakeGateway());
 });
 
-afterEach(async () => { await db.delete(creditPacks); });
+afterEach(async () => {
+	await db.delete(creditPacks);
+	archived = [];
+});
 
 afterAll(async () => {
 	__setStripeGatewayForTests(null);
@@ -79,6 +83,7 @@ describe("admin packs routes", () => {
 			method: "POST", headers: adminHeaders(),
 			body: JSON.stringify({ name: "P", priceCents: 1000, credits: 500 }),
 		})).json();
+		const oldPriceId = created.stripePriceId;
 		const put = await app.request(`/api/v1/admin/billing/packs/${created.id}`, {
 			method: "PUT", headers: adminHeaders(),
 			body: JSON.stringify({ priceCents: 2000 }),
@@ -86,7 +91,8 @@ describe("admin packs routes", () => {
 		expect(put.status).toBe(200);
 		const updated = await put.json();
 		expect(updated.priceCents).toBe(2000);
-		expect(updated.stripePriceId).not.toBe(created.stripePriceId); // new price provisioned
+		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
+		expect(archived).toContain(oldPriceId); // old price archived
 	});
 
 	it("deactivate flips is_active", async () => {
@@ -98,5 +104,17 @@ describe("admin packs routes", () => {
 		expect(res.status).toBe(200);
 		const [row] = await db.select().from(creditPacks).where(eq(creditPacks.id, created.id));
 		expect(row.isActive).toBe(false);
+	});
+
+	it("GET /packs/:id returns the pack; 404 for unknown", async () => {
+		const created = await (await app.request("/api/v1/admin/billing/packs", {
+			method: "POST", headers: adminHeaders(),
+			body: JSON.stringify({ name: "P", priceCents: 1000, credits: 500 }),
+		})).json();
+		const got = await app.request(`/api/v1/admin/billing/packs/${created.id}`, { headers: adminHeaders() });
+		expect(got.status).toBe(200);
+		expect((await got.json()).id).toBe(created.id);
+		const missing = await app.request("/api/v1/admin/billing/packs/nope", { headers: adminHeaders() });
+		expect(missing.status).toBe(404);
 	});
 });
