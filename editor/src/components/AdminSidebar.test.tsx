@@ -25,7 +25,7 @@ vi.mock("@tanstack/react-router", async () => {
 
 describe("AdminSidebar", () => {
   beforeEach(() => {
-    mockPathname.current = "/admin";
+    mockPathname.current = "/admin/ai";
     useAuthStore.setState({
       currentUser: { id: "u1", email: "a@b.c", name: "Iban", isAdmin: true },
       isLoading: false,
@@ -38,9 +38,16 @@ describe("AdminSidebar", () => {
     expect(back).toHaveAttribute("href", "/networks");
   });
 
-  it("renders the AI, Users and Design system nav entries", () => {
+  it("renders the AI Models, AI Usage, Users and Design system nav entries", () => {
     render(<AdminSidebar />);
-    expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("link", { name: /ai models|modèles ia/i })).toHaveAttribute(
+      "href",
+      "/admin/ai",
+    );
+    expect(screen.getByRole("link", { name: /^usage$|^consommation$/i })).toHaveAttribute(
+      "href",
+      "/admin/ai/usage",
+    );
     expect(screen.getByRole("link", { name: /utilisateurs|users/i })).toHaveAttribute(
       "href",
       "/admin/users",
@@ -58,13 +65,18 @@ describe("AdminSidebar", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /ai models|modèles ia/i })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
-  it("marks the AI entry active on /admin", () => {
-    mockPathname.current = "/admin";
+  it("marks the AI Models entry active on /admin/ai", () => {
+    mockPathname.current = "/admin/ai";
     render(<AdminSidebar />);
-    expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /ai models|modèles ia/i })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(screen.getByRole("link", { name: /design system/i })).not.toHaveAttribute(
       "aria-current",
     );
@@ -77,7 +89,9 @@ describe("AdminSidebar", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: /^IA$|^AI$/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /ai models|modèles ia/i })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("renders the user menu pill at the bottom", () => {
