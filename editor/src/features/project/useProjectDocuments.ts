@@ -23,8 +23,11 @@ export function documentLabel(pack: Project, id: string, activeLang: string): st
 /** Pure: construit la liste catégorisée des éléments du pack (source de vérité du panneau). */
 export function buildProjectDocuments(pack: Project, activeLang: string): ProjectDocumentGroup[] {
   const onBoard = (id: string) => id in pack.canvasLayout;
+  // Menus are labelled by their id in the panel (their "title" is a visual
+  // MenuTitleLayer[] — decorative, often empty or ambiguous — not a stable
+  // identifier). Commands/dialogs keep their human label.
   const menus: ProjectDocumentItem[] = (pack.menus ?? []).map((m) => ({
-    id: m.id, label: documentLabel(pack, m.id, activeLang), type: "menu", onBoard: onBoard(m.id),
+    id: m.id, label: m.id, type: "menu", onBoard: onBoard(m.id),
   }));
   const commands: ProjectDocumentItem[] = (pack.commands ?? []).map((c) => ({
     id: c.id, label: documentLabel(pack, c.id, activeLang), type: "command", onBoard: onBoard(c.id),
