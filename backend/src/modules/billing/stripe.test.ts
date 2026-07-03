@@ -13,6 +13,7 @@ describe("StripeGateway injection", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		};
 		__setStripeGatewayForTests(fake);
 		expect(getStripeGateway()).toBe(fake);
@@ -28,6 +29,7 @@ describe("StripeGateway injection", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		};
 		__setStripeGatewayForTests(fake);
 		const g = getStripeGateway();
@@ -56,6 +58,7 @@ describe("StripeGateway checkout/portal (fake records calls)", () => {
 			async createCustomer(i) { calls.customer = i; return { customerId: "cus_1" }; },
 			async createCheckoutSession(i) { calls.checkout = i; return { url: "https://checkout.test/s" }; },
 			async createPortalSession(i) { calls.portal = i; return { url: "https://portal.test/s" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		};
 		__setStripeGatewayForTests(fake);
 		const g = getStripeGateway();
@@ -65,5 +68,21 @@ describe("StripeGateway checkout/portal (fake records calls)", () => {
 		const po = await g.createPortalSession({ customerId: "cus_1", returnUrl: "r" });
 		expect(po.url).toBe("https://portal.test/s");
 		expect((calls.checkout as { mode: string }).mode).toBe("payment");
+	});
+
+	it("a fake constructWebhookEvent returns the injected event", () => {
+		const ev = { id: "evt_1", type: "checkout.session.completed", data: { object: { foo: "bar" } } };
+		const fake: StripeGateway = {
+			async createProductWithPrice() { return { productId: "p", priceId: "pr" }; },
+			async createPriceForProduct() { return { priceId: "pr2" }; },
+			async updateProductName() {},
+			async archivePrice() {},
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return ev; },
+		};
+		__setStripeGatewayForTests(fake);
+		expect(getStripeGateway().constructWebhookEvent("raw", "sig")).toBe(ev);
 	});
 });

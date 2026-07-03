@@ -23,6 +23,7 @@ import { buildAdminUsersRouter } from "./routes/adminUsers";
 import { buildAiAdminRouter } from "./modules/ai/adminRoutes";
 import { buildBillingAdminRouter } from "./modules/billing/adminRoutes";
 import { buildBillingUserRouter } from "./modules/billing/userRoutes";
+import { buildBillingWebhookRouter } from "./modules/billing/webhookRoutes";
 import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
 import { validateAccessToken } from "./lib/auth";
 import { mountModules } from "@artisan/backend-sdk";
@@ -57,6 +58,7 @@ app.route("/api/v1/networks", userNetworksRouter);
 app.route("/api/v1/networks", userBranchesRouter);
 app.use("/api/v1/user/projects/*", userAuth());
 app.route("/api/v1/user/projects", userProjectsRouter);
+app.route("/api/v1/billing", buildBillingWebhookRouter());
 app.use("/api/v1/billing/*", userAuth());
 app.route("/api/v1/billing", buildBillingUserRouter());
 
