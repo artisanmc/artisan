@@ -21,6 +21,7 @@ function fakeGateway(): StripeGateway {
 		async createCustomer() { return { customerId: "c" }; },
 		async createCheckoutSession() { return { url: "u" }; },
 		async createPortalSession() { return { url: "u" }; },
+		constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 	};
 }
 
@@ -154,6 +155,7 @@ describe("admin packs routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const created = await (await app.request("/api/v1/admin/billing/packs", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, credits: 500 }) })).json();
 		const productCountAfterCreate = products.length;
@@ -174,6 +176,7 @@ describe("admin packs routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const created = await (await app.request("/api/v1/admin/billing/packs", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "Old", priceCents: 1000, credits: 500 }) })).json();
 		await app.request(`/api/v1/admin/billing/packs/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ name: "New" }) });
