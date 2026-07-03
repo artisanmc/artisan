@@ -10,9 +10,11 @@ import { aiCreditLedger } from "../../db/schema";
  *
  * Leftover is computed period-scoped (by `closingPeriodId`), ignoring expiry —
  * the webhook can fire at/after the closing grant's own expiry, at which point
- * a now()-gated read would see 0. The closing period's grant + its debits share
- * `expiresAt`/`periodId` (see debitBuckets) so no manual "period close" zeroing
- * entry is needed — they net out of the SUM together once expired.
+ * a now()-gated read would see 0. A compensating `-leftover` entry is written
+ * immediately, tagged with the closing grant's own `expiresAt`, so the closing
+ * period nets to 0 both before AND after its grant expires — this closes the
+ * `[renewal, expiry)` double-count window that would otherwise let the closing
+ * period's unexpired leftover coexist with the new period's grant.
  */
 export async function renewSubscriptionPeriod(input: {
 	networkId: string;
@@ -38,6 +40,27 @@ export async function renewSubscriptionPeriod(input: {
 				));
 			const leftover = Math.max(row?.sum ?? 0, 0);
 			rolledOver = Math.min(leftover, Math.max(input.rolloverCap, 0));
+			// Zero the closing period NOW so the new period doesn't double-count
+			// while the closing grant is still non-expired. Tag the compensating
+			// entry with the closing period's own expiry so it also nets out of the
+			// SUM after expiry (no lingering negative).
+			if (leftover > 0) {
+				const [grant] = await tx
+					.select({ expiresAt: aiCreditLedger.expiresAt })
+					.from(aiCreditLedger)
+					.where(and(
+						eq(aiCreditLedger.networkId, input.networkId),
+						eq(aiCreditLedger.bucket, "subscription"),
+						eq(aiCreditLedger.periodId, input.closingPeriodId),
+						sql`${aiCreditLedger.delta} > 0`,
+					))
+					.limit(1);
+				await tx.insert(aiCreditLedger).values({
+					id: crypto.randomUUID(), networkId: input.networkId, delta: -leftover,
+					reason: "adjustment", bucket: "subscription", periodId: input.closingPeriodId,
+					expiresAt: grant?.expiresAt ?? null, note: "period close", createdAt: now,
+				});
+			}
 		}
 		// Carry the capped amount into rollover (permanent).
 		if (rolledOver > 0) {
