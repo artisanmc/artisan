@@ -75,6 +75,34 @@ describe("assistant SSE client", () => {
       "/api/v1/assistant/conversations?projectId=pack_1",
     );
   });
+  it("yields a credits event and posts modelId", async () => {
+    const fetchMock = vi.fn(async () =>
+      sseResponse([
+        'event: text\ndata: {"text":"hi"}',
+        'event: credits\ndata: {"debited":700,"balance":300}',
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const events: Array<{ type: string; balance?: number }> = [];
+    for await (const e of streamAssistant("tok", "conv1", { text: "hi", modelId: "m1" })) {
+      events.push(e);
+    }
+    expect(events.some((e) => e.type === "credits" && e.balance === 300)).toBe(true);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string).modelId).toBe("m1");
+  });
+  it("streamAssistant yields insufficient_credits on a 402 before reading any stream", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "insufficient_credits", balance: 0 }), {
+          status: 402,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const events: Array<{ type: string; balance?: number }> = [];
+    for await (const e of streamAssistant("tok", "conv1", { text: "hi" })) events.push(e);
+    expect(events).toEqual([{ type: "insufficient_credits", balance: 0 }]);
+  });
   it("getConversation returns the transcript", async () => {
     vi.stubGlobal(
       "fetch",

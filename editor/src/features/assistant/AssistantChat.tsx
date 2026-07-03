@@ -1,6 +1,10 @@
 import type { ProjectId } from "@/domain/types";
+import { BalanceChip } from "@/features/assistant/BalanceChip";
+import { ModelSelector } from "@/features/assistant/ModelSelector";
+import { OutOfCreditsNotice } from "@/features/assistant/OutOfCreditsNotice";
 import { packToCommandV1, packToDialogV1, packToMenuV1 } from "@/features/export/transform";
 import { persistProject } from "@/features/project/persistProject";
+import { getBalance } from "@/lib/api/aiUser";
 import {
   type ConversationMessage,
   getConversation,
@@ -10,6 +14,7 @@ import {
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
+import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, FileText, Paperclip, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -92,6 +97,7 @@ export function AssistantChat({
   onBack?: () => void;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
 
@@ -101,6 +107,9 @@ export function AssistantChat({
   const [activity, setActivity] = useState<string | null>(null);
   const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
   const convId = useRef<string | null>(conversationId);
 
   // Resume: load the persisted transcript (parent keys us per conversation).
@@ -116,6 +125,19 @@ export function AssistantChat({
       cancelled = true;
     };
   }, [conversationId, token]);
+
+  // Credit balance for this project — shown next to the model picker.
+  useEffect(() => {
+    let cancelled = false;
+    getBalance(token, projectId)
+      .then((b) => {
+        if (!cancelled) setBalance(b);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token, projectId]);
 
   /** Append `chunk` to the trailing assistant entry, or start a new one. */
   function appendAssistant(chunk: string) {
@@ -158,6 +180,7 @@ export function AssistantChat({
         attachments,
         commands,
         dialogs,
+        modelId: modelId ?? undefined,
       })) {
         if (ev.type === "text") {
           // Once the model starts writing its answer, the streamed text is the
@@ -223,6 +246,11 @@ export function AssistantChat({
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
+        } else if (ev.type === "credits") {
+          setBalance(Number(ev.balance));
+        } else if (ev.type === "insufficient_credits") {
+          setOutOfCredits(true);
+          setBalance(Number(ev.balance));
         } else if (ev.type === "error") {
           const msg = String(ev.message ?? t("assistant.errorGeneric"));
           toast.error(msg);
@@ -356,6 +384,23 @@ export function AssistantChat({
         </div>
       )}
 
+      <div
+        data-testid="assistant-composer-toolbar"
+        className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2"
+      >
+        <ModelSelector
+          token={token}
+          value={modelId}
+          onChange={setModelId}
+          onModelsLoaded={(r) => setModelId((cur) => cur ?? r.preferredModelId ?? r.defaultModelId)}
+        />
+        <BalanceChip balance={balance} />
+      </div>
+
+      {outOfCredits && (
+        <OutOfCreditsNotice onGetCredits={() => navigate({ to: "/credits" })} />
+      )}
+
       <div className="flex shrink-0 items-end gap-2 border-[var(--border-soft)] border-t p-3">
         <input
           ref={fileInputRef}
@@ -373,6 +418,7 @@ export function AssistantChat({
           aria-label={t("assistant.attachFiles")}
           title={t("assistant.attachFiles")}
           onClick={() => fileInputRef.current?.click()}
+          disabled={outOfCredits}
           className="btn btn-sm btn-ghost btn-icon shrink-0"
         >
           <Paperclip className="h-4 w-4" />
@@ -389,11 +435,12 @@ export function AssistantChat({
           placeholder={t("assistant.placeholder")}
           aria-label={t("assistant.title")}
           rows={2}
-          className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)]"
+          disabled={outOfCredits}
+          className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)] disabled:opacity-50"
         />
         <button
           type="button"
-          disabled={busy || (input.trim().length === 0 && attachmentCount === 0)}
+          disabled={outOfCredits || busy || (input.trim().length === 0 && attachmentCount === 0)}
           onClick={() => void send()}
           className="btn btn-sm btn-primary shrink-0"
         >
