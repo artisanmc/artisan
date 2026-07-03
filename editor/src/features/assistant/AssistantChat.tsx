@@ -384,68 +384,68 @@ export function AssistantChat({
         </div>
       )}
 
-      <div
-        data-testid="assistant-composer-toolbar"
-        className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2"
-      >
-        <ModelSelector
-          token={token}
-          value={modelId}
-          onChange={setModelId}
-          onModelsLoaded={(r) => setModelId((cur) => cur ?? r.preferredModelId ?? r.defaultModelId)}
-        />
-        <BalanceChip balance={balance} />
-      </div>
+      {outOfCredits && <OutOfCreditsNotice onGetCredits={() => navigate({ to: "/credits" })} />}
 
-      {outOfCredits && (
-        <OutOfCreditsNotice onGetCredits={() => navigate({ to: "/credits" })} />
-      )}
-
-      <div className="flex shrink-0 items-end gap-2 border-[var(--border-soft)] border-t p-3">
-        <input
-          ref={fileInputRef}
-          data-testid="assistant-file-input"
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            void addFiles(Array.from(e.target.files ?? []));
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          aria-label={t("assistant.attachFiles")}
-          title={t("assistant.attachFiles")}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={outOfCredits}
-          className="btn btn-sm btn-ghost btn-icon shrink-0"
-        >
-          <Paperclip className="h-4 w-4" />
-        </button>
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send();
+      <div className="flex shrink-0 flex-col gap-2 border-[var(--border-soft)] border-t p-3">
+        <div data-testid="assistant-composer-toolbar" className="flex min-w-0 items-center gap-2">
+          <ModelSelector
+            token={token}
+            value={modelId}
+            onChange={setModelId}
+            onModelsLoaded={(r) =>
+              setModelId((cur) => cur ?? r.preferredModelId ?? r.defaultModelId)
             }
-          }}
-          placeholder={t("assistant.placeholder")}
-          aria-label={t("assistant.title")}
-          rows={2}
-          disabled={outOfCredits}
-          className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)] disabled:opacity-50"
-        />
-        <button
-          type="button"
-          disabled={outOfCredits || busy || (input.trim().length === 0 && attachmentCount === 0)}
-          onClick={() => void send()}
-          className="btn btn-sm btn-primary shrink-0"
-        >
-          {t("assistant.send")}
-        </button>
+            className="min-w-0 flex-1"
+          />
+          <BalanceChip balance={balance} />
+        </div>
+
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            data-testid="assistant-file-input"
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              void addFiles(Array.from(e.target.files ?? []));
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            aria-label={t("assistant.attachFiles")}
+            title={t("assistant.attachFiles")}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={outOfCredits}
+            className="btn btn-sm btn-ghost btn-icon shrink-0"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder={t("assistant.placeholder")}
+            aria-label={t("assistant.title")}
+            rows={2}
+            disabled={outOfCredits}
+            className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--border-strong)] disabled:opacity-50"
+          />
+          <button
+            type="button"
+            disabled={outOfCredits || busy || (input.trim().length === 0 && attachmentCount === 0)}
+            onClick={() => void send()}
+            className="btn btn-sm btn-primary shrink-0"
+          >
+            {t("assistant.send")}
+          </button>
+        </div>
       </div>
     </div>
   );
