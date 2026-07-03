@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/aiUser";
 import { cn } from "@/lib/cx";
 import { formatCredits } from "@/lib/format";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -70,13 +71,16 @@ export function ModelSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" title={t("assistant.model.pick")} className={cn("chip", className)}>
-          <span>{current?.displayName ?? t("assistant.model.label")}</span>
-          {current && (
-            <Badge variant={BADGE_VARIANT[current.badge]}>
-              {t(`assistant.model.badge.${current.badge}`)}
-            </Badge>
+        <button
+          type="button"
+          title={t("assistant.model.pick")}
+          className={cn(
+            "flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)]",
+            className,
           )}
+        >
+          <span className="truncate">{current?.displayName ?? t("assistant.model.label")}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
