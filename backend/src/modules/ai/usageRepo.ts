@@ -1,7 +1,7 @@
 import { db } from "../../db/index";
-import { aiCreditLedger, aiUsageLog } from "../../db/schema";
+import { aiUsageLog } from "../../db/schema";
 import type { LlmUsage } from "../assistant/provider/types";
-import { getBalance } from "./creditsRepo";
+import { debitBuckets, getBalance } from "./creditsRepo";
 import type { AiModel } from "./modelRepo";
 import { computeCreditsCharged, computeRealCostMicroUsd } from "./pricing";
 
@@ -53,14 +53,7 @@ export async function recordDebitedTurn(
 			status: "success",
 		});
 		if (credits > 0) {
-			await tx.insert(aiCreditLedger).values({
-				id: crypto.randomUUID(),
-				networkId: input.networkId,
-				delta: -credits,
-				reason: "debit",
-				usageLogId: id,
-				createdAt: now,
-			});
+			await debitBuckets(tx, input.networkId, credits, { usageLogId: id, now });
 		}
 	});
 	return { usageLogId: id, debited: credits, balance: await getBalance(input.networkId) };
