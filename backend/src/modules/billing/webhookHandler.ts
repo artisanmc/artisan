@@ -111,8 +111,14 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 
 	const lines = (obj.lines as { data?: Array<{ period?: { end?: number } }> } | undefined)?.data ?? [];
 	const endUnix = lines[0]?.period?.end;
-	const periodEnd = endUnix ? new Date(endUnix * 1000) : new Date();
-	const newPeriodId = typeof obj.id === "string" ? obj.id : crypto.randomUUID();
+	// A real invoice.paid always carries lines[].period.end (unix seconds) + an id.
+	// Fail loud (the claim is undone → Stripe retries) rather than silently granting
+	// a now()-expiry grant (charged, but expires instantly) or a random period id.
+	if (typeof endUnix !== "number" || typeof obj.id !== "string") {
+		throw new Error(`invoice.paid missing period end or id (invoice ${String(obj.id)})`);
+	}
+	const periodEnd = new Date(endUnix * 1000);
+	const newPeriodId = obj.id;
 	const isFirst = obj.billing_reason === "subscription_create";
 
 	if (isFirst) {
