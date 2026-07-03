@@ -76,17 +76,21 @@ export async function updatePack(id: string, patch: Partial<PackInput>): Promise
 	if (patch.isActive !== undefined) next.isActive = patch.isActive;
 	if (patch.sortOrder !== undefined) next.sortOrder = patch.sortOrder;
 	if (patch.currency !== undefined) next.currency = patch.currency;
-	// Currency or amount change → provision a NEW Stripe price and archive the old one.
+	// Name change → sync the Stripe product name.
+	if (patch.name !== undefined && patch.name !== existing.name && existing.stripeProductId) {
+		await getStripeGateway().updateProductName(existing.stripeProductId, patch.name);
+	}
+	// Currency or amount change → reuse the existing product and provision a NEW Stripe price.
 	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
 	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
-	if (priceChanged || currencyChanged) {
-		next.priceCents = patch.priceCents ?? existing.priceCents;
-		const { productId, priceId } = await getStripeGateway().createProductWithPrice({
-			name: patch.name ?? existing.name,
-			amountCents: next.priceCents,
+	if (priceChanged) next.priceCents = patch.priceCents;
+	if ((priceChanged || currencyChanged) && existing.stripeProductId) {
+		const priceCents = next.priceCents ?? existing.priceCents;
+		const { priceId } = await getStripeGateway().createPriceForProduct({
+			productId: existing.stripeProductId,
+			amountCents: priceCents,
 			currency: patch.currency ?? existing.currency,
 		});
-		next.stripeProductId = productId;
 		next.stripePriceId = priceId;
 		if (existing.stripePriceId) await getStripeGateway().archivePrice(existing.stripePriceId);
 	}
