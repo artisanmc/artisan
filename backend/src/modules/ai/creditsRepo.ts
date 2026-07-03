@@ -98,6 +98,29 @@ export async function debitBuckets(
 	// Shortfall → topup (may go negative).
 	if (remaining > 0) taken.topup += remaining;
 
+	// Subscription debits must expire WITH the period's grant they consume — else the
+	// grant drops out of the non-expired SUM after expiry while its debit lingers
+	// forever, permanently understating the balance. Rollover/topup stay permanent
+	// (null). Note: opts.now stamps created_at; the expiry predicate itself evaluates
+	// against DB now() at read time.
+	let subExpiresAt: Date | null = null;
+	let subPeriodId: string | null = null;
+	if (taken.subscription > 0) {
+		const [sub] = await tx
+			.select({ expiresAt: aiCreditLedger.expiresAt, periodId: aiCreditLedger.periodId })
+			.from(aiCreditLedger)
+			.where(and(
+				eq(aiCreditLedger.networkId, networkId),
+				eq(aiCreditLedger.bucket, "subscription"),
+				sql`${aiCreditLedger.delta} > 0`,
+				notExpired,
+			))
+			.orderBy(aiCreditLedger.expiresAt)
+			.limit(1);
+		subExpiresAt = sub?.expiresAt ?? null;
+		subPeriodId = sub?.periodId ?? null;
+	}
+
 	for (const bucket of DEBIT_ORDER) {
 		if (taken[bucket] > 0) {
 			await tx.insert(aiCreditLedger).values({
@@ -107,6 +130,8 @@ export async function debitBuckets(
 				reason: "debit",
 				bucket,
 				usageLogId: opts.usageLogId ?? null,
+				expiresAt: bucket === "subscription" ? subExpiresAt : null,
+				periodId: bucket === "subscription" ? subPeriodId : null,
 				createdAt: opts.now,
 			});
 		}
