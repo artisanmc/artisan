@@ -245,6 +245,7 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `CONFIG_ENC_KEY` | (vide) | Clé hex 32 bytes (64 chars) pour `secretBox` (AES-256-GCM) — chiffre les secrets stockés en DB (`app_settings`). Vide = stockage DB des secrets désactivé (fallback env). Générer : `openssl rand -hex 32`. |
 | `STRIPE_SECRET_KEY` | (vide) | Clé secrète Stripe (sub-projet B). Lue par la gateway réelle ; les tests injectent une fake. Vide en dev/test. |
 | `STRIPE_WEBHOOK_SECRET` | (vide) | Secret de vérification signature webhook Stripe (sub-projet B2). |
+| `BILLING_GRACE_DAYS` | `7` | Jours de grâce après un échec de paiement d'abonnement (`invoice.payment_failed`) avant suspension (`status=past_due` + `grace_until`). Lu au moment du webhook. |
 
 ### Resource pack distribution modes
 

@@ -38,6 +38,7 @@
 | `adminUsers.ts` | `admin/users` (GET — liste + recherche `?q=` sur nom/email, ilike ; expose `hasPassword`, **jamais `passwordHash`**), `admin/users/:id` (GET — profil + networks/rôles via `memberships`), `admin/users/:id` (PATCH — `name`/`email`/`isAdmin` ; email normalisé trim+lowercase, unique → 409 `email_taken`, 422 `invalid_email`/`invalid_name` ; un admin ne peut pas se retirer son propre flag → 422 `cannot_demote_self`). Auth **super-admin**. |
 | `modules/billing/adminRoutes.ts` | `admin/billing/packs*`, `admin/billing/plans*` (CRUD admin des packs de credits + formules d'abonnement, provisionne les products/prices Stripe) |
 | `modules/billing/userRoutes.ts` | `/api/v1/billing/checkout/{pack,subscription}`, `/api/v1/billing/portal`, `/api/v1/billing/{balance,packs,plans,subscription,purchases}` (User billing : sessions Checkout hébergées (top-up / abo), Customer Portal, soldes par bucket + catalogue + état d'abo + historique (membership-gated)) |
+| `modules/billing/webhookRoutes.ts` | `POST /api/v1/billing/webhook` (**public**, signature Stripe vérifiée, idempotent via `stripe_events`) : fulfillment top-up (`checkout.session.completed` → credits `topup` + `credit_purchases`) + cycle de vie abonnement (`invoice.paid` → grant 1re période / renouvellement plafonné ; `invoice.payment_failed` → grâce ; `customer.subscription.updated/deleted` → `status`/`networks.tier`). Réseau résolu par `metadata.networkId`. Monté **avant** `userAuth()` dans `app.ts`. |
 
 ## Flux non-évidents
 
