@@ -26,6 +26,7 @@ function fake(): StripeGateway {
 		async createCustomer() { return { customerId: "cus_test" }; },
 		async createCheckoutSession(i) { return { url: `https://checkout.test/${i.mode}/${i.metadata.kind}` }; },
 		async createPortalSession() { return { url: "https://portal.test/s" }; },
+		constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 	};
 }
 

@@ -20,6 +20,7 @@ function fakeGateway(): StripeGateway {
 		async createCustomer() { return { customerId: "c" }; },
 		async createCheckoutSession() { return { url: "u" }; },
 		async createPortalSession() { return { url: "u" }; },
+		constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 	};
 }
 
@@ -58,6 +59,7 @@ describe("admin plans routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const post = await app.request("/api/v1/admin/billing/plans", {
 			method: "POST", headers: adminHeaders(),
@@ -269,6 +271,7 @@ describe("admin plans routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
 		const productCountAfterCreate = products.length;
@@ -289,6 +292,7 @@ describe("admin plans routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "Old", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
 		await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ name: "New" }) });
@@ -307,6 +311,7 @@ describe("admin plans routes", () => {
 			async createCustomer() { return { customerId: "c" }; },
 			async createCheckoutSession() { return { url: "u" }; },
 			async createPortalSession() { return { url: "u" }; },
+			constructWebhookEvent() { return { id: "", type: "", data: { object: {} } }; },
 		});
 		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, interval: "month" }) })).json();
 		const productCountAfterCreate = products.length;
