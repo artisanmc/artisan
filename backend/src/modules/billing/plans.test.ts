@@ -8,12 +8,13 @@ import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
 
 const ADMIN_ID = "user_admin_plans";
 let adminSession = "";
+let archived: string[] = [];
 
 function fakeGateway(): StripeGateway {
 	let n = 0;
 	return {
 		async createProductWithPrice() { n++; return { productId: `prod_${n}`, priceId: `price_${n}` }; },
-		async archivePrice() {},
+		async archivePrice(id: string) { archived.push(id); },
 	};
 }
 
@@ -26,6 +27,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
 	await db.delete(subscriptionPlans);
+	archived = [];
 	__setStripeGatewayForTests(fakeGateway());
 });
 
@@ -58,10 +60,12 @@ describe("admin plans routes", () => {
 		expect(recurringSeen).toEqual({ interval: "month" });
 	});
 
-	it("POST validates (missing name / non-positive price / negative rolloverCap → 400)", async () => {
+	it("POST validates (missing name / non-positive price / non-positive creditsPerPeriod / negative rolloverCap → 400)", async () => {
 		for (const body of [
 			{ name: "", priceCents: 2000, creditsPerPeriod: 100 },
 			{ name: "X", priceCents: 0, creditsPerPeriod: 100 },
+			{ name: "X", priceCents: 2000, creditsPerPeriod: 0 },
+			{ name: "X", priceCents: 2000, creditsPerPeriod: -5 },
 			{ name: "X", priceCents: 2000, creditsPerPeriod: 100, rolloverCap: -5 },
 		]) {
 			const res = await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify(body) });
@@ -89,7 +93,7 @@ describe("admin plans routes", () => {
 		expect(typeof list.plans[0].createdAt).toBe("string");
 	});
 
-	it("GET /billing/plans/:id retrieves a single plan", async () => {
+	it("GET /billing/plans/:id retrieves a single plan; 404 for unknown", async () => {
 		const post = await app.request("/api/v1/admin/billing/plans", {
 			method: "POST", headers: adminHeaders(),
 			body: JSON.stringify({ name: "Solo", priceCents: 1000, creditsPerPeriod: 2000 }),
@@ -101,6 +105,9 @@ describe("admin plans routes", () => {
 		const fetched = await get.json();
 		expect(fetched.name).toBe("Solo");
 		expect(fetched.priceCents).toBe(1000);
+
+		const missing = await app.request("/api/v1/admin/billing/plans/nope", { headers: adminHeaders() });
+		expect(missing.status).toBe(404);
 	});
 
 	it("PUT updates plan fields without re-provisioning if price/interval unchanged", async () => {
@@ -138,6 +145,7 @@ describe("admin plans routes", () => {
 		const updated = await put.json();
 		expect(updated.priceCents).toBe(2000);
 		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
+		expect(archived).toContain(oldPriceId); // old price archived
 	});
 
 	it("PUT re-provisions when interval changes", async () => {
@@ -156,6 +164,7 @@ describe("admin plans routes", () => {
 		const updated = await put.json();
 		expect(updated.interval).toBe("year");
 		expect(updated.stripePriceId).not.toBe(oldPriceId); // new price provisioned
+		expect(archived).toContain(oldPriceId); // old price archived
 	});
 
 	it("POST /billing/plans/:id/deactivate flips isActive", async () => {
@@ -172,7 +181,7 @@ describe("admin plans routes", () => {
 		expect(row.isActive).toBe(false);
 	});
 
-	it("PUT validates (empty name / non-positive price / negative rolloverCap → 400)", async () => {
+	it("PUT validates (empty name / non-positive price / non-positive creditsPerPeriod / negative rolloverCap → 400)", async () => {
 		const post = await app.request("/api/v1/admin/billing/plans", {
 			method: "POST", headers: adminHeaders(),
 			body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }),
@@ -190,6 +199,12 @@ describe("admin plans routes", () => {
 			body: JSON.stringify({ priceCents: 0 }),
 		});
 		expect(badPrice.status).toBe(400);
+
+		const badCredits = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
+			method: "PUT", headers: adminHeaders(),
+			body: JSON.stringify({ creditsPerPeriod: 0 }),
+		});
+		expect(badCredits.status).toBe(400);
 
 		const badRollover = await app.request(`/api/v1/admin/billing/plans/${created.id}`, {
 			method: "PUT", headers: adminHeaders(),
