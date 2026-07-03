@@ -289,3 +289,37 @@ Structure des tokens (`styles/globals.css`) en 3 couches :
 3. **Aliases shadcn** (`--background`, `--primary`, `--accent`…) mappés sur la couche 2, + bridge Tailwind `@theme`.
 
 Les composants ne référencent **que** la couche 2 (ou les aliases couche 3 pour les primitives shadcn).
+
+### Primitives `Table` / `StatCard` / `HBar`
+
+Trois nouveaux composants de présentation de données, visualisables en live sur **`/admin/design`** :
+
+- **`Table`** (`components/ui/Table.tsx`) — tableau multi-ligne scrollable, sortable par colonne, avec ligne d'en-tête collante. Headers `align-left/center/right`, cells alignées. Wrapper shadcn.
+- **`StatCard`** (`components/ui/StatCard.tsx`) — carte de métrique (label + valeur + contexte, optionnel badge trending). Utilisé dans les dashboards d'usage (`/admin/ai/usage`).
+- **`HBar`** (`components/ui/HBar.tsx`) — barre horizontale segmentée (répartition : couleurs par segment). Visualise les proportions (ex. usage par modèle). Tokens de couleur `--success` / `--warning` / `--danger` et variantes `-soft`.
+
+### Admin AI
+
+Panel admin système de modèles IA, accessible à `/admin` (gate super-admin côté composant) :
+
+- **`/admin/ai`** — catalogue + configuration
+  - Table `Table` des modèles (`GET /api/v1/admin/ai/models`) : id, provider, base model, status (activé/test).
+  - Actions : éditer champs (nom, prix, status), supprimer, tester.
+  - Sections « Providers » et « Settings » : configuration provider OpenAI-compatible (`GET/PUT /api/v1/admin/ai/providers`) et settings globaux (`GET/PUT /api/v1/admin/ai/settings`).
+  - Client API : `editor/src/lib/api/adminModels.ts` (`getModels`, `updateModel`, `deleteModel`, `testConnection`, etc.).
+
+- **`/admin/ai/usage`** — dashboards agrégés
+  - Cartes `StatCard` : crédits utilisés (total, ce mois), marge estimée (prix vs coût provider).
+  - Graphiques `HBar` : répartition usage par modèle, par user.
+  - `GET /api/v1/admin/ai/usage/summary` (résumés) + `GET /api/v1/admin/ai/usage/logs` (détails).
+  - Client API : `editor/src/lib/api/adminAiUsage.ts` (`getUsageSummary`, `getUsageLogs`).
+
+- **`/admin/ai/usage/logs`** — événements détaillés
+  - Table avec filtres (user, date, model, status).
+  - Export CSV via bouton.
+  - `GET /api/v1/admin/ai/usage/logs?q=&format=csv` (backend `adminRoutes.ts`).
+
+- **Profil utilisateur — onglet AI** (`/account`, tab `"ai"`)
+  - Vue consommation utilisateur (total, dernière utilisation).
+  - Formulaire grant de crédits (bouton « Ajouter des crédits » → modal `POST /api/v1/admin/ai/credits/grant`).
+  - Client API : shared `adminAiUsage.ts` (lectu résumé user) + endpoint spécifique grant.
