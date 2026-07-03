@@ -30,3 +30,24 @@ describe("StripeGateway injection", () => {
 		]);
 	});
 });
+
+describe("StripeGateway checkout/portal (fake records calls)", () => {
+	it("a fake exposes customer/checkout/portal and records inputs", async () => {
+		const calls: Record<string, unknown> = {};
+		const fake: StripeGateway = {
+			async createProductWithPrice() { return { productId: "prod", priceId: "price" }; },
+			async archivePrice() {},
+			async createCustomer(i) { calls.customer = i; return { customerId: "cus_1" }; },
+			async createCheckoutSession(i) { calls.checkout = i; return { url: "https://checkout.test/s" }; },
+			async createPortalSession(i) { calls.portal = i; return { url: "https://portal.test/s" }; },
+		};
+		__setStripeGatewayForTests(fake);
+		const g = getStripeGateway();
+		expect(await g.createCustomer({ metadata: { networkId: "n1" } })).toEqual({ customerId: "cus_1" });
+		const co = await g.createCheckoutSession({ mode: "payment", priceId: "price", customerId: "cus_1", successUrl: "s", cancelUrl: "c", metadata: { kind: "pack" } });
+		expect(co.url).toBe("https://checkout.test/s");
+		const po = await g.createPortalSession({ customerId: "cus_1", returnUrl: "r" });
+		expect(po.url).toBe("https://portal.test/s");
+		expect((calls.checkout as { mode: string }).mode).toBe("payment");
+	});
+});
