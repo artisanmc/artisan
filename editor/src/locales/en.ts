@@ -1351,6 +1351,27 @@ export default {
     attachFiles: "Attach files",
     attachRemove: "Remove {{name}}",
     sentFiles: "Sent files: {{names}}",
+    model: {
+      label: "Model",
+      pick: "Choose the assistant model",
+      estChat: "~{{n}} cr / message",
+      estMigration: "~{{n}} cr / menu migration",
+      badge: {
+        cheap: "Cheap",
+        balanced: "Balanced",
+        premium: "Premium",
+      },
+    },
+    balance: {
+      label: "Balance",
+      credits: "{{n}} credits",
+    },
+    outOfCredits: {
+      title: "Out of credits",
+      body: "You've used all your assistant credits. Get more to keep chatting.",
+      cta: "Get credits",
+      soon: "Purchasing coming soon",
+    },
   },
   search: {
     placeholder: "Search menus, commands, items, text…",
