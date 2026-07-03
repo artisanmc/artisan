@@ -1,5 +1,11 @@
 import Stripe from "stripe";
 
+export interface StripeWebhookEvent {
+	id: string;
+	type: string;
+	data: { object: Record<string, unknown> };
+}
+
 export interface StripeGateway {
 	/** Create a Stripe product + a price for it. `recurring` → a subscription
 	 *  price; omitted → a one-off price. Returns the created ids. */
@@ -34,6 +40,9 @@ export interface StripeGateway {
 	}): Promise<{ url: string }>;
 	/** Create a Stripe billing portal session. */
 	createPortalSession(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
+	/** Verify a webhook payload's signature and parse it into an event.
+	 *  Throws if the signature is invalid. */
+	constructWebhookEvent(rawBody: string, signature: string): StripeWebhookEvent;
 }
 
 class RealStripeGateway implements StripeGateway {
@@ -109,6 +118,11 @@ class RealStripeGateway implements StripeGateway {
 			return_url: input.returnUrl,
 		});
 		return { url: session.url };
+	}
+	constructWebhookEvent(rawBody: string, signature: string): StripeWebhookEvent {
+		const secret = process.env.STRIPE_WEBHOOK_SECRET;
+		if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+		return this.stripe.webhooks.constructEvent(rawBody, signature, secret) as unknown as StripeWebhookEvent;
 	}
 }
 
