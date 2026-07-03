@@ -76,12 +76,14 @@ export async function updatePack(id: string, patch: Partial<PackInput>): Promise
 	if (patch.isActive !== undefined) next.isActive = patch.isActive;
 	if (patch.sortOrder !== undefined) next.sortOrder = patch.sortOrder;
 	if (patch.currency !== undefined) next.currency = patch.currency;
-	// Amount change → provision a NEW Stripe price and archive the old one.
-	if (patch.priceCents !== undefined && patch.priceCents !== existing.priceCents) {
-		next.priceCents = patch.priceCents;
+	// Currency or amount change → provision a NEW Stripe price and archive the old one.
+	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
+	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
+	if (priceChanged || currencyChanged) {
+		next.priceCents = patch.priceCents ?? existing.priceCents;
 		const { productId, priceId } = await getStripeGateway().createProductWithPrice({
 			name: patch.name ?? existing.name,
-			amountCents: patch.priceCents,
+			amountCents: next.priceCents,
 			currency: patch.currency ?? existing.currency,
 		});
 		next.stripeProductId = productId;

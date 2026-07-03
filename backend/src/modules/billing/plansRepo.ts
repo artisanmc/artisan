@@ -82,7 +82,8 @@ export async function updatePlan(id: string, patch: Partial<PlanInput>): Promise
 	if (patch.currency !== undefined) next.currency = patch.currency;
 	const intervalChanged = patch.interval !== undefined && patch.interval !== existing.interval;
 	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
-	if (intervalChanged || priceChanged) {
+	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
+	if (intervalChanged || priceChanged || currencyChanged) {
 		next.interval = patch.interval ?? existing.interval;
 		next.priceCents = patch.priceCents ?? existing.priceCents;
 		const { productId, priceId } = await getStripeGateway().createProductWithPrice({

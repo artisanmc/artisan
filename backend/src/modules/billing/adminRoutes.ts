@@ -26,7 +26,7 @@ function packDto(p: CreditPack) {
 function parsePackBody(body: Record<string, unknown>, partial: boolean): Partial<PackInput> | null {
 	const out: Partial<PackInput> = {};
 	if (typeof body.name === "string") out.name = body.name;
-	if (typeof body.currency === "string") out.currency = body.currency;
+	if (typeof body.currency === "string") out.currency = body.currency.toLowerCase();
 	const int = (k: string) => (typeof body[k] === "number" && Number.isInteger(body[k]) ? (body[k] as number) : undefined);
 	const priceCents = int("priceCents");
 	if (priceCents !== undefined) out.priceCents = priceCents;
@@ -87,7 +87,7 @@ export function buildBillingAdminRouter(): Hono {
 	function parsePlanBody(body: Record<string, unknown>, partial: boolean): Partial<PlanInput> | null {
 		const out: Partial<PlanInput> = {};
 		if (typeof body.name === "string") out.name = body.name;
-		if (typeof body.currency === "string") out.currency = body.currency;
+		if (typeof body.currency === "string") out.currency = body.currency.toLowerCase();
 		if (typeof body.features === "string") out.features = body.features;
 		if (body.interval === "month" || body.interval === "year") out.interval = body.interval;
 		const int = (k: string) => (typeof body[k] === "number" && Number.isInteger(body[k]) ? (body[k] as number) : undefined);
