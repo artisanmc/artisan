@@ -116,4 +116,30 @@ describe("creditsRepo", () => {
 		expect(byBucket.topup).toBe(-3);
 		expect(debits.every((d) => d.usageLogId === logId)).toBe(true);
 	});
+
+	it("debitBuckets stamps subscription debits with the consumed period's expiry+period", async () => {
+		const now = new Date();
+		const future = new Date("2999-01-01T00:00:00Z");
+		await grantCredits({ networkId, amount: 40, bucket: "subscription", expiresAt: future, periodId: "pA" });
+		await grantCredits({ networkId, amount: 100, bucket: "topup" });
+		await db.transaction((tx) => debitBuckets(tx, networkId, 50, { now })); // 40 sub + 10 topup
+		const debits = await db.select().from(aiCreditLedger)
+			.where(and(eq(aiCreditLedger.networkId, networkId), eq(aiCreditLedger.reason, "debit")));
+		const sub = debits.find((d) => d.bucket === "subscription");
+		const top = debits.find((d) => d.bucket === "topup");
+		expect(sub?.expiresAt?.toISOString()).toBe(future.toISOString());
+		expect(sub?.periodId).toBe("pA");
+		expect(top?.expiresAt).toBeNull(); // topup debit stays permanent
+	});
+
+	it("a consumed subscription period nets to zero after expiry (no lingering debit)", async () => {
+		const past = new Date("2020-01-01T00:00:00Z");
+		// grant + its consumption both tagged with the (now past) period expiry
+		await db.insert(aiCreditLedger).values([
+			{ id: crypto.randomUUID(), networkId, delta: 100, reason: "grant", bucket: "subscription", expiresAt: past, periodId: "pOld", createdAt: past },
+			{ id: crypto.randomUUID(), networkId, delta: -30, reason: "debit", bucket: "subscription", expiresAt: past, periodId: "pOld", createdAt: past },
+		]);
+		const b = await getBucketBalances(networkId);
+		expect(b.subscription).toBe(0); // both excluded together — no −30 lingering
+	});
 });
