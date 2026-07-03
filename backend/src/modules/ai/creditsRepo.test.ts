@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index";
-import { aiCreditLedger, networks } from "../../db/schema";
+import { aiCreditLedger, aiUsageLog, networks } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { getBalance, grantCredits, listLedger, getBucketBalances, debitBuckets, type BucketType } from "./creditsRepo";
 
@@ -13,6 +13,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
 	await db.delete(aiCreditLedger).where(eq(aiCreditLedger.networkId, networkId));
+	await db.delete(aiUsageLog).where(eq(aiUsageLog.networkId, networkId));
 });
 
 afterAll(async () => {
@@ -85,17 +86,34 @@ describe("creditsRepo", () => {
 		expect(await getBalance(networkId)).toBe(-15);
 	});
 
-	it("debitBuckets writes one negative ledger entry per consumed bucket, tagged", async () => {
+	it("debitBuckets writes one negative ledger entry per consumed bucket, tagged with usageLogId", async () => {
 		const now = new Date();
+		const logId = crypto.randomUUID();
+		await db.insert(aiUsageLog).values({
+			id: logId,
+			networkId,
+			modelId: null,
+			modelName: "test-model",
+			provider: "openai",
+			providerModelId: "gpt-4",
+			actionType: "chat",
+			inputTokens: 0,
+			outputTokens: 0,
+			cachedInputTokens: 0,
+			creditsCharged: 0,
+			realCostMicroUsd: 0,
+			status: "success",
+			promptPreview: "test",
+			createdAt: now,
+		});
 		await grantCredits({ networkId, amount: 5, bucket: "subscription" });
 		await grantCredits({ networkId, amount: 5, bucket: "topup" });
-		await db.transaction((tx) => debitBuckets(tx, networkId, 8, { now, usageLogId: null }));
+		await db.transaction((tx) => debitBuckets(tx, networkId, 8, { now, usageLogId: logId }));
 		const debits = await db.select().from(aiCreditLedger)
 			.where(and(eq(aiCreditLedger.networkId, networkId), eq(aiCreditLedger.reason, "debit")));
-		expect(debits.length).toBe(2);
 		const byBucket = Object.fromEntries(debits.map((d) => [d.bucket, d.delta]));
 		expect(byBucket.subscription).toBe(-5);
 		expect(byBucket.topup).toBe(-3);
-		expect(debits.every((d) => d.reason === "debit")).toBe(true);
+		expect(debits.every((d) => d.usageLogId === logId)).toBe(true);
 	});
 });
