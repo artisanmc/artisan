@@ -97,3 +97,41 @@ describe("webhook checkout.session.completed", () => {
 		expect(res.status).toBe(200);
 	});
 });
+
+describe("webhook invoice.paid", () => {
+	it("invoice.paid (subscription_create) activates the subscription + grants the first period", async () => {
+		const planId = crypto.randomUUID();
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(networkBilling).values({ networkId, stripeCustomerId: "cus", stripeSubscriptionId: "sub_1", planId, createdAt: new Date(), updatedAt: new Date() });
+		const periodEnd = Math.floor(new Date("2999-02-01T00:00:00Z").getTime() / 1000);
+		const res = await post({
+			id: "evt_inv_1", type: "invoice.paid",
+			data: { object: { id: "inv_1", subscription: "sub_1", billing_reason: "subscription_create", lines: { data: [{ period: { end: periodEnd } }] } } },
+		});
+		expect(res.status).toBe(200);
+		expect((await getBucketBalances(networkId)).subscription).toBe(5000);
+		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		expect(row.status).toBe("active");
+		expect(row.currentPeriodId).toBe("inv_1");
+		await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+	});
+
+	it("invoice.paid (subscription_cycle) renews: rolls capped leftover + grants the new period", async () => {
+		const planId = crypto.randomUUID();
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_s", stripePriceId: "price_s", createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(networkBilling).values({ networkId, stripeCustomerId: "cus", stripeSubscriptionId: "sub_2", planId, currentPeriodId: "inv_prev", status: "active", createdAt: new Date(), updatedAt: new Date() });
+		// closing period inv_prev: 5000 granted, 4200 spent → leftover 800 (cap 1000 → roll 800)
+		await db.insert(aiCreditLedger).values([
+			{ id: crypto.randomUUID(), networkId, delta: 5000, reason: "grant", bucket: "subscription", expiresAt: new Date("2999-01-15"), periodId: "inv_prev", createdAt: new Date() },
+			{ id: crypto.randomUUID(), networkId, delta: -4200, reason: "debit", bucket: "subscription", expiresAt: new Date("2999-01-15"), periodId: "inv_prev", createdAt: new Date() },
+		]);
+		const periodEnd = Math.floor(new Date("2999-02-15T00:00:00Z").getTime() / 1000);
+		await post({ id: "evt_inv_2", type: "invoice.paid", data: { object: { id: "inv_next", subscription: "sub_2", billing_reason: "subscription_cycle", lines: { data: [{ period: { end: periodEnd } }] } } } });
+		const b = await getBucketBalances(networkId);
+		expect(b.subscription).toBe(5000); // closing zeroed, new granted
+		expect(b.rollover).toBe(800);
+		await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+	});
+});
