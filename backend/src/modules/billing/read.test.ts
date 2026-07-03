@@ -76,6 +76,10 @@ afterAll(async () => {
 });
 
 describe("billing read routes", () => {
+	it("401 without a session (balance)", async () => {
+		expect((await app.request(`/api/v1/billing/balance?networkId=${networkId}`)).status).toBe(401);
+	});
+
 	it("GET /billing/balance returns per-bucket balances (member only)", async () => {
 		const res = await app.request(`/api/v1/billing/balance?networkId=${networkId}`, { headers: cookie(userSession) });
 		expect(res.status).toBe(200);

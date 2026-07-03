@@ -15,6 +15,8 @@ let outsiderSession = "";
 let packId = "";
 let planId = "";
 
+let lastCheckout: any = null;
+
 function fake(): StripeGateway {
 	return {
 		async createProductWithPrice() { return { productId: "prod", priceId: "price" }; },
@@ -22,7 +24,7 @@ function fake(): StripeGateway {
 		async updateProductName() {},
 		async archivePrice() {},
 		async createCustomer() { return { customerId: "cus_test" }; },
-		async createCheckoutSession(i) { return { url: `https://checkout.test/${i.mode}/${i.metadata.kind}` }; },
+		async createCheckoutSession(i) { lastCheckout = i; return { url: `https://checkout.test/${i.mode}/${i.metadata.kind}` }; },
 		async createPortalSession() { return { url: "https://portal.test/s" }; },
 	};
 }
@@ -66,12 +68,14 @@ describe("billing checkout/portal routes", () => {
 		expect((await res.json()).url).toContain("checkout.test/payment/pack");
 		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
 		expect(row.stripeCustomerId).toBe("cus_test");
+		expect(lastCheckout.metadata).toEqual({ networkId, kind: "pack", packId, userId: USER_ID });
 	});
 
 	it("subscription checkout uses mode=subscription", async () => {
 		const res = await app.request("/api/v1/billing/checkout/subscription", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId, planId }) });
 		expect(res.status).toBe(200);
 		expect((await res.json()).url).toContain("checkout.test/subscription/subscription");
+		expect(lastCheckout.metadata).toEqual({ networkId, kind: "subscription", planId, userId: USER_ID });
 	});
 
 	it("non-member → 403", async () => {
