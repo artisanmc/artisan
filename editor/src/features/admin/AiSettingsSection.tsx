@@ -19,11 +19,15 @@ export function AiSettingsSection() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    getAiSettings().then((s) => {
-      if (!s) return;
-      setCreditUsdRate(microToDollars(s.creditUsdMicroRate));
-      setMaxCreditsPerTurn(s.maxCreditsPerTurn != null ? String(s.maxCreditsPerTurn) : "");
-    });
+    getAiSettings()
+      .then((s) => {
+        if (!s) return;
+        setCreditUsdRate(microToDollars(s.creditUsdMicroRate));
+        setMaxCreditsPerTurn(s.maxCreditsPerTurn != null ? String(s.maxCreditsPerTurn) : "");
+      })
+      .catch((e: unknown) => {
+        console.warn("[admin-ai] fetch failed:", e);
+      });
   }, []);
 
   async function save() {

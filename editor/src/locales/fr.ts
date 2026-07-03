@@ -828,7 +828,7 @@ const fr: typeof en = {
       settings: {
         title: "Paramètres IA",
         creditUsdRate: "Taux crédit → USD",
-        creditUsdRateHint: "Combien de crédits valent 1 $ — utilisé pour tarifer les dons et afficher le coût réel.",
+        creditUsdRateHint: "Valeur réelle en $ d'un crédit (utilisée pour la marge et le tarif des dons).",
         maxCreditsPerTurn: "Crédits max par tour",
         maxCreditsPerTurnHint:
           "Plafonne le nombre de crédits qu'un tour d'assistant peut consommer. Laisser vide pour ne pas plafonner.",

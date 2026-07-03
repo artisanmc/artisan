@@ -27,15 +27,26 @@ export function AiModelsPage() {
   const [editing, setEditing] = useState<AiModelDto | null | "new">(null);
 
   async function refetch() {
-    const m = await listModels();
-    setModels(m ?? []);
+    try {
+      const m = await listModels();
+      setModels(m ?? []);
+    } catch (e) {
+      console.warn("[admin-ai] fetch failed:", e);
+      setModels([]);
+    }
   }
 
   useEffect(() => {
     let cancelled = false;
-    listModels().then((m) => {
-      if (!cancelled) setModels(m ?? []);
-    });
+    listModels()
+      .then((m) => {
+        if (!cancelled) setModels(m ?? []);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        console.warn("[admin-ai] fetch failed:", e);
+        setModels([]);
+      });
     return () => {
       cancelled = true;
     };
@@ -67,6 +78,9 @@ export function AiModelsPage() {
       } else {
         toast.error(t("admin.ai.models.testFail", { error: res.error ?? "?" }));
       }
+    } catch (e) {
+      console.warn("[admin-ai] fetch failed:", e);
+      toast.error(t("admin.ai.models.testFail", { error: "?" }));
     } finally {
       setTestingId(null);
     }
