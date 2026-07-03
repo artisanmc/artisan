@@ -154,4 +154,14 @@ describe("webhook subscription lifecycle", () => {
 		const [net] = await db.select().from(networks).where(eq(networks.id, networkId));
 		expect(net.tier).toBe("free");
 	});
+
+	it("subscription.updated maps the Stripe status + advances the period end", async () => {
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_u", status: "active", createdAt: new Date(), updatedAt: new Date() });
+		const periodEnd = Math.floor(new Date("2999-03-01T00:00:00Z").getTime() / 1000);
+		// unpaid → canceled (STATUS_MAP); current_period_end is unix seconds → *1000.
+		await post({ id: "evt_upd", type: "customer.subscription.updated", data: { object: { id: "sub_u", status: "unpaid", current_period_end: periodEnd } } });
+		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		expect(row.status).toBe("canceled");
+		expect(row.currentPeriodEnd?.getTime()).toBe(periodEnd * 1000);
+	});
 });
