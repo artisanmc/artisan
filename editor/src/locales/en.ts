@@ -1371,6 +1371,7 @@ export default {
       body: "You've used all your assistant credits. Get more to keep chatting.",
       cta: "Get credits",
       soon: "Purchasing coming soon",
+      back: "Back",
     },
   },
   search: {
