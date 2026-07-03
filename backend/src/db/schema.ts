@@ -429,6 +429,16 @@ export const aiCreditLedger = pgTable(
 			.references(() => networks.id, { onDelete: "cascade" }),
 		delta: integer("delta").notNull(), // grant > 0, debit < 0
 		reason: text("reason").notNull(), // "grant" | "debit" | "refund" | "adjustment"
+		// Credit bucket (billing). "subscription" = monthly quota (expires),
+		// "rollover" = carried-over subscription credits (capped), "topup" =
+		// permanent purchased/granted credits. Debit order: subscription →
+		// rollover → topup (spec 2026-07-03 §4.1). Legacy grants default to topup.
+		bucket: text("bucket").notNull().default("topup"),
+		// Validity end for the entry (subscription bucket = period end). A bucket's
+		// balance excludes entries with expires_at <= now(). null = never expires.
+		expiresAt: timestamp("expires_at"),
+		// Links an entry to a subscription billing period (renewal / rollover).
+		periodId: text("period_id"),
 		usageLogId: text("usage_log_id").references(() => aiUsageLog.id, {
 			onDelete: "set null",
 		}),
