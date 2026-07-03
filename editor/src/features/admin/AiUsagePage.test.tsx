@@ -8,6 +8,15 @@ vi.mock("@/lib/api/adminAiUsage", () => ({
   getUsageSummary: (from?: string, to?: string) => summaryMock(from, to),
 }));
 
+vi.mock("@tanstack/react-router", async () => {
+  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  };
+});
+
 afterEach(() => vi.clearAllMocks());
 
 // Intl.NumberFormat("fr") uses a narrow no-break space (U+202F) as the thousands/currency

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { getUsageSummary, type UsageSummary } from "@/lib/api/adminAiUsage";
 import { formatCredits, formatTokens, formatUsdFromMicro } from "@/lib/format";
+import { Link } from "@tanstack/react-router";
 import { BarChart3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -103,14 +104,19 @@ export function AiUsagePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1
-          className="display text-[32px] tracking-tight text-[var(--text)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {t("admin.ai.usage.title")}
-        </h1>
-        <p className="text-[13.5px] text-[var(--text-mut)]">{t("admin.ai.usage.subtitle")}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1
+            className="display text-[32px] tracking-tight text-[var(--text)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {t("admin.ai.usage.title")}
+          </h1>
+          <p className="text-[13.5px] text-[var(--text-mut)]">{t("admin.ai.usage.subtitle")}</p>
+        </div>
+        <Link to="/admin/ai/usage/logs" className="btn btn-sm btn-outline">
+          {t("admin.ai.logs.title")}
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
