@@ -450,3 +450,85 @@ export const aiCreditLedger = pgTable(
 	},
 	(t) => [index("ai_ledger_network_time_idx").on(t.networkId, t.createdAt)],
 );
+
+// Admin-defined top-up packs (one-off credit purchases). Provisioned as a
+// Stripe product+price (stripe_price_id). Credits granted at purchase =
+// credits + round(credits*bonus_pct/100). Cf. spec 2026-07-03 §1.1.
+export const creditPacks = pgTable("credit_packs", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	priceCents: integer("price_cents").notNull(),
+	currency: text("currency").notNull().default("eur"),
+	credits: integer("credits").notNull(),
+	bonusPct: integer("bonus_pct").notNull().default(0),
+	isActive: boolean("is_active").notNull().default(true),
+	sortOrder: integer("sort_order").notNull().default(0),
+	stripeProductId: text("stripe_product_id"),
+	stripePriceId: text("stripe_price_id"),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+});
+
+// Admin-defined recurring subscription plans. interval="month" in V1
+// (year reserved). credits_per_period granted each renewal; rollover_cap caps
+// carried-over credits. Cf. spec §2.1/§2.2.
+export const subscriptionPlans = pgTable("subscription_plans", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	interval: text("interval").notNull().default("month"), // "month" | "year"
+	priceCents: integer("price_cents").notNull(),
+	currency: text("currency").notNull().default("eur"),
+	creditsPerPeriod: integer("credits_per_period").notNull(),
+	rolloverCap: integer("rollover_cap").notNull().default(0),
+	features: text("features").notNull().default(""),
+	isActive: boolean("is_active").notNull().default(true),
+	sortOrder: integer("sort_order").notNull().default(0),
+	stripeProductId: text("stripe_product_id"),
+	stripePriceId: text("stripe_price_id"),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+});
+
+// One row per network with billing state. status null = no subscription.
+// networks.tier stays a denormalized quick flag updated by the webhook (B2).
+export const networkBilling = pgTable("network_billing", {
+	networkId: text("network_id")
+		.primaryKey()
+		.references(() => networks.id, { onDelete: "cascade" }),
+	stripeCustomerId: text("stripe_customer_id"),
+	stripeSubscriptionId: text("stripe_subscription_id"),
+	planId: text("plan_id").references(() => subscriptionPlans.id),
+	status: text("status"), // "active" | "past_due" | "grace" | "canceled" | null
+	currentPeriodEnd: timestamp("current_period_end"),
+	graceUntil: timestamp("grace_until"),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+});
+
+// Audit of top-up purchases (history §1.3). Invoices live in Stripe; we store
+// the hosted invoice URL. credits = credits actually granted (incl. bonus).
+export const creditPurchases = pgTable(
+	"credit_purchases",
+	{
+		id: text("id").primaryKey(),
+		networkId: text("network_id")
+			.notNull()
+			.references(() => networks.id, { onDelete: "cascade" }),
+		packId: text("pack_id").references(() => creditPacks.id),
+		stripeSessionId: text("stripe_session_id"),
+		stripeInvoiceUrl: text("stripe_invoice_url"),
+		amountCents: integer("amount_cents").notNull(),
+		currency: text("currency").notNull().default("eur"),
+		credits: integer("credits").notNull(),
+		createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at").notNull(),
+	},
+	(t) => [index("credit_purchases_network_time_idx").on(t.networkId, t.createdAt)],
+);
+
+// Webhook idempotency: one row per processed Stripe event id (B2 uses it).
+export const stripeEvents = pgTable("stripe_events", {
+	eventId: text("event_id").primaryKey(),
+	type: text("type").notNull(),
+	processedAt: timestamp("processed_at").notNull(),
+});
