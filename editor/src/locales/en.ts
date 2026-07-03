@@ -818,7 +818,7 @@ export default {
       settings: {
         title: "AI settings",
         creditUsdRate: "Credit → USD rate",
-        creditUsdRateHint: "How many credits equal $1 — used to price grants and display real cost.",
+        creditUsdRateHint: "Real $ value of one credit (used for margin and grant pricing).",
         maxCreditsPerTurn: "Max credits per turn",
         maxCreditsPerTurnHint:
           "Caps how many credits a single assistant turn can consume. Leave empty for no cap.",

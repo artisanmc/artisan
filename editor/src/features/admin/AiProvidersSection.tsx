@@ -163,8 +163,13 @@ export function AiProvidersSection() {
   const [adding, setAdding] = useState(false);
 
   async function refetch() {
-    const p = await listProviders();
-    setProviders(p ?? {});
+    try {
+      const p = await listProviders();
+      setProviders(p ?? {});
+    } catch (e) {
+      console.warn("[admin-ai] fetch failed:", e);
+      setProviders({});
+    }
   }
 
   useEffect(() => {

@@ -33,6 +33,14 @@ function toDateInputValue(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/** Custom "to" dates come from a bare <input type="date"> (midnight UTC) — clamp
+ * to the end of that day so the selected day's rows aren't excluded. */
+function endOfDayIso(value: string): string {
+  const d = new Date(value); // date-only strings parse as UTC midnight
+  d.setUTCHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
 function isEmptySummary(s: UsageSummary): boolean {
   const t = s.totals;
   return (
@@ -87,7 +95,7 @@ export function AiUsagePage() {
   function handleCustomTo(value: string) {
     if (!value) return;
     setPeriod("custom");
-    setTo(new Date(value).toISOString());
+    setTo(endOfDayIso(value));
   }
 
   const totals = summary?.totals ?? ZERO_TOTALS;

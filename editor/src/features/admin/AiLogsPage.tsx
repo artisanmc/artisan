@@ -12,6 +12,14 @@ import { useTranslation } from "react-i18next";
 
 const EMPTY_FILTERS: UsageFilters = {};
 
+/** Custom "to" dates come from a bare <input type="date"> (midnight UTC) — clamp
+ * to the end of that day so the selected day's rows aren't excluded. */
+function endOfDayIso(value: string): string {
+  const d = new Date(value); // date-only strings parse as UTC midnight
+  d.setUTCHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
 export function AiLogsPage() {
   const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState<UsageFilters>(EMPTY_FILTERS);
@@ -112,7 +120,7 @@ export function AiLogsPage() {
           <Input
             type="date"
             value={filters.to?.slice(0, 10) ?? ""}
-            onChange={(e) => updateFilter("to", e.target.value ? new Date(e.target.value).toISOString() : "")}
+            onChange={(e) => updateFilter("to", e.target.value ? endOfDayIso(e.target.value) : "")}
           />
         </label>
         <Button type="button" variant="primary" size="sm" onClick={handleApply}>
