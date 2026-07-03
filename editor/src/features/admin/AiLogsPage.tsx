@@ -20,10 +20,16 @@ export function AiLogsPage() {
   const [selectedLog, setSelectedLog] = useState<UsageLogDto | null>(null);
 
   async function fetchLogs(f: UsageFilters, cursor?: string) {
-    const res = await getUsageLogs(f, cursor);
-    if (!res) return;
-    setLogs((prev) => (cursor ? [...prev, ...res.logs] : res.logs));
-    setNextCursor(res.nextCursor);
+    try {
+      const res = await getUsageLogs(f, cursor);
+      if (!res) return;
+      setLogs((prev) => (cursor ? [...prev, ...res.logs] : res.logs));
+      setNextCursor(res.nextCursor);
+    } catch (e) {
+      console.warn("[admin-ai] fetch failed:", e);
+      setLogs([]);
+      setNextCursor(null);
+    }
   }
 
   useEffect(() => {

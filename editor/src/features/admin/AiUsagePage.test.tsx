@@ -157,6 +157,12 @@ describe("AiUsagePage", () => {
     expect(sevenDayFrom).not.toEqual(initialFrom);
   });
 
+  it("degrades to the no-data state without throwing when the fetch rejects", async () => {
+    summaryMock.mockRejectedValue(new Error("network"));
+    render(<AiUsagePage />);
+    expect(await screen.findByText(/aucune donn.e/i)).toBeInTheDocument();
+  });
+
   it("re-fetches with custom from/to when the date inputs change", async () => {
     summaryMock.mockResolvedValue({ totals: { ...zero }, byModel: [], byProvider: [], daily: [] });
     render(<AiUsagePage />);
