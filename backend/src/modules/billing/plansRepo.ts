@@ -80,19 +80,25 @@ export async function updatePlan(id: string, patch: Partial<PlanInput>): Promise
 	if (patch.isActive !== undefined) next.isActive = patch.isActive;
 	if (patch.sortOrder !== undefined) next.sortOrder = patch.sortOrder;
 	if (patch.currency !== undefined) next.currency = patch.currency;
+	// Name change → sync the Stripe product name.
+	if (patch.name !== undefined && patch.name !== existing.name && existing.stripeProductId) {
+		await getStripeGateway().updateProductName(existing.stripeProductId, patch.name);
+	}
 	const intervalChanged = patch.interval !== undefined && patch.interval !== existing.interval;
 	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
 	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
-	if (intervalChanged || priceChanged || currencyChanged) {
-		next.interval = patch.interval ?? existing.interval;
-		next.priceCents = patch.priceCents ?? existing.priceCents;
-		const { productId, priceId } = await getStripeGateway().createProductWithPrice({
-			name: patch.name ?? existing.name,
-			amountCents: next.priceCents,
+	if (intervalChanged) next.interval = patch.interval;
+	if (priceChanged) next.priceCents = patch.priceCents;
+	// Currency, price, or interval change → reuse the existing product and provision a NEW Stripe price.
+	if ((intervalChanged || priceChanged || currencyChanged) && existing.stripeProductId) {
+		const interval = next.interval ?? existing.interval;
+		const priceCents = next.priceCents ?? existing.priceCents;
+		const { priceId } = await getStripeGateway().createPriceForProduct({
+			productId: existing.stripeProductId,
+			amountCents: priceCents,
 			currency: patch.currency ?? existing.currency,
-			recurring: { interval: next.interval as "month" | "year" },
+			recurring: { interval: interval as "month" | "year" },
 		});
-		next.stripeProductId = productId;
 		next.stripePriceId = priceId;
 		if (existing.stripePriceId) await getStripeGateway().archivePrice(existing.stripePriceId);
 	}

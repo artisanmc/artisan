@@ -523,7 +523,12 @@ export const creditPurchases = pgTable(
 		createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
 		createdAt: timestamp("created_at").notNull(),
 	},
-	(t) => [index("credit_purchases_network_time_idx").on(t.networkId, t.createdAt)],
+	(t) => [
+		index("credit_purchases_network_time_idx").on(t.networkId, t.createdAt),
+		uniqueIndex("credit_purchases_session_uniq")
+			.on(t.stripeSessionId)
+			.where(sql`stripe_session_id is not null`),
+	],
 );
 
 // Webhook idempotency: one row per processed Stripe event id (B2 uses it).
