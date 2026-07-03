@@ -135,3 +135,23 @@ describe("webhook invoice.paid", () => {
 		await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
 	});
 });
+
+describe("webhook subscription lifecycle", () => {
+	it("payment_failed sets past_due + a grace window", async () => {
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_f", status: "active", createdAt: new Date(), updatedAt: new Date() });
+		await post({ id: "evt_fail", type: "invoice.payment_failed", data: { object: { subscription: "sub_f" } } });
+		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		expect(row.status).toBe("past_due");
+		expect(row.graceUntil).not.toBeNull();
+	});
+
+	it("subscription.deleted cancels + resets tier to free", async () => {
+		await db.insert(networkBilling).values({ networkId, stripeSubscriptionId: "sub_d", status: "active", createdAt: new Date(), updatedAt: new Date() });
+		await db.update(networks).set({ tier: "Pro" }).where(eq(networks.id, networkId));
+		await post({ id: "evt_del", type: "customer.subscription.deleted", data: { object: { id: "sub_d" } } });
+		const [row] = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+		expect(row.status).toBe("canceled");
+		const [net] = await db.select().from(networks).where(eq(networks.id, networkId));
+		expect(net.tier).toBe("free");
+	});
+});

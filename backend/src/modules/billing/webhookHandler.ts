@@ -26,8 +26,13 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
 			await onCheckoutCompleted(event.data.object);
 		} else if (event.type === "invoice.paid") {
 			await onInvoicePaid(event.data.object);
+		} else if (event.type === "invoice.payment_failed") {
+			await onPaymentFailed(event.data.object);
+		} else if (event.type === "customer.subscription.updated") {
+			await onSubscriptionUpdated(event.data.object);
+		} else if (event.type === "customer.subscription.deleted") {
+			await onSubscriptionDeleted(event.data.object);
 		}
-		// other types added in T6
 	} catch (e) {
 		// Undo the idempotency claim so Stripe's retry reprocesses this event.
 		await db.delete(stripeEvents).where(eq(stripeEvents.eventId, event.id));
@@ -119,4 +124,37 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 		status: "active", currentPeriodEnd: periodEnd, currentPeriodId: newPeriodId, graceUntil: null, updatedAt: new Date(),
 	}).where(eq(networkBilling.networkId, networkId));
 	await db.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
+}
+
+/** Resolve network_billing by Stripe subscription id (the lifecycle events below carry
+ *  the subscription id directly, not our metadata). Returns null if id absent/unknown. */
+async function billingBySubscription(subscriptionId: string | null) {
+	if (!subscriptionId) return null;
+	const rows = await db.select().from(networkBilling).where(eq(networkBilling.stripeSubscriptionId, subscriptionId));
+	return rows[0] ?? null;
+}
+
+async function onPaymentFailed(obj: Record<string, unknown>): Promise<void> {
+	const b = await billingBySubscription(typeof obj.subscription === "string" ? obj.subscription : null);
+	if (!b) return;
+	const graceDays = Number(process.env.BILLING_GRACE_DAYS ?? 7);
+	const graceUntil = new Date(Date.now() + graceDays * 24 * 3600 * 1000);
+	await db.update(networkBilling).set({ status: "past_due", graceUntil, updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
+}
+
+const STATUS_MAP: Record<string, string> = { active: "active", past_due: "past_due", canceled: "canceled", unpaid: "canceled", trialing: "active" };
+
+async function onSubscriptionUpdated(obj: Record<string, unknown>): Promise<void> {
+	const b = await billingBySubscription(typeof obj.id === "string" ? obj.id : null);
+	if (!b) return;
+	const status = STATUS_MAP[String(obj.status)] ?? b.status ?? "active";
+	const end = typeof obj.current_period_end === "number" ? new Date(obj.current_period_end * 1000) : b.currentPeriodEnd;
+	await db.update(networkBilling).set({ status, currentPeriodEnd: end, updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
+}
+
+async function onSubscriptionDeleted(obj: Record<string, unknown>): Promise<void> {
+	const b = await billingBySubscription(typeof obj.id === "string" ? obj.id : null);
+	if (!b) return;
+	await db.update(networkBilling).set({ status: "canceled", updatedAt: new Date() }).where(eq(networkBilling.networkId, b.networkId));
+	await db.update(networks).set({ tier: "free", updatedAt: new Date() }).where(eq(networks.id, b.networkId));
 }
