@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index";
-import { aiCreditLedger, creditPurchases, networkBilling, stripeEvents } from "../../db/schema";
+import { aiCreditLedger, creditPurchases, networkBilling, networks, stripeEvents } from "../../db/schema";
+import { grantCredits } from "../ai/creditsRepo";
+import { renewSubscriptionPeriod } from "../ai/subscriptionCredits";
+import { getNetworkBilling } from "./networkBillingRepo";
 import { creditsForPack, getPack } from "./packsRepo";
+import { getPlan } from "./plansRepo";
 import type { StripeWebhookEvent } from "./stripe";
 
 /** Idempotently process a verified Stripe event. Marks the event id processed
@@ -20,8 +24,10 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
 	try {
 		if (event.type === "checkout.session.completed") {
 			await onCheckoutCompleted(event.data.object);
+		} else if (event.type === "invoice.paid") {
+			await onInvoicePaid(event.data.object);
 		}
-		// other types added in T5/T6
+		// other types added in T6
 	} catch (e) {
 		// Undo the idempotency claim so Stripe's retry reprocesses this event.
 		await db.delete(stripeEvents).where(eq(stripeEvents.eventId, event.id));
@@ -80,4 +86,37 @@ async function onCheckoutCompleted(obj: Record<string, unknown>): Promise<void> 
 			await db.insert(networkBilling).values({ networkId, ...patch, createdAt: now });
 		}
 	}
+}
+
+async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
+	const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
+	const md = (obj.metadata ?? {}) as Record<string, string>;
+	// Resolve network: prefer metadata.networkId, else our stored subscription mapping.
+	let billing: Awaited<ReturnType<typeof getNetworkBilling>> = null;
+	let networkId = md.networkId ?? "";
+	if (networkId) billing = await getNetworkBilling(networkId);
+	if (!billing && subscriptionId) {
+		const rows = await db.select().from(networkBilling).where(eq(networkBilling.stripeSubscriptionId, subscriptionId));
+		billing = rows[0] ?? null;
+		networkId = billing?.networkId ?? "";
+	}
+	if (!billing || !networkId || !billing.planId) return;
+	const plan = await getPlan(billing.planId);
+	if (!plan) return;
+
+	const lines = (obj.lines as { data?: Array<{ period?: { end?: number } }> } | undefined)?.data ?? [];
+	const endUnix = lines[0]?.period?.end;
+	const periodEnd = endUnix ? new Date(endUnix * 1000) : new Date();
+	const newPeriodId = typeof obj.id === "string" ? obj.id : crypto.randomUUID();
+	const isFirst = obj.billing_reason === "subscription_create";
+
+	if (isFirst) {
+		await grantCredits({ networkId, amount: plan.creditsPerPeriod, bucket: "subscription", expiresAt: periodEnd, periodId: newPeriodId, reason: "grant", note: "subscription" });
+	} else {
+		await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: billing.currentPeriodId ?? null, newPeriodId, newPeriodEnd: periodEnd });
+	}
+	await db.update(networkBilling).set({
+		status: "active", currentPeriodEnd: periodEnd, currentPeriodId: newPeriodId, graceUntil: null, updatedAt: new Date(),
+	}).where(eq(networkBilling.networkId, networkId));
+	await db.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
 }
