@@ -57,10 +57,16 @@ export function AiUsagePage() {
 
   useEffect(() => {
     let cancelled = false;
-    getUsageSummary(from, to).then((s) => {
-      if (cancelled) return;
-      setSummary(s ?? { totals: ZERO_TOTALS, byModel: [], byProvider: [], daily: [] });
-    });
+    getUsageSummary(from, to)
+      .then((s) => {
+        if (cancelled) return;
+        setSummary(s ?? { totals: ZERO_TOTALS, byModel: [], byProvider: [], daily: [] });
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        console.warn("[admin-ai] fetch failed:", e);
+        setSummary({ totals: ZERO_TOTALS, byModel: [], byProvider: [], daily: [] });
+      });
     return () => {
       cancelled = true;
     };
