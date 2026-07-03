@@ -73,6 +73,7 @@ export function buildBillingUserRouter(): Hono {
 
 	r.get("/balance", async (c) => {
 		const user = c.get("user");
+		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const networkId = c.req.query("networkId") ?? "";
 		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
 		const b = await getBucketBalances(networkId);
@@ -86,6 +87,7 @@ export function buildBillingUserRouter(): Hono {
 	});
 
 	r.get("/packs", async (c) => {
+		// public catalog (no user needed)
 		const packs = (await listPacks())
 			.filter((p) => p.isActive)
 			.map((p) => ({
@@ -96,6 +98,7 @@ export function buildBillingUserRouter(): Hono {
 	});
 
 	r.get("/plans", async (c) => {
+		// public catalog (no user needed)
 		const plans = (await listPlans())
 			.filter((p) => p.isActive)
 			.map((p) => ({
@@ -107,6 +110,7 @@ export function buildBillingUserRouter(): Hono {
 
 	r.get("/subscription", async (c) => {
 		const user = c.get("user");
+		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const networkId = c.req.query("networkId") ?? "";
 		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
 		const billing = await getNetworkBilling(networkId);
@@ -123,6 +127,7 @@ export function buildBillingUserRouter(): Hono {
 
 	r.get("/purchases", async (c) => {
 		const user = c.get("user");
+		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const networkId = c.req.query("networkId") ?? "";
 		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
 		const purchases = (await listPurchases(networkId)).map((p) => ({

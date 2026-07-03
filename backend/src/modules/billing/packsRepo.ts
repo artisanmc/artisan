@@ -83,11 +83,12 @@ export async function updatePack(id: string, patch: Partial<PackInput>): Promise
 	// Currency or amount change → reuse the existing product and provision a NEW Stripe price.
 	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
 	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
+	if (priceChanged) next.priceCents = patch.priceCents;
 	if ((priceChanged || currencyChanged) && existing.stripeProductId) {
-		next.priceCents = patch.priceCents ?? existing.priceCents;
+		const priceCents = next.priceCents ?? existing.priceCents;
 		const { priceId } = await getStripeGateway().createPriceForProduct({
 			productId: existing.stripeProductId,
-			amountCents: next.priceCents,
+			amountCents: priceCents,
 			currency: patch.currency ?? existing.currency,
 		});
 		next.stripePriceId = priceId;

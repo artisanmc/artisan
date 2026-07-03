@@ -50,6 +50,8 @@ describe("StripeGateway checkout/portal (fake records calls)", () => {
 		const calls: Record<string, unknown> = {};
 		const fake: StripeGateway = {
 			async createProductWithPrice() { return { productId: "prod", priceId: "price" }; },
+			async createPriceForProduct() { return { priceId: "price" }; },
+			async updateProductName() {},
 			async archivePrice() {},
 			async createCustomer(i) { calls.customer = i; return { customerId: "cus_1" }; },
 			async createCheckoutSession(i) { calls.checkout = i; return { url: "https://checkout.test/s" }; },
