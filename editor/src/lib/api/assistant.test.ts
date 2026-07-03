@@ -91,6 +91,18 @@ describe("assistant SSE client", () => {
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(JSON.parse(init.body as string).modelId).toBe("m1");
   });
+  it("streamAssistant yields insufficient_credits on a 402 before reading any stream", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "insufficient_credits", balance: 0 }), {
+          status: 402,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const events: Array<{ type: string; balance?: number }> = [];
+    for await (const e of streamAssistant("tok", "conv1", { text: "hi" })) events.push(e);
+    expect(events).toEqual([{ type: "insufficient_credits", balance: 0 }]);
+  });
   it("getConversation returns the transcript", async () => {
     vi.stubGlobal(
       "fetch",

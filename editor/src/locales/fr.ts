@@ -1382,6 +1382,7 @@ const fr: typeof en = {
       body: "Tu as utilisé tous tes crédits assistant. Obtiens-en plus pour continuer à discuter.",
       cta: "Obtenir des crédits",
       soon: "Achat bientôt disponible",
+      back: "Retour",
     },
   },
   search: {

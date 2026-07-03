@@ -1,5 +1,6 @@
 export type AssistantEvent =
   | { type: "credits"; debited: number; balance: number }
+  | { type: "insufficient_credits"; balance: number }
   | { type: string; [k: string]: unknown };
 
 function apiUrl(): string {
@@ -101,6 +102,13 @@ export async function* streamAssistant(
     credentials: "include",
     body: JSON.stringify(body),
   });
+  // The credits gate rejects BEFORE the stream starts: a plain JSON 402, not
+  // an SSE frame. Detect it here — reading it as a stream would hang/throw.
+  if (res.status === 402) {
+    const json = (await res.json()) as { balance: number };
+    yield { type: "insufficient_credits", balance: json.balance };
+    return;
+  }
   if (!res.ok || !res.body) throw new Error(`streamAssistant failed: ${res.status}`);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
