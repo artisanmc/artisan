@@ -50,7 +50,12 @@ export function AiModelForm({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    listProviders().then(setProviders);
+    listProviders()
+      .then(setProviders)
+      .catch((e: unknown) => {
+        console.warn("[admin-ai] fetch failed:", e);
+        setProviders(null);
+      });
   }, []);
 
   async function save() {
