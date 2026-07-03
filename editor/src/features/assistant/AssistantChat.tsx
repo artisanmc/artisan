@@ -1,6 +1,9 @@
 import type { ProjectId } from "@/domain/types";
+import { BalanceChip } from "@/features/assistant/BalanceChip";
+import { ModelSelector } from "@/features/assistant/ModelSelector";
 import { packToCommandV1, packToDialogV1, packToMenuV1 } from "@/features/export/transform";
 import { persistProject } from "@/features/project/persistProject";
+import { getBalance } from "@/lib/api/aiUser";
 import {
   type ConversationMessage,
   getConversation,
@@ -101,6 +104,8 @@ export function AssistantChat({
   const [activity, setActivity] = useState<string | null>(null);
   const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const convId = useRef<string | null>(conversationId);
 
   // Resume: load the persisted transcript (parent keys us per conversation).
@@ -116,6 +121,19 @@ export function AssistantChat({
       cancelled = true;
     };
   }, [conversationId, token]);
+
+  // Credit balance for this project — shown next to the model picker.
+  useEffect(() => {
+    let cancelled = false;
+    getBalance(token, projectId)
+      .then((b) => {
+        if (!cancelled) setBalance(b);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token, projectId]);
 
   /** Append `chunk` to the trailing assistant entry, or start a new one. */
   function appendAssistant(chunk: string) {
@@ -158,6 +176,7 @@ export function AssistantChat({
         attachments,
         commands,
         dialogs,
+        modelId: modelId ?? undefined,
       })) {
         if (ev.type === "text") {
           // Once the model starts writing its answer, the streamed text is the
@@ -223,6 +242,8 @@ export function AssistantChat({
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
+        } else if (ev.type === "credits") {
+          setBalance(Number(ev.balance));
         } else if (ev.type === "error") {
           const msg = String(ev.message ?? t("assistant.errorGeneric"));
           toast.error(msg);
@@ -355,6 +376,19 @@ export function AssistantChat({
           ))}
         </div>
       )}
+
+      <div
+        data-testid="assistant-composer-toolbar"
+        className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2"
+      >
+        <ModelSelector
+          token={token}
+          value={modelId}
+          onChange={setModelId}
+          onModelsLoaded={(r) => setModelId((cur) => cur ?? r.preferredModelId ?? r.defaultModelId)}
+        />
+        <BalanceChip balance={balance} />
+      </div>
 
       <div className="flex shrink-0 items-end gap-2 border-[var(--border-soft)] border-t p-3">
         <input
