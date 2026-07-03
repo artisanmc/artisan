@@ -87,15 +87,17 @@ export async function updatePlan(id: string, patch: Partial<PlanInput>): Promise
 	const intervalChanged = patch.interval !== undefined && patch.interval !== existing.interval;
 	const priceChanged = patch.priceCents !== undefined && patch.priceCents !== existing.priceCents;
 	const currencyChanged = patch.currency !== undefined && patch.currency !== existing.currency;
+	if (intervalChanged) next.interval = patch.interval;
+	if (priceChanged) next.priceCents = patch.priceCents;
 	// Currency, price, or interval change → reuse the existing product and provision a NEW Stripe price.
 	if ((intervalChanged || priceChanged || currencyChanged) && existing.stripeProductId) {
-		next.interval = patch.interval ?? existing.interval;
-		next.priceCents = patch.priceCents ?? existing.priceCents;
+		const interval = next.interval ?? existing.interval;
+		const priceCents = next.priceCents ?? existing.priceCents;
 		const { priceId } = await getStripeGateway().createPriceForProduct({
 			productId: existing.stripeProductId,
-			amountCents: next.priceCents,
+			amountCents: priceCents,
 			currency: patch.currency ?? existing.currency,
-			recurring: { interval: next.interval as "month" | "year" },
+			recurring: { interval: interval as "month" | "year" },
 		});
 		next.stripePriceId = priceId;
 		if (existing.stripePriceId) await getStripeGateway().archivePrice(existing.stripePriceId);

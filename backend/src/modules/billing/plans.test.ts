@@ -52,7 +52,12 @@ describe("admin plans routes", () => {
 		let recurringSeen: unknown = null;
 		__setStripeGatewayForTests({
 			async createProductWithPrice(input) { recurringSeen = input.recurring; return { productId: "prod_s", priceId: "price_s" }; },
+			async createPriceForProduct() { return { priceId: "price_s2" }; },
+			async updateProductName() {},
 			async archivePrice() {},
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
 		});
 		const post = await app.request("/api/v1/admin/billing/plans", {
 			method: "POST", headers: adminHeaders(),
