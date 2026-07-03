@@ -14,7 +14,12 @@ function fakeGateway(): StripeGateway {
 	let n = 0;
 	return {
 		async createProductWithPrice() { n++; return { productId: `prod_${n}`, priceId: `price_${n}` }; },
+		async createPriceForProduct() { return { priceId: `price_reuse_${n}` }; },
+		async updateProductName() {},
 		async archivePrice(id: string) { archived.push(id); },
+		async createCustomer() { return { customerId: "c" }; },
+		async createCheckoutSession() { return { url: "u" }; },
+		async createPortalSession() { return { url: "u" }; },
 	};
 }
 
@@ -47,7 +52,12 @@ describe("admin plans routes", () => {
 		let recurringSeen: unknown = null;
 		__setStripeGatewayForTests({
 			async createProductWithPrice(input) { recurringSeen = input.recurring; return { productId: "prod_s", priceId: "price_s" }; },
+			async createPriceForProduct() { return { priceId: "price_s2" }; },
+			async updateProductName() {},
 			async archivePrice() {},
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
 		});
 		const post = await app.request("/api/v1/admin/billing/plans", {
 			method: "POST", headers: adminHeaders(),
@@ -244,5 +254,66 @@ describe("admin plans routes", () => {
 	it("POST /billing/plans/:id/deactivate 404 if plan not found", async () => {
 		const res = await app.request("/api/v1/admin/billing/plans/nonexistent/deactivate", { method: "POST", headers: adminHeaders() });
 		expect(res.status).toBe(404);
+	});
+
+	it("PUT reuses the existing Stripe product on reprice (no orphan product) and archives the old price", async () => {
+		const products: string[] = [];
+		const priced: string[] = [];
+		const renamed: Array<[string, string]> = [];
+		const archived2: string[] = [];
+		__setStripeGatewayForTests({
+			async createProductWithPrice() { const p = `prod_${products.length}`; products.push(p); return { productId: p, priceId: `price_${priced.push(p)}` }; },
+			async createPriceForProduct(i) { priced.push(i.productId); return { priceId: `price_reuse_${priced.length}` }; },
+			async updateProductName(id, name) { renamed.push([id, name]); },
+			async archivePrice(id) { archived2.push(id); },
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
+		});
+		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
+		const productCountAfterCreate = products.length;
+		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ priceCents: 2000 }) });
+		const updated = await put.json();
+		expect(products.length).toBe(productCountAfterCreate); // NO new product created on reprice
+		expect(updated.stripePriceId).not.toBe(created.stripePriceId);
+		expect(archived2).toContain(created.stripePriceId);
+	});
+
+	it("PUT renaming updates the Stripe product name", async () => {
+		const renamed: Array<[string, string]> = [];
+		__setStripeGatewayForTests({
+			async createProductWithPrice() { return { productId: "prod_x", priceId: "price_x" }; },
+			async createPriceForProduct() { return { priceId: "price_y" }; },
+			async updateProductName(id, name) { renamed.push([id, name]); },
+			async archivePrice() {},
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
+		});
+		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "Old", priceCents: 1000, creditsPerPeriod: 500 }) })).json();
+		await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ name: "New" }) });
+		expect(renamed).toContainEqual(["prod_x", "New"]);
+	});
+
+	it("PUT reuses the existing Stripe product when interval changes and archives the old price", async () => {
+		const products: string[] = [];
+		const priced: string[] = [];
+		const archived2: string[] = [];
+		__setStripeGatewayForTests({
+			async createProductWithPrice() { const p = `prod_${products.length}`; products.push(p); return { productId: p, priceId: `price_${priced.push(p)}` }; },
+			async createPriceForProduct(i) { priced.push(i.productId); return { priceId: `price_reuse_${priced.length}` }; },
+			async updateProductName() {},
+			async archivePrice(id) { archived2.push(id); },
+			async createCustomer() { return { customerId: "c" }; },
+			async createCheckoutSession() { return { url: "u" }; },
+			async createPortalSession() { return { url: "u" }; },
+		});
+		const created = await (await app.request("/api/v1/admin/billing/plans", { method: "POST", headers: adminHeaders(), body: JSON.stringify({ name: "P", priceCents: 1000, creditsPerPeriod: 500, interval: "month" }) })).json();
+		const productCountAfterCreate = products.length;
+		const put = await app.request(`/api/v1/admin/billing/plans/${created.id}`, { method: "PUT", headers: adminHeaders(), body: JSON.stringify({ interval: "year" }) });
+		const updated = await put.json();
+		expect(products.length).toBe(productCountAfterCreate); // NO new product created on interval change
+		expect(updated.stripePriceId).not.toBe(created.stripePriceId);
+		expect(archived2).toContain(created.stripePriceId);
 	});
 });

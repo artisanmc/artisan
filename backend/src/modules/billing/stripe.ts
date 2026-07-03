@@ -9,9 +9,31 @@ export interface StripeGateway {
 		currency: string;
 		recurring?: { interval: "month" | "year" };
 	}): Promise<{ productId: string; priceId: string }>;
+	/** Create a new price for an existing product (for repricing without orphaning the product). */
+	createPriceForProduct(input: {
+		productId: string;
+		amountCents: number;
+		currency: string;
+		recurring?: { interval: "month" | "year" };
+	}): Promise<{ priceId: string }>;
+	/** Update a product's name in Stripe. */
+	updateProductName(productId: string, name: string): Promise<void>;
 	/** Archive a price (Stripe prices are immutable; deactivating/repricing
 	 *  archives the old one). */
 	archivePrice(priceId: string): Promise<void>;
+	/** Create a Stripe customer with metadata. */
+	createCustomer(input: { metadata: Record<string, string>; email?: string }): Promise<{ customerId: string }>;
+	/** Create a Stripe checkout session for payment or subscription. */
+	createCheckoutSession(input: {
+		mode: "payment" | "subscription";
+		priceId: string;
+		customerId: string;
+		successUrl: string;
+		cancelUrl: string;
+		metadata: Record<string, string>;
+	}): Promise<{ url: string }>;
+	/** Create a Stripe billing portal session. */
+	createPortalSession(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
 }
 
 class RealStripeGateway implements StripeGateway {
@@ -34,8 +56,59 @@ class RealStripeGateway implements StripeGateway {
 		});
 		return { productId: product.id, priceId: price.id };
 	}
+	async createPriceForProduct(input: {
+		productId: string;
+		amountCents: number;
+		currency: string;
+		recurring?: { interval: "month" | "year" };
+	}): Promise<{ priceId: string }> {
+		const price = await this.stripe.prices.create({
+			product: input.productId,
+			unit_amount: input.amountCents,
+			currency: input.currency,
+			...(input.recurring ? { recurring: { interval: input.recurring.interval } } : {}),
+		});
+		return { priceId: price.id };
+	}
+	async updateProductName(productId: string, name: string): Promise<void> {
+		await this.stripe.products.update(productId, { name });
+	}
 	async archivePrice(priceId: string): Promise<void> {
 		await this.stripe.prices.update(priceId, { active: false });
+	}
+	async createCustomer(input: { metadata: Record<string, string>; email?: string }): Promise<{ customerId: string }> {
+		const customer = await this.stripe.customers.create({
+			metadata: input.metadata,
+			...(input.email ? { email: input.email } : {}),
+		});
+		return { customerId: customer.id };
+	}
+	async createCheckoutSession(input: {
+		mode: "payment" | "subscription";
+		priceId: string;
+		customerId: string;
+		successUrl: string;
+		cancelUrl: string;
+		metadata: Record<string, string>;
+	}): Promise<{ url: string }> {
+		const session = await this.stripe.checkout.sessions.create({
+			mode: input.mode,
+			customer: input.customerId,
+			line_items: [{ price: input.priceId, quantity: 1 }],
+			success_url: input.successUrl,
+			cancel_url: input.cancelUrl,
+			metadata: input.metadata,
+			...(input.mode === "subscription" ? { subscription_data: { metadata: input.metadata } } : {}),
+		});
+		if (!session.url) throw new Error("Stripe did not return a checkout url");
+		return { url: session.url };
+	}
+	async createPortalSession(input: { customerId: string; returnUrl: string }): Promise<{ url: string }> {
+		const session = await this.stripe.billingPortal.sessions.create({
+			customer: input.customerId,
+			return_url: input.returnUrl,
+		});
+		return { url: session.url };
 	}
 }
 
