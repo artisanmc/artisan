@@ -1,7 +1,6 @@
-export interface AssistantEvent {
-  type: string;
-  [k: string]: unknown;
-}
+export type AssistantEvent =
+  | { type: "credits"; debited: number; balance: number }
+  | { type: string; [k: string]: unknown };
 
 function apiUrl(): string {
   return (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
@@ -92,6 +91,8 @@ export async function* streamAssistant(
     commands?: unknown[];
     /** Full dialog/v1 objects (was summaries; now full for get_dialog/editing). */
     dialogs?: unknown[];
+    /** Model override for this turn (provider default used when omitted). */
+    modelId?: string;
   },
 ): AsyncGenerator<AssistantEvent> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${conversationId}/messages`, {
