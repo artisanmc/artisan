@@ -36,6 +36,7 @@
 | `modules/ai/routes.ts` | `/api/v1/ai/models`, `/api/v1/ai/balance`, `/api/v1/ai/preferred-model` — Sélecteur user : modèles actifs + estimations, solde network (dual-auth `sk:`/`user:`), modèle préféré. Auth **editor-session OU user-session**. |
 | `modules/ai/adminRoutes.ts` | `admin/ai/models` (GET/POST/PUT), `admin/ai/models/:id/default` (PUT — marque défaut unique), `admin/ai/models/:id/test` (POST), `admin/ai/providers` (GET/PUT `[/:slug]`), `admin/ai/settings` (GET/PUT), `admin/ai/credits/grant` (POST), `admin/ai/usage/summary` (GET — totaux + marge, répartitions, série journalière), `admin/ai/usage/logs` (GET — filtrables + export CSV), `admin/ai/users/:userId` (GET — focus user) — Catalogue de modèles IA (CRUD + défaut unique + test live), credentials providers (write-only), settings credits, grant admin, analytics consommations. Auth **super-admin**. |
 | `adminUsers.ts` | `admin/users` (GET — liste + recherche `?q=` sur nom/email, ilike ; expose `hasPassword`, **jamais `passwordHash`**), `admin/users/:id` (GET — profil + networks/rôles via `memberships`), `admin/users/:id` (PATCH — `name`/`email`/`isAdmin` ; email normalisé trim+lowercase, unique → 409 `email_taken`, 422 `invalid_email`/`invalid_name` ; un admin ne peut pas se retirer son propre flag → 422 `cannot_demote_self`). Auth **super-admin**. |
+| `modules/billing/adminRoutes.ts` | `/api/v1/admin/billing/packs*`, `/api/v1/admin/billing/plans*` | CRUD admin des packs de credits + formules d'abonnement (provisionne les products/prices Stripe) |
 
 ## Flux non-évidents
 
