@@ -8,12 +8,12 @@ describe("ServerKebabMenu", () => {
     render(<ServerKebabMenu serverId="sk1" onAction={onAction} />);
     // trigger open — aria-label is translated, match both locales
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
-    // 6 menu items must be present
-    expect(screen.getAllByRole("menuitem")).toHaveLength(6);
+    // 5 menu items must be present
+    expect(screen.getAllByRole("menuitem")).toHaveLength(5);
     // "Edit server…" / "Modifier le serveur…"
     expect(screen.getByRole("menuitem", { name: /edit|modifier/i })).toBeInTheDocument();
-    // "Rotate key…" / "Renouveler la clé…"
-    expect(screen.getByRole("menuitem", { name: /rotate|renouveler/i })).toBeInTheDocument();
+    // "Generate new key…" / "Générer une nouvelle clé…"
+    expect(screen.getByRole("menuitem", { name: /generate|générer/i })).toBeInTheDocument();
     // "Connection history" / "Historique de connexion"
     expect(screen.getByRole("menuitem", { name: /history|historique/i })).toBeInTheDocument();
     // "IP allowlist" / "Allowlist d'IP"
@@ -21,7 +21,7 @@ describe("ServerKebabMenu", () => {
     // "Delete server…" / "Supprimer le serveur…"
     expect(screen.getByRole("menuitem", { name: /delete|supprimer/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /rotate|renouveler/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /generate|générer/i }));
     expect(onAction).toHaveBeenCalledWith("rotate", "sk1");
   });
 });
