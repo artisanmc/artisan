@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index";
 import { aiCreditLedger, networks } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
-import { getBalance, grantCredits, listLedger, getBucketBalances, type BucketType } from "./creditsRepo";
+import { getBalance, grantCredits, listLedger, getBucketBalances, debitBuckets, type BucketType } from "./creditsRepo";
 
 let networkId = "";
 
@@ -59,5 +59,43 @@ describe("creditsRepo", () => {
 		const [row] = await db.select().from(aiCreditLedger).where(eq(aiCreditLedger.id, id));
 		expect(row.bucket).toBe("topup");
 		expect(row.expiresAt).toBeNull();
+	});
+
+	it("debitBuckets consumes subscription → rollover → topup in order", async () => {
+		const now = new Date();
+		await grantCredits({ networkId, amount: 30, bucket: "subscription" });
+		await grantCredits({ networkId, amount: 20, bucket: "rollover" });
+		await grantCredits({ networkId, amount: 100, bucket: "topup" });
+		// debit 65 → 30 sub + 20 rollover + 15 topup
+		const br = await db.transaction((tx) => debitBuckets(tx, networkId, 65, { now }));
+		expect(br).toEqual({ subscription: 30, rollover: 20, topup: 15, total: 65 });
+		const b = await getBucketBalances(networkId);
+		expect(b.subscription).toBe(0);
+		expect(b.rollover).toBe(0);
+		expect(b.topup).toBe(85);
+	});
+
+	it("debitBuckets puts the shortfall on topup (can go negative) when funds are insufficient", async () => {
+		const now = new Date();
+		await grantCredits({ networkId, amount: 10, bucket: "subscription" });
+		const br = await db.transaction((tx) => debitBuckets(tx, networkId, 25, { now }));
+		expect(br.subscription).toBe(10);
+		expect(br.topup).toBe(15); // 15 debited from topup even though it was 0 → -15
+		expect(br.total).toBe(25);
+		expect(await getBalance(networkId)).toBe(-15);
+	});
+
+	it("debitBuckets writes one negative ledger entry per consumed bucket, tagged", async () => {
+		const now = new Date();
+		await grantCredits({ networkId, amount: 5, bucket: "subscription" });
+		await grantCredits({ networkId, amount: 5, bucket: "topup" });
+		await db.transaction((tx) => debitBuckets(tx, networkId, 8, { now, usageLogId: null }));
+		const debits = await db.select().from(aiCreditLedger)
+			.where(and(eq(aiCreditLedger.networkId, networkId), eq(aiCreditLedger.reason, "debit")));
+		expect(debits.length).toBe(2);
+		const byBucket = Object.fromEntries(debits.map((d) => [d.bucket, d.delta]));
+		expect(byBucket.subscription).toBe(-5);
+		expect(byBucket.topup).toBe(-3);
+		expect(debits.every((d) => d.reason === "debit")).toBe(true);
 	});
 });

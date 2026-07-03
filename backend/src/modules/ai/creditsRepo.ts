@@ -12,6 +12,13 @@ export interface BucketBalances {
 	total: number;
 }
 
+export interface DebitBreakdown {
+	subscription: number;
+	rollover: number;
+	topup: number;
+	total: number;
+}
+
 export interface LedgerEntry {
 	id: string;
 	networkId: string;
@@ -49,6 +56,67 @@ export async function getBucketBalances(networkId: string): Promise<BucketBalanc
 	const rollover = by.rollover ?? 0;
 	const topup = by.topup ?? 0;
 	return { subscription, rollover, topup, total: subscription + rollover + topup };
+}
+
+type DbOrTx = typeof db;
+
+/**
+ * Debit `amount` credits from a network, walking buckets in DEBIT_ORDER
+ * (subscription → rollover → topup). Writes one negative ledger entry per
+ * consumed bucket. Any shortfall (insufficient funds) is applied to topup,
+ * which may go negative — consistent with the pre-check-then-debit model where
+ * concurrent turns can briefly overshoot. Runs inside the caller's transaction.
+ */
+export async function debitBuckets(
+	tx: DbOrTx,
+	networkId: string,
+	amount: number,
+	opts: { usageLogId?: string | null; now: Date },
+): Promise<DebitBreakdown> {
+	// Available balance per bucket (non-expired), within the caller's tx.
+	const rows = await tx
+		.select({
+			bucket: aiCreditLedger.bucket,
+			balance: sql<number>`coalesce(sum(${aiCreditLedger.delta}), 0)::int`,
+		})
+		.from(aiCreditLedger)
+		.where(and(eq(aiCreditLedger.networkId, networkId), notExpired))
+		.groupBy(aiCreditLedger.bucket);
+	const avail: Record<BucketType, number> = { subscription: 0, rollover: 0, topup: 0 };
+	for (const r of rows) if (r.bucket in avail) avail[r.bucket as BucketType] = r.balance;
+
+	const taken: Record<BucketType, number> = { subscription: 0, rollover: 0, topup: 0 };
+	let remaining = amount;
+	for (const bucket of DEBIT_ORDER) {
+		if (remaining <= 0) break;
+		const take = Math.min(Math.max(avail[bucket], 0), remaining);
+		if (take > 0) {
+			taken[bucket] = take;
+			remaining -= take;
+		}
+	}
+	// Shortfall → topup (may go negative).
+	if (remaining > 0) taken.topup += remaining;
+
+	for (const bucket of DEBIT_ORDER) {
+		if (taken[bucket] > 0) {
+			await tx.insert(aiCreditLedger).values({
+				id: crypto.randomUUID(),
+				networkId,
+				delta: -taken[bucket],
+				reason: "debit",
+				bucket,
+				usageLogId: opts.usageLogId ?? null,
+				createdAt: opts.now,
+			});
+		}
+	}
+	return {
+		subscription: taken.subscription,
+		rollover: taken.rollover,
+		topup: taken.topup,
+		total: taken.subscription + taken.rollover + taken.topup,
+	};
 }
 
 export async function grantCredits(input: {
