@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/index";
 import { aiCreditLedger, aiModels, aiUsageLog, networks } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
-import { getBalance, grantCredits } from "./creditsRepo";
+import { getBalance, grantCredits, getBucketBalances } from "./creditsRepo";
 import { createModel, type AiModel } from "./modelRepo";
 import { recordDebitedTurn, recordErrorTurn } from "./usageRepo";
 
@@ -61,6 +61,24 @@ describe("recordDebitedTurn", () => {
 		const rows = await db.select().from(aiCreditLedger)
 			.where(eq(aiCreditLedger.usageLogId, res.usageLogId));
 		expect(rows.length).toBe(0);
+	});
+
+	it("recordDebitedTurn draws from subscription before topup", async () => {
+		// Clear prior test state to isolate this test
+		await db.delete(aiCreditLedger).where(eq(aiCreditLedger.networkId, networkId));
+		// model prices: 1000 cpmIn / 2000 cpmOut (from the test fixture). Usage
+		// 500k in / 100k out → ceil((500k·1000 + 100k·2000)/1M) = 700 credits.
+		await grantCredits({ networkId, amount: 400, bucket: "subscription" });
+		await grantCredits({ networkId, amount: 1000, bucket: "topup" });
+		const res = await recordDebitedTurn({
+			networkId, model,
+			usage: { inputTokens: 500_000, outputTokens: 100_000 },
+			promptPreview: "x",
+		});
+		expect(res.debited).toBe(700);
+		const b = await getBucketBalances(networkId);
+		expect(b.subscription).toBe(0); // 400 consumed
+		expect(b.topup).toBe(700); // 1000 − 300 remainder
 	});
 });
 
