@@ -34,6 +34,7 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
 			await onSubscriptionDeleted(event.data.object);
 		}
 	} catch (e) {
+		console.error(`[billing/webhook] handler failed for event ${event.id} (${event.type}); undoing claim so Stripe retries`, e);
 		// Undo the idempotency claim so Stripe's retry reprocesses this event.
 		await db.delete(stripeEvents).where(eq(stripeEvents.eventId, event.id));
 		throw e;
@@ -47,7 +48,12 @@ async function onCheckoutCompleted(obj: Record<string, unknown>): Promise<void> 
 
 	if (md.kind === "pack") {
 		const pack = await getPack(md.packId);
-		if (!pack) return;
+		if (!pack) {
+			// Customer paid but the pack is gone — surface it for post-mortem; the
+			// event stays claimed (retry can't recover a deleted pack).
+			console.error(`[billing/webhook] checkout.session.completed: pack ${md.packId} not found for paid session ${String(obj.id)} (network ${networkId}) — credits NOT granted`);
+			return;
+		}
 		const credits = creditsForPack(pack);
 		const sessionId = typeof obj.id === "string" ? obj.id : null;
 		await db.transaction(async (tx) => {
