@@ -99,6 +99,12 @@ describe("AiLogsPage", () => {
     openSpy.mockRestore();
   });
 
+  it("shows the empty state without throwing when the fetch rejects", async () => {
+    getUsageLogsMock.mockRejectedValue(new Error("network"));
+    render(<AiLogsPage />);
+    expect(await screen.findByText(/aucune entr.e de log/i)).toBeInTheDocument();
+  });
+
   it("shows the prompt preview when a row is clicked", async () => {
     getUsageLogsMock.mockResolvedValue({
       logs: [makeLog({ promptPreview: "Unique preview text 42" })],

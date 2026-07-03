@@ -103,6 +103,12 @@ describe("UserAiTab", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
+  it("degrades to the no-usage state without throwing when the fetch rejects", async () => {
+    getUserFocusMock.mockRejectedValue(new Error("network"));
+    render(<UserAiTab userId="u2" />);
+    expect(await screen.findByText(/aucune consommation ia/i)).toBeInTheDocument();
+  });
+
   it("shows a toast error when the grant amount is invalid", async () => {
     getUserFocusMock.mockResolvedValue(FOCUS);
     grantCreditsMock.mockResolvedValue({ ok: false, status: 400, error: "invalid_amount" });

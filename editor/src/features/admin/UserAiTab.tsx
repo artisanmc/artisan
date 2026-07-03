@@ -134,16 +134,27 @@ export function UserAiTab({ userId }: { userId: string }) {
   }, [period]);
 
   function refetch() {
-    getUserFocus(userId, range.from, range.to).then((f) => {
-      setFocus(f);
-    });
+    getUserFocus(userId, range.from, range.to)
+      .then((f) => {
+        setFocus(f);
+      })
+      .catch((e: unknown) => {
+        console.warn("[admin-ai] fetch failed:", e);
+        setFocus(null);
+      });
   }
 
   useEffect(() => {
     let cancelled = false;
-    getUserFocus(userId, range.from, range.to).then((f) => {
-      if (!cancelled) setFocus(f);
-    });
+    getUserFocus(userId, range.from, range.to)
+      .then((f) => {
+        if (!cancelled) setFocus(f);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        console.warn("[admin-ai] fetch failed:", e);
+        setFocus(null);
+      });
     return () => {
       cancelled = true;
     };
