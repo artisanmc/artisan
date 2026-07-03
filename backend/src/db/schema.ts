@@ -501,6 +501,10 @@ export const networkBilling = pgTable("network_billing", {
 	status: text("status"), // "active" | "past_due" | "grace" | "canceled" | null
 	currentPeriodEnd: timestamp("current_period_end"),
 	graceUntil: timestamp("grace_until"),
+	// periodId of the current subscription period (Stripe invoice/period id).
+	// The recurring invoice.paid webhook passes it as renewSubscriptionPeriod's
+	// closingPeriodId, then overwrites it with the new period.
+	currentPeriodId: text("current_period_id"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 });
