@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCredits, formatTokens, formatUsdFromMicro } from "./format";
+import { formatCredits, formatMoney, formatTokens, formatUsdFromMicro } from "./format";
 
 describe("format", () => {
   it("formatCredits groups thousands", () => {
@@ -16,5 +16,9 @@ describe("format", () => {
   });
   it("formatTokens groups thousands", () => {
     expect(formatTokens(1_000_000, "en")).toBe("1,000,000");
+  });
+  it("formatMoney renders cents in the given currency + locale", () => {
+    expect(formatMoney(1000, "eur", "fr").replace(/ /g, " ")).toContain("10,00");
+    expect(formatMoney(2500, "usd", "en")).toBe("$25.00");
   });
 });

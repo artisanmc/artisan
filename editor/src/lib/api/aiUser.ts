@@ -1,3 +1,5 @@
+import type { BalanceBreakdown } from "./billing";
+
 const apiUrl = (): string =>
   (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 
@@ -26,12 +28,12 @@ export async function getModels(token: string | null): Promise<ModelsResponse | 
   return (await res.json()) as ModelsResponse;
 }
 
-export async function getBalance(token: string | null, projectId: string): Promise<number | null> {
+export async function getBalance(token: string | null, projectId: string): Promise<BalanceBreakdown | null> {
   const res = await fetch(`${apiUrl()}/api/v1/ai/balance?projectId=${encodeURIComponent(projectId)}`, {
     credentials: "include", headers: authHeaders(token),
   });
   if (!res.ok) return null;
-  return ((await res.json()) as { balance: number }).balance;
+  return (await res.json()) as BalanceBreakdown;
 }
 
 export async function setPreferredModel(token: string | null, modelId: string): Promise<boolean> {
