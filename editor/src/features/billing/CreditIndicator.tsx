@@ -24,12 +24,14 @@ export function creditTone(b: BalanceBreakdown): CreditTone {
 }
 
 // tone → semantic token for the status dot (no hex/rgba literals).
-// Mirrors the sage/amber/terra/brick Badge variant palette (badge-sage → --success,
-// badge-amber → --warning, badge-terra → --brand, badge-brick → --danger).
+// Traffic-light tones — must stay visually distinct so a low/critical balance
+// alarms. --brand is NOT used: it equals --success (emerald) in the light theme,
+// which would make "critical" indistinguishable from "ok". Both critical and
+// empty use --danger (act-now red); low is --warning (amber); ok is --success.
 const DOT: Record<CreditTone, string> = {
 	ok: "var(--success)",
 	low: "var(--warning)",
-	critical: "var(--brand)",
+	critical: "var(--danger)",
 	empty: "var(--danger)",
 };
 
