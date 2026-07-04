@@ -4,7 +4,7 @@ import { db } from "../../db/index";
 import { users } from "../../db/schema";
 import { resolveOwnerKey } from "../../lib/ownerKey";
 import { resolveProjectAccess } from "../../lib/projectAccess";
-import { getBalance } from "./creditsRepo";
+import { getBucketBalances } from "./creditsRepo";
 import { getModel, listModels, type AiModel } from "./modelRepo";
 import { computeCreditsCharged } from "./pricing";
 
@@ -65,7 +65,8 @@ export function buildAiRouter(): Hono {
 		const access = await resolveProjectAccess(c.get("ownerKey") as string, projectId);
 		if (!access.ok)
 			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
-		return c.json({ balance: await getBalance(access.networkId) });
+		const b = await getBucketBalances(access.networkId);
+		return c.json({ balance: b.total, ...b });
 	});
 
 	r.put("/preferred-model", async (c) => {
