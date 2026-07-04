@@ -1358,6 +1358,7 @@ export default {
       checkoutSuccess: "Payment received — your credits will appear shortly.",
       checkoutCancel: "Checkout cancelled.",
       checkoutError: "Could not start checkout. Try again.",
+      active: "Active",
     },
   },
   assistant: {
