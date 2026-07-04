@@ -1359,6 +1359,10 @@ export default {
       checkoutCancel: "Checkout cancelled.",
       checkoutError: "Could not start checkout. Try again.",
       active: "Active",
+      statusActive: "Active",
+      statusPastDue: "Payment overdue",
+      statusCanceled: "Canceled",
+      graceUntil: "Grace period until {{date}}",
     },
   },
   assistant: {

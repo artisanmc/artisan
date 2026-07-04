@@ -28,6 +28,19 @@ import { useTranslation } from "react-i18next";
 
 type Banner = "success" | "cancel" | "error" | null;
 
+/** Subscription status → Badge variant (green healthy, amber overdue, red canceled). */
+function statusVariant(status: string | null | undefined): "sage" | "amber" | "brick" {
+  if (status === "past_due") return "amber";
+  if (status === "canceled" || status === "unpaid") return "brick";
+  return "sage";
+}
+/** Subscription status → translated label (never render the raw backend enum). */
+function statusLabel(t: (k: string) => string, status: string | null | undefined): string {
+  if (status === "past_due") return t("billing.page.statusPastDue");
+  if (status === "canceled" || status === "unpaid") return t("billing.page.statusCanceled");
+  return t("billing.page.statusActive");
+}
+
 export function CreditsPage() {
   const { t, i18n } = useTranslation();
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -66,12 +79,18 @@ export function CreditsPage() {
 
   useEffect(() => {
     if (!activeId) return;
+    let cancelled = false;
     if (search.checkout === "success") {
       setBanner("success");
-      getBillingBalance(activeId).then((b) => setBalance(b));
+      getBillingBalance(activeId).then((b) => {
+        if (!cancelled) setBalance(b);
+      });
     } else if (search.checkout === "cancel") {
       setBanner("cancel");
     }
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.checkout, activeId]);
 
@@ -208,11 +227,18 @@ export function CreditsPage() {
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
               <div className="flex items-center gap-2">
-                <Badge variant="sage">{subscription.status}</Badge>
+                <Badge variant={statusVariant(subscription.status)}>{statusLabel(t, subscription.status)}</Badge>
                 {subscription.currentPeriodEnd && (
                   <span className="text-[13px] text-[var(--text-mut)]">
                     {t("billing.page.renewsOn", {
                       date: new Date(subscription.currentPeriodEnd).toLocaleDateString(i18n.language),
+                    })}
+                  </span>
+                )}
+                {subscription.graceUntil && (
+                  <span className="text-[13px] text-[var(--warning)]">
+                    {t("billing.page.graceUntil", {
+                      date: new Date(subscription.graceUntil).toLocaleDateString(i18n.language),
                     })}
                   </span>
                 )}

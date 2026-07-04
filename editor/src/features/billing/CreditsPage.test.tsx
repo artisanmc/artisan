@@ -97,4 +97,20 @@ describe("CreditsPage", () => {
     render(<CreditsPage />);
     await waitFor(() => expect(screen.getByText(/Paiement reçu/)).toBeTruthy());
   });
+
+  it("translates a past_due subscription status + shows the grace window (never the raw enum)", async () => {
+    signedIn();
+    const billing = await import("@/lib/api/billing");
+    vi.mocked(billing.getSubscription).mockResolvedValueOnce({
+      status: "past_due",
+      planId: "pl1",
+      planName: "Pro",
+      currentPeriodEnd: "2999-02-01T00:00:00Z",
+      graceUntil: "2999-01-08T00:00:00Z",
+    });
+    render(<CreditsPage />);
+    await waitFor(() => expect(screen.getByText(/Paiement en retard/)).toBeTruthy());
+    expect(screen.queryByText("past_due")).toBeNull();
+    expect(screen.getByText(/Période de grâce/)).toBeTruthy();
+  });
 });
