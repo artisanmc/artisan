@@ -24,9 +24,12 @@ describe("aiUser client", () => {
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
-  it("getBalance returns the number", async () => {
-    stub(200, { balance: 250 });
-    expect(await getBalance("t", "proj1")).toBe(250);
+  it("getBalance returns the bucket breakdown", async () => {
+    stub(200, { balance: 250, total: 250, subscription: 100, rollover: 0, topup: 150 });
+    const b = await getBalance("t", "proj1");
+    expect(b?.total).toBe(250);
+    expect(b?.subscription).toBe(100);
+    expect(b?.topup).toBe(150);
   });
 
   it("getBalance returns null on 403", async () => {
