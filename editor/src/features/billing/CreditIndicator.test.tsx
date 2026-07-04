@@ -6,10 +6,14 @@ describe("creditTone", () => {
 	it("empty when total <= 0", () => {
 		expect(creditTone({ total: 0, subscription: 0, rollover: 0, topup: 0 })).toBe("empty");
 	});
-	it("critical/low/ok by subscription vs quota", () => {
-		expect(creditTone({ total: 100, subscription: 4, rollover: 0, topup: 96, subscriptionQuota: 100 })).toBe("critical");
-		expect(creditTone({ total: 100, subscription: 15, rollover: 0, topup: 85, subscriptionQuota: 100 })).toBe("low");
+	it("critical/low/ok by TOTAL vs quota", () => {
+		expect(creditTone({ total: 4, subscription: 4, rollover: 0, topup: 0, subscriptionQuota: 100 })).toBe("critical");
+		expect(creditTone({ total: 15, subscription: 15, rollover: 0, topup: 0, subscriptionQuota: 100 })).toBe("low");
 		expect(creditTone({ total: 100, subscription: 80, rollover: 0, topup: 20, subscriptionQuota: 100 })).toBe("ok");
+	});
+	it("does NOT cry wolf when subscription is spent but rollover/top-up remain", () => {
+		// subscription bucket empty at period-end, but 5000 top-up left → healthy.
+		expect(creditTone({ total: 5000, subscription: 0, rollover: 0, topup: 5000, subscriptionQuota: 1000 })).toBe("ok");
 	});
 	it("ok when positive and no quota", () => {
 		expect(creditTone({ total: 50, subscription: 0, rollover: 0, topup: 50 })).toBe("ok");
