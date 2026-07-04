@@ -1,0 +1,32 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { creditTone, CreditIndicator } from "./CreditIndicator";
+
+describe("creditTone", () => {
+	it("empty when total <= 0", () => {
+		expect(creditTone({ total: 0, subscription: 0, rollover: 0, topup: 0 })).toBe("empty");
+	});
+	it("critical/low/ok by subscription vs quota", () => {
+		expect(creditTone({ total: 100, subscription: 4, rollover: 0, topup: 96, subscriptionQuota: 100 })).toBe("critical");
+		expect(creditTone({ total: 100, subscription: 15, rollover: 0, topup: 85, subscriptionQuota: 100 })).toBe("low");
+		expect(creditTone({ total: 100, subscription: 80, rollover: 0, topup: 20, subscriptionQuota: 100 })).toBe("ok");
+	});
+	it("ok when positive and no quota", () => {
+		expect(creditTone({ total: 50, subscription: 0, rollover: 0, topup: 50 })).toBe("ok");
+	});
+});
+
+describe("CreditIndicator", () => {
+	it("renders null while loading (balance null)", () => {
+		const { container } = render(<CreditIndicator balance={null} onRecharge={() => {}} />);
+		expect(container.firstChild).toBeNull();
+	});
+	it("shows the total (FR locale)", () => {
+		render(<CreditIndicator balance={{ total: 1200, subscription: 0, rollover: 0, topup: 1200 }} onRecharge={() => {}} />);
+		expect(screen.getByText(/1\s?200 crédits/)).toBeTruthy();
+	});
+	it("exposes a data-tone attribute for the empty state", () => {
+		render(<CreditIndicator balance={{ total: 0, subscription: 0, rollover: 0, topup: 0 }} onRecharge={() => {}} />);
+		expect(document.querySelector('[data-tone="empty"]')).toBeTruthy();
+	});
+});
