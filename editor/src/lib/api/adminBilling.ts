@@ -62,6 +62,8 @@ export async function listPacks(): Promise<AdminPack[] | null> {
 export const createPack = (input: PackInput) => mutate<AdminPack>("/api/v1/admin/billing/packs", "POST", input);
 export const updatePack = (id: string, patch: Partial<PackInput>) =>
   mutate<AdminPack>(`/api/v1/admin/billing/packs/${id}`, "PUT", patch);
+// NOTE: the backend deactivate route returns only `{ ok: true }`, not the full
+// object — check `.ok` and reload the list; do NOT read `.data` fields here.
 export const deactivatePack = (id: string) =>
   mutate<AdminPack>(`/api/v1/admin/billing/packs/${id}/deactivate`, "POST");
 
@@ -73,6 +75,7 @@ export async function listPlans(): Promise<AdminPlan[] | null> {
 export const createPlan = (input: PlanInput) => mutate<AdminPlan>("/api/v1/admin/billing/plans", "POST", input);
 export const updatePlan = (id: string, patch: Partial<PlanInput>) =>
   mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}`, "PUT", patch);
+// NOTE: backend returns only `{ ok: true }` — check `.ok` + reload, don't read `.data`.
 export const deactivatePlan = (id: string) =>
   mutate<AdminPlan>(`/api/v1/admin/billing/plans/${id}/deactivate`, "POST");
 
