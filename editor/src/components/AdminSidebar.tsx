@@ -1,6 +1,6 @@
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, BarChart3, Bot, Palette, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, CreditCard, Palette, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { UserMenu } from "./UserMenu";
 
@@ -16,6 +16,7 @@ export function AdminSidebar() {
     { to: "/admin/ai", label: t("admin.nav.aiModels"), Icon: Bot },
     { to: "/admin/ai/usage", label: t("admin.nav.aiUsage"), Icon: BarChart3 },
     { to: "/admin/users", label: t("admin.nav.users"), Icon: Users },
+    { to: "/admin/billing", label: t("admin.nav.billing"), Icon: CreditCard },
     { to: "/admin/design", label: t("admin.nav.design"), Icon: Palette },
   ] as const;
 
