@@ -36,7 +36,7 @@ L'assistant IA est shippé avec **un seul modèle global** (`app_settings.assist
 
 ## Non-goals (V1)
 
-- **Achat réel de credits** (Stripe, abonnements) — page placeholder seulement.
+- **Achat réel de credits** (Stripe, abonnements) — ~~page placeholder seulement~~ **RÉALISÉ** par le sous-projet billing C : la route `/credits` est désormais une vraie page (achat de packs + abonnement via Stripe Checkout, gestion via Customer Portal, historique). Voir `docs/superpowers/plans/2026-07-04-billing-C-credit-ui.md`.
 - Rate limiting par user, discounts/promo codes, sélection automatique du modèle selon la tâche, A/B testing (hors périmètre cahier des charges).
 - **Suppression de modèle** — désactivation uniquement (l'historique y réfère).
 - Grant automatique à la création de network.
@@ -169,7 +169,7 @@ Design system d'abord (`components/ui` + tokens, spécimen `/admin/design` pour 
 
 - **Sélecteur de modèle** dans le composer : dropdown des modèles actifs — nom, badge, description, estimation « ~N credits / message · ~M credits / migration de menu ». Profils de tokens typiques = **constantes code** en V1 (ex. chat ≈ 2k in / 500 out ; migration ≈ 10k in / 3k out) × prix du modèle. Présélection : `preferred_ai_model_id` → sinon défaut. Le `modelId` part avec **chaque message** → changement en cours de conversation sans conversion (transcript provider-agnostique).
 - **Chip solde** du network en tête de panneau, mis à jour par l'événement SSE `credits`.
-- **État « plus de credits »** : composer désactivé + explication + CTA vers page placeholder achat (« bientôt disponible »).
+- **État « plus de credits »** : composer désactivé + explication + CTA vers la page `/credits` (achat réel, sous-projet billing C).
 
 ## Cas limites & règles
 
