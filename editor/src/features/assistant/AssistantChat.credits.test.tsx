@@ -12,7 +12,7 @@ vi.mock("@/features/project/persistProject", () => ({ persistProject: vi.fn(asyn
 
 vi.mock("@/lib/api/aiUser", () => ({
   getModels: vi.fn(async () => ({ models: [], defaultModelId: null, preferredModelId: null })),
-  getBalance: vi.fn(async () => 500),
+  getBalance: vi.fn(async () => ({ total: 500, subscription: 0, rollover: 0, topup: 500 })),
   setPreferredModel: vi.fn(async () => true),
 }));
 

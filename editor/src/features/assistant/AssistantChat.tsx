@@ -1,10 +1,11 @@
 import type { ProjectId } from "@/domain/types";
-import { BalanceChip } from "@/features/assistant/BalanceChip";
 import { ModelSelector } from "@/features/assistant/ModelSelector";
 import { OutOfCreditsNotice } from "@/features/assistant/OutOfCreditsNotice";
+import { CreditIndicator } from "@/features/billing/CreditIndicator";
 import { packToCommandV1, packToDialogV1, packToMenuV1 } from "@/features/export/transform";
 import { persistProject } from "@/features/project/persistProject";
 import { getBalance } from "@/lib/api/aiUser";
+import type { BalanceBreakdown } from "@/lib/api/billing";
 import {
   type ConversationMessage,
   getConversation,
@@ -108,7 +109,7 @@ export function AssistantChat({
   const [turnError, setTurnError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, string>>({});
   const [modelId, setModelId] = useState<string | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balance, setBalance] = useState<BalanceBreakdown | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const convId = useRef<string | null>(conversationId);
 
@@ -247,10 +248,18 @@ export function AssistantChat({
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
           dirty = true;
         } else if (ev.type === "credits") {
-          setBalance(Number(ev.balance));
+          setBalance((b) =>
+            b
+              ? { ...b, total: Number(ev.balance) }
+              : { total: Number(ev.balance), subscription: 0, rollover: 0, topup: Number(ev.balance) },
+          );
         } else if (ev.type === "insufficient_credits") {
           setOutOfCredits(true);
-          setBalance(Number(ev.balance));
+          setBalance((b) =>
+            b
+              ? { ...b, total: Number(ev.balance) }
+              : { total: Number(ev.balance), subscription: 0, rollover: 0, topup: 0 },
+          );
         } else if (ev.type === "error") {
           const msg = String(ev.message ?? t("assistant.errorGeneric"));
           toast.error(msg);
@@ -397,7 +406,7 @@ export function AssistantChat({
             }
             className="min-w-0 flex-1"
           />
-          <BalanceChip balance={balance} />
+          <CreditIndicator balance={balance} onRecharge={() => navigate({ to: "/credits" })} />
         </div>
 
         <div className="flex items-end gap-2">
