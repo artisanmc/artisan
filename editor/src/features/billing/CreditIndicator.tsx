@@ -15,8 +15,12 @@ export type CreditTone = "ok" | "low" | "critical" | "empty";
 
 export function creditTone(b: BalanceBreakdown): CreditTone {
 	if (b.total <= 0) return "empty";
+	// Tone reflects TOTAL spendable runway (subscription + rollover + topup),
+	// measured against the monthly quota as a reference. Basing it on the
+	// subscription bucket alone would cry wolf every period-end for any
+	// subscriber who still has rollover/top-up credits.
 	if (b.subscriptionQuota && b.subscriptionQuota > 0) {
-		const ratio = b.subscription / b.subscriptionQuota;
+		const ratio = b.total / b.subscriptionQuota;
 		if (ratio < 0.05) return "critical";
 		if (ratio < 0.2) return "low";
 	}

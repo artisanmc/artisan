@@ -1369,6 +1369,10 @@ const fr: typeof en = {
       checkoutCancel: "Paiement annulé.",
       checkoutError: "Impossible de démarrer le paiement. Réessaie.",
       active: "Actif",
+      statusActive: "Actif",
+      statusPastDue: "Paiement en retard",
+      statusCanceled: "Annulé",
+      graceUntil: "Période de grâce jusqu'au {{date}}",
     },
   },
   assistant: {
