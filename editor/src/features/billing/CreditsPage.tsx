@@ -190,7 +190,7 @@ export function CreditsPage() {
               </CardContent>
               <CardFooter>
                 {subscription?.planId === plan.id ? (
-                  <Badge variant="sage">actif</Badge>
+                  <Badge variant="sage">{t("billing.page.active")}</Badge>
                 ) : (
                   <Button variant="primary" onClick={() => subscribeToPlan(plan.id)}>
                     {t("billing.page.subscribe")}

@@ -1368,6 +1368,7 @@ const fr: typeof en = {
       checkoutSuccess: "Paiement reçu — tes crédits arrivent sous peu.",
       checkoutCancel: "Paiement annulé.",
       checkoutError: "Impossible de démarrer le paiement. Réessaie.",
+      active: "Actif",
     },
   },
   assistant: {

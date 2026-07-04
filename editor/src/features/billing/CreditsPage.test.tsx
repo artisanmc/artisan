@@ -5,9 +5,10 @@ import { CreditsPage } from "./CreditsPage";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 
+const h = vi.hoisted(() => ({ search: {} as Record<string, string> }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
-  useSearch: () => ({}),
+  useSearch: () => h.search,
   useNavigate: () => vi.fn(),
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
@@ -43,6 +44,7 @@ vi.mock("@/lib/api/billing", () => ({
 
 afterEach(() => {
   vi.clearAllMocks();
+  h.search = {};
   useAuthStore.setState({ currentUser: null } as never);
   useNetworksStore.setState({ activeId: null } as never);
 });
@@ -87,5 +89,12 @@ describe("CreditsPage", () => {
     signedIn();
     render(<CreditsPage />);
     await waitFor(() => expect(screen.getByText(/Historique d'achats/)).toBeTruthy());
+  });
+
+  it("shows the success banner after a completed checkout (?checkout=success)", async () => {
+    signedIn();
+    h.search = { checkout: "success" };
+    render(<CreditsPage />);
+    await waitFor(() => expect(screen.getByText(/Paiement reçu/)).toBeTruthy());
   });
 });
