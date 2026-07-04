@@ -10,3 +10,10 @@ export function formatUsdFromMicro(micro: number, lang = "en"): string {
     micro / 1_000_000,
   );
 }
+
+/** cents → localized currency string. */
+export function formatMoney(cents: number, currency: string, lang = "en"): string {
+  return new Intl.NumberFormat(lang, { style: "currency", currency: currency.toUpperCase() }).format(
+    cents / 100,
+  );
+}
