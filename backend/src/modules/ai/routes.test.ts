@@ -124,6 +124,19 @@ describe("GET /api/v1/ai/balance", () => {
 		const res = await app.request("/api/v1/ai/balance?projectId=ghost", { headers: bearer });
 		expect(res.status).toBe(404);
 	});
+
+	it("returns the per-bucket breakdown", async () => {
+		await grantCredits({ networkId, amount: 100, bucket: "subscription" });
+		await grantCredits({ networkId, amount: 50, bucket: "rollover" });
+		const res = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: bearer });
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.subscription).toBe(100);
+		expect(body.rollover).toBe(50);
+		expect(body.topup).toBe(250);
+		expect(body.total).toBe(body.subscription + body.rollover + body.topup);
+		expect(body.balance).toBe(body.total);
+	});
 });
 
 describe("PUT /api/v1/ai/preferred-model", () => {
