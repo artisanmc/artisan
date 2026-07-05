@@ -79,7 +79,15 @@ Once the editor opens, see the [Editor overview](/editor/) for next steps — ho
 | `/artisan editor revoke` | Revoke the currently active editor session. |
 | `/artisan setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. |
 
-## 5. Troubleshooting
+## 5. Billing administration (super-admins)
+
+Super-admins have a dedicated **`/admin/billing`** page in the editor with four tabs:
+
+- **Sales** — top-up revenue (per currency) and active subscribers per plan over a chosen period (7 / 30 days or custom range).
+- **Credit packs** / **Subscriptions** — create, edit, activate or deactivate the credit packs and subscription plans offered on the `/credits` page (each change provisions the corresponding Stripe product/price).
+- **Manual grant** — add top-up credits to a specific network (recorded as an adjustment in the audit trail), e.g. for support or compensation.
+
+## 6. Troubleshooting
 
 **Connection refused / backend unreachable**
 The plugin cannot reach `ws_url`. Check outbound internet access and
@@ -101,7 +109,7 @@ at login. See _Resource pack distribution_ below.
 `editor.console_only` is set to `true` in `config.yml`. Either change it
 or run the command from the console.
 
-## 6. Resource pack distribution (advanced)
+## 7. Resource pack distribution (advanced)
 
 Three modes, controlled by `resource-pack.delegate-to-dir` in `config.yml`.
 
@@ -137,7 +145,7 @@ zip-merger picks them up.
 
 The path is filesystem-absolute or relative to the server root.
 
-## 7. Reference: `config.yml`
+## 8. Reference: `config.yml`
 
 ```yaml
 # Set to connect this server to the Artisan editor backend for live sync.

@@ -112,6 +112,8 @@ Design-system-first (`components/ui` + tokens), i18n en+fr, mobile-friendly.
 
 ## Admin (sous-projet D)
 
+> **LIVRÉ 2026-07-04** (branche `feat/billing-D-admin`). Page `/admin/billing` (Tabs Ventes/Packs/Abonnements/Grant), endpoints `GET /api/v1/admin/billing/sales` + `POST /api/v1/admin/billing/grant`. CA top-up **par devise** (pas de somme cross-devise), abonnés actifs/formule dérivés du statut. Churn/ARPU/MRR restent V1.5. Plan : `docs/superpowers/plans/2026-07-04-billing-D-admin.md`.
+
 `/admin/billing` : CRUD packs + formules (créer/éditer = provisionne le product/price Stripe via API ; désactiver plutôt que supprimer). Suivi ventes : CA par période (7j/30j/custom, top-ups vs abos, depuis `credit_purchases` + statut abo), nb d'abonnés actifs par formule. Grant manuel (bucket `topup`, `reason=adjustment`, `note` = motif — s'appuie sur la route de grant existante étendue). Analytics churn/ARPU/MRR = V1.5.
 
 ## Tests
