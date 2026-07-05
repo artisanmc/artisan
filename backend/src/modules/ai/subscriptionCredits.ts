@@ -1,6 +1,8 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index";
 import { aiCreditLedger } from "../../db/schema";
+
+type DbOrTx = typeof db;
 
 /**
  * Append-only subscription renewal: roll the closing period's leftover
@@ -16,19 +18,25 @@ import { aiCreditLedger } from "../../db/schema";
  * `[renewal, expiry)` double-count window that would otherwise let the closing
  * period's unexpired leftover coexist with the new period's grant.
  */
-export async function renewSubscriptionPeriod(input: {
-	networkId: string;
-	creditsPerPeriod: number;
-	rolloverCap: number;
-	closingPeriodId?: string | null;
-	newPeriodId: string;
-	newPeriodEnd: Date;
-	now?: Date;
-}): Promise<{ granted: number; rolledOver: number }> {
+export async function renewSubscriptionPeriod(
+	input: {
+		networkId: string;
+		creditsPerPeriod: number;
+		rolloverCap: number;
+		closingPeriodId?: string | null;
+		newPeriodId: string;
+		newPeriodEnd: Date;
+		now?: Date;
+	},
+	existingTx?: DbOrTx,
+): Promise<{ granted: number; rolledOver: number }> {
 	const now = input.now ?? new Date();
-	let rolledOver = 0;
 
-	await db.transaction(async (tx) => {
+	// All ledger writes run in one transaction. When the caller (the invoice.paid
+	// webhook) passes its own tx, we join it so the renewal + the network_billing
+	// state update commit atomically; otherwise we open our own.
+	const run = async (tx: DbOrTx): Promise<number> => {
+		let rolledOver = 0;
 		if (input.closingPeriodId) {
 			const [row] = await tx
 				.select({ sum: sql<number>`coalesce(sum(${aiCreditLedger.delta}), 0)::int` })
@@ -45,6 +53,10 @@ export async function renewSubscriptionPeriod(input: {
 			// entry with the closing period's own expiry so it also nets out of the
 			// SUM after expiry (no lingering negative).
 			if (leftover > 0) {
+				// Invariant: exactly one positive-delta subscription grant per periodId
+				// (written here + by the first-period grant). The orderBy is defensive
+				// determinism in case a future path ever violates that (e.g. a manual
+				// adjustment tagged with the live periodId) — pick the earliest grant.
 				const [grant] = await tx
 					.select({ expiresAt: aiCreditLedger.expiresAt })
 					.from(aiCreditLedger)
@@ -54,6 +66,7 @@ export async function renewSubscriptionPeriod(input: {
 						eq(aiCreditLedger.periodId, input.closingPeriodId),
 						sql`${aiCreditLedger.delta} > 0`,
 					))
+					.orderBy(desc(aiCreditLedger.createdAt))
 					.limit(1);
 				await tx.insert(aiCreditLedger).values({
 					id: crypto.randomUUID(), networkId: input.networkId, delta: -leftover,
@@ -75,7 +88,9 @@ export async function renewSubscriptionPeriod(input: {
 			reason: "grant", bucket: "subscription", expiresAt: input.newPeriodEnd,
 			periodId: input.newPeriodId, note: "subscription renewal", createdAt: now,
 		});
-	});
+		return rolledOver;
+	};
 
+	const rolledOver = existingTx ? await run(existingTx) : await db.transaction(run);
 	return { granted: input.creditsPerPeriod, rolledOver };
 }
