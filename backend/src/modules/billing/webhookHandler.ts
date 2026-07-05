@@ -8,6 +8,11 @@ import { creditsForPack, getPack } from "./packsRepo";
 import { getPlan } from "./plansRepo";
 import type { StripeWebhookEvent } from "./stripe";
 
+/** True if the error is a Postgres unique-constraint violation (SQLSTATE 23505). */
+function isUniqueViolation(e: unknown): boolean {
+	return typeof e === "object" && e !== null && (e as { code?: string }).code === "23505";
+}
+
 /** Idempotently process a verified Stripe event. Marks the event id processed
  *  FIRST (insert-on-conflict-do-nothing); if already present, returns without
  *  reprocessing. Unknown types are ignored. Throws on handler failure so the
@@ -56,50 +61,69 @@ async function onCheckoutCompleted(obj: Record<string, unknown>): Promise<void> 
 		}
 		const credits = creditsForPack(pack);
 		const sessionId = typeof obj.id === "string" ? obj.id : null;
-		await db.transaction(async (tx) => {
-			await tx.insert(creditPurchases).values({
-				id: crypto.randomUUID(),
-				networkId,
-				packId: pack.id,
-				stripeSessionId: sessionId,
-				amountCents: typeof obj.amount_total === "number" ? obj.amount_total : pack.priceCents,
-				currency: typeof obj.currency === "string" ? obj.currency : pack.currency,
-				credits,
-				createdBy: md.userId ?? null,
-				createdAt: new Date(),
+		try {
+			await db.transaction(async (tx) => {
+				await tx.insert(creditPurchases).values({
+					id: crypto.randomUUID(),
+					networkId,
+					packId: pack.id,
+					stripeSessionId: sessionId,
+					amountCents: typeof obj.amount_total === "number" ? obj.amount_total : pack.priceCents,
+					currency: typeof obj.currency === "string" ? obj.currency : pack.currency,
+					credits,
+					createdBy: md.userId ?? null,
+					createdAt: new Date(),
+				});
+				await tx.insert(aiCreditLedger).values({
+					id: crypto.randomUUID(),
+					networkId,
+					delta: credits,
+					reason: "grant",
+					bucket: "topup",
+					note: "top-up",
+					createdBy: md.userId ?? null,
+					createdAt: new Date(),
+				});
 			});
-			await tx.insert(aiCreditLedger).values({
-				id: crypto.randomUUID(),
-				networkId,
-				delta: credits,
-				reason: "grant",
-				bucket: "topup",
-				note: "top-up",
-				createdBy: md.userId ?? null,
-				createdAt: new Date(),
-			});
-		});
+		} catch (e) {
+			// Second belt on top of the stripe_events claim: a redelivered event with
+			// a NEW id but the SAME checkout session hits the partial unique index on
+			// stripe_session_id. That purchase is already fulfilled — treat as an
+			// idempotent no-op (the tx rolled back, so no double grant) instead of
+			// rethrowing, which would 500 and make Stripe retry-storm forever.
+			if (isUniqueViolation(e)) return;
+			throw e;
+		}
 		return;
 	}
 
 	if (md.kind === "subscription") {
 		const now = new Date();
-		const existing = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
 		const patch = {
 			stripeCustomerId: typeof obj.customer === "string" ? obj.customer : null,
 			stripeSubscriptionId: typeof obj.subscription === "string" ? obj.subscription : null,
 			planId: md.planId ?? null,
 			updatedAt: now,
 		};
-		if (existing.length > 0) {
-			await db.update(networkBilling).set(patch).where(eq(networkBilling.networkId, networkId));
-		} else {
-			await db.insert(networkBilling).values({ networkId, ...patch, createdAt: now });
-		}
+		// Atomic upsert (no SELECT-then-write race): two concurrent subscription
+		// events for the same network can't both see "not existing" and collide.
+		await db
+			.insert(networkBilling)
+			.values({ networkId, ...patch, createdAt: now })
+			.onConflictDoUpdate({ target: networkBilling.networkId, set: patch });
 	}
 }
 
 async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
+	// KNOWN LIMITATION (residual concurrency): `billing` (incl. currentPeriodId, used
+	// as the renewal's closingPeriodId) is read before the transaction opens, without
+	// a row lock. The stripe_events claim only dedups replays of the SAME event id, so
+	// two *distinct* invoice.paid events for the same subscription delivered
+	// concurrently could both read the same stale currentPeriodId and each grant a
+	// period. Stripe emits one invoice.paid per invoice (retries share the id), so this
+	// is very low-probability; closing it fully needs a `SELECT ... FOR UPDATE` on
+	// network_billing inside the tx (or a unique (network_id, period_id) ledger
+	// constraint). Deferred — see billing V1.5 follow-ups.
 	const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
 	const md = (obj.metadata ?? {}) as Record<string, string>;
 	// Resolve network: prefer metadata.networkId, else our stored subscription mapping.
@@ -127,15 +151,21 @@ async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
 	const newPeriodId = obj.id;
 	const isFirst = obj.billing_reason === "subscription_create";
 
-	if (isFirst) {
-		await grantCredits({ networkId, amount: plan.creditsPerPeriod, bucket: "subscription", expiresAt: periodEnd, periodId: newPeriodId, reason: "grant", note: "subscription" });
-	} else {
-		await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: billing.currentPeriodId ?? null, newPeriodId, newPeriodEnd: periodEnd });
-	}
-	await db.update(networkBilling).set({
-		status: "active", currentPeriodEnd: periodEnd, currentPeriodId: newPeriodId, graceUntil: null, updatedAt: new Date(),
-	}).where(eq(networkBilling.networkId, networkId));
-	await db.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
+	// One transaction: the credit grant/renewal AND the network_billing period
+	// advance AND the tier update commit together. Otherwise a crash between them
+	// could leave credits granted but currentPeriodId stale, making the next
+	// renewal re-close the already-closed period.
+	await db.transaction(async (tx) => {
+		if (isFirst) {
+			await grantCredits({ networkId, amount: plan.creditsPerPeriod, bucket: "subscription", expiresAt: periodEnd, periodId: newPeriodId, reason: "grant", note: "subscription" }, tx);
+		} else {
+			await renewSubscriptionPeriod({ networkId, creditsPerPeriod: plan.creditsPerPeriod, rolloverCap: plan.rolloverCap, closingPeriodId: billing.currentPeriodId ?? null, newPeriodId, newPeriodEnd: periodEnd }, tx);
+		}
+		await tx.update(networkBilling).set({
+			status: "active", currentPeriodEnd: periodEnd, currentPeriodId: newPeriodId, graceUntil: null, updatedAt: new Date(),
+		}).where(eq(networkBilling.networkId, networkId));
+		await tx.update(networks).set({ tier: plan.name, updatedAt: new Date() }).where(eq(networks.id, networkId));
+	});
 }
 
 /** Resolve network_billing by Stripe subscription id (the lifecycle events below carry
