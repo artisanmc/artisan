@@ -909,13 +909,24 @@ export default {
     },
     billing: {
       title: "Billing",
-      tabs: { sales: "Sales", packs: "Credit packs", plans: "Subscriptions", grant: "Manual grant" },
+      tabs: {
+        sales: "Sales",
+        packs: "Credit packs",
+        plans: "Subscriptions",
+        grant: "Manual grant",
+      },
       packs: {
         title: "Credit packs",
         new: "New pack",
         edit: "Edit pack",
         empty: "No packs yet.",
-        columns: { name: "Name", price: "Price", credits: "Credits", bonus: "Bonus", status: "Status" },
+        columns: {
+          name: "Name",
+          price: "Price",
+          credits: "Credits",
+          bonus: "Bonus",
+          status: "Status",
+        },
         form: {
           name: "Name",
           priceCents: "Price (cents)",
@@ -937,7 +948,13 @@ export default {
         new: "New plan",
         edit: "Edit plan",
         empty: "No plans yet.",
-        columns: { name: "Name", price: "Price", credits: "Credits / period", interval: "Interval", status: "Status" },
+        columns: {
+          name: "Name",
+          price: "Price",
+          credits: "Credits / period",
+          interval: "Interval",
+          status: "Status",
+        },
         form: {
           name: "Name",
           priceCents: "Price (cents)",
@@ -1033,7 +1050,8 @@ export default {
       sheetTitle: "Sheet title",
       sheetBody: "Side sheet body — used for mobile drawers and detail panels.",
       openSearch: "Open search palette",
-      searchHint: "Command-palette overlay — reads uiStore.searchOpen, grouped results, keyboard nav.",
+      searchHint:
+        "Command-palette overlay — reads uiStore.searchOpen, grouped results, keyboard nav.",
     },
   },
   networksPage: {
@@ -1059,6 +1077,7 @@ export default {
     close: "Close",
   },
   networkDetail: {
+    billing: "Billing & credits",
     settings: "Settings",
     projects: "Projects",
     servers: "Servers",

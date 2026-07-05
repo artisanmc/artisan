@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { NetworkDetailPage } from "./networks.$networkId";
 import * as networksApi from "@/lib/api/networks";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NetworkDetailPage } from "./networks.$networkId";
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useChildMatches: () => [],
@@ -36,6 +37,18 @@ describe("NetworkDetailPage", () => {
     expect(screen.getByText(/Shop/)).toBeInTheDocument();
     expect(screen.getByText(/Lobby/)).toBeInTheDocument();
     expect(screen.getByText(/Welcome/)).toBeInTheDocument();
+  });
+
+  it("links to the billing/credits page from the header", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "n1", name: "Alpha", tier: "free" },
+      projects: [],
+      serverKeys: [],
+    });
+    render(<NetworkDetailPage />);
+    await screen.findByText("Alpha");
+    const link = screen.getByText(/Facturation|Billing/i).closest("a");
+    expect(link).toHaveAttribute("to", "/credits");
   });
 
   it("shows empty state when network has no servers", async () => {

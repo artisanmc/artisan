@@ -18,22 +18,23 @@ import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { ProjectId } from "@/domain/types";
-import { countMissingForLang } from "@/lib/i18nUsages";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
-import { useUiStore } from "@/state/uiStore";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
+import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { useUiStore } from "@/state/uiStore";
 import { CSS } from "@dnd-kit/utilities";
-import { Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
+import { ArrowRight, Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
-import { useModulesStore } from "@/state/modulesStore";
-import { selectModuleNavEntries } from "@/distribution/moduleNav";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
@@ -65,13 +66,32 @@ export function ProjectSidebar() {
   // Since the slug routes (phase 4a), URL params may carry slugs instead of
   // ids — resolve them to real ids here so all downstream matching (pack
   // filtering, link building) stays id-based.
+  // Routes without params (settings, credits…) fall back to the persisted
+  // selection (stores) so navigating there doesn't silently "deselect" the
+  // server while the project list stays scoped to it.
+  const storedNetworkId = useNetworksStore((s) => s.activeId);
+  const storedServerId = useServersStore((s) => s.activeServerId);
   const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const rawNetworkParam = urlParams.networkId ?? sessionNetworkId ?? networks[0]?.id ?? null;
+  const rawNetworkParam =
+    urlParams.networkId ?? sessionNetworkId ?? storedNetworkId ?? networks[0]?.id ?? null;
   const activeNetworkId = rawNetworkParam
     ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
       rawNetworkParam)
     : null;
-  const rawServerParam = urlParams.serverId ?? sessionServerKeyId ?? null;
+  // Only trust the persisted server if it still exists in the active network —
+  // a deleted server must not filter the project list down to nothing.
+  const storedServerValid =
+    storedServerId != null &&
+    allServerEntries.some(
+      (e) =>
+        e.serverId === storedServerId &&
+        (activeNetworkId == null || e.networkId === activeNetworkId),
+    );
+  const rawServerParam =
+    urlParams.serverId ?? sessionServerKeyId ?? (storedServerValid ? storedServerId : null);
+  const activeNetworkName = activeNetworkId
+    ? (networks.find((n) => n.id === activeNetworkId)?.name ?? null)
+    : null;
   // Server slugs are only unique per network ("server" exists in many) — scope
   // the lookup to the active network or a slug could resolve to another
   // network's server and the workspace list would filter to the wrong projects.
@@ -82,6 +102,34 @@ export function ProjectSidebar() {
           (e.serverId === rawServerParam || e.serverSlug === rawServerParam),
       )?.serverId ?? rawServerParam)
     : null;
+
+  // Persist the URL-driven selection so param-less routes keep it. Only store
+  // resolved ids (never raw slugs) — the entry lookup guarantees that.
+  useEffect(() => {
+    if (isSessionMode) return;
+    if (urlParams.networkId && activeNetworkId && networks.some((n) => n.id === activeNetworkId)) {
+      if (useNetworksStore.getState().activeId !== activeNetworkId) {
+        useNetworksStore.getState().setActiveId(activeNetworkId);
+      }
+    }
+    if (urlParams.serverId) {
+      const resolved = allServerEntries.find(
+        (e) =>
+          (activeNetworkId == null || e.networkId === activeNetworkId) &&
+          (e.serverId === urlParams.serverId || e.serverSlug === urlParams.serverId),
+      )?.serverId;
+      if (resolved && useServersStore.getState().activeServerId !== resolved) {
+        useServersStore.getState().setActiveServerId(resolved);
+      }
+    }
+  }, [
+    isSessionMode,
+    urlParams.networkId,
+    urlParams.serverId,
+    activeNetworkId,
+    networks,
+    allServerEntries,
+  ]);
 
   useEffect(() => {
     if (isSessionMode) return; // listNetworks needs cookie auth
@@ -110,7 +158,11 @@ export function ProjectSidebar() {
     let cancelled = false;
     Promise.all(
       networks.map((n) =>
-        getNetwork(n.id).then((d) => ({ network: n, serverKeys: d.serverKeys, projects: d.projects })),
+        getNetwork(n.id).then((d) => ({
+          network: n,
+          serverKeys: d.serverKeys,
+          projects: d.projects,
+        })),
       ),
     )
       .then((results) => {
@@ -226,6 +278,18 @@ export function ProjectSidebar() {
       </Link>
 
       {!isSessionMode && <ServerSelector servers={allServerEntries} />}
+
+      {!isSessionMode && activeNetworkId && activeNetworkName && (
+        <Link
+          to="/networks/$networkId"
+          params={{ networkId: activeNetworkId }}
+          onClick={() => useSidebarStore.getState().close()}
+          className="-mt-2 flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-1.5 text-[11.5px] text-[var(--text-faint)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        >
+          <span className="truncate">{activeNetworkName}</span>
+          <ArrowRight className="size-3 shrink-0" />
+        </Link>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {activeNetworkId ? (
@@ -427,8 +491,7 @@ function ProjectSubTabs({
     networkId && serverId
       ? "/networks/$networkId/servers/$serverId/projects/$projectId"
       : "/project/$projectId";
-  const tabLinkParams =
-    networkId && serverId ? { networkId, serverId, projectId } : { projectId };
+  const tabLinkParams = networkId && serverId ? { networkId, serverId, projectId } : { projectId };
 
   return (
     <ul className="mt-0.5 mb-1 flex flex-col gap-0.5">
