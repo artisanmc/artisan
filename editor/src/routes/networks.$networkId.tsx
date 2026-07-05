@@ -2,8 +2,8 @@ import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHi
 import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
 import { EditServerModal } from "@/components/network-detail/EditServerModal";
 import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
-import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { NewProjectModal } from "@/components/network-detail/NewProjectModal";
+import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { ServerCard } from "@/components/network-detail/ServerCard";
 import {
   createProject,
@@ -169,13 +169,21 @@ export function NetworkDetailPage() {
           >
             {detail.network.name}
           </h1>
-          <Link
-            to="/networks/$networkId/settings"
-            params={{ networkId }}
-            className="flex items-center gap-1.5 text-[13px] text-[var(--text-mut)] hover:text-[var(--brand)]"
-          >
-            {t("networkDetail.settings")} <ArrowRight className="size-[14px]" />
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/credits"
+              className="flex items-center gap-1.5 text-[13px] text-[var(--text-mut)] hover:text-[var(--brand)]"
+            >
+              {t("networkDetail.billing")} <ArrowRight className="size-[14px]" />
+            </Link>
+            <Link
+              to="/networks/$networkId/settings"
+              params={{ networkId }}
+              className="flex items-center gap-1.5 text-[13px] text-[var(--text-mut)] hover:text-[var(--brand)]"
+            >
+              {t("networkDetail.settings")} <ArrowRight className="size-[14px]" />
+            </Link>
+          </div>
         </header>
 
         <section className="flex flex-col gap-3">

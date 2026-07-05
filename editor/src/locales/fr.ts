@@ -31,7 +31,8 @@ const fr: typeof en = {
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
     removeUnused: "Supprimer {{count}} inutilisées",
-    removeUnusedHint: "Supprimer les clés de traduction qui ne sont plus référencées dans ce projet",
+    removeUnusedHint:
+      "Supprimer les clés de traduction qui ne sont plus référencées dans ce projet",
     removedUnused_one: "{{count}} clé de traduction inutilisée supprimée",
     removedUnused_other: "{{count}} clés de traduction inutilisées supprimées",
     onDefaultWarning:
@@ -808,7 +809,8 @@ const fr: typeof en = {
           realUsdInput: "Prix réel $ / 1M tokens en entrée",
           realUsdOutput: "Prix réel $ / 1M tokens en sortie",
           active: "Actif",
-          usdHint: "Prix réel API en $/1M tokens — utilisé pour calculer la marge, non facturé aux utilisateurs.",
+          usdHint:
+            "Prix réel API en $/1M tokens — utilisé pour calculer la marge, non facturé aux utilisateurs.",
         },
       },
       providers: {
@@ -829,7 +831,8 @@ const fr: typeof en = {
       settings: {
         title: "Paramètres IA",
         creditUsdRate: "Taux crédit → USD",
-        creditUsdRateHint: "Valeur réelle en $ d'un crédit (utilisée pour la marge et le tarif des dons).",
+        creditUsdRateHint:
+          "Valeur réelle en $ d'un crédit (utilisée pour la marge et le tarif des dons).",
         maxCreditsPerTurn: "Crédits max par tour",
         maxCreditsPerTurnHint:
           "Plafonne le nombre de crédits qu'un tour d'assistant peut consommer. Laisser vide pour ne pas plafonner.",
@@ -919,13 +922,24 @@ const fr: typeof en = {
     },
     billing: {
       title: "Facturation",
-      tabs: { sales: "Ventes", packs: "Packs de crédits", plans: "Abonnements", grant: "Grant manuel" },
+      tabs: {
+        sales: "Ventes",
+        packs: "Packs de crédits",
+        plans: "Abonnements",
+        grant: "Grant manuel",
+      },
       packs: {
         title: "Packs de crédits",
         new: "Nouveau pack",
         edit: "Modifier le pack",
         empty: "Aucun pack pour l'instant.",
-        columns: { name: "Nom", price: "Prix", credits: "Crédits", bonus: "Bonus", status: "Statut" },
+        columns: {
+          name: "Nom",
+          price: "Prix",
+          credits: "Crédits",
+          bonus: "Bonus",
+          status: "Statut",
+        },
         form: {
           name: "Nom",
           priceCents: "Prix (centimes)",
@@ -947,7 +961,13 @@ const fr: typeof en = {
         new: "Nouveau plan",
         edit: "Modifier le plan",
         empty: "Aucun plan pour l'instant.",
-        columns: { name: "Nom", price: "Prix", credits: "Crédits / période", interval: "Intervalle", status: "Statut" },
+        columns: {
+          name: "Nom",
+          price: "Prix",
+          credits: "Crédits / période",
+          interval: "Intervalle",
+          status: "Statut",
+        },
         form: {
           name: "Nom",
           priceCents: "Prix (centimes)",
@@ -1043,7 +1063,8 @@ const fr: typeof en = {
       sheetTitle: "Titre du sheet",
       sheetBody: "Corps du sheet latéral — utilisé pour les drawers mobile et panneaux de détail.",
       openSearch: "Ouvrir la palette de recherche",
-      searchHint: "Overlay command-palette — lit uiStore.searchOpen, résultats groupés, navigation clavier.",
+      searchHint:
+        "Overlay command-palette — lit uiStore.searchOpen, résultats groupés, navigation clavier.",
     },
   },
   networksPage: {
@@ -1069,6 +1090,7 @@ const fr: typeof en = {
     close: "Fermer",
   },
   networkDetail: {
+    billing: "Facturation & crédits",
     settings: "Settings",
     projects: "Projects",
     servers: "Serveurs",
@@ -1425,7 +1447,8 @@ const fr: typeof en = {
     },
     page: {
       title: "Crédits",
-      subtitle: "Achète des packs ou souscris un abonnement. Les crédits sont partagés dans ton réseau.",
+      subtitle:
+        "Achète des packs ou souscris un abonnement. Les crédits sont partagés dans ton réseau.",
       pickNetwork: "Choisis un réseau pour gérer ses crédits.",
       signedOut: "Connecte-toi pour gérer les crédits.",
       balanceHeading: "Ton solde",

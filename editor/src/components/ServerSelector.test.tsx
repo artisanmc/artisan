@@ -1,0 +1,69 @@
+import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type ServerEntry, ServerSelector } from "./ServerSelector";
+
+const mockParams = vi.hoisted(() => ({
+  current: {} as { networkId?: string; serverId?: string },
+}));
+const mockNavigate = vi.hoisted(() => vi.fn());
+
+vi.mock("@tanstack/react-router", async () => {
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useParams: () => mockParams.current,
+    Link: ({ children, to, params, ...props }: any) => (
+      <a href={to} {...props}>
+        {children}
+      </a>
+    ),
+  };
+});
+
+const SERVERS: ServerEntry[] = [
+  {
+    serverId: "sk_1",
+    serverLabel: "Survival",
+    networkId: "net_1",
+    networkName: "Mon Network",
+  },
+  {
+    serverId: "sk_2",
+    serverLabel: "Creatif",
+    networkId: "net_1",
+    networkName: "Mon Network",
+  },
+];
+
+describe("ServerSelector", () => {
+  beforeEach(() => {
+    mockNavigate.mockClear();
+    mockParams.current = {};
+    useServersStore.setState({ activeServerId: null });
+    useNetworksStore.setState({ activeId: null } as never);
+  });
+
+  it("persists the selection in the servers/networks stores and navigates", async () => {
+    render(<ServerSelector servers={SERVERS} />);
+    await userEvent.click(screen.getByText(/Sélectionner un serveur|Select a server/));
+    await userEvent.click(screen.getByText("Creatif"));
+    expect(useServersStore.getState().activeServerId).toBe("sk_2");
+    expect(useNetworksStore.getState().activeId).toBe("net_1");
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: "/networks/$networkId/servers/$serverId",
+      params: { networkId: "net_1", serverId: "sk_2" },
+    });
+  });
+
+  it("shows the persisted server as active on routes without a serverId param", () => {
+    useServersStore.setState({ activeServerId: "sk_1" });
+    render(<ServerSelector servers={SERVERS} />);
+    expect(screen.getByText("Survival")).toBeInTheDocument();
+    expect(screen.queryByText(/Sélectionner un serveur|Select a server/)).toBeNull();
+  });
+});
