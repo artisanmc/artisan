@@ -115,6 +115,15 @@ async function onCheckoutCompleted(obj: Record<string, unknown>): Promise<void> 
 }
 
 async function onInvoicePaid(obj: Record<string, unknown>): Promise<void> {
+	// KNOWN LIMITATION (residual concurrency): `billing` (incl. currentPeriodId, used
+	// as the renewal's closingPeriodId) is read before the transaction opens, without
+	// a row lock. The stripe_events claim only dedups replays of the SAME event id, so
+	// two *distinct* invoice.paid events for the same subscription delivered
+	// concurrently could both read the same stale currentPeriodId and each grant a
+	// period. Stripe emits one invoice.paid per invoice (retries share the id), so this
+	// is very low-probability; closing it fully needs a `SELECT ... FOR UPDATE` on
+	// network_billing inside the tx (or a unique (network_id, period_id) ledger
+	// constraint). Deferred — see billing V1.5 follow-ups.
 	const subscriptionId = typeof obj.subscription === "string" ? obj.subscription : null;
 	const md = (obj.metadata ?? {}) as Record<string, string>;
 	// Resolve network: prefer metadata.networkId, else our stored subscription mapping.

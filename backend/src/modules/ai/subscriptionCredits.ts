@@ -56,7 +56,7 @@ export async function renewSubscriptionPeriod(
 				// Invariant: exactly one positive-delta subscription grant per periodId
 				// (written here + by the first-period grant). The orderBy is defensive
 				// determinism in case a future path ever violates that (e.g. a manual
-				// adjustment tagged with the live periodId) — pick the earliest grant.
+				// adjustment tagged with the live periodId) — pick the most recent grant.
 				const [grant] = await tx
 					.select({ expiresAt: aiCreditLedger.expiresAt })
 					.from(aiCreditLedger)
