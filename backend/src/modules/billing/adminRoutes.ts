@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { db } from "../../db/index";
+import { networks } from "../../db/schema";
+import { grantCredits } from "../ai/creditsRepo";
 import {
 	createPack,
 	deactivatePack,
@@ -17,6 +21,7 @@ import {
 	type PlanInput,
 	type SubscriptionPlan,
 } from "./plansRepo";
+import { salesSummary } from "./salesRepo";
 
 function packDto(p: CreditPack) {
 	return { ...p, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() };
@@ -133,6 +138,28 @@ export function buildBillingAdminRouter(): Hono {
 	r.post("/billing/plans/:id/deactivate", async (c) => {
 		const ok = await deactivatePlan(c.req.param("id"));
 		return ok ? c.json({ ok: true }) : c.json({ error: "not_found" }, 404);
+	});
+
+	r.get("/billing/sales", async (c) => {
+		const to = c.req.query("to") ? new Date(c.req.query("to") as string) : new Date();
+		const from = c.req.query("from") ? new Date(c.req.query("from") as string) : new Date(to.getTime() - 30 * 24 * 3_600_000);
+		if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return c.json({ error: "invalid_range" }, 400);
+		return c.json(await salesSummary(from, to));
+	});
+
+	r.post("/billing/grant", async (c) => {
+		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+		const networkId = typeof body.networkId === "string" ? body.networkId : "";
+		const amount = body.amount;
+		if (typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0) return c.json({ error: "invalid_amount" }, 400);
+		const net = await db.select({ id: networks.id }).from(networks).where(eq(networks.id, networkId));
+		if (net.length === 0) return c.json({ error: "network_not_found" }, 404);
+		const { balance } = await grantCredits({
+			networkId, amount, bucket: "topup", reason: "adjustment",
+			note: typeof body.note === "string" ? body.note : undefined,
+			createdBy: c.get("user")?.id ?? null,
+		});
+		return c.json({ ok: true, balance });
 	});
 
 	return r;
