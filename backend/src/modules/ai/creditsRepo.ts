@@ -33,8 +33,8 @@ export interface LedgerEntry {
 /** SQL predicate: entry still valid (not expired). */
 const notExpired = sql`(${aiCreditLedger.expiresAt} is null or ${aiCreditLedger.expiresAt} > now())`;
 
-export async function getBalance(networkId: string): Promise<number> {
-	const rows = await db
+export async function getBalance(networkId: string, conn: DbOrTx = db): Promise<number> {
+	const rows = await conn
 		.select({ balance: sql<number>`coalesce(sum(${aiCreditLedger.delta}), 0)::int` })
 		.from(aiCreditLedger)
 		.where(and(eq(aiCreditLedger.networkId, networkId), notExpired));
@@ -144,18 +144,22 @@ export async function debitBuckets(
 	};
 }
 
-export async function grantCredits(input: {
-	networkId: string;
-	amount: number;
-	note?: string;
-	createdBy?: string | null;
-	reason?: "grant" | "adjustment";
-	bucket?: BucketType;
-	expiresAt?: Date | null;
-	periodId?: string | null;
-}): Promise<{ id: string; balance: number }> {
+export async function grantCredits(
+	input: {
+		networkId: string;
+		amount: number;
+		note?: string;
+		createdBy?: string | null;
+		reason?: "grant" | "adjustment";
+		bucket?: BucketType;
+		expiresAt?: Date | null;
+		periodId?: string | null;
+	},
+	tx?: DbOrTx,
+): Promise<{ id: string; balance: number }> {
+	const conn = tx ?? db;
 	const id = crypto.randomUUID();
-	await db.insert(aiCreditLedger).values({
+	await conn.insert(aiCreditLedger).values({
 		id,
 		networkId: input.networkId,
 		delta: input.amount,
@@ -167,7 +171,7 @@ export async function grantCredits(input: {
 		createdBy: input.createdBy ?? null,
 		createdAt: new Date(),
 	});
-	return { id, balance: await getBalance(input.networkId) };
+	return { id, balance: await getBalance(input.networkId, conn) };
 }
 
 export async function listLedger(networkId: string, limit = 50): Promise<LedgerEntry[]> {

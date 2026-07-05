@@ -78,6 +78,21 @@ describe("webhook checkout.session.completed", () => {
 		expect((await getBucketBalances(networkId)).topup).toBe(600); // not 1200
 	});
 
+	it("a redelivered checkout with a NEW event id but the SAME session is an idempotent no-op (no 500 retry-storm)", async () => {
+		const object = { id: "cs_dup", customer: "cus_1", amount_total: 1000, currency: "eur", metadata: { networkId, kind: "pack", packId, userId: USER_ID } };
+		const first = await post({ id: "evt_dup_1", type: "checkout.session.completed", data: { object } });
+		expect(first.status).toBe(200);
+		expect((await getBucketBalances(networkId)).topup).toBe(600);
+		// Same session id, DIFFERENT event id: the stripe_events claim does NOT block
+		// this, but the credit_purchases unique index does — must settle to 200 with no
+		// double grant, not a 500 that makes Stripe retry forever.
+		const second = await post({ id: "evt_dup_2", type: "checkout.session.completed", data: { object } });
+		expect(second.status).toBe(200);
+		expect((await getBucketBalances(networkId)).topup).toBe(600); // not 1200
+		const purchases = await db.select().from(creditPurchases).where(eq(creditPurchases.networkId, networkId));
+		expect(purchases.length).toBe(1);
+	});
+
 	it("subscription checkout links the customer/subscription/plan on network_billing (no grant yet)", async () => {
 		const res = await post({
 			id: "evt_sub_1", type: "checkout.session.completed",
@@ -90,6 +105,28 @@ describe("webhook checkout.session.completed", () => {
 		expect(row.stripeCustomerId).toBe("cus_9");
 		expect(row.planId).toBe("plan_x");
 		expect((await getBucketBalances(networkId)).subscription).toBe(0); // grant happens on invoice.paid
+	});
+
+	it("subscription checkout upserts — updates an existing network_billing row (atomic, no SELECT-then-write)", async () => {
+		const planId = crypto.randomUUID();
+		await db.insert(subscriptionPlans).values({ id: planId, name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, features: "", isActive: true, sortOrder: 0, stripeProductId: "prod_u", stripePriceId: "price_u", createdAt: new Date(), updatedAt: new Date() });
+		await db.insert(networkBilling).values({ networkId, stripeCustomerId: "old_cus", stripeSubscriptionId: "old_sub", status: "active", createdAt: new Date(), updatedAt: new Date() });
+		try {
+			const res = await post({
+				id: "evt_sub_up", type: "checkout.session.completed",
+				data: { object: { id: "cs_up", customer: "cus_new", subscription: "sub_new",
+					metadata: { networkId, kind: "subscription", planId, userId: USER_ID } } },
+			});
+			expect(res.status).toBe(200);
+			const rows = await db.select().from(networkBilling).where(eq(networkBilling.networkId, networkId));
+			expect(rows.length).toBe(1); // updated in place, not duplicated
+			expect(rows[0].stripeCustomerId).toBe("cus_new");
+			expect(rows[0].stripeSubscriptionId).toBe("sub_new");
+			expect(rows[0].planId).toBe(planId);
+		} finally {
+			await db.delete(networkBilling).where(eq(networkBilling.networkId, networkId));
+			await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+		}
 	});
 
 	it("unknown event type → 200 received, no-op", async () => {
