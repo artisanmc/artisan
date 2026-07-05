@@ -1,6 +1,7 @@
 import * as networksApi from "@/lib/api/networks";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -37,7 +38,9 @@ describe("ProjectSidebar", () => {
     mockParams.current = { networkId: "net_1", serverId: "sk_1" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
+      activeId: null,
     } as any);
+    useServersStore.setState({ activeServerId: null } as any);
     useSessionStore.setState({ networkId: "net_1" } as any);
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
   });
@@ -243,6 +246,71 @@ describe("ProjectSidebar", () => {
     render(<ProjectSidebar />);
     await screen.findByRole("link", { name: /Lobby/ });
     expect(screen.queryByLabelText(/manquante|missing translation/i)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the persisted server selection on routes without a serverId param", async () => {
+    // e.g. /settings or /credits — no networkId/serverId in the URL.
+    mockParams.current = {};
+    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
+    useServersStore.setState({ activeServerId: "sk_1" } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [
+        { id: "p1", name: "Lobby", hash: "h", networkId: "net_1", serverKeyId: "sk_1" },
+        { id: "p2", name: "Shop", hash: "h", networkId: "net_1", serverKeyId: "sk_2" },
+      ],
+      serverKeys: [
+        { id: "sk_1", label: "Survival" },
+        { id: "sk_2", label: "Creatif" },
+      ],
+    });
+    render(<ProjectSidebar />);
+    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+    // Still scoped to the persisted server, not the whole network.
+    expect(screen.queryByRole("link", { name: /Shop/ })).not.toBeInTheDocument();
+    // The selector still shows the persisted server as active.
+    expect(await screen.findByText("Survival")).toBeInTheDocument();
+  });
+
+  it("ignores a persisted server that no longer exists (shows the whole network)", async () => {
+    mockParams.current = {};
+    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
+    useServersStore.setState({ activeServerId: "sk_deleted" } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [{ id: "p1", name: "Lobby", hash: "h", networkId: "net_1", serverKeyId: "sk_1" }],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<ProjectSidebar />);
+    expect(await screen.findByRole("link", { name: /Lobby/ })).toBeInTheDocument();
+  });
+
+  it("persists the URL server (slug resolved to id) and network into the stores", async () => {
+    mockParams.current = { networkId: "mon-network", serverId: "survival" };
+    useNetworksStore.setState({
+      networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
+      activeId: null,
+    } as any);
+    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
+      projects: [],
+      serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
+    });
+    render(<ProjectSidebar />);
+    await waitFor(() => expect(useServersStore.getState().activeServerId).toBe("sk_1"));
+    expect(useNetworksStore.getState().activeId).toBe("net_1");
+  });
+
+  it("links the active network name to its network page", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "net_1", name: "Mon Network", tier: "free" },
+      projects: [],
+      serverKeys: [{ id: "sk_1", label: "Survival" }],
+    });
+    render(<ProjectSidebar />);
+    const link = await screen.findByRole("link", { name: /Mon Network/ });
+    expect(link).toHaveAttribute("href", "/networks/$networkId");
   });
 
   it("refetches when networkId changes", async () => {

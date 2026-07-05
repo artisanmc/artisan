@@ -1,4 +1,6 @@
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
@@ -33,7 +35,10 @@ export function ServerSelector({ servers }: Props) {
     networkId?: string;
     serverId?: string;
   };
-  const activeServerId = params.serverId ?? null;
+  // Routes without a serverId param (settings, credits…) fall back to the
+  // persisted selection so the selector and the project list stay coherent.
+  const storedServerId = useServersStore((s) => s.activeServerId);
+  const activeServerId = params.serverId ?? storedServerId ?? null;
 
   // Server slugs are only unique per network — when the URL carries a network
   // param (id or slug), scope the match to it so "server" doesn't resolve to
@@ -51,6 +56,8 @@ export function ServerSelector({ servers }: Props) {
   const handleSelect = (entry: ServerEntry) => {
     setOpen(false);
     useSidebarStore.getState().close();
+    useServersStore.getState().setActiveServerId(entry.serverId);
+    useNetworksStore.getState().setActiveId(entry.networkId);
     navigate({
       to: "/networks/$networkId/servers/$serverId",
       params: { networkId: entry.networkId, serverId: entry.serverId },

@@ -1,9 +1,9 @@
+import { useAuthStore } from "@/state/authStore";
+import { useNetworksStore } from "@/state/networksStore";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreditsPage } from "./CreditsPage";
-import { useAuthStore } from "@/state/authStore";
-import { useNetworksStore } from "@/state/networksStore";
 
 const h = vi.hoisted(() => ({ search: {} as Record<string, string> }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -22,10 +22,27 @@ vi.mock("@/lib/api/billing", () => ({
     periodEnd: "2999-01-01T00:00:00Z",
   })),
   getPacks: vi.fn(async () => [
-    { id: "pk1", name: "Starter", priceCents: 1000, currency: "eur", credits: 500, bonusPct: 20, creditsGranted: 600 },
+    {
+      id: "pk1",
+      name: "Starter",
+      priceCents: 1000,
+      currency: "eur",
+      credits: 500,
+      bonusPct: 20,
+      creditsGranted: 600,
+    },
   ]),
   getPlans: vi.fn(async () => [
-    { id: "pl1", name: "Pro", interval: "month", priceCents: 2000, currency: "eur", creditsPerPeriod: 5000, rolloverCap: 1000, features: "" },
+    {
+      id: "pl1",
+      name: "Pro",
+      interval: "month",
+      priceCents: 2000,
+      currency: "eur",
+      creditsPerPeriod: 5000,
+      rolloverCap: 1000,
+      features: "",
+    },
   ]),
   getSubscription: vi.fn(async () => ({
     status: "active",
@@ -35,7 +52,14 @@ vi.mock("@/lib/api/billing", () => ({
     graceUntil: null,
   })),
   getPurchases: vi.fn(async () => [
-    { id: "pur1", amountCents: 1000, currency: "eur", credits: 600, stripeInvoiceUrl: null, createdAt: "2026-07-01T00:00:00Z" },
+    {
+      id: "pur1",
+      amountCents: 1000,
+      currency: "eur",
+      credits: 600,
+      stripeInvoiceUrl: null,
+      createdAt: "2026-07-01T00:00:00Z",
+    },
   ]),
   startPackCheckout: vi.fn(async () => "https://stripe/checkout"),
   startSubscriptionCheckout: vi.fn(async () => null),
@@ -51,7 +75,10 @@ afterEach(() => {
 
 function signedIn() {
   useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
-  useNetworksStore.setState({ activeId: "net1", networks: [{ id: "net1", name: "N", tier: "free" }] } as never);
+  useNetworksStore.setState({
+    activeId: "net1",
+    networks: [{ id: "net1", name: "N", tier: "free" }],
+  } as never);
 }
 
 describe("CreditsPage", () => {
@@ -76,6 +103,14 @@ describe("CreditsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /Acheter/ }));
     await waitFor(() => expect(billing.startPackCheckout).toHaveBeenCalledWith("net1", "pk1"));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://stripe/checkout"));
+  });
+
+  it("balance badge offers no buy-credits action (already on the page)", async () => {
+    signedIn();
+    render(<CreditsPage />);
+    await waitFor(() => expect(document.querySelector("[data-tone]")).toBeTruthy());
+    await userEvent.click(document.querySelector("[data-tone]") as HTMLElement);
+    expect(screen.queryByText(/Ajouter des crédits/)).toBeNull();
   });
 
   it("shows the active subscription + manage button", async () => {

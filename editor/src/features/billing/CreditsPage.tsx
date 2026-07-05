@@ -1,4 +1,15 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
+import { CreditIndicator } from "@/features/billing/CreditIndicator";
 import {
+  type BalanceBreakdown,
+  type PackDto,
+  type PlanDto,
+  type PurchaseDto,
+  type SubscriptionDto,
   getBillingBalance,
   getPacks,
   getPlans,
@@ -7,21 +18,10 @@ import {
   openPortal,
   startPackCheckout,
   startSubscriptionCheckout,
-  type BalanceBreakdown,
-  type PackDto,
-  type PlanDto,
-  type PurchaseDto,
-  type SubscriptionDto,
 } from "@/lib/api/billing";
 import { formatCredits, formatMoney } from "@/lib/format";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { CreditIndicator } from "@/features/billing/CreditIndicator";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -153,7 +153,7 @@ export function CreditsPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="eyebrow">{t("billing.page.balanceHeading")}</h2>
-        <CreditIndicator balance={balance} onRecharge={() => {}} />
+        <CreditIndicator balance={balance} />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -172,7 +172,9 @@ export function CreditsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-[13px] text-[var(--text)]">
-                  {t("billing.page.creditsFor", { credits: formatCredits(pack.credits, i18n.language) })}
+                  {t("billing.page.creditsFor", {
+                    credits: formatCredits(pack.credits, i18n.language),
+                  })}
                 </p>
               </CardContent>
               <CardFooter>
@@ -227,11 +229,15 @@ export function CreditsPage() {
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
               <div className="flex items-center gap-2">
-                <Badge variant={statusVariant(subscription.status)}>{statusLabel(t, subscription.status)}</Badge>
+                <Badge variant={statusVariant(subscription.status)}>
+                  {statusLabel(t, subscription.status)}
+                </Badge>
                 {subscription.currentPeriodEnd && (
                   <span className="text-[13px] text-[var(--text-mut)]">
                     {t("billing.page.renewsOn", {
-                      date: new Date(subscription.currentPeriodEnd).toLocaleDateString(i18n.language),
+                      date: new Date(subscription.currentPeriodEnd).toLocaleDateString(
+                        i18n.language,
+                      ),
                     })}
                   </span>
                 )}

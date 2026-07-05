@@ -25,7 +25,7 @@ The popover also shows your renewal date and an **Add credits** button that open
 
 ## Buy a credit pack
 
-Open **`/credits`** (or click **Add credits** from the indicator). Under **Credit packs** you'll find one-off packs. Each card shows the price and how many credits you'll receive — including any bonus. Click **Buy** to open Stripe's secure checkout. After paying, you're returned to the credits page and your top-up credits appear within a few moments.
+Open **`/credits`** — click **Add credits** from the indicator, or **Billing & credits** in your network page header. Under **Credit packs** you'll find one-off packs. Each card shows the price and how many credits you'll receive — including any bonus. Click **Buy** to open Stripe's secure checkout. After paying, you're returned to the credits page and your top-up credits appear within a few moments.
 
 ## Subscribe to a plan
 
