@@ -238,10 +238,12 @@ describe("transform", () => {
     const files = transform(pack);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const app = menu.layers[0].elements[0].appearances[0];
-    expect(app.title).toBe("{i18n:menus.shop.elements.btn.default.title}");
-    expect(app.lore).toEqual(["{i18n:menus.shop.elements.btn.default.lore}"]);
+    // Hybrid inline policy: untranslated (single-language) fixtures export as
+    // inline literals, not `{i18n:}` refs — these fixtures carry only `en`.
+    expect(app.title).toBe("Buy");
+    expect(app.lore).toEqual(["Click here"]);
     expect(app.click.left.steps[0].action.type).toBe("send_message");
-    expect(app.click.left.steps[0].action.text).toBe("{i18n:menus.shop.elements.btn.default.click.left.message}");
+    expect(app.click.left.steps[0].action.text).toBe("Hello");
   });
 
   it("serializes appearance.head", () => {
@@ -333,8 +335,10 @@ describe("transform", () => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
     expect(action.type).toBe("show_title");
-    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
-    expect(action.subtitle).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_subtitle}");
+    // Hybrid inline policy: untranslated (single-language) fixtures export as
+    // inline literals, not `{i18n:}` refs.
+    expect(action.title).toBe("Hello");
+    expect(action.subtitle).toBe("World");
     expect(action.fade_in).toBe(5);
     expect(action.stay).toBe(40);
     expect(action.fade_out).toBe(15);
@@ -388,7 +392,9 @@ describe("transform", () => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const action = menu.layers[0].elements[0].appearances[0].click.left.steps[0].action;
     expect(action.type).toBe("show_title");
-    expect(action.title).toBe("{i18n:menus.shop.elements.btn.default.click.left.show_title}");
+    // Hybrid inline policy: untranslated (single-language) fixture exports as
+    // an inline literal, not `{i18n:}` ref.
+    expect(action.title).toBe("Hello");
     expect(action).not.toHaveProperty("subtitle");
     expect(action).not.toHaveProperty("fade_in");
     expect(action).not.toHaveProperty("stay");
@@ -1220,6 +1226,100 @@ describe("transform — appearance conditions", () => {
     const app = getApp(transform(pack));
     expect(app.if[0].of).toBeDefined();
     expect(app.if[0].any).toBeUndefined();
+  });
+});
+
+describe("hybrid inline export", () => {
+  const K1 = "menus.shop.elements.btn.default.title" as I18nKey;
+  const K2 = "menus.shop.elements.btn.default.lore" as I18nKey;
+  const K3 = "menus.shop.elements.btn.default.click.left.message" as I18nKey;
+
+  const buildPack = (i18nKeys: Project["i18nKeys"]): Project =>
+    makeProject({
+      defaultLang: "en",
+      i18nKeys,
+      menus: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_test"),
+          rows: 3,
+          title: [],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("btn"),
+                  positions: "0",
+                  appearances: [
+                    {
+                      title: { key: K1 },
+                      lore: { key: K2 },
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: { type: "send_message", text: { key: K3 } },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+  const getApp = (pack: Project) => {
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    return menu.layers[0].elements[0].appearances[0];
+  };
+
+  it("emits untranslated appearance title as inline literal", () => {
+    const pack = buildPack({
+      [K1]: { en: "Iron Sword" },
+      [K2]: { en: "Line one\nLine two" },
+      [K3]: { en: "Hi", fr: "Salut" },
+    } as Project["i18nKeys"]);
+    const app = getApp(pack);
+    expect(app.title).toBe("Iron Sword");
+  });
+
+  it("emits untranslated lore as one literal line per array entry", () => {
+    const pack = buildPack({
+      [K1]: { en: "Iron Sword" },
+      [K2]: { en: "Line one\nLine two" },
+      [K3]: { en: "Hi", fr: "Salut" },
+    } as Project["i18nKeys"]);
+    const app = getApp(pack);
+    expect(app.lore).toEqual(["Line one", "Line two"]);
+  });
+
+  it("keeps {i18n:} ref for a translated action text", () => {
+    const pack = buildPack({
+      [K1]: { en: "Iron Sword" },
+      [K2]: { en: "Line one\nLine two" },
+      [K3]: { en: "Hi", fr: "Salut" },
+    } as Project["i18nKeys"]);
+    const app = getApp(pack);
+    expect(app.click.left.steps[0].action.text).toBe(`{i18n:${K3}}`);
+  });
+
+  it("empty-string translations do not count as translated", () => {
+    const pack = buildPack({
+      [K1]: { en: "Iron Sword", fr: "" },
+      [K2]: { en: "Line one\nLine two" },
+      [K3]: { en: "Hi", fr: "Salut" },
+    } as Project["i18nKeys"]);
+    const app = getApp(pack);
+    expect(app.title).toBe("Iron Sword");
   });
 });
 

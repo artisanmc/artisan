@@ -24,6 +24,26 @@ import { stringify } from "yaml";
 
 const i18nRef = (key: string): string => `{i18n:${key}}`;
 
+/** True iff the key carries a non-empty value in some language other than the pack default. */
+function isTranslated(pack: Project, key: string): boolean {
+  const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
+  if (!entry) return false;
+  return Object.entries(entry).some(([lang, v]) => lang !== pack.defaultLang && !!v);
+}
+
+function defaultText(pack: Project, key: string): string {
+  return pack.i18nKeys[key as keyof typeof pack.i18nKeys]?.[pack.defaultLang] ?? "";
+}
+
+/**
+ * Hybrid emission: translated fields keep the `{i18n:key}` ref (the runtime
+ * needs the key to look up lang maps); untranslated fields inline their
+ * default-language text so single-language YAML stays human-readable.
+ */
+function emitText(pack: Project, lt: { key: I18nKey }): string {
+  return isTranslated(pack, lt.key) ? i18nRef(lt.key) : defaultText(pack, lt.key);
+}
+
 // ─── condition serialization ────────────────────────────────────────────────
 // Most conditions are stored snake_case and contain no LText — pass through
 // as-is. Exceptions: composites (recursive) and pagination (camelCase domain).
@@ -52,7 +72,7 @@ function serializeIfArray(conditions: Condition[], joins?: ("and" | "or")[]): un
 
 // ─── action serialization ────────────────────────────────────────────────────
 
-function serializeAction(action: Action): unknown {
+function serializeAction(action: Action, pack: Project): unknown {
   switch (action.type) {
     case "open_menu": {
       const out: Record<string, unknown> = { type: "open_menu", menu_id: action.menuId };
@@ -61,10 +81,10 @@ function serializeAction(action: Action): unknown {
       return out;
     }
     case "send_message":
-      return { type: "send_message", text: i18nRef(action.text.key) };
+      return { type: "send_message", text: emitText(pack, action.text) };
     case "show_title": {
-      const out: Record<string, unknown> = { type: "show_title", title: i18nRef(action.title.key) };
-      if (action.subtitle) out.subtitle = i18nRef(action.subtitle.key);
+      const out: Record<string, unknown> = { type: "show_title", title: emitText(pack, action.title) };
+      if (action.subtitle) out.subtitle = emitText(pack, action.subtitle);
       if (action.fadeIn !== undefined) out.fade_in = action.fadeIn;
       if (action.stay !== undefined) out.stay = action.stay;
       if (action.fadeOut !== undefined) out.fade_out = action.fadeOut;
@@ -87,7 +107,7 @@ function serializeAction(action: Action): unknown {
     case "give_level":
       return { type: "give_level", amount: action.amount };
     case "broadcast":
-      return { type: "broadcast", text: i18nRef(action.text.key) };
+      return { type: "broadcast", text: emitText(pack, action.text) };
     case "play_sound": {
       const out: Record<string, unknown> = { type: "play_sound", sound: action.sound };
       if (action.volume !== undefined) out.volume = action.volume;
@@ -135,7 +155,7 @@ function serializeAction(action: Action): unknown {
 
 function serializeStep(step: Step, pack: Project): unknown {
   if (step.kind === "action") {
-    return { kind: "action", action: serializeAction(step.action) };
+    return { kind: "action", action: serializeAction(step.action, pack) };
   }
   const out: Record<string, unknown> = {
     kind: "if",
@@ -163,8 +183,12 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
   if (app.material) out.material = app.material;
   if (app.head) out.head = app.head;
   if (app.count !== undefined) out.count = app.count;
-  if (app.title) out.title = i18nRef(app.title.key);
-  if (app.lore) out.lore = [i18nRef(app.lore.key)];
+  if (app.title) out.title = emitText(pack, app.title);
+  if (app.lore) {
+    out.lore = isTranslated(pack, app.lore.key)
+      ? [i18nRef(app.lore.key)]
+      : defaultText(pack, app.lore.key).split("\n");
+  }
   if (app.click) {
     const clickOut: Record<string, unknown> = {};
     for (const [clickType, handler] of Object.entries(app.click)) {
@@ -474,10 +498,10 @@ export function packToCommandV1(pack: Project): Record<string, unknown>[] {
 
 // ─── dialog serialization ────────────────────────────────────────────────────
 
-function extractFlatActions(steps: Step[]): unknown[] {
+function extractFlatActions(steps: Step[], pack: Project): unknown[] {
   const result: unknown[] = [];
   for (const step of steps) {
-    if (step.kind === "action") result.push(serializeAction(step.action));
+    if (step.kind === "action") result.push(serializeAction(step.action, pack));
     // if-branches not supported in dialog button v1 export
   }
   return result;
@@ -510,14 +534,14 @@ function serializeDialogInput(input: DialogInput): Record<string, unknown> {
   return out;
 }
 
-function serializeDialogButton(btn: DialogButton): Record<string, unknown> {
+function serializeDialogButton(btn: DialogButton, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
-  const actions = extractFlatActions(btn.steps);
+  const actions = extractFlatActions(btn.steps, pack);
   if (actions.length > 0) out.actions = actions;
   return out;
 }
 
-export function serializeDialog(dialog: Dialog): Record<string, unknown> {
+export function serializeDialog(dialog: Dialog, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
@@ -526,13 +550,13 @@ export function serializeDialog(dialog: Dialog): Record<string, unknown> {
   if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
   if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
   if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
-  out.buttons = dialog.buttons.map(serializeDialogButton);
+  out.buttons = dialog.buttons.map((btn) => serializeDialogButton(btn, pack));
   return out;
 }
 
 /** Serialize every dialog in a pack to canonical dialog/v1 objects. */
 export function packToDialogV1(pack: Project): Record<string, unknown>[] {
-  return pack.dialogs.map((d) => serializeDialog(d));
+  return pack.dialogs.map((d) => serializeDialog(d, pack));
 }
 
 // ─── translations serialization ──────────────────────────────────────────────
@@ -633,7 +657,7 @@ export function transform(pack: Project): Record<string, string> {
   }
 
   for (const dialog of pack.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog), yamlOpts);
+    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog, pack), yamlOpts);
   }
 
   const langs = listLanguages(pack);
