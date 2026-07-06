@@ -59,6 +59,20 @@ Le kind `textarea` (SP5) est un bloc multi-ligne : la string i18n est split sur 
 
 Le plugin embarque `assets/artisan/asset-index.json` (schéma **v2**) dans le zip RP pour mapper `asset_id → name + type + codepoint? + ascent + height + width + namespace?` et déclarer la table `offsets` (codepoint hex → pixel advance).
 
+## Hybrid inline export
+
+Policy par champ texte (title-layer `value`, item name/lore, dialog text, command messages) : un champ **non traduit** au-delà de `Project.defaultLang` exporte comme **littéral inline** dans le YAML (menu/command/dialog) — `lore` : une entrée d'array par ligne, pas de jointure `\n`. Un champ **traduit** garde une réf `{i18n:key}` (ou `value: {key: ...}` pour les title-layers) + une entrée dans `lang/<lang>.yaml`, y compris une entrée d'ancre dans `lang/<defaultLang>.yaml` (seedée `""` si jamais éditée directement).
+
+`lang/<lang>.yaml` n'est émis que pour les clés **traduites référencées** ; un project mono-langue (aucune traduction au-delà de `defaultLang`) n'a **aucun** dossier `lang/`.
+
+Plugin (`net.artisanmc.plugin.engine`) :
+- `LText(key: String?, literal: String?)` — un seul des deux est non-null.
+- `MenuTitleParser` accepte un `value` string (littéral, ou unwrap `{i18n:key}`) en plus du legacy `{key: ...}`.
+- `TitleCompiler` (et la résolution `LText` générale) : `literal ?: langMap[key] ?: ""` — corrige au passage l'ancien bug des titres string brute rendus vides.
+- `LangKeyAuditor` scanne les clés référencées vs `lang/` au chargement du project ; une clé orpheline (référencée mais absente de toutes les langues) émet **un** `logger.warning` par project, pas par clé.
+
+Éditeur : `menuV1ToDomain.layerValue()` mint une nouvelle clé i18n pour un `value` littéral de title-layer à l'import (roundtrip couvert par les tests d'export/import).
+
 ## Title Composer — pixel offsets (spaces font)
 
 Pour positionner chaque layer à son `x` exact, le backend embarque dans `assets/artisan/font/default.json` un provider `space` (MC 1.20+) mappant 18 codepoints (`U+F800..U+F811`) à des advances en pixels (puissances de 2 ±1/±2/.../±256 → portée ±511 px par décomposition gourmande, **plus avec réutilisation** des chars). On évite `U+F900..U+FAFF` (CJK Compatibility Ideographs) où la font vanilla a des glyphes qui empêcheraient le provider `space` de s'appliquer.

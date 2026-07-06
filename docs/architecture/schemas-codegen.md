@@ -94,6 +94,10 @@ Types alignés à la main sur les trois couches :
 
 Export (`serializeMenuToV1`) : émet `inventory_type` **uniquement si ≠ chest**, et `size = slotCount(type, rows)`. Import (`menuV1ToDomain`) : le lit (défaut `chest`) et calcule les rows par type. Plugin : `MenuRenderer` crée l'inventaire via `InventoryType.HOPPER`/`DROPPER` pour les types non-chest (branche sur le **type**, pas la taille — dropper = 9 slots comme un coffre 1 ligne).
 
+### Title-layer `value` : `string | {key}` union (hybrid inline export)
+
+`menu/v1` title-layer `value` est un `oneOf [string, {key: string}]` (idem `dialog/v1` pour les champs texte concernés) : `string` = littéral inline dans la langue par défaut du project (pas de traduction au-delà de `defaultLang`) ; `{key}` = réf i18n avec entrées `lang/<lang>.yaml`. Policy détaillée dans `docs/architecture/editor-internals.md` (§ Hybrid inline export).
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |
