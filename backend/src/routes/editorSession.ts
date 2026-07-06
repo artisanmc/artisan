@@ -224,7 +224,10 @@ router.post("/:token/projects/:projectId/deploy", async (c) => {
   const filesJson = JSON.stringify(body.files);
   const editorJson = buildEditorJsonWithLayout(body.project, body.files, projectId);
 
-  await upsertProjectContent(projectId, {
+  // No version precondition: deploy is an explicit user action. The bump still
+  // happens (upsertProjectContent), so the response carries the new version for
+  // the client to resync — otherwise the deploying tab's next save would 409.
+  const newVersion = await upsertProjectContent(projectId, {
     hash,
     filesJson,
     editorJson,
@@ -249,7 +252,7 @@ router.post("/:token/projects/:projectId/deploy", async (c) => {
   } else {
     await pushBundleAvailable(projectId, "main", hash);
   }
-  return c.json({ hash }, 201);
+  return c.json({ hash, version: newVersion }, 201);
 });
 
 router.get("/:token/projects/:projectId/deployed", async (c) => {

@@ -14,6 +14,9 @@ interface ProjectVersionState {
   versions: Record<string, number>;
   conflicts: Record<string, boolean>;
   setVersion: (projectId: string, version: number) => void;
+  /** Fresh-load sync: records versions AND lifts conflict flags for those ids
+   *  (a reload picked up the server state, so the conflict is resolved). */
+  setVersions: (entries: Record<string, number>) => void;
   markConflict: (projectId: string) => void;
   clearConflict: (projectId: string) => void;
 }
@@ -23,6 +26,12 @@ export const useProjectVersionStore = create<ProjectVersionState>()((set) => ({
   conflicts: {},
   setVersion: (projectId, version) =>
     set((s) => ({ versions: { ...s.versions, [projectId]: version } })),
+  setVersions: (entries) =>
+    set((s) => {
+      const conflicts = { ...s.conflicts };
+      for (const id of Object.keys(entries)) delete conflicts[id];
+      return { versions: { ...s.versions, ...entries }, conflicts };
+    }),
   markConflict: (projectId) =>
     set((s) => ({ conflicts: { ...s.conflicts, [projectId]: true } })),
   clearConflict: (projectId) =>
