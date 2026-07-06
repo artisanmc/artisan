@@ -68,6 +68,19 @@ class ProjectReader(private val projectsRoot: File, private val logger: Logger? 
             BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang)
         }
 
+        val contentFiles =
+            manifest.files.menus.map { File(projectDir, "menus/$it.yaml") } +
+                manifest.files.commands.map { File(projectDir, "commands/$it.yaml") } +
+                manifest.files.dialogs.map { File(projectDir, "dialogs/$it.yaml") }
+        val referenced = LangKeyAuditor.referencedKeys(contentFiles.filter { it.exists() }.map { it.readText() })
+        val orphans = langMaps.values.flatMapTo(mutableSetOf()) { it.keys } - referenced
+        if (orphans.isNotEmpty()) {
+            logger?.warning(
+                "Project ${manifest.projectId}: ${orphans.size} lang key(s) not referenced by any " +
+                    "menu/command/dialog (renamed file?): ${orphans.sorted().joinToString(", ")}"
+            )
+        }
+
         return ProjectBundle(manifest.projectId, manifest.defaultLang, manifest.languages, menus, commands, dialogs)
     }
 }
