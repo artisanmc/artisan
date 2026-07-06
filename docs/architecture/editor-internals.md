@@ -66,10 +66,10 @@ Policy par champ texte (title-layer `value`, item name/lore, dialog text, comman
 `lang/<lang>.yaml` n'est émis que pour les clés **traduites référencées** ; un project mono-langue (aucune traduction au-delà de `defaultLang`) n'a **aucun** dossier `lang/`.
 
 Plugin (`net.artisanmc.plugin.engine`) :
-- `LText(key: String?, literal: String?)` — un seul des deux est non-null.
+- `data class LText(val key: String = "", val literal: String? = null)` — un `literal` non-null = texte inline, prioritaire à la résolution.
 - `MenuTitleParser` accepte un `value` string (littéral, ou unwrap `{i18n:key}`) en plus du legacy `{key: ...}`.
 - `TitleCompiler` (et la résolution `LText` générale) : `literal ?: langMap[key] ?: ""` — corrige au passage l'ancien bug des titres string brute rendus vides.
-- `LangKeyAuditor` scanne les clés référencées vs `lang/` au chargement du project ; une clé orpheline (référencée mais absente de toutes les langues) émet **un** `logger.warning` par project, pas par clé.
+- `ProjectReader` diffe au chargement du project les clés référencées (extraites via `LangKeyAuditor.referencedKeys()`, pur helper regex sans logging) contre les clés présentes dans `lang/` ; les clés orphelines (référencées mais absentes de toutes les langues) déclenchent **un** `logger.warning` par project, pas par clé.
 
 Éditeur : `menuV1ToDomain.layerValue()` mint une nouvelle clé i18n pour un `value` littéral de title-layer à l'import (roundtrip couvert par les tests d'export/import).
 
