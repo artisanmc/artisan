@@ -1,5 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
 import type { Asset, AssetType } from "@/domain/asset";
+import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -7,6 +8,7 @@ interface ProjectListRow {
   project_id: string;
   name: string;
   hash: string;
+  version?: number;
   files: Record<string, string>;
   editor: Project | null;
 }
@@ -51,6 +53,8 @@ export async function loadProjects(token: string): Promise<Project[]> {
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects`);
   if (!res.ok) throw new Error("Failed to load projects");
   const data = (await res.json()) as { projects: ProjectListRow[] };
+  const { setVersion } = useProjectVersionStore.getState();
+  for (const row of data.projects) setVersion(row.project_id, row.version ?? 0);
   return data.projects.map(rowToProject);
 }
 
@@ -59,12 +63,21 @@ export async function saveProject(
   pack: Project,
   files: Record<string, string>,
 ): Promise<void> {
+  const store = useProjectVersionStore.getState();
+  const base_version = store.versions[pack.id] ?? 0;
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${pack.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pack, files }),
+    body: JSON.stringify({ project: pack, files, base_version }),
   });
+  if (res.status === 409) {
+    const data = (await res.json()) as { current_version?: number };
+    store.markConflict(pack.id);
+    throw new VersionConflictError(pack.id, data.current_version ?? 0);
+  }
   if (!res.ok) throw new Error("Échec de la sauvegarde");
+  const data = (await res.json()) as { version?: number };
+  if (typeof data.version === "number") store.setVersion(pack.id, data.version);
 }
 
 export async function deleteProject(token: string, projectId: string): Promise<void> {

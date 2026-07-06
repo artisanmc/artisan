@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadUserProject, saveUserProject } from "./userProjects";
+import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
 
 describe("userProjects API client", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useProjectVersionStore.setState({ versions: {}, conflicts: {} });
   });
 
   it("loadUserProject GET /api/v1/user/projects/:projectId returns content", async () => {
@@ -35,5 +37,44 @@ describe("userProjects API client", () => {
     expect(call[0]).toContain("/api/v1/user/projects/p1");
     expect(call[1].method).toBe("PUT");
     expect(JSON.parse(call[1].body as string).hash).toBe("h2");
+  });
+
+  it("loadUserProject records the project version in the version store", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          project: { id: "p1", hash: "h1", version: 4 },
+          files: {},
+          editor: null,
+        }),
+        { status: 200 }
+      )
+    );
+    await loadUserProject("p1");
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(4);
+  });
+
+  it("saveUserProject sends baseVersion from the store and records the new version", async () => {
+    useProjectVersionStore.getState().setVersion("p1", 4);
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true, version: 5 }), { status: 200 })
+    );
+    await saveUserProject("p1", { hash: "", files: {}, editor: null });
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(call[1].body as string).baseVersion).toBe(4);
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(5);
+  });
+
+  it("saveUserProject on 409 marks the conflict and throws VersionConflictError", async () => {
+    useProjectVersionStore.getState().setVersion("p1", 4);
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "version_conflict", currentVersion: 7 }), { status: 409 })
+    );
+    await expect(
+      saveUserProject("p1", { hash: "", files: {}, editor: null })
+    ).rejects.toBeInstanceOf(VersionConflictError);
+    expect(useProjectVersionStore.getState().conflicts["p1"]).toBe(true);
+    // version is NOT advanced — the local state is still based on 4
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(4);
   });
 });
