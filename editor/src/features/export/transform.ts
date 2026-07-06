@@ -343,7 +343,12 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "text": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (
+      if (typeof value === "string") {
+        // Literal-string value (hybrid export). This helper has no minting
+        // ability, so it stores the literal as the key — menuV1ToDomain is
+        // the real import path and mints properly.
+        key = value as I18nKey;
+      } else if (
         value &&
         typeof value === "object" &&
         typeof (value as { key?: unknown }).key === "string"
@@ -367,7 +372,12 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "plain": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (
+      if (typeof value === "string") {
+        // Literal-string value (hybrid export). This helper has no minting
+        // ability, so it stores the literal as the key — menuV1ToDomain is
+        // the real import path and mints properly.
+        key = value as I18nKey;
+      } else if (
         value &&
         typeof value === "object" &&
         typeof (value as { key?: unknown }).key === "string"
@@ -382,7 +392,12 @@ function parseTitleLayer(node: unknown): MenuTitleLayer | null {
     case "textarea": {
       const value = m.value;
       let key: I18nKey | undefined;
-      if (
+      if (typeof value === "string") {
+        // Literal-string value (hybrid export). This helper has no minting
+        // ability, so it stores the literal as the key — menuV1ToDomain is
+        // the real import path and mints properly.
+        key = value as I18nKey;
+      } else if (
         value &&
         typeof value === "object" &&
         typeof (value as { key?: unknown }).key === "string"

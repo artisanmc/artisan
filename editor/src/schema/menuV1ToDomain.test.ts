@@ -1,4 +1,5 @@
 import { projectId } from "@/domain/ids";
+import type { MenuTitleLayer } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 
@@ -365,6 +366,33 @@ describe("menuV1ToDomain — title layers + menu assembly", () => {
       x: 2,
       y: 3,
     });
+  });
+
+  it("imports a literal title-layer value by minting a key", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "shop",
+      size: 27,
+      layers: [],
+      title: [{ kind: "plain", value: "<gold>Shop" }],
+    };
+    const { menu, i18nKeys } = menuV1ToDomain(src, opts);
+    const layer = menu.title[0] as Extract<MenuTitleLayer, { kind: "plain" }>;
+    expect(i18nKeys[layer.value.key]).toEqual({ en: "<gold>Shop" });
+  });
+
+  it("imports an {i18n:} string title-layer value as a key ref", () => {
+    const src = {
+      schema: "menu/v1",
+      id: "shop",
+      size: 27,
+      layers: [],
+      title: [{ kind: "plain", value: "{i18n:menus.shop.title}" }],
+    };
+    const { menu, i18nKeys } = menuV1ToDomain(src, opts);
+    const layer = menu.title[0] as Extract<MenuTitleLayer, { kind: "plain" }>;
+    expect(layer.value.key).toBe("menus.shop.title");
+    expect(Object.keys(i18nKeys)).toHaveLength(0);
   });
 
   it("maps plain title layer", () => {

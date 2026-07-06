@@ -398,6 +398,102 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   });
 });
 
+describe("menuV1ToDomain — mono-language (untranslated) hybrid round-trip", () => {
+  // Untranslated pack: every i18nKeys entry carries only `defaultLang`. Hybrid
+  // export inlines these as literal strings/arrays instead of `{i18n:}` refs
+  // or `{ key }` objects. Re-importing mints NEW random keys for the
+  // literals, so we can't compare domain key identity — instead we compare
+  // the re-EXPORTED wire object, which is stable regardless of key names.
+  function ltLiteral(pack: Project, value: string): { key: I18nKey } {
+    const key = `mono_${Object.keys(pack.i18nKeys).length}` as I18nKey;
+    pack.i18nKeys[key] = { en: value };
+    return { key };
+  }
+
+  function buildMonoProject(): Project {
+    const pack: Project = {
+      id: PACK,
+      name: "Mono",
+      source: "user_created",
+      createdAt: "2026-06-08T00:00:00.000Z",
+      updatedAt: "2026-06-08T00:00:00.000Z",
+      menus: [],
+      commands: [],
+      templates: [],
+      assets: [],
+      dataSources: [],
+      importedConnectors: [],
+      i18nKeys: {},
+      defaultLang: LANG,
+      dialogs: [],
+      canvasLayout: {},
+    };
+
+    const titleLayers: MenuTitleLayer[] = [
+      {
+        kind: "plain",
+        value: ltLiteral(pack, "<gold>Shop"),
+      },
+    ];
+
+    const appearances: Appearance[] = [
+      {
+        material: "STONE",
+        title: ltLiteral(pack, "Untranslated Button"),
+        lore: ltLiteral(pack, "Line 1\nLine 2\nLine 3"),
+      },
+    ];
+
+    const elements: Element[] = [
+      { id: elementId("btn"), positions: "0", appearances },
+    ];
+    const layers: Layer[] = [{ id: layerId("main"), name: "Main", elements }];
+
+    const menu: Menu = {
+      id: menuId("mono"),
+      projectId: PACK,
+      title: titleLayers,
+      rows: 3,
+      layers,
+    };
+
+    pack.menus.push(menu);
+    return pack;
+  }
+
+  it("re-exports to an identical wire object after an import round-trip", () => {
+    const pack = buildMonoProject();
+    const menu = pack.menus[0]!;
+    const wire = serializeMenuToV1(menu, pack);
+
+    // Sanity: hybrid export inlined literals (no {i18n:} refs, no {key} objects).
+    expect((wire.title as Record<string, unknown>[])[0]!.value).toBe("<gold>Shop");
+    const appOut = (wire.layers as Record<string, unknown>[])[0]!.elements as Record<
+      string,
+      unknown
+    >[];
+    expect((appOut[0]!.appearances as Record<string, unknown>[])[0]!.title).toBe(
+      "Untranslated Button",
+    );
+    expect((appOut[0]!.appearances as Record<string, unknown>[])[0]!.lore).toEqual([
+      "Line 1",
+      "Line 2",
+      "Line 3",
+    ]);
+
+    const { menu: imported, i18nKeys } = menuV1ToDomain(wire, { projectId: PACK, lang: LANG });
+
+    const reimportedPack: Project = {
+      ...pack,
+      i18nKeys: i18nKeys as Project["i18nKeys"],
+      menus: [imported],
+    };
+    const wire2 = serializeMenuToV1(imported, reimportedPack);
+
+    expect(wire2).toEqual(wire);
+  });
+});
+
 describe("serializeMenuToV1 inventory_type", () => {
   const pack = {
     id: "p",

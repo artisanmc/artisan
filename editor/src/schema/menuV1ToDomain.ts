@@ -57,6 +57,10 @@ export function menuV1ToDomain(
     i18nKeys[key] = { [opts.lang]: raw ?? "" };
     return { key };
   }
+  /** Title-layer `value` is either a `{key}` ref object or a literal string (hybrid export). */
+  function layerValue(v: unknown): LText {
+    return typeof v === "string" ? text(v) : ref((v as Json).key);
+  }
 
   // ── shared wire→domain step converter (conditions/actions/steps) ──────────
   const { step, ifArray } = makeStepConverter({
@@ -115,7 +119,7 @@ export function menuV1ToDomain(
       case "text": {
         const out: MenuTitleLayer = {
           kind: "text",
-          value: ref(l.value.key),
+          value: layerValue(l.value),
           x: l.x,
           y: l.y,
         };
@@ -125,14 +129,14 @@ export function menuV1ToDomain(
         return out;
       }
       case "plain": {
-        const out: MenuTitleLayer = { kind: "plain", value: ref(l.value.key) };
+        const out: MenuTitleLayer = { kind: "plain", value: layerValue(l.value) };
         if (l.color !== undefined) out.color = l.color;
         return out;
       }
       case "textarea": {
         const out: MenuTitleLayer = {
           kind: "textarea",
-          value: ref(l.value.key),
+          value: layerValue(l.value),
           x: l.x,
           y: l.y,
           width: l.width,
