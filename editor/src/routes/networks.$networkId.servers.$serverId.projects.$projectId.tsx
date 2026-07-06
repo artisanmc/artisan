@@ -1,5 +1,6 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
+import { ProjectConflictBanner } from "@/components/ProjectConflictBanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -420,6 +421,8 @@ export function ProjectCanvasPage() {
           <span className="font-mono text-[13px] text-[var(--text-faint)]">—</span>
         </div>
       )}
+
+      <ProjectConflictBanner projectId={pId} />
 
       {/* Assistant docks below the topbar, at the same level as the canvas
           and its properties pane; on mobile it stays a drawer (<AssistantPanel/>).

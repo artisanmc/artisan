@@ -114,6 +114,7 @@ describe("userProjectsRouter — PUT", () => {
         hash: "h2",
         files: { "menus/m.yaml": "id: m\ntitle: Hello" },
         editor: { id: packId, menus: [{ id: "m" }] },
+        baseVersion: 1,
       }),
     });
     expect(res.status).toBe(200);
@@ -125,6 +126,70 @@ describe("userProjectsRouter — PUT", () => {
     const updated = await getProject(packId);
     expect(updated?.hash).toBe("h2");
     expect(JSON.parse(updated?.filesJson ?? "{}")).toEqual({ "menus/m.yaml": "id: m\ntitle: Hello" });
+  });
+
+  test("GET /:projectId returns project version", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const body = await res.json();
+    // seedUserWithPack does one upsert after createProject → version 1
+    expect(body.project.version).toBe(1);
+  });
+
+  test("PUT /:projectId 200 — matching baseVersion saves and returns new version", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ hash: "h2", files: {}, editor: null, baseVersion: 1 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.version).toBe(2);
+  });
+
+  test("PUT /:projectId 409 — stale baseVersion is rejected without overwriting", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    // concurrent writer bumps the version
+    const ok = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ hash: "h2", files: { "menus/m.yaml": "id: m2" }, editor: null, baseVersion: 1 }),
+    });
+    expect(ok.status).toBe(200);
+
+    // stale tab still holds baseVersion 1
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ hash: "h_stale", files: { "menus/m.yaml": "id: stale" }, editor: null, baseVersion: 1 }),
+    });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("version_conflict");
+    expect(body.currentVersion).toBe(2);
+
+    const { getProject } = await import("../lib/projectStorage");
+    const row = await getProject(packId);
+    expect(row?.hash).toBe("h2");
+  });
+
+  test("PUT /:projectId 400 — missing baseVersion is rejected", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "PUT",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ hash: "h2", files: {}, editor: null }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("missing_base_version");
   });
 
   test("PUT /:projectId 403 — non-member cannot write", async () => {

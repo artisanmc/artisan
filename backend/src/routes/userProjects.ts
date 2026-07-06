@@ -173,13 +173,24 @@ userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) =>
     return c.json({ error: "forbidden" }, 403);
   }
 
-  const body = await c.req.json<{ hash: string; files: Record<string, string>; editor: unknown }>();
+  const body = await c.req.json<{ hash: string; files: Record<string, string>; editor: unknown; baseVersion?: number }>();
+  if (typeof body.baseVersion !== "number") {
+    return c.json({ error: "missing_base_version" }, 400);
+  }
 
-  await upsertProjectContent(projectId, {
-    hash: body.hash,
-    filesJson: JSON.stringify(body.files),
-    editorJson: body.editor ? JSON.stringify(body.editor) : null,
-  });
+  const newVersion = await upsertProjectContent(
+    projectId,
+    {
+      hash: body.hash,
+      filesJson: JSON.stringify(body.files),
+      editorJson: body.editor ? JSON.stringify(body.editor) : null,
+    },
+    { expectedVersion: body.baseVersion },
+  );
+  if (newVersion === null) {
+    const current = await getProject(projectId);
+    return c.json({ error: "version_conflict", currentVersion: current?.version ?? 0 }, 409);
+  }
 
-  return c.json({ ok: true });
+  return c.json({ ok: true, version: newVersion });
 });
