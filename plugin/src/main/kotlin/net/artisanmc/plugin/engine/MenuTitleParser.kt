@@ -9,7 +9,8 @@ import net.artisanmc.plugin.model.MenuTitleLayer
  * Accepts four shapes for tolerance:
  *  - `null` / empty string → empty list (no title)
  *  - a bare string (legacy) → one [MenuTitleLayer.Text] wrapping the string at (8, 5).
- *    If the string is of the form `{i18n:foo.bar}`, the `foo.bar` key is unwrapped.
+ *    If the string is of the form `{i18n:foo.bar}`, the `foo.bar` key is unwrapped;
+ *    otherwise the string is stored as an inline literal (see [LText]).
  *  - a single map → one-element list
  *  - a list of maps → list of layers
  *
@@ -90,22 +91,20 @@ object MenuTitleParser {
     }
 
     private fun parseLText(v: Any?): LText = when (v) {
+        is String -> literalToLText(v)
         is Map<*, *> -> LText(key = v["key"] as? String ?: "")
         else -> LText(key = "")
     }
 
     /**
-     * Legacy `title: "<string>"` compatibility.
-     *
-     * If `raw` looks like `{i18n:foo.bar}`, unwrap to the bare key `foo.bar`.
-     * Otherwise wrap the literal string as the [LText.key]; the title compiler
-     * (Task 18) treats keys with no entry in the lang map as literal text — the
-     * exact same fallback chain as the legacy `BundleMenu.resolveTitle(lang)`.
+     * String-valued text: `{i18n:foo.bar}` unwraps to the bare key; anything
+     * else is inline literal text (hybrid export) — also covers the legacy
+     * bare-string `title:` shape.
      */
     private fun literalToLText(raw: String): LText {
         if (raw.startsWith("{i18n:") && raw.endsWith("}")) {
             return LText(key = raw.removePrefix("{i18n:").removeSuffix("}"))
         }
-        return LText(key = raw)
+        return LText(literal = raw)
     }
 }

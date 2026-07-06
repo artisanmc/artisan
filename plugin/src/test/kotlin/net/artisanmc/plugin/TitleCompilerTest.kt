@@ -75,6 +75,14 @@ class TitleCompilerTest {
     }
 
     @Test
+    fun `compileLayerBody for text with inline literal resolves without a langMap entry`() {
+        // literal wins over key lookup — even with an empty langMap.
+        val layer = MenuTitleLayer.Text(value = LText(literal = "Hello"), x = 0, y = 5)
+        val (s, _) = TitleCompiler.compileLayerBody(layer, 0, emptyMap(), emptyLookup, OffsetEncoder.EMPTY)
+        assertEquals("<font:artisan:text_y5_h8>Hello</font>", s)
+    }
+
+    @Test
     fun `compileLayerBody for glyph emits white-wrapped codepoint char`() {
         val layer = MenuTitleLayer.Glyph(assetId = "asset_coin", x = 32, y = 5)
         val ch = 57344.toChar()

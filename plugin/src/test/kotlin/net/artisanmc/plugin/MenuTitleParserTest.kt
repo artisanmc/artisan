@@ -16,11 +16,12 @@ class MenuTitleParserTest {
     }
 
     @Test fun `legacy bare string yields one plain layer`() {
+        // Bare-string titles are inline literals (not keys) — see LText.literal.
         val result = MenuTitleParser.parse("Shop")
         assertEquals(1, result.size)
         val plain = result.single()
         assertIs<MenuTitleLayer.Plain>(plain)
-        assertEquals(LText("Shop"), plain.value)
+        assertEquals(LText(literal = "Shop"), plain.value)
         assertNull(plain.color)
     }
 
@@ -305,5 +306,28 @@ class MenuTitleParserTest {
                                 "alignment" to "left", "size" to 999))
         val ta = MenuTitleParser.parse(src).single() as MenuTitleLayer.Textarea
         assertEquals(8, ta.size)
+    }
+
+    @Test
+    fun `structured text layer accepts a literal string value`() {
+        val layers = MenuTitleParser.parse(listOf(mapOf("kind" to "text", "value" to "<gold>Boutique", "x" to 8, "y" to 5)))
+        val text = layers.single() as MenuTitleLayer.Text
+        assertEquals(null, text.value.key.takeIf { it.isNotEmpty() })
+        assertEquals("<gold>Boutique", text.value.literal)
+    }
+
+    @Test
+    fun `structured layer string value with i18n wrapper unwraps to key`() {
+        val layers = MenuTitleParser.parse(listOf(mapOf("kind" to "plain", "value" to "{i18n:menus.shop.title}")))
+        val plain = layers.single() as MenuTitleLayer.Plain
+        assertEquals("menus.shop.title", plain.value.key)
+        assertEquals(null, plain.value.literal)
+    }
+
+    @Test
+    fun `legacy bare-string title becomes a literal, not a key`() {
+        val layers = MenuTitleParser.parse("Boutique")
+        val plain = layers.single() as MenuTitleLayer.Plain
+        assertEquals("Boutique", plain.value.literal)
     }
 }

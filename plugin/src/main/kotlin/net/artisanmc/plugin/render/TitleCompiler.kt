@@ -441,11 +441,10 @@ object TitleCompiler {
     }
 
     /**
-     * Resolve an [LText] reference against a language map. When the key isn't
-     * present (referencedKeys serialization could be lagging, or the user just
-     * never typed a value), we return `""` rather than echoing the raw key —
-     * showing `menus.foo.title` in chat is worse than showing nothing.
+     * Resolve an [LText]: inline literal wins; otherwise look up the key in
+     * the language map. On a miss we return `""` rather than echoing the raw
+     * key — showing `menus.foo.title` in chat is worse than showing nothing.
      */
     private fun resolveLText(value: LText, langMap: Map<String, String>): String =
-        langMap[value.key] ?: ""
+        value.literal ?: langMap[value.key] ?: ""
 }
