@@ -143,6 +143,7 @@ router.get("/:token/projects", async (c) => {
       project_id: p.id,
       name: p.name,
       hash: p.hash,
+      version: p.version,
       files: JSON.parse(p.filesJson),
       editor: p.editorJson ? JSON.parse(p.editorJson) : null,
     })),
@@ -154,7 +155,7 @@ router.put("/:token/projects/:projectId", async (c) => {
   if (!session) return c.json({ error: "Unauthorized" }, 401);
   const projectId = c.req.param("projectId");
 
-  const body = await c.req.json<{ project: unknown; files: Record<string, string> }>();
+  const body = await c.req.json<{ project: unknown; files: Record<string, string>; base_version?: number }>();
   if (body.project == null || typeof body.project !== "object") {
     return c.json({ error: "missing_or_invalid_project" }, 400);
   }
@@ -165,19 +166,33 @@ router.put("/:token/projects/:projectId", async (c) => {
   const sk = skRows[0];
 
   let project = await getProject(projectId);
+  const existed = project !== null;
   if (!project) {
     project = await createProject({ networkId: sk.networkId, serverKeyId: session.serverKeyId, name: projectId, id: projectId });
   } else if (project.networkId !== sk.networkId) {
     return c.json({ error: "Cross-network project" }, 403);
+  }
+  // Optimistic concurrency: an existing project can only be overwritten by a
+  // client that presents the version it loaded. Auto-create has no precondition.
+  if (existed && typeof body.base_version !== "number") {
+    return c.json({ error: "missing_base_version" }, 400);
   }
 
   const hash = await computeBundleHash(body.files, projectId);
   const filesJson = JSON.stringify(body.files);
   const editorJson = buildEditorJsonWithLayout(body.project, body.files, projectId);
 
-  await upsertProjectContent(projectId, { hash, filesJson, editorJson });
+  const newVersion = await upsertProjectContent(
+    projectId,
+    { hash, filesJson, editorJson },
+    existed ? { expectedVersion: body.base_version } : undefined,
+  );
+  if (newVersion === null) {
+    const current = await getProject(projectId);
+    return c.json({ error: "version_conflict", current_version: current?.version ?? 0 }, 409);
+  }
 
-  return c.json({ hash }, 201);
+  return c.json({ hash, version: newVersion }, 201);
 });
 
 router.post("/:token/projects/:projectId/deploy", async (c) => {

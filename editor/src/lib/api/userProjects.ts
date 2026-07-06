@@ -1,7 +1,9 @@
+import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface UserProjectLoadResult {
-  project: { id: string; name: string; hash: string; serverKeyId?: string };
+  project: { id: string; name: string; hash: string; version?: number; serverKeyId?: string };
   networkId: string;
   serverKeyId: string;
   files: Record<string, string>;
@@ -11,7 +13,9 @@ export interface UserProjectLoadResult {
 export async function loadUserProject(projectId: string): Promise<UserProjectLoadResult> {
   const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, { credentials: "include" });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as UserProjectLoadResult;
+  useProjectVersionStore.getState().setVersion(projectId, data.project.version ?? 0);
+  return data;
 }
 
 export async function getNetworkOfProject(projectId: string): Promise<string | null> {
@@ -27,13 +31,22 @@ export async function saveUserProject(
   projectId: string,
   body: { hash: string; files: Record<string, string>; editor: unknown },
 ): Promise<void> {
+  const store = useProjectVersionStore.getState();
+  const baseVersion = store.versions[projectId] ?? 0;
   const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, baseVersion }),
   });
+  if (res.status === 409) {
+    const data = (await res.json()) as { currentVersion?: number };
+    store.markConflict(projectId);
+    throw new VersionConflictError(projectId, data.currentVersion ?? 0);
+  }
   if (!res.ok) throw new Error(`saveUserProject failed: ${res.status}`);
+  const data = (await res.json()) as { version?: number };
+  if (typeof data.version === "number") store.setVersion(projectId, data.version);
 }
 
 // User-auth-mode item bundle endpoints. The vanilla bundle falls back to the
