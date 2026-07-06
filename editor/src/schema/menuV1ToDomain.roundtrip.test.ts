@@ -35,7 +35,10 @@ const LANG = "en";
 
 function lt(pack: Project, value: string): { key: I18nKey } {
   const key = `lt_${Object.keys(pack.i18nKeys).length}` as I18nKey;
-  pack.i18nKeys[key] = { en: value };
+  // Translated (en + fr) so hybrid export keeps `{i18n:}` refs / `{ key }`
+  // title-layer objects on the wire — the structural round-trip this oracle
+  // pins requires the ref shape. Inline-literal import is Task 7's scope.
+  pack.i18nKeys[key] = { en: value, fr: value };
   return { key };
 }
 

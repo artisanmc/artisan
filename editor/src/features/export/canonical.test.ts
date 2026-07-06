@@ -16,7 +16,10 @@ function goldenProject(): Project {
     updatedAt: "",
     defaultLang: "en",
     i18nKeys: {
-      "t.title": { en: "Shop" },
+      // Translated title key: keeps the { key } title-layer shape on the wire.
+      // The canonical schema does not yet accept inline literal title-layer
+      // values (Task 8); revert to single-lang once the schema allows strings.
+      "t.title": { en: "Shop", fr: "Boutique" },
       "t.buy.title": { en: "Buy" },
       "t.buy.lore": { en: "Click" },
       "t.buy.msg": { en: "Bought!" },

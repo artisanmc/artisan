@@ -225,7 +225,11 @@ function serializeLayer(layer: Layer, pack: Project): Record<string, unknown> {
 
 // ─── title layer serialization ───────────────────────────────────────────────
 
-function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
+function serializeTitleLayer(layer: MenuTitleLayer, pack: Project): Record<string, unknown> {
+  // Hybrid emission for text-bearing layers: translated keys keep the
+  // { key } object; untranslated ones inline their default-language literal.
+  const titleValue = (lt: { key: I18nKey }): unknown =>
+    isTranslated(pack, lt.key) ? { key: lt.key } : defaultText(pack, lt.key);
   if (layer.kind === "background") {
     return { kind: "background", asset_id: layer.assetId };
   }
@@ -235,7 +239,7 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
   if (layer.kind === "text") {
     const out: Record<string, unknown> = {
       kind: "text",
-      value: { key: layer.value.key },
+      value: titleValue(layer.value),
       x: layer.x,
       y: layer.y,
     };
@@ -248,14 +252,14 @@ function serializeTitleLayer(layer: MenuTitleLayer): Record<string, unknown> {
     // Plain (vanilla) layers serialize to a { kind, value } map like every
     // other layer; the title is always emitted as a layer array (canonical
     // menu/v1 — no legacy plain-only string shortcut).
-    const out: Record<string, unknown> = { kind: "plain", value: { key: layer.value.key } };
+    const out: Record<string, unknown> = { kind: "plain", value: titleValue(layer.value) };
     if (layer.color !== undefined) out.color = layer.color;
     return out;
   }
   if (layer.kind === "textarea") {
     const out: Record<string, unknown> = {
       kind: "textarea",
-      value: { key: layer.value.key },
+      value: titleValue(layer.value),
       x: layer.x,
       y: layer.y,
       width: layer.width,
@@ -441,7 +445,7 @@ export function serializeMenuToV1(
   const out: Record<string, unknown> = {
     schema: "menu/v1",
     id: menu.id,
-    title: menu.title.map(serializeTitleLayer),
+    title: menu.title.map((l) => serializeTitleLayer(l, pack)),
     size: slotCount(type, menu.rows),
     layers: menu.layers.map((l) => serializeLayer(l, pack)),
   };
@@ -507,16 +511,16 @@ function extractFlatActions(steps: Step[], pack: Project): unknown[] {
   return result;
 }
 
-function serializeDialogBody(body: DialogBody): Record<string, unknown> {
-  if (body.type === "text") return { type: "text", text: i18nRef(body.text.key) };
+function serializeDialogBody(body: DialogBody, pack: Project): Record<string, unknown> {
+  if (body.type === "text") return { type: "text", text: emitText(pack, body.text) };
   return { type: "item", material: body.material, count: body.count };
 }
 
-function serializeDialogInput(input: DialogInput): Record<string, unknown> {
+function serializeDialogInput(input: DialogInput, pack: Project): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: input.id,
     type: input.type,
-    label: i18nRef(input.label.key),
+    label: emitText(pack, input.label),
   };
   if (input.type === "text") {
     out.default = input.default;
@@ -528,14 +532,14 @@ function serializeDialogInput(input: DialogInput): Record<string, unknown> {
     out.max = input.max;
     out.default = String(input.default);
   } else if (input.type === "single_option") {
-    out.options = input.options.map((opt) => ({ value: opt.value, label: i18nRef(opt.label.key) }));
+    out.options = input.options.map((opt) => ({ value: opt.value, label: emitText(pack, opt.label) }));
     out.default = input.default;
   }
   return out;
 }
 
 function serializeDialogButton(btn: DialogButton, pack: Project): Record<string, unknown> {
-  const out: Record<string, unknown> = { id: btn.id, label: i18nRef(btn.label.key) };
+  const out: Record<string, unknown> = { id: btn.id, label: emitText(pack, btn.label) };
   const actions = extractFlatActions(btn.steps, pack);
   if (actions.length > 0) out.actions = actions;
   return out;
@@ -545,11 +549,11 @@ export function serializeDialog(dialog: Dialog, pack: Project): Record<string, u
   const out: Record<string, unknown> = {
     schema: "dialog/v1",
     id: dialog.id,
-    title: i18nRef(dialog.title.key),
+    title: emitText(pack, dialog.title),
   };
   if (!dialog.canCloseWithEscape) out.can_close_with_escape = false;
-  if (dialog.body.length > 0) out.body = dialog.body.map(serializeDialogBody);
-  if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map(serializeDialogInput);
+  if (dialog.body.length > 0) out.body = dialog.body.map((b) => serializeDialogBody(b, pack));
+  if (dialog.inputs.length > 0) out.inputs = dialog.inputs.map((i) => serializeDialogInput(i, pack));
   out.buttons = dialog.buttons.map((btn) => serializeDialogButton(btn, pack));
   return out;
 }

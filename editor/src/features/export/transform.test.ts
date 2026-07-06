@@ -179,9 +179,11 @@ describe("transform", () => {
     expect(menu.size).toBe(27);
     expect(Array.isArray(menu.title)).toBe(true);
     expect(menu.title).toHaveLength(1);
+    // Hybrid inline policy: untranslated (single-language) fixture exports the
+    // title layer value as an inline literal, not a { key } object.
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: { key: "menus.shop.title" },
+      value: "Shop",
       x: 8,
       y: 5,
     });
@@ -574,7 +576,9 @@ describe("transform — dialogs", () => {
     expect(yaml).toContain("schema: dialog/v1");
     expect(yaml).toContain("id: d_test");
     expect(yaml).toContain("can_close_with_escape: false");
-    expect(yaml).toContain("{i18n:dialogs.d_test.title}");
+    // Hybrid inline policy: the fixture key has no i18n value at all, so the
+    // title inlines the default-language text — the empty-string sentinel.
+    expect(yaml).toContain('title: ""');
   });
 
   it("manifest includes dialogs list", () => {
@@ -652,7 +656,8 @@ describe("transform — title layers", () => {
     const files = transform(menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]));
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(Array.isArray(menu.title)).toBe(true);
-    expect(menu.title).toEqual([{ kind: "plain", value: { key: "k_plain" } }]);
+    // Hybrid inline policy: key has no i18n value → inline "" literal.
+    expect(menu.title).toEqual([{ kind: "plain", value: "" }]);
   });
 
   it("serializes a background layer to { kind, asset_id }", () => {
@@ -684,8 +689,9 @@ describe("transform — title layers", () => {
       ]),
     );
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    // Hybrid inline policy: key has no i18n value → inline "" literal.
     expect(menu.title).toEqual([
-      { kind: "text", value: { key: "k_text" }, x: 8, y: 5 },
+      { kind: "text", value: "", x: 8, y: 5 },
     ]);
     expect(menu.title[0]).not.toHaveProperty("color");
     expect(menu.title[0]).not.toHaveProperty("font_asset_id");
@@ -707,7 +713,7 @@ describe("transform — title layers", () => {
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.title[0]).toEqual({
       kind: "text",
-      value: { key: "k_text" },
+      value: "",
       x: 8,
       y: 5,
       color: "#FFAA00",
@@ -739,7 +745,7 @@ describe("transform — title layers", () => {
     expect(menu.title).toEqual([
       { kind: "background", asset_id: "asset_bg" },
       { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
-      { kind: "text", value: { key: "k_title" }, x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 
@@ -764,7 +770,8 @@ describe("transform — title layers", () => {
     expect(yaml).toContain("asset_id: asset_a1b2c3");
     expect(yaml).toContain("kind: glyph");
     expect(yaml).toContain("kind: text");
-    expect(yaml).toContain("key: k_xyz");
+    // Hybrid inline policy: k_xyz has no i18n value → inline "" literal.
+    expect(yaml).toContain('value: ""');
     expect(yaml).toContain("color");
     expect(yaml).toContain("#FFAA00");
 
@@ -772,7 +779,7 @@ describe("transform — title layers", () => {
     expect(parsed.title).toEqual([
       { kind: "background", asset_id: "asset_a1b2c3" },
       { kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 },
-      { kind: "text", value: { key: "k_xyz" }, x: 8, y: 5, color: "#FFAA00" },
+      { kind: "text", value: "", x: 8, y: 5, color: "#FFAA00" },
     ]);
   });
 });
@@ -808,9 +815,10 @@ describe("transform — textarea title layer", () => {
     );
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     expect(menu.title).toHaveLength(1);
+    // Hybrid inline policy: k_ta has no i18n value → inline "" literal.
     expect(menu.title[0]).toEqual({
       kind: "textarea",
-      value: { key: "k_ta" },
+      value: "",
       x: 12,
       y: 8,
       width: 120,
@@ -1140,8 +1148,10 @@ describe("transform — size field on text/textarea layers", () => {
   });
 
   it("imports size from text/textarea layer YAML", () => {
+    // Translated fixture: keeps the { key } object shape on the wire so the
+    // parseTitleNode re-import (which reads value.key) round-trips.
     const pack = makeProject({
-      i18nKeys: { "k": { en: "X" } } as Project["i18nKeys"],
+      i18nKeys: { "k": { en: "X", fr: "Y" } } as Project["i18nKeys"],
       menus: [{
         id: menuId("m"), projectId: projectId("p_test"), rows: 3,
         title: [
@@ -1320,6 +1330,69 @@ describe("hybrid inline export", () => {
     } as Project["i18nKeys"]);
     const app = getApp(pack);
     expect(app.title).toBe("Iron Sword");
+  });
+});
+
+describe("hybrid inline export — title layers + dialogs", () => {
+  const K_title = "menus.shop.title" as I18nKey;
+
+  const packWithTitle = (
+    i18nKeys: Project["i18nKeys"],
+    title: Project["menus"][number]["title"],
+  ): Project =>
+    makeProject({
+      defaultLang: "en",
+      i18nKeys,
+      menus: [
+        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title, layers: [] },
+      ],
+    });
+
+  it("emits untranslated title layer value as a literal string", () => {
+    const pack = packWithTitle(
+      { [K_title]: { en: "<gold>Shop" } } as Project["i18nKeys"],
+      [{ kind: "plain", value: { key: K_title } }],
+    );
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    expect(menu.title[0].value).toBe("<gold>Shop");
+  });
+
+  it("keeps { key } object for a translated title layer", () => {
+    const pack = packWithTitle(
+      { [K_title]: { en: "<gold>Shop", fr: "<gold>Boutique" } } as Project["i18nKeys"],
+      [{ kind: "plain", value: { key: K_title } }],
+    );
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    expect(menu.title[0].value).toEqual({ key: K_title });
+  });
+
+  it("emits untranslated dialog title and button label inline", () => {
+    const pack = makeProject({
+      defaultLang: "en",
+      i18nKeys: {
+        ["dialogs.d_test.title" as I18nKey]: { en: "Confirm purchase" },
+        ["dialogs.d_test.buttons.buy.label" as I18nKey]: { en: "Buy" },
+      } as Project["i18nKeys"],
+      dialogs: [
+        {
+          id: dialogId("d_test"),
+          projectId: projectId("p_test"),
+          title: { key: "dialogs.d_test.title" as I18nKey },
+          canCloseWithEscape: true,
+          body: [],
+          inputs: [],
+          buttons: [
+            { id: "buy", label: { key: "dialogs.d_test.buttons.buy.label" as I18nKey }, steps: [] },
+          ],
+        } as unknown as Dialog,
+      ],
+    });
+    const files = transform(pack);
+    const dialog = parse(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!);
+    expect(dialog.title).toBe("Confirm purchase");
+    expect(dialog.buttons[0].label).toBe("Buy");
   });
 });
 
