@@ -12,10 +12,9 @@ function pack(): Project {
     createdAt: "",
     updatedAt: "",
     defaultLang: "en",
-    // Translated title key: keeps the { key } title-layer shape on the wire.
-    // The canonical schema does not yet accept inline literal title-layer
-    // values (Task 8); revert to single-lang once the schema allows strings.
-    i18nKeys: { k: { en: "Shop", fr: "Boutique" } } as Project["i18nKeys"],
+    // Untranslated title key: emits an inline literal string value on the
+    // wire (hybrid export policy) instead of a { key } object.
+    i18nKeys: { k: { en: "Shop" } } as Project["i18nKeys"],
     menus: [
       {
         id: menuId("shop"),

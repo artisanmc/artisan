@@ -18,7 +18,7 @@
     },
     "title": {
       "type": "string",
-      "description": "Titre affiché. Référence i18n {i18n:key} ou littéral MiniMessage."
+      "description": "Titre affiché. Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit."
     },
     "can_close_with_escape": {
       "type": "boolean",
@@ -50,7 +50,7 @@
           "required": ["type", "text"],
           "properties": {
             "type": { "const": "text" },
-            "text": { "type": "string", "description": "Référence i18n {i18n:key} ou littéral MiniMessage." }
+            "text": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." }
           }
         },
         {
@@ -74,7 +74,7 @@
           "properties": {
             "id": { "$ref": "#/$defs/InputId" },
             "type": { "const": "text" },
-            "label": { "type": "string" },
+            "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
             "default": { "type": "string" },
             "max_length": { "type": "integer", "minimum": 1 }
           }
@@ -84,7 +84,7 @@
           "properties": {
             "id": { "$ref": "#/$defs/InputId" },
             "type": { "const": "bool" },
-            "label": { "type": "string" },
+            "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
             "default": { "type": "string", "enum": ["true", "false"] }
           }
         },
@@ -93,7 +93,7 @@
           "properties": {
             "id": { "$ref": "#/$defs/InputId" },
             "type": { "const": "number_range" },
-            "label": { "type": "string" },
+            "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
             "min": { "type": "number" },
             "max": { "type": "number" },
             "default": { "type": "string" }
@@ -104,7 +104,7 @@
           "properties": {
             "id": { "$ref": "#/$defs/InputId" },
             "type": { "const": "single_option" },
-            "label": { "type": "string" },
+            "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
             "options": {
               "type": "array",
               "minItems": 1,
@@ -114,7 +114,7 @@
                 "required": ["value", "label"],
                 "properties": {
                   "value": { "type": "string" },
-                  "label": { "type": "string" }
+                  "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." }
                 }
               }
             },
@@ -129,7 +129,7 @@
       "required": ["id", "label"],
       "properties": {
         "id": { "$ref": "#/$defs/InputId" },
-        "label": { "type": "string" },
+        "label": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
         "actions": {
           "type": "array",
           "description": "Actions plates (pas de steps if dans les boutons de dialog v1). Mêmes objets Action que menu/v1 — la validation fine vit dans menu/v1 $defs/Action ; ici on valide la forme minimale pour éviter la duplication du oneOf.",

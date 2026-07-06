@@ -268,8 +268,8 @@
         "material": { "type": "string", "description": "Material vanilla (DIAMOND), ou un placeholder : {input_name} pour un contextInput, {alias.field} dans un Element qui itère." },
         "head": { "type": "string", "description": "Tête custom quand material = PLAYER_HEAD : hdb:<id> (HeadDatabase), basehead:<base64>, ou playerhead:<pseudo> (placeholders résolus au rendu). Ignoré pour tout autre material." },
         "count": { "type": "integer", "minimum": 1, "maximum": 64, "default": 1 },
-        "title": { "type": "string" },
-        "lore": { "type": "array", "items": { "type": "string" } },
+        "title": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
+        "lore": { "type": "array", "items": { "type": "string" }, "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." },
         "enchanted": { "type": "boolean", "default": false },
         "custom_model_data": { "type": "string" },
         "component_ref": {
@@ -349,15 +349,15 @@
       "additionalProperties": false,
       "required": ["key"],
       "properties": { "key": { "type": "string" } },
-      "description": "Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. (Note: les title-layers utilisent cette forme {key} ; les autres champs texte utilisent la string {i18n:key} — harmonisation future.)"
+      "description": "Référence i18n. La valeur résolue vit dans lang/<lang>.yaml. Politique hybride : un champ texte non traduit exporte un littéral inline (string) ; un champ traduit exporte cette référence {key}."
     },
     "MenuTitleLayer": {
       "oneOf": [
         { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id"], "properties": { "kind": { "const": "background" }, "asset_id": { "type": "string" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "asset_id", "x", "y"], "properties": { "kind": { "const": "glyph" }, "asset_id": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y"], "properties": { "kind": { "const": "text" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "color": { "type": "string" }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "plain" }, "value": { "$ref": "#/$defs/LText" }, "color": { "type": "string" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y", "width", "line_height", "alignment"], "properties": { "kind": { "const": "textarea" }, "value": { "$ref": "#/$defs/LText" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer" }, "line_height": { "type": "integer" }, "alignment": { "type": "string", "enum": ["left", "center", "right"] }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y"], "properties": { "kind": { "const": "text" }, "value": { "oneOf": [ { "type": "string", "description": "Texte littéral (langue par défaut, export hybride) ou {i18n:key}." }, { "$ref": "#/$defs/LText" } ] }, "x": { "type": "integer" }, "y": { "type": "integer" }, "color": { "type": "string" }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "plain" }, "value": { "oneOf": [ { "type": "string", "description": "Texte littéral (langue par défaut, export hybride) ou {i18n:key}." }, { "$ref": "#/$defs/LText" } ] }, "color": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value", "x", "y", "width", "line_height", "alignment"], "properties": { "kind": { "const": "textarea" }, "value": { "oneOf": [ { "type": "string", "description": "Texte littéral (langue par défaut, export hybride) ou {i18n:key}." }, { "$ref": "#/$defs/LText" } ] }, "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer" }, "line_height": { "type": "integer" }, "alignment": { "type": "string", "enum": ["left", "center", "right"] }, "font_asset_id": { "type": "string" }, "size": { "type": "integer", "enum": [8, 12, 16, 20, 24, 32] } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "provider", "glyph_name", "x", "y"], "properties": { "kind": { "const": "external_glyph" }, "provider": { "type": "string", "enum": ["oraxen", "nexo", "itemsadder"] }, "glyph_name": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" } } }
       ]
     },
@@ -384,13 +384,13 @@
         { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "take_money" }, "amount": { "type": "number", "exclusiveMinimum": 0 }, "currency": { "type": "string" } } },
         { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "give_xp" }, "amount": { "type": "integer", "minimum": 1 } } },
         { "additionalProperties": false, "required": ["type", "amount"], "properties": { "type": { "const": "give_level" }, "amount": { "type": "integer", "minimum": 1 } } },
-        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "send_message" }, "text": { "type": "string" } } },
-        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "broadcast" }, "text": { "type": "string" } } },
+        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "send_message" }, "text": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." } } },
+        { "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "broadcast" }, "text": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." } } },
         { "additionalProperties": false, "required": ["type", "sound"], "properties": { "type": { "const": "play_sound" }, "sound": { "type": "string" }, "volume": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }, "pitch": { "type": "number", "minimum": 0, "maximum": 2, "default": 1 } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "teleport" }, "world": { "type": "string" }, "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" }, "yaw": { "type": "number" }, "pitch": { "type": "number" } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_next" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "pagination_prev" }, "element_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } } },
-        { "additionalProperties": false, "required": ["type", "title"], "properties": { "type": { "const": "show_title" }, "title": { "type": "string" }, "subtitle": { "type": "string" }, "fade_in": { "type": "integer", "minimum": 0 }, "stay": { "type": "integer", "minimum": 0 }, "fade_out": { "type": "integer", "minimum": 0 } } },
+        { "additionalProperties": false, "required": ["type", "title"], "properties": { "type": { "const": "show_title" }, "title": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." }, "subtitle": { "type": "string", "description": "Littéral (texte de la langue par défaut, export hybride) ou référence {i18n:key} pour un champ traduit." }, "fade_in": { "type": "integer", "minimum": 0 }, "stay": { "type": "integer", "minimum": 0 }, "fade_out": { "type": "integer", "minimum": 0 } } },
         { "additionalProperties": false, "required": ["type", "dialog_id"], "properties": { "type": { "const": "open_dialog" }, "dialog_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "context": { "type": "object", "additionalProperties": { "type": "string" } }, "clear_context": { "type": "boolean", "default": false } } },
         { "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "close_dialog" } } },
         { "additionalProperties": false, "required": ["type", "arg", "value"], "properties": { "type": { "const": "set_arg" }, "arg": { "type": "string" }, "value": { "type": "string" } } },
