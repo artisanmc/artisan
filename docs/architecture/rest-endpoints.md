@@ -43,7 +43,7 @@
 ## Flux non-évidents
 
 - **Promotion** : `promote/:dst` est **fast-forward only** → `409 not_fast_forward` si divergence. Le merge 3-way / résolution de conflits a été retiré le 2026-06-17 (jamais câblé en UI ; concurrence live gérée par LWW + présence) — cf. ADR `no-branch-conflict-resolution`.
-- **Claim link** (`link/:code/claim`) : **login required**. Smart-count des networks de l'user : 0 → auto-crée "Mon Réseau" ; 1 → l'utilise ; 2+ → `400 must_choose_network` (le client renvoie `{network_id}`).
+- **Claim link** (`link/:code/claim`) : **login required**. Smart-count des networks de l'user : 0 → auto-crée "Mon Réseau" ; 1 → l'utilise ; 2+ → `400 must_choose_network` (le client renvoie `{network_id}`). Le body peut aussi sélectionner/créer le project (`project_id` XOR `project_name`) dans le network cible ; la `server_key` est créée avant un nouveau project pour satisfaire `projects.serverKeyId`.
 - **Conflit = freeze** : tant qu'un `project_conflicts` est ouvert, `bundle_available` n'est pas broadcast (cf. `CLAUDE.md` § Invariants).
 - **DELETE project** (`editor-session/:token/projects/:projectId`) : soft-delete (`deletedAt`) + auto-résout tout conflit ouvert en `"editor"` + broadcast `project_deleted`. L'éditeur devient autoritaire.
 - **Verrou optimiste des saves éditeur (2026-07-06)** : les deux PUT de contenu (`user/projects/:projectId` et `editor-session/:token/projects/:projectId`) portent la version chargée (`baseVersion` / `base_version`) et échouent en `409 version_conflict` (+ version courante) si un autre writer a écrit entre-temps ; le GET de chargement renvoie `version`. Exception : le PUT session en **auto-create** (project inexistant) ne demande pas de précondition. Détail : `entities.md` § Concurrence optimiste.

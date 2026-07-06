@@ -118,7 +118,20 @@ router.post("/:code/claim", async (c) => {
       return c.json({ error: "project_not_in_network" }, 404);
     }
     targetProjectId = projectIdInput;
-  } else if (projectNameInput) {
+  }
+
+  // Insert the server key BEFORE any project creation — projects.serverKeyId
+  // is a NOT NULL FK, so creating the project first violates the constraint
+  // (fix from main 435d63b0, kept through the pack→project rename).
+  await db.insert(serverKeys).values({
+    id,
+    hash,
+    label: serverKeyLabel,
+    networkId: targetNetworkId,
+    createdAt: new Date(),
+  });
+
+  if (!targetProjectId && projectNameInput) {
     if (projectNameInput.length === 0) {
       return c.json({ error: "invalid_project_name" }, 422);
     }
@@ -131,17 +144,8 @@ router.post("/:code/claim", async (c) => {
     targetProjectId = project.id;
   }
 
-  await db.transaction(async (tx) => {
-    await tx.insert(serverKeys).values({
-      id,
-      hash,
-      label: serverKeyLabel,
-      networkId: targetNetworkId,
-      createdAt: new Date(),
-    });
-    await tx.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id })
-      .where(eq(linkCodes.code, code));
-  });
+  await db.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id })
+    .where(eq(linkCodes.code, code));
 
   // Push server_key to any plugin WS session waiting on this code.
   pushLinkConfirmed(code, key);
