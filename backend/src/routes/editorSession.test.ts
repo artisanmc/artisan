@@ -518,6 +518,18 @@ describe("PUT /api/v1/editor-session/:token/projects/:projectId — optimistic c
     expect(body.current_version).toBe(2);
   });
 
+  test("deploy returns the bumped version so the client can resync", async () => {
+    const { token } = await createTrustedSession();
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { version: number };
+    expect(body.version).toBe(1);
+  });
+
   test("GET /projects returns version per project", async () => {
     const { token } = await createSession();
     await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { loadProjects, saveProject } from "./projectApi";
+import { loadProjects, saveProject, deployProject } from "./projectApi";
 import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
 import type { Project } from "@/domain/types";
 
@@ -39,6 +39,33 @@ describe("projectApi — optimistic concurrency (session mode)", () => {
     expect(body.project).toBeDefined();
     expect(body.pack).toBeUndefined();
     expect(body.base_version).toBe(2);
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(3);
+  });
+
+  it("loadProjects clears a stale conflict flag for reloaded projects", async () => {
+    useProjectVersionStore.getState().markConflict("p1");
+    global.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          projects: [{ project_id: "p1", name: "P", hash: "h", version: 9, files: {}, editor: null }],
+        }),
+        { status: 200 }
+      )
+    );
+    await loadProjects("tok");
+    expect(useProjectVersionStore.getState().conflicts["p1"]).toBeUndefined();
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(9);
+  });
+
+  it("deployProject sends `project` on the wire and resyncs the bumped version", async () => {
+    useProjectVersionStore.getState().setVersion("p1", 2);
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ hash: "h", version: 3 }), { status: 201 })
+    );
+    await deployProject("tok", fakePack, {});
+    const body = JSON.parse((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string);
+    expect(body.project).toBeDefined();
+    expect(body.pack).toBeUndefined();
     expect(useProjectVersionStore.getState().versions["p1"]).toBe(3);
   });
 

@@ -54,6 +54,19 @@ describe("userProjects API client", () => {
     expect(useProjectVersionStore.getState().versions["p1"]).toBe(4);
   });
 
+  it("loadUserProject clears a stale conflict flag for the reloaded project", async () => {
+    useProjectVersionStore.getState().markConflict("p1");
+    global.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ project: { id: "p1", hash: "h1", version: 6 }, files: {}, editor: null }),
+        { status: 200 }
+      )
+    );
+    await loadUserProject("p1");
+    expect(useProjectVersionStore.getState().conflicts["p1"]).toBeUndefined();
+    expect(useProjectVersionStore.getState().versions["p1"]).toBe(6);
+  });
+
   it("saveUserProject sends baseVersion from the store and records the new version", async () => {
     useProjectVersionStore.getState().setVersion("p1", 4);
     global.fetch = vi.fn(async () =>

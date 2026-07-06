@@ -14,7 +14,8 @@ export async function loadUserProject(projectId: string): Promise<UserProjectLoa
   const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, { credentials: "include" });
   if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
   const data = (await res.json()) as UserProjectLoadResult;
-  useProjectVersionStore.getState().setVersion(projectId, data.project.version ?? 0);
+  // Fresh load: record the version and lift any stale conflict flag.
+  useProjectVersionStore.getState().setVersions({ [projectId]: data.project.version ?? 0 });
   return data;
 }
 
