@@ -523,6 +523,57 @@ describe("transform", () => {
     expect(files["plugins/Artisan/projects/p_test/translations.yaml"]).toBeUndefined();
   });
 
+  it("mono-language project emits no lang files at all", () => {
+    const pack = makeProject({
+      defaultLang: "en",
+      i18nKeys: {
+        "menus.shop.title": { en: "Shop" },
+      } as Project["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_test"),
+          rows: 3,
+          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+          layers: [],
+        },
+      ],
+    });
+    const files = transform(pack);
+    expect(Object.keys(files).filter((f) => f.includes("/lang/"))).toEqual([]);
+  });
+
+  it("translated key emits lang files for default + translated languages, untranslated keys excluded", () => {
+    const pack = makeProject({
+      defaultLang: "en",
+      i18nKeys: {
+        k1: { en: "One" },
+        k2: { en: "Two" },
+        k3: { en: "Hi", fr: "Salut" },
+      } as Project["i18nKeys"],
+      menus: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_test"),
+          rows: 3,
+          title: [
+            { kind: "text", value: { key: "k1" as I18nKey }, x: 0, y: 0 },
+            { kind: "text", value: { key: "k2" as I18nKey }, x: 0, y: 10 },
+            { kind: "text", value: { key: "k3" as I18nKey }, x: 0, y: 20 },
+          ],
+          layers: [],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const en = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
+    const fr = parse(files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!);
+    expect(Object.keys(en)).toEqual(["k3"]);
+    expect(Object.keys(fr)).toEqual(["k3"]);
+    expect(en["k3"]).toBe("Hi");
+    expect(fr["k3"]).toBe("Salut");
+  });
+
   it("manifest includes default_lang and languages", () => {
     const pack = makeProject({
       defaultLang: "en",
@@ -851,11 +902,13 @@ describe("transform — textarea title layer", () => {
   it("textarea i18n key is exported to lang/<lang>.yaml (regression: was silently dropped)", () => {
     // Without `textarea` in getTitleTextLayers, the key wasn't in
     // referencedKeys and the lang file came out empty — plugin then rendered
-    // `<i18nKey>` literally as the title text.
+    // `<i18nKey>` literally as the title text. k_ta is translated (fr) so it
+    // stays an {i18n:} ref and must resolve via lang files under the hybrid
+    // policy — an untranslated key would legitimately inline instead.
     const pack = makeProject({
       defaultLang: "en",
       i18nKeys: {
-        k_ta: { en: "Hello\nWorld" },
+        k_ta: { en: "Hello\nWorld", fr: "Bonjour\nMonde" },
       } as Project["i18nKeys"],
       menus: [
         {

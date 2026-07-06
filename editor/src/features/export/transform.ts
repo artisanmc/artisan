@@ -620,11 +620,11 @@ function serializeLang(
   referencedKeys: Set<string>,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  // Iterate `referencedKeys` (not `pack.i18nKeys`) so we always emit *every*
-  // key the runtime will look up — even ones that have never been assigned a
-  // value. Otherwise a freshly-created menu with no title typed yet yields a
-  // missing key in the YAML, and the plugin falls back to printing the raw
-  // key (`menus.foo.title`) to chat instead of nothing.
+  // `referencedKeys` is pre-filtered to translated keys only (see caller):
+  // untranslated keys are inlined at their call site and never carry an
+  // `{i18n:key}` ref, so the runtime never looks them up here. We still seed
+  // every translated key for `defaultLang` even when it lacks a default
+  // value, so the runtime resolves it to "" rather than echoing the raw key.
   for (const key of referencedKeys) {
     const entry = pack.i18nKeys[key as keyof typeof pack.i18nKeys];
     const val = entry?.[lang];
@@ -665,12 +665,17 @@ export function transform(pack: Project): Record<string, string> {
   }
 
   const langs = listLanguages(pack);
-  const referencedKeys = collectReferencedKeys(pack);
+  // Hybrid policy: only translated keys keep {i18n:} refs in the content
+  // files, so only those need lang entries. Untranslated keys are inlined at
+  // their site and never looked up. No translated key ⇒ no lang/ dir at all.
+  const referencedKeys = new Set(
+    [...collectReferencedKeys(pack)].filter((k) => isTranslated(pack, k)),
+  );
   for (const lang of langs) {
-    files[`${base}/lang/${lang}.yaml`] = stringify(
-      serializeLang(pack, lang, referencedKeys),
-      yamlOpts,
-    );
+    const entries = serializeLang(pack, lang, referencedKeys);
+    if (Object.keys(entries).length > 0) {
+      files[`${base}/lang/${lang}.yaml`] = stringify(entries, yamlOpts);
+    }
   }
 
   const liveIds = new Set<string>([
