@@ -440,6 +440,109 @@ describe("PUT /api/v1/editor-session/:token/projects/:projectId", () => {
   });
 });
 
+describe("PUT /api/v1/editor-session/:token/projects/:projectId — optimistic concurrency", () => {
+  const payload = (base_version?: number) => ({
+    project: { id: "p_ver", name: "Ver", menus: [] },
+    files: { "plugins/Artisan/projects/p_ver/manifest.yaml": "project_id: p_ver\n" },
+    ...(base_version === undefined ? {} : { base_version }),
+  });
+
+  test("auto-create PUT (project absent) succeeds without base_version and returns version", async () => {
+    const { token } = await createSession();
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { version: number };
+    expect(body.version).toBe(1);
+  });
+
+  test("PUT on existing project without base_version is rejected 400", async () => {
+    const { token } = await createSession();
+    await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("missing_base_version");
+  });
+
+  test("PUT with matching base_version saves and returns incremented version", async () => {
+    const { token } = await createSession();
+    await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload(1)),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { version: number };
+    expect(body.version).toBe(2);
+  });
+
+  test("PUT with stale base_version returns 409 and does not overwrite", async () => {
+    const { token } = await createSession();
+    await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    // concurrent writer bumps to version 2
+    await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload(1)),
+    });
+    // stale tab still holds base_version 1
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload(1)),
+    });
+    expect(res.status).toBe(409);
+    const body = await res.json() as { error: string; current_version: number };
+    expect(body.error).toBe("version_conflict");
+    expect(body.current_version).toBe(2);
+  });
+
+  test("deploy returns the bumped version so the client can resync", async () => {
+    const { token } = await createTrustedSession();
+    const res = await app.request(`/api/v1/editor-session/${token}/projects/p_ver/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { version: number };
+    expect(body.version).toBe(1);
+  });
+
+  test("GET /projects returns version per project", async () => {
+    const { token } = await createSession();
+    await app.request(`/api/v1/editor-session/${token}/projects/p_ver`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    const res = await app.request(`/api/v1/editor-session/${token}/projects`);
+    const body = await res.json() as { projects: Array<{ project_id: string; version: number }> };
+    expect(body.projects.find((p) => p.project_id === "p_ver")?.version).toBe(1);
+  });
+});
+
 describe("DELETE /api/v1/editor-session/:token/projects/:projectId", () => {
   test("200 deletes pack and it no longer appears in GET", async () => {
     const { token } = await createSession();
@@ -600,11 +703,12 @@ describe("GET /api/v1/editor-session/:token/projects/:projectId/deployed", () =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(packPayload),
     });
-    // Save a draft (PUT) with different name — should NOT touch deployedEditorJson
+    // Save a draft (PUT) with different name — should NOT touch deployedEditorJson.
+    // Deploy created the project (version 1), so the PUT must carry base_version.
     await app.request(`/api/v1/editor-session/${token}/projects/p_indep`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" } }),
+      body: JSON.stringify({ project: { id: "p_indep", name: "Draft" }, files: { "manifest.yaml": "" }, base_version: 1 }),
     });
     // Deployed still returns the original
     const res = await app.request(`/api/v1/editor-session/${token}/projects/p_indep/deployed`);

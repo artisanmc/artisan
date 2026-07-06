@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/index";
 import { projects } from "../db/schema";
 import { createBranch } from "./branchStorage";
@@ -82,6 +82,13 @@ export async function getProject(id: string): Promise<Project | null> {
 	return rows[0] ?? null;
 }
 
+/**
+ * Write project content, bumping the optimistic-concurrency `version`.
+ *
+ * With `opts.expectedVersion`, the update only applies if the stored version
+ * still matches (compare-and-swap). Returns the new version, or `null` when
+ * the precondition failed (concurrent write) or the project doesn't exist.
+ */
 export async function upsertProjectContent(
 	id: string,
 	patch: {
@@ -90,11 +97,18 @@ export async function upsertProjectContent(
 		editorJson?: string | null;
 		deployedEditorJson?: string | null;
 	},
-): Promise<void> {
-	await db
+	opts?: { expectedVersion?: number },
+): Promise<number | null> {
+	const where =
+		opts?.expectedVersion === undefined
+			? eq(projects.id, id)
+			: and(eq(projects.id, id), eq(projects.version, opts.expectedVersion));
+	const rows = await db
 		.update(projects)
-		.set({ ...patch, updatedAt: new Date() })
-		.where(eq(projects.id, id));
+		.set({ ...patch, version: sql`${projects.version} + 1`, updatedAt: new Date() })
+		.where(where)
+		.returning({ version: projects.version });
+	return rows[0]?.version ?? null;
 }
 
 export async function softDeleteProject(id: string): Promise<void> {
