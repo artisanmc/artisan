@@ -28,4 +28,23 @@ class LangKeyAuditorTest {
     fun `no refs yields empty set`() {
         assertEquals(emptySet<String>(), LangKeyAuditor.referencedKeys(listOf("title: \"Plain\"")))
     }
+
+    @Test
+    fun `collects single-quoted key field`() {
+        val yaml = """
+            title:
+              - kind: text
+                value:
+                  key: 'menus.shop.title'
+        """.trimIndent()
+        val keys = LangKeyAuditor.referencedKeys(listOf(yaml))
+        assertEquals(setOf("menus.shop.title"), keys)
+    }
+
+    @Test
+    fun `collects flow-style inline map key field`() {
+        val yaml = """value: { key: menus.shop.title }"""
+        val keys = LangKeyAuditor.referencedKeys(listOf(yaml))
+        assertEquals(setOf("menus.shop.title"), keys)
+    }
 }
