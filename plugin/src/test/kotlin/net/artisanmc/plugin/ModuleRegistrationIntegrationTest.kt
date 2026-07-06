@@ -11,7 +11,6 @@ import net.artisanmc.modules.api.ModuleRegistry
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.nio.file.Files
@@ -89,7 +88,7 @@ class ModuleRegistrationIntegrationTest {
         }
 
         MockWebServer().use { server ->
-            server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                 override fun onMessage(ws: WebSocket, text: String) {
                     val node = mapper.readTree(text)
                     when (node["type"]?.asText()) {

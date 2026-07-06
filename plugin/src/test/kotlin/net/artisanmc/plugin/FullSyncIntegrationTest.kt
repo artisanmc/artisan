@@ -6,7 +6,6 @@ import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.SyncMetadata
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import java.io.File
@@ -79,7 +78,7 @@ class FullSyncIntegrationTest {
             val packsDir = Files.createTempDirectory("artisan_integ_dl_").toFile()
 
             MockWebServer().use { server ->
-                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
@@ -144,7 +143,7 @@ class FullSyncIntegrationTest {
             val ackLatch = CountDownLatch(1)
 
             MockWebServer().use { server ->
-                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
@@ -201,7 +200,7 @@ class FullSyncIntegrationTest {
             val ackLatch = CountDownLatch(1)
 
             MockWebServer().use { server ->
-                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
@@ -249,7 +248,7 @@ class FullSyncIntegrationTest {
             val helloLatch = CountDownLatch(1)
 
             MockWebServer().use { server ->
-                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         val type = node["type"]?.asText()
@@ -306,7 +305,7 @@ class FullSyncIntegrationTest {
             val helloLatch = CountDownLatch(1)
 
             MockWebServer().use { server ->
-                server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
                     override fun onMessage(ws: WebSocket, text: String) {
                         val node = mapper.readTree(text)
                         if (node["type"]?.asText() == "hello") {
