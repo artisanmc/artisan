@@ -2,6 +2,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import type { Project } from "@/domain/types";
 import { persistProject } from "@/features/project/persistProject";
+import { useProjectVersionStore } from "@/state/projectVersionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
@@ -128,7 +129,11 @@ export function useProjectAutoSave() {
         const currentUser = useAuthStore.getState().currentUser;
         if (!currentToken && !currentUser) return;
         for (const [, pack] of toSave) {
-          // Silently ignore save errors — the user sees a stale "saving" indicator.
+          // A conflicted project must not keep re-pushing stale state over the
+          // newer server version — the conflict banner asks for a reload.
+          if (useProjectVersionStore.getState().conflicts[pack.id]) continue;
+          // Version conflicts are surfaced via the store (banner); other save
+          // errors are still swallowed — the user sees a stale "saving" indicator.
           await persistProject(pack, currentToken, !!currentUser).catch(() => {});
         }
       }, 2000);

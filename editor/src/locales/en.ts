@@ -596,6 +596,11 @@ export default {
     },
   },
   project: {
+    conflict: {
+      title: "This project was modified elsewhere.",
+      body: "Another tab, teammate or server push saved a newer version. Reload to pick it up — unsaved local changes will be lost.",
+      reload: "Reload",
+    },
     tabs: {
       overview: "Overview",
       translations: "Translations",

@@ -231,6 +231,10 @@ export const projects = pgTable(
 		slug: text("slug"),
 		description: text("description"),
 		hash: text("hash").notNull().default(""),
+		// Optimistic-concurrency counter for draft content. Bumped by every
+		// content write (editor save, plugin push, deploy); editor PUTs must
+		// present the version they loaded or get a 409.
+		version: integer("version").notNull().default(0),
 		filesJson: text("files_json").notNull().default("{}"),
 		editorJson: text("editor_json"),
 		deployedEditorJson: text("deployed_editor_json"),
