@@ -53,8 +53,9 @@ export async function loadProjects(token: string): Promise<Project[]> {
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects`);
   if (!res.ok) throw new Error("Failed to load projects");
   const data = (await res.json()) as { projects: ProjectListRow[] };
-  const { setVersion } = useProjectVersionStore.getState();
-  for (const row of data.projects) setVersion(row.project_id, row.version ?? 0);
+  useProjectVersionStore.getState().setVersions(
+    Object.fromEntries(data.projects.map((row) => [row.project_id, row.version ?? 0])),
+  );
   return data.projects.map(rowToProject);
 }
 
@@ -100,13 +101,19 @@ export async function deployProject(
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects/${pack.id}/deploy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pack, files }),
+    body: JSON.stringify({ project: pack, files }),
   });
   if (res.status === 403) {
     const body = await res.json() as { error?: string };
     throw new DeployError(body.error === "session_not_trusted" ? "session_not_trusted" : "unknown");
   }
   if (!res.ok) throw new DeployError("unknown");
+  // Deploy bumps the server-side version (no precondition) — resync so the
+  // deploying tab's next auto-save doesn't 409 against its own deploy.
+  const data = (await res.json()) as { version?: number };
+  if (typeof data.version === "number") {
+    useProjectVersionStore.getState().setVersion(pack.id, data.version);
+  }
 }
 
 export async function getDeployedProject(token: string, projectId: string): Promise<Project | null> {
