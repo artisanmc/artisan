@@ -606,6 +606,11 @@ const fr: typeof en = {
     },
   },
   project: {
+    conflict: {
+      title: "Ce project a été modifié ailleurs.",
+      body: "Un autre onglet, un coéquipier ou un push serveur a enregistré une version plus récente. Recharge pour la récupérer — les changements locaux non sauvegardés seront perdus.",
+      reload: "Recharger",
+    },
     tabs: {
       overview: "Vue d'ensemble",
       translations: "Traductions",
