@@ -10,6 +10,8 @@ import org.bukkit.entity.Player
  * @param fetcher Pure function returning rows for a given player + params.
  *                Rows are `Map<String, Any?>` — the schema is documented in [schemaHint],
  *                consumers (e.g. menus rendering `data_source.ref`) iterate generically.
+ *                Called on the server main thread at menu render time: MUST
+ *                return fast (serve from an in-memory cache, no blocking I/O).
  * @param schemaHint Optional human-readable schema description for tooling (web editor).
  */
 @Stable
