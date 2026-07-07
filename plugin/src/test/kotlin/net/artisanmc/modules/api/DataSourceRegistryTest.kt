@@ -50,4 +50,20 @@ class DataSourceRegistryTest {
             registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
         }
     }
+
+    @Test
+    fun `declarations returns registered declarations`() {
+        val reg = DataSourceRegistry()
+        val decl = DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }, schemaHint = "id, name, price")
+        reg.register(decl)
+        assertEquals(listOf(decl), reg.declarations())
+    }
+
+    @Test
+    fun `declarations are sorted by ref`() {
+        val reg = DataSourceRegistry()
+        reg.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
+        reg.register(DataSourceDeclaration(ref = "auction:listings", fetcher = { _, _ -> emptyList() }))
+        assertEquals(listOf("auction:listings", "shop:items"), reg.declarations().map { it.ref })
+    }
 }

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.ws.WsClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -69,6 +70,9 @@ class WsClientTest {
                     mapOf("id" to "commands", "version" to "1.0.0"),
                 )
             },
+            dataSources = {
+                listOf(mapOf("ref" to "shop:items", "schema_hint" to "id, name, price"))
+            },
             onMessage = {},
         )
         client.connect()
@@ -76,6 +80,14 @@ class WsClientTest {
         val hello = helloText.get()
         assertTrue(hello.contains("installed_modules"), "hello must carry installed_modules")
         assertTrue(hello.contains("menus") && hello.contains("commands"), "hello must list both core modules")
+
+        @Suppress("UNCHECKED_CAST")
+        val parsed = ObjectMapper().readValue(hello, Map::class.java) as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val ds = parsed["data_sources"] as List<Map<String, Any?>>
+        assertEquals("shop:items", ds.single()["ref"])
+        assertEquals("id, name, price", ds.single()["schema_hint"])
+
         client.disconnect()
         server.shutdown()
     }
