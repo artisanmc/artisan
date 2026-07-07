@@ -12,6 +12,8 @@ class ProjectContentReaderTest {
         projectsDir = Files.createTempDirectory("artisan-projects").toFile()
         File(projectsDir, "proj1/shop").mkdirs()
         File(projectsDir, "proj1/shop/items.yaml").writeText("items: []")
+        File(projectsDir, "proj1/shop/.artisan-nested").mkdirs()
+        File(projectsDir, "proj1/shop/.artisan-nested/x.yaml").writeText("excluded: true")
         File(projectsDir, "proj1/menus").mkdirs()
         File(projectsDir, "proj1/menus/main.yaml").writeText("id: main")
         File(projectsDir, "proj1/.artisan-sync.yaml").writeText("syncedHash: \"\"")
@@ -47,5 +49,16 @@ class ProjectContentReaderTest {
         assertNull(reader.read("proj1", "..\\..\\secrets"))
         assertNull(reader.read("proj1", ".artisan-sync.yaml"))
         assertNull(reader.read("../..", "etc/passwd"))
+    }
+
+    @Test fun `malformed paths return null instead of throwing`() {
+        assertNull(reader.read("proj1", "shop/ bad"))
+        assertNull(reader.read("pr oj", "shop/items.yaml"))
+    }
+
+    @Test fun `list excludes nested artisan directories`() {
+        val files = reader.list("proj1", "shop")
+        assertEquals(listOf("items.yaml"), files)
+        assertTrue(files.none { it.contains(".artisan") })
     }
 }
