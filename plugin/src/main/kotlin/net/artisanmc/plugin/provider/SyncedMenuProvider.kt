@@ -61,6 +61,7 @@ class SyncedMenuProvider(
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
+    private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<ProjectBundle>()
@@ -163,7 +164,7 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
-        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider())
+        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider(), dataSources)
         sessions?.set(player, session)
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }

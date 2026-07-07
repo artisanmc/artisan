@@ -92,6 +92,7 @@ open class ArtisanPlugin : JavaPlugin() {
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
+            dataSources = api.dataSources,
         )
         defaultModules().forEach { api.modules.register(it) }
         // Inject before load() so the initial hello includes the correct custom_items_hash.
@@ -248,6 +249,7 @@ open class ArtisanPlugin : JavaPlugin() {
             lookupAsset      = assetCatalog::lookup,
             offsetEncoderProvider = assetCatalog::offsetEncoder,
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
+            dataSources = api.dataSources,
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(

@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.modules.api.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
@@ -41,14 +42,18 @@ object MenuRenderer {
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
         lookupAsset: (String) -> AssetEntry? = { null },
         offsetEncoder: OffsetEncoder = OffsetEncoder.EMPTY,
+        dataSources: DataSourceRegistry? = null,
     ): MenuSession {
         // Deterministic fallback chain: requested lang → pack defaultLang → empty.
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
         // iteration-order dependent (non-deterministic across loads).
         val langMap = menu.langMapWithFallback(lang)
 
-        // §15.4 : defaults déclarés (l'appelant gagne par nom).
-        val boundCtx = ctx.copy(args = ContextBinder.bind(menu.yaml, ctx.args))
+        // §15.4 : defaults déclarés (l'appelant gagne par nom) + fetch des
+        // ConnectorBinding via le DataSourceRegistry, curryfié sur le player.
+        val fetch: ((String, Map<String, Any?>) -> List<Map<String, Any?>>)? =
+            dataSources?.let { reg -> { ref, params -> reg.fetch(ref, player, params) } }
+        val boundCtx = ctx.copy(args = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger()))
 
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()
