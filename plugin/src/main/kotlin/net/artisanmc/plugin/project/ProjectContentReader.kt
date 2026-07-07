@@ -15,7 +15,11 @@ class ProjectContentReader(private val projectsDir: File) : ProjectContentApi {
         val root = resolve(projectId, dir) ?: return emptyList()
         if (!root.isDirectory) return emptyList()
         return root.walkTopDown()
-            .filter { it.isFile && !it.name.startsWith(".artisan") }
+            .filter { file ->
+                file.isFile && !file.relativeTo(root).path
+                    .split('/', '\\')
+                    .any { it.startsWith(".artisan") }
+            }
             .map { it.relativeTo(root).path.replace('\\', '/') }
             .sorted()
             .toList()
@@ -34,10 +38,12 @@ class ProjectContentReader(private val projectsDir: File) : ProjectContentApi {
     private fun resolve(projectId: String, relPath: String): File? {
         if (projectId.contains("..") || projectId.contains('/') || projectId.contains('\\')) return null
         if (relPath.split('/', '\\').any { it == ".." || it.startsWith(".artisan") }) return null
-        val projectRoot = File(projectsDir, projectId).canonicalFile
-        val target = File(projectRoot, relPath).canonicalFile
-        val inside = target == projectRoot ||
-            target.path.startsWith(projectRoot.path + File.separator)
-        return if (inside) target else null
+        return runCatching {
+            val projectRoot = File(projectsDir, projectId).canonicalFile
+            val target = File(projectRoot, relPath).canonicalFile
+            val inside = target == projectRoot ||
+                target.path.startsWith(projectRoot.path + File.separator)
+            if (inside) target else null
+        }.getOrNull()
     }
 }
