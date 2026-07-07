@@ -1,0 +1,43 @@
+package net.artisanmc.plugin.project
+
+import net.artisanmc.modules.api.ProjectContentApi
+import java.io.File
+
+class ProjectContentReader(private val projectsDir: File) : ProjectContentApi {
+
+    override fun projectIds(): List<String> =
+        projectsDir.listFiles()
+            ?.filter { it.isDirectory && !it.name.startsWith(".") }
+            ?.map { it.name }
+            ?: emptyList()
+
+    override fun list(projectId: String, dir: String): List<String> {
+        val root = resolve(projectId, dir) ?: return emptyList()
+        if (!root.isDirectory) return emptyList()
+        return root.walkTopDown()
+            .filter { it.isFile && !it.name.startsWith(".artisan") }
+            .map { it.relativeTo(root).path.replace('\\', '/') }
+            .sorted()
+            .toList()
+    }
+
+    override fun read(projectId: String, relPath: String): String? {
+        val f = resolve(projectId, relPath) ?: return null
+        return if (f.isFile) f.readText(Charsets.UTF_8) else null
+    }
+
+    override fun hasContent(dir: String): Boolean = projectIds().any { pid ->
+        resolve(pid, dir)?.let { it.isDirectory && !it.listFiles().isNullOrEmpty() } == true
+    }
+
+    /** Rejette la traversée hors project ('..', séparateurs dans l'id) et le namespace .artisan*. */
+    private fun resolve(projectId: String, relPath: String): File? {
+        if (projectId.contains("..") || projectId.contains('/') || projectId.contains('\\')) return null
+        if (relPath.split('/', '\\').any { it == ".." || it.startsWith(".artisan") }) return null
+        val projectRoot = File(projectsDir, projectId).canonicalFile
+        val target = File(projectRoot, relPath).canonicalFile
+        val inside = target == projectRoot ||
+            target.path.startsWith(projectRoot.path + File.separator)
+        return if (inside) target else null
+    }
+}
