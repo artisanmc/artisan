@@ -1,7 +1,9 @@
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type { Appearance, AssetId, Condition, Dialog, I18nKey, Project } from "@/domain/types";
 import { parse } from "yaml";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
+import { registerModule } from "@artisan/editor-sdk";
+import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { packToCommandV1, packToDialogV1, parseTitleNode, transform } from "./transform";
 
 const makeProject = (overrides: Partial<Project> = {}): Project =>
@@ -77,6 +79,25 @@ describe("transform", () => {
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(manifest.editor_layout).toBeUndefined();
+  });
+
+  describe("module-contributed export files", () => {
+    afterEach(() => clearRegistry());
+
+    it("includes module-contributed files in the export map", () => {
+      registerModule({
+        id: "boutique",
+        displayName: "Boutique",
+        schemaVersion: "shop/v1",
+        sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
+        routes: [],
+        exportFiles: () => ({ "boutique/items.yaml": "items: []" }),
+      });
+      const files = transform(makeProject());
+      const key = Object.keys(files).find((k) => k.endsWith("/boutique/items.yaml"));
+      expect(key).toBeDefined();
+      expect(files[key!]).toBe("items: []");
+    });
   });
 
   it("filters orphaned ids from editor_layout (id no longer in pack)", () => {

@@ -1,3 +1,4 @@
+import { collectModuleExportFiles } from "@artisan/editor-sdk";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type {
@@ -677,6 +678,10 @@ export function transform(pack: Project): Record<string, string> {
   if (Object.keys(editorEdges).length > 0) {
     manifest.editor_edges = editorEdges;
   }
+  for (const [rel, content] of Object.entries(collectModuleExportFiles(pack))) {
+    files[`${base}/${rel}`] = content;
+  }
+
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 
   files[`${base}/meta.yaml`] = stringify(

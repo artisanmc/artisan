@@ -1,5 +1,11 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { registerModule, listModules, clearRegistry, getModule } from "./registry";
+import {
+  registerModule,
+  listModules,
+  clearRegistry,
+  getModule,
+  collectModuleExportFiles,
+} from "./registry";
 import type { FrontendModule } from "./types";
 
 describe("frontend module registry", () => {
@@ -28,5 +34,28 @@ describe("frontend module registry", () => {
   it("throws on duplicate id", () => {
     registerModule(stub("a"));
     expect(() => registerModule(stub("a"))).toThrow(/duplicate/i);
+  });
+});
+
+describe("collectModuleExportFiles", () => {
+  beforeEach(() => clearRegistry());
+
+  it("collects namespaced files from registered modules and drops out-of-namespace keys", () => {
+    registerModule({
+      id: "boutique",
+      displayName: "Boutique",
+      schemaVersion: "shop/v1",
+      sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
+      routes: [],
+      exportFiles: () => ({
+        "boutique/items.yaml": "items: []",
+        "menus/hijack.yaml": "nope", // hors namespace → ignoré
+      }),
+    });
+    expect(collectModuleExportFiles({})).toEqual({ "boutique/items.yaml": "items: []" });
+  });
+
+  it("returns {} when no module contributes files", () => {
+    expect(collectModuleExportFiles({})).toEqual({});
   });
 });

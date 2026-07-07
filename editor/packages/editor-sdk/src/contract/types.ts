@@ -20,4 +20,10 @@ export interface FrontendModule {
   wsMessageTypes?: string[];
   onMount?: () => void;
   onUnmount?: () => void;
+  /**
+   * Files this module contributes to the project bundle on export, keyed by
+   * project-relative path. Keys MUST live under "<moduleId>/" (enforced by
+   * collectModuleExportFiles); out-of-namespace keys are dropped.
+   */
+  exportFiles?: (project: unknown) => Record<string, string>;
 }
