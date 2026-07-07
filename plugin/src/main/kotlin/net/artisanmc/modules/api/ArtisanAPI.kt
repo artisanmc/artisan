@@ -27,6 +27,7 @@ class ArtisanAPI(
     @Stable val schemas: SchemaRegistry<MutableMap<String, Any?>>,
     @Stable val modules: ModuleRegistry,
     @Stable val coreVersion: String,
+    @Stable val project: ProjectContentApi,
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum
