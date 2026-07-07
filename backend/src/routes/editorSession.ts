@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { and, eq, isNull } from "drizzle-orm";
 import { join } from "path";
 import { db } from "../db/index";
-import { editorSessions, projects, serverKeys, serverModules } from "../db/schema";
+import { editorSessions, projects, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { generateEditorToken, generateTrustCode, validateAccessToken } from "../lib/auth";
 import { checkRateLimit } from "../lib/rateLimit";
 import { computeBundleHash } from "../lib/hashUtils";
@@ -130,6 +130,17 @@ router.get("/:token/modules", async (c) => {
     .from(serverModules)
     .where(eq(serverModules.serverKeyId, session.serverKeyId));
   return c.json({ modules: rows.map((r) => ({ id: r.moduleId, version: r.version })) });
+});
+
+// Data sources reported by this session's server — feeds the menu source picker.
+router.get("/:token/data-sources", async (c) => {
+  const session = await validateAccessToken(c.req.param("token"));
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const rows = await db
+    .select()
+    .from(serverDataSources)
+    .where(eq(serverDataSources.serverKeyId, session.serverKeyId));
+  return c.json({ data_sources: rows.map((r) => ({ ref: r.ref, schema_hint: r.schemaHint })) });
 });
 
 router.get("/:token/projects", async (c) => {

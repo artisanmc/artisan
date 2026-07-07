@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, projects, serverKeys, serverModules, networks } from "../db/schema";
+import { editorSessions, projects, serverKeys, serverModules, serverDataSources, networks } from "../db/schema";
 import { generateCode, generateEditorToken, generateTrustCode, validateAccessToken, findSessionByTrustCode, validateEditorToken } from "../lib/auth";
 import { handlePluginMessage, connSenders, connToServerId } from "../ws/hub";
 import { createNetwork } from "../lib/networkManager";
@@ -215,6 +215,22 @@ describe("GET /api/v1/editor-session/:token/modules", () => {
   test("401 for an invalid token", async () => {
     const res = await app.request("/api/v1/editor-session/bogus/modules");
     expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /api/v1/editor-session/:token/data-sources", () => {
+  test("returns reported sources, 401 on bad token", async () => {
+    const { token, keyId } = await createSession();
+    await db.insert(serverDataSources).values([
+      { serverKeyId: keyId, ref: "boutique:items", schemaHint: "id, name, price", reportedAt: new Date() },
+    ]);
+    const res = await app.request(`/api/v1/editor-session/${token}/data-sources`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data_sources: { ref: string; schema_hint: string | null }[] };
+    expect(body.data_sources).toEqual([{ ref: "boutique:items", schema_hint: "id, name, price" }]);
+
+    const bad = await app.request("/api/v1/editor-session/not-a-token/data-sources");
+    expect(bad.status).toBe(401);
   });
 });
 

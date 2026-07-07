@@ -81,6 +81,10 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 
 `server_modules(server_key_id, module_id, version, last_seen)` — ensemble des modules actifs par serveur, **remplacé à chaque `hello`** depuis `installed_modules` (upsert + prune dans `persistServerModules`, `hub.ts`). PK composite `(server_key_id, module_id)`, FK → `server_keys` cascade. **Présence uniquement** : pilote la visibilité des modules dans l'éditeur ; cacher un module (retirer la ligne) **ne supprime jamais** le contenu authored (qui vit dans `projects`/etc.). Cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md` §8.
 
+## Data sources reportées (`server_data_sources`)
+
+`server_data_sources(server_key_id, ref, schema_hint, reported_at)` — mêmes sémantique et mécanique que `server_modules` : **remplacé à chaque `hello`/`modules_changed`** depuis `data_sources` (upsert + prune dans `persistServerDataSources`, `hub.ts`). PK composite `(server_key_id, ref)`, FK → `server_keys` cascade. **Présence uniquement**, sert le sélecteur de source du menu côté éditeur (`GET /api/v1/editor-session/:token/data-sources`) ; un `ref` peut pointer vers une source qui n'existe plus (invariant hermétique — l'éditeur ne bloque jamais sur un ref inconnu).
+
 ## Billing (2026-07-03)
 
 - **`credit_packs`** / **`subscription_plans`** — catalogue admin des top-ups et formules, provisionnés en products/prices Stripe (`stripe_product_id`/`stripe_price_id`). Prix en cents. Pack : credits accordés = `credits + round(credits*bonus_pct/100)`.
