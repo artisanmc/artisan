@@ -168,6 +168,7 @@ export default {
     refPickPlaceholder: "Pick a source…",
     refSectionProjectData: "Project data",
     refSectionConnectors: "Connectors",
+    refSectionServer: "On this server",
     refNoSources: "No sources defined yet — create one in the Data sources page.",
   },
   actionEditor: {

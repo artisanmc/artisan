@@ -175,6 +175,7 @@ const fr: typeof en = {
     refPickPlaceholder: "Choisis une source…",
     refSectionProjectData: "Données du projet",
     refSectionConnectors: "Connecteurs",
+    refSectionServer: "Sur ce serveur",
     refNoSources: "Aucune source — crée-en une dans la page Sources de données.",
   },
   actionEditor: {

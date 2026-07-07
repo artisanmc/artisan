@@ -7,6 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useModulesStore } from "@/state/modulesStore";
+import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { PostHogProvider } from "@posthog/react";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
@@ -46,6 +47,7 @@ function RootLayoutInner() {
   useEffect(() => {
     if (sessionToken) {
       useModulesStore.getState().integrate(sessionToken);
+      useServerDataSourcesStore.getState().load(sessionToken);
     }
   }, [sessionToken]);
   const showSidebar = !!user || !!sessionToken;
