@@ -22,4 +22,13 @@ describe("serverDataSourcesStore", () => {
     await useServerDataSourcesStore.getState().load("tok");
     expect(useServerDataSourcesStore.getState().sources).toEqual([]);
   });
+
+  it("recovers from a network error (empty list, status ready)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("network down");
+    }));
+    await useServerDataSourcesStore.getState().load("tok");
+    expect(useServerDataSourcesStore.getState().sources).toEqual([]);
+    expect(useServerDataSourcesStore.getState().status).toBe("ready");
+  });
 });
