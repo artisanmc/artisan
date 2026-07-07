@@ -73,6 +73,7 @@ Exceptions: `DuplicateModuleException`.
 | `fetch(ref: String, player: Player, params: Map<String, Any?>)` | `List<Map<String, Any?>>` | 1.0.0 |
 | `has(ref: String)` | `Boolean` | 1.0.0 |
 | `refs()` | `Set<String>` | 1.0.0 |
+| `declarations()` | `List<DataSourceDeclaration>` | 1.2.0 |
 
 Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 

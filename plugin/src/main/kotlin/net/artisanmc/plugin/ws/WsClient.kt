@@ -14,6 +14,7 @@ class WsClient(
     private val localProjectIds: List<String> = emptyList(),
     private val customItemsHash: String = "",
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
+    private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
 ) {
@@ -58,6 +59,7 @@ class WsClient(
                 "local_project_ids" to localProjectIds,
                 "custom_items_hash" to customItemsHash.ifEmpty { null },
                 "installed_modules" to installedModules(),
+                "data_sources" to dataSources(),
             )
             ws.send(mapper.writeValueAsString(hello))
         }

@@ -34,4 +34,7 @@ class DataSourceRegistry {
 
     @Stable
     fun refs(): Set<String> = sources.keys.toSet()
+
+    @Stable
+    fun declarations(): List<DataSourceDeclaration> = sources.values.sortedBy { it.ref }
 }
