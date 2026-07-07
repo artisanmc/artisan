@@ -10,7 +10,7 @@
  * re-exported here.
  */
 export type { FrontendModule, ModuleSidebarEntry, ModuleRouteDecl } from "./contract/types";
-export { registerModule, listModules, getModule } from "./contract/registry";
+export { registerModule, listModules, getModule, collectModuleExportFiles } from "./contract/registry";
 export type { ModuleEvent } from "./contract/eventBus";
 export { onModuleEvent, emitModuleEvent } from "./contract/eventBus";
 export { Button, buttonVariants, type ButtonProps } from "./ui/button";
