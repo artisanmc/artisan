@@ -1256,3 +1256,5 @@ rtk git commit -m "feat(editor): surface live server data sources in the menu so
 ## Suite
 
 Plan séparé `2026-07-06-boutique-addon.md` (à écrire une fois ce plan mergé) : rewrite de Boutique en Add-on Artisan — `BoutiqueModule : ArtisanModule` (data sources `boutique:categories`/`boutique:items` servies depuis `api.project`, command `boutique:buy` → `TransactionManager` conservé tel quel), schema `shop/v1`, menus/dialog `menu/v1` + `dialog/v1` de bootstrap, module éditeur `@artisan/boutique-editor` (table + `<SchemaForm>` + `exportFiles`), migration one-shot du `config.yml` MenuAPI.
+
+**Prérequis bloquant pour le plan Boutique** (finding de la review finale) : l'éditeur est source de vérité du bundle — le sweep de `BundleDownloader` supprime tout fichier absent de l'export. Un module ne doit JAMAIS écrire de contenu (`exportFiles`) avant que son état soit stocké dans le domaine `Project` côté éditeur (sinon un `pushLocal` de `shop/*.yaml` serait silencieusement effacé au déploiement suivant). Le plan Boutique doit spécifier le stockage `Project.<moduleId>` AVANT toute implémentation d'`exportFiles`.
