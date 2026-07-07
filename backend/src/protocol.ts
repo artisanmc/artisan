@@ -11,6 +11,9 @@ export interface HelloMessage {
   // Modules the Core plugin currently has registered. Drives editor visibility
   // (presence activation). Absent/empty on older plugins → no modules reported.
   installed_modules?: { id: string; version: string }[];
+  // Data sources registered plugin-side (DataSourceRegistry). Drives the
+  // editor's menu source picker. Absent/empty on older plugins.
+  data_sources?: { ref: string; schema_hint?: string | null }[];
 }
 
 export interface HelloAckMessage {
@@ -131,6 +134,9 @@ export interface ModulesChangedMessage {
   // redundant with the authenticated session; ignored by the backend (kept for payload parity with hello)
   server_key: string;
   installed_modules: { id: string; version: string }[];
+  // Data sources registered plugin-side (DataSourceRegistry). Drives the
+  // editor's menu source picker. Absent/empty on older plugins.
+  data_sources?: { ref: string; schema_hint?: string | null }[];
 }
 
 export type PluginToServerMessage =
