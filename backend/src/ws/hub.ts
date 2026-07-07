@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules } from "../db/schema";
+import { editorSessions, linkCodes, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
@@ -158,6 +158,35 @@ export async function persistServerModules(
     );
 }
 
+/**
+ * Same semantics as persistServerModules, for reported data sources.
+ * Exported for direct testing; called fire-and-forget from the hello and
+ * modules_changed handlers.
+ */
+export async function persistServerDataSources(
+  serverKeyId: string,
+  reported: { ref: string; schema_hint?: string | null }[],
+): Promise<void> {
+  const now = new Date();
+  for (const ds of reported) {
+    await db
+      .insert(serverDataSources)
+      .values({ serverKeyId, ref: ds.ref, schemaHint: ds.schema_hint ?? null, reportedAt: now })
+      .onConflictDoUpdate({
+        target: [serverDataSources.serverKeyId, serverDataSources.ref],
+        set: { schemaHint: ds.schema_hint ?? null, reportedAt: now },
+      });
+  }
+  const keepRefs = reported.map((d) => d.ref);
+  await db
+    .delete(serverDataSources)
+    .where(
+      keepRefs.length > 0
+        ? and(eq(serverDataSources.serverKeyId, serverKeyId), notInArray(serverDataSources.ref, keepRefs))
+        : eq(serverDataSources.serverKeyId, serverKeyId),
+    );
+}
+
 async function handleCustomItemsHash(serverKeyId: string, incomingHash: string | undefined): Promise<void> {
   if (!incomingHash) return;
   const cacheDir = customItemsCacheDir(serverKeyId);
@@ -212,6 +241,7 @@ export async function handlePluginMessage(
       helloAt: new Date(),
     }).catch(() => {});
     persistServerModules(keyId, hello.installed_modules ?? []).catch(() => {});
+    persistServerDataSources(keyId, hello.data_sources ?? []).catch(() => {});
     handleCustomItemsHash(keyId, (hello as HelloMessage & { custom_items_hash?: string }).custom_items_hash).catch(() => {});
     if (!assetsDone(hello.minecraft_version)) {
       ensureAssets(hello.minecraft_version).catch((err) =>
@@ -414,6 +444,7 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const m = msg as ModulesChangedMessage;
     persistServerModules(serverId, m.installed_modules ?? []).catch(() => {});
+    persistServerDataSources(serverId, m.data_sources ?? []).catch(() => {});
     return { reply: null };
   }
 

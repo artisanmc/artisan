@@ -96,6 +96,22 @@ export const serverModules = pgTable(
 	(t) => [primaryKey({ columns: [t.serverKeyId, t.moduleId] })],
 );
 
+// Data sources reported by the plugin at every `hello` / `modules_changed`.
+// Presence only — feeds the editor's menu source picker; refs may dangle
+// (hermetic invariant: the editor never blocks on an unknown ref).
+export const serverDataSources = pgTable(
+	"server_data_sources",
+	{
+		serverKeyId: text("server_key_id")
+			.notNull()
+			.references(() => serverKeys.id, { onDelete: "cascade" }),
+		ref: text("ref").notNull(),
+		schemaHint: text("schema_hint"),
+		reportedAt: timestamp("reported_at").notNull(),
+	},
+	(t) => [primaryKey({ columns: [t.serverKeyId, t.ref] })],
+);
+
 export const linkCodes = pgTable("link_codes", {
 	code: text("code").primaryKey(),
 	createdAt: timestamp("created_at").notNull(),

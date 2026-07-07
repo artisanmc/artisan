@@ -3,6 +3,7 @@ import { app } from "../app";
 import {
   handlePluginMessage,
   persistServerModules,
+  persistServerDataSources,
   registerConn,
   registerEditorConn,
   broadcastDraftUpdate,
@@ -20,6 +21,7 @@ import {
   serverKeys,
   serverKeyHelloes,
   serverModules,
+  serverDataSources,
   projects,
   networks,
   linkCodes,
@@ -101,6 +103,35 @@ describe("persistServerModules (presence)", () => {
     rows = await db.select().from(serverModules).where(eq(serverModules.serverKeyId, keyId));
     expect(rows.map((r) => r.moduleId)).toEqual(["menus"]);
     expect(rows[0]?.version).toBe("1.1");
+  });
+});
+
+describe("persistServerDataSources", () => {
+  test("upserts reported sources and prunes the ones no longer reported", async () => {
+    const networkId = crypto.randomUUID();
+    await db.insert(networks).values({
+      id: networkId,
+      name: "presence-test-ds",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({
+      id: keyId,
+      hash: "h-ds",
+      networkId,
+      createdAt: new Date(),
+    });
+
+    await persistServerDataSources(keyId, [
+      { ref: "boutique:items", schema_hint: "id, name, price" },
+      { ref: "boutique:categories", schema_hint: null },
+    ]);
+    await persistServerDataSources(keyId, [{ ref: "boutique:items", schema_hint: "id, name" }]);
+    const rows = await db.select().from(serverDataSources).where(eq(serverDataSources.serverKeyId, keyId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ref).toBe("boutique:items");
+    expect(rows[0].schemaHint).toBe("id, name");
   });
 });
 
