@@ -62,6 +62,7 @@ class SyncedMenuProvider(
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
+    private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
 ) : MenuProvider {
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<ProjectBundle>()
@@ -118,6 +119,7 @@ class SyncedMenuProvider(
                 localProjectIds   = bundles.map { it.projectId },
                 customItemsHash   = "",
                 installedModules  = installedModules,
+                dataSources       = dataSourcesReport,
                 onMessage         = ::handleMessage,
                 logger            = logger,
             )
@@ -197,6 +199,7 @@ class SyncedMenuProvider(
             "type" to "modules_changed",
             "server_key" to serverKey,
             "installed_modules" to modules,
+            "data_sources" to dataSourcesReport(),
         ))
     }
 
