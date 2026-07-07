@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
 - Menus resolve `context_inputs[].source` (ConnectorBinding) through the `DataSourceRegistry` at render time — modules can now feed menu iteration via `api.dataSources.register(...)` (menu/v1 §14, "Phase B").
 
 ### Changed

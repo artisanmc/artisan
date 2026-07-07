@@ -33,6 +33,12 @@ class ModuleRegistryTest {
             schemas = SchemaRegistry(),
             modules = reg,
             coreVersion = "1.0.0",
+            project = object : ProjectContentApi {
+                override fun projectIds() = emptyList<String>()
+                override fun list(projectId: String, dir: String) = emptyList<String>()
+                override fun read(projectId: String, relPath: String): String? = null
+                override fun hasContent(dir: String) = false
+            },
         )
         reg.bind(api, onChange)
         return reg
