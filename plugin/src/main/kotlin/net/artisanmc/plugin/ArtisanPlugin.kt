@@ -47,6 +47,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 schemas = SchemaRegistry(),
                 modules = registry,
                 coreVersion = plugin.description.version,
+                project = net.artisanmc.plugin.project.ProjectContentReader(File(plugin.dataFolder, "projects")),
             )
             // version = core plugin version for now (ArtisanModule has no own version); P1c will add ArtisanModule.version
             registry.bind(api) {

@@ -50,6 +50,7 @@ val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provid
 | `modules` | `ModuleRegistry` | 1.1.0 |
 | `coreVersion` | `String` | 1.1.0 |
 | `isCompatibleWith(minVersion: String)` | `Boolean` | 1.1.0 |
+| `project` | `ProjectContentApi` | 1.2.0 |
 
 ### `net.artisanmc.modules.api.ModuleRegistry`
 
@@ -115,6 +116,17 @@ Exceptions: `UnsupportedSchemaVersionException`, `CircularMigrationException`.
 | `migrate(data: T)` | `T` | 1.0.0 |
 
 Migrations MUST be pure, idempotent, and write-once. See `versioning.md` §2.5.
+
+### `net.artisanmc.modules.api.ProjectContentApi`
+
+Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
+
+| Member | Type | Since |
+|---|---|---|
+| `projectIds()` | `List<String>` | 1.2.0 |
+| `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
+| `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
+| `hasContent(dir: String)` | `Boolean` | 1.2.0 |
 
 ## Beta APIs (may change)
 
