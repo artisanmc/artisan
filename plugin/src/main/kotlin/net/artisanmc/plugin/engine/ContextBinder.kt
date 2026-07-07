@@ -2,23 +2,81 @@ package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.model.MenuYaml
 import org.bukkit.Bukkit
+import java.util.logging.Logger
 
 /**
  * Auto-binding §15.4 : les args de l'appelant (commande, open_menu.context,
- * alias d'itération) peuplent les context_inputs par nom ; les defaults
- * déclarés comblent le reste. Phase B branchera ici le fetch des inputs à
- * `source` (ConnectorBinding) non fournis par l'appelant.
+ * alias d'itération) peuplent les context_inputs par nom ; les inputs à
+ * `source` (ConnectorBinding) non fournis sont fetchés via [fetchSource]
+ * (DataSourceRegistry curryfié sur le player, cf. MenuRenderer) ; les
+ * defaults déclarés comblent le reste.
  */
 object ContextBinder {
-    fun bind(menu: MenuYaml, callerArgs: Map<String, Any>): Map<String, Any> {
+    fun bind(
+        menu: MenuYaml,
+        callerArgs: Map<String, Any>,
+        fetchSource: ((ref: String, params: Map<String, Any?>) -> List<Map<String, Any?>>)? = null,
+        logger: Logger? = null,
+    ): Map<String, Any> {
         val out = callerArgs.toMutableMap()
         for (input in menu.contextInputs) {
             if (input.name.isEmpty() || out.containsKey(input.name)) continue
+            val ref = (input.source["ref"] as? String)?.takeIf { it.isNotEmpty() }
+            if (ref != null && fetchSource != null) {
+                val rows = runCatching {
+                    fetchSource(ref, interpolateValues(mapOf(input.source, "params"), out))
+                }.getOrElse { e ->
+                    logger?.warning("[Artisan] data source '$ref' failed for input '${input.name}': ${e.message}")
+                    null
+                }
+                if (rows != null) {
+                    out[input.name] = shape(rows, input.source, out)
+                    continue
+                }
+            }
             val d = input.default ?: continue
             out[input.name] = coerce(d, input.type)
         }
         return out
     }
+
+    /** filter (égalité string) → sort (numérique si possible) → limit. */
+    private fun shape(
+        rows: List<Map<String, Any?>>,
+        source: Map<String, Any>,
+        args: Map<String, Any>,
+    ): List<Map<String, Any?>> {
+        var result = rows
+        val filter = mapOf(source, "filter")
+        if (filter.isNotEmpty()) {
+            result = result.filter { row ->
+                filter.all { (field, expected) ->
+                    row[field]?.toString() == interpolate(expected?.toString() ?: "", args)
+                }
+            }
+        }
+        val sort = source["sort"] as? Map<*, *>
+        val by = sort?.get("by")?.toString()
+        if (by != null) {
+            val allNumeric = result.all { it[by]?.toString()?.toDoubleOrNull() != null }
+            result = if (allNumeric) result.sortedBy { it[by].toString().toDouble() }
+                     else result.sortedBy { it[by]?.toString() ?: "" }
+            if (sort["direction"]?.toString() == "desc") result = result.reversed()
+        }
+        val limit = (source["limit"] as? Number)?.toInt()
+        if (limit != null && limit > 0) result = result.take(limit)
+        return result
+    }
+
+    private fun interpolate(raw: String, args: Map<String, Any>): String =
+        Regex("\\{([a-z][a-z0-9_]*)}").replace(raw) { m -> args[m.groupValues[1]]?.toString() ?: m.value }
+
+    private fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
+        map.mapValues { (_, v) -> if (v is String) interpolate(v, args) else v }
+
+    /** Sous-map nommée du ConnectorBinding brut ({} si absente/mal typée). */
+    private fun mapOf(source: Map<String, Any>, key: String): Map<String, Any?> =
+        (source[key] as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value } ?: emptyMap()
 
     private fun coerce(raw: String, type: String): Any = when (type) {
         "integer" -> raw.toLongOrNull() ?: raw
