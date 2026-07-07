@@ -15,6 +15,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
 - `GET /api/v1/editor-session/:token/data-sources` — data sources reported by the connected server.
 
+### Fixed
+- menu/v1 ConnectorBinding descriptions aligned with runtime semantics (no implicit limit default; params interpolate {name} only).
+
 ### Changed
 - **Optimistic concurrency on editor saves (breaking for direct API consumers).** `projects.version` (migration 0016) is bumped by every content write. `PUT /api/v1/user/projects/:projectId` now requires `baseVersion` (400 `missing_base_version` without it) and `PUT /api/v1/editor-session/:token/projects/:projectId` requires `base_version` when the project already exists; both return `409 version_conflict` (+ current version) when another writer saved in between, instead of silently overwriting (last-write-wins). Load endpoints expose `version`. The editor tracks versions in `projectVersionStore` (outside undo history), suspends auto-save on conflict and shows a reload banner. Also fixes the session-mode save AND deploy wire key (`pack` → `project`, broken since the pack→project wire flip — session saves/deploys were 400ing silently); deploy now returns the bumped `version` and the client resyncs it so a deploy doesn't 409 the deploying tab's next auto-save, and fresh loads lift stale conflict flags.
 - Billing admin (sub-project D): `/admin/billing` (super-admin) — a sales dashboard (top-up revenue per currency, active subscribers per plan, daily series), credit-pack & subscription-plan management (CRUD + activate/deactivate), and manual per-network credit grants (`topup`/`adjustment`). New endpoints `GET /api/v1/admin/billing/sales` + `POST /api/v1/admin/billing/grant`.

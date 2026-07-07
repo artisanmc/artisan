@@ -211,7 +211,7 @@
         "params": {
           "type": "object",
           "additionalProperties": { "type": "string" },
-          "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu, ainsi que placeholders PAPI et {i18n:key}."
+          "description": "Paramètres passés à la data source (varient par data source). Supportent {name} pour interpoler les autres contextInputs du menu."
         },
         "filter": {
           "type": "object",
@@ -231,7 +231,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 1000,
-          "description": "Nombre max d'items retournés. Default = nombre de positions occupées par l'Element qui itère cette slot."
+          "description": "Nombre max d'items retournés. Absent = pas de limite (la liste complète est paginée par l'Element qui itère la slot)."
         }
       }
     },
