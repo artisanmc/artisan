@@ -21,6 +21,7 @@ import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { summarizeFieldType } from "@/features/data/helpers";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
+import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useUiStore } from "@/state/uiStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -466,6 +467,9 @@ function SourcePickerOptions({
   const { t } = useTranslation();
   const hasProjectData = (pack.dataSources ?? []).length > 0;
   const hasConnectors = (pack.importedConnectors ?? []).length > 0;
+  const serverSources = useServerDataSourcesStore((s) => s.sources);
+  const knownRefs = new Set((pack.importedConnectors ?? []).map((c) => c.ref));
+  const liveSources = serverSources.filter((s) => !knownRefs.has(s.ref));
   return (
     <>
       {hasProjectData ? (
@@ -511,7 +515,29 @@ function SourcePickerOptions({
           ))}
         </>
       ) : null}
-      {!hasProjectData && !hasConnectors ? (
+      {liveSources.length > 0 ? (
+        <>
+          {(hasProjectData || hasConnectors) ? <DropdownMenuSeparator /> : null}
+          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
+            {t("menuProperties.refSectionServer")}
+          </DropdownMenuLabel>
+          {liveSources.map((s) => (
+            <DropdownMenuItem
+              key={s.ref}
+              onSelect={() => onPick(s.ref as SourceRef)}
+              title={s.schemaHint ?? undefined}
+              className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
+            >
+              <span className="mr-1">🛰</span>
+              <span className="font-mono">{s.ref}</span>
+              {s.schemaHint ? (
+                <span className="ml-auto text-[9px] text-[var(--text-faint)]">{s.schemaHint}</span>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </>
+      ) : null}
+      {!hasProjectData && !hasConnectors && liveSources.length === 0 ? (
         <DropdownMenuItem
           disabled
           className="cursor-not-allowed text-[11px] text-[var(--text-faint)]"
