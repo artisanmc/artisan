@@ -110,6 +110,14 @@ export interface Project {
    * Editor-only metadata — exported as manifest `editor_edges`.
    */
   canvasEdges?: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }>;
+  /**
+   * Per-module opaque state, keyed by module id (e.g. "boutique"). Owned by
+   * the module's editor package; the host never interprets it. Round-trips
+   * through editorJson. Modules derive their exportFiles() output from here.
+   * Backend file-import seeds `{ __files: Record<relPath, content> }` for
+   * unrecognized project dirs; modules normalize that on first read.
+   */
+  moduleData?: Record<string, unknown>;
 }
 
 /** Container shape of a menu. Absent in stored data = "chest" (back-compat). */
