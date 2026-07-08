@@ -98,6 +98,33 @@ describe("transform", () => {
       expect(key).toBeDefined();
       expect(files[key!]).toBe("items: []");
     });
+
+    it("re-emits __files of moduleData namespaces no registered module claims", () => {
+      const pack = makeProject({
+        moduleData: {
+          boutique: { __files: { "shop.yaml": "schema: boutique/v1\n", "notes/readme.txt": "hi" } },
+        },
+      });
+      const files = transform(pack);
+      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yaml"]).toBe("schema: boutique/v1\n");
+      expect(files["plugins/Artisan/projects/p_test/boutique/notes/readme.txt"]).toBe("hi");
+    });
+
+    it("registered module keeps authority over its namespace (exportFiles wins over __files)", () => {
+      registerModule({
+        id: "boutique",
+        displayName: "Boutique",
+        schemaVersion: "shop/v1",
+        sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
+        routes: [],
+        exportFiles: () => ({ "boutique/shop.yaml": "from-module" }),
+      });
+      const pack = makeProject({
+        moduleData: { boutique: { __files: { "shop.yaml": "raw-bytes" } } },
+      });
+      const files = transform(pack);
+      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yaml"]).toBe("from-module");
+    });
   });
 
   it("filters orphaned ids from editor_layout (id no longer in pack)", () => {

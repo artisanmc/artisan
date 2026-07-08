@@ -1,4 +1,4 @@
-import { parseShopYaml } from "./shopYaml";
+import { parseShopYaml, serializeShopYaml } from "./shopYaml";
 
 export interface BoutiqueItem {
   id: string;
@@ -21,6 +21,12 @@ export interface BoutiqueCategory {
 export interface BoutiqueState {
   wholeShopDiscount: number;
   categories: BoutiqueCategory[];
+  /** Unknown `__files` entries (everything except shop.yaml) — re-emitted verbatim on export. */
+  extraFiles?: Record<string, string>;
+  /** Raw shop.yaml bytes when parsing failed — exported verbatim while `parseFailed`. */
+  rawShopYaml?: string;
+  /** True when `__files["shop.yaml"]` exists but doesn't parse; an explicit screen edit clears it. */
+  parseFailed?: boolean;
 }
 
 export const EMPTY_STATE: BoutiqueState = { wholeShopDiscount: 0, categories: [] };
@@ -35,8 +41,17 @@ export function readBoutiqueState(project: unknown): BoutiqueState {
   if (!md || typeof md !== "object") return EMPTY_STATE;
   const raw = md as Record<string, unknown>;
   if (raw.__files && typeof raw.__files === "object") {
-    const content = (raw.__files as Record<string, string>)["shop.yaml"];
-    return (content && parseShopYaml(content)) || EMPTY_STATE;
+    const allFiles = raw.__files as Record<string, string>;
+    const extraFiles: Record<string, string> = {};
+    for (const [rel, content] of Object.entries(allFiles)) {
+      if (rel !== "shop.yaml") extraFiles[rel] = content;
+    }
+    const extras = Object.keys(extraFiles).length > 0 ? { extraFiles } : {};
+    const content = allFiles["shop.yaml"];
+    if (content === undefined) return { ...EMPTY_STATE, ...extras };
+    const parsed = parseShopYaml(content);
+    if (!parsed) return { ...EMPTY_STATE, ...extras, rawShopYaml: content, parseFailed: true };
+    return { ...parsed, ...extras };
   }
   if (Array.isArray(raw.categories)) return raw as unknown as BoutiqueState;
   return EMPTY_STATE;
@@ -44,4 +59,24 @@ export function readBoutiqueState(project: unknown): BoutiqueState {
 
 export function hasBoutiqueData(project: unknown): boolean {
   return (project as ProjectLike).moduleData?.boutique !== undefined;
+}
+
+/**
+ * Export the boutique namespace files. Data-loss guards:
+ * - `extraFiles` (unknown __files entries) are re-emitted verbatim;
+ * - while `parseFailed`, the original shop.yaml bytes are emitted instead of an
+ *   empty catalog (an explicit screen edit clears the flag and takes over).
+ */
+export function exportBoutiqueFiles(project: unknown): Record<string, string> {
+  const state = readBoutiqueState(project);
+  if (!hasBoutiqueData(project) && state.categories.length === 0) return {};
+  const files: Record<string, string> = {};
+  for (const [rel, content] of Object.entries(state.extraFiles ?? {})) {
+    files[`boutique/${rel}`] = content;
+  }
+  files["boutique/shop.yaml"] =
+    state.parseFailed && state.rawShopYaml !== undefined
+      ? state.rawShopYaml
+      : serializeShopYaml(state);
+  return files;
 }
