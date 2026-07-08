@@ -94,6 +94,11 @@ interface AccountState {
   importProject: (input: { pack: Project }) => ProjectId;
   replaceProject: (pack: Project) => void;
   /**
+   * Write a module's namespace in Project.moduleData, replacing its prior
+   * value wholesale. Other modules' namespaces are preserved.
+   */
+  setModuleData: (projectId: ProjectId, moduleId: string, data: unknown) => void;
+  /**
    * Apply an AI-generated menu/v1: convert to domain, insert/replace in the
    * pack, merge i18n. Returns the constructs dropped during conversion (no
    * domain equivalent) so the caller can warn instead of losing them silently.
@@ -988,6 +993,16 @@ export const useAccountStore = create<AccountState>()(
                 menus: pack.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
               };
             }
+          }),
+        );
+      },
+      setModuleData: (projectId, moduleId, data) => {
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            pack.moduleData = { ...(pack.moduleData ?? {}), [moduleId]: data };
+            pack.updatedAt = new Date().toISOString();
           }),
         );
       },

@@ -141,6 +141,25 @@ describe("accountStore", () => {
     expect(useAccountStore.getState().account.projects).toHaveLength(3);
   });
 
+  describe("moduleData", () => {
+    it("setModuleData writes the module's namespace and preserves others", () => {
+      useAccountStore.getState().setModuleData(PERSONAL, "boutique", { categories: [] });
+      useAccountStore.getState().setModuleData(PERSONAL, "quests", { chains: 1 });
+      const p = useAccountStore.getState().account.projects.find((x) => x.id === PERSONAL)!;
+      expect(p.moduleData?.boutique).toEqual({ categories: [] });
+      expect(p.moduleData?.quests).toEqual({ chains: 1 });
+    });
+
+    it("importProject preserves moduleData", () => {
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const id = useAccountStore.getState().importProject({
+        pack: { ...source, moduleData: { boutique: { categories: [] } } },
+      });
+      const imported = useAccountStore.getState().account.projects.find((p) => p.id === id)!;
+      expect(imported.moduleData?.boutique).toEqual({ categories: [] });
+    });
+  });
+
   it("createProject appends to projects and projectOrder", () => {
     useAccountStore.getState().createProject({ id: "new_pack" });
     const a = useAccountStore.getState().account;
