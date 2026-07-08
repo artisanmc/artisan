@@ -650,6 +650,81 @@ describe("local_push", () => {
     }));
     expect(result.reply).toBeNull();
   });
+
+  test("local_push on an empty stub builds editorJson from files (incl. moduleData)", async () => {
+    const { key } = await seedServerKey();
+    const connId = "conn-local-push-stub";
+    registerConn(connId, () => {});
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const base = "plugins/Artisan/projects/p_stub";
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push",
+      project_id: "p_stub",
+      files: {
+        [`${base}/manifest.yaml`]: "schema: manifest/v1\nproject_id: p_stub\ndefault_lang: en\nfiles:\n  menus: [shop]\n  commands: []\n  dialogs: []\n",
+        [`${base}/menus/shop.yaml`]: "id: shop\nsize: 27\n",
+        [`${base}/boutique/shop.yaml`]: "schema: boutique/v1\ncategories: []\n",
+      },
+      hash: "hash-stub",
+    }));
+    expect(result.reply).toBeNull();
+
+    const pack = await getProject("p_stub");
+    expect(pack).not.toBeNull();
+    expect(pack!.editorJson).not.toBeNull();
+    const editor = JSON.parse(pack!.editorJson!) as {
+      moduleData?: Record<string, { __files: Record<string, string> }>;
+    };
+    expect(editor.moduleData?.boutique.__files["shop.yaml"]).toContain("boutique/v1");
+  });
+
+  test("local_push on a real editor project does NOT overwrite editorJson", async () => {
+    const { id: keyId, key, networkId } = await seedServerKey();
+    const connId = "conn-local-push-real";
+    registerConn(connId, () => {});
+
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const realEditorJson = JSON.stringify({
+      id: "p_real",
+      name: "p_real",
+      source: "user_created",
+      menus: [{ id: "shop", title: { key: "menus.shop.title" }, rows: 3, layers: [] }],
+      commands: [],
+      dialogs: [],
+    });
+    await db.insert(projects).values({
+      id: "p_real",
+      networkId,
+      serverKeyId: keyId,
+      name: "p_real",
+      slug: "p-real",
+      hash: "",
+      filesJson: "{}",
+      editorJson: realEditorJson,
+      deployedEditorJson: null,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push",
+      project_id: "p_real",
+      files: { "menus/shop.yaml": "id: shop\nsize: 27\n" },
+      hash: "hash-real",
+    }));
+    expect(result.reply).toBeNull();
+
+    const pack = await getProject("p_real");
+    expect(pack!.editorJson).toBe(realEditorJson);
+  });
 });
 
 describe("protocol_version + unknown message types", () => {
