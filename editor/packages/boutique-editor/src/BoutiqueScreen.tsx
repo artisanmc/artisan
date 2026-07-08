@@ -5,7 +5,14 @@ import { useState } from "react";
 // module; promote to an SDK-exposed hook once P1c ships a real package split.
 import { useAccountStore } from "@/state/accountStore";
 import type { BoutiqueCategory, BoutiqueItem, BoutiqueState } from "./state";
-import { readBoutiqueState } from "./state";
+import { hasBoutiqueData, readBoutiqueState } from "./state";
+
+// The active project is the first one that actually holds boutique data
+// (moduleData.boutique), not blindly projectOrder[0]; when several projects
+// have boutique data a select lets the user pick. Writes go through
+// setModuleData on that project and strip the parse-failure passthrough
+// (rawShopYaml/parseFailed) — an explicit edit legitimately takes over —
+// while extraFiles keeps flowing through.
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -24,7 +31,14 @@ export function BoutiqueScreen() {
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
   const setModuleData = useAccountStore((s) => s.setModuleData);
 
-  const activeProjectId = projectOrder[0];
+  const dataProjects = projects.filter((p) => hasBoutiqueData(p));
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const activeProjectId =
+    (selectedProjectId && dataProjects.some((p) => p.id === selectedProjectId)
+      ? selectedProjectId
+      : undefined) ??
+    dataProjects[0]?.id ??
+    projectOrder[0];
   const project = projects.find((p) => p.id === activeProjectId);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -41,7 +55,10 @@ export function BoutiqueScreen() {
   const selectedCategory = state.categories.find((c) => c.id === selectedCategoryId) ?? state.categories[0] ?? null;
 
   function write(next: BoutiqueState) {
-    setModuleData(project!.id, "boutique", next);
+    // Explicit edit: keep extraFiles flowing through, drop the parse-failure
+    // passthrough — the structured state legitimately takes over shop.yaml.
+    const { rawShopYaml: _raw, parseFailed: _failed, ...clean } = next;
+    setModuleData(project!.id, "boutique", clean);
   }
 
   function addCategory() {
@@ -95,6 +112,25 @@ export function BoutiqueScreen() {
     <div className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-[var(--text)]">Boutique</h1>
+        {dataProjects.length > 1 && (
+          <label className="flex items-center gap-2 text-sm text-[var(--text-mut)]">
+            Project
+            <select
+              className="input"
+              value={activeProjectId}
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value);
+                setSelectedCategoryId(null);
+              }}
+            >
+              {dataProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name || p.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="flex items-center gap-2 text-sm text-[var(--text-mut)]">
           Whole shop discount
           <input
