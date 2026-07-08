@@ -531,14 +531,13 @@ Pattern d'architecture en place :
 
 ### V1.5 (M+2 à M+4)
 
-Premier Add-on : **shop**.
-- Schema `shop/v1` avec items, categories, prices, stock
-- Backend Fastify routes + Drizzle tables
-- Frontend form-based editor + table d'items
-- Template menu `shop_main` shippé
-- Data source `shop:items`, command `shop:buy`
-- AI assistant feature dispo
-- Ce module shop devient **le proof of concept** du pattern modulaire en plus du menu editor.
+Premier Add-on : **boutique** (nom final du module `shop` de la spec — livré, cf. §15).
+- Schema `boutique/v1` avec items, categories, prices
+- Plugin externe (repo séparé, dépend du core) — pas de backend Fastify/Drizzle dédié : le catalogue vit dans `boutique/shop.yaml`, synced comme n'importe quel fichier de project
+- Frontend `@artisan/boutique-editor` form-based (presence-gated `/m/boutique`)
+- Templates menus `shop_main` / `shop_category` bootstrappés
+- Data sources `boutique:categories` / `boutique:items`, command `boutique:buy`
+- Ce module boutique est **le proof of concept livré** du pattern modulaire en plus du menu editor — avec des écarts vs la spec, documentés en §15.
 
 ### V2 (M+4 à M+8)
 
@@ -844,6 +843,18 @@ curl -sN -X POST localhost:3001/api/v1/assistant/conversations/$CID/messages \
 
 - **3 — crédits** : ledger + débit sur les events `usage` (pré-check avant le tour, blocage à zéro) + octroi admin.
 - **4 — panel éditeur** : chat + file-drop + client SSE → applique `menu_written` / `menu_deleted` via `menuV1ToDomain` + checkpoint/undo.
+
+## 15. Module boutique (V1.5 — shipped)
+
+Repo séparé (`Boutique`, branche `feat/artisan-addon`, plugin Paper 1.21.4 / Java 21, dépend d'`artisan-core-api`). Premier Add-on tiers réel, POC du pattern modulaire — avec des écarts assumés vs la spec ci-dessus (§3.3.2, §5) documentés ici.
+
+- **Data sources** : `boutique:categories` (`{id, name, icon}`) et `boutique:items` (`{id, name, icon, category, price, final_price, lore}`), enregistrées via `ArtisanAPI.dataSources.register(...)` (§4.1). Le catalogue est lu depuis `boutique/shop.yaml` (schema `boutique/v1`) via `ArtisanAPI.project` — pas de DB dédiée côté plugin.
+- **Command** : `boutique:buy` (`argv[0]` = item id) enregistrée dans `CommandRegistry`, exécutée par `TransactionManager`. Consommée depuis les menus via une action `run_command` (`"boutique:buy {item.id}"`) — le bridge `run_command → CommandRegistry` est celui du core (Task 1, CHANGELOG `[Unreleased]`), pas le dispatch `command/v1` authoré décrit en §5.
+- **Bootstrap** : **écart vs §5** — il n'existe pas d'`api.bootstrap.unpack(...)`. Le module écrit lui-même `projects/boutique_shop/` (7 fichiers : `manifest.yaml`, 2 menus avec titres en clés `LText`, dialog `confirm_purchase`, commande `boutique`, `lang/fr.yaml`, `boutique/shop.yaml`) de façon atomique (`.boutique_shop.tmp` + rename), gardé par `api.project.hasContent("boutique")`. Le config.yml legacy (`ShopManager`) est migré une fois via snakeyaml brut, uniquement s'il pré-existait à `saveDefaultConfig`. Un seul log WARN indique à l'admin de lancer `/artisan reload` puis `/artisan pushLocal boutique_shop` (pas de délai/prompt — cf. philosophie "no theater").
+- **Éditeur** : `@artisan/boutique-editor`, module presence-gated monté sur `/m/boutique`. L'état vit dans `Project.moduleData.boutique` (§3.1) — pas de state dédié côté `Project`. Le module normalise à la lecture les fichiers seedés backend-side (`moduleData.boutique.__files`, cf. Task 3) vers sa forme structurée, et dérive `exportFiles()` → `boutique/shop.yaml` depuis ce state.
+- **Portée non couverte** : pas de form generator schema-driven (§8) pour le catalogue — l'éditeur boutique a son propre form ad-hoc ; à revisiter si un 3ᵉ Add-on confirme le besoin d'un générateur générique.
+
+Checklist de validation cross-stack manuelle (Docker) : `docs/superpowers/specs/2026-07-08-boutique-addon-validation.md`.
 
 ---
 
