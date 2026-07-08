@@ -145,7 +145,7 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider.load()
         if (syncedProvider != null) registerCustomItemsReloadListeners(syncedProvider)
 
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
+        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         artisanCommand = ArtisanCommand(this, langManager)
@@ -298,7 +298,7 @@ open class ArtisanPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(resourcePackManagerReinit, this)
         menuProvider.load()
         if (syncedProviderReinit != null) registerCustomItemsReloadListeners(syncedProviderReinit)
-        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator)
+        executor = ActionExecutor(this, menuProvider, sessions, softDeps, cooldowns, evaluator, api.commands)
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
 
         // reinit happens after ServerLoadEvent has already fired, so we kick off
