@@ -128,6 +128,27 @@ describe("readEditorEdgesFromFiles", () => {
   });
 });
 
+describe("importProjectFromFiles — module dirs", () => {
+  test("collects unknown top-level dirs into moduleData.__files", () => {
+    const files = {
+      ...manifestWith(null),
+      [`${base}/boutique/shop.yaml`]: "schema: boutique/v1\ncategories: []\n",
+      [`${base}/boutique/notes/readme.txt`]: "hi",
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as {
+      moduleData?: Record<string, { __files: Record<string, string> }>;
+    };
+    expect(project.moduleData?.boutique.__files["shop.yaml"]).toContain("boutique/v1");
+    expect(project.moduleData?.boutique.__files["notes/readme.txt"]).toBe("hi");
+  });
+
+  test("does not create moduleData for core dirs or .artisan files", () => {
+    const files = { ...manifestWith(null), [`${base}/.artisan-sync.yaml`]: "x: 1" };
+    const project = importProjectFromFiles(PACK_ID, files) as { moduleData?: unknown };
+    expect(project.moduleData).toBeUndefined();
+  });
+});
+
 describe("importProjectFromFiles canvasEdges", () => {
   test("populates canvasEdges from manifest.editor_edges", () => {
     const files = manifestWith("editor_edges:\n  'shop->x': { from: { side: top, t: 0.1 } }\n");

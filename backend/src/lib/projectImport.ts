@@ -164,6 +164,12 @@ function getFile(files: Record<string, string>, projectId: string, rel: string):
   return files[`plugins/Artisan/projects/${projectId}/${rel}`] ?? null;
 }
 
+/** Strips the canonical `plugins/Artisan/projects/<id>/` prefix, if present. */
+function relativeToProject(path: string, projectId: string): string {
+  const prefix = `plugins/Artisan/projects/${projectId}/`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
 function tryParse<T>(text: string | null): T | null {
   if (!text) return null;
   try { return parseYaml(text) as T; } catch { return null; }
@@ -286,7 +292,7 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     };
   });
 
-  return {
+  const project: Record<string, unknown> = {
     id: projectId,
     name: projectId,
     source: "imported",
@@ -304,6 +310,22 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     canvasLayout: parseEditorLayout(manifest.editor_layout),
     canvasEdges: parseEditorEdges(manifest.editor_edges),
   };
+
+  const CORE_PREFIXES = ["menus/", "commands/", "dialogs/", "lang/"];
+  const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
+  const moduleData: Record<string, { __files: Record<string, string> }> = {};
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    if (CORE_FILES.has(rel) || CORE_PREFIXES.some((p) => rel.startsWith(p))) continue;
+    const slash = rel.indexOf("/");
+    if (slash <= 0) continue; // top-level unknown files: ignored
+    const dir = rel.slice(0, slash);
+    if (dir.startsWith(".")) continue;
+    (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
+  }
+  if (Object.keys(moduleData).length > 0) project.moduleData = moduleData;
+
+  return project;
 }
 
 /** Returns true if the editorJson looks like an auto-generated empty stub. */
