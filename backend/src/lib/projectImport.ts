@@ -1,99 +1,386 @@
 import { parse as parseYaml } from "yaml";
 
-// ─── i18n helper ─────────────────────────────────────────────────────────────
+// This module mirrors the editor's YAML→domain converters so that a project
+// seeded on disk (e.g. an add-on bootstrap) imports faithfully into editorJson.
+// Reference implementations (source of truth for the domain shapes):
+//   editor/src/schema/menuV1ToDomain.ts   (menu wire → domain)
+//   editor/src/schema/actionV1ToDomain.ts (steps/actions/conditions)
+//   editor/src/features/export/transform.ts (domain → wire, the inverse)
+// Do NOT import editor code here (alias breakage) — keep the logic mirrored.
+// Conformance is locked by editor/src/schema/projectImportRoundTrip.test.ts.
 
-/** Convert "{i18n:some.key}" → { key: "some.key" }. Fallback: { key: raw }. */
-function ltext(raw: unknown): { key: string } {
-  if (typeof raw !== "string") return { key: "" };
-  const m = raw.match(/^\{i18n:(.+)\}$/);
-  return { key: m ? m[1] : raw };
+// ─── per-import i18n context ─────────────────────────────────────────────────
+
+interface I18nCtx {
+  defaultLang: string;
+  /** key → { lang: value } read from lang/*.yaml. */
+  translations: Record<string, Record<string, string>>;
+  /** accumulated Project.i18nKeys (referenced + minted). */
+  i18nKeys: Record<string, Record<string, string>>;
+  unsupported: string[];
 }
 
-// ─── action/step inverse ──────────────────────────────────────────────────────
+/** Mirror of editor newI18nKey() — opaque random key for literal text. */
+function newI18nKey(): string {
+  return `lt_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+}
 
-function importAction(a: Record<string, unknown>): unknown {
+/** `{i18n:key}` reference → { key }, pulling its translations into i18nKeys. */
+function ref(ctx: I18nCtx, key: string): { key: string } {
+  const tr = ctx.translations[key];
+  if (tr) ctx.i18nKeys[key] = { ...tr };
+  return { key };
+}
+
+/** Literal text → freshly minted key valued in defaultLang (mirror of menuV1ToDomain.text). */
+function text(ctx: I18nCtx, raw: unknown): { key: string } {
+  const m = typeof raw === "string" ? /^\{i18n:(.+)\}$/.exec(raw) : null;
+  if (m) return ref(ctx, m[1]!);
+  const key = newI18nKey();
+  ctx.i18nKeys[key] = { [ctx.defaultLang]: typeof raw === "string" ? raw : "" };
+  return { key };
+}
+
+// ─── conditions (mirror of actionV1ToDomain) ─────────────────────────────────
+
+// biome-ignore lint: untyped wire object — fields read by snake name
+type Json = Record<string, any>;
+
+function importCondition(ctx: I18nCtx, c: Json): unknown | null {
+  if (!c || typeof c !== "object") {
+    ctx.unsupported.push("condition: <malformed>");
+    return null;
+  }
+  switch (c.type) {
+    case "has_permission":
+      return { type: "has_permission", perm: c.perm };
+    case "has_money":
+      return { type: "has_money", amount: c.amount };
+    case "placeholder_equals":
+      return { type: "placeholder_equals", placeholder: c.placeholder, value: c.value };
+    case "placeholder_match":
+      return { type: "placeholder_match", placeholder: c.placeholder, regex: c.regex };
+    case "expression":
+      return { type: "expression", expr: c.expr };
+    case "has_item":
+      return { type: "has_item", material: c.material, count: c.count ?? 1 };
+    case "has_xp":
+      return { type: "has_xp", amount: c.amount };
+    case "has_level":
+      return { type: "has_level", level: c.level };
+    case "world_is":
+      return { type: "world_is", world: c.world };
+    case "time_is":
+      return { type: "time_is", range: c.range };
+    case "random_chance":
+      return { type: "random_chance", probability: c.probability };
+    case "cooldown_passed":
+      return { type: "cooldown_passed", cooldown_id: c.cooldown_id };
+    case "player_in_region":
+      return { type: "player_in_region", region: c.region };
+    case "pagination_at_first":
+    case "pagination_at_last":
+      return { type: c.type, ...(c.element_id ? { elementId: c.element_id } : {}) };
+    case "not": {
+      const of = importCondition(ctx, c.of);
+      return of ? { type: "not", of } : null;
+    }
+    case "and":
+    case "or":
+      return {
+        type: c.type,
+        of: ((c.of as Json[]) ?? []).map((x) => importCondition(ctx, x)).filter(Boolean),
+      };
+    default:
+      ctx.unsupported.push(`condition: ${c.type}`);
+      return null;
+  }
+}
+
+/** Appearance `if` array (ANDed) → domain if[] + ifJoins all "and". */
+function importIfArray(
+  ctx: I18nCtx,
+  arr: Json[] | undefined,
+): { conds: unknown[]; joins: "and"[] } | undefined {
+  if (!Array.isArray(arr) || arr.length === 0) return undefined;
+  const conds = arr.map((c) => importCondition(ctx, c)).filter(Boolean) as unknown[];
+  if (conds.length === 0) return undefined;
+  return { conds, joins: new Array(Math.max(0, conds.length - 1)).fill("and") };
+}
+
+// ─── actions/steps (mirror of actionV1ToDomain) ──────────────────────────────
+
+function importAction(ctx: I18nCtx, a: Json): unknown | null {
   switch (a.type) {
-    case "open_menu": {
-      const out: Record<string, unknown> = { type: "open_menu", menuId: a.menu_id };
-      if (a.clear_context) out.clearContext = true;
-      if (a.context) out.context = a.context;
-      return out;
-    }
-    case "open_dialog": {
-      const out: Record<string, unknown> = { type: "open_dialog", dialogId: a.dialog_id };
-      if (a.clear_context) out.clearContext = true;
-      if (a.context) out.context = a.context;
-      return out;
-    }
-    case "send_message":
-      return { type: "send_message", text: ltext(a.text) };
-    case "run_command":
-      return { type: "run_command", command: a.command, as: a.as };
+    case "open_menu":
+      return {
+        type: "open_menu",
+        menuId: a.menu_id,
+        ...(a.clear_context ? { clearContext: true } : {}),
+        ...(a.context ? { context: a.context } : {}),
+      };
     case "close_menu":
       return { type: "close_menu" };
-    case "close_dialog":
-      return { type: "close_dialog" };
+    case "run_command":
+      return { type: "run_command", command: a.command, as: a.as ?? "player" };
+    case "send_message":
+      return { type: "send_message", text: text(ctx, a.text) };
+    case "show_title":
+      return {
+        type: "show_title",
+        title: text(ctx, a.title),
+        ...(a.subtitle !== undefined ? { subtitle: text(ctx, a.subtitle) } : {}),
+        ...(a.fade_in !== undefined ? { fadeIn: a.fade_in } : {}),
+        ...(a.stay !== undefined ? { stay: a.stay } : {}),
+        ...(a.fade_out !== undefined ? { fadeOut: a.fade_out } : {}),
+      };
     case "give_item":
       return { type: "give_item", material: a.material, count: a.count };
+    case "take_item":
+      return { type: "take_item", material: a.material, count: a.count ?? 1 };
     case "take_money":
       return { type: "take_money", amount: a.amount };
-    case "paginate": {
-      const out: Record<string, unknown> = { type: "paginate", direction: a.direction };
-      if (a.target_element_id) out.targetElementId = a.target_element_id;
-      return out;
+    case "give_money":
+      return { type: "give_money", amount: a.amount };
+    case "give_xp":
+      return { type: "give_xp", amount: a.amount };
+    case "give_level":
+      return { type: "give_level", amount: a.amount };
+    case "broadcast":
+      return { type: "broadcast", text: text(ctx, a.text) };
+    case "play_sound":
+      return {
+        type: "play_sound",
+        sound: a.sound,
+        ...(a.volume !== undefined ? { volume: a.volume } : {}),
+        ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
+      };
+    case "teleport": {
+      if (typeof a.world !== "string" || a.world === "") {
+        ctx.unsupported.push("action: teleport (missing world)");
+        return null;
+      }
+      return {
+        type: "teleport",
+        world: a.world,
+        x: a.x ?? 0,
+        y: a.y ?? 0,
+        z: a.z ?? 0,
+        ...(a.yaw !== undefined ? { yaw: a.yaw } : {}),
+        ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
+      };
     }
+    case "pagination_next":
+      return { type: "paginate", direction: "next", ...(a.element_id ? { targetElementId: a.element_id } : {}) };
+    case "pagination_prev":
+      return { type: "paginate", direction: "prev", ...(a.element_id ? { targetElementId: a.element_id } : {}) };
     case "set_arg":
       return { type: "set_arg", arg: a.arg, value: a.value };
     case "set_arg_cycle_next":
       return { type: "set_arg_cycle_next", arg: a.arg, list: a.list };
     case "set_arg_cycle_prev":
       return { type: "set_arg_cycle_prev", arg: a.arg, list: a.list };
+    case "open_dialog":
+      return {
+        type: "open_dialog",
+        dialogId: a.dialog_id,
+        ...(a.clear_context ? { clearContext: true } : {}),
+        ...(a.context ? { context: a.context } : {}),
+      };
+    case "close_dialog":
+      return { type: "close_dialog" };
     default:
-      return a;
+      ctx.unsupported.push(`action: ${a.type}`);
+      return null;
   }
 }
 
-function importStep(s: Record<string, unknown>): unknown {
+function importStep(ctx: I18nCtx, s: Json): unknown | null {
   if (s.kind === "action") {
-    return { kind: "action", action: importAction(s.action as Record<string, unknown>) };
+    const act = importAction(ctx, s.action as Json);
+    return act ? { kind: "action", action: act } : null;
   }
   if (s.kind === "if") {
-    const cases = ((s.cases as Record<string, unknown>[]) ?? []).map((c) => ({
-      conditions: c.conditions ?? [],
-      ...(c.joins ? { joins: c.joins } : {}),
-      steps: ((c.steps as Record<string, unknown>[]) ?? []).map(importStep),
-    }));
-    const out: Record<string, unknown> = { kind: "if", cases };
-    if (s.else) {
-      out.else = ((s.else as Record<string, unknown>[]) ?? []).map(importStep);
-    }
-    return out;
+    return {
+      kind: "if",
+      cases: ((s.cases as Json[]) ?? []).map((c) => ({
+        conditions: ((c.conditions as Json[]) ?? []).map((x) => importCondition(ctx, x)).filter(Boolean),
+        ...(c.joins ? { joins: c.joins } : {}),
+        steps: ((c.steps as Json[]) ?? []).map((x) => importStep(ctx, x)).filter(Boolean),
+      })),
+      ...(s.else ? { else: ((s.else as Json[]) ?? []).map((x) => importStep(ctx, x)).filter(Boolean) } : {}),
+    };
   }
-  return s;
+  ctx.unsupported.push(`step kind: ${s.kind}`);
+  return null;
 }
 
-function importSteps(steps: unknown): unknown[] {
+function importSteps(ctx: I18nCtx, steps: unknown): unknown[] {
   if (!Array.isArray(steps)) return [];
-  return steps.map((s) => importStep(s as Record<string, unknown>));
+  return steps.map((s) => importStep(ctx, s as Json)).filter(Boolean) as unknown[];
 }
 
 // ─── flat actions → steps (dialog buttons use `actions:` not `steps:`) ────────
 
-function actionsToSteps(actions: unknown): unknown[] {
+function actionsToSteps(ctx: I18nCtx, actions: unknown): unknown[] {
   if (!Array.isArray(actions)) return [];
-  return actions.map((a) => ({ kind: "action", action: importAction(a as Record<string, unknown>) }));
+  return actions
+    .map((a) => {
+      const act = importAction(ctx, a as Json);
+      return act ? { kind: "action", action: act } : null;
+    })
+    .filter(Boolean) as unknown[];
+}
+
+// ─── menu sub-shapes (mirror of menuV1ToDomain) ──────────────────────────────
+
+const TEXT_SIZES = [8, 12, 16, 20, 24, 32];
+const CLICK_TYPES = ["left", "right", "shift_left", "shift_right", "middle"];
+
+function importTitleLayer(ctx: I18nCtx, l: Json): unknown | null {
+  switch (l.kind) {
+    case "background":
+      return { kind: "background", assetId: l.asset_id };
+    case "glyph":
+      return { kind: "glyph", assetId: l.asset_id, x: l.x, y: l.y };
+    case "text": {
+      const out: Json = { kind: "text", value: ref(ctx, l.value?.key ?? ""), x: l.x, y: l.y };
+      if (l.color !== undefined) out.color = l.color;
+      if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id;
+      if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size;
+      return out;
+    }
+    case "plain": {
+      const out: Json = { kind: "plain", value: ref(ctx, l.value?.key ?? "") };
+      if (l.color !== undefined) out.color = l.color;
+      return out;
+    }
+    case "textarea": {
+      const out: Json = {
+        kind: "textarea",
+        value: ref(ctx, l.value?.key ?? ""),
+        x: l.x,
+        y: l.y,
+        width: l.width,
+        lineHeight: l.line_height,
+        alignment: l.alignment,
+      };
+      if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id;
+      if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size;
+      return out;
+    }
+    case "external_glyph":
+      return { kind: "external_glyph", provider: l.provider, glyphName: l.glyph_name, x: l.x, y: l.y };
+    default:
+      ctx.unsupported.push(`title layer: ${l.kind}`);
+      return null;
+  }
+}
+
+/** Title node: layer array (canonical), bare string (legacy), or absent. */
+function importTitle(ctx: I18nCtx, node: unknown, fallbackKey: string): unknown[] {
+  if (Array.isArray(node)) {
+    return node.map((l) => importTitleLayer(ctx, l as Json)).filter(Boolean) as unknown[];
+  }
+  if (typeof node === "string") {
+    return [{ kind: "plain", value: text(ctx, node) }];
+  }
+  if (node && typeof node === "object") {
+    const layer = importTitleLayer(ctx, node as Json);
+    return layer ? [layer] : [];
+  }
+  return [{ kind: "plain", value: ref(ctx, fallbackKey) }];
+}
+
+function importContextInput(ci: Json): unknown {
+  // Canonical connector shape: { name, type, source: { ref, params?, filter?, sort?, limit? } }.
+  if (ci.source?.ref !== undefined) {
+    return {
+      kind: "sourceRef",
+      name: ci.name,
+      ref: ci.source.ref,
+      ...(ci.source.params ? { params: ci.source.params } : {}),
+      ...(ci.source.filter ? { filter: ci.source.filter } : {}),
+      ...(ci.source.sort ? { sort: ci.source.sort } : {}),
+      ...(ci.source.limit !== undefined ? { limit: ci.source.limit } : {}),
+    };
+  }
+  // Legacy flat shape emitted by older exports: { name, ref }.
+  if (ci.ref !== undefined) {
+    return { kind: "sourceRef", name: ci.name, ref: ci.ref };
+  }
+  return {
+    kind: "primitive",
+    name: ci.name,
+    type: ci.type,
+    ...(ci.default !== undefined ? { default: ci.default } : {}),
+  };
+}
+
+// menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by `\n`).
+function importLore(ctx: I18nCtx, lore: unknown): { key: string } | undefined {
+  if (!Array.isArray(lore) || lore.length === 0) return undefined;
+  if (lore.length === 1) return text(ctx, String(lore[0]));
+  return text(ctx, lore.map(String).join("\n"));
+}
+
+function importClickMap(ctx: I18nCtx, click: Json | undefined): Json | undefined {
+  if (!click || typeof click !== "object") return undefined;
+  const out: Json = {};
+  for (const ct of CLICK_TYPES) {
+    const handler = click[ct] as Json | undefined;
+    if (!handler) continue;
+    out[ct] = { steps: importSteps(ctx, handler.steps) };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function importAppearance(ctx: I18nCtx, a: Json): Json {
+  const out: Json = {};
+  const ifa = importIfArray(ctx, a.if);
+  if (ifa) {
+    out.if = ifa.conds;
+    if (ifa.joins.length > 0) out.ifJoins = ifa.joins;
+  }
+  if (a.material) out.material = a.material;
+  if (a.head) out.head = a.head;
+  if (a.count !== undefined) out.count = a.count;
+  if (a.title !== undefined) out.title = text(ctx, a.title);
+  const lore = importLore(ctx, a.lore);
+  if (lore !== undefined) out.lore = lore;
+  const click = importClickMap(ctx, a.click);
+  if (click) out.click = click;
+  return out;
+}
+
+function importElement(ctx: I18nCtx, el: Json): Json {
+  return {
+    id: el.id,
+    positions: el.positions,
+    appearances: ((el.appearances as Json[]) ?? []).map((a) => importAppearance(ctx, a)),
+    ...(el.iterates ? { iterates: el.iterates } : {}),
+    ...(el.tags ? { tags: el.tags } : {}),
+  };
+}
+
+function importLayer(ctx: I18nCtx, l: Json): Json {
+  return {
+    id: l.id,
+    name: l.name,
+    elements: ((l.elements as Json[]) ?? []).map((el) => importElement(ctx, el)),
+  };
 }
 
 // ─── dialog sub-types ─────────────────────────────────────────────────────────
 
-function importDialogBody(b: Record<string, unknown>): unknown {
-  if (b.type === "text") return { type: "text", text: ltext(b.text) };
+function importDialogBody(ctx: I18nCtx, b: Json): unknown {
+  if (b.type === "text") return { type: "text", text: text(ctx, b.text) };
   if (b.type === "item") return { type: "item", material: b.material, count: b.count };
   return b;
 }
 
-function importDialogInput(i: Record<string, unknown>): unknown {
-  const base = { id: i.id, type: i.type, label: ltext(i.label) };
+function importDialogInput(ctx: I18nCtx, i: Json): unknown {
+  const base = { id: i.id, type: i.type, label: text(ctx, i.label) };
   switch (i.type) {
     case "text":
       return { ...base, default: i.default ?? "", maxLength: i.max_length ?? 32 };
@@ -102,9 +389,9 @@ function importDialogInput(i: Record<string, unknown>): unknown {
     case "number_range":
       return { ...base, min: i.min ?? 0, max: i.max ?? 100, default: Number(i.default ?? 0) };
     case "single_option": {
-      const options = ((i.options as Record<string, unknown>[]) ?? []).map((o) => ({
+      const options = ((i.options as Json[]) ?? []).map((o) => ({
         value: o.value,
-        label: ltext(o.label),
+        label: text(ctx, o.label),
       }));
       return { ...base, options, default: i.default ?? "" };
     }
@@ -113,11 +400,11 @@ function importDialogInput(i: Record<string, unknown>): unknown {
   }
 }
 
-function importDialogButton(b: Record<string, unknown>): unknown {
+function importDialogButton(ctx: I18nCtx, b: Json): unknown {
   return {
     id: b.id,
-    label: ltext(b.label),
-    steps: actionsToSteps(b.actions),
+    label: text(ctx, b.label),
+    steps: actionsToSteps(ctx, b.actions),
   };
 }
 
@@ -126,6 +413,7 @@ function importDialogButton(b: Record<string, unknown>): unknown {
 interface ManifestYaml {
   project_id?: string;
   default_lang?: string;
+  languages?: string[];
   files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
   editor_layout?: Record<string, unknown>;
   editor_edges?: Record<string, unknown>;
@@ -143,9 +431,13 @@ interface CommandYaml {
 
 interface MenuYaml {
   id?: string;
-  title?: string;
+  title?: unknown;
   size?: number;
   rows?: number;
+  inventory_type?: string;
+  permission?: string;
+  notes?: string;
+  context_inputs?: Json[];
   layers?: unknown[];
 }
 
@@ -153,9 +445,9 @@ interface DialogYaml {
   id?: string;
   title?: string;
   can_close_with_escape?: boolean;
-  body?: Record<string, unknown>[];
-  inputs?: Record<string, unknown>[];
-  buttons?: Record<string, unknown>[];
+  body?: Json[];
+  inputs?: Json[];
+  buttons?: Json[];
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -238,7 +530,33 @@ export function readEditorEdgesFromFiles(
   return parseEditorEdges(m.editor_edges);
 }
 
+// ─── lang files ───────────────────────────────────────────────────────────────
+
+/** lang/<lang>.yaml flat maps → key → { lang: value }. */
+function readTranslations(
+  files: Record<string, string>,
+  projectId: string,
+): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    const m = /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/.exec(rel);
+    if (!m) continue;
+    const lang = m[1]!;
+    const parsed = tryParse<Record<string, unknown>>(content);
+    if (!parsed || typeof parsed !== "object") continue;
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value !== "string") continue;
+      (out[key] ??= {})[lang] = value;
+    }
+  }
+  return out;
+}
+
 // ─── public API ───────────────────────────────────────────────────────────────
+
+/** Module dirs must be sane slugs — rejects hostile keys like `__proto__`. */
+const MODULE_DIR_RE = /^[a-z][a-z0-9_-]*$/;
 
 export function importProjectFromFiles(projectId: string, files: Record<string, string>): Record<string, unknown> {
   const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
@@ -247,6 +565,14 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
   const dialogIds   = manifest.files?.dialogs  ?? [];
   const menuIds     = manifest.files?.menus    ?? [];
   const now         = new Date().toISOString();
+
+  const translations = readTranslations(files, projectId);
+  const ctx: I18nCtx = { defaultLang, translations, i18nKeys: {}, unsupported: [] };
+  // Seed every disk translation so keys referenced via `{i18n:...}` (and any
+  // extra keys the admin keeps in lang files) survive the import.
+  for (const [key, langs] of Object.entries(translations)) {
+    ctx.i18nKeys[key] = { ...langs };
+  }
 
   const commands = commandIds.map((cmdId) => {
     const y = tryParse<CommandYaml>(getFile(files, projectId, `commands/${cmdId}.yaml`)) ?? {};
@@ -263,7 +589,7 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
         required: a.required ?? false,
         ...(a.default !== undefined ? { default: a.default } : {}),
       })),
-      steps: importSteps(y.steps),
+      steps: importSteps(ctx, y.steps),
     };
   });
 
@@ -272,23 +598,39 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     return {
       id: y.id ?? dlgId,
       projectId,
-      title: ltext(y.title ?? `{i18n:dialogs.${dlgId}.title}`),
+      title: typeof y.title === "string" ? text(ctx, y.title) : ref(ctx, `dialogs.${dlgId}.title`),
       canCloseWithEscape: y.can_close_with_escape ?? true,
-      body: (y.body ?? []).map(importDialogBody),
-      inputs: (y.inputs ?? []).map(importDialogInput),
-      buttons: (y.buttons ?? []).map(importDialogButton),
+      body: (y.body ?? []).map((b) => importDialogBody(ctx, b)),
+      inputs: (y.inputs ?? []).map((i) => importDialogInput(ctx, i)),
+      buttons: (y.buttons ?? []).map((b) => importDialogButton(ctx, b)),
     };
   });
 
   const menus = menuIds.map((menuId) => {
     const y = tryParse<MenuYaml>(getFile(files, projectId, `menus/${menuId}.yaml`)) ?? {};
-    const rows = y.rows ?? (y.size ? Math.max(1, Math.min(6, Math.ceil(y.size / 9))) : 3);
+    const inventoryType =
+      y.inventory_type === "hopper" || y.inventory_type === "dropper" ? y.inventory_type : "chest";
+    const rows =
+      inventoryType !== "chest"
+        ? inventoryType === "dropper"
+          ? 3
+          : 1
+        : (y.rows ?? (y.size ? Math.max(1, Math.min(6, Math.round(y.size / 9))) : 3));
+    const contextInputs = Array.isArray(y.context_inputs)
+      ? y.context_inputs.map(importContextInput)
+      : [];
     return {
       id: y.id ?? menuId,
       projectId,
-      title: ltext(y.title ?? `{i18n:menus.${menuId}.title}`),
+      title: importTitle(ctx, y.title, `menus.${menuId}.title`),
       rows: rows as 1 | 2 | 3 | 4 | 5 | 6,
-      layers: Array.isArray(y.layers) ? y.layers : [{ id: "layer_default", name: "Default", elements: [] }],
+      ...(inventoryType !== "chest" ? { inventoryType } : {}),
+      layers: Array.isArray(y.layers)
+        ? y.layers.map((l) => importLayer(ctx, l as Json))
+        : [{ id: "layer_default", name: "Default", elements: [] }],
+      ...(y.permission ? { permission: y.permission } : {}),
+      ...(typeof y.notes === "string" && y.notes ? { notes: y.notes } : {}),
+      ...(contextInputs.length > 0 ? { contextInputs } : {}),
     };
   });
 
@@ -305,7 +647,7 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     dataSources: [],
     dialogs,
     importedConnectors: [],
-    i18nKeys: {},
+    i18nKeys: ctx.i18nKeys,
     defaultLang,
     canvasLayout: parseEditorLayout(manifest.editor_layout),
     canvasEdges: parseEditorEdges(manifest.editor_edges),
@@ -313,17 +655,23 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
 
   const CORE_PREFIXES = ["menus/", "commands/", "dialogs/", "lang/"];
   const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
-  const moduleData: Record<string, { __files: Record<string, string> }> = {};
+  // Null-prototype accumulator: hostile dir names ("__proto__", "constructor")
+  // can't clobber Object.prototype; the regex guard skips them anyway.
+  const moduleData: Record<string, { __files: Record<string, string> }> = Object.create(null);
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
     if (CORE_FILES.has(rel) || CORE_PREFIXES.some((p) => rel.startsWith(p))) continue;
     const slash = rel.indexOf("/");
     if (slash <= 0) continue; // top-level unknown files: ignored
     const dir = rel.slice(0, slash);
-    if (dir.startsWith(".")) continue;
+    if (!MODULE_DIR_RE.test(dir) || dir in Object.prototype) continue;
     (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
   }
-  if (Object.keys(moduleData).length > 0) project.moduleData = moduleData;
+  if (Object.keys(moduleData).length > 0) project.moduleData = { ...moduleData };
+
+  if (ctx.unsupported.length > 0) {
+    console.warn(`[projectImport] ${projectId}: dropped unsupported constructs: ${ctx.unsupported.join(", ")}`);
+  }
 
   return project;
 }
