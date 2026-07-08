@@ -4,6 +4,7 @@ import { ensureAssets, assetsDone } from "../lib/mcAssets";
 import { editorSessions, linkCodes, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
+import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -470,7 +471,16 @@ export async function handlePluginMessage(
     if (!project) {
       project = await createProject({ networkId: sk.networkId, serverKeyId: serverId, name: projectId, id: projectId });
     }
-    await upsertProjectContent(projectId, { hash, filesJson: JSON.stringify(files) });
+    const patch: { hash: string; filesJson: string; editorJson?: string } = {
+      hash, filesJson: JSON.stringify(files),
+    };
+    // Contenu poussé par le plugin (bootstrap Add-on / scénario FTP) : si le
+    // project n'a jamais été édité (stub), construire l'état éditeur depuis
+    // les fichiers pour qu'il soit éditable — jamais quand un vrai état existe.
+    if (isEmptyStub(project.editorJson)) {
+      patch.editorJson = JSON.stringify(importProjectFromFiles(projectId, files));
+    }
+    await upsertProjectContent(projectId, patch);
     await pushBundleAvailable(projectId, "main", hash);
     return { reply: null };
   }

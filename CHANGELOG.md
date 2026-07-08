@@ -15,6 +15,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
 - `GET /api/v1/editor-session/:token/data-sources` — data sources reported by the connected server.
 - run_command actions route namespaced commands ("boutique:buy {id}") to CommandRegistry handlers (modules.md §4.2 bridge); unknown refs fall back to Bukkit.
+- local_push seeds editorJson from pushed files on never-edited stubs (plugin-bootstrapped content becomes editable; module dirs land in Project.moduleData).
 
 ### Fixed
 - menu/v1 ConnectorBinding descriptions aligned with runtime semantics (no implicit limit default; params interpolate {name} only).
