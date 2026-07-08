@@ -160,6 +160,10 @@ Un Document est **sur la planche ssi** il a une entrée explicite `project.canva
 - `gridArrange(project)` (même fichier) construit une grille complète sur tous les Documents — appelé uniquement par le bouton « Tout arranger » via l'action store `arrangeAllOnBoard({projectId})`.
 - Trois actions `accountStore` distinctes : `addToBoard({projectId, nodeId, x, y})` / `removeFromBoard({projectId, nodeId})` manipulent `canvasLayout` (le Document reste dans le project) ; `deleteFromProject({projectId, nodeIds})` (existant) retire le Document du project.
 
+### `Project.moduleData` — état opaque par module
+
+`Project.moduleData?: Record<string, unknown>` porte l'état d'un module tiers, keyé par id de module (ex. `"boutique"`) — le host ne l'interprète jamais. Round-trip via `editorJson` (spread, aucun code de persistance dédié). Action store : `setModuleData(projectId, moduleId, data)` (Immer `produce`, remplace tout le namespace, préserve les autres). Convention import fichiers backend (Task 3) : seed `moduleData[<dir>] = { __files: Record<relPath, content> }` pour un dossier de project non reconnu ; le module éditeur normalise `__files` à sa forme structurée à la première lecture, et dérive son `exportFiles()` depuis `moduleData`.
+
 ### `ProjectPanel` — panneau gauche source de vérité
 
 `features/project/ProjectPanel.tsx` : liste **tout** le project groupé par catégorie (Menus / Commandes / Dialogs), construite par `buildProjectDocuments(project, lang)` (`useProjectDocuments.ts`).
