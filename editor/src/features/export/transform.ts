@@ -1,4 +1,4 @@
-import { collectModuleExportFiles } from "@artisan/editor-sdk";
+import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
 import type {
@@ -434,7 +434,12 @@ export function serializeMenuToV1(
       }
       // Canonical connector shape — `source` is a ConnectorBinding; `type`
       // is required by the schema (connector-fed inputs are lists in v1).
-      return { name: ci.name, type: "list", source: { ref: ci.ref } };
+      const source: Record<string, unknown> = { ref: ci.ref };
+      if (ci.params) source.params = ci.params;
+      if (ci.filter) source.filter = ci.filter;
+      if (ci.sort) source.sort = ci.sort;
+      if (ci.limit !== undefined) source.limit = ci.limit;
+      return { name: ci.name, type: "list", source };
     });
   }
   return out as { id: string } & Record<string, unknown>;
@@ -680,6 +685,20 @@ export function transform(pack: Project): Record<string, string> {
   }
   for (const [rel, content] of Object.entries(collectModuleExportFiles(pack))) {
     files[`${base}/${rel}`] = content;
+  }
+
+  // Defensive: moduleData namespaces no registered module claims (e.g. user-auth
+  // mode where module registration never ran) must not be silently dropped from
+  // the deploy. Re-emit their raw `__files` verbatim. Namespaces already
+  // normalized by a module (no `__files`) have nothing faithful to emit —
+  // documented limitation. Registered modules keep authority via exportFiles.
+  for (const [ns, data] of Object.entries(pack.moduleData ?? {})) {
+    if (getModule(ns)) continue;
+    const rawFiles = (data as { __files?: Record<string, string> } | null)?.__files;
+    if (!rawFiles || typeof rawFiles !== "object") continue;
+    for (const [rel, content] of Object.entries(rawFiles)) {
+      files[`${base}/${ns}/${rel}`] = content;
+    }
   }
 
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);

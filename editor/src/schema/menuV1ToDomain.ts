@@ -160,7 +160,15 @@ export function menuV1ToDomain(
   function contextInput(ci: Json): DomainContextInput {
     // Canonical connector shape: { name, type, source: { ref, … } }.
     if (ci.source?.ref !== undefined) {
-      return { kind: "sourceRef", name: ci.name, ref: ci.source.ref };
+      return {
+        kind: "sourceRef",
+        name: ci.name,
+        ref: ci.source.ref,
+        ...(ci.source.params ? { params: ci.source.params } : {}),
+        ...(ci.source.filter ? { filter: ci.source.filter } : {}),
+        ...(ci.source.sort ? { sort: ci.source.sort } : {}),
+        ...(ci.source.limit !== undefined ? { limit: ci.source.limit } : {}),
+      };
     }
     // Legacy flat shape emitted by older exports: { name, ref }.
     if (ci.ref !== undefined) {

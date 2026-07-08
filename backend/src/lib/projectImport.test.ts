@@ -142,6 +142,20 @@ describe("importProjectFromFiles — module dirs", () => {
     expect(project.moduleData?.boutique.__files["notes/readme.txt"]).toBe("hi");
   });
 
+  test("hostile dir names (__proto__, constructor) are skipped without throwing", () => {
+    const files = {
+      ...manifestWith(null),
+      [`${base}/__proto__/x.yaml`]: "a: 1",
+      [`${base}/constructor/y.yaml`]: "b: 2",
+      [`${base}/boutique/shop.yaml`]: "schema: boutique/v1\n",
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as {
+      moduleData?: Record<string, { __files: Record<string, string> }>;
+    };
+    expect(Object.keys(project.moduleData ?? {})).toEqual(["boutique"]);
+    expect(({} as Record<string, unknown>).x).toBeUndefined();
+  });
+
   test("does not create moduleData for core dirs or .artisan files", () => {
     const files = { ...manifestWith(null), [`${base}/.artisan-sync.yaml`]: "x: 1" };
     const project = importProjectFromFiles(PACK_ID, files) as { moduleData?: unknown };

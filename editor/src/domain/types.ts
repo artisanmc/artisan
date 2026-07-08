@@ -161,6 +161,11 @@ export type ContextInput =
       kind: "sourceRef";
       name: string;
       ref: SourceRef;
+      /** ConnectorBinding extras (menu/v1 `source.*`) — carried opaquely so imports round-trip. */
+      params?: Record<string, string>;
+      filter?: Record<string, string>;
+      sort?: { by: string; direction?: "asc" | "desc" };
+      limit?: number;
     };
 
 export interface Layer {
