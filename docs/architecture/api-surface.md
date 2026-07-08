@@ -88,6 +88,8 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
 
 Exceptions: `UnknownCommandException`, `DuplicateCommandException`.
 
+Runtime consumer (since 1.2.0): `run_command` actions whose command matches `namespace:name` and is registered here are dispatched to the module handler with `args = {argv: List<String>, raw: String}`. Unknown refs fall back to Bukkit.
+
 ### `net.artisanmc.modules.api.ModuleEventBus`
 
 | Member | Type | Since |

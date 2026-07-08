@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.modules.api.CommandRegistry
 import net.artisanmc.plugin.provider.MenuProvider
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
@@ -18,6 +19,7 @@ class ActionExecutor(
     private val deps: SoftDepRegistry,
     private val cooldowns: CooldownStore,
     private val evaluator: ConditionEvaluator,
+    private val commandRegistry: CommandRegistry? = null,
 ) {
     private val mm = MiniMessage.miniMessage()
 
@@ -89,8 +91,11 @@ class ActionExecutor(
         when (action) {
             is Action.RunCommand -> {
                 val cmd = resolveText(action.command, ctx).trimStart('/')
-                if (action.asConsole) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
-                else player.performCommand(cmd)
+                val bridged = if (!action.asConsole) tryRegistryDispatch(cmd, player) else false
+                if (!bridged) {
+                    if (action.asConsole) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                    else player.performCommand(cmd)
+                }
             }
             is Action.OpenMenu -> {
                 val newArgs = if (action.clearContext) {
@@ -168,6 +173,25 @@ class ActionExecutor(
             }
         }
         return ctx
+    }
+
+    /**
+     * Pont modules.md §4.2 : "namespace:name args…" connu du CommandRegistry est
+     * dispatché au module (args = {"argv": tokens, "raw": chaîne brute}) au lieu
+     * de Bukkit. Ref inconnue → fallback Bukkit (une commande Bukkit peut
+     * légitimement s'appeler "plugin:label").
+     */
+    private fun tryRegistryDispatch(cmd: String, player: Player): Boolean {
+        val registry = commandRegistry ?: return false
+        val space = cmd.indexOf(' ')
+        val ref = if (space == -1) cmd else cmd.substring(0, space)
+        if (!Regex("^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$").matches(ref)) return false
+        if (!registry.has(ref)) return false
+        val raw = if (space == -1) "" else cmd.substring(space + 1)
+        val argv = if (raw.isEmpty()) emptyList() else raw.split(' ').filter { it.isNotEmpty() }
+        runCatching { registry.dispatch(ref, player, mapOf("argv" to argv, "raw" to raw)) }
+            .onFailure { Bukkit.getLogger().warning("[Artisan] command '$ref' failed: ${it.message}") }
+        return true
     }
 
     /** Met à jour un arg de contexte et re-rend le menu courant du joueur (s'il y en a un). */
