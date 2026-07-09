@@ -14,7 +14,7 @@ import {
   connSenders,
 } from "./hub";
 import type { HelloMessage, HelloAckMessage } from "../protocol";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
 import {
   editorSessions,
@@ -23,6 +23,8 @@ import {
   serverModules,
   serverDataSources,
   projects,
+  projectBranches,
+  projectCommits,
   networks,
   linkCodes,
   assets,
@@ -640,6 +642,38 @@ describe("local_push", () => {
     // bundle_available should have been broadcast (received after the hello_ack push)
     const bundleMsg = received.map((m) => JSON.parse(m) as { type: string }).find((m) => m.type === "bundle_available");
     expect(bundleMsg).toBeDefined();
+  });
+
+  test("local_push commits to main and advances the branch head (bundle download serves the pushed files)", async () => {
+    const { key } = await seedServerKey();
+    const connId = "conn-local-push-commit";
+    const received: string[] = [];
+    registerConn(connId, (msg) => received.push(msg));
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
+    }));
+
+    const files = { "manifest.yaml": "schema: manifest/v1", "menus/m.yaml": "id: m" };
+    await handlePluginMessage(connId, JSON.stringify({
+      type: "local_push", project_id: "p_commit", files, hash: "whatever",
+    }));
+
+    // Le plugin télécharge les bundles via branche main → head commit : sans
+    // commit, il recevrait le commit initial vide et le sweep détruirait le
+    // contenu local (trouvé au smoke test Docker 2026-07-09).
+    const branch = (await db.select().from(projectBranches).where(and(
+      eq(projectBranches.projectId, "p_commit"), eq(projectBranches.name, "main"),
+    )))[0];
+    expect(branch).toBeDefined();
+    const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch.headCommitId)))[0];
+    expect(JSON.parse(head.filesJson)).toEqual(files);
+    expect(head.contentHash).not.toBe("");
+
+    // Le bundle_available broadcast porte le contentHash du commit (même
+    // convention que le deploy), pas le hash brut envoyé par le plugin.
+    const bundleMsg = received.map((m) => JSON.parse(m) as { type: string; hash?: string })
+      .find((m) => m.type === "bundle_available");
+    expect(bundleMsg?.hash).toBe(head.contentHash);
   });
 
   test("local_push unauthenticated → ignored", async () => {

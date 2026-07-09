@@ -5,6 +5,8 @@ import { editorSessions, linkCodes, projectBranches, projectCommits, projects, s
 import { createNetwork } from "../lib/networkManager";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
+import { getBranch, advanceBranchHead } from "../lib/branchStorage";
+import { createCommit } from "../lib/commitStorage";
 import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
@@ -481,7 +483,27 @@ export async function handlePluginMessage(
       patch.editorJson = JSON.stringify(importProjectFromFiles(projectId, files));
     }
     await upsertProjectContent(projectId, patch);
-    await pushBundleAvailable(projectId, "main", hash);
+    // local_push = commit sur main + advance head, comme le deploy : le plugin
+    // télécharge les bundles via branche → head commit. Sans commit, le download
+    // servirait le commit initial vide et le sweep détruirait le contenu local
+    // (trouvé au smoke test Docker 2026-07-09). Même convention que le deploy :
+    // bundle_available porte le contentHash du commit.
+    const mainBranch = await getBranch(projectId, "main");
+    if (mainBranch) {
+      const editorJson = patch.editorJson ?? project.editorJson;
+      const commit = await createCommit({
+        projectId,
+        parentId: mainBranch.headCommitId,
+        files,
+        editor: editorJson ? JSON.parse(editorJson) : null,
+        authorUserId: null,
+        message: "local_push",
+      });
+      await advanceBranchHead(projectId, "main", commit.id);
+      await pushBundleAvailable(projectId, "main", commit.contentHash);
+    } else {
+      await pushBundleAvailable(projectId, "main", hash);
+    }
     return { reply: null };
   }
 
