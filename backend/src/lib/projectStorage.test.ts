@@ -34,6 +34,17 @@ describe("projectStorage", () => {
     expect(p.filesJson).toBe("{}");
   });
 
+  it("createProject with an already-existing id returns the existing project instead of throwing", async () => {
+    // Trouvé au smoke Docker 2026-07-09 : un setup/hello concurrent tentait de
+    // re-créer boutique_shop → duplicate key non catché → crash du process.
+    const first = await createProject({ networkId, serverKeyId: skId, name: "boutique_shop", id: "p_dup" });
+    await upsertProjectContent("p_dup", { hash: "h1", filesJson: '{"a.yaml":"x"}' });
+    const second = await createProject({ networkId, serverKeyId: skId, name: "boutique_shop", id: "p_dup" });
+    expect(second.id).toBe(first.id);
+    // L'existant n'est pas écrasé (le create perdant n'est pas un reset) :
+    expect(second.hash).toBe("h1");
+  });
+
   it("getProject returns the row or null", async () => {
     const p = await createProject({ networkId, serverKeyId: skId, name: "main" });
     expect((await getProject(p.id))?.id).toBe(p.id);
