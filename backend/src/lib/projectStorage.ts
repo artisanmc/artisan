@@ -47,7 +47,11 @@ export async function createProject(input: {
 	const now = new Date();
 	const slug = await allocProjectSlug(input.serverKeyId, input.name);
 	const initialEditor = defaultEditorJson(id, input.name, now);
-	await db.insert(projects).values({
+	// Idempotent sur l'id : deux chemins concurrents (hello stub-create, setup,
+	// local_push, POST /bundles) peuvent tenter de créer le même project — le
+	// perdant récupère l'existant au lieu de faire crasher le process sur un
+	// duplicate key (incident smoke Docker 2026-07-09).
+	const inserted = await db.insert(projects).values({
 		id,
 		networkId: input.networkId,
 		serverKeyId: input.serverKeyId,
@@ -61,7 +65,10 @@ export async function createProject(input: {
 		deletedAt: null,
 		createdAt: now,
 		updatedAt: now,
-	});
+	}).onConflictDoNothing({ target: projects.id }).returning({ id: projects.id });
+	if (inserted.length === 0) {
+		return (await getProject(id))!;
+	}
 	// Phase 2: auto-create main branch with an initial empty commit carrying
 	// the same default editor shape, so any plugin downloading the bundle gets
 	// valid JSON instead of null.
