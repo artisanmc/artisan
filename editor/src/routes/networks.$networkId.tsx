@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useNetworksStore } from "@/state/networksStore";
+import { useSessionStore } from "@/state/sessionStore";
 import {
   Link,
   Outlet,
@@ -53,6 +54,8 @@ export function NetworkDetailPage() {
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
   const childMatches = useChildMatches();
 
+  const sessionToken = useSessionStore((s) => s.accessToken);
+
   useEffect(() => {
     if (!networkId) return;
     getNetwork(networkId)
@@ -60,10 +63,15 @@ export function NetworkDetailPage() {
       .catch((e: Error & { status?: number }) => {
         // Stale/inaccessible network (e.g. a URL left over from another account)
         // → bounce to the user's own networks list, don't loop a broken page.
-        if (e?.status === 403 || e?.status === 404) navigate({ to: "/networks", replace: true });
-        else console.error(e);
+        // EXCEPTION : session plugin active (/artisan editor) — getNetwork est
+        // cookie-auth et peut 403 sur le network de la session alors que la
+        // feuille project, elle, est autorisée par le token de session. Ne pas
+        // éjecter un utilisateur dual (connecté + session) vers /networks.
+        if ((e?.status === 403 || e?.status === 404) && !sessionToken) {
+          navigate({ to: "/networks", replace: true });
+        } else console.error(e);
       });
-  }, [networkId, navigate]);
+  }, [networkId, navigate, sessionToken]);
 
   if (childMatches.length > 0) return <Outlet />;
   if (!detail)
