@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+
+const navigateSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
@@ -7,7 +9,7 @@ vi.mock("@tanstack/react-router", async () => {
     ...actual,
     useChildMatches: () => [],
     useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigateSpy,
     Navigate: () => null,
     Link: ({ children, to, params, ...p }: any) => (
       <a href={to} {...p}>
@@ -34,8 +36,14 @@ vi.mock("react-i18next", () => ({
 }));
 
 import ServerDetailPage from "./networks.$networkId.servers.$serverId";
+import { getNetwork } from "@/lib/api/networks";
+import { useSessionStore } from "@/state/sessionStore";
 
 describe("ServerDetailPage", () => {
+  beforeEach(() => {
+    navigateSpy.mockClear();
+    useSessionStore.getState().clearSession();
+  });
   it("shows only workspaces bound to the active server", async () => {
     render(<ServerDetailPage />);
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
@@ -55,5 +63,30 @@ describe("ServerDetailPage", () => {
       "href",
       "/networks/$networkId/servers/$serverId/projects/$projectId",
     );
+  });
+
+  it("403 without a plugin session bounces to /networks", async () => {
+    vi.mocked(getNetwork).mockRejectedValueOnce(
+      Object.assign(new Error("forbidden"), { status: 403 }),
+    );
+    render(<ServerDetailPage />);
+    await waitFor(() =>
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/networks", replace: true }),
+    );
+  });
+
+  it("403 with an active plugin session does NOT bounce (dual-auth: the session authorizes the leaf)", async () => {
+    // Utilisateur connecté à un compte + session /artisan editor sur un network
+    // que ce compte ne possède pas : getNetwork (cookie-auth) 403 alors que la
+    // route project (token de session) est légitime — pas d'éjection.
+    useSessionStore.getState().setSession("tok", "sk_1", "net_1", "TRUST", true);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getNetwork).mockRejectedValueOnce(
+      Object.assign(new Error("forbidden"), { status: 403 }),
+    );
+    render(<ServerDetailPage />);
+    await waitFor(() => expect(consoleSpy).toHaveBeenCalled());
+    expect(navigateSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });
