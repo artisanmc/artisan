@@ -7,8 +7,10 @@ import { db } from "../db/index";
 import {
 	memberships,
 	networks,
+	serverDataSources,
 	serverKeyHelloes,
 	serverKeys,
+	serverModules,
 } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
 import { requireMember } from "../lib/membershipGuard";
@@ -592,6 +594,72 @@ userNetworksRouter.get(
 		});
 		const online = servers.filter((s) => s.online).length;
 		return c.json({ servers, online, total: servers.length });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/modules — member access.
+// User-scoped twin of GET /api/v1/editor-session/:token/modules — same
+// response shape, cookie auth instead of the session token (Task 1 of the
+// accounts-only cutover, cf. docs/decisions/accounts-only-editing.md).
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/modules",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const rows = await db
+			.select()
+			.from(serverModules)
+			.where(eq(serverModules.serverKeyId, sk[0].id));
+		return c.json({
+			modules: rows.map((r) => ({ id: r.moduleId, version: r.version })),
+		});
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/data-sources — member access.
+// User-scoped twin of GET /api/v1/editor-session/:token/data-sources.
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/data-sources",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const rows = await db
+			.select()
+			.from(serverDataSources)
+			.where(eq(serverDataSources.serverKeyId, sk[0].id));
+		return c.json({
+			data_sources: rows.map((r) => ({ ref: r.ref, schema_hint: r.schemaHint })),
+		});
 	},
 );
 
