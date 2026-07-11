@@ -174,6 +174,22 @@ describe("handlePluginMessage", () => {
     expect(ack.api_url).toBeDefined();
   });
 
+  test("hello_ack carries editor_url and network_name", async () => {
+    const { key } = await seedServerKey();
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("test-conn-editor-url", JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.editor_url).toBeDefined();
+    expect(typeof ack.editor_url).toBe("string");
+    expect(ack.network_name).toBe("N");
+  });
+
   test("hello inserts a row into server_key_helloes (audit log) with the source IP", async () => {
     const { id: keyId, key } = await seedServerKey();
     const hello: HelloMessage = {
