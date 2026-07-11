@@ -52,12 +52,6 @@ function RootLayoutInner() {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
-  useEffect(() => {
-    if (sessionToken) {
-      useModulesStore.getState().integrate({ token: sessionToken });
-      useServerDataSourcesStore.getState().load({ token: sessionToken });
-    }
-  }, [sessionToken]);
   // User-auth mode (no plugin session): presence + live draft WS as soon as
   // the active network+server pair is known — cf. ProjectSidebar which
   // resolves `activeServerId` to the exact server_key id (not a slug).

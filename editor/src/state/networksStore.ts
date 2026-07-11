@@ -5,9 +5,8 @@ import { persist } from "zustand/middleware";
 interface NetworksState {
   networks: NetworkSummary[];
   /**
-   * Network the user is currently *browsing* in the sidebar. Independent of
-   * any `/artisan session`, which has its own `networkId` in sessionStore.
-   * Persisted so picking a network in the dropdown sticks across reloads.
+   * Network the user is currently *browsing* in the sidebar. Persisted so
+   * picking a network in the dropdown sticks across reloads.
    */
   activeId: string | null;
   /**
