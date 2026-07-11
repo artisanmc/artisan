@@ -4,9 +4,18 @@ const TTL_MS = 30_000;
 const tickets = new Map<string, { userId: string; expiresAt: number }>();
 
 export function issueTicket(userId: string, nowMs: number = Date.now()): string {
+  // Expired, never-redeemed tickets would otherwise stay in the map forever
+  // (redeemTicket only deletes on lookup) — sweep before inserting.
+  for (const [t, entry] of tickets) {
+    if (entry.expiresAt < nowMs) tickets.delete(t);
+  }
   const ticket = "wst_" + randomBytes(24).toString("base64url");
   tickets.set(ticket, { userId, expiresAt: nowMs + TTL_MS });
   return ticket;
+}
+
+export function __ticketCountForTests(): number {
+  return tickets.size;
 }
 
 export function redeemTicket(ticket: string, nowMs: number = Date.now()): { userId: string } | null {
