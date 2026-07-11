@@ -6,25 +6,13 @@ export type AssistantEvent =
 function apiUrl(): string {
   return (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 }
-/**
- * In session mode (plugin trust-dance) `token` is the editor-session access
- * token → Bearer header. In user-auth mode (web login) `token` is null and the
- * request authenticates via the `artisan_user_session` cookie (`credentials:
- * "include"`). The backend middleware accepts either.
- */
-function authHeaders(token: string | null): HeadersInit {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
 
-export async function openConversation(
-  token: string | null,
-  body: { projectId: string },
-): Promise<string> {
+const JSON_HEADERS: HeadersInit = { "Content-Type": "application/json" };
+
+export async function openConversation(body: { projectId: string }): Promise<string> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: JSON_HEADERS,
     credentials: "include",
     body: JSON.stringify(body),
   });
@@ -40,13 +28,10 @@ export interface ConversationSummary {
 }
 
 /** List a workspace's conversations (newest first) — titles + timestamps only. */
-export async function listConversations(
-  token: string | null,
-  projectId: string,
-): Promise<ConversationSummary[]> {
+export async function listConversations(projectId: string): Promise<ConversationSummary[]> {
   const res = await fetch(
     `${apiUrl()}/api/v1/assistant/conversations?projectId=${encodeURIComponent(projectId)}`,
-    { headers: authHeaders(token), credentials: "include" },
+    { credentials: "include" },
   );
   if (!res.ok) throw new Error(`listConversations failed: ${res.status}`);
   const json = (await res.json()) as { conversations: ConversationSummary[] };
@@ -68,12 +53,8 @@ export interface ConversationDetail {
 }
 
 /** Fetch one conversation's full transcript (to resume it). */
-export async function getConversation(
-  token: string | null,
-  id: string,
-): Promise<ConversationDetail> {
+export async function getConversation(id: string): Promise<ConversationDetail> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${id}`, {
-    headers: authHeaders(token),
     credentials: "include",
   });
   if (!res.ok) throw new Error(`getConversation failed: ${res.status}`);
@@ -82,7 +63,6 @@ export async function getConversation(
 
 /** Stream EngineEvents from a message. Parses SSE frames from the POST response body. */
 export async function* streamAssistant(
-  token: string | null,
   conversationId: string,
   body: {
     text: string;
@@ -98,7 +78,7 @@ export async function* streamAssistant(
 ): AsyncGenerator<AssistantEvent> {
   const res = await fetch(`${apiUrl()}/api/v1/assistant/conversations/${conversationId}/messages`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: JSON_HEADERS,
     credentials: "include",
     body: JSON.stringify(body),
   });

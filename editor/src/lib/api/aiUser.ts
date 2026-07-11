@@ -3,12 +3,7 @@ import type { BalanceBreakdown } from "./billing";
 const apiUrl = (): string =>
   (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001";
 
-function authHeaders(token: string | null, json = false): HeadersInit {
-  const h: Record<string, string> = {};
-  if (token) h.Authorization = `Bearer ${token}`;
-  if (json) h["Content-Type"] = "application/json";
-  return h;
-}
+const JSON_HEADERS: HeadersInit = { "Content-Type": "application/json" };
 
 export interface PublicAiModelDto {
   id: string; displayName: string; description: string;
@@ -20,25 +15,23 @@ export interface ModelsResponse {
   models: PublicAiModelDto[]; defaultModelId: string | null; preferredModelId: string | null;
 }
 
-export async function getModels(token: string | null): Promise<ModelsResponse | null> {
-  const res = await fetch(`${apiUrl()}/api/v1/ai/models`, {
-    credentials: "include", headers: authHeaders(token),
-  });
+export async function getModels(): Promise<ModelsResponse | null> {
+  const res = await fetch(`${apiUrl()}/api/v1/ai/models`, { credentials: "include" });
   if (!res.ok) return null;
   return (await res.json()) as ModelsResponse;
 }
 
-export async function getBalance(token: string | null, projectId: string): Promise<BalanceBreakdown | null> {
+export async function getBalance(projectId: string): Promise<BalanceBreakdown | null> {
   const res = await fetch(`${apiUrl()}/api/v1/ai/balance?projectId=${encodeURIComponent(projectId)}`, {
-    credentials: "include", headers: authHeaders(token),
+    credentials: "include",
   });
   if (!res.ok) return null;
   return (await res.json()) as BalanceBreakdown;
 }
 
-export async function setPreferredModel(token: string | null, modelId: string): Promise<boolean> {
+export async function setPreferredModel(modelId: string): Promise<boolean> {
   const res = await fetch(`${apiUrl()}/api/v1/ai/preferred-model`, {
-    method: "PUT", credentials: "include", headers: authHeaders(token, true),
+    method: "PUT", credentials: "include", headers: JSON_HEADERS,
     body: JSON.stringify({ modelId }),
   });
   return res.ok;

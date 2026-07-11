@@ -63,7 +63,7 @@ export async function deleteUserProject(projectId: string): Promise<void> {
 // newest available items.json file when no MC version is known for any of the
 // pack's bindings (e.g., server hasn't connected yet) so the Library panel
 // always populates.
-import type { LibraryData, CustomItemsData } from "@/lib/projectApi";
+import type { LibraryData, CustomItemsData } from "@/domain/library";
 
 export async function fetchUserItems(projectId: string): Promise<LibraryData> {
   const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}/items`, {

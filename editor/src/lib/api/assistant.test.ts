@@ -19,7 +19,7 @@ describe("assistant SSE client", () => {
       "fetch",
       vi.fn(async () => new Response(JSON.stringify({ conversationId: "c1" }), { status: 200 })),
     );
-    expect(await openConversation("t", { projectId: "p" })).toBe("c1");
+    expect(await openConversation({ projectId: "p" })).toBe("c1");
   });
   it("streamAssistant yields parsed events across frames", async () => {
     vi.stubGlobal(
@@ -34,28 +34,19 @@ describe("assistant SSE client", () => {
     );
     // biome-ignore lint/suspicious/noExplicitAny: collecting heterogeneous events in test
     const events: any[] = [];
-    for await (const e of streamAssistant("t", "c1", { text: "x" })) events.push(e);
+    for await (const e of streamAssistant("c1", { text: "x" })) events.push(e);
     expect(events.map((e) => e.type)).toEqual(["text", "menu_written", "done"]);
     expect(events[1].menu).toEqual({ id: "shop" });
   });
-  it("user-auth mode (null token) omits the Bearer header but sends cookie credentials", async () => {
+  it("sends cookie credentials, no Authorization header", async () => {
     const fetchMock = vi.fn(
       async () => new Response(JSON.stringify({ conversationId: "c2" }), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await openConversation(null, { projectId: "p" });
+    await openConversation({ projectId: "p" });
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.credentials).toBe("include");
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
-  });
-  it("session mode (token) sets the Bearer header", async () => {
-    const fetchMock = vi.fn(
-      async () => new Response(JSON.stringify({ conversationId: "c3" }), { status: 200 }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    await openConversation("tok", { projectId: "p" });
-    const init = fetchMock.mock.calls[0][1] as RequestInit;
-    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
   });
   it("listConversations requests the workspace's conversations", async () => {
     const fetchMock = vi.fn(
@@ -68,7 +59,7 @@ describe("assistant SSE client", () => {
         ),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const list = await listConversations("t", "pack_1");
+    const list = await listConversations("pack_1");
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe("a");
     expect(String(fetchMock.mock.calls[0][0])).toContain(
@@ -84,7 +75,7 @@ describe("assistant SSE client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     const events: Array<{ type: string; balance?: number }> = [];
-    for await (const e of streamAssistant("tok", "conv1", { text: "hi", modelId: "m1" })) {
+    for await (const e of streamAssistant("conv1", { text: "hi", modelId: "m1" })) {
       events.push(e);
     }
     expect(events.some((e) => e.type === "credits" && e.balance === 300)).toBe(true);
@@ -100,7 +91,7 @@ describe("assistant SSE client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     const events: Array<{ type: string; balance?: number }> = [];
-    for await (const e of streamAssistant("tok", "conv1", { text: "hi" })) events.push(e);
+    for await (const e of streamAssistant("conv1", { text: "hi" })) events.push(e);
     expect(events).toEqual([{ type: "insufficient_credits", balance: 0 }]);
   });
   it("getConversation returns the transcript", async () => {
@@ -120,7 +111,7 @@ describe("assistant SSE client", () => {
           ),
       ),
     );
-    const conv = await getConversation("t", "a");
+    const conv = await getConversation("a");
     expect(conv.messages[0].content).toBe("yo");
   });
 });

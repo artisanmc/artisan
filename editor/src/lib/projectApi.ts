@@ -1,6 +1,9 @@
 import type { Project, ProjectId } from "@/domain/types";
 import type { Asset, AssetType } from "@/domain/asset";
+import type { LibraryData, LibraryItem, CustomItemsData } from "@/domain/library";
 import { useProjectVersionStore, VersionConflictError } from "@/state/projectVersionStore";
+
+export type { LibraryData, LibraryItem, CustomItemsData };
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -35,19 +38,6 @@ function rowToProject(row: ProjectListRow): Project {
   } as Project;
 }
 
-export interface LibraryItem {
-  id: string;
-  label: string;
-  category: string;
-  texture?: string;
-  model?: string;
-  tints?: Record<number, string>;
-}
-
-export interface LibraryData {
-  version: string;
-  items: LibraryItem[];
-}
 
 export async function loadProjects(token: string): Promise<Project[]> {
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/projects`);
@@ -127,11 +117,6 @@ export async function fetchItems(token: string): Promise<LibraryData> {
   const res = await fetch(`${API_URL}/api/v1/editor-session/${token}/items`);
   if (!res.ok) throw new Error(`fetchItems failed: ${res.status}`);
   return res.json() as Promise<LibraryData>;
-}
-
-export interface CustomItemsData {
-  serverKeyId: string;
-  items: LibraryItem[];
 }
 
 export async function fetchCustomItems(token: string): Promise<CustomItemsData> {
