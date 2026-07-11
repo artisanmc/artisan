@@ -2,7 +2,6 @@ import { projectId } from "@/domain/ids";
 import { formatCredits } from "@/lib/format";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,7 +34,7 @@ vi.mock("@/lib/api/assistant", () => ({
 const norm = (s: string) => s.replace(/\s/gu, " ");
 
 function setup() {
-  useSessionStore.setState({ accessToken: "tok" } as never);
+  useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
   useAccountStore.getState().setAccount({
     id: "a" as never,
     projects: [],
@@ -46,7 +45,6 @@ function setup() {
 
 afterEach(() => {
   vi.clearAllMocks();
-  useAuthStore.setState({ currentUser: null } as never);
 });
 
 describe("AssistantChat — credits", () => {

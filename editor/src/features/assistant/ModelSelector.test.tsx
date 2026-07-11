@@ -35,7 +35,7 @@ afterEach(() => vi.clearAllMocks());
 
 describe("ModelSelector", () => {
   it("lists the active models with their badge and estimates", async () => {
-    render(<ModelSelector token="tok" value="m2" onChange={vi.fn()} />);
+    render(<ModelSelector value="m2" onChange={vi.fn()} />);
 
     await userEvent.click(screen.getByRole("button"));
 
@@ -48,7 +48,7 @@ describe("ModelSelector", () => {
   it("preselects the preferred model over the default", async () => {
     const onModelsLoaded = vi.fn();
     render(
-      <ModelSelector token="tok" value={null} onChange={vi.fn()} onModelsLoaded={onModelsLoaded} />,
+      <ModelSelector value={null} onChange={vi.fn()} onModelsLoaded={onModelsLoaded} />,
     );
 
     await waitFor(() =>
@@ -60,7 +60,7 @@ describe("ModelSelector", () => {
 
   it("clicking a model calls onChange and persists the preference", async () => {
     const onChange = vi.fn();
-    render(<ModelSelector token="tok" value="m1" onChange={onChange} />);
+    render(<ModelSelector value="m1" onChange={onChange} />);
 
     await userEvent.click(screen.getByRole("button"));
     await waitFor(() => expect(screen.getByText("Sonnet")).toBeTruthy());
@@ -68,7 +68,7 @@ describe("ModelSelector", () => {
 
     const { setPreferredModel } = await import("@/lib/api/aiUser");
     expect(onChange).toHaveBeenCalledWith("m2");
-    await waitFor(() => expect(setPreferredModel).toHaveBeenCalledWith("tok", "m2"));
+    await waitFor(() => expect(setPreferredModel).toHaveBeenCalledWith("m2"));
   });
 
   it("degrades to an empty list when the network call rejects", async () => {
@@ -76,7 +76,7 @@ describe("ModelSelector", () => {
     vi.mocked(getModels).mockRejectedValueOnce(new Error("network down"));
 
     expect(() =>
-      render(<ModelSelector token="tok" value={null} onChange={vi.fn()} />),
+      render(<ModelSelector value={null} onChange={vi.fn()} />),
     ).not.toThrow();
     await userEvent.click(screen.getByRole("button"));
     expect(screen.queryByText("Haiku")).toBeNull();

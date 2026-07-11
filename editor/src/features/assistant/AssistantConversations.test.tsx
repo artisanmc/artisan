@@ -1,6 +1,6 @@
 import { projectId } from "@/domain/ids";
 import { listConversations } from "@/lib/api/assistant";
-import { useSessionStore } from "@/state/sessionStore";
+import { useAuthStore } from "@/state/authStore";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,7 +11,7 @@ vi.mock("@/lib/api/assistant", () => ({
 }));
 
 beforeEach(() => {
-  useSessionStore.setState({ accessToken: "tok" } as never);
+  useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
 });
 afterEach(() => vi.clearAllMocks());
 

@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { cx } from "@/lib/cx";
 import { renderToCanvas } from "@/lib/mcModelRenderer";
-import type { LibraryItem } from "@/lib/projectApi";
+import type { LibraryItem } from "@/domain/library";
 import { useUiStore } from "@/state/uiStore";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDraggable } from "@dnd-kit/core";

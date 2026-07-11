@@ -6,11 +6,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { deleteProject } from "@/lib/projectApi";
 import { deleteUserProject } from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -26,7 +24,6 @@ interface DeleteProjectDialogProps {
 export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange }: DeleteProjectDialogProps) {
   const [confirm, setConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const removeProject = useAccountStore((s) => s.removeProject);
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
@@ -36,11 +33,10 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
   const canDelete = confirm === projectId;
 
   const handleDelete = async () => {
-    if (!canDelete || (!token && !user) || deleting) return;
+    if (!canDelete || !user || deleting) return;
     setDeleting(true);
     try {
-      if (token) await deleteProject(token, projectId);
-      else await deleteUserProject(projectId);
+      await deleteUserProject(projectId);
       removeProject(projectId);
       const remaining = projectOrder.filter((id) => id !== projectId);
       if (remaining.length > 0) {

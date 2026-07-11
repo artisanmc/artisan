@@ -31,13 +31,11 @@ const BADGE_VARIANT: Record<PublicAiModelDto["badge"], "sage" | "amber" | "terra
  * persists the choice server-side on every pick.
  */
 export function ModelSelector({
-  token,
   value,
   onChange,
   onModelsLoaded,
   className,
 }: {
-  token: string | null;
   value: string | null;
   onChange: (id: string) => void;
   onModelsLoaded?: (r: ModelsResponse) => void;
@@ -49,7 +47,7 @@ export function ModelSelector({
   // biome-ignore lint/correctness/useExhaustiveDependencies: onModelsLoaded is a mount-time callback, not a reactive dep.
   useEffect(() => {
     let cancelled = false;
-    getModels(token)
+    getModels()
       .then((r) => {
         if (cancelled || !r) return;
         setModels(r.models);
@@ -59,13 +57,13 @@ export function ModelSelector({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, []);
 
   const current = models.find((m) => m.id === value) ?? null;
 
   function pick(id: string) {
     onChange(id);
-    void setPreferredModel(token, id).catch(() => {});
+    void setPreferredModel(id).catch(() => {});
   }
 
   return (

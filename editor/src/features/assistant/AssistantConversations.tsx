@@ -1,7 +1,6 @@
 import type { ProjectId } from "@/domain/types";
 import { type ConversationSummary, listConversations } from "@/lib/api/assistant";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,14 +21,13 @@ export function AssistantConversations({
   onNew: () => void;
 }) {
   const { t } = useTranslation();
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const [items, setItems] = useState<ConversationSummary[] | null>(null);
 
   useEffect(() => {
-    if (!token && !user) return;
+    if (!user) return;
     let cancelled = false;
-    listConversations(token, projectId)
+    listConversations(projectId)
       .then((list) => {
         if (!cancelled) setItems(list);
       })
@@ -39,7 +37,7 @@ export function AssistantConversations({
     return () => {
       cancelled = true;
     };
-  }, [token, user, projectId]);
+  }, [user, projectId]);
 
   return (
     <div data-testid="assistant-conversations" className="flex min-h-0 flex-1 flex-col">

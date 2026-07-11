@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Library } from "./Library";
 import { useTextureStore } from "./textureStore";
-import type { LibraryData, CustomItemsData } from "@/lib/projectApi";
+import type { LibraryData, CustomItemsData } from "@/domain/library";
 
 vi.mock("@/state/uiStore", () => ({
   useUiStore: (sel: (s: { armedMaterial: null; setArmedMaterial: () => void }) => unknown) =>

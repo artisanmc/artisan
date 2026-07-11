@@ -3,11 +3,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { AssetsTab } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
 
-vi.mock("@/state/sessionStore", () => ({
-  useSessionStore: (sel: (s: { accessToken: string | null }) => unknown) =>
-    sel({ accessToken: "tok_test" }),
-}));
-
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getTotalSize: () => count * estimateSize(),
