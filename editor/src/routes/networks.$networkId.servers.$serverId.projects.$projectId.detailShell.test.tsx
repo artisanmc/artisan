@@ -25,10 +25,6 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-vi.mock("@/state/sessionStore", () => ({
-  useSessionStore: (sel: any) =>
-    sel({ accessToken: null, networkId: null, setAccessToken: vi.fn(), clearSession: vi.fn() }),
-}));
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: any) => sel({ currentUser: { id: "u1" } }),
 }));

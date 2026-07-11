@@ -27,7 +27,6 @@ import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import { CSS } from "@dnd-kit/utilities";
@@ -38,9 +37,6 @@ import { UserMenu } from "./UserMenu";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
-  const sessionToken = useSessionStore((s) => s.accessToken);
-  const sessionNetworkId = useSessionStore((s) => s.networkId);
-  const sessionServerKeyId = useSessionStore((s) => s.serverKeyId);
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
   const storeRefreshToken = useNetworksStore((s) => s.refreshToken);
@@ -55,14 +51,7 @@ export function ProjectSidebar() {
   const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
   const [refetchToken, setRefetchToken] = useState(0);
 
-  // Session mode = trusted plugin session (via /artisan editor) without a
-  // logged-in account. listNetworks / getNetwork would 401 in this mode
-  // (cookie-auth only), so we skip those fetches and source projects from the
-  // accountStore (populated by the WS sync) instead.
-  const isSessionMode = !!sessionToken;
-
-  // Active network + server: URL params first, then session bindings as
-  // fallback (the trust dance pre-populates sessionStore with both).
+  // Active network + server: URL params first, then persisted selection.
   // Since the slug routes (phase 4a), URL params may carry slugs instead of
   // ids — resolve them to real ids here so all downstream matching (pack
   // filtering, link building) stays id-based.
@@ -72,8 +61,7 @@ export function ProjectSidebar() {
   const storedNetworkId = useNetworksStore((s) => s.activeId);
   const storedServerId = useServersStore((s) => s.activeServerId);
   const urlParams = useParams({ strict: false }) as { networkId?: string; serverId?: string };
-  const rawNetworkParam =
-    urlParams.networkId ?? sessionNetworkId ?? storedNetworkId ?? networks[0]?.id ?? null;
+  const rawNetworkParam = urlParams.networkId ?? storedNetworkId ?? networks[0]?.id ?? null;
   const activeNetworkId = rawNetworkParam
     ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
       rawNetworkParam)
@@ -87,8 +75,7 @@ export function ProjectSidebar() {
         e.serverId === storedServerId &&
         (activeNetworkId == null || e.networkId === activeNetworkId),
     );
-  const rawServerParam =
-    urlParams.serverId ?? sessionServerKeyId ?? (storedServerValid ? storedServerId : null);
+  const rawServerParam = urlParams.serverId ?? (storedServerValid ? storedServerId : null);
   const activeNetworkName = activeNetworkId
     ? (networks.find((n) => n.id === activeNetworkId)?.name ?? null)
     : null;
@@ -106,7 +93,6 @@ export function ProjectSidebar() {
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
   useEffect(() => {
-    if (isSessionMode) return;
     if (urlParams.networkId && activeNetworkId && networks.some((n) => n.id === activeNetworkId)) {
       if (useNetworksStore.getState().activeId !== activeNetworkId) {
         useNetworksStore.getState().setActiveId(activeNetworkId);
@@ -122,17 +108,9 @@ export function ProjectSidebar() {
         useServersStore.getState().setActiveServerId(resolved);
       }
     }
-  }, [
-    isSessionMode,
-    urlParams.networkId,
-    urlParams.serverId,
-    activeNetworkId,
-    networks,
-    allServerEntries,
-  ]);
+  }, [urlParams.networkId, urlParams.serverId, activeNetworkId, networks, allServerEntries]);
 
   useEffect(() => {
-    if (isSessionMode) return; // listNetworks needs cookie auth
     // Refetch on refresh bump too — a network created in the wizard/hub would
     // otherwise never reach the store (only fetched when empty).
     if (networks.length === 0 || storeRefreshToken > 0) {
@@ -140,16 +118,10 @@ export function ProjectSidebar() {
         .then(setNetworks)
         .catch(() => {});
     }
-  }, [isSessionMode, storeRefreshToken]);
+  }, [storeRefreshToken]);
 
   // Fetch all server entries across all networks + projects for the active network.
   useEffect(() => {
-    if (isSessionMode) {
-      // Session mode: no network listing available. Projects come from accountStore.
-      setAllServerEntries([]);
-      setServerProjects([]);
-      return;
-    }
     if (networks.length === 0) {
       setAllServerEntries([]);
       setServerProjects([]);
@@ -195,7 +167,7 @@ export function ProjectSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [networks, activeNetworkId, refetchToken, storeRefreshToken, isSessionMode]);
+  }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
 
   const serverIds = new Set(serverProjects.map((p) => p.id));
   const optimisticEntries: ProjectSummary[] = localProjects
@@ -211,14 +183,10 @@ export function ProjectSidebar() {
     }));
   const allProjects = [...serverProjects, ...optimisticEntries];
 
-  // Filter by active server (URL-driven). In session mode, accountStore.projects
-  // is already implicitly scoped to the session's server (no other source) —
-  // skip the filter so projects that lack serverKeyId metadata still show.
-  const filteredServerProjects = isSessionMode
-    ? allProjects
-    : activeServerId
-      ? allProjects.filter((p) => p.serverKeyId === activeServerId)
-      : allProjects;
+  // Filter by active server (URL-driven).
+  const filteredServerProjects = activeServerId
+    ? allProjects.filter((p) => p.serverKeyId === activeServerId)
+    : allProjects;
 
   const idToProject = new Map(filteredServerProjects.map((p) => [p.id, p]));
   const ordered: ProjectSummary[] = [];
@@ -277,9 +245,9 @@ export function ProjectSidebar() {
         </span>
       </Link>
 
-      {!isSessionMode && <ServerSelector servers={allServerEntries} />}
+      <ServerSelector servers={allServerEntries} />
 
-      {!isSessionMode && activeNetworkId && activeNetworkName && (
+      {activeNetworkId && activeNetworkName && (
         <Link
           to="/networks/$networkId"
           params={{ networkId: activeNetworkId }}

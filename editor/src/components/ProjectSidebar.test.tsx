@@ -2,7 +2,6 @@ import * as networksApi from "@/lib/api/networks";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,7 +40,6 @@ describe("ProjectSidebar", () => {
       activeId: null,
     } as any);
     useServersStore.setState({ activeServerId: null } as any);
-    useSessionStore.setState({ networkId: "net_1" } as any);
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
   });
 
@@ -156,7 +154,6 @@ describe("ProjectSidebar", () => {
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
     } as any);
-    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
       projects: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
@@ -171,7 +168,6 @@ describe("ProjectSidebar", () => {
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
     } as any);
-    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
       projects: [],
@@ -251,7 +247,6 @@ describe("ProjectSidebar", () => {
   it("falls back to the persisted server selection on routes without a serverId param", async () => {
     // e.g. /settings or /credits — no networkId/serverId in the URL.
     mockParams.current = {};
-    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
     useServersStore.setState({ activeServerId: "sk_1" } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
@@ -274,7 +269,6 @@ describe("ProjectSidebar", () => {
 
   it("ignores a persisted server that no longer exists (shows the whole network)", async () => {
     mockParams.current = {};
-    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
     useServersStore.setState({ activeServerId: "sk_deleted" } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
@@ -291,7 +285,6 @@ describe("ProjectSidebar", () => {
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
       activeId: null,
     } as any);
-    useSessionStore.setState({ networkId: null, serverKeyId: null } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
       projects: [],

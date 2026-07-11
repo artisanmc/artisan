@@ -1,7 +1,6 @@
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { useSessionStore } from "@/state/sessionStore";
 import {
   Link,
   Outlet,
@@ -23,7 +22,6 @@ export default function ServerDetailPage() {
     from: "/networks/$networkId/servers/$serverId",
   });
   const navigate = useNavigate();
-  const sessionToken = useSessionStore((s) => s.accessToken);
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [workspaces, setProjects] = useState<ProjectSummary[]>([]);
   const childMatches = useChildMatches();
@@ -38,14 +36,12 @@ export default function ServerDetailPage() {
         setProjects(sk ? d.projects.filter((p) => p.serverKeyId === sk.id) : []);
       })
       .catch((e: Error & { status?: number }) => {
-        // Même exception que NetworkDetailPage : en session plugin, getNetwork
-        // (cookie-auth) peut 403 sur le network de la session — ne pas éjecter,
-        // la feuille project est autorisée par le token de session.
-        if ((e?.status === 403 || e?.status === 404) && !sessionToken) {
+        // Stale/inaccessible network → bounce to the user's own networks list.
+        if (e?.status === 403 || e?.status === 404) {
           navigate({ to: "/networks", replace: true });
         } else console.error(e);
       });
-  }, [networkId, serverId, navigate, sessionToken]);
+  }, [networkId, serverId, navigate]);
 
   if (childMatches.length > 0) return <Outlet />;
 
