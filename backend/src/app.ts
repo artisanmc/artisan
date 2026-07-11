@@ -2,14 +2,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createBunWebSocket } from "hono/bun";
 import { bundlesRouter } from "./routes/bundles";
-import { editorSessionRouter } from "./routes/editorSession";
 import { linkRouter } from "./routes/link";
 import { serverKeysRouter } from "./routes/serverKeys";
 import { texturesRouter } from "./routes/textures";
 import { modelsRouter } from "./routes/models";
 import { modelBundleRouter } from "./routes/modelBundle";
-import { assetsRouter } from "./routes/assets";
-import { resourcePackPublicRouter, resourcePackAdminRouter } from "./routes/resourcePack";
+import { resourcePackPublicRouter } from "./routes/resourcePack";
 import { authRouter } from "./routes/auth";
 import { discordOauthRouter } from "./routes/discordOauth";
 import { userNetworksRouter } from "./routes/userNetworks";
@@ -26,8 +24,7 @@ import { buildAiAdminRouter } from "./modules/ai/adminRoutes";
 import { buildBillingAdminRouter } from "./modules/billing/adminRoutes";
 import { buildBillingUserRouter } from "./modules/billing/userRoutes";
 import { buildBillingWebhookRouter } from "./modules/billing/webhookRoutes";
-import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn, trackEditorIp } from "./ws/hub";
-import { validateAccessToken } from "./lib/auth";
+import { cleanupConn, cleanupEditorConn, cleanupSession, handlePluginMessage, registerConn, registerEditorConn } from "./ws/hub";
 import { redeemTicket } from "./lib/wsTickets";
 import { listServerKeyIdsForUser } from "./lib/membershipGuard";
 import { mountModules } from "@artisan/backend-sdk";
@@ -47,13 +44,10 @@ app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
 app.route("/api/v1/server-keys", serverKeysRouter);
 app.route("/api/v1/bundles", bundlesRouter);
 app.route("/api/v1/link", linkRouter);
-app.route("/api/v1/editor-session", editorSessionRouter);
 app.route("/api/v1/textures", texturesRouter);
 app.route("/api/v1/models", modelsRouter);
 app.route("/api/v1/model-bundle", modelBundleRouter);
-app.route("/api/v1/editor-session", assetsRouter);
 app.route("/api/v1/resource-pack", resourcePackPublicRouter);
-app.route("/api/v1/editor-session", resourcePackAdminRouter);
 app.route("/api/v1/auth", authRouter);
 app.route("/api/v1/auth/discord", discordOauthRouter);
 app.use("/api/v1/networks/*", userAuth());
@@ -108,37 +102,22 @@ app.get(
   "/ws/editor",
   async (c, next) => {
     const url = new URL(c.req.url);
-    const ip = c.req.header("x-forwarded-for") ?? c.req.header("cf-connecting-ip") ?? "unknown";
-    const ticket = url.searchParams.get("ticket");
-    if (ticket) {
-      // One-shot user-ticket path (Task 4): subscribes to the full set of
-      // serverKeyIds across all of the user's networks, not a single one.
-      const redeemed = redeemTicket(ticket);
-      if (!redeemed) return c.json({ error: "Unauthorized" }, 401);
-      const serverKeyIds = await listServerKeyIdsForUser(redeemed.userId);
-      c.set("editorServerIds", new Set(serverKeyIds));
-      c.set("editorSessionId", "user_" + crypto.randomUUID());
-      c.set("editorIp", ip);
-      return next();
-    }
-
-    const token = url.searchParams.get("token") ?? "";
-    const session = token ? await validateAccessToken(token) : null;
-    if (!session) return c.json({ error: "Unauthorized" }, 401);
-    c.set("editorToken", token);
-    c.set("editorServerIds", new Set([session.serverKeyId]));
-    c.set("editorSessionId", session.sessionId);
-    c.set("editorIp", ip);
+    const ticket = url.searchParams.get("ticket") ?? "";
+    // One-shot user-ticket path (Task 4): subscribes to the full set of
+    // serverKeyIds across all of the user's networks, not a single one.
+    const redeemed = ticket ? redeemTicket(ticket) : null;
+    if (!redeemed) return c.json({ error: "Unauthorized" }, 401);
+    const serverKeyIds = await listServerKeyIdsForUser(redeemed.userId);
+    c.set("editorServerIds", new Set(serverKeyIds));
+    c.set("editorWsSessionId", "user_" + crypto.randomUUID());
     return next();
   },
   upgradeWebSocket((c) => {
     const serverIds = c.get("editorServerIds") as Set<string>;
-    const sessionId = c.get("editorSessionId") as string;
-    const ip = c.get("editorIp") as string;
+    const sessionId = c.get("editorWsSessionId") as string;
     return {
       onOpen(_, ws) {
         registerEditorConn(sessionId, serverIds, (msg) => ws.send(msg));
-        trackEditorIp(sessionId, ip);
       },
       onMessage() {},
       onClose() { cleanupEditorConn(sessionId); },

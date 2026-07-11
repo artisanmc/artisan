@@ -1,13 +1,13 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
+import { linkCodes, networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
-import { findSessionByTrustCode, generateCode, generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
+import { generateCode, generateServerKey } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import { currentPackInfo } from "../lib/resourcePack";
@@ -17,14 +17,11 @@ import type {
   CustomItemsChangedMessage,
   CustomItemsRequestMessage,
   EditorDraftUpdateMessage,
-  EditorSessionReadyMessage,
   HelloAckMessage,
   HelloMessage,
   LinkConfirmedMessage,
   ModulesChangedMessage,
   ResourcePackUpdatedMessage,
-  SessionExpiredMessage,
-  SessionTrustedMessage,
   SetupClaimMessage,
   SetupCodeMessage,
 } from "../protocol";
@@ -50,8 +47,6 @@ export const editorSenders = new Map<string, (msg: string) => void>();
 export const editorTokenToServers = new Map<string, Set<string>>();
 // connId → serverKeyId (set after successful hello)
 export const connToServerId = new Map<string, string>();
-// sessionId → editor IP address (set when editor WS connects)
-const editorTokenToIp = new Map<string, string>();
 // serverKeyId → minecraft version (set on hello, used by /api/items)
 const serverIdToMcVersion = new Map<string, string>();
 
@@ -116,7 +111,6 @@ export function registerEditorConn(
 export function cleanupEditorConn(sessionId: string): void {
   editorSenders.delete(sessionId);
   editorTokenToServers.delete(sessionId);
-  editorTokenToIp.delete(sessionId);
 }
 
 // Called by link.ts POST /:code/claim (B1 flow: browser claims plugin's code).
@@ -393,67 +387,6 @@ export async function handlePluginMessage(
     return { reply: null };
   }
 
-  // ── editor_session_request: generate a browser session token ─────────────
-  if (msg.type === "editor_session_request") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    const raw = msg as Record<string, unknown>;
-    const sender = typeof raw.sender === "string" ? raw.sender : "CONSOLE";
-    const token = generateEditorToken();
-    const trustCode = generateTrustCode();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);  // 7 days
-    await db.insert(editorSessions).values({
-      token, serverKeyId: serverId, createdBy: sender, createdAt: now, expiresAt, trustCode,
-    });
-    const reply: EditorSessionReadyMessage = {
-      type: "editor_session_ready",
-      url: `${EDITOR_URL}/session?token=${token}`,
-      expires_at: expiresAt.toISOString(),
-      trust_code: trustCode,
-    };
-    return { reply: JSON.stringify(reply) };
-  }
-
-  // ── editor_session_revoke: revoke all sessions for this server ────────────
-  if (msg.type === "editor_session_revoke") {
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-    await db
-      .update(editorSessions)
-      .set({ revokedAt: new Date() })
-      .where(and(eq(editorSessions.serverKeyId, serverId), isNull(editorSessions.revokedAt)));
-    for (const [sessionId, sIds] of editorTokenToServers) {
-      if (!sIds.has(serverId)) continue;
-      const send = editorSenders.get(sessionId);
-      if (send) send(JSON.stringify({ type: "session_expired" } satisfies SessionExpiredMessage));
-    }
-    return { reply: null };
-  }
-
-  // ── editor_trust_request: plugin confirms editor IP trust ────────────────
-  if (msg.type === "editor_trust_request") {
-    const raw = msg as Record<string, unknown>;
-    if (typeof raw.trust_code !== "string") return { reply: null };
-    const serverId = connToServerId.get(connId);
-    if (!serverId) return { reply: null };
-
-    const session = await findSessionByTrustCode(raw.trust_code as string);
-    if (!session || session.serverKeyId !== serverId) return { reply: null };
-
-    // Use urlToken (stable session PK) instead of session.accessToken (rotates every 4 min)
-    const ip = editorTokenToIp.get(session.urlToken) ?? "unknown";
-
-    await db.update(editorSessions)
-      .set({ trustedAt: new Date(), trustedIp: ip })
-      .where(eq(editorSessions.token, session.urlToken));
-
-    const send = editorSenders.get(session.urlToken);
-    if (send) send(JSON.stringify({ type: "session_trusted" } satisfies SessionTrustedMessage));
-
-    return { reply: null };
-  }
-
   if (msg.type === "pong") return { reply: null };
 
   // ── modules_changed: runtime module registration after hello ─────────────
@@ -624,10 +557,6 @@ export function pushModuleEvent(
     if (!editorTokenToServers.get(sessionId)?.has(serverKeyId)) continue;
     send(payload);
   }
-}
-
-export function trackEditorIp(sessionId: string, ip: string): void {
-  editorTokenToIp.set(sessionId, ip);
 }
 
 export async function getMcVersion(serverKeyId: string): Promise<string | undefined> {

@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { existsSync } from "fs";
-import { validateAccessToken } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { resourcePackPath } from "../lib/resourcePackStorage";
 import { pushResourcePackUpdated } from "../ws/hub";
@@ -9,7 +8,6 @@ const HASH_RE = /^[0-9a-f]{40}$/;
 const SK_RE = /^[a-zA-Z0-9-]+$/;
 
 export const resourcePackPublicRouter = new Hono();
-export const resourcePackAdminRouter = new Hono();
 
 resourcePackPublicRouter.get("/:serverKeyId/:hashFile", async (c) => {
   const serverKeyId = c.req.param("serverKeyId");
@@ -33,19 +31,11 @@ resourcePackPublicRouter.get("/:serverKeyId/:hashFile", async (c) => {
 
 /**
  * Shared handler — rebuild the resource pack for `serverKeyId` and broadcast
- * the update. Extracted so the session router (token + validateAccessToken)
- * and the user-scoped twin (cookie + membership, see userNetworks.ts) share
- * ONE implementation.
+ * the update. Called from the user-scoped route (cookie + membership, see
+ * userNetworks.ts).
  */
 export async function handleResourcePackRebuild(c: { json: (body: unknown, status?: number) => Response }, serverKeyId: string) {
   const info = await rebuildResourcePack(serverKeyId);
   pushResourcePackUpdated(serverKeyId, info.url, info.hash);
   return c.json(info);
 }
-
-resourcePackAdminRouter.post("/:token/resource-pack/rebuild", async (c) => {
-  const token = c.req.param("token");
-  const session = await validateAccessToken(token);
-  if (!session) return c.json({ error: "Unauthorized" }, 401);
-  return handleResourcePackRebuild(c, session.serverKeyId);
-});

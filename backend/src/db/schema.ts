@@ -120,32 +120,6 @@ export const linkCodes = pgTable("link_codes", {
 	serverKeyId: text("server_key_id").references(() => serverKeys.id),
 });
 
-export const editorSessions = pgTable(
-	"editor_sessions",
-	{
-		token: text("token").primaryKey(),
-		serverKeyId: text("server_key_id")
-			.notNull()
-			.references(() => serverKeys.id),
-		createdBy: text("created_by").notNull(),
-		createdAt: timestamp("created_at").notNull(),
-		expiresAt: timestamp("expires_at").notNull(),
-		revokedAt: timestamp("revoked_at"),
-		exchangedAt: timestamp("exchanged_at"),
-		refreshToken: text("refresh_token"),
-		accessToken: text("access_token"),
-		accessExpiresAt: timestamp("access_expires_at"),
-		trustCode: text("trust_code"),
-		trustedAt: timestamp("trusted_at"),
-		trustedIp: text("trusted_ip"),
-	},
-	(t) => [
-		uniqueIndex("trust_code_uniq")
-			.on(t.trustCode)
-			.where(sql`trust_code IS NOT NULL`),
-	],
-);
-
 export const users = pgTable(
 	"users",
 	{

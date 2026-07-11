@@ -16,7 +16,7 @@ import {
   handleAssetPatch,
   handleAssetDuplicate,
   handleAssetDelete,
-} from "./assets";
+} from "../lib/assetHandlers";
 
 type Vars = { user: AuthUser | null };
 

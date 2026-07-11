@@ -64,20 +64,6 @@ export interface LinkConfirmedMessage {
   server_key: string;
 }
 
-// Plugin → backend (on authenticated WS)
-export interface EditorSessionRequestMessage {
-  type: "editor_session_request";
-  sender: string;
-}
-export interface EditorSessionRevokeMessage {
-  type: "editor_session_revoke";
-}
-
-export interface EditorTrustRequestMessage {
-  type: "editor_trust_request";
-  trust_code: string;
-}
-
 // Plugin → backend: sent on hot-reload when custom items change
 export interface CustomItemsChangedMessage {
   type: "custom_items_changed";
@@ -96,18 +82,7 @@ export interface CustomItemsBundleMessage {
   data: string;  // base64(gzip(zip archive))
 }
 
-export interface SessionTrustedMessage { type: "session_trusted" }
-
-// Backend → plugin
-export interface EditorSessionReadyMessage {
-  type: "editor_session_ready";
-  url: string;
-  expires_at: string;
-  trust_code: string;
-}
-
 // Backend → editor (on /ws/editor)
-export interface SessionExpiredMessage { type: "session_expired" }
 export interface EditorDraftUpdateMessage {
   type: "draft_update";
   project_id: string;
@@ -146,9 +121,6 @@ export type PluginToServerMessage =
   | PongMessage
   | SetupRequestMessage
   | SetupClaimMessage
-  | EditorSessionRequestMessage
-  | EditorSessionRevokeMessage
-  | EditorTrustRequestMessage
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage
   | LocalPushMessage
@@ -167,7 +139,6 @@ export type ServerToPluginMessage =
   | PingMessage
   | SetupCodeMessage
   | LinkConfirmedMessage
-  | EditorSessionReadyMessage
   | CustomItemsRequestMessage
   | ResourcePackUpdatedMessage
   | ProjectDeletedMessage;

@@ -3,9 +3,7 @@ import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
 import {
-	aiCreditLedger,
 	aiModels,
-	editorSessions,
 	memberships,
 	networks,
 	projects,
@@ -14,11 +12,10 @@ import {
 } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
+import { generateServerKey } from "../../lib/auth";
 import { grantCredits } from "./creditsRepo";
 import { createModel, setDefaultModel, type AiModel } from "./modelRepo";
 
-const SRV = "srv_ai_routes";
-const ACCESS = "acc_ai_routes";
 const PROJECT_ID = "proj_ai_routes";
 const USER_ID = "usr_ai_routes";
 const OUTSIDER_ID = "usr_ai_routes_outsider";
@@ -28,20 +25,16 @@ let outsiderSession = "";
 let active: AiModel;
 let inactive: AiModel;
 
-const bearer = { Authorization: `Bearer ${ACCESS}`, "Content-Type": "application/json" };
 const cookie = () => ({ Cookie: `artisan_user_session=${userSession}`, "Content-Type": "application/json" });
+const outsiderCookie = () => ({ Cookie: `artisan_user_session=${outsiderSession}`, "Content-Type": "application/json" });
 
 beforeAll(async () => {
 	networkId = (await createNetwork("ai-routes-network")).id;
 	const now = new Date();
-	const future = new Date(Date.now() + 3_600_000);
-	await db.insert(serverKeys).values({ id: SRV, hash: "h_ai_routes", networkId, createdAt: now }).onConflictDoNothing();
-	await db.insert(editorSessions).values({
-		token: "url_ai_routes", serverKeyId: SRV, createdBy: "CONSOLE",
-		createdAt: now, expiresAt: future, accessToken: ACCESS, accessExpiresAt: future,
-	}).onConflictDoNothing();
+	const { id: serverKeyId, hash } = await generateServerKey();
+	await db.insert(serverKeys).values({ id: serverKeyId, hash, networkId, createdAt: now }).onConflictDoNothing();
 	await db.insert(projects).values({
-		id: PROJECT_ID, networkId, serverKeyId: SRV, name: "AI Routes",
+		id: PROJECT_ID, networkId, serverKeyId, name: "AI Routes",
 		hash: "", filesJson: "{}", createdAt: now, updatedAt: now,
 	}).onConflictDoNothing();
 	for (const [id, email] of [[USER_ID, "ai-routes@example.com"], [OUTSIDER_ID, "ai-routes-out@example.com"]] as const) {
@@ -70,7 +63,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await db.delete(aiModels);
-	await db.delete(editorSessions).where(eq(editorSessions.token, "url_ai_routes"));
 	await db.delete(networks).where(eq(networks.id, networkId));
 	await db.delete(users).where(eq(users.id, USER_ID));
 	await db.delete(users).where(eq(users.id, OUTSIDER_ID));
@@ -82,13 +74,12 @@ describe("GET /api/v1/ai/models", () => {
 	});
 
 	it("lists ACTIVE models only, with estimates at the model's prices", async () => {
-		const res = await app.request("/api/v1/ai/models", { headers: bearer });
+		const res = await app.request("/api/v1/ai/models", { headers: cookie() });
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.models.length).toBe(1);
 		expect(body.models[0].displayName).toBe("Active Model");
 		expect(body.defaultModelId).toBe(active.id);
-		expect(body.preferredModelId).toBeNull(); // sk: session
 		// chatMessage: ceil((2000·1000 + 500·2000)/1M) = 3
 		expect(body.models[0].estimates.chatMessage).toBe(3);
 		// menuMigration: ceil((10000·1000 + 3000·2000)/1M) = 16
@@ -105,30 +96,22 @@ describe("GET /api/v1/ai/models", () => {
 });
 
 describe("GET /api/v1/ai/balance", () => {
-	it("sk: session sees its project's network balance", async () => {
-		const res = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: bearer });
-		expect(res.status).toBe(200);
-		expect((await res.json()).balance).toBe(250);
-	});
-
 	it("user session requires a membership on the project's network", async () => {
 		const ok = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: cookie() });
 		expect(ok.status).toBe(200);
-		const out = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, {
-			headers: { Cookie: `artisan_user_session=${outsiderSession}` },
-		});
+		const out = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: outsiderCookie() });
 		expect(out.status).toBe(403);
 	});
 
 	it("404 for an unknown project", async () => {
-		const res = await app.request("/api/v1/ai/balance?projectId=ghost", { headers: bearer });
+		const res = await app.request("/api/v1/ai/balance?projectId=ghost", { headers: cookie() });
 		expect(res.status).toBe(404);
 	});
 
 	it("returns the per-bucket breakdown", async () => {
 		await grantCredits({ networkId, amount: 100, bucket: "subscription" });
 		await grantCredits({ networkId, amount: 50, bucket: "rollover" });
-		const res = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: bearer });
+		const res = await app.request(`/api/v1/ai/balance?projectId=${PROJECT_ID}`, { headers: cookie() });
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.subscription).toBe(100);
@@ -149,11 +132,7 @@ describe("PUT /api/v1/ai/preferred-model", () => {
 		expect(u.preferredAiModelId).toBe(active.id);
 	});
 
-	it("403 for sk: sessions; 400 for inactive/unknown models", async () => {
-		const sk = await app.request("/api/v1/ai/preferred-model", {
-			method: "PUT", headers: bearer, body: JSON.stringify({ modelId: active.id }),
-		});
-		expect(sk.status).toBe(403);
+	it("400 for inactive/unknown models", async () => {
 		const bad = await app.request("/api/v1/ai/preferred-model", {
 			method: "PUT", headers: cookie(), body: JSON.stringify({ modelId: inactive.id }),
 		});

@@ -140,8 +140,7 @@ export function buildAssistantRouter(): Hono {
 			return c.json({ error: "insufficient_credits", balance }, 402);
 
 		const settings = await getAiSettings();
-		const actorUserId = ownerKey.startsWith("user:") ? ownerKey.slice(5) : null;
-		const actorServerKeyId = ownerKey.startsWith("sk:") ? ownerKey.slice(3) : null;
+		const actorUserId = ownerKey.slice(5);
 
 		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
 		const wc = new WorkingCopy(menus, attachments, dialogs, commands);
@@ -172,7 +171,7 @@ export function buildAssistantRouter(): Hono {
 			const usageInput = () => ({
 				networkId,
 				userId: actorUserId,
-				serverKeyId: actorServerKeyId,
+				serverKeyId: null,
 				model: pm.model,
 				conversationId: conv.id,
 				usage: sumUsage(usages),
