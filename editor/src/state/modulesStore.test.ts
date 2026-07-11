@@ -33,7 +33,7 @@ beforeEach(() => {
   loadQuests.mockClear();
   vi.mocked(fetchActiveModules).mockClear();
   vi.mocked(fetchActiveModulesUser).mockClear();
-  useModulesStore.setState({ mountedIds: [], status: "idle" });
+  useModulesStore.setState({ mountedIds: [], status: "idle", loadedKey: null });
 });
 
 describe("useModulesStore.integrate — session source", () => {
@@ -58,7 +58,7 @@ describe("useModulesStore.integrate — session source", () => {
     expect(useModulesStore.getState().mountedIds).toEqual([]);
   });
 
-  it("is idempotent — a second call is a no-op while not idle", async () => {
+  it("is idempotent — a second call with the same source is a no-op while not idle", async () => {
     vi.mocked(fetchActiveModules).mockResolvedValue([{ id: "quests", version: "1.0.0" }]);
 
     await useModulesStore.getState().integrate({ token: "tok" });
@@ -88,6 +88,22 @@ describe("useModulesStore.integrate — user source", () => {
     expect(fetchActiveModules).not.toHaveBeenCalled();
     expect(loadQuests).toHaveBeenCalledTimes(1);
     expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
+    expect(useModulesStore.getState().status).toBe("ready");
+  });
+
+  it("refetches when the active source changes (server switch is not swallowed)", async () => {
+    vi.mocked(fetchActiveModulesUser).mockResolvedValueOnce([{ id: "quests", version: "1.0.0" }]);
+
+    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
+
+    vi.mocked(fetchActiveModulesUser).mockResolvedValueOnce([]);
+    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv2" });
+
+    expect(fetchActiveModulesUser).toHaveBeenCalledTimes(2);
+    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(1, "net1", "srv1");
+    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(2, "net1", "srv2");
+    expect(useModulesStore.getState().mountedIds).toEqual([]);
     expect(useModulesStore.getState().status).toBe("ready");
   });
 });
