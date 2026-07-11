@@ -11,8 +11,9 @@ import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { createNetwork } from "../lib/networkManager";
 import { addMembership } from "../lib/membershipManager";
-import { createProject, upsertProjectContent } from "../lib/projectStorage";
+import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { generateServerKey } from "../lib/auth";
+import { registerEditorConn } from "../ws/hub";
 
 async function clearAll() {
   await db.delete(assets);
@@ -47,7 +48,7 @@ async function seedUserWithPack(userId: string) {
     filesJson: '{"menus/m.yaml":"id: m"}',
     editorJson: `{"id":"${pack.id}","menus":[]}`,
   });
-  return { userId, sessionId: session.id, networkId: network.id, packId: pack.id };
+  return { userId, sessionId: session.id, networkId: network.id, packId: pack.id, skId };
 }
 
 function makeApp() {
@@ -209,5 +210,101 @@ describe("userProjectsRouter — PUT", () => {
       body: JSON.stringify({ hash: "h99", files: {}, editor: null }),
     });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("userProjectsRouter — POST /:projectId/draft", () => {
+  beforeEach(clearAll);
+
+  test("200 for member and broadcasts draft_update to other editor connections", async () => {
+    const { sessionId, packId, skId } = await seedUserWithPack("u1");
+    const app = makeApp();
+
+    const receivedByOther: string[] = [];
+    registerEditorConn("other-editor-conn", skId, (msg) => receivedByOther.push(msg));
+
+    const res = await app.request(`/api/v1/user/projects/${packId}/draft`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+
+    expect(receivedByOther.length).toBe(1);
+    const msg = JSON.parse(receivedByOther[0]) as { type: string; menu_id: string };
+    expect(msg.type).toBe("draft_update");
+    expect(msg.menu_id).toBe("shop_main");
+  });
+
+  test("403 — non-member cannot broadcast draft", async () => {
+    const { packId } = await seedUserWithPack("u1");
+    await db.insert(users).values({
+      id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const sess2 = await createSession("u2");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}/draft`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sess2.id}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ menu_id: "shop_main", menu_yaml: "title: Shop\n" }),
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("userProjectsRouter — DELETE /:projectId", () => {
+  beforeEach(clearAll);
+
+  test("200 — member soft-deletes project (row kept, deletedAt set)", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "DELETE",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.deleted).toBe(true);
+
+    const row = await getProject(packId);
+    expect(row).not.toBeNull(); // softDeleteProject keeps the row
+    expect(row?.deletedAt).not.toBeNull();
+  });
+
+  test("200 — DELETE is idempotent-guarded: second call 404s (already deleted)", async () => {
+    const { sessionId, packId } = await seedUserWithPack("u1");
+    const app = makeApp();
+
+    await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "DELETE",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    const res2 = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "DELETE",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res2.status).toBe(404);
+  });
+
+  test("403 — non-member cannot delete", async () => {
+    const { packId } = await seedUserWithPack("u1");
+    await db.insert(users).values({
+      id: "u2", email: "u2@a.b", name: "u2", passwordHash: null, avatarUrl: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    const sess2 = await createSession("u2");
+    const app = makeApp();
+    const res = await app.request(`/api/v1/user/projects/${packId}`, {
+      method: "DELETE",
+      headers: { Cookie: `artisan_user_session=${sess2.id}` },
+    });
+    expect(res.status).toBe(403);
+
+    const row = await getProject(packId);
+    expect(row?.deletedAt).toBeNull();
   });
 });

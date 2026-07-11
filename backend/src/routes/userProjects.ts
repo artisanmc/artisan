@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { projects as projectsTable } from "../db/schema";
-import { getMcVersion } from "../ws/hub";
+import { broadcastDraftUpdate, getMcVersion, pushProjectDeleted } from "../ws/hub";
 import { customItemsCacheDir, readCustomItems } from "../lib/customItems";
-import { getProject, upsertProjectContent } from "../lib/projectStorage";
+import { getProject, softDeleteProject, upsertProjectContent } from "../lib/projectStorage";
 import { getNetworkOfProject, requireMember } from "../lib/membershipGuard";
 import type { AuthUser } from "../middleware/userAuth";
 
@@ -193,4 +193,56 @@ userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) =>
   }
 
   return c.json({ ok: true, version: newVersion });
+});
+
+// POST /api/user/projects/:projectId/draft — broadcast a WIP menu edit to other
+// editor connections and the plugin (co-edit live preview). Twin of session
+// POST /:token/draft (editorSession.ts). The session version takes project_id
+// from the body since a session is scoped to a server_key, not a project; here
+// projectId comes from the URL (membership already scopes it), so the body
+// only carries menu_id/menu_yaml.
+userProjectsRouter.post("/:projectId/draft", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const projectId = c.req.param("projectId");
+  const networkId = await getNetworkOfProject(projectId);
+  if (networkId === null) return c.json({ error: "not_found" }, 404);
+
+  try {
+    await requireMember(userId, networkId);
+  } catch {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
+  const serverKeyId = await getServerKeyIdForProject(projectId);
+  if (!serverKeyId) return c.json({ error: "not_found" }, 404);
+
+  const body = await c.req.json<{ menu_id: string; menu_yaml: string }>();
+  broadcastDraftUpdate(serverKeyId, projectId, body.menu_id, body.menu_yaml, `user:${userId}`);
+  return c.json({ ok: true });
+});
+
+// DELETE /api/user/projects/:projectId — soft-delete + notify plugin/editor
+// connections. Twin of session DELETE /:token/projects/:projectId (editorSession.ts).
+userProjectsRouter.delete("/:projectId", async (c: Context<{ Variables: Vars }>) => {
+  const userId = getUserId(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+  const projectId = c.req.param("projectId");
+  const networkId = await getNetworkOfProject(projectId);
+  if (networkId === null) return c.json({ error: "not_found" }, 404);
+
+  try {
+    await requireMember(userId, networkId);
+  } catch {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
+  const project = await getProject(projectId);
+  if (!project || project.deletedAt) return c.json({ error: "not_found" }, 404);
+
+  await softDeleteProject(projectId);
+  await pushProjectDeleted(projectId);
+  return c.json({ deleted: true });
 });
