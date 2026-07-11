@@ -300,22 +300,22 @@ describe("POST /api/v1/user/projects/:projectId/assets/:id/duplicate", () => {
 
 // ─── Resource pack rebuild (user-scoped twin) ──────────────────────────────
 
-describe("POST /api/v1/user/networks/:networkId/servers/:serverId/resource-pack/rebuild", () => {
+describe("POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebuild", () => {
   beforeEach(clearAll);
 
   function makeRebuildApp() {
     const app = new Hono();
-    app.use("/api/v1/user/networks/*", userAuth());
+    app.use("/api/v1/networks/*", userAuth());
     // Mounted from userNetworksRouter — imported lazily to avoid circular init issues.
     const { userNetworksRouter } = require("./userNetworks");
-    app.route("/api/v1/user/networks", userNetworksRouter);
+    app.route("/api/v1/networks", userNetworksRouter);
     return app;
   }
 
   test("200 for a member — rebuilds and returns pack info", async () => {
     const { sessionId, networkId, serverKeyId } = await seedUserWithProject("u1");
     const app = makeRebuildApp();
-    const res = await app.request(`/api/v1/user/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${sessionId}` },
     });
@@ -329,7 +329,7 @@ describe("POST /api/v1/user/networks/:networkId/servers/:serverId/resource-pack/
     const { networkId, serverKeyId } = await seedUserWithProject("u1");
     const outsiderSession = await addOutsider();
     const app = makeRebuildApp();
-    const res = await app.request(`/api/v1/user/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {
+    const res = await app.request(`/api/v1/networks/${networkId}/servers/${serverKeyId}/resource-pack/rebuild`, {
       method: "POST",
       headers: { Cookie: `artisan_user_session=${outsiderSession}` },
     });
