@@ -22,14 +22,11 @@ import {
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project as ProjectType } from "@/domain/types";
 import type { Project, ProjectId } from "@/domain/types";
-import { useAssetStore } from "@/features/assets/assetStore";
 import { transform } from "@/features/export/transform";
 import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserProject } from "@/lib/api/userProjects";
-import { DeployError, deployProject, getDeployedProject, updateAsset } from "@/lib/projectApi";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, Redo2, Search, Sparkles, Undo2 } from "lucide-react";
@@ -317,46 +314,6 @@ function SearchButton() {
   );
 }
 
-/**
- * MC font rendering: glyph_top_ingame = 13 - ascent (empirically confirmed).
- * For editor layer.y to equal glyph_top_ingame:
- *   desiredAscent = 13 - layer.y = TITLE_LABEL_Y - layer.y.
- * Must match the constant in LayerEditForm.tsx.
- */
-const TITLE_LABEL_Y = 13;
-
-/**
- * Before deploying, ensure every glyph layer's asset.ascent is in sync with
- * its layer.y (ascent = TITLE_LABEL_Y - layer.y). This is the ONLY moment we
- * PATCH assets and rebuild the resource pack — we deliberately skip this on
- * every drag to avoid triggering a RP rebuild on every mouse move.
- *
- * If an asset is reused across multiple layers at different y positions, the
- * last value wins (known limitation until per-layer ascent is supported).
- */
-async function syncGlyphAscents(pack: Project, token: string, projectId: string): Promise<void> {
-  const assets = useAssetStore.getState().assets;
-  const patches: Promise<void>[] = [];
-  const seen = new Set<string>();
-
-  for (const menu of pack.menus) {
-    for (const layer of menu.title) {
-      if (layer.kind !== "glyph") continue;
-      const asset = assets.find((a) => a.id === layer.assetId);
-      if (!asset) continue;
-      const desiredAscent = TITLE_LABEL_Y - layer.y;
-      if (asset.ascent === desiredAscent || seen.has(asset.id)) continue;
-      seen.add(asset.id);
-      patches.push(
-        updateAsset(token, projectId, asset.id, { ascent: desiredAscent }).then((updated) => {
-          useAssetStore.getState().upsertAsset(updated);
-        }),
-      );
-    }
-  }
-  await Promise.all(patches);
-}
-
 function DeployButtons({
   pack,
   projectId,
@@ -367,31 +324,24 @@ function DeployButtons({
   networkId: string | null;
 }) {
   const { t } = useTranslation();
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const replaceProject = useAccountStore((s) => s.replaceProject);
   const [deploying, setDeploying] = useState(false);
   const [reverting, setReverting] = useState(false);
 
-  // Deploy AND Revert work in BOTH modes:
-  //   - Session mode: rekey + transform + deployProject (legacy deployed-snapshot
-  //     on the editor_session); Revert pulls that snapshot back via
-  //     getDeployedProject.
-  //   - User-auth mode: rekey + transform + saveUserProject (guarantees fresh
-  //     WIP) + createCommit (snapshots, advances branch, broadcasts
-  //     bundle_available); Revert pulls the branch's HEAD commit content
-  //     via getBranchHead and replaces local state.
-  const canSession = Boolean(token);
-  const canUserAuth = Boolean(user && networkId);
-  const canDeploy = canSession || canUserAuth;
-  const canRevert = canSession || canUserAuth;
+  // Deploy: rekey + transform + saveUserProject (guarantees fresh WIP) +
+  // createCommit (snapshots, advances branch, broadcasts bundle_available).
+  // Revert: pulls the branch's HEAD commit content via getBranchHead and
+  // replaces local state.
+  const canDeploy = Boolean(user && networkId);
+  const canRevert = Boolean(user && networkId);
   const deployDisabledTitle = t("deploy.cannotDeployTitle");
   const revertDisabledTitle = t("deploy.cannotRevertTitle");
   const isPublishDisabled = deploying || !canDeploy;
   const isRevertDisabled = reverting || !canRevert;
 
   const handleDeploy = async () => {
-    if (!canDeploy) {
+    if (!canDeploy || !networkId) {
       toast.info(deployDisabledTitle);
       return;
     }
@@ -402,65 +352,44 @@ function DeployButtons({
       rekeyProject(cloned);
       const files = transform(cloned);
 
-      if (token) {
-        // Session mode: sync glyph ascents (rebuilds RP for correct Y), then
-        // push the deployed snapshot.
-        await syncGlyphAscents(pack, token, projectId);
-        await deployProject(token, pack, files);
-      } else if (user && networkId) {
-        // User-auth: persist the freshly-rekey'd WIP, then commit. The commit
-        // endpoint broadcasts bundle_available, so any plugin bound to this
-        // pack picks up the new content via the WS hub.
-        await saveUserProject(pack.id, { hash: "", files, editor: pack });
-        await createCommit(networkId, projectId, "main", "Deploy");
-      }
+      // Persist the freshly-rekey'd WIP, then commit. The commit endpoint
+      // broadcasts bundle_available, so any plugin bound to this pack picks
+      // up the new content via the WS hub.
+      await saveUserProject(pack.id, { hash: "", files, editor: pack });
+      await createCommit(networkId, projectId, "main", "Deploy");
       toast.success(t("deploy.deployedToast"));
     } catch (e) {
-      if (e instanceof DeployError && e.code === "session_not_trusted") {
-        // Banner is shown automatically — no toast needed
-      } else {
-        toast.error(e instanceof Error ? e.message : t("deploy.deployFailed"));
-      }
+      toast.error(e instanceof Error ? e.message : t("deploy.deployFailed"));
     } finally {
       setDeploying(false);
     }
   };
 
   const handleRevert = async () => {
-    if (!canRevert) {
+    if (!canRevert || !networkId) {
       toast.info(revertDisabledTitle);
       return;
     }
     if (reverting) return;
     setReverting(true);
     try {
-      if (token) {
-        // Session mode: pull the deployed snapshot.
-        const deployed = await getDeployedProject(token, pack.id);
-        if (!deployed) {
-          toast.info(t("deploy.revertNothing"));
-          return;
-        }
-        replaceProject(deployed);
-      } else if (user && networkId) {
-        // User-auth: pull the branch HEAD commit's editor state. If the WIP
-        // matches the HEAD already (no edits since the last commit), there's
-        // nothing to restore — same UX as session mode's "revertNothing".
-        const head = await getBranchHead(networkId, projectId, "main");
-        if (!head) {
-          toast.info(t("deploy.revertNothing"));
-          return;
-        }
-        // The backend returns `editor` as the raw EditorState JSON the
-        // commit captured. Merge with the current pack's identity fields
-        // (id, name) so replaceProject receives a fully-typed Project object.
-        const restored = {
-          ...(head.editor as Partial<ProjectType>),
-          id: pack.id,
-          name: pack.name,
-        } as ProjectType;
-        replaceProject(restored);
+      // Pull the branch HEAD commit's editor state. If the WIP matches the
+      // HEAD already (no edits since the last commit), there's nothing to
+      // restore.
+      const head = await getBranchHead(networkId, projectId, "main");
+      if (!head) {
+        toast.info(t("deploy.revertNothing"));
+        return;
       }
+      // The backend returns `editor` as the raw EditorState JSON the
+      // commit captured. Merge with the current pack's identity fields
+      // (id, name) so replaceProject receives a fully-typed Project object.
+      const restored = {
+        ...(head.editor as Partial<ProjectType>),
+        id: pack.id,
+        name: pack.name,
+      } as ProjectType;
+      replaceProject(restored);
       toast.success(t("deploy.reverted"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("deploy.revertFailed"));
