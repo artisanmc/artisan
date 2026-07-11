@@ -8,7 +8,6 @@ import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -43,7 +42,6 @@ function RootLayoutInner() {
   usePostHogPageView();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
-  const sessionToken = useSessionStore((s) => s.accessToken);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
   const sidebarOpen = useSidebarStore((s) => s.isOpen);
@@ -52,11 +50,11 @@ function RootLayoutInner() {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
-  // User-auth mode (no plugin session): presence + live draft WS as soon as
-  // the active network+server pair is known — cf. ProjectSidebar which
-  // resolves `activeServerId` to the exact server_key id (not a slug).
+  // Presence + live draft WS as soon as the active network+server pair is
+  // known — cf. ProjectSidebar which resolves `activeServerId` to the exact
+  // server_key id (not a slug).
   useEffect(() => {
-    if (sessionToken || !user || !activeNetworkId || !activeServerId) return;
+    if (!user || !activeNetworkId || !activeServerId) return;
     useModulesStore.getState().integrate({ networkId: activeNetworkId, serverId: activeServerId });
     useServerDataSourcesStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
 
@@ -64,7 +62,7 @@ function RootLayoutInner() {
     let ws: EditorWs | null = null;
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     EditorWs.connectAsUser(apiUrl, (_projectId, menuId) => {
-      toast(t("sessionPage.draftConflict", { menuId }));
+      toast(t("sync.draftConflict", { menuId }));
     })
       .then((connected) => {
         if (cancelled) {
@@ -82,8 +80,8 @@ function RootLayoutInner() {
       cancelled = true;
       ws?.disconnect();
     };
-  }, [sessionToken, user, activeNetworkId, activeServerId, t]);
-  const showSidebar = !!user || !!sessionToken;
+  }, [user, activeNetworkId, activeServerId, t]);
+  const showSidebar = !!user;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -131,18 +129,13 @@ function usePostHogPageView() {
 }
 
 export function useProjectAutoSave() {
-  // Subscribe whenever EITHER auth mode is live: session token (trust dance
-  // via `/artisan setup`) OR signed-in user (signup/login). Previously this
-  // hook only ran in session mode, so user-auth edits were silently dropped
-  // (real incident on 2026-06-02 — user wrote menus that never persisted).
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track which projects need saving: projectId → Project snapshot
   const pendingRef = useRef<Map<string, Project>>(new Map());
 
   useEffect(() => {
-    if (!token && !user) return;
+    if (!user) return;
 
     const unsubscribe = useAccountStore.subscribe((state, prev) => {
       if (state.account === prev.account) return;
@@ -158,18 +151,17 @@ export function useProjectAutoSave() {
       timerRef.current = setTimeout(async () => {
         const toSave = new Map(pendingRef.current);
         pendingRef.current.clear();
-        // Re-read auth state fresh — the user may have logged in / out
-        // between the change and the debounce firing.
-        const currentToken = useSessionStore.getState().accessToken;
+        // Re-read auth state fresh — the user may have logged out between the
+        // change and the debounce firing.
         const currentUser = useAuthStore.getState().currentUser;
-        if (!currentToken && !currentUser) return;
+        if (!currentUser) return;
         for (const [, pack] of toSave) {
           // A conflicted project must not keep re-pushing stale state over the
           // newer server version — the conflict banner asks for a reload.
           if (useProjectVersionStore.getState().conflicts[pack.id]) continue;
           // Version conflicts are surfaced via the store (banner); other save
           // errors are still swallowed — the user sees a stale "saving" indicator.
-          await persistProject(pack, !!currentUser).catch(() => {});
+          await persistProject(pack, true).catch(() => {});
         }
       }, 2000);
     });
@@ -178,5 +170,5 @@ export function useProjectAutoSave() {
       unsubscribe();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [token, user]);
+  }, [user]);
 }

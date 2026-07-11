@@ -528,6 +528,7 @@ const fr: typeof en = {
       cancel: "Annuler",
       confirm: "Supprimer",
     },
+    draftConflict: 'Menu "{{menuId}}" mis à jour par un autre éditeur.',
   },
   patterns: {
     title: "Aide-mémoire",
@@ -1228,16 +1229,8 @@ const fr: typeof en = {
       noKey: "(aucune clé générée)",
     },
   },
-  trustGate: {
-    title: "Vérification requise",
-    description: "Tape cette commande dans Minecraft pour débloquer l'éditeur :",
-    copy: "Copier",
-    copied: "Copié",
-    waiting: "En attente de confirmation…",
-  },
-  trustBanner: {
-    deployDisabled: "Deploy désactivé.",
-    typeInGame: "Tape en jeu :",
+  sessionGone: {
+    message: "Les liens de session n'existent plus — connecte-toi pour éditer.",
   },
   linkPage: {
     eyebrow: "Artisan link",
@@ -1287,21 +1280,6 @@ const fr: typeof en = {
       unauthorized: "Tu dois être connecté.",
       unknown: "Erreur inconnue.",
     },
-  },
-  sessionPage: {
-    eyebrow: "Session Artisan",
-    invalid: "Session invalide",
-    invalidHint: "Relance <1>{{cmd}}</1> sur ton serveur Minecraft.",
-    alreadyUsed: "Lien déjà utilisé",
-    expired: "Session expirée",
-    expiredHint: "Relance <1>{{cmd}}</1> sur ton serveur Minecraft pour obtenir un nouveau lien.",
-    loading: "Chargement…",
-    firstProjectEyebrow: "Premier projet",
-    noProject: "Aucun projet",
-    noProjectBody: "Crée ton premier projet pour commencer à composer tes menus.",
-    idLabel: "Identifiant",
-    create: "Créer",
-    draftConflict: 'Menu "{{menuId}}" mis à jour par un autre éditeur.',
   },
   transferPage: {
     eyebrow: "Network transfer",

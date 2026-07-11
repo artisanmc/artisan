@@ -1,7 +1,5 @@
-// User-auth twin of the asset functions in `lib/projectApi.ts` — same return
-// shapes, cookie auth (`credentials: "include"`) instead of a session token,
-// hitting `userAssetsRouter` (backend/src/routes/userAssets.ts) instead of
-// `/api/v1/editor-session/:token/...`.
+// Asset CRUD — cookie auth (`credentials: "include"`), hitting
+// `userAssetsRouter` (backend/src/routes/userAssets.ts).
 import type { Asset, AssetType } from "@/domain/asset";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";

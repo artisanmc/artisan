@@ -518,6 +518,7 @@ export default {
       cancel: "Cancel",
       confirm: "Delete",
     },
+    draftConflict: 'Menu "{{menuId}}" updated by another editor.',
   },
   patterns: {
     title: "Cheat sheet",
@@ -1215,16 +1216,8 @@ export default {
       noKey: "(no key generated)",
     },
   },
-  trustGate: {
-    title: "Verification required",
-    description: "Type this command in Minecraft to unlock the editor:",
-    copy: "Copy",
-    copied: "Copied",
-    waiting: "Waiting for confirmation…",
-  },
-  trustBanner: {
-    deployDisabled: "Deploy disabled.",
-    typeInGame: "Type in-game:",
+  sessionGone: {
+    message: "Session links no longer exist — sign in to edit.",
   },
   linkPage: {
     eyebrow: "Artisan link",
@@ -1274,21 +1267,6 @@ export default {
       unauthorized: "You must be signed in.",
       unknown: "Unknown error.",
     },
-  },
-  sessionPage: {
-    eyebrow: "Artisan session",
-    invalid: "Invalid session",
-    invalidHint: "Run <1>{{cmd}}</1> on your Minecraft server.",
-    alreadyUsed: "Link already used",
-    expired: "Session expired",
-    expiredHint: "Run <1>{{cmd}}</1> on your Minecraft server to get a new link.",
-    loading: "Loading…",
-    firstProjectEyebrow: "First project",
-    noProject: "No project",
-    noProjectBody: "Create your first project to start composing menus.",
-    idLabel: "Identifier",
-    create: "Create",
-    draftConflict: 'Menu "{{menuId}}" updated by another editor.',
   },
   transferPage: {
     eyebrow: "Network transfer",
