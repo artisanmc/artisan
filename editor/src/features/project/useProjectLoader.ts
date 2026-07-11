@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { useSessionStore } from "@/state/sessionStore";
 import { useAuthStore } from "@/state/authStore";
 import { useAccountStore } from "@/state/accountStore";
-import { loadProjects } from "@/lib/projectApi";
 import { loadUserProject } from "@/lib/api/userProjects";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
@@ -33,69 +31,54 @@ function emptyProject(id: string, name: string): Project {
   };
 }
 
-export type ProjectLoadMode = "session" | "user";
-
 export interface ProjectLoadResult {
   pack: Project | null;
   networkId: string | null;
   error: string | null;
-  mode: ProjectLoadMode | null;
 }
 
 export function useProjectLoader(projectId: string): ProjectLoadResult {
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const [pack, setProject] = useState<Project | null>(null);
   const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<ProjectLoadMode | null>(null);
 
   useEffect(() => {
     setError(null);
-    if (token) {
-      setMode("session");
-      loadProjects(token)
-        .then((projects) => {
-          const found = projects.find((p) => p.id === projectId);
-          if (found) setProject(found);
-          else setError("Project not bound to this session");
-        })
-        .catch((e) => setError((e as Error).message));
-    } else if (user) {
-      setMode("user");
-      loadUserProject(projectId)
-        .then((res) => {
-          // loadUserProject returns { project, files, editor, networkId }; editor is the full Project JSON.
-          // Fresh projects have editor=null server-side — fall back to an empty Project shape.
-          const loaded = (res.editor as Project | null) ?? emptyProject(res.project.id, res.project.name);
-          setProject(loaded);
-          setNetworkId(res.networkId);
-          // Mirror into accountStore so descendants (FlowCanvas, EditorPane,
-          // ProjectProperties, …) that read from useAccountStore.account.projects
-          // can find it. We MUST preserve the existing projects array + projectOrder
-          // — overwriting them clobbered the sidebar's sort, which made every
-          // workspace click yank the visited pack to position 0.
-          const current = useAccountStore.getState().account;
-          const idx = current.projects.findIndex((p) => p.id === loaded.id);
-          const nextProjects =
-            idx === -1
-              ? [...current.projects, loaded]
-              : current.projects.map((p, i) => (i === idx ? loaded : p));
-          const loadedId = loaded.id as ProjectId;
-          const nextOrder = current.projectOrder.includes(loadedId)
-            ? current.projectOrder
-            : [...current.projectOrder, loadedId];
-          useAccountStore.getState().setAccount({
-            id: res.networkId as Account["id"],
-            projects: nextProjects,
-            projectOrder: nextOrder,
-          });
-        })
-        .catch((e) => setError((e as Error).message));
-    } else {
+    if (!user) {
       setError("Not authenticated");
+      return;
     }
-  }, [projectId, token, user]);
+    loadUserProject(projectId)
+      .then((res) => {
+        // loadUserProject returns { project, files, editor, networkId }; editor is the full Project JSON.
+        // Fresh projects have editor=null server-side — fall back to an empty Project shape.
+        const loaded = (res.editor as Project | null) ?? emptyProject(res.project.id, res.project.name);
+        setProject(loaded);
+        setNetworkId(res.networkId);
+        // Mirror into accountStore so descendants (FlowCanvas, EditorPane,
+        // ProjectProperties, …) that read from useAccountStore.account.projects
+        // can find it. We MUST preserve the existing projects array + projectOrder
+        // — overwriting them clobbered the sidebar's sort, which made every
+        // workspace click yank the visited pack to position 0.
+        const current = useAccountStore.getState().account;
+        const idx = current.projects.findIndex((p) => p.id === loaded.id);
+        const nextProjects =
+          idx === -1
+            ? [...current.projects, loaded]
+            : current.projects.map((p, i) => (i === idx ? loaded : p));
+        const loadedId = loaded.id as ProjectId;
+        const nextOrder = current.projectOrder.includes(loadedId)
+          ? current.projectOrder
+          : [...current.projectOrder, loadedId];
+        useAccountStore.getState().setAccount({
+          id: res.networkId as Account["id"],
+          projects: nextProjects,
+          projectOrder: nextOrder,
+        });
+      })
+      .catch((e) => setError((e as Error).message));
+  }, [projectId, user]);
 
-  return { pack, networkId, error, mode };
+  return { pack, networkId, error };
 }
