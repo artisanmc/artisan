@@ -249,6 +249,11 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `STRIPE_SECRET_KEY` | (vide) | Clé secrète Stripe (sub-projet B). Lue par la gateway réelle ; les tests injectent une fake. Vide en dev/test. |
 | `STRIPE_WEBHOOK_SECRET` | (vide) | Secret de vérification signature webhook Stripe (sub-projet B2). |
 | `BILLING_GRACE_DAYS` | `7` | Jours de grâce après un échec de paiement d'abonnement (`invoice.payment_failed`) avant suspension (`status=past_due` + `grace_until`). Lu au moment du webhook. |
+| `SMTP_HOST` | (vide) | Hôte SMTP pour l'envoi d'emails transactionnels (Scaleway TEM : `smtp.tem.scw.cloud`). Vide = `getMailer()` renvoie un mailer no-op (log WARN une seule fois). |
+| `SMTP_PORT` | `587` | Port SMTP (Scaleway TEM : `587`). |
+| `SMTP_USER` | (vide) | Identifiant SMTP. |
+| `SMTP_PASS` | (vide) | Mot de passe / clé SMTP. |
+| `MAIL_FROM` | (vide) | Adresse expéditeur (`From:`) des emails transactionnels. |
 
 ### Resource pack distribution modes
 
