@@ -50,6 +50,15 @@ export async function saveUserProject(
   if (typeof data.version === "number") store.setVersion(projectId, data.version);
 }
 
+/** DELETE /api/v1/user/projects/:projectId — twin of `deleteProject` in `lib/projectApi.ts`. */
+export async function deleteUserProject(projectId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`deleteUserProject failed: ${res.status}`);
+}
+
 // User-auth-mode item bundle endpoints. The vanilla bundle falls back to the
 // newest available items.json file when no MC version is known for any of the
 // pack's bindings (e.g., server hasn't connected yet) so the Library panel

@@ -7,7 +7,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { deleteProject } from "@/lib/projectApi";
+import { deleteUserProject } from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,6 +27,7 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
   const [confirm, setConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const removeProject = useAccountStore((s) => s.removeProject);
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
   const { t } = useTranslation();
@@ -33,10 +36,11 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
   const canDelete = confirm === projectId;
 
   const handleDelete = async () => {
-    if (!canDelete || !token || deleting) return;
+    if (!canDelete || (!token && !user) || deleting) return;
     setDeleting(true);
     try {
-      await deleteProject(token, projectId);
+      if (token) await deleteProject(token, projectId);
+      else await deleteUserProject(projectId);
       removeProject(projectId);
       const remaining = projectOrder.filter((id) => id !== projectId);
       if (remaining.length > 0) {

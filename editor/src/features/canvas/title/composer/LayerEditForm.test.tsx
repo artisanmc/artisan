@@ -33,8 +33,17 @@ vi.mock("@/lib/projectApi", async () => {
     duplicateAsset: vi.fn(),
   };
 });
+vi.mock("@/lib/api/userAssets", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/userAssets")>("@/lib/api/userAssets");
+  return {
+    ...actual,
+    duplicateAsset: vi.fn(),
+  };
+});
 
 import { duplicateAsset } from "@/lib/projectApi";
+import { duplicateAsset as duplicateAssetUser } from "@/lib/api/userAssets";
+import { useAuthStore } from "@/state/authStore";
 
 const PACK_ID = "p1" as ProjectId;
 const MENU_ID = "m1" as MenuId;
@@ -108,8 +117,10 @@ beforeEach(() => {
     trustCode: null,
     trusted: true,
   } as any);
+  useAuthStore.setState({ currentUser: null } as any);
   seedProject([]);
   vi.mocked(duplicateAsset).mockReset();
+  vi.mocked(duplicateAssetUser).mockReset();
 });
 
 afterEach(() => {
@@ -220,6 +231,23 @@ describe("LayerEditForm — image layer (glyph)", () => {
     expect(duplicateAsset).not.toHaveBeenCalled();
     const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
     expect((layer as any).assetId).toBe("g1");
+  });
+
+  it("Duplicate glyph (user mode, no session) → calls the user-scoped API", async () => {
+    useSessionStore.setState({ accessToken: null, serverKeyId: null, trustCode: null, trusted: false } as any);
+    useAuthStore.setState({ currentUser: { id: "u1" } } as any);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const dup = makeAsset(A("g2"), "coin (copy)");
+    vi.mocked(duplicateAssetUser).mockResolvedValue(dup);
+
+    render(<LayerEditForm projectId={PACK_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: /dupliquer l'image/i }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(duplicateAssetUser).toHaveBeenCalledWith("p1", "g1");
+    expect(duplicateAsset).not.toHaveBeenCalled();
+    const layer = useAccountStore.getState().account.projects[0]!.menus[0]!.title[0]!;
+    expect((layer as any).assetId).toBe("g2");
   });
 });
 

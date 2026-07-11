@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
 import { uploadAsset } from "@/lib/projectApi";
+import { uploadAsset as uploadAssetUser } from "@/lib/api/userAssets";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
@@ -24,6 +26,7 @@ interface AssetUploadDialogProps {
  */
 export function AssetUploadDialog({ projectId, open, onClose }: AssetUploadDialogProps) {
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
   const [name, setName] = useState("");
@@ -38,18 +41,16 @@ export function AssetUploadDialog({ projectId, open, onClose }: AssetUploadDialo
   };
 
   const onSubmit = async () => {
-    if (!token || !file || !name) return;
+    if ((!token && !user) || !file || !name) return;
     setBusy(true);
     setError(null);
     try {
-      const asset = await uploadAsset(token, projectId, {
-        file,
-        // Always `glyph` — see the component docblock for the rationale.
-        // The backend allocates a font codepoint for glyph uploads, which
-        // makes the asset usable everywhere (titles + slot icons).
-        type: "glyph",
-        name,
-      });
+      // Always `glyph` — see the component docblock for the rationale.
+      // The backend allocates a font codepoint for glyph uploads, which
+      // makes the asset usable everywhere (titles + slot icons).
+      const asset = token
+        ? await uploadAsset(token, projectId, { file, type: "glyph", name })
+        : await uploadAssetUser(projectId, { file, type: "glyph", name });
       upsertAsset(asset);
       reset();
       onClose();

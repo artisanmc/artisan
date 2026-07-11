@@ -2,9 +2,12 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import type { Project } from "@/domain/types";
 import { persistProject } from "@/features/project/persistProject";
+import { EditorWs } from "@/lib/editorWs";
 import { useProjectVersionStore } from "@/state/projectVersionStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useNetworksStore } from "@/state/networksStore";
+import { useServersStore } from "@/state/serversStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
@@ -14,6 +17,8 @@ import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router"
 import { Menu } from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
   api_host: import.meta.env.VITE_POSTHOG_HOST,
@@ -36,8 +41,11 @@ export function RootLayout() {
 function RootLayoutInner() {
   useProjectAutoSave();
   usePostHogPageView();
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const sessionToken = useSessionStore((s) => s.accessToken);
+  const activeNetworkId = useNetworksStore((s) => s.activeId);
+  const activeServerId = useServersStore((s) => s.activeServerId);
   const sidebarOpen = useSidebarStore((s) => s.isOpen);
   const closeSidebar = useSidebarStore((s) => s.close);
   useEffect(() => {
@@ -46,10 +54,41 @@ function RootLayoutInner() {
   }, []);
   useEffect(() => {
     if (sessionToken) {
-      useModulesStore.getState().integrate(sessionToken);
-      useServerDataSourcesStore.getState().load(sessionToken);
+      useModulesStore.getState().integrate({ token: sessionToken });
+      useServerDataSourcesStore.getState().load({ token: sessionToken });
     }
   }, [sessionToken]);
+  // User-auth mode (no plugin session): presence + live draft WS as soon as
+  // the active network+server pair is known — cf. ProjectSidebar which
+  // resolves `activeServerId` to the exact server_key id (not a slug).
+  useEffect(() => {
+    if (sessionToken || !user || !activeNetworkId || !activeServerId) return;
+    useModulesStore.getState().integrate({ networkId: activeNetworkId, serverId: activeServerId });
+    useServerDataSourcesStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
+
+    let cancelled = false;
+    let ws: EditorWs | null = null;
+    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+    EditorWs.connectAsUser(apiUrl, (_projectId, menuId) => {
+      toast(t("sessionPage.draftConflict", { menuId }));
+    })
+      .then((connected) => {
+        if (cancelled) {
+          connected.disconnect();
+          return;
+        }
+        ws = connected;
+      })
+      .catch(() => {
+        // No WS ticket (e.g. cookie expired mid-session) — presence/assets
+        // still work over REST, live co-edit notices are simply unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+      ws?.disconnect();
+    };
+  }, [sessionToken, user, activeNetworkId, activeServerId, t]);
   const showSidebar = !!user || !!sessionToken;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
