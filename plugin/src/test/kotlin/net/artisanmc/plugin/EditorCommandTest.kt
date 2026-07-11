@@ -1,31 +1,91 @@
 package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
+import net.artisanmc.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.provider.MenuProvider
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import org.bukkit.entity.Player
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class EditorCommandTest {
 
+    private val plain = PlainTextComponentSerializer.plainText()
+
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest  fun teardown() { MockBukkit.unmock() }
 
+    /** Stub [MenuProvider] whose [editorInfo] can be fixed per test. */
+    private class StubProvider(private val info: Pair<String, String>?) : MenuProvider {
+        override fun load() {}
+        override fun findMenu(menuId: String): BundleMenu? = null
+        override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
+        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun editorInfo(): Pair<String, String>? = info
+    }
+
+    private fun drainMessages(sender: be.seeseemelk.mockbukkit.command.ConsoleCommandSenderMock): List<String> {
+        val out = mutableListOf<String>()
+        while (true) {
+            val next = sender.nextComponentMessage() ?: break
+            out += plain.serialize(next)
+        }
+        return out
+    }
+
     @Test
-    fun `editor subcommand is accepted without exception`() {
+    fun `editor on a linked server prints the static editor url and network name`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        plugin.setMenuProviderForTesting(StubProvider("http://localhost:5173" to "Test"))
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!
         val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor"))
         assertTrue(result, "Command should return true")
+
+        val messages = drainMessages(sender)
+        assertTrue(messages.any { it.contains("http://localhost:5173") }, "Expected the editor URL in output: $messages")
+        assertTrue(messages.any { it.contains("Test") }, "Expected the network name in output: $messages")
     }
 
     @Test
-    fun `editor revoke subcommand is accepted without exception`() {
+    fun `editor on a keyless server routes to the link flow hint`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        plugin.setMenuProviderForTesting(StubProvider(null))
+        val sender = MockBukkit.getMock()!!.consoleSender
+        val cmd = plugin.getCommand("artisan")!!
+        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor"))
+        assertTrue(result, "Command should return true (no exception)")
+    }
+
+    @Test
+    fun `setup on a linked server is refused`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        plugin.config.set("server_key", "sk_" + "a".repeat(64))
+        val sender = MockBukkit.getMock()!!.consoleSender
+        val cmd = plugin.getCommand("artisan")!!
+        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("setup"))
+        assertTrue(result, "Command should return true")
+
+        val messages = drainMessages(sender)
+        assertTrue(messages.any { it.contains("already linked", ignoreCase = true) || it.contains("déjà lié", ignoreCase = true) },
+            "Expected an already-linked refusal message: $messages")
+    }
+
+    @Test
+    fun `trusteditor is no longer a subcommand`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!
-        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor", "revoke"))
+        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("trusteditor", "X"))
         assertTrue(result, "Command should return true")
+
+        val messages = drainMessages(sender)
+        assertTrue(messages.any { it.contains("Usage") }, "Expected fallback usage message: $messages")
+        assertFalse(messages.any { it.contains("trust", ignoreCase = true) && it.contains("sent", ignoreCase = true) })
     }
 }

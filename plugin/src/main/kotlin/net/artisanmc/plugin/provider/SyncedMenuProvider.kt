@@ -84,9 +84,9 @@ class SyncedMenuProvider(
     }
 
     private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
-    @Volatile private var editorSessionCallback: ((url: String, expiresAt: String) -> Unit)? = null
-    @Volatile private var lastTrustCode: String? = null
     @Volatile private var apiUrl: String? = null
+    @Volatile private var editorUrl: String? = null
+    @Volatile private var networkName: String? = null
     @Volatile private var customItemsManager: CustomItemsManager = CustomItemsManager(emptyList())
     @Volatile private var resourcePackManagerRef: ResourcePackManager? = null
 
@@ -143,17 +143,9 @@ class SyncedMenuProvider(
         httpClient.dispatcher.executorService.awaitTermination(5, TimeUnit.SECONDS)
     }
 
-    override fun requestEditorSession(sender: String, onReady: (url: String, expiresAt: String) -> Unit) {
-        editorSessionCallback = onReady
-        wsClient?.send(mapOf("type" to "editor_session_request", "sender" to sender))
-    }
-
-    override fun revokeEditorSessions() {
-        wsClient?.send(mapOf("type" to "editor_session_revoke"))
-    }
-
-    override fun sendTrustRequest(code: String) {
-        wsClient?.send(mapOf("type" to "editor_trust_request", "trust_code" to code))
+    override fun editorInfo(): Pair<String, String>? {
+        val url = editorUrl ?: return null
+        return url to (networkName ?: "")
     }
 
     override fun findMenu(menuId: String): BundleMenu? = draftMenus[menuId] ?: menus[menuId]
@@ -234,6 +226,8 @@ class SyncedMenuProvider(
                 logger?.info("Connected to Artisan backend (session=$sessionId)")
 
                 apiUrl = node["bundle_url"]?.asText() ?: node["api_url"]?.asText()
+                editorUrl = node["editor_url"]?.asText() ?: editorUrl
+                networkName = node["network_name"]?.asText() ?: networkName
 
                 val rpNode = node["resource_pack"]
                 if (rpNode == null || rpNode.isNull) {
@@ -335,22 +329,6 @@ class SyncedMenuProvider(
                 val parsed   = runCatching { yamlMapper.readValue(menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
                 draftMenus[menuId] = BundleCompiler.compile(parsed, emptyMap(), logger)
                 logger?.info("Draft updated for $menuId")
-            }
-
-            "editor_session_ready" -> {
-                val url = node["url"]?.asText() ?: return
-                val expiresAt = run {
-                    val raw = node["expires_at"]?.asText() ?: return
-                    try {
-                        val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm")
-                            .withZone(java.time.ZoneId.systemDefault())
-                        fmt.format(java.time.Instant.parse(raw))
-                    } catch (_: Exception) { raw }
-                }
-                lastTrustCode = node["trust_code"]?.asText()
-                val cb = editorSessionCallback
-                editorSessionCallback = null
-                cb?.invoke(url, expiresAt)
             }
 
             "custom_items_request" -> {
