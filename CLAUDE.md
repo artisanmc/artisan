@@ -56,6 +56,8 @@ cd plugin
 - `/artisan menu <projectId> <menuId>` — open menu editor session
 - `/artisan reload` — reload all projects from disk
 - `/artisan pushLocal <projectId>` — push local project changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
+- `/artisan editor` — **purement informatif**, accounts-only (aucune session/trust en jeu). Linké + connecté → imprime l'URL statique de l'éditeur + le nom du network (`editor_url`/`network_name` de `hello_ack`). Linké mais pas encore connecté → « connecting, retry shortly ». Pas linké → hint + délègue au flow `/artisan setup`.
+- `/artisan setup [code]` — flow de link (code de pairing cliquable, claim web avec compte requis). Refuse avec un message si le serveur est déjà linké.
 
 ### Backend (Bun + Hono + PostgreSQL)
 
@@ -199,9 +201,9 @@ Détail des couches de tokens : `docs/architecture/editor-internals.md` (section
 
 **Reload atomique** — `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` entier, puis l'assigne à `@Volatile var menus`. Ne jamais modifier le map en place.
 
-**Conflit = freeze** — tant que `project_conflicts.resolved_at IS NULL` côté backend, aucun `bundle_available` n'est broadcast pour ce `(server_id, project_id)`. Implémenté dans `pushBundleAvailable` (hub.ts) qui consulte la table en début de fonction. Empêche tout écrasement silencieux pendant qu'une décision est en attente.
+**Verrou optimiste (plus de freeze de conflit)** — la table `project_conflicts` n'existe plus (accounts-only cutover) : `pushBundleAvailable` (hub.ts) broadcast `bundle_available` sans condition dès qu'un commit est publié. La protection contre l'écrasement concurrent est le verrou optimiste sur `PUT /api/v1/user/projects/:projectId` (`baseVersion` requis, `409 version_conflict` + `currentVersion` sinon) — cf. `entities.md` § Concurrence optimiste.
 
-**Auto-resolution sur DELETE project** — `DELETE /api/editor-session/:token/projects/:projectId` marque tout conflit ouvert pour ce project comme `resolution: "editor"` et envoie `project_deleted` au plugin (qui move-to-trash). L'éditeur devient implicitement autoritaire.
+**DELETE project = soft-delete** — `DELETE /api/v1/user/projects/:projectId` (cookie auth + membership) marque `deletedAt` (`softDeleteProject`, la ligne reste en DB) et broadcast `project_deleted` au plugin (qui move-to-trash) et aux autres connexions éditeur.
 
 **`.artisan-trash/` is sacred** — répertoire au top de `projectsDir` créé par `ProjectDeleter`. Exclu du hash (filtre `.` au top-level dans `BundleHasher.hashAll`) et du sweep de `BundleDownloader` (filtre `.artisan*` sur les filenames). Ne jamais utiliser ce nom pour autre chose.
 
@@ -238,6 +240,7 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
+| `EDITOR_URL` | `http://localhost:5173` | Origin browser-facing de l'éditeur — utilisée pour `cors({ origin })` sur `/api/v1/*` **et** renvoyée dans `hello_ack.editor_url` (affichée par `/artisan editor`) + dans le lien `setup_code.url` (`/link?code=`). Override en prod avec l'URL publique de l'éditeur (ex. `https://artisanmc.net`). |
 | `DISCORD_CLIENT_ID` | (vide) | OAuth Discord — laisser vide désactive le bouton "Continue with Discord" |
 | `DISCORD_CLIENT_SECRET` | (vide) | OAuth Discord |
 | `DISCORD_REDIRECT_URI` | `http://localhost:3001/api/auth/discord/callback` | URI de callback configurée dans la Discord Developer Portal |
@@ -269,7 +272,7 @@ Couverture par couche (zones, pas liste de fichiers — `glob **/*.test.*` donne
 
 | Couche | Lancer | Zones couvertes |
 |---|---|---|
-| Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, editor-session, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), conflicts, project import. |
+| Backend (~47 fichiers) | `bun run test` | hub WS, bundles, server-keys, ws-ticket, auth (signup/login/Discord/session), networks + branches + commits + merge engine, custom items, resource pack (builder / font json / asset index / space offsets / storage), assets (PATCH height, duplicate), version-conflict guard, project import. |
 | Plugin (~45 fichiers) | `./gradlew test` | bundle hash/download, conflict detection, full-sync intégration (MockWebServer), action parse/exec (incl. `show_title`), title parser/compiler + offset encoder, asset catalog, resource pack manager/delegator, config, project deleter, local push. |
 | Éditeur (≥120 fichiers) | `npm test` | expr DSL (lexer/parser/eval/template), canvas + édition de Document, export (transform/validate/zip), i18n, custom items & assets Library, title composer v3, merge/conflits, auth UI, networks/setup/account routes. |
 | E2E éditeur | `npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible (1 test). |

@@ -55,7 +55,9 @@ In-game, run:
 
 The command requires the `artisan.editor` permission, granted to ops by default. If running it as a non-op produces no response, grant the permission via your permissions plugin (LuckPerms, PermissionsEx, etc.) or run from console.
 
-If the server is linked, this prints a clickable link to your Artisan editor along with the network it belongs to — no session or trust code involved, it's the same static URL every time. If the server is not yet linked, it prints a hint and starts the guided linking flow from step 2.
+If the server is linked and connected to the backend, this prints a clickable link to your Artisan editor along with the network it belongs to — no session or trust code involved, it's the same static URL every time. If the server is linked but the backend connection hasn't come up yet (e.g. just after a restart), it tells you to retry shortly. If the server is not yet linked, it prints a hint and starts the guided linking flow from step 2.
+
+Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account used during `/artisan setup` is added automatically; invite teammates from the network settings page).
 
 Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
@@ -96,6 +98,9 @@ at login. See _Resource pack distribution_ below.
 
 **Editor link says server is not linked**
 `server_key` or `ws_url` is empty. Complete step 2 first.
+
+**`/artisan editor` says "connecting, retry shortly"**
+The server is linked (`server_key` set) but hasn't completed its WebSocket handshake with the backend yet — usually just after a restart or a brief backend outage. Wait a few seconds and run the command again; check `ws_url` reachability if it persists.
 
 **`/artisan editor` is console-only**
 `editor.console_only` is set to `true` in `config.yml`. Either change it
