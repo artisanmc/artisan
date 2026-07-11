@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { editorSessions, linkCodes, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
+import { editorSessions, linkCodes, networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
@@ -309,6 +309,13 @@ export async function handlePluginMessage(
 
     const rp = await currentPackInfo(keyId);
 
+    const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, keyId)))[0];
+    let networkName = "";
+    if (skRow) {
+      const netRow = (await db.select().from(networks).where(eq(networks.id, skRow.networkId)))[0];
+      networkName = netRow?.name ?? "";
+    }
+
     const ack: HelloAckMessage = {
       type: "hello_ack",
       session_id: sessionId,
@@ -318,6 +325,8 @@ export async function handlePluginMessage(
       latest_bundle_hash: latestHash,
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
+      editor_url: EDITOR_URL,
+      network_name: networkName,
       project_hashes: projectHashesMap,
       deleted_project_ids: deletedProjectIds,
       resource_pack: rp,
