@@ -3,7 +3,7 @@ import { useServerDataSourcesStore } from "./serverDataSourcesStore";
 
 describe("serverDataSourcesStore", () => {
   beforeEach(() => {
-    useServerDataSourcesStore.setState({ sources: [], status: "idle" });
+    useServerDataSourcesStore.setState({ sources: [], status: "idle", loadedKey: null });
   });
 
   it("loads sources from the session endpoint (token source)", async () => {
@@ -49,11 +49,26 @@ describe("serverDataSourcesStore", () => {
     );
   });
 
-  it("is idempotent — a second call is a no-op while not idle", async () => {
+  it("is idempotent — a second call with the same source is a no-op while not idle", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data_sources: [] })));
     vi.stubGlobal("fetch", fetchMock);
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches when the source changes (server switch is not swallowed)", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const ref = url.includes("srv1") ? "shop:items" : "boutique:npcs";
+      return new Response(JSON.stringify({ data_sources: [{ ref, schema_hint: null }] }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "shop:items", schemaHint: null }]);
+
+    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "boutique:npcs", schemaHint: null }]);
   });
 });
