@@ -6,34 +6,6 @@ describe("serverDataSourcesStore", () => {
     useServerDataSourcesStore.setState({ sources: [], status: "idle", loadedKey: null });
   });
 
-  it("loads sources from the session endpoint (token source)", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      data_sources: [{ ref: "boutique:items", schema_hint: "id, name" }],
-    })));
-    vi.stubGlobal("fetch", fetchMock);
-    await useServerDataSourcesStore.getState().load({ token: "tok" });
-    expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "boutique:items", schemaHint: "id, name" },
-    ]);
-    expect(useServerDataSourcesStore.getState().status).toBe("ready");
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/editor-session/tok/data-sources"));
-  });
-
-  it("stays idle-safe on failure (empty list, no throw)", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
-    await useServerDataSourcesStore.getState().load({ token: "tok" });
-    expect(useServerDataSourcesStore.getState().sources).toEqual([]);
-  });
-
-  it("recovers from a network error (empty list, status ready)", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("network down");
-    }));
-    await useServerDataSourcesStore.getState().load({ token: "tok" });
-    expect(useServerDataSourcesStore.getState().sources).toEqual([]);
-    expect(useServerDataSourcesStore.getState().status).toBe("ready");
-  });
-
   it("loads sources from the user-scoped endpoint (network+server source)", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       data_sources: [{ ref: "shop:items", schema_hint: null }],
@@ -47,6 +19,21 @@ describe("serverDataSourcesStore", () => {
       expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
       expect.objectContaining({ credentials: "include" }),
     );
+  });
+
+  it("stays idle-safe on failure (empty list, no throw)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
+    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    expect(useServerDataSourcesStore.getState().sources).toEqual([]);
+  });
+
+  it("recovers from a network error (empty list, status ready)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("network down");
+    }));
+    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    expect(useServerDataSourcesStore.getState().sources).toEqual([]);
+    expect(useServerDataSourcesStore.getState().status).toBe("ready");
   });
 
   it("is idempotent — a second call with the same source is a no-op while not idle", async () => {
