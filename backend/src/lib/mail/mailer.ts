@@ -36,6 +36,10 @@ export function createMailerFromEnv(env: Record<string, string | undefined> = {}
   const transport = createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
+    // STARTTLS obligatoire : sans requireTLS, nodemailer accepte un downgrade
+    // plaintext et les credentials partiraient en clair sur un relais mal
+    // configuré. Scaleway TEM supporte STARTTLS sur 587.
+    requireTLS: true,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   });
 
