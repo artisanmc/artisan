@@ -227,6 +227,11 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
+    /** Test-only seam: swap in a fake [MenuProvider] after onEnable has run. */
+    internal fun setMenuProviderForTesting(provider: MenuProvider) {
+        menuProvider = provider
+    }
+
     fun reinit(cfg: PluginConfig) {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
