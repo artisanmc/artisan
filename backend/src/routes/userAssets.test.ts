@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
-  assets, editorSessions, linkCodes, memberships, networks, projects,
+  assets, linkCodes, memberships, networks, projects,
   serverKeys, userSessions, users,
 } from "../db/schema";
 import { userAssetsRouter } from "./userAssets";
@@ -43,7 +43,6 @@ function makeApp() {
 async function clearAll() {
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(memberships);

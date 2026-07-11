@@ -14,24 +14,21 @@ mock.module("../ws/hub", () => ({
 import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { assets, editorSessions, serverKeys, networks, projects } from "../db/schema";
+import { assets, serverKeys, networks, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
 import { texturesRouter } from "./textures";
-import { assetsRouter } from "./assets";
 
 // ─── Local app (avoids importing hub/bundles) ────────────────────────────────
 
 const app = new Hono();
 app.route("/api/v1/textures", texturesRouter);
-app.route("/api/v1/editor-session", assetsRouter);
 
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(serverKeys);
   await db.delete(networks);
 });
@@ -48,7 +45,7 @@ const PNG_1x1 = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-async function seedSession(): Promise<{ token: string; packId: string }> {
+async function seedSession(): Promise<{ packId: string }> {
   const networkId = crypto.randomUUID();
   await db.insert(networks).values({
     id: networkId,
@@ -78,14 +75,7 @@ async function seedSession(): Promise<{ token: string; packId: string }> {
     updatedAt: now,
   });
 
-  const token = crypto.randomUUID();
-  await db.insert(editorSessions).values({
-    token, serverKeyId, createdBy: "test", createdAt: now,
-    expiresAt: new Date(now.getTime() + 3600_000),
-    accessToken: token, accessExpiresAt: new Date(now.getTime() + 3600_000),
-  });
-
-  return { token, packId };
+  return { packId };
 }
 
 describe("GET /api/v1/textures/asset/:packId/:assetId", () => {

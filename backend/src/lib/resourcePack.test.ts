@@ -8,7 +8,6 @@ import {
   serverKeys,
   projects,
   networks,
-  editorSessions,
   linkCodes,
 } from "../db/schema";
 import { writeAssetFile, assetRoot } from "./assetStorage";
@@ -61,7 +60,6 @@ beforeEach(async () => {
   // FK-safe cleanup
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(networks);

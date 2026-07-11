@@ -196,11 +196,9 @@ userProjectsRouter.put("/:projectId", async (c: Context<{ Variables: Vars }>) =>
 });
 
 // POST /api/user/projects/:projectId/draft — broadcast a WIP menu edit to other
-// editor connections and the plugin (co-edit live preview). Twin of session
-// POST /:token/draft (editorSession.ts). The session version takes project_id
-// from the body since a session is scoped to a server_key, not a project; here
-// projectId comes from the URL (membership already scopes it), so the body
-// only carries menu_id/menu_yaml.
+// editor connections and the plugin (co-edit live preview). projectId comes
+// from the URL (membership already scopes it), so the body only carries
+// menu_id/menu_yaml.
 userProjectsRouter.post("/:projectId/draft", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -224,7 +222,7 @@ userProjectsRouter.post("/:projectId/draft", async (c: Context<{ Variables: Vars
 });
 
 // DELETE /api/user/projects/:projectId — soft-delete + notify plugin/editor
-// connections. Twin of session DELETE /:token/projects/:projectId (editorSession.ts).
+// connections.
 userProjectsRouter.delete("/:projectId", async (c: Context<{ Variables: Vars }>) => {
   const userId = getUserId(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);

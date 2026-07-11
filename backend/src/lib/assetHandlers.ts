@@ -1,52 +1,25 @@
-import { Hono } from "hono";
+// backend/src/lib/assetHandlers.ts
+// Business logic for asset CRUD, shared by the user-scoped router
+// (routes/userAssets.ts — cookie + membership guard). Extracted from the
+// former session-token router (routes/assets.ts, deleted in the
+// accounts-only cutover, Task 7) so there is exactly ONE implementation.
 import { and, eq, ilike } from "drizzle-orm";
 import { createHash } from "crypto";
 import { strToU8 } from "fflate";
 import { readFile } from "fs/promises";
 import { db } from "../db/index";
-import { assets, projects } from "../db/schema";
-import { validateAccessToken } from "../lib/auth";
-import { writeAssetFile, deleteAssetFile, assetPath } from "../lib/assetStorage";
-import { writeFontAssets, deleteFontAssets } from "../lib/fontStorage";
-import { parseMcFontsZip, type ParsedMcFont } from "../lib/mcFontsParser";
-import { readPngDimensions, readPngContentWidth } from "../lib/pngDimensions";
-import { allocateCodepoint } from "../lib/codepointAllocator";
-import { rebuildResourcePack } from "../lib/resourcePack";
+import { assets } from "../db/schema";
+import { writeAssetFile, deleteAssetFile, assetPath } from "./assetStorage";
+import { writeFontAssets, deleteFontAssets } from "./fontStorage";
+import { parseMcFontsZip, type ParsedMcFont } from "./mcFontsParser";
+import { readPngDimensions, readPngContentWidth } from "./pngDimensions";
+import { allocateCodepoint } from "./codepointAllocator";
+import { rebuildResourcePack } from "./resourcePack";
 import { pushResourcePackUpdated } from "../ws/hub";
-
-export const assetsRouter = new Hono();
 
 const NAME_RE = /^[a-z0-9_-]+$/;
 const MAX_RAW_BYTES = 2 * 1024 * 1024;       // 2 MB (texture/glyph PNG)
 const MAX_FONT_BYTES = 5 * 1024 * 1024;      // 5 MB (font zip)
-
-// ─── Binding helper ──────────────────────────────────────────────────────────
-
-type BoundResult =
-  | { ok: true; session: { serverKeyId: string; sessionId: string } }
-  | { ok: false; response: Response };
-
-async function assertBound(
-  token: string,
-  projectId: string,
-  c: { json: (body: unknown, status: number) => Response },
-): Promise<BoundResult> {
-  const session = await validateAccessToken(token);
-  if (!session) return { ok: false, response: c.json({ error: "Unauthorized" }, 401) };
-  // In the 1:1 model, verify project is owned by this session's server_key
-  const projectRows = await db.select().from(projects).where(
-    and(eq(projects.id, projectId), eq(projects.serverKeyId, session.serverKeyId)),
-  );
-  if (projectRows.length === 0) {
-    return { ok: false, response: c.json({ error: "Pack not bound" }, 403) };
-  }
-  return { ok: true, session };
-}
-
-// ─── Shared handlers ─────────────────────────────────────────────────────────
-// Extracted so the session router (assertBound) and the user router
-// (membership guard, see userAssets.ts) share ONE implementation of the
-// business logic — only the auth/binding check at the call site differs.
 
 type AssetCtx = { projectId: string; serverKeyId: string };
 
@@ -388,56 +361,6 @@ export async function handleAssetDelete(c: any, ctx: AssetCtx) {
   pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
   return c.body(null, 204);
 }
-
-// ─── Session router (token + assertBound) ──────────────────────────────────
-
-assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetCreate(c, { projectId, serverKeyId: check.session.serverKeyId });
-});
-
-assetsRouter.get("/:token/projects/:projectId/assets", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetList(c, { projectId });
-});
-
-assetsRouter.get("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetGet(c, { projectId });
-});
-
-assetsRouter.patch("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetPatch(c, { projectId, serverKeyId: check.session.serverKeyId });
-});
-
-assetsRouter.post("/:token/projects/:projectId/assets/:id/duplicate", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetDuplicate(c, { projectId, serverKeyId: check.session.serverKeyId });
-});
-
-assetsRouter.delete("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  return handleAssetDelete(c, { projectId, serverKeyId: check.session.serverKeyId });
-});
 
 function serialize(row: typeof assets.$inferSelect) {
   return {

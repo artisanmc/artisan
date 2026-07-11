@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
   memberships, networks, projects, serverKeys,
-  editorSessions, linkCodes, assets, users, userSessions,
+  linkCodes, assets, users, userSessions,
 } from "../db/schema";
 import { userProjectsRouter } from "./userProjects";
 import { userAuth } from "../middleware/userAuth";
@@ -18,7 +18,6 @@ import { registerEditorConn } from "../ws/hub";
 async function clearAll() {
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(memberships);

@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index";
 import { networkTransfers } from "../db/schema";
-import { generateEditorToken } from "./auth";
+import { generateRandomToken } from "./auth";
 
 export interface NetworkTransfer {
   token: string;
@@ -16,7 +16,7 @@ export interface NetworkTransfer {
 const TTL_HOURS = 24;
 
 export async function createTransfer(networkId: string, userId: string): Promise<NetworkTransfer> {
-  const token = generateEditorToken();
+  const token = generateRandomToken();
   const now = new Date();
   const row: NetworkTransfer = {
     token,

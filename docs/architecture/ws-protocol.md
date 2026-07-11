@@ -17,12 +17,6 @@
 | `hello_ack` | backend → plugin | `project_hashes`, `needs_sync`, `api_url`, `editor_url: string` — `EDITOR_URL` env, URL browser-facing de l'éditeur, purement informative (affichée par `/artisan editor`), `network_name: string` — nom du network du `server_key` (résolu via `serverKeys.networkId → networks.name`), `resource_pack: { url, hash } \| null`, `deleted_project_ids: string[]` — liste des projects supprimés côté éditeur depuis la dernière connexion, pour que le plugin puisse move-to-trash les projects locaux correspondants. **Phase 2** : `project_hashes[projectId]` = `branch.head_commit.contentHash` (branche `"main"` en V1 ; le project est résolu via `projects.serverKeyId`). Contenu vide → `""` (sentinel, cohérent avec `BundleHasher`/`computeBundleHash`) : un stub fraîchement créé pour un `local_project_ids` inconnu est annoncé dans le **même** `hello_ack` avec `""`, ce qui déclenche l'auto-push du plugin (`backendHash.isEmpty()` → `local_push`) dès la première connexion, au lieu d'écraser le contenu local. |
 | `bundle_available` | backend → plugin | `project_id`, `url`, `hash` |
 | `draft_update` | backend → plugin | `menu_id`, `menu_yaml` |
-| `editor_session_request` | plugin → backend | `sender` — **removed plugin-side in Task 6 (accounts-only cutover) ; handler stays backend-side until Task 7 removes it** |
-| `editor_session_ready` | backend → plugin | `url`, `expires_at`, `trust_code` — **plugin no longer sends `editor_session_request`, so this is effectively dead ; removed in Task 7** |
-| `editor_session_revoke` | plugin → backend | `{}` — **removed plugin-side in Task 6 ; handler stays backend-side until Task 7 removes it** |
-| `editor_trust_request` | plugin → backend | `trust_code` — **removed plugin-side in Task 6 (no more `/artisan trusteditor`) ; handler stays backend-side until Task 7 removes it** |
-| `session_trusted` | backend → éditeur WS | `{}` |
-| `session_expired` | backend → éditeur WS | `{}` |
 | `ping` / `pong` | backend ↔ plugin | keepalive OkHttp 30s |
 | `resource_pack_updated` | backend → plugin | `{ url, hash }` — broadcast après chaque rebuild |
 | `custom_items_changed` | plugin → backend | `{ hash }` — hot-reload Nexo/Oraxen/ItemsAdder |
@@ -34,18 +28,17 @@
 
 ## Auth du WS éditeur (`GET /ws/editor`)
 
-Deux chemins d'authentification coexistent (le chemin session sera retiré en Phase B, une fois Task 7/8 du cutover accounts-only livrées) :
+Accounts-only : un seul chemin d'authentification, ticket one-shot (le chemin `?token=` de la trust dance anonyme a été supprimé en Task 7 — cf. `docs/decisions/accounts-only-editing.md`) :
 
 | Chemin | Query param | Auth | Abonnement |
 |---|---|---|---|
-| Session (legacy) | `?token=` | access token d'`editorSessions` (`validateAccessToken`) | un seul `serverKeyId` — celui de la session |
-| Ticket one-shot (user, Task 4) | `?ticket=` | ticket minté via `POST /api/v1/user/ws-ticket` (cookie auth), consommé une fois à l'upgrade (`wsTickets.redeemTicket`) | l'ensemble des `serverKeyId` sur tous les networks du user (memberships → networks → server_keys, `listServerKeyIdsForUser`) |
+| Ticket one-shot (user) | `?ticket=` | ticket minté via `POST /api/v1/user/ws-ticket` (cookie auth), consommé une fois à l'upgrade (`wsTickets.redeemTicket`) | l'ensemble des `serverKeyId` sur tous les networks du user (memberships → networks → server_keys, `listServerKeyIdsForUser`) |
 
 Le ticket (`backend/src/lib/wsTickets.ts`) est en mémoire (Map), one-shot (supprimé au premier `redeemTicket`, même si expiré), TTL 30 s — cohérent avec la posture single-instance actuelle (cf. audit prod-readiness). `?ticket=` invalide/inconnu/expiré → 401 avant l'upgrade.
 
-Côté hub (`hub.ts`), une conn éditeur porte désormais un `Set<serverKeyId>` (`editorTokenToServers`) au lieu d'un `serverKeyId` unique — les conns session sont un singleton set, comportement inchangé. `broadcastDraftUpdate`, `pushModuleEvent`, `pushProjectDeleted`, et les pushes `session_trusted`/`session_expired` (revocation/trust plugin-side) délivrent à toute conn dont le set contient le `serverKeyId` visé.
+Côté hub (`hub.ts`), une conn éditeur porte un `Set<serverKeyId>` (`editorTokenToServers`) — l'ensemble des serveurs du user. `broadcastDraftUpdate`, `pushModuleEvent`, `pushProjectDeleted` délivrent à toute conn dont le set contient le `serverKeyId` visé.
 
-Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs` supporte les deux modes : le constructeur historique `new EditorWs(token, onDraftUpdate, onExpired, onTrusted)` reste inchangé (mode session) ; `EditorWs.connectAsUser(apiUrl, onDraftUpdate)` fetch un ticket frais (`credentials: "include"`) puis ouvre `?ticket=`. En mode user, `session_trusted`/`session_expired` sont ignorés (no-op) — ils n'ont pas de sens hors du flux session/trust plugin. Reconnexion en mode user = ré-appeler `connectAsUser` (le ticket est one-shot, pas réutilisable).
+Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs.connectAsUser(apiUrl, onDraftUpdate)` fetch un ticket frais (`credentials: "include"`) puis ouvre `?ticket=`. Reconnexion = ré-appeler `connectAsUser` (le ticket est one-shot, pas réutilisable).
 
 ## Flux de données (orientation)
 
