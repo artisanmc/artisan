@@ -48,7 +48,7 @@ describe("EditorWs.connectAsUser", () => {
     await expect(EditorWs.connectAsUser("http://localhost:3001", vi.fn())).rejects.toThrow();
   });
 
-  it("ignores session_trusted/session_expired in user mode", async () => {
+  it("ignores unknown message types", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: "wst_x" }) }),
@@ -57,8 +57,7 @@ describe("EditorWs.connectAsUser", () => {
     await EditorWs.connectAsUser("http://localhost:3001", onDraftUpdate);
     const socket = FakeWebSocket.instances[0];
 
-    // Should not throw even though onExpired/onTrusted are no-ops internally.
-    expect(() => socket.onmessage?.({ data: JSON.stringify({ type: "session_expired" }) })).not.toThrow();
-    expect(() => socket.onmessage?.({ data: JSON.stringify({ type: "session_trusted" }) })).not.toThrow();
+    expect(() => socket.onmessage?.({ data: JSON.stringify({ type: "unknown_type" }) })).not.toThrow();
+    expect(onDraftUpdate).not.toHaveBeenCalled();
   });
 });

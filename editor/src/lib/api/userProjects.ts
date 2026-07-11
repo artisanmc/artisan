@@ -50,7 +50,7 @@ export async function saveUserProject(
   if (typeof data.version === "number") store.setVersion(projectId, data.version);
 }
 
-/** DELETE /api/v1/user/projects/:projectId — twin of `deleteProject` in `lib/projectApi.ts`. */
+/** DELETE /api/v1/user/projects/:projectId. */
 export async function deleteUserProject(projectId: string): Promise<void> {
   const res = await fetch(`${API_URL}/api/v1/user/projects/${projectId}`, {
     method: "DELETE",
