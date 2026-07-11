@@ -510,6 +510,27 @@ describe("broadcastDraftUpdate", () => {
     expect(msg.type).toBe("draft_update");
     expect(msg.menu_id).toBe("shop_main");
   });
+
+  test("delivers to a conn subscribed to multiple serverKeys, target key not first in the set", async () => {
+    const { id: keyId } = await seedServerKey();
+    const otherKeyId = "other-server-key-" + crypto.randomUUID().slice(0, 8);
+
+    const tokenSender = generateEditorToken();
+    const tokenMulti = generateEditorToken();
+    await db.insert(editorSessions).values({ token: tokenSender, serverKeyId: keyId, createdBy: "A", createdAt: new Date(), expiresAt: new Date(Date.now() + 1800000) });
+
+    const receivedByMulti: string[] = [];
+    registerEditorConn(tokenSender, keyId, () => {});
+    // otherKeyId listed first — the target keyId must still match via Set membership.
+    registerEditorConn(tokenMulti, new Set([otherKeyId, keyId]), (msg) => receivedByMulti.push(msg));
+
+    broadcastDraftUpdate(keyId, "pack1", "shop_main", "title: Shop\n", tokenSender);
+
+    expect(receivedByMulti.length).toBe(1);
+    const msg = JSON.parse(receivedByMulti[0]) as { type: string; menu_id: string };
+    expect(msg.type).toBe("draft_update");
+    expect(msg.menu_id).toBe("shop_main");
+  });
 });
 
 describe("getMcVersion", () => {
