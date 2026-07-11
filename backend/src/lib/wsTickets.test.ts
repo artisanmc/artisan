@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { issueTicket, redeemTicket, __resetTicketsForTests } from "./wsTickets";
+import { issueTicket, redeemTicket, __resetTicketsForTests, __ticketCountForTests } from "./wsTickets";
 
 describe("wsTickets", () => {
   it("issues and redeems one-shot", () => {
@@ -15,5 +15,17 @@ describe("wsTickets", () => {
   });
   it("unknown ticket → null", () => {
     expect(redeemTicket("nope")).toBeNull();
+  });
+  it("sweeps expired unredeemed tickets on next issue", () => {
+    __resetTicketsForTests();
+    const a = issueTicket("user_a", /* nowMs */ 0);
+    expect(__ticketCountForTests()).toBe(1);
+
+    // Issuing B well past A's TTL sweeps A before inserting B.
+    const b = issueTicket("user_b", /* nowMs */ 40_000);
+    expect(__ticketCountForTests()).toBe(1);
+
+    expect(redeemTicket(a, 40_000)).toBeNull();
+    expect(redeemTicket(b, 40_000)).toEqual({ userId: "user_b" });
   });
 });
