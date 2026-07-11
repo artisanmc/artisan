@@ -13,10 +13,12 @@ import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { duplicateAsset, updateAsset } from "@/lib/projectApi";
+import { duplicateAsset as duplicateAssetUser, patchAsset as patchAssetUser } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 
@@ -134,6 +136,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [patchingAscent, setPatchingAscent] = useState(false);
@@ -153,7 +156,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   };
 
   const onDuplicate = async () => {
-    if (!token) return;
+    if (!token && !user) return;
     if (
       !window.confirm(
         "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
@@ -163,7 +166,9 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
     }
     setDuplicating(true);
     try {
-      const dup = await duplicateAsset(token, projectId, layer.assetId);
+      const dup = token
+        ? await duplicateAsset(token, projectId, layer.assetId)
+        : await duplicateAssetUser(projectId, layer.assetId);
       upsertAsset(dup);
       updateLayer({
         projectId,
@@ -181,10 +186,12 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   const TITLE_LABEL_Y = 13;
 
   const onPatchAscent = async (value: number) => {
-    if (!token || !asset) return;
+    if ((!token && !user) || !asset) return;
     setPatchingAscent(true);
     try {
-      const updated = await updateAsset(token, projectId, asset.id, { ascent: value });
+      const updated = token
+        ? await updateAsset(token, projectId, asset.id, { ascent: value })
+        : await patchAssetUser(projectId, asset.id, { ascent: value });
       upsertAsset(updated);
       // Keep layer.y in sync with the new ascent so the canvas reflects the
       // change immediately (layer.y = titleLabelY - ascent).

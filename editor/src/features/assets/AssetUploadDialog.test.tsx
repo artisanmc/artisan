@@ -3,14 +3,27 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
 import * as projectApi from "@/lib/projectApi";
+import * as userAssetsApi from "@/lib/api/userAssets";
+
+let mockAccessToken: string | null = "tok_test";
+let mockCurrentUser: { id: string } | null = null;
 
 vi.mock("@/state/sessionStore", () => ({
   useSessionStore: (sel: (s: { accessToken: string | null }) => unknown) =>
-    sel({ accessToken: "tok_test" }),
+    sel({ accessToken: mockAccessToken }),
+}));
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
+    sel({ currentUser: mockCurrentUser }),
 }));
 
 describe("AssetUploadDialog", () => {
-  beforeEach(() => useAssetStore.getState().reset());
+  beforeEach(() => {
+    useAssetStore.getState().reset();
+    mockAccessToken = "tok_test";
+    mockCurrentUser = null;
+    vi.restoreAllMocks();
+  });
 
   it("uploads as glyph (no type selector exposed) and upserts the result", async () => {
     const fakeAsset = {
@@ -54,5 +67,28 @@ describe("AssetUploadDialog", () => {
     expect(screen.queryByLabelText(/^glyph$/i)).toBeNull();
     // Ascent has likewise disappeared (was gated on type=glyph).
     expect(screen.queryByLabelText(/ascent/i)).toBeNull();
+  });
+
+  it("uploads via the user-scoped API when signed in without a session", async () => {
+    mockAccessToken = null;
+    mockCurrentUser = { id: "u1" };
+    const fakeAsset = {
+      id: "asset_y", projectId: "p1", type: "glyph" as const, name: "tex2",
+      width: 16, height: 16, ascent: 7, codepoint: 0xe001, fontMeta: null,
+      contentHash: "h", createdAt: "", updatedAt: "",
+    };
+    const sessionSpy = vi.spyOn(projectApi, "uploadAsset");
+    const userSpy = vi.spyOn(userAssetsApi, "uploadAsset").mockResolvedValue(fakeAsset);
+    const onClose = vi.fn();
+
+    render(<AssetUploadDialog projectId={"p1" as never} open onClose={onClose} />);
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "tex2" } });
+    const file = new File([new Uint8Array([1])], "tex2.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+    await waitFor(() => expect(userSpy).toHaveBeenCalled());
+    expect(sessionSpy).not.toHaveBeenCalled();
+    expect(useAssetStore.getState().assets[0]?.id).toBe("asset_y");
   });
 });

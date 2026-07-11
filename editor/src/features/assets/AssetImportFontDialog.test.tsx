@@ -3,10 +3,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AssetImportFontDialog } from "./AssetImportFontDialog";
 import { useAssetStore } from "./assetStore";
 import * as projectApi from "@/lib/projectApi";
+import * as userAssetsApi from "@/lib/api/userAssets";
+
+let mockAccessToken: string | null = "tok_test";
+let mockCurrentUser: { id: string } | null = null;
 
 vi.mock("@/state/sessionStore", () => ({
   useSessionStore: (sel: (s: { accessToken: string | null }) => unknown) =>
-    sel({ accessToken: "tok_test" }),
+    sel({ accessToken: mockAccessToken }),
+}));
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
+    sel({ currentUser: mockCurrentUser }),
 }));
 
 const fakeAsset = {
@@ -30,6 +38,8 @@ const fakeAsset = {
 describe("AssetImportFontDialog", () => {
   beforeEach(() => {
     useAssetStore.getState().reset();
+    mockAccessToken = "tok_test";
+    mockCurrentUser = null;
     vi.restoreAllMocks();
   });
 
@@ -121,5 +131,22 @@ describe("AssetImportFontDialog", () => {
     // Asset is still upserted immediately.
     expect(useAssetStore.getState().assets[0]?.id).toBe("asset_font_1");
     vi.useRealTimers();
+  });
+
+  it("uploads via the user-scoped API when signed in without a session", async () => {
+    mockAccessToken = null;
+    mockCurrentUser = { id: "u1" };
+    const sessionSpy = vi.spyOn(projectApi, "uploadFontAsset");
+    const userSpy = vi.spyOn(userAssetsApi, "uploadFontAsset").mockResolvedValue({ asset: fakeAsset });
+    render(<AssetImportFontDialog projectId={"p1" as never} open onClose={() => {}} />);
+
+    const file = new File([new Uint8Array([1])], "my_font.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByLabelText(/zip file/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /import/i }));
+
+    await waitFor(() => expect(userSpy).toHaveBeenCalled());
+    expect(sessionSpy).not.toHaveBeenCalled();
+    expect(userSpy.mock.calls[0]?.[0]).toBe("p1");
+    expect(useAssetStore.getState().assets[0]?.id).toBe("asset_font_1");
   });
 });

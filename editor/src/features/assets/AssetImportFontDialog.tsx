@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
 import { uploadFontAsset } from "@/lib/projectApi";
+import { uploadFontAsset as uploadFontAssetUser } from "@/lib/api/userAssets";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useState } from "react";
 import { useAssetStore } from "./assetStore";
@@ -26,6 +28,7 @@ function stripZipExtension(filename: string): string {
 
 export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportFontDialogProps) {
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
 
   const [file, setFile] = useState<File | null>(null);
@@ -51,12 +54,14 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
   };
 
   const onSubmit = async () => {
-    if (!token || !file || !name) return;
+    if ((!token && !user) || !file || !name) return;
     setBusy(true);
     setError(null);
     setWarnings([]);
     try {
-      const result = await uploadFontAsset(token, projectId, { name, file });
+      const result = token
+        ? await uploadFontAsset(token, projectId, { name, file })
+        : await uploadFontAssetUser(projectId, { name, file });
       upsertAsset(result.asset);
       if (result.warnings && result.warnings.length > 0) {
         // Surface warnings to the user, but still close the dialog after a short delay.
