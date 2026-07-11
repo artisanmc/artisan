@@ -14,4 +14,11 @@ describe("welcomeEmail", () => {
     const msg = welcomeEmail({ to: "a@b.c", displayName: "Iban", locale: "fr" });
     expect(msg.subject).toBe("Bienvenue sur Artisan");
   });
+
+  it("escapes user-controlled values in the html part", () => {
+    const msg = welcomeEmail({ to: "a@b.c", displayName: '<img src=x onerror="x">Iban' });
+    expect(msg.html).not.toContain("<img");
+    expect(msg.html).toContain("&lt;img");
+    expect(msg.text).toContain('<img');
+  });
 });
