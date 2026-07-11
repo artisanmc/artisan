@@ -126,6 +126,22 @@ Non-examples:
 - The translation **value** (`"Buy now"` in `en`) is not the key site; the key
   site is the slot the value is filed under.
 
+## Link
+
+The **one-shot act of binding an unclaimed Server to a Network**: the keyless
+plugin prints a **link code**, a logged-in user redeems it on the web (picking or
+creating the destination **Network**), and the backend mints the Server's **key**
+and hands it to the waiting plugin. Linking establishes ownership — a Server links
+exactly once; re-running the flow on an already-linked Server is refused.
+Ownership afterwards moves only via a Network **transfer** on the web.
+
+Non-examples:
+- A **transfer** is not a Link — transfer moves already-owned things between
+  owners with its own safeguards; Link only ever binds a virgin Server.
+- "Claim" is not the canonical term; domain and code say Link (`link_codes`).
+- Post-link, `/artisan editor` printing the editor URL is not a Link — the
+  binding already exists; the command is informative only.
+
 ## LText
 
 A reference to a localizable string: a stable **key** into the project's
@@ -134,6 +150,21 @@ LText (the key), never the resolved string — resolution happens at render/expo
 against the active language with a fallback chain. A fresh LText is minted with
 a random provisional key (`lt_<rand>`); canonicalization to a semantic key
 happens lazily at the deploy/export/persist boundary, not per edit.
+
+## Membership
+
+A user's belonging to a **Network**, carrying a **role** that scopes what they may
+do there. Two roles exist today: **owner** (governance — billing, transfer,
+Network deletion, member management, key rotation) and **member** (full editorial
+access to every Server and Project of the Network, nothing destructive at Network
+level). Roles are per-Network: the same user may be owner of one Network and
+member of another. The role set is expected to grow — owner/member is the current
+vocabulary, not a closed law.
+
+Non-examples:
+- A Membership is **not** per-Server or per-Project — access is granted at
+  Network granularity (finer ACLs are deliberately out of the domain today).
+- The owning user is not the Network; see **Network**.
 
 ## Menu
 
