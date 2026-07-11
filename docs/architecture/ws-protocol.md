@@ -32,6 +32,21 @@
 | `project_deleted` | backend → plugin | `{ project_id }` — project supprimé côté éditeur, le plugin move-to-trash |
 | `local_push` | plugin → backend | `{ project_id, files, hash }` — used by `/artisan pushLocal`. Backend creates project if missing (avec `serverKeyId` de la session), upserts content, broadcasts `bundle_available`. Si le project backend est un stub jamais édité (`isEmptyStub`), le backend construit aussi `editorJson` via `importProjectFromFiles` (les dossiers module inconnus deviennent `moduleData[<dir>].__files`). Un `editorJson` réel n'est jamais écrasé. |
 
+## Auth du WS éditeur (`GET /ws/editor`)
+
+Deux chemins d'authentification coexistent (le chemin session sera retiré en Phase B, une fois Task 7/8 du cutover accounts-only livrées) :
+
+| Chemin | Query param | Auth | Abonnement |
+|---|---|---|---|
+| Session (legacy) | `?token=` | access token d'`editorSessions` (`validateAccessToken`) | un seul `serverKeyId` — celui de la session |
+| Ticket one-shot (user, Task 4) | `?ticket=` | ticket minté via `POST /api/v1/user/ws-ticket` (cookie auth), consommé une fois à l'upgrade (`wsTickets.redeemTicket`) | l'ensemble des `serverKeyId` sur tous les networks du user (memberships → networks → server_keys, `listServerKeyIdsForUser`) |
+
+Le ticket (`backend/src/lib/wsTickets.ts`) est en mémoire (Map), one-shot (supprimé au premier `redeemTicket`, même si expiré), TTL 30 s — cohérent avec la posture single-instance actuelle (cf. audit prod-readiness). `?ticket=` invalide/inconnu/expiré → 401 avant l'upgrade.
+
+Côté hub (`hub.ts`), une conn éditeur porte désormais un `Set<serverKeyId>` (`editorTokenToServers`) au lieu d'un `serverKeyId` unique — les conns session sont un singleton set, comportement inchangé. `broadcastDraftUpdate`, `pushModuleEvent`, `pushProjectDeleted`, et les pushes `session_trusted`/`session_expired` (revocation/trust plugin-side) délivrent à toute conn dont le set contient le `serverKeyId` visé.
+
+Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs` supporte les deux modes : le constructeur historique `new EditorWs(token, onDraftUpdate, onExpired, onTrusted)` reste inchangé (mode session) ; `EditorWs.connectAsUser(apiUrl, onDraftUpdate)` fetch un ticket frais (`credentials: "include"`) puis ouvre `?ticket=`. En mode user, `session_trusted`/`session_expired` sont ignorés (no-op) — ils n'ont pas de sens hors du flux session/trust plugin. Reconnexion en mode user = ré-appeler `connectAsUser` (le ticket est one-shot, pas réutilisable).
+
 ## Flux de données (orientation)
 
 ```

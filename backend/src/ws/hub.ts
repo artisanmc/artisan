@@ -44,8 +44,10 @@ const activeSessions = new Map<string, string>();
 const codeToConn = new Map<string, string>();
 // Editor WS connections: sessionId → sendFn
 export const editorSenders = new Map<string, (msg: string) => void>();
-// sessionId → serverKeyId (for grouping editors by server)
-export const editorTokenToServer = new Map<string, string>();
+// sessionId → Set<serverKeyId> (for grouping editors by server). Session-token
+// conns carry a singleton set; ticket-auth (user-mode) conns carry the full
+// set of serverKeyIds across all the user's networks.
+export const editorTokenToServers = new Map<string, Set<string>>();
 // connId → serverKeyId (set after successful hello)
 export const connToServerId = new Map<string, string>();
 // sessionId → editor IP address (set when editor WS connects)
@@ -102,14 +104,18 @@ export function cleanupSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
 
-export function registerEditorConn(sessionId: string, serverKeyId: string, send: (msg: string) => void): void {
+export function registerEditorConn(
+  sessionId: string,
+  serverKeyIds: string | Set<string>,
+  send: (msg: string) => void,
+): void {
   editorSenders.set(sessionId, send);
-  editorTokenToServer.set(sessionId, serverKeyId);
+  editorTokenToServers.set(sessionId, typeof serverKeyIds === "string" ? new Set([serverKeyIds]) : serverKeyIds);
 }
 
 export function cleanupEditorConn(sessionId: string): void {
   editorSenders.delete(sessionId);
-  editorTokenToServer.delete(sessionId);
+  editorTokenToServers.delete(sessionId);
   editorTokenToIp.delete(sessionId);
 }
 
@@ -408,8 +414,8 @@ export async function handlePluginMessage(
       .update(editorSessions)
       .set({ revokedAt: new Date() })
       .where(and(eq(editorSessions.serverKeyId, serverId), isNull(editorSessions.revokedAt)));
-    for (const [sessionId, sId] of editorTokenToServer) {
-      if (sId !== serverId) continue;
+    for (const [sessionId, sIds] of editorTokenToServers) {
+      if (!sIds.has(serverId)) continue;
       const send = editorSenders.get(sessionId);
       if (send) send(JSON.stringify({ type: "session_expired" } satisfies SessionExpiredMessage));
     }
@@ -584,7 +590,7 @@ export function broadcastDraftUpdate(
 
   for (const [sessionId, send] of editorSenders) {
     if (sessionId === senderSessionId) continue;
-    if (editorTokenToServer.get(sessionId) !== serverKeyId) continue;
+    if (!editorTokenToServers.get(sessionId)?.has(serverKeyId)) continue;
     send(payload);
   }
 
@@ -606,7 +612,7 @@ export function pushModuleEvent(
 ): void {
   const payload = JSON.stringify({ type: "module_event", payload: event });
   for (const [sessionId, send] of editorSenders) {
-    if (editorTokenToServer.get(sessionId) !== serverKeyId) continue;
+    if (!editorTokenToServers.get(sessionId)?.has(serverKeyId)) continue;
     send(payload);
   }
 }
@@ -651,8 +657,10 @@ export async function pushProjectDeleted(projectId: string): Promise<void> {
     if (send) send(payload);
   }
   // Push to editor connections (so other open tabs close the project view).
-  for (const [sessionId, sId] of editorTokenToServer) {
-    if (!targetSet.has(sId)) continue;
+  for (const [sessionId, sIds] of editorTokenToServers) {
+    let match = false;
+    for (const sId of sIds) if (targetSet.has(sId)) { match = true; break; }
+    if (!match) continue;
     const send = editorSenders.get(sessionId);
     if (send) send(payload);
   }
