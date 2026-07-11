@@ -270,7 +270,7 @@ export function AssistantChat({
       // lose a just-generated menu on a reload within its 2s window.
       if (dirty) {
         const updated = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
-        if (updated) await persistProject(updated, token, !!user).catch(() => {});
+        if (updated) await persistProject(updated, !!user).catch(() => {});
       }
     } catch {
       toast.error(t("assistant.errorGeneric"));
