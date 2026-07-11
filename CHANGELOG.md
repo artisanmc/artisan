@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — transactional mail infra (Scaleway TEM SMTP) + welcome email on signup
+- `getMailer()` (`backend/src/lib/mail/mailer.ts`, nodemailer over SMTP) with a no-op fallback when `SMTP_*`/`MAIL_FROM` are unset, and a test-injectable override (`__setMailerForTests`). Typed bilingual (en/fr) templates in `lib/mail/templates.ts`, starting with `welcomeEmail`. Signup (`POST /api/v1/auth/signup`) and first-time Discord OAuth account creation both fire a fire-and-forget welcome email — a mailer failure never breaks the auth flow.
+
 ### Added
 - editor reaches user-auth parity: presence, assets, live WS without a plugin session
 - `POST /api/v1/user/ws-ticket` (cookie auth) → `{ ticket }`, a one-shot ticket (TTL 30s, in-memory `wsTickets.ts`) redeemable once at the `GET /ws/editor?ticket=…` upgrade — a second auth path for the editor WS alongside the existing session-token `?token=` path, subscribing to the full `Set<serverKeyId>` across all of the user's networks instead of a single server (Task 4 of the accounts-only cutover, cf. `docs/architecture/ws-protocol.md` § Auth du WS éditeur).

@@ -3,10 +3,35 @@ import { eq } from "drizzle-orm";
 import { app } from "../app";
 import { db } from "../db/index";
 import { users, userSessions } from "../db/schema";
+import { __setMailerForTests, type Mailer, type MailMessage } from "../lib/mail/mailer";
 
 async function cleanupByEmail(email: string) {
   await db.delete(users).where(eq(users.email, email));
 }
+
+function fakeMailer(): Mailer & { sent: MailMessage[] } {
+  const sent: MailMessage[] = [];
+  return {
+    enabled: true,
+    sent,
+    async send(msg: MailMessage) {
+      sent.push(msg);
+    },
+  };
+}
+
+function throwingMailer(): Mailer {
+  return {
+    enabled: true,
+    async send() {
+      throw new Error("smtp down");
+    },
+  };
+}
+
+afterEach(() => {
+  __setMailerForTests(null);
+});
 
 describe("POST /api/v1/auth/signup", () => {
   test("creates a user and sets the session cookie", async () => {
@@ -31,6 +56,35 @@ describe("POST /api/v1/auth/signup", () => {
     expect(rows[0].passwordHash).toBeTruthy();
     expect(rows[0].passwordHash).not.toContain("correct horse"); // hashed
 
+    await cleanupByEmail(email);
+  });
+
+  test("sends a welcome email on successful signup", async () => {
+    const mailer = fakeMailer();
+    __setMailerForTests(mailer);
+    const email = `welcome_${Date.now()}@example.com`;
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "correct horse battery staple", name: "Bob" }),
+    }));
+    expect(res.status).toBe(201);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mailer.sent).toHaveLength(1);
+    expect(mailer.sent[0].to).toBe(email);
+    expect(mailer.sent[0].subject).toContain("Welcome");
+    await cleanupByEmail(email);
+  });
+
+  test("signup still succeeds when the mailer throws", async () => {
+    __setMailerForTests(throwingMailer());
+    const email = `mailfail_${Date.now()}@example.com`;
+    const res = await app.fetch(new Request("http://x/api/v1/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "correct horse battery staple", name: "Eve" }),
+    }));
+    expect(res.status).toBe(201);
     await cleanupByEmail(email);
   });
 

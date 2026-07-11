@@ -30,6 +30,7 @@ Dernière révision : 2026-06-19.
 | **Tests plugin** | JUnit 5 + MockBukkit + MockWebServer | - | Standards Paper/Bukkit. MockWebServer (OkHttp) pour simuler le backend en intégration. |
 | **Lint / format** | Biome (editor) | ESLint + Prettier | Un binaire, plus rapide. |
 | **Hosting production** | OVH VPS 4 vCPU/8 Go, Ubuntu 26.04, Coolify, PostgreSQL 16 privé, nginx, Cloudflare Tunnel + Access, livraison GitHub Actions gated | Hébergement managé réparti | Une stack regroupée réduit la fragmentation opérationnelle tout en restant exploitable par une seule personne. Le Tunnel masque l'origine et évite d'exposer des ports web entrants. |
+| **Emails transactionnels** | Scaleway TEM via SMTP (nodemailer) — 2026-07-11 | API HTTP dédiée | SMTP suffit pour un volume transactionnel faible (welcome, notifications) ; nodemailer est zero-config sur `createTransport`, pas de SDK propriétaire supplémentaire. |
 
 ---
 
