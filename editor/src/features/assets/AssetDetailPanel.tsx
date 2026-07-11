@@ -3,12 +3,15 @@ import { Input } from "@/components/ui/input";
 import { assetPreviewUrl } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, updateAsset } from "@/lib/projectApi";
+import { deleteAsset as deleteAssetUser, patchAsset as patchAssetUser } from "@/lib/api/userAssets";
+import { useAuthStore } from "@/state/authStore";
 import { useSessionStore } from "@/state/sessionStore";
 import { useEffect, useState } from "react";
 import { useAssetStore } from "./assetStore";
 
 export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const token = useSessionStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.currentUser);
   const selectedId = useAssetStore((s) => s.selectedId);
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === selectedId) ?? null);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
@@ -28,7 +31,7 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   if (!asset) return null;
 
   const onSave = async () => {
-    if (!token) return;
+    if (!token && !user) return;
     try {
       const patch: { name?: string; ascent?: number } = {};
       if (name !== asset.name) patch.name = name;
@@ -41,7 +44,9 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
         patch.ascent = n;
       }
       if (Object.keys(patch).length === 0) return;
-      const next = await updateAsset(token, projectId, asset.id, patch);
+      const next = token
+        ? await updateAsset(token, projectId, asset.id, patch)
+        : await patchAssetUser(projectId, asset.id, patch);
       upsertAsset(next);
     } catch (e) {
       setError((e as Error).message);
@@ -49,10 +54,11 @@ export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   };
 
   const onDelete = async () => {
-    if (!token) return;
+    if (!token && !user) return;
     if (!window.confirm(`Delete "${asset.name}"?`)) return;
     try {
-      await deleteAsset(token, projectId, asset.id);
+      if (token) await deleteAsset(token, projectId, asset.id);
+      else await deleteAssetUser(projectId, asset.id);
       removeAsset(asset.id);
     } catch (e) {
       setError((e as Error).message);
