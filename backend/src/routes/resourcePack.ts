@@ -31,11 +31,21 @@ resourcePackPublicRouter.get("/:serverKeyId/:hashFile", async (c) => {
   });
 });
 
+/**
+ * Shared handler — rebuild the resource pack for `serverKeyId` and broadcast
+ * the update. Extracted so the session router (token + validateAccessToken)
+ * and the user-scoped twin (cookie + membership, see userNetworks.ts) share
+ * ONE implementation.
+ */
+export async function handleResourcePackRebuild(c: { json: (body: unknown, status?: number) => Response }, serverKeyId: string) {
+  const info = await rebuildResourcePack(serverKeyId);
+  pushResourcePackUpdated(serverKeyId, info.url, info.hash);
+  return c.json(info);
+}
+
 resourcePackAdminRouter.post("/:token/resource-pack/rebuild", async (c) => {
   const token = c.req.param("token");
   const session = await validateAccessToken(token);
   if (!session) return c.json({ error: "Unauthorized" }, 401);
-  const info = await rebuildResourcePack(session.serverKeyId);
-  pushResourcePackUpdated(session.serverKeyId, info.url, info.hash);
-  return c.json(info);
+  return handleResourcePackRebuild(c, session.serverKeyId);
 });
