@@ -59,6 +59,6 @@ Côté éditeur (`editor/src/lib/editorWs.ts`), `EditorWs.connectAsUser(apiUrl, 
 
 ## Invariants liés (détaillés dans `CLAUDE.md` § Invariants critiques)
 
-- **Conflit = freeze** : tant que `project_conflicts.resolved_at IS NULL`, aucun `bundle_available` n'est broadcast pour ce `(server_id, project_id)` (`pushBundleAvailable` dans `hub.ts`).
+- **Plus de freeze de conflit** : `pushBundleAvailable` (`hub.ts`) broadcast sans condition (`project_conflicts` n'existe plus). La protection contre l'écrasement concurrent est le verrou optimiste `baseVersion`/`409 version_conflict` sur `PUT /api/v1/user/projects/:projectId`.
 - **Hash byte-order** : `BundleHasher.kt` / `hashUtils.ts` trient par ordre byte natif — jamais `localeCompare`.
 - **OkHttp thread** : `SyncedMenuProvider.handleMessage` tourne sur le callback WS d'OkHttp — pas d'I/O bloquant direct.
