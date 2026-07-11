@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import { fetchServerDataSources, fetchServerDataSourcesUser, type ServerDataSource } from "@/lib/api/dataSources";
+import { fetchServerDataSourcesUser, type ServerDataSource } from "@/lib/api/dataSources";
 
-/** Session mode uses the session token; user mode uses network+server (cookie auth). */
-export type DataSourcesSource = { token: string } | { networkId: string; serverId: string };
+export interface DataSourcesSource {
+  networkId: string;
+  serverId: string;
+}
 
 function sourceKey(source: DataSourcesSource): string {
-  return "token" in source ? `t:${source.token}` : `u:${source.networkId}/${source.serverId}`;
+  return `u:${source.networkId}/${source.serverId}`;
 }
 
 interface ServerDataSourcesState {
@@ -28,13 +30,10 @@ export const useServerDataSourcesStore = create<ServerDataSourcesState>((set, ge
     if (loadedKey === key && status !== "idle") return;
     set({ status: "loading", loadedKey: key });
     try {
-      const sources =
-        "token" in source
-          ? await fetchServerDataSources(source.token)
-          : await fetchServerDataSourcesUser(source.networkId, source.serverId);
+      const sources = await fetchServerDataSourcesUser(source.networkId, source.serverId);
       set({ sources, status: "ready", loadedKey: key });
     } catch {
-      // fetchServerDataSources* swallow their own errors and resolve to [];
+      // fetchServerDataSourcesUser swallows its own errors and resolves to [];
       // this catch is defensive so a later call with the same source can retry.
       set({ status: "idle", loadedKey: null });
     }

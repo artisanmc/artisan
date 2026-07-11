@@ -1,13 +1,15 @@
 import { create } from "zustand";
 import { getModule, registerModule } from "@artisan/editor-sdk";
-import { fetchActiveModules, fetchActiveModulesUser } from "@/lib/api/modules";
+import { fetchActiveModulesUser } from "@/lib/api/modules";
 import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
 
-/** Session mode uses the session token; user mode uses network+server (cookie auth). */
-export type ModulesSource = { token: string } | { networkId: string; serverId: string };
+export interface ModulesSource {
+  networkId: string;
+  serverId: string;
+}
 
 function sourceKey(source: ModulesSource): string {
-  return "token" in source ? `t:${source.token}` : `u:${source.networkId}/${source.serverId}`;
+  return `u:${source.networkId}/${source.serverId}`;
 }
 
 interface ModulesState {
@@ -33,10 +35,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
     set({ status: "loading", loadedKey: key });
 
     try {
-      const active =
-        "token" in source
-          ? await fetchActiveModules(source.token)
-          : await fetchActiveModulesUser(source.networkId, source.serverId);
+      const active = await fetchActiveModulesUser(source.networkId, source.serverId);
       const activeIds = new Set(active.map((m) => m.id));
       const mounted: string[] = [];
 

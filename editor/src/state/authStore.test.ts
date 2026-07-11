@@ -91,17 +91,17 @@ describe("authStore — account-scoped state reset on identity switch", () => {
     });
   });
 
-  test("first sign-in (null → user) keeps session-mode state", async () => {
+  test("first sign-in (null → user) keeps prior state", async () => {
     const { useAccountStore } = await import("./accountStore");
     useAuthStore.setState({ currentUser: null });
     await Promise.resolve();
-    useAccountStore.getState().createProject({ id: "pack_session" });
+    useAccountStore.getState().createProject({ id: "pack_pre_login" });
     useAuthStore.setState({
       currentUser: { id: "uC", email: "c@e.com", name: "C", avatarUrl: null },
     });
     // Give the (async) subscriber a chance to run, then assert nothing was cleared.
     await new Promise((r) => setTimeout(r, 10));
-    expect(useAccountStore.getState().account.projects.map((p) => p.id)).toContain("pack_session");
+    expect(useAccountStore.getState().account.projects.map((p) => p.id)).toContain("pack_pre_login");
   });
 });
 

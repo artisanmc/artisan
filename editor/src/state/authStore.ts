@@ -86,9 +86,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 // access (403 → bounced to /networks). We clear:
 //   - accountStore (in-memory projects of the previous account)
 //   - uiStore last-active pointers (persisted; used by restore flows)
-// Deliberately NOT cleared on first sign-in (null → user): the trust-dance
-// session may have populated accountStore before the user signs up/logs in,
-// and that state must survive (dual-auth flow).
+// Deliberately NOT cleared on first sign-in (null → user): a page load may
+// have already populated accountStore (e.g. from a prior fetch in flight),
+// and that state must survive.
 let lastSeenUserId: string | null | undefined;
 useAuthStore.subscribe(async (state) => {
   const id = state.currentUser?.id ?? null;
@@ -99,15 +99,12 @@ useAuthStore.subscribe(async (state) => {
   if (id === lastSeenUserId) return;
   const previous = lastSeenUserId;
   lastSeenUserId = id;
-  if (previous === null) return; // first sign-in — keep session-mode state
+  if (previous === null) return; // first sign-in — keep prior state
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
-  const [{ useAccountStore }, { useUiStore }, { useSessionStore }] = await Promise.all([
+  const [{ useAccountStore }, { useUiStore }] = await Promise.all([
     import("./accountStore"),
     import("./uiStore"),
-    import("./sessionStore"),
   ]);
-  // Logout while a plugin session is live: the session still owns the state.
-  if (id === null && useSessionStore.getState().accessToken) return;
   const emptyAccount: Account = { id: "" as Account["id"], projects: [], projectOrder: [] };
   useAccountStore.getState().setAccount(emptyAccount);
   useUiStore.getState().setLastActiveProjectId(null);
