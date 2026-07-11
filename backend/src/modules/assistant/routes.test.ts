@@ -5,7 +5,6 @@ import { db } from "../../db/index";
 import {
 	aiModels,
 	assistantConversations,
-	editorSessions,
 	memberships,
 	networks,
 	projects,
@@ -14,6 +13,7 @@ import {
 } from "../../db/schema";
 import { createNetwork } from "../../lib/networkManager";
 import { createSession } from "../../lib/sessionManager";
+import { generateServerKey } from "../../lib/auth";
 import { saveConversation } from "./conversationRepo";
 import { grantCredits } from "../ai/creditsRepo";
 import { createModel, setDefaultModel } from "../ai/modelRepo";
@@ -61,44 +61,19 @@ function fakeProvider(): LlmProvider {
 	};
 }
 
-// Minimal valid session in the test DB so validateAccessToken accepts the token.
-// serverKeys requires: id, hash, networkId (FK→networks), createdAt.
-// editorSessions requires: token (PK), serverKeyId (FK), createdBy, createdAt,
-// expiresAt; plus accessToken + accessExpiresAt(future) and no revokedAt for
-// validateAccessToken to succeed.
-const SRV = "srv_test_assistant";
-const ACCESS = "acc_test_assistant_token";
-const URL_TOKEN = "url_test_assistant";
-const USER_ID = "usr_test_assistant";
+// Minimal fixtures in the test DB for the cookie-auth (web login) path.
 const PACK_ID = "pack_test_assistant";
+const USER_ID = "usr_test_assistant";
 let networkId = "";
 let userSessionId = "";
 
 beforeAll(async () => {
 	const network = await createNetwork("assistant-test-network");
 	networkId = network.id;
+	const { id: serverKeyId, hash } = await generateServerKey();
 	await db
 		.insert(serverKeys)
-		.values({
-			id: SRV,
-			hash: "h_test_assistant",
-			label: "assistant-test",
-			networkId,
-			createdAt: new Date(),
-		})
-		.onConflictDoNothing();
-	const future = new Date(Date.now() + 60 * 60 * 1000);
-	await db
-		.insert(editorSessions)
-		.values({
-			token: URL_TOKEN,
-			serverKeyId: SRV,
-			createdBy: "CONSOLE",
-			createdAt: new Date(),
-			expiresAt: future,
-			accessToken: ACCESS,
-			accessExpiresAt: future,
-		})
+		.values({ id: serverKeyId, hash, label: "assistant-test", networkId, createdAt: new Date() })
 		.onConflictDoNothing();
 	// The turn now debits the network of the conversation's project → the
 	// project must exist, the catalog must hold an active default model, and
@@ -108,7 +83,7 @@ beforeAll(async () => {
 		.values({
 			id: PACK_ID,
 			networkId,
-			serverKeyId: SRV,
+			serverKeyId,
 			name: "Assistant Test Project",
 			hash: "",
 			filesJson: "{}",
@@ -130,7 +105,6 @@ beforeAll(async () => {
 	});
 	await setDefaultModel(testModel.id);
 	await grantCredits({ networkId, amount: 100_000 });
-	// User + user-session for the cookie-auth (web login) path.
 	await db
 		.insert(users)
 		.values({
@@ -154,20 +128,20 @@ afterAll(async () => {
 	await db
 		.delete(assistantConversations)
 		.where(eq(assistantConversations.projectId, PACK_ID));
-	await db.delete(editorSessions).where(eq(editorSessions.token, URL_TOKEN));
-	await db.delete(serverKeys).where(eq(serverKeys.id, SRV));
 	await db.delete(users).where(eq(users.id, USER_ID)); // cascades userSessions
 	await db.delete(aiModels);
 	if (networkId) await db.delete(networks).where(eq(networks.id, networkId));
 });
 
-const auth = {
-	Authorization: `Bearer ${ACCESS}`,
-	"Content-Type": "application/json",
-};
+function cookieHeader() {
+	return {
+		Cookie: `artisan_user_session=${userSessionId}`,
+		"Content-Type": "application/json",
+	};
+}
 
 describe("assistant routes", () => {
-	it("401 without a valid token", async () => {
+	it("401 without a valid session", async () => {
 		const res = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
 			body: "{}",
@@ -179,7 +153,7 @@ describe("assistant routes", () => {
 	it("creates a conversation and streams engine events for a message", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
-			headers: auth,
+			headers: cookieHeader(),
 			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		expect(created.status).toBe(200);
@@ -190,7 +164,7 @@ describe("assistant routes", () => {
 			`/api/v1/assistant/conversations/${conversationId}/messages`,
 			{
 				method: "POST",
-				headers: auth,
+				headers: cookieHeader(),
 				body: JSON.stringify({ text: "make a shop" }),
 			},
 		);
@@ -203,7 +177,7 @@ describe("assistant routes", () => {
 	it("persists the transcript: lists the conversation and resumes its messages", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
-			headers: auth,
+			headers: cookieHeader(),
 			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
@@ -211,7 +185,7 @@ describe("assistant routes", () => {
 			`/api/v1/assistant/conversations/${conversationId}/messages`,
 			{
 				method: "POST",
-				headers: auth,
+				headers: cookieHeader(),
 				body: JSON.stringify({ text: "build a kit menu" }),
 			},
 		);
@@ -222,7 +196,7 @@ describe("assistant routes", () => {
 		const listed = await app.request(
 			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
 			{
-				headers: auth,
+				headers: cookieHeader(),
 			},
 		);
 		expect(listed.status).toBe(200);
@@ -237,7 +211,7 @@ describe("assistant routes", () => {
 		const one = await app.request(
 			`/api/v1/assistant/conversations/${conversationId}`,
 			{
-				headers: auth,
+				headers: cookieHeader(),
 			},
 		);
 		expect(one.status).toBe(200);
@@ -248,30 +222,6 @@ describe("assistant routes", () => {
 					m.role === "user" && m.content === "build a kit menu",
 			),
 		).toBe(true);
-	});
-
-	it("authenticates via the user-session cookie (web login, no Bearer)", async () => {
-		const cookie = {
-			Cookie: `artisan_user_session=${userSessionId}`,
-			"Content-Type": "application/json",
-		};
-		const created = await app.request("/api/v1/assistant/conversations", {
-			method: "POST",
-			headers: cookie,
-			body: JSON.stringify({ packId: PACK_ID }),
-		});
-		expect(created.status).toBe(200);
-		const { conversationId } = await created.json();
-		const res = await app.request(
-			`/api/v1/assistant/conversations/${conversationId}/messages`,
-			{
-				method: "POST",
-				headers: cookie,
-				body: JSON.stringify({ text: "hi" }),
-			},
-		);
-		expect(res.status).toBe(200);
-		expect(await res.text()).toContain("event: done");
 	});
 
 	it("tells the model which files are attached (system note before the user message)", async () => {
@@ -290,7 +240,7 @@ describe("assistant routes", () => {
 		try {
 			const created = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
-				headers: auth,
+				headers: cookieHeader(),
 				body: JSON.stringify({ packId: PACK_ID }),
 			});
 			const { conversationId } = await created.json();
@@ -298,7 +248,7 @@ describe("assistant routes", () => {
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
 					method: "POST",
-					headers: auth,
+					headers: cookieHeader(),
 					body: JSON.stringify({
 						text: "migre ces fichiers",
 						attachments: { "menu.yml": "size: 54", "kits.yml": "size: 27" },
@@ -326,7 +276,7 @@ describe("assistant routes", () => {
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
 					method: "POST",
-					headers: auth,
+					headers: cookieHeader(),
 					body: JSON.stringify({ text: "merci" }),
 				},
 			);
@@ -343,7 +293,7 @@ describe("assistant routes", () => {
 	it("titles a text-less first message from its attachment names", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
-			headers: auth,
+			headers: cookieHeader(),
 			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
@@ -351,7 +301,7 @@ describe("assistant routes", () => {
 			`/api/v1/assistant/conversations/${conversationId}/messages`,
 			{
 				method: "POST",
-				headers: auth,
+				headers: cookieHeader(),
 				body: JSON.stringify({
 					text: "",
 					attachments: { "menu.yml": "size: 54", "kits.yml": "size: 27" },
@@ -363,7 +313,7 @@ describe("assistant routes", () => {
 
 		const listed = await app.request(
 			`/api/v1/assistant/conversations?packId=${PACK_ID}`,
-			{ headers: auth },
+			{ headers: cookieHeader() },
 		);
 		const { conversations } = await listed.json();
 		const row = conversations.find(
@@ -397,7 +347,7 @@ describe("assistant routes", () => {
 		try {
 			const created = await app.request("/api/v1/assistant/conversations", {
 				method: "POST",
-				headers: auth,
+				headers: cookieHeader(),
 				body: JSON.stringify({ packId: PACK_ID }),
 			});
 			const { conversationId } = await created.json();
@@ -405,7 +355,7 @@ describe("assistant routes", () => {
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
 					method: "POST",
-					headers: auth,
+					headers: cookieHeader(),
 					body: JSON.stringify({
 						text: "what commands exist?",
 						commands: [{ schema: "command/v1", id: "heal", name: "heal" }],
@@ -429,7 +379,7 @@ describe("assistant routes", () => {
 		// API then mutate its stored messages directly via saveConversation.
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
-			headers: auth,
+			headers: cookieHeader(),
 			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
@@ -458,7 +408,7 @@ describe("assistant routes", () => {
 				`/api/v1/assistant/conversations/${conversationId}/messages`,
 				{
 					method: "POST",
-					headers: auth,
+					headers: cookieHeader(),
 					body: JSON.stringify({ text: "hello" }),
 				},
 			);
@@ -485,33 +435,43 @@ describe("assistant routes", () => {
 		}
 	});
 
-	it("does not leak a cookie-owned conversation to a Bearer owner", async () => {
-		const cookie = {
-			Cookie: `artisan_user_session=${userSessionId}`,
-			"Content-Type": "application/json",
-		};
+	it("does not leak a conversation owned by another user", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
-			headers: cookie,
+			headers: cookieHeader(),
 			body: JSON.stringify({ packId: PACK_ID }),
 		});
 		const { conversationId } = await created.json();
-		// Same id, but the editor-session Bearer token is a different ownerKey → 404.
-		const res = await app.request(
-			`/api/v1/assistant/conversations/${conversationId}/messages`,
-			{
-				method: "POST",
-				headers: auth,
-				body: JSON.stringify({ text: "x" }),
-			},
-		);
-		expect(res.status).toBe(404);
-		const got = await app.request(
-			`/api/v1/assistant/conversations/${conversationId}`,
-			{
-				headers: auth,
-			},
-		);
-		expect(got.status).toBe(404);
+
+		// A second user, also a member of the network, tries to access the first
+		// user's conversation — ownerKey differs (`user:<id>`) → 404.
+		const otherId = "usr_test_assistant_other";
+		await db.insert(users).values({
+			id: otherId, email: "assistant-other@example.com", name: "Other", createdAt: new Date(), updatedAt: new Date(),
+		}).onConflictDoNothing();
+		await db.insert(memberships).values({
+			id: "mem_test_assistant_other", userId: otherId, networkId, role: "owner", createdAt: new Date(),
+		}).onConflictDoNothing();
+		const otherSessionId = (await createSession(otherId)).id;
+		try {
+			const res = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}/messages`,
+				{
+					method: "POST",
+					headers: { Cookie: `artisan_user_session=${otherSessionId}`, "Content-Type": "application/json" },
+					body: JSON.stringify({ text: "x" }),
+				},
+			);
+			expect(res.status).toBe(404);
+			const got = await app.request(
+				`/api/v1/assistant/conversations/${conversationId}`,
+				{
+					headers: { Cookie: `artisan_user_session=${otherSessionId}`, "Content-Type": "application/json" },
+				},
+			);
+			expect(got.status).toBe(404);
+		} finally {
+			await db.delete(users).where(eq(users.id, otherId));
+		}
 	});
 });

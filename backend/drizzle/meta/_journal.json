@@ -127,6 +127,13 @@
       "when": 1783412670360,
       "tag": "0017_peaceful_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783767619756,
+      "tag": "0018_colossal_spectrum",
+      "breakpoints": true
     }
   ]
 }

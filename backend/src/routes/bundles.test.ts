@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { networks, serverKeys, projects, editorSessions, linkCodes, projectCommits, projectBranches } from "../db/schema";
+import { networks, serverKeys, projects, linkCodes, projectCommits, projectBranches } from "../db/schema";
 import { bundlesRouter } from "./bundles";
 import { generateServerKey } from "../lib/auth";
 import { createNetwork } from "../lib/networkManager";
@@ -36,7 +36,6 @@ async function seedServerKey(label: string): Promise<{ key: string; id: string; 
 
 beforeEach(async () => {
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(networks);

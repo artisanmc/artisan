@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
   memberships, networks, projects, serverKeys,
-  editorSessions, linkCodes, projectCommits, projectBranches, assets,
+  linkCodes, projectCommits, projectBranches, assets,
   users, userSessions,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
@@ -21,7 +21,6 @@ async function clearAll() {
   await db.delete(projectCommits);
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(memberships);

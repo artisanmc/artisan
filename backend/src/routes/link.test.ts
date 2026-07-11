@@ -1,7 +1,7 @@
 import { describe, expect, test, it, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
-import { editorSessions, linkCodes, serverKeys, networks, users, userSessions, memberships, projects } from "../db/schema";
+import { linkCodes, serverKeys, networks, users, userSessions, memberships, projects } from "../db/schema";
 import { generateCode, generateServerKey } from "../lib/auth";
 import { app } from "../app";
 

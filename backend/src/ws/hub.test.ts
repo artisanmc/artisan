@@ -8,7 +8,6 @@ import {
   registerEditorConn,
   broadcastDraftUpdate,
   getMcVersion,
-  trackEditorIp,
   pushResourcePackUpdated,
   connToServerId,
   connSenders,
@@ -17,7 +16,6 @@ import type { HelloMessage, HelloAckMessage } from "../protocol";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
 import {
-  editorSessions,
   serverKeys,
   serverKeyHelloes,
   serverModules,
@@ -29,7 +27,7 @@ import {
   linkCodes,
   assets,
 } from "../db/schema";
-import { generateEditorToken, generateServerKey, generateTrustCode } from "../lib/auth";
+import { generateServerKey } from "../lib/auth";
 import { rebuildResourcePack } from "../lib/resourcePack";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, upsertProjectContent, softDeleteProject } from "../lib/projectStorage";
@@ -40,7 +38,6 @@ import { advanceBranchHead, getBranch } from "../lib/branchStorage";
 async function clearAll() {
   await db.delete(assets);
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
   await db.delete(serverKeys);
@@ -412,108 +409,12 @@ describe("setup_claim", () => {
   });
 });
 
-describe("editor_session_request", () => {
-  test("returns editor_session_ready with url when authenticated", async () => {
-    const connId = "conn-editor-req";
-    registerConn(connId, () => {});
-
-    const { key } = await seedServerKey();
-    const hello = { type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "" };
-    await handlePluginMessage(connId, JSON.stringify(hello));
-
-    const result = await handlePluginMessage(connId, JSON.stringify({ type: "editor_session_request", sender: "AdminPlayer" }));
-    expect(result.reply).not.toBeNull();
-    const msg = JSON.parse(result.reply!) as { type: string; url: string; expires_at: string };
-    expect(msg.type).toBe("editor_session_ready");
-    expect(msg.url).toContain("/session?token=");
-    const body = msg as { type: string; url: string; expires_at: string; trust_code: string };
-    expect(typeof body.trust_code).toBe("string");
-    expect(body.trust_code.length).toBe(6);
-    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
-  });
-
-  test("returns null when connection not authenticated", async () => {
-    const connId = "conn-editor-unauth";
-    registerConn(connId, () => {});
-    const result = await handlePluginMessage(connId, JSON.stringify({ type: "editor_session_request", sender: "AdminPlayer" }));
-    expect(result.reply).toBeNull();
-  });
-});
-
-describe("editor_session_revoke", () => {
-  test("revokes all active sessions and pushes session_expired to editors", async () => {
-    const connId = "conn-editor-revoke";
-    registerConn(connId, () => {});
-
-    const { id: keyId, key } = await seedServerKey();
-    await handlePluginMessage(connId, JSON.stringify({ type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "" }));
-
-    const token = generateEditorToken();
-    await db.insert(editorSessions).values({ token, serverKeyId: keyId, createdBy: "CONSOLE", createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
-    const editorReceived: string[] = [];
-    registerEditorConn(token, keyId, (msg) => editorReceived.push(msg));
-
-    await handlePluginMessage(connId, JSON.stringify({ type: "editor_session_revoke" }));
-
-    expect(editorReceived.length).toBe(1);
-    expect(JSON.parse(editorReceived[0])).toMatchObject({ type: "session_expired" });
-  });
-});
-
-describe("editor_trust_request", () => {
-  test("sets trusted_at + trusted_ip, pushes session_trusted to editor WS", async () => {
-    const connId = "conn-trust-test";
-    registerConn(connId, () => {});
-
-    const { id: keyId, key } = await seedServerKey();
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-
-    const urlToken = "url_trust_" + crypto.randomUUID().slice(0, 8);
-    const accessToken = generateEditorToken();
-    const trustCode = generateTrustCode();
-    await db.insert(editorSessions).values({
-      token: urlToken, serverKeyId: keyId, createdBy: "CONSOLE",
-      createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      exchangedAt: new Date(), accessToken, accessExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      trustCode,
-    });
-
-    const editorReceived: string[] = [];
-    registerEditorConn(urlToken, keyId, (msg) => editorReceived.push(msg));
-    trackEditorIp(urlToken, "10.0.0.1");
-
-    await handlePluginMessage(connId, JSON.stringify({ type: "editor_trust_request", trust_code: trustCode }));
-
-    expect(editorReceived.length).toBe(1);
-    expect(JSON.parse(editorReceived[0])).toMatchObject({ type: "session_trusted" });
-
-    const rows = await db.select().from(editorSessions).where(eq(editorSessions.token, urlToken));
-    expect(rows[0].trustedAt).not.toBeNull();
-    expect(rows[0].trustedIp).toBe("10.0.0.1");
-  });
-
-  test("ignores trust request with unknown code", async () => {
-    const connId = "conn-trust-unknown";
-    registerConn(connId, () => {});
-    const { key } = await seedServerKey();
-    await handlePluginMessage(connId, JSON.stringify({
-      type: "hello", server_key: key, plugin_version: "1.0", minecraft_version: "1.21", current_bundle_hash: "",
-    }));
-    const result = await handlePluginMessage(connId, JSON.stringify({ type: "editor_trust_request", trust_code: "XXXXXX" }));
-    expect(result.reply).toBeNull();
-  });
-});
-
 describe("broadcastDraftUpdate", () => {
   test("pushes draft_update to other editor connections for the same server", async () => {
     const { id: keyId } = await seedServerKey();
 
-    const tokenA = generateEditorToken();
-    const tokenB = generateEditorToken();
-    await db.insert(editorSessions).values({ token: tokenA, serverKeyId: keyId, createdBy: "A", createdAt: new Date(), expiresAt: new Date(Date.now() + 1800000) });
-    await db.insert(editorSessions).values({ token: tokenB, serverKeyId: keyId, createdBy: "B", createdAt: new Date(), expiresAt: new Date(Date.now() + 1800000) });
+    const tokenA = crypto.randomUUID();
+    const tokenB = crypto.randomUUID();
 
     const receivedByB: string[] = [];
     registerEditorConn(tokenA, keyId, () => {});
@@ -531,9 +432,8 @@ describe("broadcastDraftUpdate", () => {
     const { id: keyId } = await seedServerKey();
     const otherKeyId = "other-server-key-" + crypto.randomUUID().slice(0, 8);
 
-    const tokenSender = generateEditorToken();
-    const tokenMulti = generateEditorToken();
-    await db.insert(editorSessions).values({ token: tokenSender, serverKeyId: keyId, createdBy: "A", createdAt: new Date(), expiresAt: new Date(Date.now() + 1800000) });
+    const tokenSender = crypto.randomUUID();
+    const tokenMulti = crypto.randomUUID();
 
     const receivedByMulti: string[] = [];
     registerEditorConn(tokenSender, keyId, () => {});

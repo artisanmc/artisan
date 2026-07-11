@@ -45,14 +45,11 @@ export function buildAiRouter(): Hono {
 		const activeModels = all.filter((m) => m.isActive);
 		const def = activeModels.find((m) => m.isDefault) ?? null;
 		const ownerKey = c.get("ownerKey") as string;
-		let preferredModelId: string | null = null;
-		if (ownerKey.startsWith("user:")) {
-			const rows = await db
-				.select({ preferred: users.preferredAiModelId })
-				.from(users)
-				.where(eq(users.id, ownerKey.slice(5)));
-			preferredModelId = rows[0]?.preferred ?? null;
-		}
+		const rows = await db
+			.select({ preferred: users.preferredAiModelId })
+			.from(users)
+			.where(eq(users.id, ownerKey.slice(5)));
+		const preferredModelId = rows[0]?.preferred ?? null;
 		return c.json({
 			models: activeModels.map(toPublicDto),
 			defaultModelId: def?.id ?? null,
@@ -71,8 +68,6 @@ export function buildAiRouter(): Hono {
 
 	r.put("/preferred-model", async (c) => {
 		const ownerKey = c.get("ownerKey") as string;
-		if (!ownerKey.startsWith("user:"))
-			return c.json({ error: "user_session_required" }, 403);
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
 		const modelId = typeof body.modelId === "string" ? body.modelId : "";
 		const m = await getModel(modelId);

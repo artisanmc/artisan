@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { app, websocket } from "./app";
 import { db } from "./db/index";
-import { networks, serverKeys, projects, editorSessions, linkCodes } from "./db/schema";
+import { networks, serverKeys, projects, linkCodes } from "./db/schema";
 import { createCommit } from "./lib/commitStorage";
 import { getBranch, advanceBranchHead } from "./lib/branchStorage";
 
@@ -20,7 +20,6 @@ afterAll(() => {
 // project id can't leak ownership across tests (or across reused test-DB runs).
 beforeEach(async () => {
   await db.delete(projects);
-  await db.delete(editorSessions);
   await db.delete(linkCodes);
   await db.delete(serverKeys);
   await db.delete(networks);

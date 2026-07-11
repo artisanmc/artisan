@@ -3,11 +3,10 @@ import { eq } from "drizzle-orm";
 import { app } from "../../app";
 import { db } from "../../db/index";
 import {
-	aiCreditLedger,
 	aiModels,
 	aiUsageLog,
 	appSettings,
-	editorSessions,
+	memberships,
 	networks,
 	projects,
 	serverKeys,
@@ -19,17 +18,18 @@ import { createModel, setDefaultModel, type AiModel } from "../ai/modelRepo";
 import { AI_SETTINGS_KEY } from "../ai/settings";
 import { setSetting } from "../../lib/appSettings";
 import { createSession } from "../../lib/sessionManager";
+import { generateServerKey } from "../../lib/auth";
 import type { LlmProvider } from "./provider/types";
 import { __setProviderForTests } from "./routes";
 
-const SRV = "srv_credits_int";
-const ACCESS = "acc_credits_int";
 const PROJECT_ID = "proj_credits_int";
+const USER_ID = "usr_credits_int";
 let networkId = "";
+let userSessionId = "";
 let defaultModel: AiModel;
 let altModel: AiModel;
 
-const auth = { Authorization: `Bearer ${ACCESS}`, "Content-Type": "application/json" };
+const auth = () => ({ Cookie: `artisan_user_session=${userSessionId}`, "Content-Type": "application/json" });
 
 /** Provider whose turn emits usage worth exactly 700 credits at the default prices. */
 function usageProvider(): LlmProvider {
@@ -53,30 +53,33 @@ function throwingProvider(): LlmProvider {
 
 async function openConversation(): Promise<string> {
 	const created = await app.request("/api/v1/assistant/conversations", {
-		method: "POST", headers: auth, body: JSON.stringify({ packId: PROJECT_ID }),
+		method: "POST", headers: auth(), body: JSON.stringify({ packId: PROJECT_ID }),
 	});
 	return (await created.json()).conversationId;
 }
 
 function sendMessage(convId: string, body: Record<string, unknown>) {
 	return app.request(`/api/v1/assistant/conversations/${convId}/messages`, {
-		method: "POST", headers: auth, body: JSON.stringify(body),
+		method: "POST", headers: auth(), body: JSON.stringify(body),
 	});
 }
 
 beforeAll(async () => {
 	networkId = (await createNetwork("credits-int-network")).id;
 	const now = new Date();
-	const future = new Date(Date.now() + 3_600_000);
-	await db.insert(serverKeys).values({ id: SRV, hash: "h_credits_int", networkId, createdAt: now }).onConflictDoNothing();
-	await db.insert(editorSessions).values({
-		token: "url_credits_int", serverKeyId: SRV, createdBy: "CONSOLE",
-		createdAt: now, expiresAt: future, accessToken: ACCESS, accessExpiresAt: future,
-	}).onConflictDoNothing();
+	const { id: serverKeyId, hash } = await generateServerKey();
+	await db.insert(serverKeys).values({ id: serverKeyId, hash, networkId, createdAt: now }).onConflictDoNothing();
 	await db.insert(projects).values({
-		id: PROJECT_ID, networkId, serverKeyId: SRV, name: "Credits Int",
+		id: PROJECT_ID, networkId, serverKeyId, name: "Credits Int",
 		hash: "", filesJson: "{}", createdAt: now, updatedAt: now,
 	}).onConflictDoNothing();
+	await db.insert(users).values({
+		id: USER_ID, email: "credits-int@example.com", name: "Credits Int", createdAt: now, updatedAt: now,
+	}).onConflictDoNothing();
+	await db.insert(memberships).values({
+		id: "mem_credits_int", userId: USER_ID, networkId, role: "owner", createdAt: now,
+	}).onConflictDoNothing();
+	userSessionId = (await createSession(USER_ID)).id;
 	defaultModel = await createModel({
 		displayName: "Default Int", description: "", badge: "balanced",
 		provider: "openai", providerModelId: "default-int",
@@ -97,7 +100,7 @@ afterAll(async () => {
 	__setProviderForTests(null);
 	await db.delete(appSettings).where(eq(appSettings.key, AI_SETTINGS_KEY));
 	await db.delete(aiModels);
-	await db.delete(editorSessions).where(eq(editorSessions.token, "url_credits_int"));
+	await db.delete(users).where(eq(users.id, USER_ID));
 	await db.delete(networks).where(eq(networks.id, networkId)); // cascades serverKeys, projects, usage, ledger
 });
 
@@ -126,8 +129,8 @@ describe("assistant credits integration", () => {
 		expect(log.modelName).toBe("Default Int");
 		expect(log.conversationId).toBe(convId);
 		expect(log.promptPreview).toBe("make something");
-		expect(log.userId).toBeNull();
-		expect(log.serverKeyId).toBe(SRV); // sk: session actor
+		expect(log.userId).toBe(USER_ID); // user: session actor
+		expect(log.serverKeyId).toBeNull();
 	});
 
 	it("body.modelId picks the requested model (snapshot in the log)", async () => {
@@ -175,7 +178,7 @@ describe("assistant credits integration", () => {
 
 	it("unknown project at conversation creation → 404 project_not_found", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
-			method: "POST", headers: auth, body: JSON.stringify({ packId: "ghost_project" }),
+			method: "POST", headers: auth(), body: JSON.stringify({ packId: "ghost_project" }),
 		});
 		expect(created.status).toBe(404);
 		expect((await created.json()).error).toBe("project_not_found");
@@ -201,18 +204,22 @@ describe("assistant credits integration", () => {
 		}
 	});
 
-	it("sk: session cannot open a conversation on another server key's project", async () => {
+	it("member of a different network cannot open a conversation on this project", async () => {
 		const now = new Date();
-		const future = new Date(Date.now() + 3_600_000);
-		await db.insert(serverKeys).values({ id: "srv_credits_other", hash: "h_credits_other", networkId, createdAt: now }).onConflictDoNothing();
+		const otherNetwork = await createNetwork("credits-int-other-network");
+		const { id: otherServerKeyId, hash: otherHash } = await generateServerKey();
+		await db.insert(serverKeys).values({ id: otherServerKeyId, hash: otherHash, networkId: otherNetwork.id, createdAt: now }).onConflictDoNothing();
 		await db.insert(projects).values({
-			id: "proj_credits_other", networkId, serverKeyId: "srv_credits_other",
+			id: "proj_credits_other", networkId: otherNetwork.id, serverKeyId: otherServerKeyId,
 			name: "Other", hash: "", filesJson: "{}", createdAt: now, updatedAt: now,
 		}).onConflictDoNothing();
-		const res = await app.request("/api/v1/assistant/conversations", {
-			method: "POST", headers: auth, body: JSON.stringify({ packId: "proj_credits_other" }),
-		});
-		expect(res.status).toBe(403);
-		// cleanup: cascades when the network is deleted in afterAll
+		try {
+			const res = await app.request("/api/v1/assistant/conversations", {
+				method: "POST", headers: auth(), body: JSON.stringify({ packId: "proj_credits_other" }),
+			});
+			expect(res.status).toBe(403);
+		} finally {
+			await db.delete(networks).where(eq(networks.id, otherNetwork.id));
+		}
 	});
 });
