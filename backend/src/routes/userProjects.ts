@@ -217,7 +217,15 @@ userProjectsRouter.post("/:projectId/draft", async (c: Context<{ Variables: Vars
   if (!serverKeyId) return c.json({ error: "not_found" }, 404);
 
   const body = await c.req.json<{ menu_id: string; menu_yaml: string }>();
-  broadcastDraftUpdate(serverKeyId, projectId, body.menu_id, body.menu_yaml, `user:${userId}`);
+  // Editor WS session ids are minted per-connection at ws upgrade ("user_" +
+  // randomUUID(), cf. app.ts `/ws/editor`), not derived from userId — this
+  // HTTP request isn't tied to any one of the user's WS tabs, so there is no
+  // real session id to exclude here. `userId` below therefore never matches a
+  // live session and excludes nothing (every open tab for this server,
+  // including the sender's own, receives the echo). No client currently
+  // calls this route; when a producer lands it must ignore echoes of the
+  // menu_yaml it just sent.
+  broadcastDraftUpdate(serverKeyId, projectId, body.menu_id, body.menu_yaml, userId);
   return c.json({ ok: true });
 });
 
