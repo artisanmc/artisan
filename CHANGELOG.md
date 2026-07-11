@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- User-scoped assets CRUD + resource-pack rebuild: `POST|PATCH|DELETE /api/v1/user/projects/:projectId/assets[...]` (+ `:id/duplicate`) and `POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebuild`, cookie-auth twins of the session-mode `editor-session/:token/projects/:projectId/assets` and `…/resource-pack/rebuild`. Business logic extracted into shared `handleAsset*` (`assets.ts`) and `handleResourcePackRebuild` (`resourcePack.ts`) functions called by both the session and user routers — zero duplication (Task 2 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - User-scoped presence endpoints (modules/data-sources) per server: `GET /api/v1/networks/:networkId/servers/:serverId/modules` and `…/data-sources`, cookie-auth twins of the session-mode `editor-session/:token/modules`/`…/data-sources` (Task 1 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
 - Menus resolve `context_inputs[].source` (ConnectorBinding) through the `DataSourceRegistry` at render time — modules can now feed menu iteration via `api.dataSources.register(...)` (menu/v1 §14, "Phase B").

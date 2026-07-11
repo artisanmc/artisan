@@ -21,6 +21,7 @@ import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
 import { disconnectServerKey, getInstanceCount } from "../ws/hub";
+import { handleResourcePackRebuild } from "./resourcePack";
 
 type Vars = { user: AuthUser | null };
 
@@ -660,6 +661,34 @@ userNetworksRouter.get(
 		return c.json({
 			data_sources: rows.map((r) => ({ ref: r.ref, schema_hint: r.schemaHint })),
 		});
+	},
+);
+
+// POST /api/networks/:networkId/servers/:serverId/resource-pack/rebuild — member access.
+// User-scoped twin of POST /api/v1/editor-session/:token/resource-pack/rebuild
+// (resourcePackAdminRouter) — same response shape, cookie auth instead of the
+// session token (Task 2 of the accounts-only cutover).
+userNetworksRouter.post(
+	"/:networkId/servers/:serverId/resource-pack/rebuild",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		return handleResourcePackRebuild(c, sk[0].id);
 	},
 );
 

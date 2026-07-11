@@ -43,15 +43,15 @@ async function assertBound(
   return { ok: true, session };
 }
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
+// ─── Shared handlers ─────────────────────────────────────────────────────────
+// Extracted so the session router (assertBound) and the user router
+// (membership guard, see userAssets.ts) share ONE implementation of the
+// business logic — only the auth/binding check at the call site differs.
 
-assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  const session = check.session;
+type AssetCtx = { projectId: string; serverKeyId: string };
 
+export async function handleAssetCreate(c: any, ctx: AssetCtx) {
+  const { projectId, serverKeyId } = ctx;
   const form = await c.req.parseBody();
   const type = String(form.type ?? "");
   const name = String(form.name ?? "");
@@ -112,8 +112,8 @@ assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
     eq(assets.contentHash, contentHash),
   ));
   if (existing.length > 0) {
-    const _packInfo = await rebuildResourcePack(session.serverKeyId);
-    pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+    const _packInfo = await rebuildResourcePack(serverKeyId);
+    pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
     const body: Record<string, unknown> = { asset: serialize(existing[0]) };
     if (parsedFont) body.warnings = parsedFont.warnings;
     return c.json(body, 200);
@@ -191,19 +191,15 @@ assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
   }
 
   const created = (await db.select().from(assets).where(eq(assets.id, id)))[0];
-  const _packInfo = await rebuildResourcePack(session.serverKeyId);
-  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+  const _packInfo = await rebuildResourcePack(serverKeyId);
+  pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
   const body: Record<string, unknown> = { asset: serialize(created) };
   if (parsedFont) body.warnings = parsedFont.warnings;
   return c.json(body, 201);
-});
+}
 
-assetsRouter.get("/:token/projects/:projectId/assets", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-
+export async function handleAssetList(c: any, ctx: { projectId: string }) {
+  const { projectId } = ctx;
   const typeParam = c.req.query("type");
   const searchParam = c.req.query("search");
 
@@ -217,28 +213,19 @@ assetsRouter.get("/:token/projects/:projectId/assets", async (c) => {
 
   const rows = await db.select().from(assets).where(and(...conditions));
   return c.json({ assets: rows.map(serialize) });
-});
+}
 
-assetsRouter.get("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-
+export async function handleAssetGet(c: any, ctx: { projectId: string }) {
+  const { projectId } = ctx;
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
     .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ asset: serialize(rows[0]) });
-});
+}
 
-assetsRouter.patch("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  const session = check.session;
-
+export async function handleAssetPatch(c: any, ctx: AssetCtx) {
+  const { projectId, serverKeyId } = ctx;
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
     .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
@@ -295,18 +282,13 @@ assetsRouter.patch("/:token/projects/:projectId/assets/:id", async (c) => {
     return c.json({ error: "Failed to persist asset" }, 500);
   }
   const updated = (await db.select().from(assets).where(eq(assets.id, id)))[0];
-  const _packInfo = await rebuildResourcePack(session.serverKeyId);
-  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+  const _packInfo = await rebuildResourcePack(serverKeyId);
+  pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
   return c.json({ asset: serialize(updated) });
-});
+}
 
-assetsRouter.post("/:token/projects/:projectId/assets/:id/duplicate", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  const session = check.session;
-
+export async function handleAssetDuplicate(c: any, ctx: AssetCtx) {
+  const { projectId, serverKeyId } = ctx;
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
     .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
@@ -363,10 +345,10 @@ assetsRouter.post("/:token/projects/:projectId/assets/:id/duplicate", async (c) 
   }
 
   const created = (await db.select().from(assets).where(eq(assets.id, newId)))[0];
-  const _packInfo = await rebuildResourcePack(session.serverKeyId);
-  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+  const _packInfo = await rebuildResourcePack(serverKeyId);
+  pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
   return c.json({ asset: serialize(created) }, 200);
-});
+}
 
 async function findFreeCopyName(
   projectId: string,
@@ -388,13 +370,8 @@ async function findFreeCopyName(
   throw new Error("Could not find a free copy name after 1000 attempts");
 }
 
-assetsRouter.delete("/:token/projects/:projectId/assets/:id", async (c) => {
-  const token = c.req.param("token");
-  const projectId = c.req.param("projectId");
-  const check = await assertBound(token, projectId, c);
-  if (!check.ok) return check.response;
-  const session = check.session;
-
+export async function handleAssetDelete(c: any, ctx: AssetCtx) {
+  const { projectId, serverKeyId } = ctx;
   const id = c.req.param("id");
   const rows = await db.select().from(assets)
     .where(and(eq(assets.id, id), eq(assets.projectId, projectId)));
@@ -407,9 +384,59 @@ assetsRouter.delete("/:token/projects/:projectId/assets/:id", async (c) => {
   } else {
     await deleteAssetFile(projectId, id);
   }
-  const _packInfo = await rebuildResourcePack(session.serverKeyId);
-  pushResourcePackUpdated(session.serverKeyId, _packInfo.url, _packInfo.hash);
+  const _packInfo = await rebuildResourcePack(serverKeyId);
+  pushResourcePackUpdated(serverKeyId, _packInfo.url, _packInfo.hash);
   return c.body(null, 204);
+}
+
+// ─── Session router (token + assertBound) ──────────────────────────────────
+
+assetsRouter.post("/:token/projects/:projectId/assets", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetCreate(c, { projectId, serverKeyId: check.session.serverKeyId });
+});
+
+assetsRouter.get("/:token/projects/:projectId/assets", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetList(c, { projectId });
+});
+
+assetsRouter.get("/:token/projects/:projectId/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetGet(c, { projectId });
+});
+
+assetsRouter.patch("/:token/projects/:projectId/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetPatch(c, { projectId, serverKeyId: check.session.serverKeyId });
+});
+
+assetsRouter.post("/:token/projects/:projectId/assets/:id/duplicate", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetDuplicate(c, { projectId, serverKeyId: check.session.serverKeyId });
+});
+
+assetsRouter.delete("/:token/projects/:projectId/assets/:id", async (c) => {
+  const token = c.req.param("token");
+  const projectId = c.req.param("projectId");
+  const check = await assertBound(token, projectId, c);
+  if (!check.ok) return check.response;
+  return handleAssetDelete(c, { projectId, serverKeyId: check.session.serverKeyId });
 });
 
 function serialize(row: typeof assets.$inferSelect) {
