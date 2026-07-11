@@ -58,4 +58,27 @@ describe("serverDataSourcesStore", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "boutique:npcs", schemaHint: null }]);
   });
+
+  it("ignores a stale resolver — A resolves after B, state reflects B", async () => {
+    let resolveA: (v: Response) => void;
+    const pendingA = new Promise<Response>((resolve) => {
+      resolveA = resolve;
+    });
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("srv1")) return pendingA;
+      return Promise.resolve(new Response(JSON.stringify({ data_sources: [{ ref: "boutique:npcs", schema_hint: null }] })));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const loadA = useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    const loadB = useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
+    await loadB;
+    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
+
+    resolveA!(new Response(JSON.stringify({ data_sources: [{ ref: "shop:items", schema_hint: null }] })));
+    await loadA;
+
+    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "boutique:npcs", schemaHint: null }]);
+  });
 });

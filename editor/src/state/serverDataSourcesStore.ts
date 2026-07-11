@@ -31,8 +31,12 @@ export const useServerDataSourcesStore = create<ServerDataSourcesState>((set, ge
     set({ status: "loading", loadedKey: key });
     try {
       const sources = await fetchServerDataSourcesUser(source.networkId, source.serverId);
+      // A newer load() may have started (and set a different loadedKey) while
+      // this fetch was in flight — don't let a stale resolver overwrite it.
+      if (get().loadedKey !== key) return;
       set({ sources, status: "ready", loadedKey: key });
     } catch {
+      if (get().loadedKey !== key) return;
       // fetchServerDataSourcesUser swallows its own errors and resolves to [];
       // this catch is defensive so a later call with the same source can retry.
       set({ status: "idle", loadedKey: null });

@@ -48,8 +48,12 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
         mounted.push(entry.id);
       }
 
+      // A newer integrate() may have started (and set a different loadedKey)
+      // while this fetch was in flight — don't let a stale resolver overwrite it.
+      if (get().loadedKey !== key) return;
       set({ mountedIds: mounted, status: "ready", loadedKey: key });
     } catch {
+      if (get().loadedKey !== key) return;
       // Clear loadedKey so a later call with the same source can retry.
       set({ status: "idle", loadedKey: null });
     }

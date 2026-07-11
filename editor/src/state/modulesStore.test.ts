@@ -90,4 +90,25 @@ describe("useModulesStore.integrate", () => {
     expect(useModulesStore.getState().mountedIds).toEqual([]);
     expect(useModulesStore.getState().status).toBe("ready");
   });
+
+  it("ignores a stale resolver — A resolves after B, state reflects B", async () => {
+    let resolveA: (v: { id: string; version: string }[]) => void;
+    const pendingA = new Promise<{ id: string; version: string }[]>((resolve) => {
+      resolveA = resolve;
+    });
+    vi.mocked(fetchActiveModulesUser)
+      .mockImplementationOnce(() => pendingA)
+      .mockResolvedValueOnce([]);
+
+    const integrateA = useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    const integrateB = useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv2" });
+    await integrateB;
+    expect(useModulesStore.getState().loadedKey).toBe("u:net1/srv2");
+
+    resolveA!([{ id: "quests", version: "1.0.0" }]);
+    await integrateA;
+
+    expect(useModulesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useModulesStore.getState().mountedIds).toEqual([]);
+  });
 });
