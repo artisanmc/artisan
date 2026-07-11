@@ -55,15 +55,7 @@ In-game, run:
 
 The command requires the `artisan.editor` permission, granted to ops by default. If running it as a non-op produces no response, grant the permission via your permissions plugin (LuckPerms, PermissionsEx, etc.) or run from console.
 
-A trust link appears in chat. Click it to open the editor in your browser.
-The editor is now paired with your server — any change you save is
-live-synced to your players' next menu open.
-
-To revoke the active editor session at any time:
-
-```
-/artisan editor revoke
-```
+If the server is linked, this prints a clickable link to your Artisan editor along with the network it belongs to — no session or trust code involved, it's the same static URL every time. If the server is not yet linked, it prints a hint and starts the guided linking flow from step 2.
 
 Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
@@ -75,9 +67,9 @@ Once the editor opens, see the [Editor overview](/editor/) for next steps — ho
 | `/artisan reload` | Reload all menus from disk. |
 | `/artisan sync status` | Show the last sync status with the backend. |
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
-| `/artisan editor` | Request an editor session link (requires `artisan.editor` permission). |
-| `/artisan editor revoke` | Revoke the currently active editor session. |
-| `/artisan setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. |
+| `/artisan editor` | Print the static editor link + network name if linked (requires `artisan.editor` permission), otherwise start the linking flow. |
+| `/artisan setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. Refuses with a message if the server is already linked. |
+| `/artisan pushLocal <id\|--all>` | Push local on-disk project changes to the backend (FTP scenario). |
 
 ## 5. Billing administration (super-admins)
 

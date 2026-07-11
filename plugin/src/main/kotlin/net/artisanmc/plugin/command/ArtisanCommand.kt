@@ -34,7 +34,7 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "trusteditor", "dump-title", "pushLocal")
+            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "dump-title", "pushLocal")
                 .filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -42,8 +42,6 @@ class ArtisanCommand(
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
-            args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
-                listOf("revoke").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("pushLocal", ignoreCase = true) -> {
                 val projectsDir = java.io.File(plugin.dataFolder, "projects")
                 val projectIds = projectsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
@@ -84,25 +82,7 @@ class ArtisanCommand(
                 }
             }
             "setup" -> setup(sender, args.getOrNull(1)?.uppercase())
-            "editor" -> {
-                when (args.getOrNull(1)?.lowercase()) {
-                    "revoke" -> editorRevoke(sender)
-                    null     -> editor(sender)
-                    else     -> sender.sendMessage(lang.get("artisan.usage_editor", sender))
-                }
-            }
-            "trusteditor" -> {
-                val code = args.getOrNull(1) ?: run {
-                    sender.sendMessage(lang.get("artisan.usage_trusteditor", sender))
-                    return true
-                }
-                if (!sender.hasPermission("artisan.editor")) {
-                    sender.sendMessage(lang.get("artisan.trust_no_permission", sender))
-                    return true
-                }
-                plugin.menuProvider.sendTrustRequest(code.uppercase())
-                sender.sendMessage(lang.get("artisan.trust_sent", sender))
-            }
+            "editor" -> editor(sender)
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -245,39 +225,25 @@ class ArtisanCommand(
             sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
             return
         }
-        if (cfg.wsUrl.isEmpty() || cfg.serverKey.isEmpty()) {
-            sender.sendMessage(lang.get("artisan.server_not_linked", senderLang))
+        val info = plugin.menuProvider.editorInfo()
+        if (info == null) {
+            sender.sendMessage(lang.get("artisan.editor_not_linked_hint", senderLang))
+            setup(sender, null)
             return
         }
-        val senderName = if (sender is Player) sender.name else "CONSOLE"
-        plugin.menuProvider.requestEditorSession(senderName) { url, expiresAt ->
-            plugin.logger.info("Editor → $url  (expires $expiresAt)")
-            Bukkit.getScheduler().runTask(plugin, Runnable {
-                val link = Component.text(lang.getRaw("artisan.editor_link_label", senderLang))
-                    .color(NamedTextColor.GREEN)
-                    .decorate(TextDecoration.UNDERLINED)
-                    .clickEvent(ClickEvent.openUrl(url))
-                sender.sendMessage(lang.get("artisan.prefix", senderLang).append(link))
-                sender.sendMessage(lang.get("artisan.editor_expires", senderLang, "expires" to expiresAt))
-            })
-        }
-    }
-
-    private fun editorRevoke(sender: CommandSender) {
-        val senderLang = lang.playerLang(sender)
-        if (!sender.hasPermission("artisan.editor")) {
-            sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
-            return
-        }
-        plugin.menuProvider.revokeEditorSessions()
-        sender.sendMessage(lang.get("artisan.editor_revoked", senderLang))
+        val (url, networkName) = info
+        sender.sendMessage(lang.get("artisan.editor_linked", senderLang, "network" to networkName, "url" to url))
     }
 
     private fun setup(sender: CommandSender, code: String?) {
-        setupClient?.disconnect()
-        setupClient = null
         val cfg = PluginConfig.from(plugin.config)
         val senderLang = lang.playerLang(sender)
+        if (cfg.serverKey.isNotEmpty()) {
+            sender.sendMessage(lang.get("artisan.setup_already_linked", senderLang))
+            return
+        }
+        setupClient?.disconnect()
+        setupClient = null
         if (cfg.wsUrl.isEmpty()) {
             sender.sendMessage(lang.get("artisan.setup_ws_missing", senderLang))
             return
