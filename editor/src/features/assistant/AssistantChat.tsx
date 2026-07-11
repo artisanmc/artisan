@@ -14,7 +14,6 @@ import {
 } from "@/lib/api/assistant";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, FileText, Paperclip, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -85,8 +84,8 @@ function messagesToEntries(messages: ConversationMessage[]): Entry[] {
  * The SSE loop (`streamAssistant`) renders streamed text incrementally and
  * applies engine events live to the canvas: `menu_written` → `applyAssistantMenu`,
  * `menu_deleted` → `deleteFromProject`. Each message re-seeds the backend working
- * copy with `packToMenuV1(pack)` + `attachments`. Auth: a session token OR a
- * logged-in user (cookie); see `lib/api/assistant.ts`.
+ * copy with `packToMenuV1(pack)` + `attachments`. Auth: a logged-in user
+ * (cookie); see `lib/api/assistant.ts`.
  */
 export function AssistantChat({
   projectId,
@@ -99,7 +98,6 @@ export function AssistantChat({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -117,7 +115,7 @@ export function AssistantChat({
   useEffect(() => {
     if (!conversationId) return;
     let cancelled = false;
-    getConversation(token, conversationId)
+    getConversation(conversationId)
       .then((c) => {
         if (!cancelled) setEntries(messagesToEntries(c.messages));
       })
@@ -125,12 +123,12 @@ export function AssistantChat({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, token]);
+  }, [conversationId]);
 
   // Credit balance for this project — shown next to the model picker.
   useEffect(() => {
     let cancelled = false;
-    getBalance(token, projectId)
+    getBalance(projectId)
       .then((b) => {
         if (!cancelled) setBalance(b);
       })
@@ -138,7 +136,7 @@ export function AssistantChat({
     return () => {
       cancelled = true;
     };
-  }, [token, projectId]);
+  }, [projectId]);
 
   /** Append `chunk` to the trailing assistant entry, or start a new one. */
   function appendAssistant(chunk: string) {
@@ -158,7 +156,7 @@ export function AssistantChat({
   async function send() {
     const text = input.trim();
     const attachedNames = Object.keys(attachments);
-    if ((!token && !user) || (!text && attachedNames.length === 0) || busy) return;
+    if (!user || (!text && attachedNames.length === 0) || busy) return;
     setInput("");
     const shown = text || t("assistant.sentFiles", { names: attachedNames.join(", ") });
     setEntries((e) => [...e, { role: "user", text: shown }]);
@@ -172,10 +170,10 @@ export function AssistantChat({
       const commands = pack ? packToCommandV1(pack) : [];
       const dialogs = pack ? packToDialogV1(pack) : [];
       if (!convId.current) {
-        convId.current = await openConversation(token, { projectId });
+        convId.current = await openConversation({ projectId });
       }
       let dirty = false;
-      for await (const ev of streamAssistant(token, convId.current, {
+      for await (const ev of streamAssistant(convId.current, {
         text,
         menus,
         attachments,
@@ -398,7 +396,6 @@ export function AssistantChat({
       <div className="flex shrink-0 flex-col gap-2 border-[var(--border-soft)] border-t p-3">
         <div data-testid="assistant-composer-toolbar" className="flex min-w-0 items-center gap-2">
           <ModelSelector
-            token={token}
             value={modelId}
             onChange={setModelId}
             onModelsLoaded={(r) =>

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LibraryItem, CustomItemsData } from "@/lib/projectApi";
+import type { LibraryItem, CustomItemsData } from "@/domain/library";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 

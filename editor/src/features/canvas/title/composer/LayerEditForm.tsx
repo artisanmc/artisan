@@ -12,14 +12,12 @@ import { assetPreviewUrl } from "@/domain/asset";
 import type { AssetId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { duplicateAsset, updateAsset } from "@/lib/projectApi";
-import { duplicateAsset as duplicateAssetUser, patchAsset as patchAssetUser } from "@/lib/api/userAssets";
+import { duplicateAsset, patchAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 
 import { TextSizeSelector } from "./TextSizeSelector";
@@ -135,7 +133,6 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
   const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
-  const token = useSessionStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
@@ -156,7 +153,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   };
 
   const onDuplicate = async () => {
-    if (!token && !user) return;
+    if (!user) return;
     if (
       !window.confirm(
         "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
@@ -166,9 +163,7 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
     }
     setDuplicating(true);
     try {
-      const dup = token
-        ? await duplicateAsset(token, projectId, layer.assetId)
-        : await duplicateAssetUser(projectId, layer.assetId);
+      const dup = await duplicateAsset(projectId, layer.assetId);
       upsertAsset(dup);
       updateLayer({
         projectId,
@@ -186,12 +181,10 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
   const TITLE_LABEL_Y = 13;
 
   const onPatchAscent = async (value: number) => {
-    if ((!token && !user) || !asset) return;
+    if (!user || !asset) return;
     setPatchingAscent(true);
     try {
-      const updated = token
-        ? await updateAsset(token, projectId, asset.id, { ascent: value })
-        : await patchAssetUser(projectId, asset.id, { ascent: value });
+      const updated = await patchAsset(projectId, asset.id, { ascent: value });
       upsertAsset(updated);
       // Keep layer.y in sync with the new ascent so the canvas reflects the
       // change immediately (layer.y = titleLabelY - ascent).

@@ -2,7 +2,6 @@ import { projectId } from "@/domain/ids";
 import { persistProject } from "@/features/project/persistProject";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,7 +48,7 @@ vi.mock("@/lib/api/assistant", () => ({
 }));
 
 function setup() {
-  useSessionStore.setState({ accessToken: "tok" } as never);
+  useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
   useAccountStore.getState().setAccount({
     id: "a" as never,
     projects: [],
@@ -60,7 +59,6 @@ function setup() {
 
 afterEach(() => {
   vi.clearAllMocks();
-  useAuthStore.setState({ currentUser: null } as never);
 });
 
 describe("AssistantChat", () => {
@@ -148,21 +146,6 @@ describe("AssistantChat", () => {
           lang: "en",
         }),
       ),
-    );
-  });
-
-  it("sends in user-auth mode: no session token but a logged-in user", async () => {
-    setup();
-    // Web-login mode: no editor-session token, auth rides the user cookie.
-    useSessionStore.setState({ accessToken: null } as never);
-    useAuthStore.setState({ currentUser: { id: "u1", email: "a@b.c" } } as never);
-    render(<AssistantChat projectId={projectId("p")} />);
-
-    await userEvent.type(screen.getByRole("textbox"), "fais un shop");
-    await userEvent.click(screen.getByText(/send|envoyer/i));
-
-    await waitFor(() =>
-      expect(screen.getByTestId("assistant-transcript").textContent).toMatch(/Voici le menu\./),
     );
   });
 
@@ -289,7 +272,6 @@ describe("AssistantChat", () => {
     const { streamAssistant } = await import("@/lib/api/assistant");
     await waitFor(() =>
       expect(streamAssistant).toHaveBeenCalledWith(
-        "tok",
         "c1",
         expect.objectContaining({ text: "", attachments: { "menu.yml": "size: 54" } }),
       ),
@@ -320,7 +302,6 @@ describe("AssistantChat", () => {
     const { streamAssistant } = await import("@/lib/api/assistant");
     await waitFor(() =>
       expect(streamAssistant).toHaveBeenCalledWith(
-        "tok",
         "c1",
         expect.objectContaining({ attachments: { "menu.yml": "size: 54" } }),
       ),
