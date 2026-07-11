@@ -34,14 +34,12 @@ import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { HistoryTab } from "@/features/project/HistoryTab";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
-import { deleteProject } from "@/lib/api/projects";
-import { refreshEditorSession } from "@/lib/editorSession";
+import { deleteUserProject } from "@/lib/api/userProjects";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useSessionStore } from "@/state/sessionStore";
 import { useUiStore } from "@/state/uiStore";
 import {
   DndContext,
@@ -88,9 +86,6 @@ export function ProjectCanvasPage() {
     from: "/networks/$networkId/servers/$serverId/projects/$projectId",
   });
   const pId = projectId as ProjectId;
-  const token = useSessionStore((s) => s.accessToken);
-  const setAccessToken = useSessionStore((s) => s.setAccessToken);
-  const clearSession = useSessionStore((s) => s.clearSession);
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
@@ -103,11 +98,8 @@ export function ProjectCanvasPage() {
   const projectPanelOpen = useUiStore((s) => s.projectPanelOpen);
   const assistantPaneWidth = useUiStore((s) => s.assistantPaneWidth);
   const setAssistantPaneWidth = useUiStore((s) => s.setAssistantPaneWidth);
-  const projects = useAccountStore((s) => s.account.projects);
-  // In user-auth mode (no session token), load the pack directly from the user API.
   const { pack: userProject } = useProjectLoader(pId);
-  const sessionProject = projects.find((p) => p.id === pId);
-  const pack = token ? sessionProject : userProject;
+  const pack = userProject;
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
   // Hooks must come before any conditional return — keep here, near the other
@@ -148,28 +140,9 @@ export function ProjectCanvasPage() {
   useEffect(() => {
     const ui = useUiStore.getState();
     if (ui.lastActiveProjectId !== pId) ui.setLastActiveProjectId(pId);
-    // Persist the tab too so a reload (which bounces through /session) can
-    // restore the exact view, not just the pack.
+    // Persist the tab too so a reload restores the exact view, not just the pack.
     if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab ?? null);
   }, [pId, tab]);
-
-  // Keep the access token alive while the pack page is open.
-  useEffect(() => {
-    if (!token) return;
-    const id = setInterval(
-      async () => {
-        const newToken = await refreshEditorSession();
-        if (!newToken) {
-          clearSession();
-          navigate({ to: "/session", replace: true });
-          return;
-        }
-        setAccessToken(newToken);
-      },
-      4 * 60 * 1000,
-    );
-    return () => clearInterval(id);
-  }, [token, setAccessToken, clearSession, navigate]);
 
   // Navigate away if the currently-viewed pack is deleted from the server.
   useEffect(() => {
@@ -197,24 +170,11 @@ export function ProjectCanvasPage() {
     return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
   }, [networkId, serverId, pId, navigate]);
 
-  // Require at least one auth mode: session token OR logged-in user.
   // Wait for auth hydration first — on a hard load, `/me` is still in flight
   // and currentUser is briefly null; gating now would bounce a logged-in user
-  // to /session, which then redirects to /networks (the "workspace opens then
-  // lands on My Networks" bug). Mirrors admin.tsx's hydration-aware gate.
-  if (!token && authLoading) return null;
-  if (!token && !currentUser) return <Navigate to="/session" replace />;
-  if (token && projects.length === 0 && !currentUser) return <Navigate to="/session" replace />;
-  // Session mode: if the requested pack isn't bound to this session AND there's
-  // no logged-in user to fall back on, redirect to the first session pack using the new URL.
-  if (token && !sessionProject && !userProject && !currentUser)
-    return (
-      <Navigate
-        to="/networks/$networkId/servers/$serverId/projects/$projectId"
-        params={{ networkId, serverId, projectId: projects[0]!.id }}
-        replace
-      />
-    );
+  // to /login. Mirrors admin.tsx's hydration-aware gate.
+  if (authLoading) return null;
+  if (!currentUser) return <Navigate to="/login" replace />;
   // Still loading the pack via the user-mode loader — render nothing while fetch is in flight.
   if (!pack) return null;
 
@@ -487,13 +447,8 @@ export function ProjectCanvasPage() {
           projectName={pack.name}
           onCancel={() => setShowDeleteDialog(false)}
           onConfirm={async () => {
-            if (!token) {
-              toast.error(t("toast.deleteFailed"));
-              return;
-            }
-            const baseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
             try {
-              await deleteProject({ apiUrl: baseUrl, token, projectId: pId });
+              await deleteUserProject(pId);
               setShowDeleteDialog(false);
               navigate({ to: "/" });
             } catch (e) {
