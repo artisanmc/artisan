@@ -175,7 +175,7 @@ export function useProjectAutoSave() {
           if (useProjectVersionStore.getState().conflicts[pack.id]) continue;
           // Version conflicts are surfaced via the store (banner); other save
           // errors are still swallowed — the user sees a stale "saving" indicator.
-          await persistProject(pack, currentToken, !!currentUser).catch(() => {});
+          await persistProject(pack, !!currentUser).catch(() => {});
         }
       }, 2000);
     });
