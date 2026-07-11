@@ -818,12 +818,14 @@ L'assistant est l'agent IA qui édite les menus d'un project en langage naturel.
 ### 14.3 Endpoints SSE + état conversation (2d — `routes.ts` + `conversations.ts` + `index.ts`)
 
 - **`ConversationStore` (`conversations.ts`)** : état **en mémoire** — `Map<id, { serverKeyId, messages, wc }>`. `create()` alloue un UUID, seede la conversation avec le system prompt (`buildSystemPrompt`, 2c) en 1er message + une `WorkingCopy(menus, attachments)`. `reseed()` remplace la working-copy (le client peut renvoyer l'état du project avant un message). Pas de persistance DB (cf. non-goals spec).
-- **Routes (`routes.ts`)** : sous-routeur Hono monté sous `/api/v1/assistant` via `assistantModule` (`index.ts`, enregistré dans `mountModules` de `app.ts`). Middleware auth = `validateAccessToken` (Bearer access token editor-session) → `serverKeyId` ; 401 sinon.
+- **Routes (`routes.ts`)** : sous-routeur Hono monté sous `/api/v1/assistant` via `assistantModule` (`index.ts`, enregistré dans `mountModules` de `app.ts`). Auth **accounts-only** (`resolveOwnerKey`, cookie `artisan_user_session` → `user:<userId>`) ; 401 sinon — cf. `rest-endpoints.md`.
   - `POST /conversations` → `store.create(...)`, renvoie `{conversationId}`.
   - `POST /conversations/:id/messages` → 404 si conversation inconnue **ou** d'un autre `serverKeyId` ; re-seed optionnel (`menus` dans le body) ; pousse le message user ; 503 si aucun provider configuré (`resolveProviderConfig` null) ; sinon **réponse SSE** (`streamSSE`) : chaque `EngineEvent` de `runTurn` → `event:` = `ev.type`, `data:` = JSON de l'event.
 - **Provider injectable** : `__setProviderForTests(p)` court-circuite `resolveProviderConfig`/`createProvider` → tests hermétiques sans réseau. En prod, le provider vient de l'env (`ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_MODEL`).
 
 #### Test réel au curl
+
+> ⚠️ Historique (sub-plan 2d) : l'exemple ci-dessous date d'avant l'accounts-only cutover et utilise le Bearer `editor-session`, **supprimé** (Task 7). L'auth réelle actuelle est cookie `artisan_user_session` (`-b "artisan_user_session=$SID"` après login) — cf. `rest-endpoints.md`.
 
 Avec un provider configuré (`.env` : `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY`, `ASSISTANT_MODEL`) et un access token editor-session valide (`$ACCESS`) :
 
