@@ -7,8 +7,8 @@ import type { LlmMessage } from "./provider/types";
  * DB-backed conversation history for the AI assistant. A conversation stores
  * the full LLM transcript (`messages`) so it can be resumed; the working copy
  * is rebuilt from the live project on each turn, so it is NOT persisted here.
- * Scoped per `(ownerKey, projectId)` — `ownerKey` mirrors routes.ts
- * `resolveOwnerKey` (`sk:<serverKeyId>` or `user:<userId>`).
+ * Scoped per `(ownerKey, projectId)` — `ownerKey` mirrors ownerKey.ts
+ * `resolveOwnerKey` (`user:<userId>`).
  */
 export interface ConversationRow {
 	id: string;

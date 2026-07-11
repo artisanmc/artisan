@@ -324,7 +324,7 @@ export const appSettings = pgTable("app_settings", {
 // panel can list a project's past conversations and resume them. `messages`
 // holds the full LLM transcript (LlmMessage[]) — the working copy is rebuilt
 // from the live project on each turn, so it is NOT persisted here. `ownerKey`
-// mirrors routes.ts `resolveOwnerKey`: `sk:<serverKeyId>` or `user:<userId>`.
+// mirrors ownerKey.ts `resolveOwnerKey`: `user:<userId>`.
 export const assistantConversations = pgTable(
 	"assistant_conversations",
 	{

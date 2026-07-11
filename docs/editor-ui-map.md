@@ -118,7 +118,7 @@ Header : indicateur d'étape (`text-xs text-muted-foreground` aligné à droite)
 
 ---
 
-## 6. Flux trust / link / transfer
+## 6. Flux link / session / transfer
 
 ### `/link` (claim d'un network depuis le plugin)
 
@@ -132,24 +132,9 @@ Header : indicateur d'étape (`text-xs text-muted-foreground` aligné à droite)
 | Ready (multi-network) | Heading "Choisis le Network destination", `grid gap-2` de boutons (chacun `p-3 border`, checkmark sur sélection), bouton "Confirmer" (`bg-blue-600`) |
 | Ready (single network) | Heading "Lier ce serveur", texte de confirmation, bouton "Confirmer" |
 
-### `/session` (trust dance + ouverture éditeur)
+### `/session` (redirect historique — accounts-only)
 
-`min-h-screen flex items-center justify-center`. États :
-- **Loading** → "Chargement…"
-- **Invalid/Expired** → message rouge + instructions
-- **Empty (aucun project sur la session)** → centre vertical, input pour nom de project + bouton "Créer" (border emerald)
-- **Trust gate** → `TrustGatePage` (voir ci-dessous)
-- **Session active** → redirige vers `networks.$networkId.servers.$serverId.projects.$projectId`
-
-#### `TrustGatePage`
-
-Conteneur centré `max-w-md flex flex-col items-center gap-5 text-center` :
-
-1. Titre "Vérification requise" + description
-2. Bloc commande : `flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3`
-   - Code `\artisan trusteditor {trustCode}` (font-mono text-amber-200)
-   - Bouton "Copier" (icône Copy → Check) à droite
-3. Status : spinner animé + "En attente de confirmation…"
+Le mode session éditeur (trust dance `/artisan editor`) a été supprimé (accounts-only cutover). `/session` est désormais une simple page de redirection : elle affiche un toast (`sessionGone.message`) puis redirige vers `/login`. Sert uniquement à ne pas 404 les vieux liens `?token=...`.
 
 ### `/transfer`
 
@@ -515,8 +500,6 @@ Tous dans `editor/src/components/ui/`.
 **Auth (`features/auth/`)** : `LoginForm`, `SignupForm`, `LogoutButton`, `DiscordLoginButton`.
 
 **Setup (`features/setup/`)** : `SetupWizard`, `Step1Network`, `Step2Server`, `Step3Project`, `Step4Install`.
-
-**Trust (`features/trust/`)** : `TrustGatePage`, `TrustBanner`.
 
 **Branches (`features/branches/`)** : `BranchSwitcher`, `CommitDialog`, `HistoryPanel`, `PromoteButton`, `MergeButton`.
 
