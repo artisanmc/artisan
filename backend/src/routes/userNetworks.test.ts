@@ -5,6 +5,7 @@ import { db } from "../db/index";
 import {
   memberships, networks, projects, serverKeys, serverKeyHelloes,
   editorSessions, linkCodes, assets, users, userSessions,
+  serverModules, serverDataSources,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
@@ -807,6 +808,85 @@ describe("GET /api/v1/networks/:id/server-keys/:keyId/status", () => {
     });
     expect(res.status).toBe(200);
     expect((await res.json()).online).toBe(false);
+  });
+});
+
+describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
+  beforeEach(clearAll);
+
+  async function setup() {
+    const { sessionId } = await seedUser(`u_pres_${Math.random().toString(36).slice(2, 8)}`);
+    const app = makeApp();
+    const headers = { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" };
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST", headers, body: JSON.stringify({ name: "N" }),
+    })).json();
+    await db.insert(serverKeys).values({
+      id: "sk_pres", hash: "h_pres", networkId: network.id, createdAt: new Date(), label: null,
+    });
+    await db.insert(serverModules).values({
+      serverKeyId: "sk_pres", moduleId: "boutique", version: "1.0.0", lastSeen: new Date(),
+    });
+    await db.insert(serverDataSources).values({
+      serverKeyId: "sk_pres", ref: "boutique:items", schemaHint: "id, name", reportedAt: new Date(),
+    });
+    return { app, headers, network, sessionId };
+  }
+
+  test("returns presence rows for a member", async () => {
+    const { app, headers, network } = await setup();
+
+    const modulesRes = await app.request(
+      `/api/v1/networks/${network.id}/servers/sk_pres/modules`,
+      { headers },
+    );
+    expect(modulesRes.status).toBe(200);
+    expect(await modulesRes.json()).toEqual({
+      modules: [{ id: "boutique", version: "1.0.0" }],
+    });
+
+    const dataSourcesRes = await app.request(
+      `/api/v1/networks/${network.id}/servers/sk_pres/data-sources`,
+      { headers },
+    );
+    expect(dataSourcesRes.status).toBe(200);
+    expect(await dataSourcesRes.json()).toEqual({
+      data_sources: [{ ref: "boutique:items", schema_hint: "id, name" }],
+    });
+  });
+
+  test("403 for a non-member, 404 for a server outside the network", async () => {
+    const { app, network } = await setup();
+    const stranger = await seedUser(`u_stranger_${Math.random().toString(36).slice(2, 8)}`);
+    const strangerHeaders = { Cookie: `artisan_user_session=${stranger.sessionId}` };
+
+    const forbidden = await app.request(
+      `/api/v1/networks/${network.id}/servers/sk_pres/modules`,
+      { headers: strangerHeaders },
+    );
+    expect(forbidden.status).toBe(403);
+
+    const otherNetworkRes = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${stranger.sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Other" }),
+    })).json();
+    await db.insert(serverKeys).values({
+      id: "sk_other", hash: "h_other", networkId: otherNetworkRes.network.id, createdAt: new Date(), label: null,
+    });
+
+    const { sessionId: ownerSessionId } = await seedUser(`u_owner2_${Math.random().toString(36).slice(2, 8)}`);
+    // owner of `network` (not sk_other's network) tries to fetch sk_other via network's id
+    const owner = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${ownerSessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N3" }),
+    })).json();
+    const outsideRes = await app.request(
+      `/api/v1/networks/${owner.network.id}/servers/sk_other/modules`,
+      { headers: { Cookie: `artisan_user_session=${ownerSessionId}` } },
+    );
+    expect(outsideRes.status).toBe(404);
   });
 });
 
