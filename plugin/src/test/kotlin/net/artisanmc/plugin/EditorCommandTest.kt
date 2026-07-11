@@ -63,6 +63,26 @@ class EditorCommandTest {
     }
 
     @Test
+    fun `editor on a linked-but-not-connected server shows connecting message and does not trigger setup`() {
+        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
+        // Simulate a linked server (has server_key) but backend is not yet reachable (editorInfo() is null)
+        plugin.config.set("server_key", "sk_" + "a".repeat(64))
+        plugin.setMenuProviderForTesting(StubProvider(null))
+        val sender = MockBukkit.getMock()!!.consoleSender
+        val cmd = plugin.getCommand("artisan")!!
+        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor"))
+        assertTrue(result, "Command should return true")
+
+        val messages = drainMessages(sender)
+        assertTrue(messages.any { it.contains("connected", ignoreCase = true) || it.contains("connecté", ignoreCase = true) },
+            "Expected a connected/connecté message: $messages")
+        assertFalse(messages.any { it.contains("already linked", ignoreCase = true) || it.contains("déjà lié", ignoreCase = true) },
+            "Should NOT show setup-rejection message: $messages")
+        assertFalse(messages.any { it.contains("not linked", ignoreCase = true) || it.contains("non lié", ignoreCase = true) || it.contains("pas encore lié", ignoreCase = true) },
+            "Should NOT show 'not linked' or link-flow message: $messages")
+    }
+
+    @Test
     fun `setup on a linked server is refused`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         plugin.config.set("server_key", "sk_" + "a".repeat(64))

@@ -226,13 +226,22 @@ class ArtisanCommand(
             return
         }
         val info = plugin.menuProvider.editorInfo()
-        if (info == null) {
-            sender.sendMessage(lang.get("artisan.editor_not_linked_hint", senderLang))
-            setup(sender, null)
-            return
+        when {
+            info != null -> {
+                // Linked and connected to backend
+                val (url, networkName) = info
+                sender.sendMessage(lang.get("artisan.editor_linked", senderLang, "network" to networkName, "url" to url))
+            }
+            cfg.serverKey.isEmpty() -> {
+                // Not linked at all: show hint and start setup flow
+                sender.sendMessage(lang.get("artisan.editor_not_linked_hint", senderLang))
+                setup(sender, null)
+            }
+            else -> {
+                // Linked but not yet connected to backend (e.g., backend down at boot)
+                sender.sendMessage(lang.get("artisan.editor_connecting", senderLang))
+            }
         }
-        val (url, networkName) = info
-        sender.sendMessage(lang.get("artisan.editor_linked", senderLang, "network" to networkName, "url" to url))
     }
 
     private fun setup(sender: CommandSender, code: String?) {
