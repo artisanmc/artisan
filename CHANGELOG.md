@@ -10,6 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added
+- User-scoped presence endpoints (modules/data-sources) per server: `GET /api/v1/networks/:networkId/servers/:serverId/modules` and `…/data-sources`, cookie-auth twins of the session-mode `editor-session/:token/modules`/`…/data-sources` (Task 1 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
 - Menus resolve `context_inputs[].source` (ConnectorBinding) through the `DataSourceRegistry` at render time — modules can now feed menu iteration via `api.dataSources.register(...)` (menu/v1 §14, "Phase B").
 - `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
