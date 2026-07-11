@@ -24,9 +24,10 @@ function findMenu(menuId: MenuId): { projectId: ProjectId; layer: MenuTitleLayer
 /**
  * Handles drag-end for title layers.
  *
- * Updates layer.x / layer.y in the local account store. Asset.ascent is NOT
- * patched here — it is synced at deploy time (see syncGlyphAscents in
- * pack.$projectId.tsx) so we don't rebuild the resource pack on every drag.
+ * Updates layer.x / layer.y in the local account store. Asset.ascent is the
+ * source of truth for glyph positioning and is edited via LayerEditForm's
+ * asset PATCH, not here — a drag snaps back to the ascent-derived position
+ * on release.
  */
 export function useTitleLayerDrag(args: UseTitleLayerDragArgs): UseTitleLayerDragHandlers {
   const { menuId, layerIndex } = args;

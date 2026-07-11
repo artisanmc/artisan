@@ -40,7 +40,7 @@ export function RootLayout() {
 function RootLayoutInner() {
   useProjectAutoSave();
   usePostHogPageView();
-  const { t } = useTranslation();
+  const { i18n } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
   const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
@@ -62,7 +62,9 @@ function RootLayoutInner() {
     let ws: EditorWs | null = null;
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
     EditorWs.connectAsUser(apiUrl, (_projectId, menuId) => {
-      toast(t("sync.draftConflict", { menuId }));
+      // Capture the current i18n instance's translation at fire time — `t` is
+      // deliberately not a dep below so a language switch doesn't reconnect the WS.
+      toast(i18n.t("sync.draftConflict", { menuId }));
     })
       .then((connected) => {
         if (cancelled) {
@@ -80,7 +82,7 @@ function RootLayoutInner() {
       cancelled = true;
       ws?.disconnect();
     };
-  }, [user, activeNetworkId, activeServerId, t]);
+  }, [user, activeNetworkId, activeServerId]);
   const showSidebar = !!user;
   // Admin area swaps the workspace sidebar for the admin section nav.
   // Non-admins keep the workspace sidebar (the /admin layout shows "forbidden").
