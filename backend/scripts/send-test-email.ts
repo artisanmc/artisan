@@ -34,6 +34,7 @@ if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !MAIL_FROM) {
 const transport = createTransport({
   host: SMTP_HOST,
   port: Number(SMTP_PORT) || 587,
+  requireTLS: true, // même posture que lib/mail/mailer.ts — jamais de credentials en clair
   auth: { user: SMTP_USER, pass: SMTP_PASS },
 });
 
