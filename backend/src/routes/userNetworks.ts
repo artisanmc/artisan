@@ -13,7 +13,7 @@ import {
 	serverModules,
 } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
-import { requireMember } from "../lib/membershipGuard";
+import { requireCapability, requireMember } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
@@ -361,7 +361,7 @@ userNetworksRouter.get(
 		const networkId = c.req.param("id");
 		const keyId = c.req.param("keyId");
 		try {
-			await requireMember(userId, networkId, "owner");
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -409,7 +409,7 @@ userNetworksRouter.get(
 		const networkId = c.req.param("id");
 		const keyId = c.req.param("keyId");
 		try {
-			await requireMember(userId, networkId, "owner");
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -436,7 +436,7 @@ userNetworksRouter.put(
 		const networkId = c.req.param("id");
 		const keyId = c.req.param("keyId");
 		try {
-			await requireMember(userId, networkId, "owner");
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -490,7 +490,7 @@ userNetworksRouter.post(
 		const networkId = c.req.param("id");
 		const keyId = c.req.param("keyId");
 		try {
-			await requireMember(userId, networkId, "owner");
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -701,7 +701,7 @@ userNetworksRouter.delete(
 		const networkId = c.req.param("id");
 		const keyId = c.req.param("keyId");
 		try {
-			await requireMember(userId, networkId, "owner");
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
