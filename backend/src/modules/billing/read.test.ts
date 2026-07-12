@@ -10,9 +10,11 @@ import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
 
 const USER_ID = "usr_billing_read";
 const OUTSIDER_ID = "usr_billing_read_out";
+const MEMBER_ID = "usr_billing_read_member";
 let networkId = "";
 let userSession = "";
 let outsiderSession = "";
+let memberSession = "";
 let packId = "";
 let planId = "";
 let purchaseId = "";
@@ -35,12 +37,14 @@ const cookie = (s: string) => ({ Cookie: `artisan_user_session=${s}`, "Content-T
 beforeAll(async () => {
 	networkId = (await createNetwork("billing-read-net")).id;
 	const now = new Date();
-	for (const [id, email] of [[USER_ID, "read@example.com"], [OUTSIDER_ID, "out-read@example.com"]] as const) {
+	for (const [id, email] of [[USER_ID, "read@example.com"], [OUTSIDER_ID, "out-read@example.com"], [MEMBER_ID, "member-read@example.com"]] as const) {
 		await db.insert(users).values({ id, email, name: id, createdAt: now, updatedAt: now }).onConflictDoNothing();
 	}
 	await db.insert(memberships).values({ id: "mem_billing_read", userId: USER_ID, networkId, role: "owner", createdAt: now }).onConflictDoNothing();
+	await db.insert(memberships).values({ id: "mem_billing_read_member", userId: MEMBER_ID, networkId, role: "member", createdAt: now }).onConflictDoNothing();
 	userSession = (await createSession(USER_ID)).id;
 	outsiderSession = (await createSession(OUTSIDER_ID)).id;
+	memberSession = (await createSession(MEMBER_ID)).id;
 
 	packId = crypto.randomUUID();
 	planId = crypto.randomUUID();
@@ -72,6 +76,7 @@ afterAll(async () => {
 	await db.delete(networks).where(eq(networks.id, networkId)); // cascades memberships
 	await db.delete(users).where(eq(users.id, USER_ID));
 	await db.delete(users).where(eq(users.id, OUTSIDER_ID));
+	await db.delete(users).where(eq(users.id, MEMBER_ID));
 	await db.delete(creditPacks).where(eq(creditPacks.id, packId));
 	await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
 });
@@ -132,5 +137,15 @@ describe("billing read routes", () => {
 		expect(purchases[0].credits).toBe(600);
 		const out = await app.request(`/api/v1/billing/purchases?networkId=${networkId}`, { headers: cookie(outsiderSession) });
 		expect(out.status).toBe(403);
+	});
+
+	it("member role → 403 on purchases (lacks manage_billing)", async () => {
+		const res = await app.request(`/api/v1/billing/purchases?networkId=${networkId}`, { headers: cookie(memberSession) });
+		expect(res.status).toBe(403);
+	});
+
+	it("member role → 200 on balance (member-facing)", async () => {
+		const res = await app.request(`/api/v1/billing/balance?networkId=${networkId}`, { headers: cookie(memberSession) });
+		expect(res.status).toBe(200);
 	});
 });

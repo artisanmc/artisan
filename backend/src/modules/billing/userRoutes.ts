@@ -5,6 +5,7 @@ import { ensureCustomer, getNetworkBilling, isMember } from "./networkBillingRep
 import { listPurchases } from "./purchasesRepo";
 import { getBucketBalances } from "../ai/creditsRepo";
 import { getStripeGateway } from "./stripe";
+import { requireCapability } from "../../lib/membershipGuard";
 
 const editorUrl = (): string => process.env.EDITOR_URL ?? "http://localhost:5173";
 const successUrl = (): string => process.env.BILLING_SUCCESS_URL ?? `${editorUrl()}/credits?checkout=success`;
@@ -20,7 +21,11 @@ export function buildBillingUserRouter(): Hono {
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
 		const networkId = typeof body.networkId === "string" ? body.networkId : "";
 		const packId = typeof body.packId === "string" ? body.packId : "";
-		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		try {
+			await requireCapability(user.id, networkId, "manage_billing");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
 		const pack = await getPack(packId);
 		if (!pack || !pack.isActive || !pack.stripePriceId) return c.json({ error: "pack_not_found" }, 404);
 		const customerId = await ensureCustomer(networkId, user.email);
@@ -41,7 +46,11 @@ export function buildBillingUserRouter(): Hono {
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
 		const networkId = typeof body.networkId === "string" ? body.networkId : "";
 		const planId = typeof body.planId === "string" ? body.planId : "";
-		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		try {
+			await requireCapability(user.id, networkId, "manage_billing");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
 		const plan = await getPlan(planId);
 		if (!plan || !plan.isActive || !plan.stripePriceId) return c.json({ error: "plan_not_found" }, 404);
 		const customerId = await ensureCustomer(networkId, user.email);
@@ -61,7 +70,11 @@ export function buildBillingUserRouter(): Hono {
 		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
 		const networkId = typeof body.networkId === "string" ? body.networkId : "";
-		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		try {
+			await requireCapability(user.id, networkId, "manage_billing");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
 		const billing = await getNetworkBilling(networkId);
 		if (!billing?.stripeCustomerId) return c.json({ error: "no_billing" }, 400);
 		const { url } = await getStripeGateway().createPortalSession({
@@ -129,7 +142,11 @@ export function buildBillingUserRouter(): Hono {
 		const user = c.get("user");
 		if (!user) return c.json({ error: "unauthorized" }, 401);
 		const networkId = c.req.query("networkId") ?? "";
-		if (!(await isMember(user.id, networkId))) return c.json({ error: "forbidden" }, 403);
+		try {
+			await requireCapability(user.id, networkId, "manage_billing");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
 		const purchases = (await listPurchases(networkId)).map((p) => ({
 			id: p.id, amountCents: p.amountCents, currency: p.currency, credits: p.credits,
 			stripeInvoiceUrl: p.stripeInvoiceUrl, createdAt: p.createdAt.toISOString(),

@@ -9,9 +9,11 @@ import { __setStripeGatewayForTests, type StripeGateway } from "./stripe";
 
 const USER_ID = "usr_billing_co";
 const OUTSIDER_ID = "usr_billing_out";
+const MEMBER_ID = "usr_billing_member";
 let networkId = "";
 let userSession = "";
 let outsiderSession = "";
+let memberSession = "";
 let packId = "";
 let planId = "";
 
@@ -35,12 +37,14 @@ const cookie = (s: string) => ({ Cookie: `artisan_user_session=${s}`, "Content-T
 beforeAll(async () => {
 	networkId = (await createNetwork("billing-co-net")).id;
 	const now = new Date();
-	for (const [id, email] of [[USER_ID, "co@example.com"], [OUTSIDER_ID, "out@example.com"]] as const) {
+	for (const [id, email] of [[USER_ID, "co@example.com"], [OUTSIDER_ID, "out@example.com"], [MEMBER_ID, "member-co@example.com"]] as const) {
 		await db.insert(users).values({ id, email, name: id, createdAt: now, updatedAt: now }).onConflictDoNothing();
 	}
 	await db.insert(memberships).values({ id: "mem_billing_co", userId: USER_ID, networkId, role: "owner", createdAt: now }).onConflictDoNothing();
+	await db.insert(memberships).values({ id: "mem_billing_co_member", userId: MEMBER_ID, networkId, role: "member", createdAt: now }).onConflictDoNothing();
 	userSession = (await createSession(USER_ID)).id;
 	outsiderSession = (await createSession(OUTSIDER_ID)).id;
+	memberSession = (await createSession(MEMBER_ID)).id;
 	packId = crypto.randomUUID();
 	planId = crypto.randomUUID();
 	await db.insert(creditPacks).values({ id: packId, name: "P", priceCents: 1000, currency: "eur", credits: 500, bonusPct: 0, isActive: true, sortOrder: 0, stripeProductId: "prod_p", stripePriceId: "price_p", createdAt: now, updatedAt: now });
@@ -54,6 +58,7 @@ afterAll(async () => {
 	await db.delete(networks).where(eq(networks.id, networkId)); // cascades memberships
 	await db.delete(users).where(eq(users.id, USER_ID));
 	await db.delete(users).where(eq(users.id, OUTSIDER_ID));
+	await db.delete(users).where(eq(users.id, MEMBER_ID));
 	await db.delete(creditPacks).where(eq(creditPacks.id, packId));
 	await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
 });
@@ -94,5 +99,15 @@ describe("billing checkout/portal routes", () => {
 		const res = await app.request("/api/v1/billing/portal", { method: "POST", headers: cookie(userSession), body: JSON.stringify({ networkId }) });
 		expect(res.status).toBe(200);
 		expect((await res.json()).url).toContain("portal.test");
+	});
+
+	it("member role → 403 on portal (lacks manage_billing)", async () => {
+		const res = await app.request("/api/v1/billing/portal", { method: "POST", headers: cookie(memberSession), body: JSON.stringify({ networkId }) });
+		expect(res.status).toBe(403);
+	});
+
+	it("member role → 403 on pack checkout (lacks manage_billing)", async () => {
+		const res = await app.request("/api/v1/billing/checkout/pack", { method: "POST", headers: cookie(memberSession), body: JSON.stringify({ networkId, packId }) });
+		expect(res.status).toBe(403);
 	});
 });
