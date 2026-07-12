@@ -1151,6 +1151,25 @@ describe("DELETE /api/v1/networks/:id/members/:userId", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  test("legacy admin counts as manager: owner removable while admin remains, then admin becomes last_owner", async () => {
+    const { app, network, ownerHeaders, memberHeaders } = await setupMembers();
+    // Replace member1's role with the legacy "admin" alias (grants manage_members).
+    await db.update(memberships).set({ role: "admin" }).where(and(eq(memberships.userId, "member1"), eq(memberships.networkId, network.id)));
+
+    // owner1 removable — admin (member1) still counts as a manager.
+    const res1 = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res1.status).toBe(204);
+
+    // Now member1 (admin) is the sole manager — removing it must be blocked.
+    const res2 = await app.request(`/api/v1/networks/${network.id}/members/member1`, {
+      method: "DELETE", headers: memberHeaders,
+    });
+    expect(res2.status).toBe(409);
+    expect((await res2.json()).error).toBe("last_owner");
+  });
 });
 
 describe("PATCH /api/v1/networks/:id/members/:userId", () => {

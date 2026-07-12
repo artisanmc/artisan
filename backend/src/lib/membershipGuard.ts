@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index";
 import { memberships, projects, serverKeys } from "../db/schema";
 import type { Capability } from "./capabilities";
@@ -6,6 +6,29 @@ import { can } from "./capabilities";
 import type { Role } from "./capabilities";
 
 export type { Role };
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Runs `fn` inside a transaction holding a Postgres advisory lock scoped to
+ * `networkId` (hashtext(networkId)) for the transaction's duration.
+ *
+ * Closes a TOCTOU window on the last-owner guard: without this, two
+ * concurrent requests against the last two managers of a network could each
+ * run `countManagers` (see it >= 2), both pass the guard, and both mutate —
+ * leaving the network with zero managers. Serializing check+mutation behind
+ * a per-network advisory lock (released automatically at transaction end)
+ * makes the second request see the first request's write before deciding.
+ */
+export async function withNetworkMemberLock<T>(
+  networkId: string,
+  fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${networkId}))`);
+    return fn(tx);
+  });
+}
 
 export async function isMember(userId: string, networkId: string, role?: Role): Promise<boolean> {
   const rows = await db.select().from(memberships).where(and(
