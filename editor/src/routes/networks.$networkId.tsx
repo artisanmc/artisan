@@ -2,6 +2,7 @@ import { ConnectionHistoryModal } from "@/components/network-detail/ConnectionHi
 import { DeleteServerDialog } from "@/components/network-detail/DeleteServerDialog";
 import { EditServerModal } from "@/components/network-detail/EditServerModal";
 import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
+import { MembersSection } from "@/components/network-detail/MembersSection";
 import { NewProjectModal } from "@/components/network-detail/NewProjectModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { ServerCard } from "@/components/network-detail/ServerCard";
@@ -220,11 +221,7 @@ export function NetworkDetailPage() {
           )}
         </section>
 
-        <Section title={t("networkDetail.members")}>
-          <p className="text-[12px] text-[var(--text-faint)]">
-            {t("networkDetail.membersComingSoon")}
-          </p>
-        </Section>
+        <MembersSection networkId={detail.network.id} />
       </div>
 
       <NewServerModal
@@ -343,16 +340,5 @@ function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <h2 className="eyebrow">{title}</h2>
-        <span className="h-px flex-1 bg-[var(--border-soft)]" />
-      </div>
-      {children}
-    </section>
-  );
-}
 
 export default NetworkDetailPage;
