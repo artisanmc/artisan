@@ -20,6 +20,14 @@ import { toast } from "sonner";
 const MANAGER_ROLES: MemberRole[] = ["owner", "admin"];
 const isManager = (role: MemberRole) => MANAGER_ROLES.includes(role);
 
+/** An invite is "pending"/valid only if not revoked, not expired, and not exhausted. */
+function isInviteValid(invite: Invite): boolean {
+  if (invite.revokedAt) return false;
+  if (new Date(invite.expiresAt).getTime() < Date.now()) return false;
+  if (invite.maxUses != null && invite.usedCount >= invite.maxUses) return false;
+  return true;
+}
+
 interface Props {
   networkId: string;
 }
@@ -50,6 +58,7 @@ export function MembersSection({ networkId }: Props) {
   const currentRole = members?.find((m) => m.userId === currentUser?.id)?.role ?? null;
   const canManage = currentRole !== null && isManager(currentRole);
   const managerCount = members?.filter((m) => isManager(m.role)).length ?? 0;
+  const pendingInvites = invites?.filter(isInviteValid) ?? [];
 
   useEffect(() => {
     if (!canManage) {
@@ -182,11 +191,11 @@ export function MembersSection({ networkId }: Props) {
         </ul>
       )}
 
-      {canManage && invites !== null && invites.length > 0 && (
+      {canManage && invites !== null && pendingInvites.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="field-label">{t("membersSection.pendingInvites")}</span>
           <ul className="card flex flex-col divide-y divide-[var(--border-soft)] p-0">
-            {invites.map((invite) => (
+            {pendingInvites.map((invite) => (
               <li key={invite.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="mono truncate text-[12.5px] text-[var(--text)]">{invite.code}</span>

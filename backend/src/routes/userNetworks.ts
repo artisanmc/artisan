@@ -743,8 +743,8 @@ async function countManagers(
 	return rows.filter((r) => can(r.role, "manage_members")).length;
 }
 
-// GET /api/networks/:id/members — owner only. Joined with users for
-// display fields (email/displayName).
+// GET /api/networks/:id/members — any member (read-only roster). Joined
+// with users for display fields (email/displayName).
 userNetworksRouter.get(
 	"/:id/members",
 	async (c: Context<{ Variables: Vars }>) => {
@@ -752,7 +752,7 @@ userNetworksRouter.get(
 		if (!userId) return c.json({ error: "unauthorized" }, 401);
 		const networkId = c.req.param("id");
 		try {
-			await requireCapability(userId, networkId, "manage_members");
+			await requireMember(userId, networkId);
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
