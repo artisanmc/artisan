@@ -115,14 +115,25 @@ export async function acceptInvite(
   try {
     await addMembership(userId, invite.networkId, invite.role as Role);
   } catch (err) {
-    // Race: a concurrent request created the same (userId, networkId)
-    // membership between our pre-check above and this insert (unique
-    // constraint memberships_user_network_uniq, Postgres code 23505).
-    // Refund the use we just consumed and report alreadyMember instead of
-    // leaving a lost use with no membership to show for it.
+    // Any addMembership failure after a successful consumeInvite must refund
+    // the use — otherwise a lost use sits with no membership to show for it.
+    //
+    // Race (common case): a concurrent request created the same
+    // (userId, networkId) membership between our pre-check above and this
+    // insert (unique constraint memberships_user_network_uniq, Postgres code
+    // 23505). Refund and report alreadyMember instead of erroring.
+    //
+    // Any other failure (DB hiccup, unexpected error): still refund — the
+    // membership was NOT created, so the use must not be considered spent —
+    // then rethrow so the caller sees the real error.
+    //
+    // NOTE: not covered by a dedicated storage test — addMembership isn't
+    // injectable/mockable here without a refactor of this module for
+    // testability, which is out of scope for this fix. The 23505 branch
+    // remains covered by the existing race test.
+    await refundInvite(invite.id);
     const pgCode = (err as { code?: string })?.code;
     if (pgCode === "23505") {
-      await refundInvite(invite.id);
       return { networkId: invite.networkId, alreadyMember: true };
     }
     throw err;

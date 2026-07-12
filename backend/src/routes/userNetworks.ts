@@ -21,7 +21,7 @@ import {
 	listInvites,
 	revokeInvite,
 } from "../lib/inviteStorage";
-import { requireCapability, requireMember } from "../lib/membershipGuard";
+import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
 import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
@@ -730,8 +730,11 @@ userNetworksRouter.delete(
  * i.e. how many owners remain. Used to guard the last-owner invariant on
  * self-removal, removal, and demotion.
  */
-async function countManagers(networkId: string): Promise<number> {
-	const rows = await db
+async function countManagers(
+	networkId: string,
+	executor: Pick<typeof db, "select"> = db,
+): Promise<number> {
+	const rows = await executor
 		.select({ role: memberships.role })
 		.from(memberships)
 		.where(eq(memberships.networkId, networkId));
@@ -783,32 +786,41 @@ userNetworksRouter.delete(
 			return c.json({ error: "forbidden" }, 403);
 		}
 
-		const targetRows = await db
-			.select({ role: memberships.role })
-			.from(memberships)
-			.where(
-				and(
-					eq(memberships.userId, targetUserId),
-					eq(memberships.networkId, networkId),
-				),
-			);
-		if (targetRows.length === 0) return c.json({ error: "not_found" }, 404);
+		// Check + mutation run inside a single transaction holding a per-network
+		// advisory lock (withNetworkMemberLock) — otherwise two concurrent
+		// requests against the last two managers could both pass the
+		// countManagers check before either deletes, leaving zero managers.
+		const result = await withNetworkMemberLock(networkId, async (tx) => {
+			const targetRows = await tx
+				.select({ role: memberships.role })
+				.from(memberships)
+				.where(
+					and(
+						eq(memberships.userId, targetUserId),
+						eq(memberships.networkId, networkId),
+					),
+				);
+			if (targetRows.length === 0) return { error: "not_found" as const };
 
-		if (can(targetRows[0].role, "manage_members")) {
-			const managers = await countManagers(networkId);
-			if (managers <= 1) {
-				return c.json({ error: "last_owner" }, 409);
+			if (can(targetRows[0].role, "manage_members")) {
+				const managers = await countManagers(networkId, tx);
+				if (managers <= 1) {
+					return { error: "last_owner" as const };
+				}
 			}
-		}
 
-		await db
-			.delete(memberships)
-			.where(
-				and(
-					eq(memberships.userId, targetUserId),
-					eq(memberships.networkId, networkId),
-				),
-			);
+			await tx
+				.delete(memberships)
+				.where(
+					and(
+						eq(memberships.userId, targetUserId),
+						eq(memberships.networkId, networkId),
+					),
+				);
+			return { error: null };
+		});
+		if (result.error === "not_found") return c.json({ error: "not_found" }, 404);
+		if (result.error === "last_owner") return c.json({ error: "last_owner" }, 409);
 		return c.body(null, 204);
 	},
 );
@@ -838,37 +850,46 @@ userNetworksRouter.patch(
 		}
 		const newRole = body.role as Role;
 
-		const targetRows = await db
-			.select({ role: memberships.role })
-			.from(memberships)
-			.where(
-				and(
-					eq(memberships.userId, targetUserId),
-					eq(memberships.networkId, networkId),
-				),
-			);
-		if (targetRows.length === 0) return c.json({ error: "not_found" }, 404);
+		// Check + mutation run inside a single transaction holding a per-network
+		// advisory lock (withNetworkMemberLock) — otherwise two concurrent
+		// demote requests against the last two managers could both pass the
+		// countManagers check before either updates, leaving zero managers.
+		const result = await withNetworkMemberLock(networkId, async (tx) => {
+			const targetRows = await tx
+				.select({ role: memberships.role })
+				.from(memberships)
+				.where(
+					and(
+						eq(memberships.userId, targetUserId),
+						eq(memberships.networkId, networkId),
+					),
+				);
+			if (targetRows.length === 0) return { error: "not_found" as const };
 
-		// Demoting a manage_members-capable member to a role without it — guard
-		// against removing the last one.
-		const wasManager = can(targetRows[0].role, "manage_members");
-		const willBeManager = can(newRole, "manage_members");
-		if (wasManager && !willBeManager) {
-			const managers = await countManagers(networkId);
-			if (managers <= 1) {
-				return c.json({ error: "last_owner" }, 409);
+			// Demoting a manage_members-capable member to a role without it — guard
+			// against removing the last one.
+			const wasManager = can(targetRows[0].role, "manage_members");
+			const willBeManager = can(newRole, "manage_members");
+			if (wasManager && !willBeManager) {
+				const managers = await countManagers(networkId, tx);
+				if (managers <= 1) {
+					return { error: "last_owner" as const };
+				}
 			}
-		}
 
-		await db
-			.update(memberships)
-			.set({ role: newRole })
-			.where(
-				and(
-					eq(memberships.userId, targetUserId),
-					eq(memberships.networkId, networkId),
-				),
-			);
+			await tx
+				.update(memberships)
+				.set({ role: newRole })
+				.where(
+					and(
+						eq(memberships.userId, targetUserId),
+						eq(memberships.networkId, networkId),
+					),
+				);
+			return { error: null };
+		});
+		if (result.error === "not_found") return c.json({ error: "not_found" }, 404);
+		if (result.error === "last_owner") return c.json({ error: "last_owner" }, 409);
 		return c.json({ ok: true });
 	},
 );
