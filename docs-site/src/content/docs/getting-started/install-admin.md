@@ -61,7 +61,11 @@ Opening the editor URL requires signing in with your Artisan account, and that a
 
 Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
-## 4. Useful commands
+## 4. Invite your team
+
+From the web editor, click your network name in the top bar, then **Members**. As the owner, you can invite teammates by email or share an invite link. Click **Invite** and either enter an email address (they'll receive a link by mail) or leave it blank to copy a link and share it manually. Invited users become **members** with full editorial access to all projects on every server in your network. Only the owner can manage members, rotate server keys, or delete the network.
+
+## 5. Useful commands
 
 | Command | Description |
 |---|---|
@@ -73,7 +77,7 @@ Once the editor opens, see the [Editor overview](/editor/) for next steps — ho
 | `/artisan setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. Refuses with a message if the server is already linked. |
 | `/artisan pushLocal <id\|--all>` | Push local on-disk project changes to the backend (FTP scenario). |
 
-## 5. Billing administration (super-admins)
+## 6. Billing administration (super-admins)
 
 Super-admins have a dedicated **`/admin/billing`** page in the editor with four tabs:
 
@@ -81,7 +85,7 @@ Super-admins have a dedicated **`/admin/billing`** page in the editor with four 
 - **Credit packs** / **Subscriptions** — create, edit, activate or deactivate the credit packs and subscription plans offered on the `/credits` page (each change provisions the corresponding Stripe product/price).
 - **Manual grant** — add top-up credits to a specific network (recorded as an adjustment in the audit trail), e.g. for support or compensation.
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 **Connection refused / backend unreachable**
 The plugin cannot reach `ws_url`. Check outbound internet access and
@@ -106,7 +110,7 @@ The server is linked (`server_key` set) but hasn't completed its WebSocket hands
 `editor.console_only` is set to `true` in `config.yml`. Either change it
 or run the command from the console.
 
-## 7. Resource pack distribution (advanced)
+## 8. Resource pack distribution (advanced)
 
 Three modes, controlled by `resource-pack.delegate-to-dir` in `config.yml`.
 
@@ -142,7 +146,7 @@ zip-merger picks them up.
 
 The path is filesystem-absolute or relative to the server root.
 
-## 8. Reference: `config.yml`
+## 9. Reference: `config.yml`
 
 ```yaml
 # Set to connect this server to the Artisan editor backend for live sync.
