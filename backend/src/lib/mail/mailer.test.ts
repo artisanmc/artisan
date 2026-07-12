@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { createMailerFromEnv, getMailer, __setMailerForTests, type MailMessage } from "./mailer";
+import { createMailerFromEnv, getMailer, sendSafely, __setMailerForTests, type MailMessage } from "./mailer";
 
 describe("mailer", () => {
   beforeEach(() => __setMailerForTests(null));
@@ -33,5 +33,34 @@ describe("mailer", () => {
       SMTP_USER: "u", SMTP_PASS: "p", MAIL_FROM: "t@t.t",
     });
     await m.send({ to: "a@b.c", subject: "s", text: "t" }); // catch interne
+  });
+});
+
+describe("sendSafely", () => {
+  beforeEach(() => __setMailerForTests(null));
+
+  it("delivers the message via the current mailer", async () => {
+    const sent: MailMessage[] = [];
+    __setMailerForTests({ enabled: true, send: async (msg) => { sent.push(msg); } });
+    sendSafely({ to: "x@y.z", subject: "hi", text: "body" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(1);
+  });
+
+  it("never throws when send() rejects asynchronously", () => {
+    __setMailerForTests({ enabled: true, send: async () => { throw new Error("boom"); } });
+    expect(() => sendSafely({ to: "x@y.z", subject: "hi", text: "body" })).not.toThrow();
+  });
+
+  it("never throws when the mailer's send() throws synchronously (not a promise)", () => {
+    // A non-async send() that throws before ever returning a promise — the
+    // bare `.catch()` chain can't protect against this, only a sync try/catch can.
+    __setMailerForTests({
+      enabled: true,
+      send: (() => {
+        throw new Error("sync boom");
+      }) as unknown as (msg: MailMessage) => Promise<void>,
+    });
+    expect(() => sendSafely({ to: "x@y.z", subject: "hi", text: "body" })).not.toThrow();
   });
 });

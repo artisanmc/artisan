@@ -6,7 +6,7 @@ import { users, discordAccounts } from "../db/schema";
 import { buildAuthorizeUrl, exchangeCode, fetchDiscordUser } from "../lib/discordOauth";
 import { normalizeEmail } from "../lib/emailNormalizer";
 import { createSession } from "../lib/sessionManager";
-import { getMailer } from "../lib/mail/mailer";
+import { sendSafely } from "../lib/mail/mailer";
 import { welcomeEmail } from "../lib/mail/templates";
 
 export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
@@ -96,7 +96,7 @@ export function createDiscordOauthRouter(fetchImpl: typeof fetch = fetch) {
           id: userId, email, name: user.username, passwordHash: null,
           avatarUrl: user.avatarUrl, createdAt: now, updatedAt: now,
         });
-        void getMailer().send(welcomeEmail({ to: email, displayName: user.username })).catch(() => {});
+        sendSafely(welcomeEmail({ to: email, displayName: user.username }));
       }
       await db.insert(discordAccounts).values({
         discordUserId: user.discordUserId,

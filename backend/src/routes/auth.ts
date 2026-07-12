@@ -7,7 +7,7 @@ import { hashPassword, verifyPassword } from "../lib/passwordHasher";
 import { normalizeEmail } from "../lib/emailNormalizer";
 import { createSession, destroySession } from "../lib/sessionManager";
 import { userAuth } from "../middleware/userAuth";
-import { getMailer } from "../lib/mail/mailer";
+import { sendSafely } from "../lib/mail/mailer";
 import { welcomeEmail } from "../lib/mail/templates";
 
 const router = new Hono();
@@ -53,7 +53,7 @@ router.post("/signup", async (c) => {
   });
   const session = await createSession(id);
   setSessionCookie(c, session.id, session.expiresAt);
-  void getMailer().send(welcomeEmail({ to: email, displayName: body.name })).catch(() => {});
+  sendSafely(welcomeEmail({ to: email, displayName: body.name }));
   return c.json({ user: { id, email, name: body.name, avatarUrl: null } }, 201);
 });
 

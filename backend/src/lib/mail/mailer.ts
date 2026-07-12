@@ -75,3 +75,17 @@ export function getMailer(): Mailer {
   if (!singleton) singleton = createMailerFromEnv(process.env as Record<string, string | undefined>);
   return singleton;
 }
+
+/**
+ * Fire-and-forget send: never throws, never rejects into the caller. Wraps
+ * getMailer().send(...).catch(...) in a synchronous try/catch too, since
+ * getMailer() itself (or a test override's send() being a non-async function)
+ * can throw synchronously before ever returning a promise to .catch().
+ */
+export function sendSafely(msg: MailMessage): void {
+  try {
+    void getMailer().send(msg).catch(() => {});
+  } catch {
+    // swallow — best-effort email, never block the caller's request.
+  }
+}
