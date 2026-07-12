@@ -9,6 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Fixed — capability-gate billing, server-key provisioning, and network governance (BREAKING for member role)
+- **Security**: billing routes (`POST /api/v1/billing/portal`, `checkout/pack`, `checkout/subscription`, `GET purchases`) were gated by plain network membership — any invited `member` could open the network owner's Stripe billing portal (and cancel the subscription), start checkouts, or read purchase history. Now gated by `requireCapability(..., "manage_billing")`; `GET /balance` stays member-readable (credits indicator is member-facing).
+- Server-key provisioning was member-accessible: `POST /api/v1/networks/:id/server-keys` and `PATCH /api/v1/networks/:id/server-keys/:keyId` let any member mint or relabel a server credential. Now gated by `requireCapability(..., "manage_servers")`.
+- `PATCH /api/v1/networks/:id` (rename/slug — network governance) was member-accessible. New capability `manage_network` (owner/admin only, `backend/src/lib/capabilities.ts`) now gates it.
+- `POST /api/v1/networks/:id/invites` now validates `maxUses`/`expiresInDays` as a positive integer (or absent) → 422 `invalid_input` instead of silently accepting malformed values.
+- `install-admin.md` corrected: no delete-network endpoint exists — the owner-only claim now lists manage members / manage server keys / rename the network.
+
 ### Added — members & invites routes (capability-gated)
 - Member management: `GET /api/v1/networks/:id/members` (joined with `users`) — readable by **any member** of the network (read-only roster; plain members previously got 403). All mutations stay manager-gated by `requireCapability(..., "manage_members")`: `DELETE /api/v1/networks/:id/members/:userId` (409 `last_owner` guard, self-removal allowed if not last), `PATCH /api/v1/networks/:id/members/:userId` (`{role: "owner"|"member"}`, 422 `invalid_role`, 409 `last_owner` on demoting the last `manage_members`-capable member), `POST/GET /api/v1/networks/:id/invites`, `DELETE /api/v1/networks/:id/invites/:inviteId`.
 - Public invite routes (`backend/src/routes/invites.ts`, mounted at `/api/v1/invites`): `GET /:code` (no auth, preview) and `POST /:code/accept` (cookie auth) → `{network_id, already_member}`, 410 on revoked/expired/exhausted, 404 unknown.

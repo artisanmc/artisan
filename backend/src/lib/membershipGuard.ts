@@ -19,6 +19,10 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * leaving the network with zero managers. Serializing check+mutation behind
  * a per-network advisory lock (released automatically at transaction end)
  * makes the second request see the first request's write before deciding.
+ *
+ * Note: hashtext(networkId) can collide across different networkIds — that
+ * only causes unrelated networks to spuriously serialize on the same lock,
+ * never an incorrect result (the lock is a mutex, not an identity check).
  */
 export async function withNetworkMemberLock<T>(
   networkId: string,

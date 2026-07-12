@@ -63,7 +63,7 @@ Once the editor opens, see the [Editor overview](/editor/) for next steps — ho
 
 ## 4. Invite your team
 
-From the web editor, click your network name in the top bar, then **Members**. As the owner, you can invite teammates by email or share an invite link. Click **Invite** and either enter an email address (they'll receive a link by mail) or leave it blank to copy a link and share it manually. Invited users become **members** with full editorial access to all projects on every server in your network. Only the owner can manage members, rotate server keys, or delete the network.
+From the web editor, click your network name in the top bar, then **Members**. As the owner, you can invite teammates by email or share an invite link. Click **Invite** and either enter an email address (they'll receive a link by mail) or leave it blank to copy a link and share it manually. Invited users become **members** with full editorial access to all projects on every server in your network. Only the owner can manage members, rotate or create server keys, and rename the network.
 
 ## 5. Useful commands
 

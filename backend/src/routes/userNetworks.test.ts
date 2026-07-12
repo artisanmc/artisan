@@ -319,6 +319,24 @@ describe("userNetworksRouter", () => {
     expect(res.status).toBe(403);
   });
 
+  test("POST /api/v1/networks/:id/server-keys 403 for member role (not manage_servers)", async () => {
+    const { sessionId: sessA } = await seedUser("uA2");
+    const { sessionId: sessB } = await seedUser("uB2");
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+    await addMembership("uB2", network.id, "member");
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "x" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
   // A5 test
   test("POST /api/v1/networks/:id/projects creates project in network", async () => {
     const { sessionId } = await seedUser();
@@ -980,6 +998,18 @@ describe("PATCH /api/v1/networks/:id", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  test("403 for member role (not manage_network)", async () => {
+    const { app, network } = await setup();
+    const { sessionId: sessB } = await seedUser("member1");
+    await addMembership("member1", network.id, "member");
+    const res = await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hack" }),
+    });
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("PATCH /api/v1/networks/:id/server-keys/:keyId", () => {
@@ -1048,6 +1078,18 @@ describe("PATCH /api/v1/networks/:id/server-keys/:keyId", () => {
   test("403 for non-member", async () => {
     const { app, network, sk } = await setup();
     const { sessionId: sessB } = await seedUser("u2");
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
+      method: "PATCH",
+      headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "Hack" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("403 for member role (not manage_servers)", async () => {
+    const { app, network, sk } = await setup();
+    const { sessionId: sessB } = await seedUser("member2");
+    await addMembership("member2", network.id, "member");
     const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${sk.id}`, {
       method: "PATCH",
       headers: { Cookie: `artisan_user_session=${sessB}`, "Content-Type": "application/json" },
@@ -1267,6 +1309,15 @@ describe("POST/GET/DELETE /api/v1/networks/:id/invites", () => {
       method: "POST", headers: memberHeaders, body: JSON.stringify({}),
     });
     expect(res.status).toBe(403);
+  });
+
+  test("422 on invalid maxUses (not a positive integer)", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({ maxUses: 0 }),
+    });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("invalid_input");
   });
 
   test("GET lists invites for the network", async () => {

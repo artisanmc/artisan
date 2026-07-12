@@ -153,7 +153,7 @@ userNetworksRouter.patch("/:id", async (c: Context<{ Variables: Vars }>) => {
 	if (netRows.length === 0) return c.json({ error: "not_found" }, 404);
 	const network = netRows[0];
 	try {
-		await requireMember(userId, network.id);
+		await requireCapability(userId, network.id, "manage_network");
 	} catch {
 		return c.json({ error: "forbidden" }, 403);
 	}
@@ -218,7 +218,7 @@ userNetworksRouter.patch(
 		if (netRows.length === 0) return c.json({ error: "not_found" }, 404);
 		const network = netRows[0];
 		try {
-			await requireMember(userId, network.id);
+			await requireCapability(userId, network.id, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -288,7 +288,7 @@ userNetworksRouter.post(
 
 		const networkId = c.req.param("id");
 		try {
-			await requireMember(userId, networkId);
+			await requireCapability(userId, networkId, "manage_servers");
 		} catch {
 			return c.json({ error: "forbidden" }, 403);
 		}
@@ -916,14 +916,22 @@ userNetworksRouter.post(
 			/* empty body ok — all fields optional */
 		}
 		const email = typeof body.email === "string" ? body.email.trim() || null : null;
-		const maxUses =
-			typeof body.maxUses === "number" && Number.isFinite(body.maxUses)
-				? body.maxUses
-				: null;
-		const expiresInDays =
-			typeof body.expiresInDays === "number" && Number.isFinite(body.expiresInDays)
-				? body.expiresInDays
-				: undefined;
+		if (
+			body.maxUses !== undefined &&
+			body.maxUses !== null &&
+			!(typeof body.maxUses === "number" && Number.isInteger(body.maxUses) && body.maxUses >= 1)
+		) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+		if (
+			body.expiresInDays !== undefined &&
+			body.expiresInDays !== null &&
+			!(typeof body.expiresInDays === "number" && Number.isInteger(body.expiresInDays) && body.expiresInDays >= 1)
+		) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+		const maxUses = typeof body.maxUses === "number" ? body.maxUses : null;
+		const expiresInDays = typeof body.expiresInDays === "number" ? body.expiresInDays : undefined;
 
 		const invite = await createInvite({
 			networkId,
