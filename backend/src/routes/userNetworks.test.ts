@@ -1089,10 +1089,12 @@ describe("GET /api/v1/networks/:id/members", () => {
     expect(member.role).toBe("member");
   });
 
-  test("403 for member (lacks manage_members)", async () => {
+  test("200 for member (read-only roster)", async () => {
     const { app, network, memberHeaders } = await setupMembers();
     const res = await app.request(`/api/v1/networks/${network.id}/members`, { headers: memberHeaders });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.members).toHaveLength(2);
   });
 
   test("403 for non-member", async () => {

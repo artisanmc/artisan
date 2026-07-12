@@ -42,6 +42,17 @@ describe("MembersSection", () => {
     expect(screen.queryByRole("button", { name: /invite|inviter/i })).not.toBeInTheDocument();
   });
 
+  it("member viewer sees the roster read-only and no invites block (doesn't call listInvites)", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    const invitesSpy = vi.spyOn(membersApi, "listInvites").mockResolvedValue([]);
+    setCurrentUser("u2"); // logged-in user is the plain member
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("owner@test.com");
+    expect(screen.getByText("member@test.com")).toBeInTheDocument();
+    expect(screen.queryByText(/pending invites|invitations en attente/i)).not.toBeInTheDocument();
+    expect(invitesSpy).not.toHaveBeenCalled();
+  });
+
   it("disables demote/remove on the last remaining owner", async () => {
     const soleOwner = owners.find((m) => m.role === "owner")!;
     vi.spyOn(membersApi, "listMembers").mockResolvedValue([soleOwner]); // only manager
@@ -75,6 +86,44 @@ describe("MembersSection", () => {
     await screen.findByText("http://localhost:5173/invite?code=abc123");
     fireEvent.click(screen.getByRole("button", { name: /copy|copier/i }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("http://localhost:5173/invite?code=abc123"));
+  });
+
+  it("only renders valid invites — revoked and expired are filtered out", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    vi.spyOn(membersApi, "listInvites").mockResolvedValue([
+      {
+        id: "inv-revoked",
+        code: "revoked1",
+        url: "http://localhost:5173/invite?code=revoked1",
+        email: "revoked@test.com",
+        maxUses: null,
+        usedCount: 0,
+        expiresAt: "2099-01-01T00:00:00Z",
+        revokedAt: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "inv-expired",
+        code: "expired1",
+        url: "http://localhost:5173/invite?code=expired1",
+        email: "expired@test.com",
+        maxUses: null,
+        usedCount: 0,
+        expiresAt: "2020-01-01T00:00:00Z",
+      },
+      {
+        id: "inv-valid",
+        code: "valid1",
+        url: "http://localhost:5173/invite?code=valid1",
+        email: "valid@test.com",
+        maxUses: null,
+        usedCount: 0,
+        expiresAt: "2099-01-01T00:00:00Z",
+      },
+    ]);
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("valid@test.com");
+    expect(screen.queryByText("revoked@test.com")).not.toBeInTheDocument();
+    expect(screen.queryByText("expired@test.com")).not.toBeInTheDocument();
   });
 
   it("revokes an invite", async () => {
