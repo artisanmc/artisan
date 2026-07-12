@@ -1,8 +1,11 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { memberships, projects, serverKeys } from "../db/schema";
+import type { Capability } from "./capabilities";
+import { can } from "./capabilities";
+import type { Role } from "./capabilities";
 
-export type Role = "owner" | "admin";
+export type { Role };
 
 export async function isMember(userId: string, networkId: string, role?: Role): Promise<boolean> {
   const rows = await db.select().from(memberships).where(and(
@@ -16,6 +19,24 @@ export async function isMember(userId: string, networkId: string, role?: Role): 
 
 export async function requireMember(userId: string, networkId: string, role?: Role): Promise<void> {
   if (!(await isMember(userId, networkId, role))) {
+    const err = new Error("forbidden");
+    (err as Error & { code?: string }).code = "forbidden";
+    throw err;
+  }
+}
+
+/** Returns the caller's role in the network, or null if not a member. */
+export async function getRole(userId: string, networkId: string): Promise<string | null> {
+  const rows = await db.select().from(memberships).where(and(
+    eq(memberships.userId, userId),
+    eq(memberships.networkId, networkId),
+  ));
+  return rows[0]?.role ?? null;
+}
+
+export async function requireCapability(userId: string, networkId: string, cap: Capability): Promise<void> {
+  const role = await getRole(userId, networkId);
+  if (!role || !can(role, cap)) {
     const err = new Error("forbidden");
     (err as Error & { code?: string }).code = "forbidden";
     throw err;

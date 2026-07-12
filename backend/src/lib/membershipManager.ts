@@ -1,8 +1,9 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { memberships, networks } from "../db/schema";
+import type { Role } from "./capabilities";
 
-export type Role = "owner" | "admin";
+export type { Role };
 
 export async function addMembership(userId: string, networkId: string, role: Role): Promise<void> {
   const id = "mem_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);

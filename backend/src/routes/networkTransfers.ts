@@ -5,7 +5,7 @@ import { db } from "../db/index";
 import { memberships, networks, projects, serverKeys, networkTransfers } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 import { findSession } from "../lib/sessionManager";
-import { requireMember } from "../lib/membershipGuard";
+import { requireCapability } from "../lib/membershipGuard";
 import { createTransfer, getTransfer } from "../lib/networkTransferStorage";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -26,7 +26,7 @@ networkTransfersRouter.post("/:id/transfer/init", async (c) => {
   if (!userId) return c.json({ error: "unauthorized" }, 401);
   const networkId = c.req.param("id");
   try {
-    await requireMember(userId, networkId, "owner");
+    await requireCapability(userId, networkId, "transfer_network");
   } catch {
     return c.json({ error: "forbidden" }, 403);
   }
