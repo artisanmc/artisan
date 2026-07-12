@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — members & invites routes (capability-gated)
+- Owner-side member management: `GET /api/v1/networks/:id/members` (joined with `users`), `DELETE /api/v1/networks/:id/members/:userId` (409 `last_owner` guard, self-removal allowed if not last), `PATCH /api/v1/networks/:id/members/:userId` (`{role: "owner"|"member"}`, 422 `invalid_role`, 409 `last_owner` on demoting the last `manage_members`-capable member), `POST/GET /api/v1/networks/:id/invites`, `DELETE /api/v1/networks/:id/invites/:inviteId` — all gated by `requireCapability(..., "manage_members")`.
+- Public invite routes (`backend/src/routes/invites.ts`, mounted at `/api/v1/invites`): `GET /:code` (no auth, preview) and `POST /:code/accept` (cookie auth) → `{network_id, already_member}`, 410 on revoked/expired/exhausted, 404 unknown.
+- `inviteStorage.acceptInvite` reworked to close a `maxUses` race: consumption is now atomic (`consumeInvite` — `UPDATE … WHERE valid RETURNING`, no row = exhausted/invalid), ordered check-member → consume → `addMembership` (duplicate-membership insert, Postgres 23505, refunds the consumed use and reports `already_member` instead of losing a use).
+
 ### Added — transactional mail infra (Scaleway TEM SMTP) + welcome email on signup
 - `getMailer()` (`backend/src/lib/mail/mailer.ts`, nodemailer over SMTP) with a no-op fallback when `SMTP_*`/`MAIL_FROM` are unset, and a test-injectable override (`__setMailerForTests`). Typed bilingual (en/fr) templates in `lib/mail/templates.ts`, starting with `welcomeEmail`. Signup (`POST /api/v1/auth/signup`) and first-time Discord OAuth account creation both fire a fire-and-forget welcome email — a mailer failure never breaks the auth flow.
 

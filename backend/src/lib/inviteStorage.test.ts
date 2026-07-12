@@ -139,6 +139,43 @@ describe("inviteStorage", () => {
       const memberRows = await db.select().from(memberships).where(eq(memberships.userId, userId));
       expect(memberRows).toHaveLength(0);
     });
+
+    it("maxUses=1 race: second sequential accept by a different user gets exhausted, no membership", async () => {
+      const { networkId, creatorId, userId } = await seedSetup();
+      const secondUserId = "usr_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+      await db.insert(users).values({
+        id: secondUserId, email: `${secondUserId}@example.com`, name: "U2", passwordHash: null,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      const invite = await createInvite({ networkId, createdBy: creatorId, maxUses: 1 });
+
+      const first = await acceptInvite(invite.code, userId);
+      expect(first).toEqual({ networkId, alreadyMember: false });
+
+      const second = await acceptInvite(invite.code, secondUserId);
+      expect(second).toEqual({ error: "exhausted" });
+
+      const memberRows = await db.select().from(memberships).where(eq(memberships.userId, secondUserId));
+      expect(memberRows).toHaveLength(0);
+      const updated = await getInviteByCode(invite.code);
+      expect(updated!.usedCount).toBe(1);
+    });
+
+    it("double-accept by same user: second call is alreadyMember and does not double-consume", async () => {
+      const { networkId, creatorId, userId } = await seedSetup();
+      const invite = await createInvite({ networkId, createdBy: creatorId, maxUses: 5 });
+
+      const first = await acceptInvite(invite.code, userId);
+      expect(first).toEqual({ networkId, alreadyMember: false });
+
+      const second = await acceptInvite(invite.code, userId);
+      expect(second).toEqual({ networkId, alreadyMember: true });
+
+      const memberRows = await db.select().from(memberships).where(eq(memberships.userId, userId));
+      expect(memberRows).toHaveLength(1);
+      const updated = await getInviteByCode(invite.code);
+      expect(updated!.usedCount).toBe(1);
+    });
   });
 
   it("revokeInvite sets revokedAt", async () => {
