@@ -11,6 +11,7 @@ export type Capability =
 	| "manage_servers" // rotate/delete/edit server keys, allowlist, helloes
 	| "manage_members" // invites + member management
 	| "manage_billing"
+	| "manage_network" // network identity/governance (rename, slug) — not member-grantable
 	| "transfer_network"
 	| "delete_network";
 
@@ -19,6 +20,7 @@ const ALL_CAPS: Capability[] = [
 	"manage_servers",
 	"manage_members",
 	"manage_billing",
+	"manage_network",
 	"transfer_network",
 	"delete_network",
 ];

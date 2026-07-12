@@ -89,6 +89,9 @@ export async function acceptInvite(
 
   // Check membership BEFORE consuming a use — an already-a-member accept must
   // not burn a limited use (pinned by the "does NOT consume a use" test).
+  // This fast-path intentionally bypasses the invite status check below —
+  // an existing member re-accepting a revoked/expired invite still succeeds
+  // idempotently instead of erroring, since they're already in the network.
   const existing = await db
     .select()
     .from(memberships)
