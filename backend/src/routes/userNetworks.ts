@@ -6,13 +6,21 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
 	memberships,
+	networkInvites,
 	networks,
 	serverDataSources,
 	serverKeyHelloes,
 	serverKeys,
 	serverModules,
+	users,
 } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
+import { can, type Role } from "../lib/capabilities";
+import {
+	createInvite,
+	listInvites,
+	revokeInvite,
+} from "../lib/inviteStorage";
 import { requireCapability, requireMember } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
@@ -22,6 +30,8 @@ import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
 import { disconnectServerKey, getInstanceCount } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
+
+const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 
 type Vars = { user: AuthUser | null };
 
@@ -711,6 +721,266 @@ userNetworksRouter.delete(
 			.where(
 				and(eq(serverKeys.id, keyId), eq(serverKeys.networkId, networkId)),
 			);
+		return c.body(null, 204);
+	},
+);
+
+/**
+ * Number of memberships in a network whose role grants "manage_members" —
+ * i.e. how many owners remain. Used to guard the last-owner invariant on
+ * self-removal, removal, and demotion.
+ */
+async function countManagers(networkId: string): Promise<number> {
+	const rows = await db
+		.select({ role: memberships.role })
+		.from(memberships)
+		.where(eq(memberships.networkId, networkId));
+	return rows.filter((r) => can(r.role, "manage_members")).length;
+}
+
+// GET /api/networks/:id/members — owner only. Joined with users for
+// display fields (email/displayName).
+userNetworksRouter.get(
+	"/:id/members",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const rows = await db
+			.select({
+				userId: memberships.userId,
+				email: users.email,
+				displayName: users.name,
+				role: memberships.role,
+				createdAt: memberships.createdAt,
+			})
+			.from(memberships)
+			.innerJoin(users, eq(users.id, memberships.userId))
+			.where(eq(memberships.networkId, networkId));
+		return c.json({ members: rows });
+	},
+);
+
+// DELETE /api/networks/:id/members/:userId — owner only. A member (including
+// the caller) can be removed unless it's the last manage_members-capable
+// member — that would leave the network without anyone able to manage it.
+userNetworksRouter.delete(
+	"/:id/members/:userId",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const targetUserId = c.req.param("userId");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const targetRows = await db
+			.select({ role: memberships.role })
+			.from(memberships)
+			.where(
+				and(
+					eq(memberships.userId, targetUserId),
+					eq(memberships.networkId, networkId),
+				),
+			);
+		if (targetRows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		if (can(targetRows[0].role, "manage_members")) {
+			const managers = await countManagers(networkId);
+			if (managers <= 1) {
+				return c.json({ error: "last_owner" }, 409);
+			}
+		}
+
+		await db
+			.delete(memberships)
+			.where(
+				and(
+					eq(memberships.userId, targetUserId),
+					eq(memberships.networkId, networkId),
+				),
+			);
+		return c.body(null, 204);
+	},
+);
+
+// PATCH /api/networks/:id/members/:userId — owner only. Body { role }.
+userNetworksRouter.patch(
+	"/:id/members/:userId",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const targetUserId = c.req.param("userId");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		let body: { role?: unknown };
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "invalid_body" }, 400);
+		}
+		if (body.role !== "owner" && body.role !== "member") {
+			return c.json({ error: "invalid_role" }, 422);
+		}
+		const newRole = body.role as Role;
+
+		const targetRows = await db
+			.select({ role: memberships.role })
+			.from(memberships)
+			.where(
+				and(
+					eq(memberships.userId, targetUserId),
+					eq(memberships.networkId, networkId),
+				),
+			);
+		if (targetRows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		// Demoting a manage_members-capable member to a role without it — guard
+		// against removing the last one.
+		const wasManager = can(targetRows[0].role, "manage_members");
+		const willBeManager = can(newRole, "manage_members");
+		if (wasManager && !willBeManager) {
+			const managers = await countManagers(networkId);
+			if (managers <= 1) {
+				return c.json({ error: "last_owner" }, 409);
+			}
+		}
+
+		await db
+			.update(memberships)
+			.set({ role: newRole })
+			.where(
+				and(
+					eq(memberships.userId, targetUserId),
+					eq(memberships.networkId, networkId),
+				),
+			);
+		return c.json({ ok: true });
+	},
+);
+
+// POST /api/networks/:id/invites — owner only.
+userNetworksRouter.post(
+	"/:id/invites",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		let body: { email?: unknown; maxUses?: unknown; expiresInDays?: unknown } = {};
+		try {
+			body = await c.req.json();
+		} catch {
+			/* empty body ok — all fields optional */
+		}
+		const email = typeof body.email === "string" ? body.email.trim() || null : null;
+		const maxUses =
+			typeof body.maxUses === "number" && Number.isFinite(body.maxUses)
+				? body.maxUses
+				: null;
+		const expiresInDays =
+			typeof body.expiresInDays === "number" && Number.isFinite(body.expiresInDays)
+				? body.expiresInDays
+				: undefined;
+
+		const invite = await createInvite({
+			networkId,
+			createdBy: userId,
+			email,
+			maxUses,
+			expiresInDays,
+		});
+		return c.json(
+			{
+				invite: {
+					id: invite.id,
+					code: invite.code,
+					url: `${EDITOR_URL}/invite?code=${invite.code}`,
+					email: invite.email,
+					maxUses: invite.maxUses,
+					usedCount: invite.usedCount,
+					expiresAt: invite.expiresAt.toISOString(),
+				},
+			},
+			201,
+		);
+	},
+);
+
+// GET /api/networks/:id/invites — owner only.
+userNetworksRouter.get(
+	"/:id/invites",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const list = await listInvites(networkId);
+		return c.json({
+			invites: list.map((i) => ({
+				id: i.id,
+				code: i.code,
+				url: `${EDITOR_URL}/invite?code=${i.code}`,
+				email: i.email,
+				maxUses: i.maxUses,
+				usedCount: i.usedCount,
+				expiresAt: i.expiresAt.toISOString(),
+				revokedAt: i.revokedAt ? i.revokedAt.toISOString() : null,
+			})),
+		});
+	},
+);
+
+// DELETE /api/networks/:id/invites/:inviteId — owner only.
+userNetworksRouter.delete(
+	"/:id/invites/:inviteId",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const inviteId = c.req.param("inviteId");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const rows = await db
+			.select({ id: networkInvites.id })
+			.from(networkInvites)
+			.where(
+				and(
+					eq(networkInvites.id, inviteId),
+					eq(networkInvites.networkId, networkId),
+				),
+			);
+		if (rows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		await revokeInvite(inviteId);
 		return c.body(null, 204);
 	},
 );

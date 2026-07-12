@@ -16,6 +16,7 @@ import { userProjectsRouter } from "./routes/userProjects";
 import { userAssetsRouter } from "./routes/userAssets";
 import { userBranchesRouter } from "./routes/userBranches";
 import { userWsTicketRouter } from "./routes/userWsTicket";
+import { invitesRouter } from "./routes/invites";
 import { userAuth } from "./middleware/userAuth";
 import { requireAdmin } from "./middleware/requireAdmin";
 import { buildAssistantAdminRouter } from "./modules/assistant/adminRoutes";
@@ -54,6 +55,10 @@ app.use("/api/v1/networks/*", userAuth());
 app.route("/api/v1/networks", networkTransfersRouter);
 app.route("/api/v1/networks", userNetworksRouter);
 app.route("/api/v1/networks", userBranchesRouter);
+// userAuth() never 401s by itself (sets user=null on missing/invalid
+// cookie) — GET /:code stays public, POST /:code/accept checks c.get("user").
+app.use("/api/v1/invites/*", userAuth());
+app.route("/api/v1/invites", invitesRouter);
 app.use("/api/v1/user/projects/*", userAuth());
 app.route("/api/v1/user/projects", userProjectsRouter);
 app.route("/api/v1/user/projects", userAssetsRouter);

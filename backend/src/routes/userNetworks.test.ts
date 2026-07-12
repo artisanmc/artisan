@@ -5,11 +5,12 @@ import { db } from "../db/index";
 import {
   memberships, networks, projects, serverKeys, serverKeyHelloes,
   linkCodes, assets, users, userSessions,
-  serverModules, serverDataSources,
+  serverModules, serverDataSources, networkInvites,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
+import { addMembership } from "../lib/membershipManager";
 import { and, eq } from "drizzle-orm";
 
 async function clearAll() {
@@ -17,6 +18,7 @@ async function clearAll() {
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
+  await db.delete(networkInvites);
   await db.delete(serverKeys);
   await db.delete(memberships);
   await db.delete(networks);
@@ -1051,5 +1053,246 @@ describe("PATCH /api/v1/networks/:id/server-keys/:keyId", () => {
       body: JSON.stringify({ label: "Hack" }),
     });
     expect(res.status).toBe(403);
+  });
+});
+
+// M-Task 3: members & invites, capability-gated on manage_members.
+async function setupMembers() {
+  const owner = await seedUser("owner1");
+  const app = makeApp();
+  const ownerHeaders = { Cookie: `artisan_user_session=${owner.sessionId}`, "Content-Type": "application/json" };
+  const { network } = await (await app.request("/api/v1/networks", {
+    method: "POST", headers: ownerHeaders, body: JSON.stringify({ name: "N" }),
+  })).json();
+  const member = await seedUser("member1");
+  await addMembership(member.userId, network.id, "member");
+  const memberHeaders = { Cookie: `artisan_user_session=${member.sessionId}`, "Content-Type": "application/json" };
+  return { app, network, owner, ownerHeaders, member, memberHeaders };
+}
+
+describe("GET /api/v1/networks/:id/members", () => {
+  beforeEach(clearAll);
+
+  test("returns joined members (userId, email, displayName, role, createdAt)", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members`, { headers: ownerHeaders });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.members).toHaveLength(2);
+    const owner = body.members.find((m: { userId: string }) => m.userId === "owner1");
+    expect(owner.email).toBe("owner1@a.b");
+    expect(owner.displayName).toBe("owner1");
+    expect(owner.role).toBe("owner");
+    expect(owner.createdAt).toBeTruthy();
+    const member = body.members.find((m: { userId: string }) => m.userId === "member1");
+    expect(member.role).toBe("member");
+  });
+
+  test("403 for member (lacks manage_members)", async () => {
+    const { app, network, memberHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members`, { headers: memberHeaders });
+    expect(res.status).toBe(403);
+  });
+
+  test("403 for non-member", async () => {
+    const { app, network } = await setupMembers();
+    const { sessionId } = await seedUser("stranger");
+    const res = await app.request(`/api/v1/networks/${network.id}/members`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /api/v1/networks/:id/members/:userId", () => {
+  beforeEach(clearAll);
+
+  test("owner removes a member — 200/204", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/member1`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(204);
+    const rows = await db.select().from(memberships).where(and(eq(memberships.userId, "member1"), eq(memberships.networkId, network.id)));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("owner removes self when NOT the last owner — allowed", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    // Promote member1 to owner so removing owner1 doesn't violate last_owner.
+    await db.update(memberships).set({ role: "owner" }).where(and(eq(memberships.userId, "member1"), eq(memberships.networkId, network.id)));
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(204);
+  });
+
+  test("409 last_owner removing the sole owner", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("last_owner");
+  });
+
+  test("403 for member (lacks manage_members)", async () => {
+    const { app, network, memberHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "DELETE", headers: memberHeaders,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("404 for unknown target user", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/nope`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/v1/networks/:id/members/:userId", () => {
+  beforeEach(clearAll);
+
+  test("owner promotes member — 200", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/member1`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ role: "owner" }),
+    });
+    expect(res.status).toBe(200);
+    const rows = await db.select().from(memberships).where(and(eq(memberships.userId, "member1"), eq(memberships.networkId, network.id)));
+    expect(rows[0]!.role).toBe("owner");
+  });
+
+  test("409 last_owner demoting the sole owner", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ role: "member" }),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("last_owner");
+  });
+
+  test("demoting last owner is allowed when another owner exists", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    await db.update(memberships).set({ role: "owner" }).where(and(eq(memberships.userId, "member1"), eq(memberships.networkId, network.id)));
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ role: "member" }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  test("422 on unknown role", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/member1`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ role: "superadmin" }),
+    });
+    expect(res.status).toBe(422);
+  });
+
+  test("403 for member (lacks manage_members)", async () => {
+    const { app, network, memberHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/owner1`, {
+      method: "PATCH", headers: memberHeaders, body: JSON.stringify({ role: "member" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("404 for unknown target user", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/members/nope`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ role: "member" }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST/GET/DELETE /api/v1/networks/:id/invites", () => {
+  beforeEach(clearAll);
+
+  test("POST creates an invite with url pointing at EDITOR_URL", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({ email: "x@y.z", maxUses: 3, expiresInDays: 2 }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.invite.id).toBeTruthy();
+    expect(body.invite.code).toMatch(/^[A-Z0-9]{8}$/);
+    expect(body.invite.url).toContain(`?code=${body.invite.code}`);
+    expect(body.invite.email).toBe("x@y.z");
+    expect(body.invite.maxUses).toBe(3);
+    expect(body.invite.usedCount).toBe(0);
+    expect(body.invite.expiresAt).toBeTruthy();
+  });
+
+  test("POST with empty body uses defaults", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.invite.email).toBeNull();
+    expect(body.invite.maxUses).toBeNull();
+  });
+
+  test("403 for member (lacks manage_members)", async () => {
+    const { app, network, memberHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: memberHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("GET lists invites for the network", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({}),
+    });
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, { headers: ownerHeaders });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.invites).toHaveLength(1);
+  });
+
+  test("GET 403 for member", async () => {
+    const { app, network, memberHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, { headers: memberHeaders });
+    expect(res.status).toBe(403);
+  });
+
+  test("DELETE revokes an invite — subsequent GET shows revokedAt set", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const created = await (await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({}),
+    })).json();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites/${created.invite.id}`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(204);
+    const list = await (await app.request(`/api/v1/networks/${network.id}/invites`, { headers: ownerHeaders })).json();
+    expect(list.invites[0].revokedAt).toBeTruthy();
+  });
+
+  test("DELETE 403 for member", async () => {
+    const { app, network, ownerHeaders, memberHeaders } = await setupMembers();
+    const created = await (await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({}),
+    })).json();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites/${created.invite.id}`, {
+      method: "DELETE", headers: memberHeaders,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("DELETE 404 for unknown invite id", async () => {
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites/nope`, {
+      method: "DELETE", headers: ownerHeaders,
+    });
+    expect(res.status).toBe(404);
   });
 });
