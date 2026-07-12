@@ -120,6 +120,31 @@ export const linkCodes = pgTable("link_codes", {
 	serverKeyId: text("server_key_id").references(() => serverKeys.id),
 });
 
+export const networkInvites = pgTable(
+	"network_invites",
+	{
+		id: text("id").primaryKey(),
+		networkId: text("network_id")
+			.notNull()
+			.references(() => networks.id, { onDelete: "cascade" }),
+		role: text("role").notNull().default("member"),
+		code: text("code").notNull(),
+		email: text("email"),
+		maxUses: integer("max_uses"),
+		usedCount: integer("used_count").notNull().default(0),
+		expiresAt: timestamp("expires_at").notNull(),
+		revokedAt: timestamp("revoked_at"),
+		createdBy: text("created_by")
+			.notNull()
+			.references(() => users.id),
+		createdAt: timestamp("created_at").notNull(),
+	},
+	(t) => [
+		uniqueIndex("network_invites_code_uniq").on(t.code),
+		index("network_invites_network_idx").on(t.networkId),
+	],
+);
+
 export const users = pgTable(
 	"users",
 	{
