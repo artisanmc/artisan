@@ -64,6 +64,13 @@ User ── Membership ──┐
 - **Buckets de credits (2026-07-03)** — `ai_credit_ledger` porte `bucket` (`subscription`/`rollover`/`topup`), `expires_at` (bucket subscription expire en fin de période), `period_id`. Solde d'un bucket = `SUM(delta)` non expiré. Débit dans l'ordre subscription → rollover → topup. `renewSubscriptionPeriod` (backend) auto-roule le solde restant (period-scoped, via `period_id`) du bucket subscription vers rollover, plafonné à `rollover_cap`. Les débits d'un bucket subscription héritent de l'`expires_at`/`period_id` du grant qu'ils consomment (`debitBuckets`), pour que grant et débits sortent ensemble de la SUM non-expirée. Spec `2026-07-03-billing-subscriptions-topups-design.md`.
 - `users.preferred_ai_model_id` — dernier modèle choisi (pas de FK, fallback silencieux sur le défaut si dangling).
 
+## Invitations (`network_invites`, 2026-07-12)
+
+- **`network_invites`** : `(id "inv_"+rand, network_id FK cascade, role TEXT défaut "member", code TEXT unique — format `generateCode()` partagé avec `link_codes`, email nullable, max_uses INT nullable — null = illimité, used_count INT défaut 0, expires_at, revoked_at nullable, created_by → users.id, created_at)`. Lib `backend/src/lib/inviteStorage.ts`.
+- **Statut dérivé** (`inviteStatus`, jamais stocké) : priorité `revoked` > `expired` > `exhausted` (`used_count >= max_uses` quand `max_uses` non-null) > `valid`. `now` injectable pour les tests.
+- **`acceptInvite(code, userId)`** : code inconnu → `{error: "not_found"}` ; statut ≠ valid → `{error: status}` ; user déjà membre du network → `{networkId, alreadyMember: true}` **sans** incrémenter `used_count` (idempotent, pas de double-consommation) ; sinon `addMembership(userId, networkId, invite.role)` (`membershipManager`) + `used_count += 1`.
+- **`listInvites`** : non-révoquées d'abord, puis plus récent d'abord (tri sur `revoked_at IS NOT NULL`, puis `created_at DESC`).
+
 ## Transferts & désaffectation
 
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Token partageable 24h pour transférer la propriété d'un Network entier. Memberships swap **clean break** — ancien owner perd l'accès.
