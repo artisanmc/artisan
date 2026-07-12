@@ -21,6 +21,8 @@ import {
 	listInvites,
 	revokeInvite,
 } from "../lib/inviteStorage";
+import { sendSafely } from "../lib/mail/mailer";
+import { inviteEmail } from "../lib/mail/templates";
 import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
@@ -930,12 +932,33 @@ userNetworksRouter.post(
 			maxUses,
 			expiresInDays,
 		});
+		const url = `${EDITOR_URL}/invite?code=${invite.code}`;
+
+		if (email) {
+			const [network] = await db
+				.select({ name: networks.name })
+				.from(networks)
+				.where(eq(networks.id, networkId));
+			const [inviter] = await db
+				.select({ name: users.name, email: users.email })
+				.from(users)
+				.where(eq(users.id, userId));
+			sendSafely(
+				inviteEmail({
+					to: email,
+					networkName: network?.name ?? "Artisan",
+					inviterName: inviter?.name || inviter?.email || "A teammate",
+					url,
+				}),
+			);
+		}
+
 		return c.json(
 			{
 				invite: {
 					id: invite.id,
 					code: invite.code,
-					url: `${EDITOR_URL}/invite?code=${invite.code}`,
+					url,
 					email: invite.email,
 					maxUses: invite.maxUses,
 					usedCount: invite.usedCount,

@@ -1,5 +1,5 @@
 // backend/src/routes/userNetworks.test.ts
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { db } from "../db/index";
 import {
@@ -12,6 +12,7 @@ import { userAuth } from "../middleware/userAuth";
 import { createSession } from "../lib/sessionManager";
 import { addMembership } from "../lib/membershipManager";
 import { and, eq } from "drizzle-orm";
+import { __setMailerForTests, type MailMessage } from "../lib/mail/mailer";
 
 async function clearAll() {
   await db.delete(assets);
@@ -1313,5 +1314,51 @@ describe("POST/GET/DELETE /api/v1/networks/:id/invites", () => {
       method: "DELETE", headers: ownerHeaders,
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/networks/:id/invites — email dispatch", () => {
+  beforeEach(clearAll);
+  afterEach(() => __setMailerForTests(null));
+
+  test("with email set — sends an invite email with the right to/url and still returns the url", async () => {
+    const sent: MailMessage[] = [];
+    __setMailerForTests({ enabled: true, send: async (msg) => { sent.push(msg); } });
+
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({ email: "invitee@x.y" }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.invite.url).toContain(`?code=${body.invite.code}`);
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe("invitee@x.y");
+    expect(sent[0].text).toContain(body.invite.url);
+  });
+
+  test("without email — no mail sent", async () => {
+    const sent: MailMessage[] = [];
+    __setMailerForTests({ enabled: true, send: async (msg) => { sent.push(msg); } });
+
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(201);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(0);
+  });
+
+  test("mailer that throws does not block the invite creation — 201 anyway", async () => {
+    __setMailerForTests({ enabled: true, send: async () => { throw new Error("smtp down"); } });
+
+    const { app, network, ownerHeaders } = await setupMembers();
+    const res = await app.request(`/api/v1/networks/${network.id}/invites`, {
+      method: "POST", headers: ownerHeaders, body: JSON.stringify({ email: "invitee@x.y" }),
+    });
+    expect(res.status).toBe(201);
   });
 });
