@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
 import { networkInvites, memberships } from "../db/schema";
 import { generateCode } from "./auth";
@@ -51,15 +51,44 @@ export function inviteStatus(invite: Invite, now: Date = new Date()): InviteStat
   return "valid";
 }
 
+/**
+ * Atomically consumes one use of an invite: increments usedCount only if the
+ * invite is still valid at the DB level (not revoked, not expired, under
+ * maxUses). Returns the updated row, or null if no row matched (someone else
+ * won the race, or it became invalid between the caller's own checks and this
+ * call). This closes the TOCTOU window a plain SELECT-then-UPDATE would leave
+ * open under concurrent accepts of a maxUses-limited invite.
+ */
+export async function consumeInvite(inviteId: string, now: Date = new Date()): Promise<Invite | null> {
+  const rows = await db
+    .update(networkInvites)
+    .set({ usedCount: sql`${networkInvites.usedCount} + 1` })
+    .where(and(
+      eq(networkInvites.id, inviteId),
+      isNull(networkInvites.revokedAt),
+      gt(networkInvites.expiresAt, now),
+      or(isNull(networkInvites.maxUses), sql`${networkInvites.usedCount} < ${networkInvites.maxUses}`),
+    ))
+    .returning();
+  return rows[0] ?? null;
+}
+
+async function refundInvite(inviteId: string): Promise<void> {
+  await db
+    .update(networkInvites)
+    .set({ usedCount: sql`greatest(${networkInvites.usedCount} - 1, 0)` })
+    .where(eq(networkInvites.id, inviteId));
+}
+
 export async function acceptInvite(
   code: string,
   userId: string,
 ): Promise<{ networkId: string; alreadyMember: boolean } | { error: InviteStatus | "not_found" }> {
   const invite = await getInviteByCode(code);
   if (!invite) return { error: "not_found" };
-  const status = inviteStatus(invite);
-  if (status !== "valid") return { error: status };
 
+  // Check membership BEFORE consuming a use — an already-a-member accept must
+  // not burn a limited use (pinned by the "does NOT consume a use" test).
   const existing = await db
     .select()
     .from(memberships)
@@ -68,13 +97,43 @@ export async function acceptInvite(
     return { networkId: invite.networkId, alreadyMember: true };
   }
 
-  await addMembership(userId, invite.networkId, invite.role as Role);
-  await db
-    .update(networkInvites)
-    .set({ usedCount: sql`${networkInvites.usedCount} + 1` })
-    .where(eq(networkInvites.id, invite.id));
+  // Fast-path reject on the state we already have, for a precise error
+  // message on the common (non-racy) case.
+  const status = inviteStatus(invite);
+  if (status !== "valid") return { error: status };
+
+  // Atomic consume — re-validates at the DB level so a concurrent accept
+  // against a maxUses-limited invite can't push usedCount past the limit.
+  // No row back = another request consumed the last use (or revoked/expired
+  // it) between our check above and this call.
+  const consumed = await consumeInvite(invite.id);
+  if (!consumed) {
+    const fresh = await getInviteByCode(code);
+    return { error: fresh ? inviteStatus(fresh) : "not_found" };
+  }
+
+  try {
+    await addMembership(userId, invite.networkId, invite.role as Role);
+  } catch (err) {
+    // Race: a concurrent request created the same (userId, networkId)
+    // membership between our pre-check above and this insert (unique
+    // constraint memberships_user_network_uniq, Postgres code 23505).
+    // Refund the use we just consumed and report alreadyMember instead of
+    // leaving a lost use with no membership to show for it.
+    const pgCode = (err as { code?: string })?.code;
+    if (pgCode === "23505") {
+      await refundInvite(invite.id);
+      return { networkId: invite.networkId, alreadyMember: true };
+    }
+    throw err;
+  }
   return { networkId: invite.networkId, alreadyMember: false };
 }
+
+// NOTE (prod-readiness backlog): POST /accept has no rate limiting. Invite
+// codes are 40-bit random over a 7-day default window (generateCode()) — not
+// brute-forceable in isolation, but combined with no throttling this is a
+// standing gap. See docs/superpowers backlog (project_prod_readiness_audit).
 
 export async function revokeInvite(inviteId: string): Promise<void> {
   await db.update(networkInvites).set({ revokedAt: new Date() }).where(eq(networkInvites.id, inviteId));
