@@ -154,7 +154,7 @@ happens lazily at the deploy/export/persist boundary, not per edit.
 ## Membership
 
 A user's belonging to a **Network**, carrying a **role** that scopes what they may
-do there. Two roles exist today: **owner** (governance — billing, transfer,
+do there. Two roles exist: **owner** (governance — billing, transfer,
 Network deletion, member management, key rotation) and **member** (full editorial
 access to every Server and Project of the Network, nothing destructive at Network
 level). Roles are per-Network: the same user may be owner of one Network and
