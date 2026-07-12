@@ -21,7 +21,7 @@ export interface Invite {
   revokedAt?: string | null;
 }
 
-/** GET /api/v1/networks/:id/members — owner/admin only (403 for plain members). */
+/** GET /api/v1/networks/:id/members — any member can read the roster (read-only for non-managers). */
 export async function listMembers(networkId: string): Promise<Member[]> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/members`, {
     credentials: "include",

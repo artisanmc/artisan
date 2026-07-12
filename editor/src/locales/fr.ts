@@ -1130,9 +1130,9 @@ const fr: typeof en = {
     usedCount: "{{used}}/{{max}} usages",
     expiresAt: "expire le {{date}}",
     role: {
-      owner: "Owner",
+      owner: "Propriétaire",
       admin: "Admin",
-      member: "Member",
+      member: "Membre",
     },
     errors: {
       lastOwner: "C'est le dernier owner ou admin — le network doit en garder au moins un.",
