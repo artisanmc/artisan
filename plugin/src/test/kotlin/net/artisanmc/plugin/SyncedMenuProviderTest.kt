@@ -213,4 +213,28 @@ class SyncedMenuProviderTest {
         handle.invoke(provider, raw)
         assertNull(mgr.currentPackInfo)
     }
+
+    @Test
+    fun `editorInfo prefers server_url over editor_url when both are present`() {
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"network_name":"N","editor_url":"http://localhost:5173","server_url":"http://localhost:5173/networks/n/servers/s"}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        assertEquals("http://localhost:5173/networks/n/servers/s" to "N", provider.editorInfo())
+    }
+
+    @Test
+    fun `editorInfo falls back to editor_url when server_url is absent (older backend)`() {
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
+        val provider = SyncedMenuProvider(packsRoot, serverKey = "", wsUrl = "", logger = null)
+        provider.load()
+        val raw = """{"type":"hello_ack","session_id":"s","project_hashes":{},"network_name":"N","editor_url":"http://localhost:5173"}"""
+        val handle = provider.javaClass.getDeclaredMethod("handleMessage", String::class.java)
+        handle.isAccessible = true
+        handle.invoke(provider, raw)
+        assertEquals("http://localhost:5173" to "N", provider.editorInfo())
+    }
 }

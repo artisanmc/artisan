@@ -187,6 +187,37 @@ describe("handlePluginMessage", () => {
     expect(ack.network_name).toBe("N");
   });
 
+  test("hello_ack.server_url falls back to id-based path when server key has no slug", async () => {
+    const { id, key, networkId } = await seedServerKey();
+    const netRow = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("test-conn-server-url-id", JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.server_url).toBe(`${ack.editor_url}/networks/${netRow.slug ?? netRow.id}/servers/${id}`);
+  });
+
+  test("hello_ack.server_url uses network and server key slugs when set", async () => {
+    const { id, key, networkId } = await seedServerKey();
+    await db.update(serverKeys).set({ slug: "my-server" }).where(eq(serverKeys.id, id));
+    const netRow = (await db.select().from(networks).where(eq(networks.id, networkId)))[0]!;
+    const hello: HelloMessage = {
+      type: "hello",
+      server_key: key,
+      plugin_version: "1.0.0",
+      minecraft_version: "1.21.4",
+      current_bundle_hash: "",
+    };
+    const result = await handlePluginMessage("test-conn-server-url-slug", JSON.stringify(hello));
+    const ack = JSON.parse(result.reply!) as HelloAckMessage;
+    expect(ack.server_url).toBe(`${ack.editor_url}/networks/${netRow.slug}/servers/my-server`);
+  });
+
   test("hello inserts a row into server_key_helloes (audit log) with the source IP", async () => {
     const { id: keyId, key } = await seedServerKey();
     const hello: HelloMessage = {

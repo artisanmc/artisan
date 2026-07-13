@@ -39,16 +39,16 @@ class EditorCommandTest {
     }
 
     @Test
-    fun `editor on a linked server prints the static editor url and network name`() {
+    fun `editor on a linked server prints the server deep link and network name`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        plugin.setMenuProviderForTesting(StubProvider("http://localhost:5173" to "Test"))
+        plugin.setMenuProviderForTesting(StubProvider("http://localhost:5173/networks/my-net/servers/my-server" to "Test"))
         val sender = MockBukkit.getMock()!!.consoleSender
         val cmd = plugin.getCommand("artisan")!!
         val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor"))
         assertTrue(result, "Command should return true")
 
         val messages = drainMessages(sender)
-        assertTrue(messages.any { it.contains("http://localhost:5173") }, "Expected the editor URL in output: $messages")
+        assertTrue(messages.any { it.contains("http://localhost:5173/networks/my-net/servers/my-server") }, "Expected the server deep link in output: $messages")
         assertTrue(messages.any { it.contains("Test") }, "Expected the network name in output: $messages")
     }
 

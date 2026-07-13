@@ -26,6 +26,7 @@ export interface HelloAckMessage {
   api_url: string;
   bundle_url: string;  // plugin-internal URL for bundle downloads/uploads (may differ from api_url in Docker)
   editor_url: string;  // browser-facing editor URL (EDITOR_URL) — informational, shown by /artisan editor
+  server_url: string;  // deep link to this server's page in the editor (falls back to editor_url if network/server rows are missing)
   network_name: string;  // display name of the network this server_key belongs to
   project_hashes: Record<string, string>;  // projectId → latest stored hash on backend
   deleted_project_ids: string[];

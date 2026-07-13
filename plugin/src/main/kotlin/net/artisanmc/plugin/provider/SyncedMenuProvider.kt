@@ -226,7 +226,7 @@ class SyncedMenuProvider(
                 logger?.info("Connected to Artisan backend (session=$sessionId)")
 
                 apiUrl = node["bundle_url"]?.asText() ?: node["api_url"]?.asText()
-                editorUrl = node["editor_url"]?.asText() ?: editorUrl
+                editorUrl = node["server_url"]?.asText() ?: node["editor_url"]?.asText() ?: editorUrl
                 networkName = node["network_name"]?.asText() ?: networkName
 
                 val rpNode = node["resource_pack"]
