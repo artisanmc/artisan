@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MembersSection } from "./MembersSection";
 import * as membersApi from "@/lib/api/members";
+import * as accessRequestsApi from "@/lib/api/accessRequests";
 import { useAuthStore } from "@/state/authStore";
 
 function setCurrentUser(id: string) {
@@ -21,6 +22,7 @@ describe("MembersSection", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     setCurrentUser("u1");
+    vi.spyOn(accessRequestsApi, "listAccessRequests").mockResolvedValue([]);
   });
 
   it("renders the member list with role badges", async () => {
@@ -144,5 +146,82 @@ describe("MembersSection", () => {
     await screen.findByText("friend@test.com");
     fireEvent.click(screen.getByRole("button", { name: /revoke|révoquer/i }));
     await waitFor(() => expect(revokeSpy).toHaveBeenCalledWith("n1", "inv1"));
+  });
+
+  it("shows pending access requests to a manager, with message and approve/deny buttons", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    vi.spyOn(membersApi, "listInvites").mockResolvedValue([]);
+    vi.spyOn(accessRequestsApi, "listAccessRequests").mockResolvedValue([
+      {
+        id: "req1",
+        userId: "u3",
+        email: "newbie@test.com",
+        displayName: "Newbie",
+        message: "Please let me in",
+        status: "pending",
+        createdAt: "2026-07-01T00:00:00Z",
+      },
+    ]);
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("owner@test.com");
+    await screen.findByText("newbie@test.com");
+    expect(screen.getByText("Please let me in")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /approve|approuver/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /deny|refuser/i })).toBeInTheDocument();
+  });
+
+  it("does not call listAccessRequests for a plain member", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    vi.spyOn(membersApi, "listInvites").mockResolvedValue([]);
+    const reqSpy = vi.spyOn(accessRequestsApi, "listAccessRequests").mockResolvedValue([]);
+    setCurrentUser("u2"); // plain member
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("owner@test.com");
+    expect(reqSpy).not.toHaveBeenCalled();
+  });
+
+  it("approves an access request and adds the member to the roster locally", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    vi.spyOn(membersApi, "listInvites").mockResolvedValue([]);
+    vi.spyOn(accessRequestsApi, "listAccessRequests").mockResolvedValue([
+      {
+        id: "req1",
+        userId: "u3",
+        email: "newbie@test.com",
+        displayName: "Newbie",
+        message: null,
+        status: "pending",
+        createdAt: "2026-07-01T00:00:00Z",
+      },
+    ]);
+    const approveSpy = vi.spyOn(accessRequestsApi, "approveAccessRequest").mockResolvedValue(undefined);
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("newbie@test.com");
+    fireEvent.click(screen.getByRole("button", { name: /approve|approuver/i }));
+    await waitFor(() => expect(approveSpy).toHaveBeenCalledWith("n1", "req1"));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /approve|approuver/i })).not.toBeInTheDocument());
+    expect(screen.getAllByText("newbie@test.com").length).toBeGreaterThan(0);
+  });
+
+  it("denies an access request and removes it from the list", async () => {
+    vi.spyOn(membersApi, "listMembers").mockResolvedValue(owners);
+    vi.spyOn(membersApi, "listInvites").mockResolvedValue([]);
+    vi.spyOn(accessRequestsApi, "listAccessRequests").mockResolvedValue([
+      {
+        id: "req1",
+        userId: "u3",
+        email: "newbie@test.com",
+        displayName: "Newbie",
+        message: null,
+        status: "pending",
+        createdAt: "2026-07-01T00:00:00Z",
+      },
+    ]);
+    const denySpy = vi.spyOn(accessRequestsApi, "denyAccessRequest").mockResolvedValue(undefined);
+    render(<MembersSection networkId="n1" />);
+    await screen.findByText("newbie@test.com");
+    fireEvent.click(screen.getByRole("button", { name: /deny|refuser/i }));
+    await waitFor(() => expect(denySpy).toHaveBeenCalledWith("n1", "req1"));
+    await waitFor(() => expect(screen.queryByText("newbie@test.com")).not.toBeInTheDocument());
   });
 });

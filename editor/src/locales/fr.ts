@@ -1118,6 +1118,17 @@ const fr: typeof en = {
     noServers: "Aucun serveur. Tape /artisan setup dans ta console MC.",
     addServer: "Ajouter un serveur",
   },
+  requestAccess: {
+    title: "Tu n'as pas accès à ce network",
+    description: "Envoie une demande à un owner ou admin du network pour obtenir l'accès.",
+    messageLabel: "Message (optionnel)",
+    messagePlaceholder: "Dis-leur qui tu es…",
+    submit: "Demander l'accès",
+    sending: "Envoi…",
+    sent: "Demande envoyée — un owner doit l'approuver.",
+    alreadyPending: "Tu as déjà une demande en attente pour ce network.",
+    error: "Une erreur est survenue. Réessaie.",
+  },
   membersSection: {
     invite: "Inviter",
     promote: "Promouvoir",
@@ -1137,6 +1148,11 @@ const fr: typeof en = {
     errors: {
       lastOwner: "C'est le dernier owner ou admin — le network doit en garder au moins un.",
       generic: "Une erreur est survenue. Réessaie.",
+    },
+    accessRequests: {
+      title: "Demandes d'accès",
+      approve: "Approuver",
+      deny: "Refuser",
     },
     inviteDialog: {
       title: "Inviter quelqu'un",

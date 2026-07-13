@@ -1,6 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
+  type AccessRequest,
+  approveAccessRequest,
+  denyAccessRequest,
+  listAccessRequests,
+} from "@/lib/api/accessRequests";
+import {
   type Invite,
   type Member,
   type MemberRole,
@@ -37,8 +43,10 @@ export function MembersSection({ networkId }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[] | null>(null);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+  const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
@@ -78,6 +86,63 @@ export function MembersSection({ networkId }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [networkId, canManage]);
+
+  useEffect(() => {
+    if (!canManage) {
+      setAccessRequests([]);
+      return;
+    }
+    let cancelled = false;
+    listAccessRequests(networkId)
+      .then((list) => {
+        if (!cancelled) setAccessRequests(list.filter((r) => r.status === "pending"));
+      })
+      .catch(() => {
+        if (!cancelled) setAccessRequests([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkId, canManage]);
+
+  async function handleApproveRequest(request: AccessRequest) {
+    setBusyRequestId(request.id);
+    try {
+      await approveAccessRequest(networkId, request.id);
+      setAccessRequests((prev) => (prev ? prev.filter((r) => r.id !== request.id) : prev));
+      setMembers((prev) =>
+        prev
+          ? [
+              ...prev,
+              {
+                userId: request.userId,
+                email: request.email,
+                displayName: request.displayName,
+                role: "member",
+                createdAt: new Date().toISOString(),
+              },
+            ]
+          : prev,
+      );
+    } catch {
+      toast.error(t("membersSection.errors.generic"));
+    } finally {
+      setBusyRequestId(null);
+    }
+  }
+
+  async function handleDenyRequest(request: AccessRequest) {
+    setBusyRequestId(request.id);
+    try {
+      await denyAccessRequest(networkId, request.id);
+      setAccessRequests((prev) => (prev ? prev.filter((r) => r.id !== request.id) : prev));
+    } catch {
+      toast.error(t("membersSection.errors.generic"));
+    } finally {
+      setBusyRequestId(null);
+    }
+  }
 
   async function handleToggleRole(member: Member) {
     const nextRole: MemberRole = isManager(member.role) ? "member" : "owner";
@@ -222,6 +287,50 @@ export function MembersSection({ networkId }: Props) {
                 </button>
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+
+      {canManage && accessRequests !== null && accessRequests.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="field-label">{t("membersSection.accessRequests.title")}</span>
+          <ul className="card flex flex-col divide-y divide-[var(--border-soft)] p-0">
+            {accessRequests.map((request) => {
+              const busy = busyRequestId === request.id;
+              return (
+                <li key={request.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-[13.5px] text-[var(--text)]">
+                      {request.displayName || request.email}
+                    </span>
+                    <span className="truncate text-[11.5px] text-[var(--text-faint)]">
+                      {request.email}
+                    </span>
+                    {request.message && (
+                      <span className="truncate text-[11.5px] italic text-[var(--text-faint)]">
+                        {request.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      className="btn btn-xs btn-primary"
+                      disabled={busy}
+                      onClick={() => handleApproveRequest(request)}
+                    >
+                      {t("membersSection.accessRequests.approve")}
+                    </button>
+                    <button
+                      className="btn btn-xs btn-ghost"
+                      disabled={busy}
+                      onClick={() => handleDenyRequest(request)}
+                    >
+                      {t("membersSection.accessRequests.deny")}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
