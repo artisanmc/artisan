@@ -59,6 +59,8 @@ If the server is linked and connected to the backend, this prints a clickable li
 
 Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account used during `/artisan setup` is added automatically; invite teammates from the network settings page).
 
+If a logged-in user without network membership clicks the link, they see a **"Request access"** panel where they can optionally add a message and submit a request. The network owner receives an email notification (if SMTP is configured) and can approve or deny the request from the **Members** section of the network settings. Once approved, the user gains membership and can access all servers and projects in the network.
+
 Once the editor opens, see the [Editor overview](/editor/) for next steps — how to create your first project and menu, add slots, and wire up actions.
 
 ## 4. Invite your team
