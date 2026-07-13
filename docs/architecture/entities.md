@@ -71,6 +71,14 @@ User ── Membership ──┐
 - **`acceptInvite(code, userId)`** : code inconnu → `{error: "not_found"}` ; statut ≠ valid → `{error: status}` ; user déjà membre du network → `{networkId, alreadyMember: true}` **sans** incrémenter `used_count` (idempotent, pas de double-consommation) ; sinon `addMembership(userId, networkId, invite.role)` (`membershipManager`) + `used_count += 1`.
 - **`listInvites`** : non-révoquées d'abord, puis plus récent d'abord (tri sur `revoked_at IS NOT NULL`, puis `created_at DESC`).
 
+## Access requests (`network_access_requests`, 2026-07-13)
+
+- **`network_access_requests`** : `(id "acr_"+rand, network_id FK cascade, user_id FK cascade, message TEXT nullable — cap 500 côté route, status TEXT défaut "pending" ∈ {pending, approved, denied}, resolved_by nullable, created_at, resolved_at nullable)`. Lib `backend/src/lib/accessRequestStorage.ts`. Pas d'index unique partiel en drizzle simple — unicité pending appliquée en code (`createRequest` refuse un 2ᵉ `pending` pour `(user_id, network_id)` → `{error: "already_pending"}`).
+- **`createRequest`** : refuse si une row `pending` existe déjà pour la paire ; sinon insère et retourne la row.
+- **`listRequests`** : pending d'abord, puis plus récent d'abord (tri sur `status <> 'pending'`, puis `created_at DESC`) — miroir de `listInvites`.
+- **`resolveRequest(requestId, {approve, resolvedBy})`** : row absente ou déjà résolue → `{error: "not_pending"}` ; `approve: true` → `addMembership(userId, networkId, "member")` (catch Postgres 23505 = déjà membre, toléré, la request est quand même marquée `approved`) ; sinon `status="denied"`. Toujours `resolved_at`/`resolved_by` posés.
+- **Flux** : `POST /api/v1/networks/:idOrSlug/access-requests` (non-membre, cf. `rest-endpoints.md`) crée la request et envoie `accessRequestEmail` (fire-and-forget `sendSafely`) à chaque membre `manage_members`-capable du network.
+
 ## Transferts & désaffectation
 
 - **`network_transfers`** : `(token, network_id, initiated_by_user_id, expires_at, consumed_at, consumed_by_user_id, created_at)`. Token partageable 24h pour transférer la propriété d'un Network entier. Memberships swap **clean break** — ancien owner perd l'accès.
