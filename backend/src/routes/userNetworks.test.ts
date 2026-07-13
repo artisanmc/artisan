@@ -5,7 +5,7 @@ import { db } from "../db/index";
 import {
   memberships, networks, projects, serverKeys, serverKeyHelloes,
   linkCodes, assets, users, userSessions,
-  serverModules, serverDataSources, networkInvites,
+  serverModules, serverDataSources, networkInvites, networkAccessRequests,
 } from "../db/schema";
 import { userNetworksRouter } from "./userNetworks";
 import { userAuth } from "../middleware/userAuth";
@@ -19,6 +19,7 @@ async function clearAll() {
   await db.delete(projects);
   await db.delete(linkCodes);
   await db.delete(serverKeyHelloes);
+  await db.delete(networkAccessRequests);
   await db.delete(networkInvites);
   await db.delete(serverKeys);
   await db.delete(memberships);
@@ -1413,5 +1414,222 @@ describe("POST /api/v1/networks/:id/invites — email dispatch", () => {
       method: "POST", headers: ownerHeaders, body: JSON.stringify({ email: "invitee@x.y" }),
     });
     expect(res.status).toBe(201);
+  });
+});
+
+// D-Task 3: access requests — request → owner approval → membership.
+async function setupOutsider() {
+  const owner = await seedUser("owner1");
+  const app = makeApp();
+  const ownerHeaders = { Cookie: `artisan_user_session=${owner.sessionId}`, "Content-Type": "application/json" };
+  const { network } = await (await app.request("/api/v1/networks", {
+    method: "POST", headers: ownerHeaders, body: JSON.stringify({ name: "N" }),
+  })).json();
+  const outsider = await seedUser("outsider1");
+  const outsiderHeaders = { Cookie: `artisan_user_session=${outsider.sessionId}`, "Content-Type": "application/json" };
+  const member = await seedUser("member1");
+  await addMembership(member.userId, network.id, "member");
+  const memberHeaders = { Cookie: `artisan_user_session=${member.sessionId}`, "Content-Type": "application/json" };
+  return { app, network, owner, ownerHeaders, outsider, outsiderHeaders, member, memberHeaders };
+}
+
+describe("POST /api/v1/networks/:idOrSlug/access-requests", () => {
+  beforeEach(clearAll);
+  afterEach(() => __setMailerForTests(null));
+
+  test("401 without cookie", async () => {
+    const { app, network } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  test("happy path: creates a pending request and emails owners/admins", async () => {
+    const sent: MailMessage[] = [];
+    __setMailerForTests({ enabled: true, send: async (msg) => { sent.push(msg); } });
+
+    const { app, network, outsiderHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({ message: "let me in" }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.request.status).toBe("pending");
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe("owner1@a.b");
+    expect(sent[0].text).toContain("let me in");
+  });
+
+  test("does not email a plain member (only owners/admins)", async () => {
+    const sent: MailMessage[] = [];
+    __setMailerForTests({ enabled: true, send: async (msg) => { sent.push(msg); } });
+
+    const { app, network, outsiderHeaders } = await setupOutsider();
+    await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent.map((m) => m.to)).toEqual(["owner1@a.b"]);
+  });
+
+  test("resolves network by slug too", async () => {
+    const { app, network, ownerHeaders, outsiderHeaders } = await setupOutsider();
+    await app.request(`/api/v1/networks/${network.id}`, {
+      method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ slug: "n-slug" }),
+    });
+    const res = await app.request(`/api/v1/networks/n-slug/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  test("404 for unknown network", async () => {
+    const { app, outsiderHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/nope/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("409 already_member when the requester is already a member", async () => {
+    const { app, network, memberHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: memberHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("already_member");
+  });
+
+  test("409 already_pending on a second request while one is pending", async () => {
+    const { app, network, outsiderHeaders } = await setupOutsider();
+    await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("already_pending");
+  });
+
+  test("422 when message exceeds 500 chars", async () => {
+    const { app, network, outsiderHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({ message: "a".repeat(501) }),
+    });
+    expect(res.status).toBe(422);
+  });
+
+  test("mailer that throws does not block the request — 201 anyway", async () => {
+    __setMailerForTests({ enabled: true, send: async () => { throw new Error("smtp down"); } });
+    const { app, network, outsiderHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+
+describe("GET /api/v1/networks/:id/access-requests", () => {
+  beforeEach(clearAll);
+
+  test("403 for a plain member (not manage_members)", async () => {
+    const { app, network, memberHeaders } = await setupOutsider();
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, { headers: memberHeaders });
+    expect(res.status).toBe(403);
+  });
+
+  test("owner sees pending requests with requester email/displayName", async () => {
+    const { app, network, ownerHeaders, outsiderHeaders } = await setupOutsider();
+    await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({ message: "hi" }),
+    });
+    const res = await app.request(`/api/v1/networks/${network.id}/access-requests`, { headers: ownerHeaders });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.requests).toHaveLength(1);
+    expect(body.requests[0]).toMatchObject({
+      email: "outsider1@a.b", displayName: "outsider1", message: "hi", status: "pending",
+    });
+  });
+});
+
+describe("POST /api/v1/networks/:id/access-requests/:requestId/approve|deny", () => {
+  beforeEach(clearAll);
+
+  test("403 for a plain member", async () => {
+    const { app, network, memberHeaders, outsiderHeaders } = await setupOutsider();
+    const create = await (await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    })).json();
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/access-requests/${create.request.id}/approve`,
+      { method: "POST", headers: memberHeaders },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("approve creates a membership and returns status approved", async () => {
+    const { app, network, ownerHeaders, outsider, outsiderHeaders } = await setupOutsider();
+    const create = await (await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    })).json();
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/access-requests/${create.request.id}/approve`,
+      { method: "POST", headers: ownerHeaders },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("approved");
+    const memberRows = await db.select().from(memberships).where(and(
+      eq(memberships.userId, outsider.userId), eq(memberships.networkId, network.id),
+    ));
+    expect(memberRows).toHaveLength(1);
+    expect(memberRows[0]!.role).toBe("member");
+  });
+
+  test("deny returns status denied, no membership created", async () => {
+    const { app, network, ownerHeaders, outsider, outsiderHeaders } = await setupOutsider();
+    const create = await (await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    })).json();
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/access-requests/${create.request.id}/deny`,
+      { method: "POST", headers: ownerHeaders },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("denied");
+    const memberRows = await db.select().from(memberships).where(and(
+      eq(memberships.userId, outsider.userId), eq(memberships.networkId, network.id),
+    ));
+    expect(memberRows).toHaveLength(0);
+  });
+
+  test("404 for a request id outside the network", async () => {
+    const { app, network, ownerHeaders } = await setupOutsider();
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/access-requests/nope/approve`,
+      { method: "POST", headers: ownerHeaders },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test("409 when resolving an already-resolved request", async () => {
+    const { app, network, ownerHeaders, outsiderHeaders } = await setupOutsider();
+    const create = await (await app.request(`/api/v1/networks/${network.id}/access-requests`, {
+      method: "POST", headers: outsiderHeaders, body: JSON.stringify({}),
+    })).json();
+    await app.request(
+      `/api/v1/networks/${network.id}/access-requests/${create.request.id}/approve`,
+      { method: "POST", headers: ownerHeaders },
+    );
+    const res = await app.request(
+      `/api/v1/networks/${network.id}/access-requests/${create.request.id}/deny`,
+      { method: "POST", headers: ownerHeaders },
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("not_pending");
   });
 });

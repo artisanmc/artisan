@@ -145,6 +145,32 @@ export const networkInvites = pgTable(
 	],
 );
 
+// Network access requests: a non-member asks to join; an owner/admin
+// approves (→ membership "member") or denies. Applicative uniqueness only —
+// createRequest() refuses a second row while a pending one exists for
+// (userId, networkId); no partial unique index in plain drizzle.
+export const networkAccessRequests = pgTable(
+	"network_access_requests",
+	{
+		id: text("id").primaryKey(),
+		networkId: text("network_id")
+			.notNull()
+			.references(() => networks.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		message: text("message"),
+		status: text("status").notNull().default("pending"), // pending | approved | denied
+		resolvedBy: text("resolved_by"),
+		createdAt: timestamp("created_at").notNull(),
+		resolvedAt: timestamp("resolved_at"),
+	},
+	(t) => [
+		index("network_access_requests_network_idx").on(t.networkId),
+		index("network_access_requests_user_idx").on(t.userId),
+	],
+);
+
 export const users = pgTable(
 	"users",
 	{

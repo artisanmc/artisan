@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { db } from "../db/index";
 import {
 	memberships,
+	networkAccessRequests,
 	networkInvites,
 	networks,
 	serverDataSources,
@@ -17,12 +18,17 @@ import {
 import { generateServerKey } from "../lib/auth";
 import { can, type Role } from "../lib/capabilities";
 import {
+	createRequest,
+	listRequests,
+	resolveRequest,
+} from "../lib/accessRequestStorage";
+import {
 	createInvite,
 	listInvites,
 	revokeInvite,
 } from "../lib/inviteStorage";
 import { sendSafely } from "../lib/mail/mailer";
-import { inviteEmail } from "../lib/mail/templates";
+import { accessRequestEmail, inviteEmail } from "../lib/mail/templates";
 import { requireCapability, requireMember, withNetworkMemberLock } from "../lib/membershipGuard";
 import { addMembership } from "../lib/membershipManager";
 import { createNetwork } from "../lib/networkManager";
@@ -1034,5 +1040,183 @@ userNetworksRouter.delete(
 
 		await revokeInvite(inviteId);
 		return c.body(null, 204);
+	},
+);
+
+// POST /api/networks/:idOrSlug/access-requests — any authenticated user, no
+// membership required (the requester is by definition not a member yet).
+// Resolves id OR slug like GET /:id, but deliberately skips requireMember —
+// this endpoint IS the door for non-members. Fires an email to every
+// owner/admin of the network on success (fire-and-forget, never blocks).
+userNetworksRouter.post(
+	"/:idOrSlug/access-requests",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+		const param = c.req.param("idOrSlug");
+		const netRows = await db
+			.select()
+			.from(networks)
+			.where(or(eq(networks.id, param), eq(networks.slug, param)));
+		if (netRows.length === 0) return c.json({ error: "not_found" }, 404);
+		const network = netRows[0];
+
+		const existingMembership = await db
+			.select({ userId: memberships.userId })
+			.from(memberships)
+			.where(
+				and(eq(memberships.userId, userId), eq(memberships.networkId, network.id)),
+			);
+		if (existingMembership.length > 0) {
+			return c.json({ error: "already_member" }, 409);
+		}
+
+		let body: { message?: unknown } = {};
+		try {
+			body = await c.req.json();
+		} catch {
+			/* empty body ok — message optional */
+		}
+		let message: string | null = null;
+		if (body.message !== undefined && body.message !== null) {
+			if (typeof body.message !== "string" || body.message.length > 500) {
+				return c.json({ error: "invalid_message" }, 422);
+			}
+			message = body.message.trim() || null;
+		}
+
+		const result = await createRequest({ networkId: network.id, userId, message });
+		if ("error" in result) {
+			return c.json({ error: result.error }, 409);
+		}
+
+		const [requester] = await db
+			.select({ name: users.name, email: users.email })
+			.from(users)
+			.where(eq(users.id, userId));
+		const managers = await db
+			.select({ email: users.email, role: memberships.role })
+			.from(memberships)
+			.innerJoin(users, eq(users.id, memberships.userId))
+			.where(eq(memberships.networkId, network.id));
+		const url = `${EDITOR_URL}/n/${network.slug ?? network.id}`;
+		for (const manager of managers) {
+			if (!can(manager.role, "manage_members")) continue;
+			sendSafely(
+				accessRequestEmail({
+					to: manager.email,
+					networkName: network.name,
+					requesterName: requester?.name || requester?.email || "A user",
+					requesterEmail: requester?.email ?? "",
+					message,
+					url,
+				}),
+			);
+		}
+
+		return c.json({ request: { id: result.id, status: result.status } }, 201);
+	},
+);
+
+// GET /api/networks/:id/access-requests — manage_members only.
+userNetworksRouter.get(
+	"/:id/access-requests",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const list = await listRequests(networkId);
+		const requesterIds = list.map((r) => r.userId);
+		const requesterRows = requesterIds.length
+			? await db
+					.select({ id: users.id, email: users.email, name: users.name })
+					.from(users)
+					.where(inArray(users.id, requesterIds))
+			: [];
+		const requesterById = new Map(requesterRows.map((u) => [u.id, u]));
+
+		return c.json({
+			requests: list.map((r) => {
+				const requester = requesterById.get(r.userId);
+				return {
+					id: r.id,
+					userId: r.userId,
+					email: requester?.email ?? null,
+					displayName: requester?.name ?? null,
+					message: r.message,
+					status: r.status,
+					createdAt: r.createdAt.toISOString(),
+				};
+			}),
+		});
+	},
+);
+
+// POST /api/networks/:id/access-requests/:requestId/approve — manage_members only.
+userNetworksRouter.post(
+	"/:id/access-requests/:requestId/approve",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const requestId = c.req.param("requestId");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const rows = await db
+			.select({ id: networkAccessRequests.id })
+			.from(networkAccessRequests)
+			.where(
+				and(
+					eq(networkAccessRequests.id, requestId),
+					eq(networkAccessRequests.networkId, networkId),
+				),
+			);
+		if (rows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const result = await resolveRequest(requestId, { approve: true, resolvedBy: userId });
+		if ("error" in result) return c.json({ error: result.error }, 409);
+		return c.json({ status: result.status });
+	},
+);
+
+// POST /api/networks/:id/access-requests/:requestId/deny — manage_members only.
+userNetworksRouter.post(
+	"/:id/access-requests/:requestId/deny",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const requestId = c.req.param("requestId");
+		try {
+			await requireCapability(userId, networkId, "manage_members");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+
+		const rows = await db
+			.select({ id: networkAccessRequests.id })
+			.from(networkAccessRequests)
+			.where(
+				and(
+					eq(networkAccessRequests.id, requestId),
+					eq(networkAccessRequests.networkId, networkId),
+				),
+			);
+		if (rows.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const result = await resolveRequest(requestId, { approve: false, resolvedBy: userId });
+		if ("error" in result) return c.json({ error: result.error }, 409);
+		return c.json({ status: result.status });
 	},
 );
