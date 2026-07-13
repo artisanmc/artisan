@@ -1100,7 +1100,7 @@ userNetworksRouter.post(
 			.from(memberships)
 			.innerJoin(users, eq(users.id, memberships.userId))
 			.where(eq(memberships.networkId, network.id));
-		const url = `${EDITOR_URL}/n/${network.slug ?? network.id}`;
+		const url = `${EDITOR_URL}/networks/${network.slug ?? network.id}`;
 		for (const manager of managers) {
 			if (!can(manager.role, "manage_members")) continue;
 			sendSafely(

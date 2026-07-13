@@ -65,7 +65,7 @@ describe("accessRequestEmail", () => {
     networkName: "My Network",
     requesterName: "Iban",
     requesterEmail: "iban@example.com",
-    url: "https://editor.artisanmc.net/n/my-network",
+    url: "https://editor.artisanmc.net/networks/my-network",
   };
 
   it("builds an english message by default with the exact subject", () => {
