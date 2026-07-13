@@ -3,6 +3,22 @@ import { render, screen, waitFor } from "@testing-library/react";
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 
+const authState = vi.hoisted(() => ({
+  currentUser: { id: "u1", name: "Iban" } as { id: string; name: string } | null,
+  isLoading: false,
+}));
+
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: typeof authState) => unknown) => sel(authState),
+}));
+
+function setUrl(pathname: string, search = "") {
+  Object.defineProperty(window, "location", {
+    writable: true,
+    value: { ...window.location, pathname, search },
+  });
+}
+
 vi.mock("@tanstack/react-router", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
@@ -41,6 +57,31 @@ import { getNetwork } from "@/lib/api/networks";
 describe("ServerDetailPage", () => {
   beforeEach(() => {
     navigateSpy.mockClear();
+    authState.currentUser = { id: "u1", name: "Iban" };
+    authState.isLoading = false;
+  });
+
+  it("redirects anonymous visitors to /login with a next return path", async () => {
+    authState.currentUser = null;
+    authState.isLoading = false;
+    setUrl("/networks/net_1/servers/sk_1", "?x=1");
+
+    render(<ServerDetailPage />);
+
+    await waitFor(() =>
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/login",
+        search: { next: "/networks/net_1/servers/sk_1?x=1" },
+        replace: true,
+      }),
+    );
+  });
+
+  it("does not redirect a logged-in user", async () => {
+    setUrl("/networks/net_1/servers/sk_1");
+    render(<ServerDetailPage />);
+    await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
+    expect(navigateSpy).not.toHaveBeenCalled();
   });
   it("shows only workspaces bound to the active server", async () => {
     render(<ServerDetailPage />);
