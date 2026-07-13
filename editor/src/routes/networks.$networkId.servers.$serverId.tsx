@@ -1,6 +1,7 @@
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useAuthStore } from "@/state/authStore";
 import {
   Link,
   Outlet,
@@ -22,9 +23,19 @@ export default function ServerDetailPage() {
     from: "/networks/$networkId/servers/$serverId",
   });
   const navigate = useNavigate();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [workspaces, setProjects] = useState<ProjectSummary[]>([]);
   const childMatches = useChildMatches();
+
+  // Anonymous visitor → bounce to login, preserving the current URL (incl.
+  // deep-linked child routes) so they land back here after signing in.
+  useEffect(() => {
+    if (authLoading || currentUser) return;
+    const next = window.location.pathname + window.location.search;
+    navigate({ to: "/login", search: { next }, replace: true });
+  }, [authLoading, currentUser, navigate]);
 
   useEffect(() => {
     if (!networkId || !serverId) return;

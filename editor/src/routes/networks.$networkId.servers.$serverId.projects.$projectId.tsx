@@ -174,7 +174,14 @@ export function ProjectCanvasPage() {
   // and currentUser is briefly null; gating now would bounce a logged-in user
   // to /login. Mirrors admin.tsx's hydration-aware gate.
   if (authLoading) return null;
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser)
+    return (
+      <Navigate
+        to="/login"
+        replace
+        search={{ next: window.location.pathname + window.location.search }}
+      />
+    );
   // Still loading the pack via the user-mode loader — render nothing while fetch is in flight.
   if (!pack) return null;
 
