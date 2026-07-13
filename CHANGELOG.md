@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — `server_url` deep link in `hello_ack`
+- `HelloAckMessage.server_url: string` (`backend/src/protocol.ts`) — deep link to this server's page in the editor: `${EDITOR_URL}/networks/${netRow.slug ?? netRow.id}/servers/${skRow.slug ?? skRow.id}`, falling back to plain `EDITOR_URL` when the `server_key`/network row can't be resolved. Plugin (`SyncedMenuProvider.handleMessage`) prefers `server_url`, falling back to the older `editor_url` field for backward compat with older backends. `/artisan editor` now prints this deep link instead of the static editor URL.
+
 ### Fixed — capability-gate billing, server-key provisioning, and network governance (BREAKING for member role)
 - **Security**: billing routes (`POST /api/v1/billing/portal`, `checkout/pack`, `checkout/subscription`, `GET purchases`) were gated by plain network membership — any invited `member` could open the network owner's Stripe billing portal (and cancel the subscription), start checkouts, or read purchase history. Now gated by `requireCapability(..., "manage_billing")`; `GET /balance` stays member-readable (credits indicator is member-facing).
 - Server-key provisioning was member-accessible: `POST /api/v1/networks/:id/server-keys` and `PATCH /api/v1/networks/:id/server-keys/:keyId` let any member mint or relabel a server credential. Now gated by `requireCapability(..., "manage_servers")`.
