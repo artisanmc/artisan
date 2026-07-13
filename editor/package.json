@@ -10,6 +10,7 @@
     "build": "npm run generate-routes && tsc -p tsconfig.app.json && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
+    "pretest": "tsr generate",
     "test": "vitest",
     "test:e2e": "playwright test",
     "lint": "biome check .",
