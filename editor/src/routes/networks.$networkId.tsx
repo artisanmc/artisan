@@ -5,6 +5,7 @@ import { IpAllowlistModal } from "@/components/network-detail/IpAllowlistModal";
 import { MembersSection } from "@/components/network-detail/MembersSection";
 import { NewProjectModal } from "@/components/network-detail/NewProjectModal";
 import { NewServerModal } from "@/components/network-detail/NewServerModal";
+import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { ServerCard } from "@/components/network-detail/ServerCard";
 import {
   createProject,
@@ -55,6 +56,7 @@ export function NetworkDetailPage() {
     projectCount: number;
   } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
 
   // Anonymous visitor → bounce to login, preserving the current URL (incl.
@@ -70,14 +72,18 @@ export function NetworkDetailPage() {
     getNetwork(networkId)
       .then(setDetail)
       .catch((e: Error & { status?: number }) => {
-        // Stale/inaccessible network (e.g. a URL left over from another account)
-        // → bounce to the user's own networks list, don't loop a broken page.
-        if (e?.status === 403 || e?.status === 404) {
+        // A logged-in user without membership → offer to request access instead
+        // of bouncing (deep-linked invite/share URL, e.g. from a Discord post).
+        // A stale/nonexistent id (404) still bounces — nothing to request access to.
+        if (e?.status === 403) {
+          setAccessDenied(true);
+        } else if (e?.status === 404) {
           navigate({ to: "/networks", replace: true });
         } else console.error(e);
       });
   }, [networkId, navigate]);
 
+  if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
   if (childMatches.length > 0) return <Outlet />;
   if (!detail)
     return (

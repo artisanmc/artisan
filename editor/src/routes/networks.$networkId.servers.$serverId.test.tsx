@@ -104,9 +104,18 @@ describe("ServerDetailPage", () => {
     );
   });
 
-  it("403 bounces to /networks", async () => {
+  it("403 for a logged-in user renders the request-access panel instead of bouncing", async () => {
     vi.mocked(getNetwork).mockRejectedValueOnce(
       Object.assign(new Error("forbidden"), { status: 403 }),
+    );
+    render(<ServerDetailPage />);
+    await screen.findByText("requestAccess.title");
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it("404 still bounces to /networks", async () => {
+    vi.mocked(getNetwork).mockRejectedValueOnce(
+      Object.assign(new Error("not found"), { status: 404 }),
     );
     render(<ServerDetailPage />);
     await waitFor(() =>

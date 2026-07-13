@@ -1105,6 +1105,17 @@ export default {
     noServers: "No server. Run /artisan setup in your MC console.",
     addServer: "Add a server",
   },
+  requestAccess: {
+    title: "You don't have access to this network",
+    description: "Send a request to a network owner or admin to be granted access.",
+    messageLabel: "Message (optional)",
+    messagePlaceholder: "Let them know who you are…",
+    submit: "Request access",
+    sending: "Sending…",
+    sent: "Request sent — an owner needs to approve it.",
+    alreadyPending: "You already have a pending request for this network.",
+    error: "Something went wrong. Please try again.",
+  },
   membersSection: {
     invite: "Invite",
     promote: "Promote",
@@ -1124,6 +1135,11 @@ export default {
     errors: {
       lastOwner: "This is the last owner or admin — the network must keep at least one.",
       generic: "Something went wrong. Please try again.",
+    },
+    accessRequests: {
+      title: "Access requests",
+      approve: "Approve",
+      deny: "Deny",
     },
     inviteDialog: {
       title: "Invite someone",

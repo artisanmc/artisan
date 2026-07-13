@@ -1,3 +1,4 @@
+import { RequestAccessPanel } from "@/components/network-detail/RequestAccessPanel";
 import { getNetwork } from "@/lib/api/networks";
 import type { ProjectSummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
@@ -27,6 +28,7 @@ export default function ServerDetailPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const [serverDisplayLabel, setServerDisplayLabel] = useState<string | null>(null);
   const [workspaces, setProjects] = useState<ProjectSummary[]>([]);
+  const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
 
   // Anonymous visitor → bounce to login, preserving the current URL (incl.
@@ -47,13 +49,17 @@ export default function ServerDetailPage() {
         setProjects(sk ? d.projects.filter((p) => p.serverKeyId === sk.id) : []);
       })
       .catch((e: Error & { status?: number }) => {
-        // Stale/inaccessible network → bounce to the user's own networks list.
-        if (e?.status === 403 || e?.status === 404) {
+        // A logged-in user without membership → offer to request access instead
+        // of bouncing. A stale/nonexistent id (404) still bounces.
+        if (e?.status === 403) {
+          setAccessDenied(true);
+        } else if (e?.status === 404) {
           navigate({ to: "/networks", replace: true });
         } else console.error(e);
       });
   }, [networkId, serverId, navigate]);
 
+  if (accessDenied) return <RequestAccessPanel networkIdOrSlug={networkId} />;
   if (childMatches.length > 0) return <Outlet />;
 
   return (

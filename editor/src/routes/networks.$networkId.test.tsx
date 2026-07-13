@@ -13,15 +13,17 @@ vi.mock("@/state/authStore", () => ({
 }));
 
 const navigateSpy = vi.hoisted(() => vi.fn());
+const childMatchesState = vi.hoisted(() => ({ matches: [] as unknown[] }));
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
-    useChildMatches: () => [],
+    useChildMatches: () => childMatchesState.matches,
     useParams: () => ({ networkId: "n1" }),
     useNavigate: () => navigateSpy,
+    Outlet: () => <div data-testid="outlet" />,
     Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
   };
 });
@@ -39,6 +41,7 @@ describe("NetworkDetailPage", () => {
     navigateSpy.mockClear();
     authState.currentUser = { id: "u1", name: "Iban" };
     authState.isLoading = false;
+    childMatchesState.matches = [];
   });
 
   it("redirects anonymous visitors to /login with a next return path", async () => {
@@ -119,5 +122,33 @@ describe("NetworkDetailPage", () => {
     vi.spyOn(networksApi, "getNetwork").mockImplementation(() => new Promise(() => {}));
     render(<NetworkDetailPage />);
     expect(screen.getByText(/chargement|loading/i)).toBeInTheDocument();
+  });
+
+  it("403 for a logged-in user renders the request-access panel instead of bouncing", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockRejectedValue(
+      Object.assign(new Error("forbidden"), { status: 403 }),
+    );
+    render(<NetworkDetailPage />);
+    await screen.findByText(/don't have access|n'as pas accès/i);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it("403 wins over a rendered child outlet — a member-less deep link must see the panel", async () => {
+    childMatchesState.matches = [{ id: "child" }];
+    vi.spyOn(networksApi, "getNetwork").mockRejectedValue(
+      Object.assign(new Error("forbidden"), { status: 403 }),
+    );
+    render(<NetworkDetailPage />);
+    await screen.findByText(/don't have access|n'as pas accès/i);
+  });
+
+  it("404 still bounces to /networks", async () => {
+    vi.spyOn(networksApi, "getNetwork").mockRejectedValue(
+      Object.assign(new Error("not found"), { status: 404 }),
+    );
+    render(<NetworkDetailPage />);
+    await waitFor(() =>
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/networks", replace: true }),
+    );
   });
 });
