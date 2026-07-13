@@ -15,6 +15,7 @@ import {
   updateServerKey,
 } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
 import {
   Link,
@@ -36,6 +37,8 @@ export function NetworkDetailPage() {
   const { t } = useTranslation();
   const { networkId } = useParams({ strict: false }) as { networkId: string };
   const navigate = useNavigate();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const [detail, setDetail] = useState<NetworkDetail | null>(null);
   const [newServerOpen, setNewServerOpen] = useState(false);
   const [newWsForServer, setNewWsForServer] = useState<string | null>(null);
@@ -53,6 +56,14 @@ export function NetworkDetailPage() {
   } | null>(null);
   const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
   const childMatches = useChildMatches();
+
+  // Anonymous visitor → bounce to login, preserving the current URL (incl.
+  // deep-linked child routes) so they land back here after signing in.
+  useEffect(() => {
+    if (authLoading || currentUser) return;
+    const next = window.location.pathname + window.location.search;
+    navigate({ to: "/login", search: { next }, replace: true });
+  }, [authLoading, currentUser, navigate]);
 
   useEffect(() => {
     if (!networkId) return;

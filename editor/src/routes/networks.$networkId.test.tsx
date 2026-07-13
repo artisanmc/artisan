@@ -1,7 +1,18 @@
 import * as networksApi from "@/lib/api/networks";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NetworkDetailPage } from "./networks.$networkId";
+
+const authState = vi.hoisted(() => ({
+  currentUser: { id: "u1", name: "Iban" } as { id: string; name: string } | null,
+  isLoading: false,
+}));
+
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: typeof authState) => unknown) => sel(authState),
+}));
+
+const navigateSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -10,12 +21,55 @@ vi.mock("@tanstack/react-router", async () => {
     ...actual,
     useChildMatches: () => [],
     useParams: () => ({ networkId: "n1" }),
+    useNavigate: () => navigateSpy,
     Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
   };
 });
 
+function setUrl(pathname: string, search = "") {
+  Object.defineProperty(window, "location", {
+    writable: true,
+    value: { ...window.location, pathname, search },
+  });
+}
+
 describe("NetworkDetailPage", () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    navigateSpy.mockClear();
+    authState.currentUser = { id: "u1", name: "Iban" };
+    authState.isLoading = false;
+  });
+
+  it("redirects anonymous visitors to /login with a next return path", async () => {
+    authState.currentUser = null;
+    authState.isLoading = false;
+    setUrl("/networks/n1", "?tab=settings");
+    vi.spyOn(networksApi, "getNetwork").mockImplementation(() => new Promise(() => {}));
+
+    render(<NetworkDetailPage />);
+
+    await waitFor(() =>
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/login",
+        search: { next: "/networks/n1?tab=settings" },
+        replace: true,
+      }),
+    );
+  });
+
+  it("does not redirect a logged-in user", async () => {
+    setUrl("/networks/n1");
+    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
+      network: { id: "n1", name: "Alpha", tier: "free" },
+      projects: [],
+      serverKeys: [],
+    });
+
+    render(<NetworkDetailPage />);
+    await screen.findByText("Alpha");
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
 
   it("renders network name + one server card per server, with workspaces nested", async () => {
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({

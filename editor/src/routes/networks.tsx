@@ -2,8 +2,15 @@ import { NewServerModal } from "@/components/network-detail/NewServerModal";
 import { createServerKey, getNetwork, listNetworks } from "@/lib/api/networks";
 import type { NetworkSummary, ProjectSummary, ServerKeySummary } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
+import { useAuthStore } from "@/state/authStore";
 import { useNetworksStore } from "@/state/networksStore";
-import { Link, Outlet, createFileRoute, useChildMatches } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useChildMatches,
+  useNavigate,
+} from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -61,10 +68,21 @@ export function NetworksPage() {
   const networks = useNetworksStore((s) => s.networks);
   const setNetworks = useNetworksStore((s) => s.setNetworks);
   const childMatches = useChildMatches();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const navigate = useNavigate();
 
   const [networkData, setNetworkData] = useState<NetworkData[]>([]);
   const [addingServerTo, setAddingServerTo] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+
+  // Anonymous visitor → bounce to login, preserving the current URL (incl.
+  // deep-linked child routes) so they land back here after signing in.
+  useEffect(() => {
+    if (authLoading || currentUser) return;
+    const next = window.location.pathname + window.location.search;
+    navigate({ to: "/login", search: { next }, replace: true });
+  }, [authLoading, currentUser, navigate]);
 
   useEffect(() => {
     listNetworks().then(setNetworks).catch(console.error);
