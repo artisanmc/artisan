@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — network access requests (request → owner approval → membership)
+- `network_access_requests` table (`backend/src/lib/accessRequestStorage.ts`) : un non-membre peut demander l'accès à un network (`POST /api/v1/networks/:idOrSlug/access-requests`, `{message?}` cap 500, 409 `already_member`/`already_pending`), un membre `manage_members`-capable liste (`GET .../access-requests`) et résout (`POST .../access-requests/:requestId/approve|deny`) — approve crée la membership (`role: "member"`, tolérant à une membership déjà existante). Email `accessRequestEmail` (bilingue en/fr, `lib/mail/templates.ts`) envoyé fire-and-forget à chaque owner/admin sur une nouvelle demande.
+
 ### Added — `server_url` deep link in `hello_ack`
 - `HelloAckMessage.server_url: string` (`backend/src/protocol.ts`) — deep link to this server's page in the editor: `${EDITOR_URL}/networks/${netRow.slug ?? netRow.id}/servers/${skRow.slug ?? skRow.id}`, falling back to plain `EDITOR_URL` when the `server_key`/network row can't be resolved. Plugin (`SyncedMenuProvider.handleMessage`) prefers `server_url`, falling back to the older `editor_url` field for backward compat with older backends. `/artisan editor` now prints this deep link instead of the static editor URL.
 
