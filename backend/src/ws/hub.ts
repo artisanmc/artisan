@@ -305,9 +305,13 @@ export async function handlePluginMessage(
 
     const skRow = (await db.select().from(serverKeys).where(eq(serverKeys.id, keyId)))[0];
     let networkName = "";
+    let serverUrl = EDITOR_URL;
     if (skRow) {
       const netRow = (await db.select().from(networks).where(eq(networks.id, skRow.networkId)))[0];
       networkName = netRow?.name ?? "";
+      if (netRow) {
+        serverUrl = `${EDITOR_URL}/networks/${netRow.slug ?? netRow.id}/servers/${skRow.slug ?? skRow.id}`;
+      }
     }
 
     const ack: HelloAckMessage = {
@@ -320,6 +324,7 @@ export async function handlePluginMessage(
       api_url: API_BASE_URL,
       bundle_url: BUNDLE_BASE_URL,
       editor_url: EDITOR_URL,
+      server_url: serverUrl,
       network_name: networkName,
       project_hashes: projectHashesMap,
       deleted_project_ids: deletedProjectIds,
