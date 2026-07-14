@@ -107,6 +107,10 @@ export const serverDataSources = pgTable(
 			.references(() => serverKeys.id, { onDelete: "cascade" }),
 		ref: text("ref").notNull(),
 		schemaHint: text("schema_hint"),
+		// Owning module reported by the plugin (null = core / third-party direct registration).
+		moduleId: text("module_id"),
+		// Declared typed schema, JSON array of {name, type, description} (null = undeclared).
+		schemaJson: text("schema_json"),
 		reportedAt: timestamp("reported_at").notNull(),
 	},
 	(t) => [primaryKey({ columns: [t.serverKeyId, t.ref] })],

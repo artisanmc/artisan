@@ -872,7 +872,7 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
     );
     expect(dataSourcesRes.status).toBe(200);
     expect(await dataSourcesRes.json()).toEqual({
-      data_sources: [{ ref: "boutique:items", schema_hint: "id, name" }],
+      data_sources: [{ ref: "boutique:items", module_id: null, schema: [], schema_hint: "id, name" }],
     });
   });
 
@@ -908,6 +908,39 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
       { headers: { Cookie: `artisan_user_session=${ownerSessionId}` } },
     );
     expect(outsideRes.status).toBe(404);
+  });
+
+  test("GET data-sources returns module_id and parsed schema", async () => {
+    const { userId, sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-x", networkId: network.id, createdAt: new Date() });
+    await db.insert(serverDataSources).values([
+      {
+        serverKeyId: keyId, ref: "boutique:items", moduleId: "boutique",
+        schemaJson: JSON.stringify([{ name: "id", type: "string", description: null }]),
+        schemaHint: "id", reportedAt: new Date(),
+      },
+      { serverKeyId: keyId, ref: "core:stats", moduleId: null, schemaJson: null, schemaHint: null, reportedAt: new Date() },
+    ]);
+
+    const res = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources`, {
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const byRef = new Map(body.data_sources.map((d: { ref: string }) => [d.ref, d]));
+    expect(byRef.get("boutique:items")).toEqual({
+      ref: "boutique:items", module_id: "boutique",
+      schema: [{ name: "id", type: "string", description: null }], schema_hint: "id",
+    });
+    expect(byRef.get("core:stats")).toEqual({ ref: "core:stats", module_id: null, schema: [], schema_hint: null });
   });
 });
 

@@ -132,6 +132,40 @@ describe("persistServerDataSources", () => {
     expect(rows[0].ref).toBe("boutique:items");
     expect(rows[0].schemaHint).toBe("id, name");
   });
+
+  test("persists module_id and schema_json, prunes as before", async () => {
+    const networkId = crypto.randomUUID();
+    await db.insert(networks).values({
+      id: networkId, name: "presence-ds2", createdAt: new Date(), updatedAt: new Date(),
+    });
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-ds2", networkId, createdAt: new Date() });
+
+    await persistServerDataSources(keyId, [
+      {
+        ref: "boutique:items",
+        module_id: "boutique",
+        schema: [{ name: "price", type: "number", description: "Unit price" }],
+        schema_hint: "id, price",
+      },
+      { ref: "core:stats" }, // legacy shape: no module_id, no schema
+    ]);
+    const rows = await db.select().from(serverDataSources).where(eq(serverDataSources.serverKeyId, keyId));
+    const byRef = new Map(rows.map((r) => [r.ref, r]));
+    expect(byRef.get("boutique:items")?.moduleId).toBe("boutique");
+    expect(JSON.parse(byRef.get("boutique:items")?.schemaJson ?? "[]")).toEqual([
+      { name: "price", type: "number", description: "Unit price" },
+    ]);
+    expect(byRef.get("core:stats")?.moduleId).toBeNull();
+    expect(byRef.get("core:stats")?.schemaJson).toBeNull();
+
+    // re-report clears stale enrichment
+    await persistServerDataSources(keyId, [{ ref: "boutique:items" }]);
+    const after = await db.select().from(serverDataSources).where(eq(serverDataSources.serverKeyId, keyId));
+    expect(after).toHaveLength(1);
+    expect(after[0].moduleId).toBeNull();
+    expect(after[0].schemaJson).toBeNull();
+  });
 });
 
 describe("handlePluginMessage", () => {

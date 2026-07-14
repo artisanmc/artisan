@@ -21,6 +21,7 @@ import type {
   HelloMessage,
   LinkConfirmedMessage,
   ModulesChangedMessage,
+  ReportedDataSource,
   ResourcePackUpdatedMessage,
   SetupClaimMessage,
   SetupCodeMessage,
@@ -168,16 +169,20 @@ export async function persistServerModules(
  */
 export async function persistServerDataSources(
   serverKeyId: string,
-  reported: { ref: string; schema_hint?: string | null }[],
+  reported: ReportedDataSource[],
 ): Promise<void> {
   const now = new Date();
   for (const ds of reported) {
+    const schemaJson = ds.schema && ds.schema.length > 0 ? JSON.stringify(ds.schema) : null;
     await db
       .insert(serverDataSources)
-      .values({ serverKeyId, ref: ds.ref, schemaHint: ds.schema_hint ?? null, reportedAt: now })
+      .values({
+        serverKeyId, ref: ds.ref, schemaHint: ds.schema_hint ?? null,
+        moduleId: ds.module_id ?? null, schemaJson, reportedAt: now,
+      })
       .onConflictDoUpdate({
         target: [serverDataSources.serverKeyId, serverDataSources.ref],
-        set: { schemaHint: ds.schema_hint ?? null, reportedAt: now },
+        set: { schemaHint: ds.schema_hint ?? null, moduleId: ds.module_id ?? null, schemaJson, reportedAt: now },
       });
   }
   const keepRefs = reported.map((d) => d.ref);
