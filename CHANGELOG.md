@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — data-sources module_id + typed schema persisted (Task 2 data-source-explorer)
+- `server_data_sources` table now stores `module_id` (text, null = core/third-party) and `schema_json` (text JSON, null = undeclared) reported by the plugin at `hello`/`modules_changed` — **migration 0021**. `GET /api/v1/networks/:networkId/servers/:serverId/data-sources` now returns enriched response `{ref, module_id, schema: [{name, type, description}][], schema_hint}` with typed schema parsed from JSON (tolerant to nulls/corruption), enabling the editor's data-sources explorer to scope by module ownership and validate bound columns against declared types.
+
 ### Added — network access requests (request → owner approval → membership)
 - `network_access_requests` table (`backend/src/lib/accessRequestStorage.ts`) : un non-membre peut demander l'accès à un network (`POST /api/v1/networks/:idOrSlug/access-requests`, `{message?}` cap 500, 409 `already_member`/`already_pending`), un membre `manage_members`-capable liste (`GET .../access-requests`) et résout (`POST .../access-requests/:requestId/approve|deny`) — approve crée la membership (`role: "member"`, tolérant à une membership déjà existante). Email `accessRequestEmail` (bilingue en/fr, `lib/mail/templates.ts`) envoyé fire-and-forget à chaque owner/admin sur une nouvelle demande.
 

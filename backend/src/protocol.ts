@@ -1,3 +1,13 @@
+// Data sources registered plugin-side (DataSourceRegistry). Drives the
+// editor's menu source picker + data explorer. Absent/empty on older plugins;
+// module_id/schema absent on pre-schema plugins (legacy schema_hint only).
+export interface ReportedDataSource {
+  ref: string;
+  module_id?: string | null;
+  schema?: { name: string; type: string; description?: string | null }[];
+  schema_hint?: string | null;
+}
+
 export interface HelloMessage {
   type: "hello";
   protocol_version?: string;   // NEW — "1" for current protocol
@@ -13,7 +23,7 @@ export interface HelloMessage {
   installed_modules?: { id: string; version: string }[];
   // Data sources registered plugin-side (DataSourceRegistry). Drives the
   // editor's menu source picker. Absent/empty on older plugins.
-  data_sources?: { ref: string; schema_hint?: string | null }[];
+  data_sources?: ReportedDataSource[];
 }
 
 export interface HelloAckMessage {
@@ -114,7 +124,7 @@ export interface ModulesChangedMessage {
   installed_modules: { id: string; version: string }[];
   // Data sources registered plugin-side (DataSourceRegistry). Drives the
   // editor's menu source picker. Absent/empty on older plugins.
-  data_sources?: { ref: string; schema_hint?: string | null }[];
+  data_sources?: ReportedDataSource[];
 }
 
 export type PluginToServerMessage =
