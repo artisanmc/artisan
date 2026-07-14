@@ -26,10 +26,19 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
   // Local entries: editing a field name must not collapse rows with equal
   // interim names — the record is rebuilt on every emit.
   const [rows, setRows] = useState<[string, string][]>(() => Object.entries(input.filter ?? {}));
+  const filterKey = JSON.stringify(input.filter ?? {});
   useEffect(() => {
-    setRows(Object.entries(input.filter ?? {}));
-    // Re-sync when the input identity changes (source picked / row re-created).
-  }, [input.ref, input.name]);
+    setRows((prev) => {
+      const next = Object.entries(input.filter ?? {});
+      // Preserve a trailing half-typed draft row (empty field name, not yet
+      // named/emitted) so unrelated re-renders don't drop in-progress typing.
+      const draft = prev.at(-1);
+      return draft && draft[0] === "" ? [...next, draft] : next;
+    });
+    // Re-sync whenever the external filter changes (undo/redo, version-guard
+    // revert, source picked) — never trust stale local rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input.ref, input.name, filterKey]);
 
   const emit = (next: [string, string][]) => {
     setRows(next);
