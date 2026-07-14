@@ -16,6 +16,8 @@ import type {
   CustomItemsBundleMessage,
   CustomItemsChangedMessage,
   CustomItemsRequestMessage,
+  DataSourceFetchMessage,
+  DataSourceFetchResultMessage,
   EditorDraftUpdateMessage,
   HelloAckMessage,
   HelloMessage,
@@ -73,6 +75,65 @@ export function getInstanceCount(serverKeyId: string): number {
   let n = 0;
   for (const id of connToServerId.values()) if (id === serverKeyId) n++;
   return n;
+}
+
+// ── data source preview: correlated request/response over the plugin WS ─────
+export const DATA_SOURCE_FETCH_TIMEOUT_MS = 5_000;
+
+export type DataSourceFetchOutcome =
+  | { kind: "result"; result: DataSourceFetchResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingFetches = new Map<string, (outcome: DataSourceFetchOutcome) => void>();
+
+/**
+ * Ask the live plugin bound to `serverKeyId` to fetch + shape a data source.
+ * Resolves `offline` when no plugin conn is bound, `timeout` after `timeoutMs`
+ * (default 5 s — also covers old plugins that ignore the message, forward-compat).
+ * Multi-instance keys: the first live connection is used (preview data, not state).
+ */
+export function requestDataSourceFetch(
+  serverKeyId: string,
+  req: {
+    ref: string;
+    params?: Record<string, unknown>;
+    filter?: Record<string, string>;
+    sort?: { by: string; direction?: "asc" | "desc" } | null;
+    limit?: number | null;
+    args?: Record<string, string>;
+  },
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<DataSourceFetchOutcome> {
+  let send: ((msg: string) => void) | undefined;
+  for (const [cId, sId] of connToServerId) {
+    if (sId === serverKeyId) { send = connSenders.get(cId); if (send) break; }
+  }
+  if (!send) return Promise.resolve({ kind: "offline" });
+
+  const requestId = crypto.randomUUID();
+  const msg: DataSourceFetchMessage = {
+    type: "data_source_fetch",
+    request_id: requestId,
+    ref: req.ref,
+    params: req.params ?? {},
+    filter: req.filter ?? {},
+    sort: req.sort ?? null,
+    limit: req.limit ?? null,
+    args: req.args ?? {},
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingFetches.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingFetches.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingFetches.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
 }
 
 /**
@@ -485,6 +546,15 @@ export async function handlePluginMessage(
     } catch (err) {
       console.error(`[custom-items] Failed to process bundle for server ${serverId}:`, err);
     }
+    return { reply: null };
+  }
+
+  // ── data_source_fetch_result: resolve a pending preview request ──────────
+  if (msg.type === "data_source_fetch_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as DataSourceFetchResultMessage;
+    pendingFetches.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 

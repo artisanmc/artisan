@@ -13,6 +13,7 @@ import { createSession } from "../lib/sessionManager";
 import { addMembership } from "../lib/membershipManager";
 import { and, eq } from "drizzle-orm";
 import { __setMailerForTests, type MailMessage } from "../lib/mail/mailer";
+import { registerConn, connToServerId, connSenders, handlePluginMessage } from "../ws/hub";
 
 async function clearAll() {
   await db.delete(assets);
@@ -941,6 +942,104 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
       schema: [{ name: "id", type: "string", description: null }], schema_hint: "id",
     });
     expect(byRef.get("core:stats")).toEqual({ ref: "core:stats", module_id: null, schema: [], schema_hint: null });
+  });
+});
+
+describe("POST …/data-sources/preview", () => {
+  beforeEach(clearAll);
+
+  test("503 server_offline when no plugin connection", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-p1", networkId: network.id, createdAt: new Date() });
+
+    const res = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources/preview`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: "boutique:items" }),
+    });
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("server_offline");
+  });
+
+  test("200 relays rows from the plugin; typed plugin errors map to statuses", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-p2", networkId: network.id, createdAt: new Date() });
+
+    // Fake plugin: echo a canned answer per ref.
+    registerConn("conn-preview", (raw) => {
+      const msg = JSON.parse(raw);
+      if (msg.type !== "data_source_fetch") return;
+      const reply =
+        msg.ref === "boutique:items"
+          ? { type: "data_source_fetch_result", request_id: msg.request_id, ok: true, rows: [{ id: "sword", price: 10 }], truncated: false }
+          : { type: "data_source_fetch_result", request_id: msg.request_id, ok: false, error: "player_required", message: "needs player" };
+      queueMicrotask(() => { handlePluginMessage("conn-preview", JSON.stringify(reply)); });
+    });
+    connToServerId.set("conn-preview", keyId);
+    try {
+      const ok = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources/preview`, {
+        method: "POST",
+        headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: "boutique:items", filter: { cat: "armes" }, sort: { by: "price", direction: "asc" }, limit: 27 }),
+      });
+      expect(ok.status).toBe(200);
+      expect(await ok.json()).toEqual({ rows: [{ id: "sword", price: 10 }], truncated: false });
+
+      const err = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources/preview`, {
+        method: "POST",
+        headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: "boutique:secret" }),
+      });
+      expect(err.status).toBe(422);
+      expect(await err.json()).toEqual({ error: "player_required", message: "needs player" });
+    } finally {
+      connToServerId.delete("conn-preview");
+      connSenders.delete("conn-preview");
+    }
+  });
+
+  test("422 invalid_input without ref; 403 for non-member", async () => {
+    const { sessionId } = await seedUser("u1");
+    const outsider = await seedUser("u2");
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-p3", networkId: network.id, createdAt: new Date() });
+
+    const bad = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources/preview`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(bad.status).toBe(422);
+
+    const forbidden = await app.request(`/api/v1/networks/${network.id}/servers/${keyId}/data-sources/preview`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${outsider.sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: "boutique:items" }),
+    });
+    expect(forbidden.status).toBe(403);
   });
 });
 
