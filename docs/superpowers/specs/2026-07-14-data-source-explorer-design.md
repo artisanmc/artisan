@@ -85,7 +85,7 @@ Dans `MenuProperties`, pour chaque `contextInput` de kind `sourceRef` :
 - Tri (champ + asc/desc), limite (numérique).
 - Les `filter`/`sort`/`limit` importés du YAML (portés opaquement aujourd'hui) deviennent éditables ; round-trip export inchangé.
 
-**Section « Données du menu »** : une carte par source consommée — ref + badge module, résumé des filtres actifs, bouton **Prévisualiser** appelant la route §2 **avec les filtres du menu**. Les `{arg}` non résolus : petit formulaire de valeurs d'essai (hint « filtre sur {group} : renseigne une valeur d'essai ») ; non renseigné = interpolé à vide côté plugin (comportement runtime existant). Résultat dans `ui/DataTable`.
+**Section « Données du menu »** : une carte par source consommée — ref + badge module, résumé des filtres actifs, bouton **Prévisualiser** appelant la route §2 **avec les filtres du menu**. Les `{arg}` non résolus : petit formulaire de valeurs d'essai (hint « filtre sur {group} : renseigne une valeur d'essai ») ; non renseigné = le littéral `{arg}` est conservé tel quel côté plugin (comportement runtime existant de `ContextBinder.interpolate` — la preview reflète le runtime). Résultat dans `ui/DataTable`.
 
 ## Tests
 
