@@ -66,6 +66,17 @@ function countProjectDocuments(editorJson: string | null): number {
 	}
 }
 
+/** Parsed declared schema of a server data source — [] on null/corrupt JSON (informational, never load-bearing). */
+function parseSchemaJson(raw: string | null): { name: string; type: string; description?: string | null }[] {
+	if (!raw) return [];
+	try {
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+}
+
 export const userNetworksRouter = new Hono<{ Variables: Vars }>();
 
 // Helper: get authenticated userId or return null
@@ -677,7 +688,12 @@ userNetworksRouter.get(
 			.from(serverDataSources)
 			.where(eq(serverDataSources.serverKeyId, sk[0].id));
 		return c.json({
-			data_sources: rows.map((r) => ({ ref: r.ref, schema_hint: r.schemaHint })),
+			data_sources: rows.map((r) => ({
+				ref: r.ref,
+				module_id: r.moduleId,
+				schema: parseSchemaJson(r.schemaJson),
+				schema_hint: r.schemaHint,
+			})),
 		});
 	},
 );

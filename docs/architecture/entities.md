@@ -98,7 +98,7 @@ Cache disque : `backend/data/custom-items/{server_key_id}/{hash.txt, items.json,
 
 ## Data sources reportées (`server_data_sources`)
 
-`server_data_sources(server_key_id, ref, schema_hint, reported_at)` — mêmes sémantique et mécanique que `server_modules` : **remplacé à chaque `hello`/`modules_changed`** depuis `data_sources` (upsert + prune dans `persistServerDataSources`, `hub.ts`). PK composite `(server_key_id, ref)`, FK → `server_keys` cascade. **Présence uniquement**, sert le sélecteur de source du menu côté éditeur (`GET /api/v1/networks/:networkId/servers/:serverId/data-sources`, cookie auth + membership) ; un `ref` peut pointer vers une source qui n'existe plus (invariant hermétique — l'éditeur ne bloque jamais sur un ref inconnu).
+`server_data_sources(server_key_id, ref, schema_hint, module_id, schema_json, reported_at)` — mêmes sémantique et mécanique que `server_modules` : **remplacé à chaque `hello`/`modules_changed`** depuis `data_sources` (upsert + prune dans `persistServerDataSources`, `hub.ts`). PK composite `(server_key_id, ref)`, FK → `server_keys` cascade. **Présence uniquement**, sert le sélecteur de source du menu côté éditeur (`GET /api/v1/networks/:networkId/servers/:serverId/data-sources`, cookie auth + membership) ; un `ref` peut pointer vers une source qui n'existe plus (invariant hermétique — l'éditeur ne bloque jamais sur un ref inconnu). Nouveaux champs (Task 2, 2026-07-14) : `module_id` (texte, null = core/tiers directs) — module propriétaire signalé au hello ; `schema_json` (texte JSON, null = non déclaré) — schéma typé `{name, type, description}[]` signalé au hello, reparse en tableau plat à la lecture (`parseSchemaJson`, tolerant aux nulls/corruptions).
 
 ## Billing (2026-07-03)
 
