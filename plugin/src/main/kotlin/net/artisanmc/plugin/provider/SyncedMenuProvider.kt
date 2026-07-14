@@ -389,21 +389,26 @@ class SyncedMenuProvider(
                     if (sort.isNotEmpty()) put("sort", sort)
                     if (limit != null) put("limit", limit)
                 }
-                runOnMainThread {
-                    try {
-                        val rows = registry.fetch(
-                            ref, null,
-                            net.artisanmc.plugin.engine.ContextBinder.interpolateValues(params, args),
-                        )
-                        val shaped = net.artisanmc.plugin.engine.ContextBinder.shape(rows, source, args)
-                        val (payloadRows, truncated) = truncateForPreview(shaped)
-                        reply(mapOf("ok" to true, "rows" to payloadRows, "truncated" to truncated))
-                    } catch (e: net.artisanmc.modules.api.PlayerRequiredException) {
-                        reply(mapOf("ok" to false, "error" to "player_required", "message" to e.message))
-                    } catch (e: Throwable) {
-                        logger?.warning("[Artisan] data source preview '$ref' failed: ${e.message}")
-                        reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
+                try {
+                    runOnMainThread {
+                        try {
+                            val rows = registry.fetch(
+                                ref, null,
+                                net.artisanmc.plugin.engine.ContextBinder.interpolateValues(params, args),
+                            )
+                            val shaped = net.artisanmc.plugin.engine.ContextBinder.shape(rows, source, args)
+                            val (payloadRows, truncated) = truncateForPreview(shaped)
+                            reply(mapOf("ok" to true, "rows" to payloadRows, "truncated" to truncated))
+                        } catch (e: net.artisanmc.modules.api.PlayerRequiredException) {
+                            reply(mapOf("ok" to false, "error" to "player_required", "message" to e.message))
+                        } catch (e: Throwable) {
+                            logger?.warning("[Artisan] data source preview '$ref' failed: ${e.message}")
+                            reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
+                        }
                     }
+                } catch (e: Throwable) {
+                    logger?.warning("[Artisan] data source preview '$ref' scheduling failed: ${e.message}")
+                    reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
                 }
             }
 
