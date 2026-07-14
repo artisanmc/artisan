@@ -308,6 +308,7 @@ Trois nouveaux composants de présentation de données, visualisables en live su
 - **`Table`** (`components/ui/Table.tsx`) — tableau multi-ligne scrollable, sortable par colonne, avec ligne d'en-tête collante. Headers `align-left/center/right`, cells alignées. Wrapper shadcn.
 - **`StatCard`** (`components/ui/StatCard.tsx`) — carte de métrique (label + valeur + contexte, optionnel badge trending). Utilisé dans les dashboards d'usage (`/admin/ai/usage`).
 - **`HBar`** (`components/ui/HBar.tsx`) — barre horizontale segmentée (répartition : couleurs par segment). Visualise les proportions (ex. usage par modèle). Tokens de couleur `--success` / `--warning` / `--danger` et variantes `-soft`.
+- **`DataTable`** (`components/ui/data-table.tsx`) — tableau générique de preview de lignes (colonnes = union des clés des lignes, ordre de première apparition), utilisé par l'explorateur de sources du serveur et la section « Données du menu » du menu. Spécimen sur `/admin/design`.
 
 ### Admin AI
 
