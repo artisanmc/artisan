@@ -53,7 +53,7 @@ class DataSourceFetchHandlerTest {
                 mapOf("id" to "axe", "cat" to "armes", "price" to 20),
             )
         }))
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
 
@@ -78,7 +78,7 @@ class DataSourceFetchHandlerTest {
         registry.register(DataSourceDeclaration(ref = "quests:list", fetcher = { _, _ ->
             listOf(mapOf("id" to "q1", "group" to "daily"), mapOf("id" to "q2", "group" to "weekly"))
         }))
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
 
@@ -97,7 +97,7 @@ class DataSourceFetchHandlerTest {
         registry.register(DataSourceDeclaration(ref = "big:list", fetcher = { _, _ ->
             (1..80).map { mapOf<String, Any?>("i" to it) }
         }))
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
 
@@ -118,7 +118,7 @@ class DataSourceFetchHandlerTest {
         registry.register(DataSourceDeclaration(ref = "huge:list", fetcher = { _, _ ->
             (1..40).map { mapOf<String, Any?>("i" to it, "blob" to big) }
         }))
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
 
@@ -134,7 +134,7 @@ class DataSourceFetchHandlerTest {
 
     @Test
     fun `unknown ref answers unknown_source without touching the main thread`() {
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(DataSourceRegistry(), sink, latch)
 
@@ -152,7 +152,7 @@ class DataSourceFetchHandlerTest {
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(ref = "me:stats", fetcher = { _, _ -> throw PlayerRequiredException("needs a player") }))
         registry.register(DataSourceDeclaration(ref = "boom:x", fetcher = { _, _ -> error("kaboom") }))
-        val sink = mutableListOf<Map<String, Any?>>()
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(2)
         val p = provider(registry, sink, latch)
 
