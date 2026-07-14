@@ -95,6 +95,7 @@ open class ArtisanPlugin : JavaPlugin() {
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
+            runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         defaultModules().forEach { api.modules.register(it) }
         // Inject before load() so the initial hello includes the correct custom_items_hash.
@@ -258,6 +259,7 @@ open class ArtisanPlugin : JavaPlugin() {
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
+            runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(
