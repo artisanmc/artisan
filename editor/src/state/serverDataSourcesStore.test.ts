@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useServerDataSourcesStore } from "./serverDataSourcesStore";
 
 describe("serverDataSourcesStore", () => {
@@ -7,13 +7,18 @@ describe("serverDataSourcesStore", () => {
   });
 
   it("loads sources from the user-scoped endpoint (network+server source)", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      data_sources: [{ ref: "shop:items", schema_hint: null }],
-    })));
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data_sources: [{ ref: "shop:items" }],
+          }),
+        ),
+    );
     vi.stubGlobal("fetch", fetchMock);
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "shop:items", schemaHint: null },
+      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
@@ -22,15 +27,21 @@ describe("serverDataSourcesStore", () => {
   });
 
   it("stays idle-safe on failure (empty list, no throw)", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("nope", { status: 500 })),
+    );
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([]);
   });
 
   it("recovers from a network error (empty list, status ready)", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("network down");
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([]);
     expect(useServerDataSourcesStore.getState().status).toBe("ready");
@@ -47,16 +58,20 @@ describe("serverDataSourcesStore", () => {
   it("refetches when the source changes (server switch is not swallowed)", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const ref = url.includes("srv1") ? "shop:items" : "boutique:npcs";
-      return new Response(JSON.stringify({ data_sources: [{ ref, schema_hint: null }] }));
+      return new Response(JSON.stringify({ data_sources: [{ ref }] }));
     });
     vi.stubGlobal("fetch", fetchMock);
 
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
-    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "shop:items", schemaHint: null }]);
+    expect(useServerDataSourcesStore.getState().sources).toEqual([
+      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null },
+    ]);
 
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "boutique:npcs", schemaHint: null }]);
+    expect(useServerDataSourcesStore.getState().sources).toEqual([
+      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null },
+    ]);
   });
 
   it("ignores a stale resolver — A resolves after B, state reflects B", async () => {
@@ -66,19 +81,27 @@ describe("serverDataSourcesStore", () => {
     });
     const fetchMock = vi.fn((url: string) => {
       if (url.includes("srv1")) return pendingA;
-      return Promise.resolve(new Response(JSON.stringify({ data_sources: [{ ref: "boutique:npcs", schema_hint: null }] })));
+      return Promise.resolve(
+        new Response(JSON.stringify({ data_sources: [{ ref: "boutique:npcs" }] })),
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const loadA = useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
-    const loadB = useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
+    const loadA = useServerDataSourcesStore
+      .getState()
+      .load({ networkId: "net1", serverId: "srv1" });
+    const loadB = useServerDataSourcesStore
+      .getState()
+      .load({ networkId: "net1", serverId: "srv2" });
     await loadB;
     expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
 
-    resolveA!(new Response(JSON.stringify({ data_sources: [{ ref: "shop:items", schema_hint: null }] })));
+    resolveA!(new Response(JSON.stringify({ data_sources: [{ ref: "shop:items" }] })));
     await loadA;
 
     expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
-    expect(useServerDataSourcesStore.getState().sources).toEqual([{ ref: "boutique:npcs", schemaHint: null }]);
+    expect(useServerDataSourcesStore.getState().sources).toEqual([
+      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null },
+    ]);
   });
 });

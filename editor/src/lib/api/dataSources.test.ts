@@ -17,7 +17,7 @@ describe("fetchServerDataSourcesUser", () => {
       expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
       expect.objectContaining({ credentials: "include" }),
     );
-    expect(result).toEqual([{ ref: "shop:items", schemaHint: null }]);
+    expect(result).toEqual([{ ref: "shop:items", moduleId: null, schema: [], schemaHint: null }]);
   });
 
   it("returns [] on a non-OK response", async () => {

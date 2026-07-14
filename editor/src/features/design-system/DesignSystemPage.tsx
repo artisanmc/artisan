@@ -3,6 +3,7 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -531,6 +532,17 @@ export function DesignSystemPage() {
                 </TR>
               </TBody>
             </Table>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<DataTable>"}</span>
+            <DataTable
+              rows={[
+                { id: "sword", price: 10, tags: ["pvp"] },
+                { id: "bow", price: 30, tags: null },
+              ]}
+              truncated
+              truncatedLabel="Results truncated."
+            />
           </div>
         </div>
       </Section>
