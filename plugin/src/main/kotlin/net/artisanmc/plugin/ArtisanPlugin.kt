@@ -94,7 +94,7 @@ open class ArtisanPlugin : JavaPlugin() {
             offsetEncoderProvider = assetCatalog::offsetEncoder,
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
-            dataSourcesReport = { api.dataSources.declarations().map { mapOf("ref" to it.ref, "schema_hint" to it.schemaHint) } },
+            dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
         )
         defaultModules().forEach { api.modules.register(it) }
         // Inject before load() so the initial hello includes the correct custom_items_hash.
@@ -257,7 +257,7 @@ open class ArtisanPlugin : JavaPlugin() {
             offsetEncoderProvider = assetCatalog::offsetEncoder,
             installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
             dataSources = api.dataSources,
-            dataSourcesReport = { api.dataSources.declarations().map { mapOf("ref" to it.ref, "schema_hint" to it.schemaHint) } },
+            dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
         )
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(
