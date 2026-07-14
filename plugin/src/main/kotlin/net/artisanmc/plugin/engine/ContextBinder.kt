@@ -41,7 +41,7 @@ object ContextBinder {
     }
 
     /** filter (égalité string) → sort (numérique si possible) → limit. */
-    private fun shape(
+    internal fun shape(
         rows: List<Map<String, Any?>>,
         source: Map<String, Any>,
         args: Map<String, Any>,
@@ -71,7 +71,7 @@ object ContextBinder {
     private fun interpolate(raw: String, args: Map<String, Any>): String =
         Regex("\\{([a-z][a-z0-9_]*)}").replace(raw) { m -> args[m.groupValues[1]]?.toString() ?: m.value }
 
-    private fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
+    internal fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
         map.mapValues { (_, v) -> if (v is String) interpolate(v, args) else v }
 
     /** Sous-map nommée du ConnectorBinding brut ({} si absente/mal typée). */

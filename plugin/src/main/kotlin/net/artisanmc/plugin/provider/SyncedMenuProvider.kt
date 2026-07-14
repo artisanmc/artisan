@@ -63,7 +63,17 @@ class SyncedMenuProvider(
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
     private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
+    /**
+     * Dispatches a task onto the Bukkit main thread (fetchers touch the Bukkit
+     * API). Default = synchronous, for tests; ArtisanPlugin injects the scheduler.
+     */
+    private val runOnMainThread: (() -> Unit) -> Unit = { it() },
 ) : MenuProvider {
+    companion object {
+        internal const val MAX_PREVIEW_ROWS = 50
+        internal const val MAX_PREVIEW_BYTES = 256 * 1024
+    }
+
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<ProjectBundle>()
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
@@ -76,6 +86,17 @@ class SyncedMenuProvider(
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
         testSendOverride = fn
+    }
+
+    /** Preview guard: cap at [MAX_PREVIEW_ROWS] rows and ~[MAX_PREVIEW_BYTES] serialized bytes. */
+    internal fun truncateForPreview(rows: List<Map<String, Any?>>): Pair<List<Map<String, Any?>>, Boolean> {
+        var out = rows.take(MAX_PREVIEW_ROWS)
+        var truncated = rows.size > MAX_PREVIEW_ROWS
+        while (out.isNotEmpty() && jsonMapper.writeValueAsBytes(out).size > MAX_PREVIEW_BYTES) {
+            out = out.dropLast(1)
+            truncated = true
+        }
+        return out to truncated
     }
 
     private fun send(payload: Map<String, Any>) {
@@ -329,6 +350,61 @@ class SyncedMenuProvider(
                 val parsed   = runCatching { yamlMapper.readValue(menuYaml, MenuYaml::class.java) }.getOrNull() ?: return
                 draftMenus[menuId] = BundleCompiler.compile(parsed, emptyMap(), logger)
                 logger?.info("Draft updated for $menuId")
+            }
+
+            "data_source_fetch" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val ref = node["ref"]?.asText() ?: return
+                val registry = dataSources
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "data_source_fetch_result", "request_id" to requestId)
+                    // Reply off the WS-callback / main thread (spec: réponse hors main thread).
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("data_source_fetch_result dropped — plugin is stopping")
+                    }
+                }
+                if (registry == null || !registry.has(ref)) {
+                    reply(mapOf("ok" to false, "error" to "unknown_source"))
+                    return
+                }
+                fun jsonToMap(field: String): Map<String, Any?> =
+                    node[field]?.takeIf { it.isObject }?.let {
+                        jsonMapper.convertValue(it, object : TypeReference<Map<String, Any?>>() {})
+                    } ?: emptyMap()
+                val params = jsonToMap("params")
+                val filter = jsonToMap("filter")
+                val sort = jsonToMap("sort")
+                val limit = node["limit"]?.takeIf { it.isNumber }?.asInt()
+                val args: Map<String, Any> = jsonToMap("args").mapValues { it.value ?: "" }
+                // Same shape ContextBinder.shape reads at render time — preview == runtime.
+                val source = buildMap<String, Any> {
+                    put("ref", ref)
+                    if (params.isNotEmpty()) put("params", params)
+                    if (filter.isNotEmpty()) put("filter", filter)
+                    if (sort.isNotEmpty()) put("sort", sort)
+                    if (limit != null) put("limit", limit)
+                }
+                runOnMainThread {
+                    try {
+                        val rows = registry.fetch(
+                            ref, null,
+                            net.artisanmc.plugin.engine.ContextBinder.interpolateValues(params, args),
+                        )
+                        val shaped = net.artisanmc.plugin.engine.ContextBinder.shape(rows, source, args)
+                        val (payloadRows, truncated) = truncateForPreview(shaped)
+                        reply(mapOf("ok" to true, "rows" to payloadRows, "truncated" to truncated))
+                    } catch (e: net.artisanmc.modules.api.PlayerRequiredException) {
+                        reply(mapOf("ok" to false, "error" to "player_required", "message" to e.message))
+                    } catch (e: Throwable) {
+                        logger?.warning("[Artisan] data source preview '$ref' failed: ${e.message}")
+                        reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
+                    }
+                }
             }
 
             "custom_items_request" -> {
