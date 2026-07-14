@@ -166,4 +166,32 @@ class DataSourceFetchHandlerTest {
         assertEquals("fetch_error", byId["r7"]!!["error"])
         assertEquals("kaboom", byId["r7"]!!["message"])
     }
+
+    @Test
+    fun `main-thread scheduling failure still replies with fetch_error`() {
+        val dir = Files.createTempDirectory("artisan_dsf_").toFile()
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
+        val latch = CountDownLatch(1)
+        val p = SyncedMenuProvider(
+            projectsDir = dir, serverKey = "", wsUrl = "", logger = null,
+            dataSources = registry,
+            runOnMainThread = { throw IllegalStateException("plugin disabled") },
+        )
+        p.load()
+        p.setSendForTesting { raw ->
+            @Suppress("UNCHECKED_CAST")
+            sink.add(mapper.readValue(raw, Map::class.java) as Map<String, Any?>)
+            latch.countDown()
+        }
+
+        p.handleMessageForTesting("""{"type":"data_source_fetch","request_id":"r8","ref":"shop:items","params":{},"filter":{},"sort":null,"limit":null,"args":{}}""")
+        await(latch)
+
+        assertEquals("data_source_fetch_result", sink[0]["type"])
+        assertEquals("r8", sink[0]["request_id"])
+        assertEquals(false, sink[0]["ok"])
+        assertEquals("fetch_error", sink[0]["error"])
+    }
 }
