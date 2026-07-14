@@ -25,6 +25,8 @@
 | `project_divergence_detected` | plugin → backend | `{ project_id, disk_files, disk_hash, last_synced_hash }` — **Plan 1C: handler is now a no-op for backward compat; new plugins log WARN instead** |
 | `project_deleted` | backend → plugin | `{ project_id }` — project supprimé côté éditeur, le plugin move-to-trash |
 | `local_push` | plugin → backend | `{ project_id, files, hash }` — used by `/artisan pushLocal`. Backend creates project if missing (avec `serverKeyId` de la session), upserts content, broadcasts `bundle_available`. Si le project backend est un stub jamais édité (`isEmptyStub`), le backend construit aussi `editorJson` via `importProjectFromFiles` (les dossiers module inconnus deviennent `moduleData[<dir>].__files`). Un `editorJson` réel n'est jamais écrasé. |
+| `data_source_fetch` | backend → plugin | `{type, request_id, ref, params, filter, sort, limit, args}` — preview request relayed from `POST …/data-sources/preview`. Corrélé par `request_id`, timeout 5 s côté backend (couvre les vieux plugins qui ignorent le type). `args` = valeurs d'essai pour l'interpolation `{arg}`. |
+| `data_source_fetch_result` | plugin → backend | `{type, request_id, ok, rows?, truncated?, error?, message?}` — réponse du plugin (fetch `player = null` sur le main thread + shaping `ContextBinder`, rows tronquées à 50 / ≤ 256 KB). `error` ∈ `unknown_source` / `player_required` / `fetch_error`. |
 
 ## Auth du WS éditeur (`GET /ws/editor`)
 

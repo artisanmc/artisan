@@ -127,6 +127,31 @@ export interface ModulesChangedMessage {
   data_sources?: ReportedDataSource[];
 }
 
+// Backend → plugin: request a live data source fetch (preview). Correlated by
+// request_id with DataSourceFetchResultMessage; backend times out after 5 s.
+export interface DataSourceFetchMessage {
+  type: "data_source_fetch";
+  request_id: string;
+  ref: string;
+  params: Record<string, unknown>;
+  filter: Record<string, string>;
+  sort: { by: string; direction?: "asc" | "desc" } | null;
+  limit: number | null;
+  // Interpolation context for {arg} tokens in filter/params values (test values from the editor).
+  args: Record<string, string>;
+}
+
+// Plugin → backend: reply to DataSourceFetchMessage, correlated by request_id.
+export interface DataSourceFetchResultMessage {
+  type: "data_source_fetch_result";
+  request_id: string;
+  ok: boolean;
+  rows?: Record<string, unknown>[];
+  truncated?: boolean;
+  error?: "unknown_source" | "player_required" | "fetch_error";
+  message?: string;
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -135,7 +160,8 @@ export type PluginToServerMessage =
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage
   | LocalPushMessage
-  | ModulesChangedMessage;
+  | ModulesChangedMessage
+  | DataSourceFetchResultMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";
@@ -152,4 +178,5 @@ export type ServerToPluginMessage =
   | LinkConfirmedMessage
   | CustomItemsRequestMessage
   | ResourcePackUpdatedMessage
-  | ProjectDeletedMessage;
+  | ProjectDeletedMessage
+  | DataSourceFetchMessage;

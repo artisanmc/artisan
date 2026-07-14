@@ -36,7 +36,7 @@ import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, requestDataSourceFetch } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -695,6 +695,62 @@ userNetworksRouter.get(
 				schema_hint: r.schemaHint,
 			})),
 		});
+	},
+);
+
+// POST /api/networks/:networkId/servers/:serverId/data-sources/preview — member access.
+// Live fetch relayed to the connected plugin over the WS (data_source_fetch /
+// data_source_fetch_result, 5 s timeout). Body: {ref, params?, filter?, sort?,
+// limit?, args?} — args = test values for {arg} tokens (runtime interpolation).
+userNetworksRouter.post(
+	"/:networkId/servers/:serverId/data-sources/preview",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const body = (await c.req.json().catch(() => null)) as {
+			ref?: unknown;
+			params?: Record<string, unknown>;
+			filter?: Record<string, string>;
+			sort?: { by: string; direction?: "asc" | "desc" } | null;
+			limit?: number | null;
+			args?: Record<string, string>;
+		} | null;
+		if (!body || typeof body.ref !== "string" || body.ref.length === 0) {
+			return c.json({ error: "invalid_input" }, 422);
+		}
+
+		const outcome = await requestDataSourceFetch(sk[0].id, {
+			ref: body.ref,
+			params: body.params,
+			filter: body.filter,
+			sort: body.sort,
+			limit: body.limit,
+			args: body.args,
+		});
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "fetch_error";
+			const status = error === "unknown_source" ? 404 : error === "player_required" ? 422 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ rows: r.rows ?? [], truncated: r.truncated ?? false });
 	},
 );
 

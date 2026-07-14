@@ -11,8 +11,9 @@ import {
   pushResourcePackUpdated,
   connToServerId,
   connSenders,
+  requestDataSourceFetch,
 } from "./hub";
-import type { HelloMessage, HelloAckMessage } from "../protocol";
+import type { HelloMessage, HelloAckMessage, DataSourceFetchMessage } from "../protocol";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
 import {
@@ -842,6 +843,79 @@ describe("modules_changed", () => {
     // No rows should have been written (connection was never authenticated)
     const rows = await db.select().from(serverModules);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("requestDataSourceFetch", () => {
+  test("resolves offline when no plugin conn is bound to the server key", async () => {
+    const outcome = await requestDataSourceFetch("sk-not-connected", { ref: "boutique:items" });
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+
+  test("sends data_source_fetch and resolves on the correlated result — two concurrent requests", async () => {
+    const sent: DataSourceFetchMessage[] = [];
+    registerConn("connX", (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set("connX", "sk-live");
+    try {
+      const p1 = requestDataSourceFetch("sk-live", { ref: "a:one", filter: { k: "v" } });
+      const p2 = requestDataSourceFetch("sk-live", { ref: "b:two" });
+      expect(sent).toHaveLength(2);
+      expect(sent[0].type).toBe("data_source_fetch");
+      expect(sent[0].ref).toBe("a:one");
+      expect(sent[0].filter).toEqual({ k: "v" });
+      expect(sent[0].sort).toBeNull();
+      expect(sent[0].limit).toBeNull();
+      expect(sent[0].args).toEqual({});
+
+      // Answer out of order: second request first.
+      await handlePluginMessage("connX", JSON.stringify({
+        type: "data_source_fetch_result", request_id: sent[1].request_id,
+        ok: true, rows: [{ id: "two" }], truncated: false,
+      }));
+      await handlePluginMessage("connX", JSON.stringify({
+        type: "data_source_fetch_result", request_id: sent[0].request_id,
+        ok: true, rows: [{ id: "one" }], truncated: true,
+      }));
+
+      const [o1, o2] = await Promise.all([p1, p2]);
+      expect(o1).toEqual({
+        kind: "result",
+        result: { type: "data_source_fetch_result", request_id: sent[0].request_id, ok: true, rows: [{ id: "one" }], truncated: true },
+      });
+      expect(o2.kind).toBe("result");
+      if (o2.kind === "result") expect(o2.result.rows).toEqual([{ id: "two" }]);
+    } finally {
+      connToServerId.delete("connX");
+      connSenders.delete("connX");
+    }
+  });
+
+  test("resolves timeout when the plugin never answers", async () => {
+    registerConn("connY", () => {});
+    connToServerId.set("connY", "sk-slow");
+    try {
+      const outcome = await requestDataSourceFetch("sk-slow", { ref: "a:one" }, 20);
+      expect(outcome).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete("connY");
+      connSenders.delete("connY");
+    }
+  });
+
+  test("a late result after timeout is ignored (no crash, unknown request_id)", async () => {
+    const sent: DataSourceFetchMessage[] = [];
+    registerConn("connZ", (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set("connZ", "sk-late");
+    try {
+      await requestDataSourceFetch("sk-late", { ref: "a:one" }, 10);
+      const res = await handlePluginMessage("connZ", JSON.stringify({
+        type: "data_source_fetch_result", request_id: sent[0].request_id, ok: true, rows: [],
+      }));
+      expect(res.reply).toBeNull();
+    } finally {
+      connToServerId.delete("connZ");
+      connSenders.delete("connZ");
+    }
   });
 });
 
