@@ -18,6 +18,8 @@ import type {
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
+import { MenuDataSection } from "./MenuDataSection";
+import { SourceShapingEditor } from "./SourceShapingEditor";
 import { summarizeFieldType } from "@/features/data/helpers";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
@@ -152,6 +154,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <ContextInputsEditor projectId={projectId} menu={menu} />
+      <MenuDataSection menu={menu} />
     </div>
   );
 }
@@ -270,6 +273,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
               ) : (
                 <SourceRefInputRow
                   projectId={projectId}
+                  menu={menu}
                   input={input}
                   onChange={(patch) => update(i, patch)}
                   onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
@@ -399,17 +403,20 @@ function PrimitiveInputRow({
 
 function SourceRefInputRow({
   projectId,
+  menu,
   input,
   onChange,
   onRemove,
 }: {
   projectId: ProjectId;
+  menu: Menu;
   input: Extract<ContextInput, { kind: "sourceRef" }>;
   onChange: (patch: Partial<Extract<ContextInput, { kind: "sourceRef" }>>) => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const serverSources = useServerDataSourcesStore((s) => s.sources);
 
   const refLabel = (() => {
     if (!input.ref) return null;
@@ -421,39 +428,50 @@ function SourceRefInputRow({
   })();
 
   return (
-    <div className="flex items-center gap-1.5">
-      <Input
-        value={input.name}
-        placeholder={t("menuProperties.inputName")}
-        onChange={(e) => onChange({ name: e.target.value })}
-        className="h-8 w-28 px-2 py-0 font-mono text-xs"
-      />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-0 font-mono text-xs text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
+    <>
+      <div className="flex items-center gap-1.5">
+        <Input
+          value={input.name}
+          placeholder={t("menuProperties.inputName")}
+          onChange={(e) => onChange({ name: e.target.value })}
+          className="h-8 w-28 px-2 py-0 font-mono text-xs"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-8 flex-1 items-center justify-between gap-1 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-0 font-mono text-xs text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
+            >
+              <span className="truncate">{refLabel ?? t("menuProperties.refPickPlaceholder")}</span>
+              <span className="text-[var(--text-faint)]">▾</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
           >
-            <span className="truncate">{refLabel ?? t("menuProperties.refPickPlaceholder")}</span>
-            <span className="text-[var(--text-faint)]">▾</span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+            {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          title={t("menuProperties.removeInput")}
+          onClick={onRemove}
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
         >
-          {pack ? <SourcePickerOptions pack={pack} onPick={(ref) => onChange({ ref })} /> : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <button
-        type="button"
-        title={t("menuProperties.removeInput")}
-        onClick={onRemove}
-        className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
-      >
-        ×
-      </button>
-    </div>
+          ×
+        </button>
+      </div>
+      <SourceShapingEditor
+        input={input}
+        schemaFields={(serverSources.find((s) => s.ref === input.ref)?.schema ?? []).map((f) => f.name)}
+        argNames={(menu.contextInputs ?? [])
+          .filter((ci): ci is Extract<ContextInput, { kind: "primitive" }> => ci.kind === "primitive")
+          .map((ci) => ci.name)
+          .filter((n) => n !== "")}
+        onChange={onChange}
+      />
+    </>
   );
 }
 
