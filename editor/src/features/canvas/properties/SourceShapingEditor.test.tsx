@@ -49,6 +49,33 @@ describe("SourceShapingEditor", () => {
     expect(onChange).toHaveBeenCalledWith({ sort: undefined });
   });
 
+  it("reflects an external filter change (e.g. undo/redo) and re-emits the new values, not stale ones", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SourceShapingEditor input={base} schemaFields={["group", "order"]} argNames={["group"]} onChange={onChange} />,
+    );
+    expect(screen.getByDisplayValue("{group}")).toBeInTheDocument();
+
+    // Simulate an external change to input.filter with the same ref/name
+    // (undo/redo, or a version-guard revert) — the displayed rows must
+    // reflect the new filter immediately.
+    const externallyChanged: SR = { ...base, filter: { group: "weekly" } };
+    rerender(
+      <SourceShapingEditor input={externallyChanged} schemaFields={["group", "order"]} argNames={["group"]} onChange={onChange} />,
+    );
+    expect(screen.getByDisplayValue("weekly")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("{group}")).not.toBeInTheDocument();
+
+    // Adding a row afterwards must emit the NEW external values merged
+    // with the new row, not the stale pre-rerender values.
+    fireEvent.click(screen.getByTestId("filter-add"));
+    const fields = screen.getAllByTestId("filter-field");
+    fireEvent.change(fields[fields.length - 1], { target: { value: "cat" } });
+    const values = screen.getAllByTestId("filter-value");
+    fireEvent.change(values[values.length - 1], { target: { value: "armes" } });
+    expect(onChange).toHaveBeenLastCalledWith({ filter: { group: "weekly", cat: "armes" } });
+  });
+
   it("offers schema fields and {arg} suggestions via datalists", () => {
     render(<SourceShapingEditor input={base} schemaFields={["group", "order"]} argNames={["group", "page"]} onChange={() => {}} />);
     const fieldOptions = screen.getByTestId("filter-field-options").querySelectorAll("option");
