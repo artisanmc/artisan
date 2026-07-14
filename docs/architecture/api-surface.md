@@ -70,12 +70,57 @@ Exceptions: `DuplicateModuleException`.
 | Member | Type | Since |
 |---|---|---|
 | `register(decl: DataSourceDeclaration)` | `Unit` | 1.0.0 |
-| `fetch(ref: String, player: Player, params: Map<String, Any?>)` | `List<Map<String, Any?>>` | 1.0.0 |
+| `fetch(ref: String, player: Player?, params: Map<String, Any?>)` | `List<Map<String, Any?>>` | 1.0.0 |
 | `has(ref: String)` | `Boolean` | 1.0.0 |
 | `refs()` | `Set<String>` | 1.0.0 |
 | `declarations()` | `List<DataSourceDeclaration>` | 1.2.0 |
+| `registered()` | `List<RegisteredDataSource>` | 1.3.0 |
 
-Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`.
+Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `PlayerRequiredException`.
+
+**Breaking change (1.3.0)**: `fetch` signature changed from `(player: Player, …)` to `(player: Player?, …)`. Preview mode (editor) calls fetchers with `player = null`; modules that require a real player must either return generic data or throw `PlayerRequiredException`.
+
+### `net.artisanmc.modules.api.DataSourceDeclaration`
+
+| Member | Type | Stability | Since |
+|---|---|---|---|
+| `ref` | `String` | `@Stable` | 1.0.0 |
+| `fetcher` | `(player: Player?, params: Map<String, Any?>) -> List<Map<String, Any?>>` | `@Stable` | 1.3.0 |
+| `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
+| `schemaHint` | `String?` | `@Sunset` | 1.0.0 → 2.0.0 |
+
+### `net.artisanmc.modules.api.FieldKind`
+
+Enum describing the type of a declared data-source row field. Drives editor schema table and filter autocomplete.
+
+Values: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`.
+
+### `net.artisanmc.modules.api.DataSourceField`
+
+One declared row field in a data source's schema.
+
+| Member | Type | Since |
+|---|---|---|
+| `name` | `String` | 1.3.0 |
+| `type` | `FieldKind` | 1.3.0 |
+| `description` | `String?` | 1.3.0 |
+
+### `net.artisanmc.modules.api.RegisteredDataSource`
+
+A `DataSourceDeclaration` paired with its owning module id. Returned by `DataSourceRegistry.registered()`.
+
+| Member | Type | Since |
+|---|---|---|
+| `declaration` | `DataSourceDeclaration` | 1.3.0 |
+| `moduleId` | `String?` | 1.3.0 |
+
+`moduleId` is non-null when the data source was registered from a module's `onEnable`, null for third-party registrations via ServicesManager.
+
+### `net.artisanmc.modules.api.PlayerRequiredException`
+
+Exception thrown by a `DataSourceDeclaration.fetcher` when it cannot produce meaningful rows without a real player (e.g., inventory-dependent data). The editor catches this on preview mode and surfaces a typed `player_required` error instead of crashing.
+
+Since 1.3.0.
 
 ### `net.artisanmc.modules.api.CommandRegistry`
 

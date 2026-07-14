@@ -43,7 +43,12 @@ class ModuleRegistry {
             if (_active.any { it.id == module.id }) throw DuplicateModuleException(module.id)
             _active.add(module)
         }
-        module.onEnable(boundApi)
+        boundApi.dataSources.currentOwner = module.id
+        try {
+            module.onEnable(boundApi)
+        } finally {
+            boundApi.dataSources.currentOwner = null
+        }
         onChange?.invoke()
     }
 
