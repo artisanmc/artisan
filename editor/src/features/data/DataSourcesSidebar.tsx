@@ -4,15 +4,24 @@ import { useAccountStore } from "@/state/accountStore";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ServerSourcesSection } from "./ServerSourcesSection";
 import { summarizeFieldType } from "./helpers";
 
 interface DataSourcesSidebarProps {
   pack: Project;
   selectedId: DataSourceId | null;
   onSelect: (id: DataSourceId | null) => void;
+  selectedServerRef: string | null;
+  onSelectServerRef: (ref: string) => void;
 }
 
-export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSidebarProps) {
+export function DataSourcesSidebar({
+  pack,
+  selectedId,
+  onSelect,
+  selectedServerRef,
+  onSelectServerRef,
+}: DataSourcesSidebarProps) {
   const { t } = useTranslation();
   const addProjectDataSource = useAccountStore((s) => s.addProjectDataSource);
   const addImportedConnector = useAccountStore((s) => s.addImportedConnector);
@@ -126,6 +135,8 @@ export function DataSourcesSidebar({ pack, selectedId, onSelect }: DataSourcesSi
           }}
         />
       </section>
+
+      <ServerSourcesSection selectedRef={selectedServerRef} onSelect={onSelectServerRef} />
     </div>
   );
 }
