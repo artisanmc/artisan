@@ -1,13 +1,11 @@
 import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "../db/index";
 import { ensureAssets, assetsDone } from "../lib/mcAssets";
-import { linkCodes, networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
-import { createNetwork } from "../lib/networkManager";
+import { networks, projectBranches, projectCommits, projects, serverKeyHelloes, serverKeys, serverModules, serverDataSources } from "../db/schema";
 import { createProject, getProject, upsertProjectContent } from "../lib/projectStorage";
 import { importProjectFromFiles, isEmptyStub } from "../lib/projectImport";
 import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
-import { generateCode, generateServerKey } from "../lib/auth";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
 import { currentPackInfo } from "../lib/resourcePack";
@@ -21,12 +19,9 @@ import type {
   EditorDraftUpdateMessage,
   HelloAckMessage,
   HelloMessage,
-  LinkConfirmedMessage,
   ModulesChangedMessage,
   ReportedDataSource,
   ResourcePackUpdatedMessage,
-  SetupClaimMessage,
-  SetupCodeMessage,
 } from "../protocol";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3001";
@@ -40,8 +35,6 @@ const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
 export const connSenders = new Map<string, (msg: string) => void>();
 // Authenticated sessions: sessionId → serverId
 const activeSessions = new Map<string, string>();
-// link_code → connId (for B1: push link_confirmed to the plugin that generated the code)
-const codeToConn = new Map<string, string>();
 // Editor WS connections: sessionId → sendFn
 export const editorSenders = new Map<string, (msg: string) => void>();
 // sessionId → Set<serverKeyId> (for grouping editors by server). Session-token
@@ -60,9 +53,6 @@ export function registerConn(connId: string, send: (msg: string) => void): void 
 export function cleanupConn(connId: string): void {
   connSenders.delete(connId);
   connToServerId.delete(connId);
-  for (const [code, cId] of codeToConn) {
-    if (cId === connId) codeToConn.delete(code);
-  }
 }
 
 /**
@@ -173,16 +163,6 @@ export function registerEditorConn(
 export function cleanupEditorConn(sessionId: string): void {
   editorSenders.delete(sessionId);
   editorTokenToServers.delete(sessionId);
-}
-
-// Called by link.ts POST /:code/claim (B1 flow: browser claims plugin's code).
-// No-op if no plugin session is waiting on this code (B2 flow, or plugin disconnected).
-export function pushLinkConfirmed(code: string, serverKey: string): void {
-  const connId = codeToConn.get(code);
-  if (!connId) return;
-  const send = connSenders.get(connId);
-  if (send) send(JSON.stringify({ type: "link_confirmed", server_key: serverKey } satisfies LinkConfirmedMessage));
-  codeToConn.delete(code);
 }
 
 async function validateServerKey(rawKey: string): Promise<{ id: string; allowedIps: string[] | null } | null> {
@@ -414,48 +394,6 @@ export async function handlePluginMessage(
     }
 
     return { reply: JSON.stringify(ack), sessionId, push };
-  }
-
-  // ── setup_request (B1): plugin asks for a link code ──────────────────────
-  if (msg.type === "setup_request") {
-    const code = generateCode();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
-    await db.insert(linkCodes).values({ code, createdAt: now, expiresAt });
-    codeToConn.set(code, connId);
-    setTimeout(() => codeToConn.delete(code), 10 * 60 * 1000);
-
-    const reply: SetupCodeMessage = {
-      type: "setup_code",
-      code,
-      url: `${EDITOR_URL}/link?code=${code}`,
-      expires_at: expiresAt.toISOString(),
-    };
-    return { reply: JSON.stringify(reply) };
-  }
-
-  // ── setup_claim (B2): plugin claims a dashboard-generated code ───────────
-  if (msg.type === "setup_claim") {
-    const raw = msg as Record<string, unknown>;
-    if (typeof raw.code !== "string" || raw.code.length === 0) return { reply: null };
-    const { code } = raw as SetupClaimMessage;
-
-    const { id, key, hash } = await generateServerKey();
-    const networkForSetup = await createNetwork(`Network ${id.slice(0, 6)}`);
-    const claimed = await db.transaction(async (tx) => {
-      const rows = await tx.select().from(linkCodes).where(eq(linkCodes.code, code));
-      if (rows.length === 0 || rows[0].claimedAt || rows[0].expiresAt < new Date()) return false;
-      await tx.insert(serverKeys).values({ id, hash, label: null, networkId: networkForSetup.id, createdAt: new Date() });
-      await tx.update(linkCodes)
-        .set({ claimedAt: new Date(), serverKeyId: id })
-        .where(eq(linkCodes.code, code));
-      return true;
-    });
-    if (!claimed) return { reply: null };
-
-    const send = connSenders.get(connId);
-    if (send) send(JSON.stringify({ type: "link_confirmed", server_key: key } satisfies LinkConfirmedMessage));
-    return { reply: null };
   }
 
   if (msg.type === "pong") return { reply: null };

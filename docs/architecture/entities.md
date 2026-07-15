@@ -22,8 +22,9 @@ User ── Membership ──┐
 ```
 
 - **Project** : entité first-class — `id`, `networkId`, `serverKeyId`, `name`, `description`, `hash`, `filesJson`, `editorJson`, `deployedEditorJson`, `deletedAt`. `filesJson`/`editorJson`/`hash` = buffer éditeur **WIP** live.
-- **server_keys.networkId** NOT NULL. À la création (claim / `/api/server-keys` / WS `setup_claim`), un Network par défaut `Network <prefix>` est auto-créé.
-- **IDs server_key** (`generateServerKey` dans `lib/auth.ts`) : row id = `srv_<hex>` (utilisé dans les URLs `/networks/.../servers/srv_xxx`), clé plaintext = `sk_<hex>` (montrée une seule fois). Préfixes distincts volontairement pour ne pas confondre l'identifiant de ligne et le secret. Affichage UI via `displayServerLabel()`.
+- **server_keys.networkId** NOT NULL. Créés depuis l'éditeur (`POST /networks/:id/server-keys`) au sein d'un Network existant. **`server_keys.hash` est nullable** : `NULL` = clé créée mais **pas encore redeemée** via `/artisan link` (aucun secret émis, ne s'authentifie jamais). Le secret est généré au **redeem** (`redeemLinkCode`, cf. `link_codes` + ADR `editor-first-server-linking`), jamais stocké en clair. Re-redeem d'un nouveau code = **rotation** du secret en place (même row). Cf. `rest-endpoints.md` § Link editor-first.
+- **link_codes** (`code` PK, `serverKeyId` FK **ON DELETE CASCADE**, `expiresAt`, `claimedAt`) : code single-use TTL 10 min, minté par l'éditeur (create-server ou `.../link-code`), lié à un `server_key`. Supprimer la clé supprime ses codes (cascade).
+- **IDs server_key** (`generateServerKey` dans `lib/auth.ts`) : row id = `srv_<hex>` (utilisé dans les URLs `/networks/.../servers/srv_xxx`), clé plaintext = `sk_<hex>` (renvoyée une seule fois par le redeem). Préfixes distincts volontairement pour ne pas confondre l'identifiant de ligne et le secret. Affichage UI via `displayServerLabel()`.
 - **Assets per-project** : `assets.projectId`, codepoint allocator scopé au project, disque `data/assets/{projectId}/...`.
 - **WS hub** : `hello_ack.project_hashes` et `pushBundleAvailable(projectId, hash)` résolvent les targets via `projects.serverKeyId`. `pushProjectDeleted(projectId)` idem.
 

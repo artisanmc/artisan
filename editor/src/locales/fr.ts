@@ -1119,15 +1119,16 @@ const fr: typeof en = {
     createNetwork: "+ Créer un network",
     addServer: "+ Ajouter un serveur",
     noServers: "Aucun serveur pour le moment",
-    noNetworks: "Aucun network. Lance /artisan setup sur ton serveur Minecraft pour commencer.",
+    noNetworks:
+      "Aucun network. Crée-en un ici, ajoute un serveur, puis lance /artisan link <code> sur ton serveur Minecraft.",
     projectCount_one: "{{count}} projet",
     projectCount_other: "{{count}} projets",
     projectCount: "{{count}} projets",
     networkSettings: "Paramètres du network",
     manageServers: "Gérer les serveurs",
-    serverCreated: "Clé serveur créée",
+    serverCreated: "Serveur créé",
     serverCreatedHint:
-      "Copie cette clé maintenant et colle-la dans config.yml. Elle ne sera plus affichée.",
+      "Lance cette commande dans la console de ton serveur Minecraft pour le lier. Usage unique, expire dans 10 minutes.",
     close: "Fermer",
   },
   networkDetail: {
@@ -1140,16 +1141,14 @@ const fr: typeof en = {
     deleteServer: "Supprimer",
     rotateKey: "Renouveler",
     loading: "Chargement…",
-    confirmRotateKey:
-      "Générer une nouvelle clé pour ce serveur ? Toute clé déjà en place cesse de fonctionner immédiatement — il faudra coller la nouvelle dans le config.yml de chaque serveur qui l'utilise. (Le secret n'est jamais stocké en clair, c'est donc la seule façon d'obtenir une clé utilisable.)",
-    rotateRevealTitle: "Nouvelle clé générée",
-    rotateRevealHint:
-      "Copie la clé maintenant et colle-la dans le config.yml du serveur. Pour des raisons de sécurité, elle ne sera plus jamais affichée.",
-    rotateRevealKeyLabel: "Clé serveur",
-    rotateRevealShownOnce: "Affichée une fois",
+    linkRevealTitle: "Lier ce serveur",
+    linkRevealHint:
+      "Lance cette commande dans la console de ton serveur Minecraft. Elle écrit la crédential et connecte automatiquement. Usage unique, expire dans 10 minutes.",
+    linkRevealLabel: "À lancer sur ton serveur",
     copy: "Copier",
     close: "Fermer",
-    noServers: "Aucun serveur. Tape /artisan setup dans ta console MC.",
+    noServers:
+      "Aucun serveur — ajoutes-en un ci-dessus, puis lance la commande de liaison dans ta console MC.",
     addServer: "Ajouter un serveur",
   },
   requestAccess: {
@@ -1208,7 +1207,7 @@ const fr: typeof en = {
   serverKebab: {
     actions: "Actions du serveur",
     edit: "Modifier le serveur…",
-    rotate: "Générer une nouvelle clé…",
+    relink: "Re-lier / nouveau code…",
     history: "Historique de connexion",
     allowlist: "Allowlist d'IP",
     delete: "Supprimer le serveur…",
@@ -1283,14 +1282,15 @@ const fr: typeof en = {
     step2: {
       title: "Créer un serveur",
       description:
-        "Cette clé authentifie ton serveur Minecraft auprès du backend Artisan. Génère-la puis copie-la — elle ne sera plus jamais affichée.",
+        "Enregistre ton serveur. Tu obtiens un code à usage unique à lancer sur ton serveur Minecraft — aucune clé à copier.",
       nameLabel: "Nom du serveur",
       namePlaceholder: "ex. Lobby, Survie…",
-      keyLabel: "Ta server key",
-      shownOnce: "une seule fois",
-      generated: "✓ Générée",
-      generating: "Génération…",
-      generate: "Générer la server key",
+      codeLabel: "Lance ceci sur ton serveur",
+      codeHint:
+        "Usage unique, expire dans 10 minutes. Écrit la crédential et connecte automatiquement.",
+      generated: "✓ Créé",
+      generating: "Création…",
+      generate: "Créer le serveur",
       copy: "Copier",
     },
     step3: {
@@ -1301,12 +1301,10 @@ const fr: typeof en = {
     },
     step4: {
       title: "Installe sur ton serveur",
-      configStep: "Ajoute ceci à ton config.yml Artisan",
-      keyStep: "Ta server key (à garder en lieu sûr)",
-      reloadStep: "Recharge le plugin",
-      reloadHint:
-        "Lance cette commande en jeu ou en console. Le plugin se connecte au backend et télécharge ton projet automatiquement.",
-      noKey: "(aucune clé générée)",
+      configStep: "Renseigne l'URL du backend dans ton config.yml Artisan",
+      linkStep: "Lance ceci dans la console de ton serveur",
+      linkHint:
+        "Le plugin échange le code, écrit sa crédential dans config.yml et télécharge ton projet automatiquement. Les codes sont à usage unique et expirent après 10 minutes.",
     },
   },
   sessionGone: {

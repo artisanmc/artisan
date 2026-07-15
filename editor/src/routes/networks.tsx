@@ -23,12 +23,12 @@ interface NetworkData {
   projects: ProjectSummary[];
 }
 
-/** Inline modal to reveal a plaintext server key after creation. */
+/** Inline modal shown after creating a server: the `/artisan link <code>` command. */
 function RevealKeyModal({
-  plainKey,
+  code,
   onClose,
 }: {
-  plainKey: string;
+  code: string;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -50,8 +50,8 @@ function RevealKeyModal({
         <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
           {t("networksHub.serverCreatedHint")}
         </p>
-        <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 text-[12.5px] text-[var(--text-mut)]">
-          {plainKey}
+        <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 text-[13px] text-[var(--text)]">
+          /artisan link {code}
         </code>
         <div className="flex justify-end">
           <button type="button" onClick={onClose} className="btn btn-sm btn-primary">
@@ -96,7 +96,11 @@ export function NetworksPage() {
     let cancelled = false;
     Promise.all(
       networks.map((n) =>
-        getNetwork(n.id).then((d) => ({ network: n, serverKeys: d.serverKeys, projects: d.projects })),
+        getNetwork(n.id).then((d) => ({
+          network: n,
+          serverKeys: d.serverKeys,
+          projects: d.projects,
+        })),
       ),
     )
       .then((results) => {
@@ -114,7 +118,7 @@ export function NetworksPage() {
     if (!addingServerTo) return;
     const created = await createServerKey(addingServerTo, label);
     useNetworksStore.getState().bumpRefresh(); // sync the sidebar
-    setRevealedKey(created.key);
+    setRevealedKey(created.code);
     // Refresh that network's data
     setNetworkData((prev) =>
       prev.map((nd) =>
@@ -261,9 +265,7 @@ export function NetworksPage() {
         onCreate={handleCreateServer}
       />
 
-      {revealedKey && (
-        <RevealKeyModal plainKey={revealedKey} onClose={() => setRevealedKey(null)} />
-      )}
+      {revealedKey && <RevealKeyModal code={revealedKey} onClose={() => setRevealedKey(null)} />}
     </div>
   );
 }

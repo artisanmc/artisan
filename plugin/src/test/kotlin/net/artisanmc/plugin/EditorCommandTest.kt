@@ -83,20 +83,6 @@ class EditorCommandTest {
     }
 
     @Test
-    fun `setup on a linked server is refused`() {
-        val plugin = MockBukkit.load(ArtisanPlugin::class.java)
-        plugin.config.set("server_key", "sk_" + "a".repeat(64))
-        val sender = MockBukkit.getMock()!!.consoleSender
-        val cmd = plugin.getCommand("artisan")!!
-        val result = cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("setup"))
-        assertTrue(result, "Command should return true")
-
-        val messages = drainMessages(sender)
-        assertTrue(messages.any { it.contains("already linked", ignoreCase = true) || it.contains("déjà lié", ignoreCase = true) },
-            "Expected an already-linked refusal message: $messages")
-    }
-
-    @Test
     fun `trusteditor is no longer a subcommand`() {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val sender = MockBukkit.getMock()!!.consoleSender

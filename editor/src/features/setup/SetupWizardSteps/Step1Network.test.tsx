@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as networksApi from "@/lib/api/networks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Step1Network } from "./Step1Network";
-import * as networksApi from "@/lib/api/networks";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WizardState } from "../SetupWizard";
+import { Step1Network } from "./Step1Network";
 
 const baseState: WizardState = {
   networkId: null,
   projectId: null,
-  serverKey: null,
+  linkCode: null,
   serverKeyId: null,
 };
 
