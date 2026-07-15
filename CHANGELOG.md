@@ -10,7 +10,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 ## [Unreleased]
 
 ### Added — data source explorer, live preview & menu filters
-- `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
+- `DataSourceRegistry.declarations()` (since 1.2.0). The `hello`/`modules_changed` `data_sources` payload is enriched this release (see the `server_data_sources` entry below) so the editor can surface live sources in the menu source picker.
 - `DataSourceDeclaration.fetcher` signature is now `(player: Player?, params) -> rows` — `null` = editor preview mode; player-dependent modules return generic data or throw the new `PlayerRequiredException`.
 - `DataSourceDeclaration.schema: List<DataSourceField>` (`FieldKind`: string/number/integer/boolean/list/object) — declared row fields, drives the editor's schema table + filter autocomplete.
 - `DataSourceRegistry` captures the owning module at `register()` (during `ModuleRegistry.register` → `onEnable`); new `registered(): List<RegisteredDataSource>` exposes `(declaration, moduleId)`.
