@@ -9,11 +9,13 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
-### Added — data source preview (Task 3 data-source-explorer)
-- POST /api/v1/networks/:nid/servers/:sid/data-sources/preview — live data source preview relayed to the plugin over the WS (data_source_fetch/-_result, 5 s timeout, typed errors).
-
-### Added — data-sources module_id + typed schema persisted (Task 2 data-source-explorer)
+### Added — data source explorer, live preview & menu filters
+- `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
+- `DataSourceDeclaration.fetcher` signature is now `(player: Player?, params) -> rows` — `null` = editor preview mode; player-dependent modules return generic data or throw the new `PlayerRequiredException`.
+- `DataSourceDeclaration.schema: List<DataSourceField>` (`FieldKind`: string/number/integer/boolean/list/object) — declared row fields, drives the editor's schema table + filter autocomplete.
+- `DataSourceRegistry` captures the owning module at `register()` (during `ModuleRegistry.register` → `onEnable`); new `registered(): List<RegisteredDataSource>` exposes `(declaration, moduleId)`.
 - `server_data_sources` table now stores `module_id` (text, null = core/third-party) and `schema_json` (text JSON, null = undeclared) reported by the plugin at `hello`/`modules_changed` — **migration 0021**. `GET /api/v1/networks/:networkId/servers/:serverId/data-sources` now returns enriched response `{ref, module_id, schema: [{name, type, description}][], schema_hint}` with typed schema parsed from JSON (tolerant to nulls/corruption), enabling the editor's data-sources explorer to scope by module ownership and validate bound columns against declared types.
+- `POST /api/v1/networks/:nid/servers/:sid/data-sources/preview` — live data source preview relayed to the plugin over the WS (data_source_fetch/-_result, 5 s timeout, typed errors).
 
 ### Added — network access requests (request → owner approval → membership)
 - `network_access_requests` table (`backend/src/lib/accessRequestStorage.ts`) : un non-membre peut demander l'accès à un network (`POST /api/v1/networks/:idOrSlug/access-requests`, `{message?}` cap 500, 409 `already_member`/`already_pending`), un membre `manage_members`-capable liste (`GET .../access-requests`) et résout (`POST .../access-requests/:requestId/approve|deny`) — approve crée la membership (`role: "member"`, tolérant à une membership déjà existante). Email `accessRequestEmail` (bilingue en/fr, `lib/mail/templates.ts`) envoyé fire-and-forget à chaque owner/admin sur une nouvelle demande.
@@ -44,8 +46,6 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - User-scoped presence endpoints (modules/data-sources) per server: `GET /api/v1/networks/:networkId/servers/:serverId/modules` and `…/data-sources`, cookie-auth twins of the session-mode `editor-session/:token/modules`/`…/data-sources` (Task 1 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
 - Menus resolve `context_inputs[].source` (ConnectorBinding) through the `DataSourceRegistry` at render time — modules can now feed menu iteration via `api.dataSources.register(...)` (menu/v1 §14, "Phase B").
-- `DataSourceRegistry.declarations()` (since 1.2.0); `hello` and `modules_changed` now report `data_sources: [{ref, schema_hint}]` so the editor can surface live sources in the menu source picker.
-- `GET /api/v1/editor-session/:token/data-sources` — data sources reported by the connected server.
 - run_command actions route namespaced commands ("boutique:buy {id}") to CommandRegistry handlers (modules.md §4.2 bridge); unknown refs fall back to Bukkit.
 - local_push seeds editorJson from pushed files on never-edited stubs (plugin-bootstrapped content becomes editable; module dirs land in Project.moduleData).
 - `@artisan/boutique-editor` — presence-gated frontend module for the Boutique Add-on (separate repo), mounted at `/m/boutique`. Reads/writes `Project.moduleData.boutique`, normalizes backend-seeded `__files` into a structured catalog, and derives `exportFiles()` → `boutique/shop.yaml` (modules.md §15).
