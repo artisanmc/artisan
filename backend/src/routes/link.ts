@@ -1,27 +1,13 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { getCookie } from "hono/cookie";
 import { db } from "../db/index";
-import { linkCodes, serverKeys, memberships, users, projects } from "../db/schema";
-import { generateCode, generateServerKey } from "../lib/auth";
-import { pushLinkConfirmed } from "../ws/hub";
-import { createNetwork } from "../lib/networkManager";
-import { addMembership } from "../lib/membershipManager";
-import { findSession } from "../lib/sessionManager";
-import { createProject } from "../lib/projectStorage";
-
-const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
+import { linkCodes, networks } from "../db/schema";
+import { redeemLinkCode } from "../lib/linkCodeStorage";
 
 const router = new Hono();
 
-router.post("/", async (c) => {
-  const code = generateCode();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
-  await db.insert(linkCodes).values({ code, createdAt: now, expiresAt });
-  return c.json({ code, url: `${EDITOR_URL}/link?code=${code}`, expires_at: expiresAt.toISOString() }, 201);
-});
-
+// GET /:code — link code status, for the editor "Add server" screen to show
+// whether the server has connected yet. No auth (the code is the bearer).
 router.get("/:code", async (c) => {
   const code = c.req.param("code");
   const rows = await db.select().from(linkCodes).where(eq(linkCodes.code, code));
@@ -32,129 +18,35 @@ router.get("/:code", async (c) => {
   return c.json({ status: "pending", code, expires_at: row.expiresAt.toISOString() });
 });
 
-router.post("/:code/claim", async (c) => {
-  // Auth gate — requires valid artisan_user_session cookie
-  const userSessionId = getCookie(c, "artisan_user_session");
-  if (!userSessionId) return c.json({ error: "unauthorized" }, 401);
-  const session = await findSession(userSessionId);
-  if (!session) return c.json({ error: "unauthorized" }, 401);
-  const userRows = await db.select().from(users).where(eq(users.id, session.userId));
-  if (userRows.length === 0) return c.json({ error: "unauthorized" }, 401);
-  const user = userRows[0];
-
+// POST /:code/redeem — the plugin (`/artisan link <code>`) exchanges the code
+// for the server_key secret. No auth: the code itself is the single-use bearer,
+// minted by an authenticated editor user when the server was added. The secret
+// is generated here (never stored in plaintext) and returned exactly once.
+router.post("/:code/redeem", async (c) => {
   const code = c.req.param("code");
-  const rows = await db.select().from(linkCodes).where(eq(linkCodes.code, code));
-  if (rows.length === 0) return c.json({ error: "Not found" }, 404);
-  const row = rows[0];
-  if (row.claimedAt) return c.json({ error: "Already claimed" }, 409);
-  if (row.expiresAt < new Date()) return c.json({ error: "Expired" }, 410);
-
-  // Body lets the caller pick or create the destination network AND pack in
-  // one shot. The legacy "smart count" path stays as a fallback when no body
-  // is sent, so older clients keep working.
-  let body: {
-    network_id?: unknown;
-    network_name?: unknown;
-    project_id?: unknown;
-    project_name?: unknown;
-    server_key_label?: unknown;
-  } = {};
-  try { body = await c.req.json(); } catch { /* empty body */ }
-  const networkIdInput = typeof body.network_id === "string" ? body.network_id : undefined;
-  const networkNameInput = typeof body.network_name === "string" ? body.network_name.trim() : undefined;
-  const projectIdInput = typeof body.project_id === "string" ? body.project_id : undefined;
-  const projectNameInput = typeof body.project_name === "string" ? body.project_name.trim() : undefined;
-  const serverKeyLabel = typeof body.server_key_label === "string"
-    ? body.server_key_label.trim() || null
-    : null;
-
-  if (networkIdInput && networkNameInput) {
-    return c.json({ error: "ambiguous_network" }, 400);
-  }
-  if (projectIdInput && projectNameInput) {
-    return c.json({ error: "ambiguous_project" }, 400);
-  }
-
-  // Resolve target network: explicit id > new (with name) > smart count fallback.
-  const userMemberships = await db
-    .select({ networkId: memberships.networkId })
-    .from(memberships)
-    .where(eq(memberships.userId, user.id));
-  const ownedNetworkIds = userMemberships.map((m) => m.networkId);
-
-  let targetNetworkId: string;
-  if (networkIdInput) {
-    if (!ownedNetworkIds.includes(networkIdInput)) {
-      return c.json({ error: "forbidden" }, 403);
+  const result = await redeemLinkCode(code);
+  if (!result.ok) {
+    switch (result.reason) {
+      case "expired":
+        return c.json({ error: "expired" }, 410);
+      case "claimed":
+        return c.json({ error: "already_redeemed" }, 409);
+      default:
+        return c.json({ error: "not_found" }, 404);
     }
-    targetNetworkId = networkIdInput;
-  } else if (networkNameInput) {
-    if (networkNameInput.length === 0) {
-      return c.json({ error: "invalid_network_name" }, 422);
-    }
-    const network = await createNetwork(networkNameInput);
-    await addMembership(user.id, network.id, "owner");
-    targetNetworkId = network.id;
-  } else if (ownedNetworkIds.length === 0) {
-    const network = await createNetwork("Mon Network");
-    await addMembership(user.id, network.id, "owner");
-    targetNetworkId = network.id;
-  } else if (ownedNetworkIds.length === 1) {
-    targetNetworkId = ownedNetworkIds[0]!;
-  } else {
-    return c.json({ error: "must_choose_network", networks: ownedNetworkIds }, 400);
   }
-
-  // Generate the server key id up-front so it can be embedded in the project row
-  // (projects.serverKeyId is NOT NULL — project creation requires an owning key).
-  const { id, key, hash } = await generateServerKey();
-
-  // Resolve target project: explicit id (within target network) > new (with name)
-  // > skip (no project created).
-  let targetProjectId: string | null = null;
-  if (projectIdInput) {
-    const projectRows = await db.select().from(projects).where(eq(projects.id, projectIdInput));
-    if (projectRows.length === 0 || projectRows[0]?.networkId !== targetNetworkId) {
-      return c.json({ error: "project_not_in_network" }, 404);
-    }
-    targetProjectId = projectIdInput;
-  }
-
-  // Insert the server key BEFORE any project creation — projects.serverKeyId
-  // is a NOT NULL FK, so creating the project first violates the constraint
-  // (fix from main 435d63b0, kept through the pack→project rename).
-  await db.insert(serverKeys).values({
-    id,
-    hash,
-    label: serverKeyLabel,
-    networkId: targetNetworkId,
-    createdAt: new Date(),
-  });
-
-  if (!targetProjectId && projectNameInput) {
-    if (projectNameInput.length === 0) {
-      return c.json({ error: "invalid_project_name" }, 422);
-    }
-    const project = await createProject({
-      networkId: targetNetworkId,
-      serverKeyId: id,
-      name: projectNameInput,
-      description: null,
-    });
-    targetProjectId = project.id;
-  }
-
-  await db.update(linkCodes).set({ claimedAt: new Date(), serverKeyId: id })
-    .where(eq(linkCodes.code, code));
-
-  // Push server_key to any plugin WS session waiting on this code.
-  pushLinkConfirmed(code, key);
-
-  return c.json({
-    server_key_id: id,
-    network_id: targetNetworkId,
-    project_id: targetProjectId,
-  }, 200);
+  const [net] = await db
+    .select({ name: networks.name })
+    .from(networks)
+    .where(eq(networks.id, result.networkId));
+  return c.json(
+    {
+      server_key: result.serverKey,
+      server_key_id: result.serverKeyId,
+      network_name: net?.name ?? null,
+    },
+    200,
+  );
 });
 
 export { router as linkRouter };

@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { listNetworks } from "@/lib/api/networks";
 import { useNetworksStore } from "@/state/networksStore";
+import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Step1Network } from "./SetupWizardSteps/Step1Network";
 import { Step2Server } from "./SetupWizardSteps/Step2Server";
 import { Step3Project } from "./SetupWizardSteps/Step3Project";
@@ -12,7 +12,8 @@ import { Step4Install } from "./SetupWizardSteps/Step4Install";
 export interface WizardState {
   networkId: string | null;
   projectId: string | null;
-  serverKey: string | null;
+  /** Link code minted when the server was created — run `/artisan link <code>`. */
+  linkCode: string | null;
   serverKeyId: string | null;
 }
 
@@ -46,7 +47,7 @@ export function SetupWizard() {
   const [state, setState] = useState<WizardState>({
     networkId: null,
     projectId: null,
-    serverKey: null,
+    linkCode: null,
     serverKeyId: null,
   });
 
@@ -97,8 +98,7 @@ export function SetupWizard() {
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
+          background: "radial-gradient(80% 60% at 50% 0%, rgba(223,107,65,.06), transparent 60%)",
         }}
       />
 
@@ -106,7 +106,15 @@ export function SetupWizard() {
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-2.5">
             <span className="pixel-mark">
-              <i /><i /><i /><i /><i /><i /><i /><i /><i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
             </span>
             <span className="text-[10.5px] font-semibold uppercase tracking-[.18em] text-[var(--text-mut)]">
               {t("setupWizard.eyebrow")}
@@ -150,10 +158,7 @@ export function SetupWizard() {
                     <div
                       className="-mt-4 h-px flex-1"
                       style={{
-                        background:
-                          isDone
-                            ? "var(--brand)"
-                            : "var(--border-soft)",
+                        background: isDone ? "var(--brand)" : "var(--border-soft)",
                       }}
                     />
                   )}

@@ -25,7 +25,7 @@ export function Step2Server({ state, setState }: Props) {
     try {
       const sk = await networksApi.createServerKey(state.networkId, name.trim());
       useNetworksStore.getState().bumpRefresh(); // sync the sidebar
-      setState((s) => ({ ...s, serverKey: sk.key, serverKeyId: sk.id }));
+      setState((s) => ({ ...s, linkCode: sk.code, serverKeyId: sk.id }));
       setDone(true);
     } finally {
       setGenerating(false);
@@ -33,8 +33,8 @@ export function Step2Server({ state, setState }: Props) {
   }
 
   async function handleCopy() {
-    if (!state.serverKey) return;
-    await navigator.clipboard.writeText(state.serverKey);
+    if (!state.linkCode) return;
+    await navigator.clipboard.writeText(`/artisan link ${state.linkCode}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   }
@@ -61,18 +61,15 @@ export function Step2Server({ state, setState }: Props) {
         />
       </div>
 
-      {state.serverKey && (
+      {state.linkCode && (
         <div className="flex flex-col gap-2">
           <span className="field-label flex items-center gap-2">
-            <Key className="size-[12px] text-[var(--warning)]" />
-            {t("setupWizard.step2.keyLabel")}
-            <span className="ml-1 rounded-full bg-[var(--warning-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--warning)]">
-              {t("setupWizard.step2.shownOnce")}
-            </span>
+            <Key className="size-[12px] text-[var(--brand)]" />
+            {t("setupWizard.step2.codeLabel")}
           </span>
           <div className="relative">
-            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--text-mut)]">
-              {state.serverKey}
+            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[13px] text-[var(--text)]">
+              /artisan link {state.linkCode}
             </code>
             <button
               type="button"
@@ -87,6 +84,9 @@ export function Step2Server({ state, setState }: Props) {
               )}
             </button>
           </div>
+          <span className="text-[11px] text-[var(--text-faint)]">
+            {t("setupWizard.step2.codeHint")}
+          </span>
         </div>
       )}
 

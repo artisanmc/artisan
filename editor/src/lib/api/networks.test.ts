@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  ClaimError,
   acceptNetworkTransfer,
-  claimLinkCode,
   createNetwork,
   createProject,
   createServerKey,
@@ -197,101 +195,6 @@ describe("network transfer API clients", () => {
     await expect(deleteServerKey("net_x", "sk_y")).rejects.toThrow(
       "Server key delete failed (403)",
     );
-  });
-});
-
-describe("claimLinkCode", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("returns body on 200", async () => {
-    const body = { server_key_id: "sk", network_id: "n1" };
-    global.fetch = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
-    expect(await claimLinkCode("ABC")).toEqual(body);
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/v1\/link\/ABC\/claim$/),
-      expect.objectContaining({ method: "POST" }),
-    );
-  });
-
-  it("throws ClaimError('must_choose_network') on 400", async () => {
-    global.fetch = vi.fn(
-      async () => new Response(JSON.stringify({ error: "must_choose_network" }), { status: 400 }),
-    );
-    try {
-      await claimLinkCode("ABC");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(ClaimError);
-      expect((e as ClaimError).code).toBe("must_choose_network");
-    }
-  });
-
-  it("throws ClaimError('unauthorized') on 401", async () => {
-    global.fetch = vi.fn(async () => new Response(null, { status: 401 }));
-    try {
-      await claimLinkCode("ABC");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(ClaimError);
-      expect((e as ClaimError).code).toBe("unauthorized");
-    }
-  });
-
-  it("throws ClaimError('forbidden') on 403", async () => {
-    global.fetch = vi.fn(async () => new Response(null, { status: 403 }));
-    try {
-      await claimLinkCode("ABC");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(ClaimError);
-      expect((e as ClaimError).code).toBe("forbidden");
-    }
-  });
-
-  it("throws ClaimError('already_claimed') on 409", async () => {
-    global.fetch = vi.fn(async () => new Response(null, { status: 409 }));
-    try {
-      await claimLinkCode("ABC");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(ClaimError);
-      expect((e as ClaimError).code).toBe("already_claimed");
-    }
-  });
-
-  it("throws ClaimError('expired') on 410", async () => {
-    global.fetch = vi.fn(async () => new Response(null, { status: 410 }));
-    try {
-      await claimLinkCode("ABC");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(ClaimError);
-      expect((e as ClaimError).code).toBe("expired");
-    }
-  });
-
-  it("passes network_id in body when provided", async () => {
-    const fetchSpy = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ server_key_id: "sk", network_id: "n1" }), { status: 200 }),
-    );
-    global.fetch = fetchSpy as never;
-    await claimLinkCode("ABC", { networkId: "n1" });
-    const opts = fetchSpy.mock.calls[0]![1] as RequestInit;
-    expect(JSON.parse(opts.body as string)).toEqual({ network_id: "n1" });
-  });
-
-  it("sends empty body when networkId not provided", async () => {
-    const fetchSpy = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ server_key_id: "sk", network_id: "n1" }), { status: 200 }),
-    );
-    global.fetch = fetchSpy as never;
-    await claimLinkCode("ABC");
-    const opts = fetchSpy.mock.calls[0]![1] as RequestInit;
-    expect(JSON.parse(opts.body as string)).toEqual({});
   });
 });
 

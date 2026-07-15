@@ -1,6 +1,7 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.config.deriveHttpBaseUrl
 import org.bukkit.configuration.file.YamlConfiguration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,6 +9,21 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PluginConfigTest {
+    @Test
+    fun `deriveHttpBaseUrl strips ws path and swaps scheme`() {
+        assertEquals("https://editor.artisanmc.net", deriveHttpBaseUrl("wss://editor.artisanmc.net/ws/plugin"))
+        assertEquals("http://localhost:3001", deriveHttpBaseUrl("ws://localhost:3001/ws/plugin"))
+        assertEquals("https://host:8443", deriveHttpBaseUrl("wss://host:8443/ws/plugin"))
+        assertEquals("", deriveHttpBaseUrl(""))
+    }
+
+    @Test
+    fun `httpBaseUrl derived from ws_url on the config`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("server_key: \"\"\nws_url: \"wss://editor.artisanmc.net/ws/plugin\"")
+        assertEquals("https://editor.artisanmc.net", PluginConfig.from(yaml).httpBaseUrl)
+    }
+
     @Test
     fun `resource-pack defaults parsed correctly`() {
         val yaml = YamlConfiguration()

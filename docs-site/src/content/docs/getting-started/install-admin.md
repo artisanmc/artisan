@@ -23,27 +23,28 @@ because no `server_key` is set yet.
 
 ## 2. Link your server
 
-### Option A — guided setup (recommended)
+Linking is **editor-first**: you add the server in the web editor, which gives
+you a one-time code, and you run that code on your Minecraft server.
 
-Run `/artisan setup` in-game or from the console. A clickable link appears in
-chat. Open it in your browser, follow the pairing flow, and the server key
-is written to `config.yml` automatically. The plugin reconnects
-immediately — no restart needed.
+1. First, point the plugin at the backend. Open `plugins/Artisan/config.yml`:
 
-### Option B — manual
+   ```yaml
+   ws_url: "wss://editor.artisanmc.net/ws/plugin"
+   ```
 
-Get a `server_key` from your Artisan dashboard. Open
-`plugins/Artisan/config.yml` and paste it:
+   Adjust `ws_url` only if you are self-hosting the backend. Leave `server_key`
+   empty — `/artisan link` fills it in.
 
-```yaml
-server_key: "sk_live_..."
-ws_url: "wss://editor.artisanmc.net/ws/plugin"
-```
+2. In the editor, create a network and **Add a server**. You'll get a command
+   like `/artisan link ABCD2345`.
 
-Adjust `ws_url` if you are self-hosting the backend.
+3. Run that command in-game or from the console. The plugin redeems the code,
+   writes the `server_key` to `config.yml`, and connects immediately — no
+   restart needed. Codes are single-use and expire after 10 minutes.
 
-Then run `/artisan reload` (or restart). The log should show a successful
-connection to the backend.
+To **re-link** a server later (rotate its key, or move it to a different server
+entry), use **Re-link / new code** on the server card in the editor and run the
+new `/artisan link <code>` — it rotates the key in place, keeping your projects.
 
 ## 3. Open the editor
 
@@ -55,9 +56,9 @@ In-game, run:
 
 The command requires the `artisan.editor` permission, granted to ops by default. If running it as a non-op produces no response, grant the permission via your permissions plugin (LuckPerms, PermissionsEx, etc.) or run from console.
 
-If the server is linked and connected to the backend, this prints a clickable link to your Artisan editor along with the network it belongs to — no session or trust code involved, it's the same static URL every time. If the server is linked but the backend connection hasn't come up yet (e.g. just after a restart), it tells you to retry shortly. If the server is not yet linked, it prints a hint and starts the guided linking flow from step 2.
+If the server is linked and connected to the backend, this prints a clickable deep-link straight to this server's page in the editor, along with the network it belongs to. If the server is linked but the backend connection hasn't come up yet (e.g. just after a restart), it tells you to retry shortly. If the server is not yet linked, it prints the editor home URL so you can add the server there and get a link code.
 
-Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account used during `/artisan setup` is added automatically; invite teammates from the network settings page).
+Opening the editor URL requires signing in with your Artisan account, and that account must be a **member of the network** the server is linked to (the account that created the network is the owner; invite teammates from the network settings page).
 
 If a logged-in user without network membership clicks the link, they see a **"Request access"** panel where they can optionally add a message and submit a request. The network owner receives an email notification (if SMTP is configured) and can approve or deny the request from the **Members** section of the network settings. Once approved, the user gains membership and can access all servers and projects in the network.
 
@@ -75,8 +76,8 @@ From the web editor, click your network name in the top bar, then **Members**. A
 | `/artisan reload` | Reload all menus from disk. |
 | `/artisan sync status` | Show the last sync status with the backend. |
 | `/artisan sync reject` | Reload menus from disk and reconnect to the backend. |
-| `/artisan editor` | Print the static editor link + network name if linked (requires `artisan.editor` permission), otherwise start the linking flow. |
-| `/artisan setup [code]` | Start the guided server-linking flow (clickable pairing link). Optional `code` argument lets you reuse an existing pairing code instead of generating a new one. Refuses with a message if the server is already linked. |
+| `/artisan editor` | Print the deep-link to this server's editor page + network name if linked (requires `artisan.editor` permission), otherwise print the editor home URL to add the server. |
+| `/artisan link <code>` | Redeem a link code from the editor: writes the `server_key` to `config.yml` and connects. On an already-linked server it rotates the key in place. Codes are single-use and expire after 10 minutes. |
 | `/artisan pushLocal <id\|--all>` | Push local on-disk project changes to the backend (FTP scenario). |
 
 ## 6. Billing administration (super-admins)

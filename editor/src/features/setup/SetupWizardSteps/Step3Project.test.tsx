@@ -8,7 +8,7 @@ import { Step3Project } from "./Step3Project";
 const stateWithServer: WizardState = {
   networkId: "n1",
   projectId: null,
-  serverKey: "artisan_sk_xxx",
+  linkCode: "ABCD2345",
   serverKeyId: "sk-1",
 };
 
@@ -25,7 +25,13 @@ describe("Step3Project", () => {
       network: { id: "n1", name: "Survival", tier: "free" },
       projects: [
         { id: "p1", name: "This Server Project", hash: "h1", networkId: "n1", serverKeyId: "sk-1" },
-        { id: "p2", name: "Other Server Project", hash: "h2", networkId: "n1", serverKeyId: "sk-2" },
+        {
+          id: "p2",
+          name: "Other Server Project",
+          hash: "h2",
+          networkId: "n1",
+          serverKeyId: "sk-2",
+        },
       ],
       serverKeys: [],
     });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-type Action = "edit" | "rotate" | "history" | "allowlist" | "delete";
+type Action = "edit" | "relink" | "history" | "allowlist" | "delete";
 
 interface Props {
   serverId: string;
@@ -55,7 +55,7 @@ export function ServerKebabMenu({ serverId, onAction }: Props) {
           className="absolute right-0 z-10 mt-1 flex min-w-[200px] flex-col rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-md"
         >
           {item("edit", t("serverKebab.edit"))}
-          {item("rotate", t("serverKebab.rotate"))}
+          {item("relink", t("serverKebab.relink"))}
           <div className="my-1 border-t border-[var(--border-soft)]" />
           {item("history", t("serverKebab.history"))}
           {item("allowlist", t("serverKebab.allowlist"))}

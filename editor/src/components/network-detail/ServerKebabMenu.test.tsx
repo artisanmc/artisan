@@ -12,8 +12,8 @@ describe("ServerKebabMenu", () => {
     expect(screen.getAllByRole("menuitem")).toHaveLength(5);
     // "Edit server…" / "Modifier le serveur…"
     expect(screen.getByRole("menuitem", { name: /edit|modifier/i })).toBeInTheDocument();
-    // "Generate new key…" / "Générer une nouvelle clé…"
-    expect(screen.getByRole("menuitem", { name: /generate|générer/i })).toBeInTheDocument();
+    // "Re-link / new code…" / "Re-lier / nouveau code…"
+    expect(screen.getByRole("menuitem", { name: /re-link|re-lier/i })).toBeInTheDocument();
     // "Connection history" / "Historique de connexion"
     expect(screen.getByRole("menuitem", { name: /history|historique/i })).toBeInTheDocument();
     // "IP allowlist" / "Allowlist d'IP"
@@ -21,7 +21,7 @@ describe("ServerKebabMenu", () => {
     // "Delete server…" / "Supprimer le serveur…"
     expect(screen.getByRole("menuitem", { name: /delete|supprimer/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /generate|générer/i }));
-    expect(onAction).toHaveBeenCalledWith("rotate", "sk1");
+    fireEvent.click(screen.getByRole("menuitem", { name: /re-link|re-lier/i }));
+    expect(onAction).toHaveBeenCalledWith("relink", "sk1");
   });
 });

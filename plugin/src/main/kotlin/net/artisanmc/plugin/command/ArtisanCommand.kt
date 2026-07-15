@@ -5,11 +5,8 @@ import net.artisanmc.plugin.config.ConfigWriter
 import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.TitleCompiler
-import net.artisanmc.plugin.ws.SetupClient
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.event.ClickEvent
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.format.TextDecoration
+import net.artisanmc.plugin.ws.LinkClient
+import net.artisanmc.plugin.ws.LinkResult
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -23,18 +20,15 @@ class ArtisanCommand(
     private val lang: LangManager,
 ) : CommandExecutor, TabCompleter {
 
-    @Volatile private var setupClient: SetupClient? = null
-
     fun shutdown() {
-        setupClient?.disconnect()
-        setupClient = null
+        // Nothing to tear down: `/artisan link` is a one-shot blocking REST call.
     }
 
     override fun onTabComplete(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "setup", "editor", "dump-title", "pushLocal")
+            args.size == 1 -> listOf("menu", "reload", "sync", "link", "editor", "dump-title", "pushLocal")
                 .filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
@@ -81,7 +75,7 @@ class ArtisanCommand(
                     else -> sender.sendMessage(lang.get("artisan.usage_sync", sender))
                 }
             }
-            "setup" -> setup(sender, args.getOrNull(1)?.uppercase())
+            "link" -> link(sender, args.getOrNull(1)?.uppercase())
             "editor" -> editor(sender)
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
@@ -233,56 +227,60 @@ class ArtisanCommand(
                 sender.sendMessage(lang.get("artisan.editor_linked", senderLang, "network" to networkName, "url" to url))
             }
             cfg.serverKey.isEmpty() -> {
-                // Not linked at all: show hint and start setup flow
-                sender.sendMessage(lang.get("artisan.editor_not_linked_hint", senderLang))
-                setup(sender, null)
+                // Not linked: point at the editor home so the admin can add the
+                // server there, which prints a code for `/artisan link <code>`.
+                val home = cfg.httpBaseUrl.ifEmpty { "https://editor.artisanmc.net" }
+                sender.sendMessage(lang.get("artisan.editor_not_linked", senderLang, "url" to home))
             }
             else -> {
-                // Linked but not yet connected to backend (e.g., backend down at boot)
+                // Linked but not yet connected to backend (e.g., backend down at boot).
                 sender.sendMessage(lang.get("artisan.editor_connecting", senderLang))
             }
         }
     }
 
-    private fun setup(sender: CommandSender, code: String?) {
+    /**
+     * Redeem a link code minted by the editor when the Server was added, writing
+     * the returned secret to config.yml and reconnecting. Running this on an
+     * already-linked server **overwrites** the key (rotation / re-link) — the code
+     * is explicit intent, so we proceed with a WARN rather than block.
+     */
+    private fun link(sender: CommandSender, code: String?) {
         val cfg = PluginConfig.from(plugin.config)
         val senderLang = lang.playerLang(sender)
+        if (code.isNullOrBlank()) {
+            sender.sendMessage(lang.get("artisan.link_usage", senderLang))
+            return
+        }
+        if (cfg.httpBaseUrl.isEmpty()) {
+            sender.sendMessage(lang.get("artisan.link_ws_missing", senderLang))
+            return
+        }
         if (cfg.serverKey.isNotEmpty()) {
-            sender.sendMessage(lang.get("artisan.setup_already_linked", senderLang))
-            return
+            plugin.logger.warning("[link] Server already linked — /artisan link overwrites the existing key.")
         }
-        setupClient?.disconnect()
-        setupClient = null
-        if (cfg.wsUrl.isEmpty()) {
-            sender.sendMessage(lang.get("artisan.setup_ws_missing", senderLang))
-            return
-        }
-        sender.sendMessage(lang.get("artisan.setup_connecting", senderLang))
+        sender.sendMessage(lang.get("artisan.link_connecting", senderLang))
         val configFile = plugin.dataFolder.resolve("config.yml")
-        setupClient = SetupClient(
-            url = cfg.wsUrl,
-            code = code,
-            onCode = { _, url ->
-                plugin.logger.info("Setup link: $url")
-                Bukkit.getScheduler().runTask(plugin, Runnable {
-                    val link = Component.text(lang.getRaw("artisan.setup_link_label", senderLang))
-                        .color(NamedTextColor.AQUA)
-                        .decorate(TextDecoration.UNDERLINED)
-                        .clickEvent(ClickEvent.openUrl(url))
-                    sender.sendMessage(lang.get("artisan.prefix", senderLang).append(link))
-                })
-            },
-            onLinked = { serverKey ->
-                ConfigWriter.writeServerKey(configFile, serverKey)
-                plugin.logger.info("Server linked (server_key written to config.yml)")
-                Bukkit.getScheduler().runTask(plugin, Runnable {
-                    sender.sendMessage(lang.get("artisan.setup_linked", senderLang))
-                    plugin.reloadConfig()
-                    plugin.reinit(PluginConfig.from(plugin.config))
-                    sender.sendMessage(lang.get("artisan.setup_ready", senderLang))
-                })
-            },
-        )
-        setupClient!!.connect()
+        val client = LinkClient(cfg.httpBaseUrl)
+        // Blocking REST call off the main thread; hop back for config + reinit.
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            val result = client.redeem(code)
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                when (result) {
+                    is LinkResult.Success -> {
+                        ConfigWriter.writeServerKey(configFile, result.serverKey)
+                        plugin.logger.info("Server linked (server_key written to config.yml)")
+                        sender.sendMessage(lang.get("artisan.link_linked", senderLang))
+                        plugin.reloadConfig()
+                        plugin.reinit(PluginConfig.from(plugin.config))
+                        sender.sendMessage(lang.get("artisan.link_ready", senderLang))
+                    }
+                    is LinkResult.Failure -> {
+                        plugin.logger.warning("[link] redeem failed: ${result.reason}")
+                        sender.sendMessage(lang.get("artisan.link_failed", senderLang, "reason" to result.reason))
+                    }
+                }
+            })
+        })
     }
 }
