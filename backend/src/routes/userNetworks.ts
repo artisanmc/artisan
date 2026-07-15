@@ -16,6 +16,7 @@ import {
 	users,
 } from "../db/schema";
 import { generateServerKey } from "../lib/auth";
+import { mintLinkCode } from "../lib/linkCodeStorage";
 import { can, type Role } from "../lib/capabilities";
 import {
 	createRequest,
@@ -319,16 +320,43 @@ userNetworksRouter.post(
 		const label = typeof body.label === "string" ? body.label : null;
 
 		const slug = await allocServerSlug(networkId, label);
-		const { id, key, hash } = await generateServerKey();
+		// Created unredeemed (hash NULL, no secret): the admin runs
+		// `/artisan link <code>` on the server, which mints + returns the secret.
+		const id = "srv_" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
 		await db.insert(serverKeys).values({
 			id,
-			hash,
+			hash: null,
 			label,
 			slug,
 			networkId,
 			createdAt: new Date(),
 		});
-		return c.json({ id, key, label, slug }, 201);
+		const { code, expiresAt } = await mintLinkCode(id);
+		return c.json({ id, label, slug, code, expires_at: expiresAt.toISOString() }, 201);
+	},
+);
+
+// POST /api/networks/:id/server-keys/:keyId/link-code — mint a fresh link code
+// for an existing server key (re-link / rotate). manage_servers only.
+userNetworksRouter.post(
+	"/:id/server-keys/:keyId/link-code",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("id");
+		const keyId = c.req.param("keyId");
+		try {
+			await requireCapability(userId, networkId, "manage_servers");
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const rows = await db
+			.select({ id: serverKeys.id })
+			.from(serverKeys)
+			.where(and(eq(serverKeys.id, keyId), eq(serverKeys.networkId, networkId)));
+		if (rows.length === 0) return c.json({ error: "server_key_not_in_network" }, 404);
+		const { code, expiresAt } = await mintLinkCode(keyId);
+		return c.json({ code, expires_at: expiresAt.toISOString() }, 201);
 	},
 );
 

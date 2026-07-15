@@ -56,8 +56,8 @@ cd plugin
 - `/artisan menu <projectId> <menuId>` — open menu editor session
 - `/artisan reload` — reload all projects from disk
 - `/artisan pushLocal <projectId>` — push local project changes to backend (for FTP scenario: admin edits YAML on disk → push before reconnecting, else backend overwrites on next sync)
-- `/artisan editor` — **purement informatif**, accounts-only (aucune session/trust en jeu). Linké + connecté → imprime l'URL statique de l'éditeur + le nom du network (`editor_url`/`network_name` de `hello_ack`). Linké mais pas encore connecté → « connecting, retry shortly ». Pas linké → hint + délègue au flow `/artisan setup`.
-- `/artisan setup [code]` — flow de link (code de pairing cliquable, claim web avec compte requis). Refuse avec un message si le serveur est déjà linké.
+- `/artisan editor` — **purement informatif**, accounts-only (aucune session/trust en jeu). Linké + connecté → imprime le deep-link `server_url` + le nom du network (`hello_ack`). Linké mais pas encore connecté → « connecting, retry shortly ». Pas linké → imprime l'URL home de l'éditeur (dérivée de `ws_url`) pour aller créer le serveur.
+- `/artisan link <code>` — **editor-first linking** (cf. ADR `editor-first-server-linking`). Le code est minté par l'éditeur quand on ajoute un serveur ; la commande le redeem via `POST /api/v1/link/:code/redeem` (dérive la base HTTP de `ws_url`), écrit le `server_key` dans `config.yml` (`ConfigWriter.writeServerKey`), reinit + connecte. Sur un serveur **déjà lié** → **écrase** la clé (rotation / bascule), WARN log, pas de refus. `/artisan setup` (+ `SetupClient` WS pairing) a été supprimé le 2026-07-15.
 
 ### Backend (Bun + Hono + PostgreSQL)
 
@@ -240,7 +240,7 @@ Le champ `title` d'un menu est un `MenuTitleLayer[]` (background / glyph / text 
 | `API_BASE_URL` | `http://localhost:3001` | URL publique du backend (envoyée dans `hello_ack.api_url`) |
 | `BUNDLE_BASE_URL` | `= API_BASE_URL` | URL utilisée dans `bundle_available.url` (**plugin → download du bundle menus**, donc côté réseau Docker = `http://backend:3001`) |
 | `RESOURCE_PACK_BASE_URL` | `= API_BASE_URL` | URL utilisée dans les URLs de resource pack envoyées au joueur via `setResourcePack` (**doit être joignable depuis la machine du joueur**, pas le réseau Docker). Override en prod avec l'URL publique. |
-| `EDITOR_URL` | `http://localhost:5173` | Origin browser-facing de l'éditeur — utilisée pour `cors({ origin })` sur `/api/v1/*` **et** renvoyée dans `hello_ack.editor_url` (affichée par `/artisan editor`) + dans le lien `setup_code.url` (`/link?code=`). Override en prod avec l'URL publique de l'éditeur (ex. `https://artisanmc.net`). |
+| `EDITOR_URL` | `http://localhost:5173` | Origin browser-facing de l'éditeur — utilisée pour `cors({ origin })` sur `/api/v1/*` **et** pour construire `hello_ack.server_url`/`editor_url`. Override en prod avec l'URL publique de l'éditeur (ex. `https://artisanmc.net`). |
 | `DISCORD_CLIENT_ID` | (vide) | OAuth Discord — laisser vide désactive le bouton "Continue with Discord" |
 | `DISCORD_CLIENT_SECRET` | (vide) | OAuth Discord |
 | `DISCORD_REDIRECT_URI` | `http://localhost:3001/api/auth/discord/callback` | URI de callback configurée dans la Discord Developer Portal |

@@ -437,44 +437,6 @@ describe("handlePluginMessage", () => {
   });
 });
 
-describe("setup_request", () => {
-  test("returns setup_code with 8-char code and url", async () => {
-    const connId = "conn-setup-req";
-    registerConn(connId, () => {});
-    const result = await handlePluginMessage(connId, JSON.stringify({ type: "setup_request" }));
-    expect(result.reply).not.toBeNull();
-    const msg = JSON.parse(result.reply!) as { type: string; code: string; url: string; expires_at: string };
-    expect(msg.type).toBe("setup_code");
-    expect(msg.code).toMatch(/^[A-Z2-9]{8}$/);
-    expect(msg.url).toContain(msg.code);
-    expect(new Date(msg.expires_at).getTime()).toBeGreaterThan(Date.now());
-  });
-});
-
-describe("setup_claim", () => {
-  test("valid code returns link_confirmed and pushes it to the registered conn", async () => {
-    const createRes = await app.request("/api/v1/link", { method: "POST" });
-    const { code } = (await createRes.json()) as { code: string };
-
-    const received: string[] = [];
-    const connId = "conn-setup-claim";
-    registerConn(connId, (msg) => received.push(msg));
-
-    await handlePluginMessage(connId, JSON.stringify({ type: "setup_claim", code }));
-    expect(received.length).toBe(1);
-    const msg = JSON.parse(received[0]) as { type: string; server_key: string };
-    expect(msg.type).toBe("link_confirmed");
-    expect(msg.server_key).toMatch(/^sk_[0-9a-f]{64}$/);
-  });
-
-  test("expired or unknown code returns null reply", async () => {
-    const connId = "conn-setup-claim-bad";
-    registerConn(connId, () => {});
-    const result = await handlePluginMessage(connId, JSON.stringify({ type: "setup_claim", code: "BADCODE1" }));
-    expect(result.reply).toBeNull();
-  });
-});
-
 describe("broadcastDraftUpdate", () => {
   test("pushes draft_update to other editor connections for the same server", async () => {
     const { id: keyId } = await seedServerKey();

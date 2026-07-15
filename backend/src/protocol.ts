@@ -61,20 +61,6 @@ export interface DraftUpdateMessage {
 export interface PingMessage { type: "ping" }
 export interface PongMessage { type: "pong" }
 
-export interface SetupRequestMessage { type: "setup_request" }
-export interface SetupClaimMessage   { type: "setup_claim"; code: string }
-
-export interface SetupCodeMessage {
-  type: "setup_code";
-  code: string;
-  url: string;
-  expires_at: string;
-}
-export interface LinkConfirmedMessage {
-  type: "link_confirmed";
-  server_key: string;
-}
-
 // Plugin → backend: sent on hot-reload when custom items change
 export interface CustomItemsChangedMessage {
   type: "custom_items_changed";
@@ -155,8 +141,6 @@ export interface DataSourceFetchResultMessage {
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
-  | SetupRequestMessage
-  | SetupClaimMessage
   | CustomItemsChangedMessage
   | CustomItemsBundleMessage
   | LocalPushMessage
@@ -174,8 +158,6 @@ export type ServerToPluginMessage =
   | BundleAvailableMessage
   | DraftUpdateMessage
   | PingMessage
-  | SetupCodeMessage
-  | LinkConfirmedMessage
   | CustomItemsRequestMessage
   | ResourcePackUpdatedMessage
   | ProjectDeletedMessage

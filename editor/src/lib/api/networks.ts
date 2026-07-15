@@ -87,21 +87,23 @@ export async function getNetworkServersStatus(
   networkId: string,
   currentServerKeyId?: string,
 ): Promise<NetworkServersStatus> {
-  const q = currentServerKeyId
-    ? `?current=${encodeURIComponent(currentServerKeyId)}`
-    : "";
-  const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/servers-status${q}`,
-    { credentials: "include" },
-  );
+  const q = currentServerKeyId ? `?current=${encodeURIComponent(currentServerKeyId)}` : "";
+  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/servers-status${q}`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error(`getNetworkServersStatus failed: ${res.status}`);
   return res.json();
 }
 
+/**
+ * Create a server in a network. The key is created *unredeemed* (no secret yet);
+ * the returned `code` is what the admin runs as `/artisan link <code>` on the
+ * Minecraft server to mint + fetch the secret. No plaintext key is returned.
+ */
 export async function createServerKey(
   networkId: string,
   label?: string,
-): Promise<{ id: string; key: string; label: string | null; slug?: string }> {
+): Promise<{ id: string; label: string | null; slug?: string; code: string; expires_at: string }> {
   const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/server-keys`, {
     method: "POST",
     credentials: "include",
@@ -109,6 +111,23 @@ export async function createServerKey(
     body: JSON.stringify(label !== undefined ? { label } : {}),
   });
   if (!res.ok) throw new Error(`createServerKey failed: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Mint a fresh link code for an existing server (re-link / rotate). Running
+ * `/artisan link <code>` with it rotates the server's key in place — same row,
+ * same projects, no duplicate.
+ */
+export async function mintServerLinkCode(
+  networkId: string,
+  serverKeyId: string,
+): Promise<{ code: string; expires_at: string }> {
+  const res = await fetch(
+    `${API_URL}/api/v1/networks/${networkId}/server-keys/${serverKeyId}/link-code`,
+    { method: "POST", credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`mintServerLinkCode failed: ${res.status}`);
   return res.json();
 }
 
@@ -318,77 +337,4 @@ export async function setServerKeyAllowlist(
   );
   if (!res.ok) throw new Error(`setServerKeyAllowlist failed (${res.status})`);
   return ((await res.json()) as { allowed_ips: string[] | null }).allowed_ips;
-}
-
-// ─── Link claim (called from /link wizard) ─────────────────────────────────
-
-export class ClaimError extends Error {
-  constructor(
-    public readonly code:
-      | "must_choose_network"
-      | "ambiguous_network"
-      | "ambiguous_project"
-      | "project_not_in_network"
-      | "invalid_network_name"
-      | "invalid_project_name"
-      | "unauthorized"
-      | "forbidden"
-      | "expired"
-      | "already_claimed"
-      | "unknown",
-  ) {
-    super(code);
-  }
-}
-
-export interface ClaimLinkInput {
-  /** Existing network to attach the server_key to. XOR with `networkName`. */
-  networkId?: string;
-  /** When provided, a new network with this name is created + claimed. */
-  networkName?: string;
-  /** Existing project to bind to the new server_key. XOR with `projectName`. */
-  projectId?: string;
-  /** When provided, a new project with this name is created in the target network + bound. */
-  projectName?: string;
-  /** Optional label for the generated server_key (e.g. "Survival-Main"). */
-  serverKeyLabel?: string;
-}
-
-export async function claimLinkCode(
-  code: string,
-  input: ClaimLinkInput = {},
-): Promise<{ server_key_id: string; network_id: string; project_id: string | null }> {
-  const body: Record<string, string> = {};
-  if (input.networkId) body.network_id = input.networkId;
-  if (input.networkName) body.network_name = input.networkName;
-  if (input.projectId) body.project_id = input.projectId;
-  if (input.projectName) body.project_name = input.projectName;
-  if (input.serverKeyLabel) body.server_key_label = input.serverKeyLabel;
-
-  const res = await fetch(`${API_URL}/api/v1/link/${code}/claim`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (res.ok) return res.json();
-  const errorBody = (await res.json().catch(() => ({}))) as { error?: string };
-  const errorCode = errorBody.error;
-  if (res.status === 400 && errorCode === "must_choose_network")
-    throw new ClaimError("must_choose_network");
-  if (res.status === 400 && errorCode === "ambiguous_network")
-    throw new ClaimError("ambiguous_network");
-  if (res.status === 400 && errorCode === "ambiguous_project")
-    throw new ClaimError("ambiguous_project");
-  if (res.status === 404 && errorCode === "project_not_in_network")
-    throw new ClaimError("project_not_in_network");
-  if (res.status === 422 && errorCode === "invalid_network_name")
-    throw new ClaimError("invalid_network_name");
-  if (res.status === 422 && errorCode === "invalid_project_name")
-    throw new ClaimError("invalid_project_name");
-  if (res.status === 401) throw new ClaimError("unauthorized");
-  if (res.status === 403) throw new ClaimError("forbidden");
-  if (res.status === 409) throw new ClaimError("already_claimed");
-  if (res.status === 410) throw new ClaimError("expired");
-  throw new ClaimError("unknown");
 }

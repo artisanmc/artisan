@@ -12,7 +12,7 @@ import {
   createServerKey,
   deleteServerKey,
   getNetwork,
-  rotateServerKey,
+  mintServerLinkCode,
   updateServerKey,
 } from "@/lib/api/networks";
 import { displayServerLabel } from "@/lib/serverLabel";
@@ -55,7 +55,7 @@ export function NetworkDetailPage() {
     label: string;
     projectCount: number;
   } | null>(null);
-  const [revealedKey, setRevealedKey] = useState<{ keyId: string; key: string } | null>(null);
+  const [revealedCode, setRevealedCode] = useState<{ keyId: string; code: string } | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
 
@@ -106,13 +106,12 @@ export function NetworkDetailPage() {
   }
 
   const handleAction = async (action: string, serverId: string) => {
-    if (action === "rotate") {
-      // V1: secrets are never stored in clear (hash only), so generating a new
-      // key is the only way to surface a usable plaintext value — used both for
-      // first-time retrieval and deliberate rotation. Always confirm.
-      if (!window.confirm(t("networkDetail.confirmRotateKey"))) return;
-      const result = await rotateServerKey(detail.network.id, serverId);
-      setRevealedKey({ keyId: serverId, key: result.key });
+    if (action === "relink") {
+      // Editor-first linking: mint a fresh code. Running `/artisan link <code>`
+      // on the server rotates its key in place (same row + projects). Secrets
+      // are never surfaced in the editor — only the code is.
+      const { code } = await mintServerLinkCode(detail.network.id, serverId);
+      setRevealedCode({ keyId: serverId, code });
     } else if (action === "edit") {
       const sk = detail.serverKeys.find((k) => k.id === serverId);
       if (sk) setEditServer({ id: sk.id, label: sk.label, slug: sk.slug });
@@ -144,7 +143,7 @@ export function NetworkDetailPage() {
   const handleCreateServer = async (label: string) => {
     const created = await createServerKey(detail.network.id, label);
     useNetworksStore.getState().bumpRefresh(); // sync the sidebar
-    setRevealedKey({ keyId: created.id, key: created.key });
+    setRevealedCode({ keyId: created.id, code: created.code });
     setDetail({
       ...detail,
       serverKeys: [
@@ -286,19 +285,20 @@ export function NetworkDetailPage() {
           onConfirm={handleDeleteConfirmed}
         />
       )}
-      {revealedKey && (
-        <RotatedKeyModal plainKey={revealedKey.key} onClose={() => setRevealedKey(null)} />
+      {revealedCode && (
+        <LinkCodeModal code={revealedCode.code} onClose={() => setRevealedCode(null)} />
       )}
     </div>
   );
 }
 
-function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () => void }) {
+function LinkCodeModal({ code, onClose }: { code: string; onClose: () => void }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const command = `/artisan link ${code}`;
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(plainKey);
+    await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   }
@@ -316,22 +316,19 @@ function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () 
           className="display text-[20px] text-[var(--text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          {t("networkDetail.rotateRevealTitle")}
+          {t("networkDetail.linkRevealTitle")}
         </h2>
         <p className="text-[13px] leading-relaxed text-[var(--text-mut)]">
-          {t("networkDetail.rotateRevealHint")}
+          {t("networkDetail.linkRevealHint")}
         </p>
         <div className="flex flex-col gap-2">
           <span className="field-label flex items-center gap-2">
-            <Key className="size-[12px] text-[var(--warning)]" />
-            {t("networkDetail.rotateRevealKeyLabel")}
-            <span className="ml-1 rounded-full bg-[var(--warning-soft)] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.06em] text-[var(--warning)]">
-              {t("networkDetail.rotateRevealShownOnce")}
-            </span>
+            <Key className="size-[12px] text-[var(--brand)]" />
+            {t("networkDetail.linkRevealLabel")}
           </span>
           <div className="relative">
-            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[12.5px] text-[var(--text-mut)]">
-              {plainKey}
+            <code className="mono block break-all rounded-[14px] border border-[var(--border)] bg-[var(--surface-inset)] px-3 py-3 pr-12 text-[13px] text-[var(--text)]">
+              {command}
             </code>
             <button
               type="button"
@@ -356,6 +353,5 @@ function RotatedKeyModal({ plainKey, onClose }: { plainKey: string; onClose: () 
     </div>
   );
 }
-
 
 export default NetworkDetailPage;

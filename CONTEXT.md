@@ -128,18 +128,23 @@ Non-examples:
 
 ## Link
 
-The **one-shot act of binding an unclaimed Server to a Network**: the keyless
-plugin prints a **link code**, a logged-in user redeems it on the web (picking or
-creating the destination **Network**), and the backend mints the Server's **key**
-and hands it to the waiting plugin. Linking establishes ownership — a Server links
-exactly once; re-running the flow on an already-linked Server is refused.
-Ownership afterwards moves only via a Network **transfer** on the web.
+The **act of binding a Server to its credential**, always initiated from the
+editor: a logged-in user adds a Server to a **Network** on the web, which creates
+the Server row (keyless — `hash` NULL until redeemed) and prints a **link code**;
+the admin runs **`/artisan link <code>`** on the Minecraft server, which redeems
+the code for the Server's **key** (minted at redeem time), writes it to
+`config.yml`, and connects. Re-issuing a code for an existing Server and
+re-running `link` **rotates** its key in place — same Server row, same Projects,
+no duplicate key. Ownership afterwards moves only via a Network **transfer**.
+See `docs/decisions/editor-first-server-linking.md`.
 
 Non-examples:
 - A **transfer** is not a Link — transfer moves already-owned things between
-  owners with its own safeguards; Link only ever binds a virgin Server.
-- "Claim" is not the canonical term; domain and code say Link (`link_codes`).
-- Post-link, `/artisan editor` printing the editor URL is not a Link — the
+  owners with its own safeguards; Link binds a Server to its key.
+- "Claim" / "setup" are not canonical — domain and code say Link
+  (`link_codes`, `/artisan link`, `POST /link/:code/redeem`). The old WS pairing
+  (`/artisan setup`) and web `claim` flow were removed 2026-07-15.
+- Post-link, `/artisan editor` printing the Server deep-link is not a Link — the
   binding already exists; the command is informative only.
 
 ## LText

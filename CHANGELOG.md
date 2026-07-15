@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Changed — editor-first server linking (`/artisan setup` → `/artisan link`) — BREAKING (protocol + commands)
+- Server linking is now a single, editor-first flow (ADR `editor-first-server-linking`). Add a server in the editor → get a one-time code → run `/artisan link <code>` on the Minecraft server. The plugin redeems it via `POST /api/v1/link/:code/redeem` (no auth, code = single-use bearer), which generates the secret at redeem time (never stored in plaintext) and writes it to `config.yml`. Re-issuing a code and re-running `link` **rotates** the key in place — same server row + projects, no duplicate key (fixes the orphan-key accumulation behind "3 servers for 1 machine").
+- **DB migrations**: `server_keys.hash` is now **nullable** (`NULL` = created in editor, not yet redeemed) — migration `0022`; `link_codes.server_key_id` FK is now **ON DELETE CASCADE** — migration `0023`.
+- **New REST**: `POST /api/v1/link/:code/redeem`, `GET /api/v1/link/:code` (status), `POST /api/v1/networks/:id/server-keys/:keyId/link-code` (mint a re-link code). `POST /api/v1/networks/:id/server-keys` now returns `{id, label, slug, code, expires_at}` (unredeemed key + code) instead of a plaintext key.
+- **Removed**: WS `setup_request`/`setup_code`/`setup_claim`/`link_confirmed` messages, `POST /api/v1/link` + `POST /api/v1/link/:code/claim`, the editor `/link` claim route, the plugin `/artisan setup` command + `SetupClient`. `/artisan editor` on an unlinked server now prints the editor home URL instead of starting a pairing flow.
+
 ### Added — data source explorer, live preview & menu filters
 - `DataSourceRegistry.declarations()` (since 1.2.0). The `hello`/`modules_changed` `data_sources` payload is enriched this release (see the `server_data_sources` entry below) so the editor can surface live sources in the menu source picker.
 - `DataSourceDeclaration.fetcher` signature is now `(player: Player?, params) -> rows` — `null` = editor preview mode; player-dependent modules return generic data or throw the new `PlayerRequiredException`.

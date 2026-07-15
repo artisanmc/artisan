@@ -277,7 +277,7 @@ describe("userNetworksRouter", () => {
   });
 
   // A4 tests
-  test("POST /api/v1/networks/:id/server-keys creates server_key and returns plaintext", async () => {
+  test("POST /api/v1/networks/:id/server-keys creates an unredeemed key + link code", async () => {
     const { sessionId } = await seedUser();
     const app = makeApp();
     const { network } = await (await app.request("/api/v1/networks", {
@@ -293,12 +293,43 @@ describe("userNetworksRouter", () => {
     });
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.key).toMatch(/^sk_[0-9a-f]{64}$/);
+    // Code-based flow: no plaintext secret returned; a link code is shown instead.
+    expect(body.key).toBeUndefined();
+    expect(body.code).toMatch(/^[A-Z2-9]{8}$/);
     expect(body.id).toBeDefined();
 
     const sk = await db.select().from(serverKeys).where(eq(serverKeys.id, body.id));
     expect(sk[0].networkId).toBe(network.id);
     expect(sk[0].label).toBe("test-server");
+    expect(sk[0].hash).toBeNull(); // unredeemed until `/artisan link`
+  });
+
+  test("POST /api/v1/networks/:id/server-keys/:keyId/link-code mints a code for an existing key", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const { network } = await (await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    })).json();
+    const { id: keyId } = await (await app.request(`/api/v1/networks/${network.id}/server-keys`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "srv" }),
+    })).json();
+
+    const res = await app.request(`/api/v1/networks/${network.id}/server-keys/${keyId}/link-code`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(res.status).toBe(201);
+    expect((await res.json()).code).toMatch(/^[A-Z2-9]{8}$/);
+
+    const missing = await app.request(`/api/v1/networks/${network.id}/server-keys/srv_nope/link-code`, {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}` },
+    });
+    expect(missing.status).toBe(404);
   });
 
   test("POST /api/v1/networks/:id/server-keys 403 when not member", async () => {

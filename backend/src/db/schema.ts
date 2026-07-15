@@ -31,7 +31,9 @@ export const serverKeys = pgTable(
 	"server_keys",
 	{
 		id: text("id").primaryKey(),
-		hash: text("hash").notNull(),
+		// NULL = server created in the editor but not yet redeemed via `/artisan link`
+		// (no secret issued). A null hash never authenticates. Set at redeem time.
+		hash: text("hash"),
 		label: text("label"),
 		// URL slug, unique per network. Nullable during backfill; set on create.
 		slug: text("slug"),
@@ -121,7 +123,9 @@ export const linkCodes = pgTable("link_codes", {
 	createdAt: timestamp("created_at").notNull(),
 	expiresAt: timestamp("expires_at").notNull(),
 	claimedAt: timestamp("claimed_at"),
-	serverKeyId: text("server_key_id").references(() => serverKeys.id),
+	// Cascade: a link code is meaningless without its server key. Deleting the
+	// key (soft-delete endpoint, network teardown, test cleanup) drops its codes.
+	serverKeyId: text("server_key_id").references(() => serverKeys.id, { onDelete: "cascade" }),
 });
 
 export const networkInvites = pgTable(

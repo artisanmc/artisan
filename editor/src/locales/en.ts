@@ -1106,15 +1106,16 @@ export default {
     createNetwork: "+ Create network",
     addServer: "+ Add server",
     noServers: "No server yet",
-    noNetworks: "No network yet. Run /artisan setup on your Minecraft server to start.",
+    noNetworks:
+      "No network yet. Create one here, add a server, then run /artisan link <code> on your Minecraft server.",
     projectCount_one: "{{count}} project",
     projectCount_other: "{{count}} projects",
     projectCount: "{{count}} projects",
     networkSettings: "Network settings",
     manageServers: "Manage servers",
-    serverCreated: "Server key created",
+    serverCreated: "Server created",
     serverCreatedHint:
-      "Copy this key now and paste it into config.yml. It will never be shown again.",
+      "Run this command on your Minecraft server console to link it. Single-use, expires in 10 minutes.",
     close: "Close",
   },
   networkDetail: {
@@ -1127,16 +1128,13 @@ export default {
     deleteServer: "Delete",
     rotateKey: "Rotate",
     loading: "Loading…",
-    confirmRotateKey:
-      "Generate a new key for this server? Any key already in use stops working immediately — you'll need to paste the new one into the config.yml of every server using it. (The secret is never stored in clear, so this is the only way to get a usable key.)",
-    rotateRevealTitle: "New key generated",
-    rotateRevealHint:
-      "Copy this key now and paste it into the server's config.yml. For security, it will never be shown again.",
-    rotateRevealKeyLabel: "Server key",
-    rotateRevealShownOnce: "Shown once",
+    linkRevealTitle: "Link this server",
+    linkRevealHint:
+      "Run this command on your Minecraft server console. It writes the credential and connects automatically. Single-use, expires in 10 minutes.",
+    linkRevealLabel: "Run on your server",
     copy: "Copy",
     close: "Close",
-    noServers: "No server. Run /artisan setup in your MC console.",
+    noServers: "No server yet — add one above, then run the link command on your MC console.",
     addServer: "Add a server",
   },
   requestAccess: {
@@ -1195,7 +1193,7 @@ export default {
   serverKebab: {
     actions: "Server actions",
     edit: "Edit server…",
-    rotate: "Generate new key…",
+    relink: "Re-link / new code…",
     history: "Connection history",
     allowlist: "IP allowlist",
     delete: "Delete server…",
@@ -1270,14 +1268,15 @@ export default {
     step2: {
       title: "Create a server",
       description:
-        "This key authenticates your Minecraft server with the Artisan backend. Generate it then copy it — it will never be shown again.",
+        "This registers your server. You'll get a one-time code to run on your Minecraft server — no key to copy around.",
       nameLabel: "Server name",
       namePlaceholder: "e.g. Lobby, Survival…",
-      keyLabel: "Your server key",
-      shownOnce: "shown once",
-      generated: "✓ Generated",
-      generating: "Generating…",
-      generate: "Generate server key",
+      codeLabel: "Run this on your server",
+      codeHint:
+        "Single-use, expires in 10 minutes. It writes the credential and connects automatically.",
+      generated: "✓ Created",
+      generating: "Creating…",
+      generate: "Create server",
       copy: "Copy",
     },
     step3: {
@@ -1288,12 +1287,10 @@ export default {
     },
     step4: {
       title: "Install on your server",
-      configStep: "Add this to your Artisan config.yml",
-      keyStep: "Your server key (keep it safe)",
-      reloadStep: "Reload the plugin",
-      reloadHint:
-        "Run this command in-game or from console. The plugin will connect to the backend and download your project automatically.",
-      noKey: "(no key generated)",
+      configStep: "Set the backend URL in your Artisan config.yml",
+      linkStep: "Run this on your server console",
+      linkHint:
+        "The plugin redeems the code, writes its credential to config.yml, and downloads your project automatically. Codes are single-use and expire after 10 minutes.",
     },
   },
   sessionGone: {
