@@ -12,8 +12,14 @@ import {
   connToServerId,
   connSenders,
   requestDataSourceFetch,
+  requestPlayerInventory,
 } from "./hub";
-import type { HelloMessage, HelloAckMessage, DataSourceFetchMessage } from "../protocol";
+import type {
+  HelloMessage,
+  HelloAckMessage,
+  DataSourceFetchMessage,
+  PlayerInventoryFetchMessage,
+} from "../protocol";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index";
 import {
@@ -889,3 +895,55 @@ describe("requestDataSourceFetch", () => {
   });
 });
 
+
+describe("requestPlayerInventory", () => {
+  test("resolves offline when no plugin conn is bound to the server key", async () => {
+    const outcome = await requestPlayerInventory("sk-not-connected", "Steve");
+    expect(outcome).toEqual({ kind: "offline" });
+  });
+
+  test("sends player_inventory_fetch and resolves on the correlated result", async () => {
+    const sent: PlayerInventoryFetchMessage[] = [];
+    registerConn("connInv", (raw) => sent.push(JSON.parse(raw)));
+    connToServerId.set("connInv", "sk-inv");
+    try {
+      const p = requestPlayerInventory("sk-inv", "Steve");
+      expect(sent).toHaveLength(1);
+      expect(sent[0].type).toBe("player_inventory_fetch");
+      expect(sent[0].player).toBe("Steve");
+
+      await handlePluginMessage("connInv", JSON.stringify({
+        type: "player_inventory_result", request_id: sent[0].request_id,
+        ok: true,
+        slots: [{
+          slot: 0,
+          stack_yaml: "item:\n  ==: org.bukkit.inventory.ItemStack\n  type: PAPER\n",
+          display: { material: "nexo:arcanist_key", enchanted: true, count: 5, name: "1 clé Luxury" },
+        }],
+      }));
+
+      const outcome = await p;
+      expect(outcome.kind).toBe("result");
+      if (outcome.kind === "result") {
+        expect(outcome.result.ok).toBe(true);
+        expect(outcome.result.slots).toHaveLength(1);
+        expect(outcome.result.slots![0].display.material).toBe("nexo:arcanist_key");
+      }
+    } finally {
+      connToServerId.delete("connInv");
+      connSenders.delete("connInv");
+    }
+  });
+
+  test("resolves timeout when the plugin never answers", async () => {
+    registerConn("connInvT", () => {});
+    connToServerId.set("connInvT", "sk-inv-slow");
+    try {
+      const outcome = await requestPlayerInventory("sk-inv-slow", "Steve", 20);
+      expect(outcome).toEqual({ kind: "timeout" });
+    } finally {
+      connToServerId.delete("connInvT");
+      connSenders.delete("connInvT");
+    }
+  });
+});
