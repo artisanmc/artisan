@@ -4,6 +4,7 @@ import net.artisanmc.modules.api.DataSourceDeclaration
 import net.artisanmc.modules.api.DataSourceField
 import net.artisanmc.modules.api.DataSourceRegistry
 import net.artisanmc.modules.api.FieldKind
+import net.artisanmc.modules.api.Stability
 import net.artisanmc.plugin.ws.DataSourceReport
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -34,6 +35,27 @@ class DataSourceReportTest {
         val schema = entry["schema"] as List<Map<String, Any?>>
         assertEquals(mapOf("name" to "id", "type" to "string", "description" to null), schema[0])
         assertEquals(mapOf("name" to "price", "type" to "number", "description" to "Unit price"), schema[1])
+    }
+
+    @Test
+    fun `build emits stability and key_field`() {
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(
+            ref = "boutique:items",
+            fetcher = { _, _ -> emptyList() },
+            stability = Stability.STATIC,
+            keyField = "id",
+        ))
+        registry.register(DataSourceDeclaration(
+            ref = "auction:listings",
+            fetcher = { _, _ -> emptyList() },
+        ))
+
+        val byRef = DataSourceReport.build(registry).associateBy { it["ref"] }
+        assertEquals("static", byRef["boutique:items"]!!["stability"])
+        assertEquals("id", byRef["boutique:items"]!!["key_field"])
+        assertEquals("dynamic", byRef["auction:listings"]!!["stability"])
+        assertNull(byRef["auction:listings"]!!["key_field"])
     }
 
     @Test

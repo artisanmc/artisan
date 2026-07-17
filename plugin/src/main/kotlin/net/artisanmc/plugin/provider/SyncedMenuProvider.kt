@@ -104,6 +104,14 @@ class SyncedMenuProvider(
         testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
     }
 
+    /**
+     * Human-readable one-liner for a thrown exception, for the `message` field of a
+     * failed data-source preview. Falls back to the exception's simple class name
+     * when `message` is null/blank (e.g. a bare NPE) so the editor never shows "?".
+     */
+    private fun describeError(e: Throwable): String =
+        e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+
     private val downloadsInFlight = ConcurrentHashMap<String, Boolean>()
     @Volatile private var apiUrl: String? = null
     @Volatile private var editorUrl: String? = null
@@ -400,15 +408,19 @@ class SyncedMenuProvider(
                             val (payloadRows, truncated) = truncateForPreview(shaped)
                             reply(mapOf("ok" to true, "rows" to payloadRows, "truncated" to truncated))
                         } catch (e: net.artisanmc.modules.api.PlayerRequiredException) {
-                            reply(mapOf("ok" to false, "error" to "player_required", "message" to e.message))
+                            reply(mapOf("ok" to false, "error" to "player_required", "message" to describeError(e)))
                         } catch (e: Throwable) {
-                            logger?.warning("[Artisan] data source preview '$ref' failed: ${e.message}")
-                            reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
+                            // A null message (typically an NPE from a fetcher touching
+                            // player data in preview mode) would surface as a bare "?"
+                            // in the editor — fall back to the exception type and log
+                            // the full stack trace for post-mortem.
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] data source preview '$ref' failed", e)
+                            reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
                         }
                     }
                 } catch (e: Throwable) {
-                    logger?.warning("[Artisan] data source preview '$ref' scheduling failed: ${e.message}")
-                    reply(mapOf("ok" to false, "error" to "fetch_error", "message" to e.message))
+                    logger?.log(java.util.logging.Level.WARNING, "[Artisan] data source preview '$ref' scheduling failed", e)
+                    reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
                 }
             }
 

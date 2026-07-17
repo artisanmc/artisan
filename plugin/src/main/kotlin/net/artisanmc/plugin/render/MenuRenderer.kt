@@ -58,11 +58,20 @@ object MenuRenderer {
         // Pré-calcul des fenêtres de pagination de chaque élément itérant.
         val pageInfo = mutableMapOf<String, PageInfo>()
         for (layer in menu.yaml.layers) for (element in layer.elements) {
-            val iter = element.iterates ?: continue
-            val slots = parsePositions(element.positions, menu.yaml.size)
-            val list = boundCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
-            val pageSize = slots.size.coerceAtLeast(1)
-            val pageCount = ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+            val iter = element.iterates
+            val places = element.places
+            val pageCount = when {
+                iter != null -> {
+                    val slots = parsePositions(element.positions, menu.yaml.size)
+                    val list = boundCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
+                    val pageSize = slots.size.coerceAtLeast(1)
+                    ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+                }
+                // Placement mode: pages are hand-assigned, so the count is the
+                // highest referenced page (+1), not derived from the row count.
+                places != null -> (places.placements.maxOfOrNull { it.page + 1 } ?: 1).coerceAtLeast(1)
+                else -> continue
+            }
             val requested = boundCtx.pagination[element.id] ?: 0
             pageInfo[element.id] = PageInfo(requested.coerceIn(0, pageCount - 1), pageCount)
         }
@@ -117,6 +126,35 @@ object MenuRenderer {
             for (element in layer.elements) {
                 val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
                 val slots = parsePositions(element.positions, menu.yaml.size)
+
+                // Placement mode: pin explicit rows (matched by key_field) to
+                // hand-authored page+slot. Rows not placed are omitted; a placement
+                // whose key is absent from the source (removed while offline) dangles
+                // and its slot is simply left empty.
+                val places = element.places
+                if (places != null) {
+                    val list = renderCtx.args[places.source] as? List<*> ?: emptyList<Any>()
+                    val byKey = list.filterIsInstance<Map<*, *>>()
+                        .associateBy { it[places.keyField]?.toString() }
+                    val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
+                    for (placement in places.placements) {
+                        if (placement.page != info.page) continue
+                        if (placement.position !in 0 until menu.yaml.size) continue
+                        val row = byKey[placement.key] ?: continue
+                        val itemArgs = mapOf(places.alias to row)
+                        val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
+                        val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
+                            ?: continue
+                        val appYaml = applyOverride(chosen.yaml, placement.override)
+                        inv.setItem(placement.position, buildItem(appYaml, langMap, itemCtx, evaluator.deps))
+                        if (chosen.clicks.isNotEmpty()) {
+                            activeClicks[placement.position] = chosen.clicks
+                            slotArgs[placement.position] = itemArgs
+                        }
+                    }
+                    continue
+                }
+
                 val iter = element.iterates
                 if (iter == null) {
                     val chosen = compiledList.firstOrNull { ca ->
@@ -150,6 +188,18 @@ object MenuRenderer {
 
         player.openInventory(inv)
         return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)
+    }
+
+    /** Merge a Placement's display-only override onto the template appearance. */
+    private fun applyOverride(base: AppearanceYaml, override: net.artisanmc.plugin.model.PlacementOverrideYaml?): AppearanceYaml {
+        if (override == null) return base
+        return base.copy(
+            material = override.material ?: base.material,
+            head = override.head ?: base.head,
+            count = override.count ?: base.count,
+            title = override.title ?: base.title,
+            lore = override.lore ?: base.lore,
+        )
     }
 
     private fun buildItem(
