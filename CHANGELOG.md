@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — `/boutiqueadmin additem` (in-game shop capture)
+- New module API ports (`@Beta`, 1.4.0): `ArtisanAPI.items` (serialize/describe a stack) and `ArtisanAPI.messages` (fire-and-forget WS module messages). Additive — binary-safe for existing modules.
+- New WS message `boutique_additem` (+ result): the **backend boutique module** (`backend/src/modules/boutique/`) applies the mutation to the owning project — captured item + shop entry (`icon: item:<id>`, upsert by id, category matched by id/name or created), surgical `filesJson` patch (`boutique/shop.yaml` + `items/<id>.yml`), optimistic-lock version bump, commit + `bundle_available` broadcast. The plugin never writes project files (FTP/local_push hazard).
+- Boutique plugin: `/boutiqueadmin additem <id> <prix> [catégorie]` (alias `/badd`, permission `boutique.admin`) captures the held stack — name/icon derived from the item itself; buy commands left for the editor.
+
 ### Added — inventory mirror (capture flow)
 - **New WS relay** `player_inventory_fetch`/`player_inventory_result` (5 s timeout, same correlated pattern as the data-source preview) + **new REST** `GET /api/v1/networks/:networkId/servers/:serverId/player-inventory?player=X` (member access): snapshot of an online player's inventory — each non-empty slot carries the opaque serialized stack + a display descriptor derived generically from vanilla components (material enriched to `nexo:<id>` when recognized, head texture, glint, count, name).
 - Editor: **"Captured items" section** in the Library tab — load a player's inventory, click a slot to capture it into the project; captured tiles are draggable/armable exactly like vanilla materials (`item:<id>` refs, zero new drop plumbing).

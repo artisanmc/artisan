@@ -8,6 +8,7 @@ import { getBranch, advanceBranchHead } from "../lib/branchStorage";
 import { createCommit } from "../lib/commitStorage";
 import { computeAllPacksHash } from "../lib/hashUtils";
 import { customItemsCacheDir, readCustomItemsHash, processBundle } from "../lib/customItems";
+import { applyBoutiqueAdditem, type BoutiqueAdditemPayload } from "../modules/boutique/index";
 import { currentPackInfo } from "../lib/resourcePack";
 import type {
   BundleAvailableMessage,
@@ -510,6 +511,26 @@ export async function handlePluginMessage(
       await pushBundleAvailable(projectId, "main", hash);
     }
     return { reply: null };
+  }
+
+  // ── boutique_additem: /boutique additem — backend-module mutation ─────────
+  // ADR captured-items-and-module-field-kit §3: the plugin never writes project
+  // files; the boutique backend module mutates editorJson + patches the bundle
+  // files + commits, then we broadcast so the server hot-reloads.
+  if (msg.type === "boutique_additem") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const raw = msg as unknown as { request_id?: string } & BoutiqueAdditemPayload;
+    const result = await applyBoutiqueAdditem(serverId, raw);
+    if (result.ok) await pushBundleAvailable(result.projectId, "main", result.contentHash);
+    return {
+      reply: JSON.stringify({
+        type: "boutique_additem_result",
+        request_id: raw.request_id ?? null,
+        ok: result.ok,
+        ...(result.ok ? {} : { error: result.error }),
+      }),
+    };
   }
 
   // ── custom_items_changed: plugin hot-reload triggered a hash change ───────
