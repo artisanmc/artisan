@@ -474,6 +474,10 @@ const fr: typeof en = {
     selectionDragOutside: "le drag de la sélection sortirait du menu",
     deleteFailed: "suppression échouée",
   },
+  mcFields: {
+    pickMaterial: "Choisir un item dans la librairie",
+    capturedOption: "Capturés…",
+  },
   capturedItems: {
     sectionTitle: "Items capturés",
     emptyHint: "Aucun item capturé — charge l'inventaire d'un joueur ci-dessous et clique un item pour le capturer.",
