@@ -87,7 +87,17 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `ref` | `String` | `@Stable` | 1.0.0 |
 | `fetcher` | `(player: Player?, params: Map<String, Any?>) -> List<Map<String, Any?>>` | `@Stable` | 1.3.0 |
 | `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
+| `stability` | `Stability` | `@Stable` | 1.4.0 |
+| `keyField` | `String?` | `@Stable` | 1.4.0 |
 | `schemaHint` | `String?` | `@Sunset` | 1.0.0 → 2.0.0 |
+
+Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
+
+### `net.artisanmc.modules.api.Stability`
+
+Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
+
+Values: `STATIC`, `DYNAMIC`.
 
 ### `net.artisanmc.modules.api.FieldKind`
 
