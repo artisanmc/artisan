@@ -25,6 +25,24 @@ Non-examples:
   Bundle either — it's a separate artifact built from the Project's assets and
   delivered to the player, not the menu/command content the plugin downloads.
 
+## Captured item
+
+A project-level entity holding a **full serialized ItemStack** captured from the
+running game (via the editor's inventory mirror or an in-game command like
+`/boutique additem`), plus a **display descriptor** derived generically at
+capture time from vanilla components (base material, head texture, glint, count,
+name — optionally enriched to a recognized custom ref like `nexo:<id>`). It is
+the universal item value: referenced anywhere a material goes through the
+`item:<id>` ref — the editor renders the descriptor, the plugin deserializes the
+exact stack. Cf. ADR `captured-items-and-module-field-kit`.
+
+Non-examples:
+- A **custom item** of the server catalog (Nexo/Oraxen entry reported by
+  `CustomItemsManager`) is not a Captured item — the catalog belongs to the item
+  plugin and is presence-reported; a Captured item is authored project content.
+- The display descriptor is not the item — the opaque `stack` is the runtime
+  truth; the descriptor exists only so the editor can draw a tile.
+
 ## Command
 
 One of the three **Document** kinds: an admin-authored chat/slash command
@@ -56,6 +74,21 @@ Examples:
 - An EssentialsX integration registers `essentials:warps` — that integration is
   just a **Module** whose job is contributing data sources, often with no editor
   surface of its own.
+
+**Stability.** A data source is **static** or **dynamic** — a property the
+registering Module declares. A **static** data source exposes a stable,
+enumerable, finite row-set (its `fetcher(null)` returns the complete authoritative
+set), each row identified by a declared **Row key**; the editor caches its
+last-known snapshot so it can author against it offline. A **dynamic** data source
+is runtime- or player-dependent and unbounded (auction listings, a player's homes);
+it has no authoritative design-time set. The distinction gates authoring: a Menu
+may **place** individual rows of a static source (see **Placement**), but may only
+**paginate** a dynamic one.
+
+Static constrains the **key-set**, not the values: *which* rows exist is stable and
+enumerable at design time, but a row's field values (price, stock) may still resolve
+per-player at runtime, and placeholders/conditions still tailor display and behaviour
+per player. A Placement pins a **Row key**, never a resolved value.
 
 Non-examples:
 - A **Connector binding** (a menu slot's `source:` → `{ ref, params, filter,
@@ -104,6 +137,31 @@ Non-examples:
 - A **Menu** / **Command** / **Dialog** is a **Document**, not an Element.
 - A slot **position** (an index like `13`) is not an Element; it's *where* an
   Element sits. One Element may span several positions.
+
+## Item template
+
+A project-level, **named view over one Data source**: how one row of that source
+renders as a menu slot — appearances (material/icon, title, lore, count) **and
+click behaviour**, with per-row variation expressed through conditional appearance
+states on row fields (never per-item overrides). A source may have **several**
+Item templates (two Menus can render the same model differently), but within one
+Menu every bound row of a source renders through a **single** template. Elements
+consume a template in either mode — **pagination** or **placement** — via
+`templateId`; at export the template's appearances are inlined into each bound
+element, so `menu/v1` and the plugin are unaware templates exist. For a **static**
+source the template also materializes the rows as draggable tiles in the editor's
+library (organized by its `groupBy` field — pure library arrangement, no runtime
+effect); for a **dynamic** source it materializes as a single draggable
+"paginated block".
+
+Non-examples:
+- The legacy `Project.templates` / `Element.templateRef` machinery is not an Item
+  template — that is an older, unexported editor concept.
+- A **Connector binding** (`{ref, filter, sort, limit}`) is not an Item template —
+  the binding selects *which rows*; the template defines *how a row looks and
+  behaves*.
+- An Item template is not a Document — it cannot be opened as a Menu; it only
+  renders inside Menus that consume it.
 
 ## Key site
 
@@ -229,6 +287,31 @@ Non-examples:
   Artisan never sees the proxy topology.
 - The owning **User** is not the Network; users are *members* of Networks.
 
+## Placement
+
+An authored pin of **one row** of a **static Data source** — referenced by its
+**Row key** — onto **one slot** (on a given page) of a **Menu**. Placements are the
+**placement mode** of an iterating **Element**: the alternative to **pagination
+mode**, where instead of auto-filling a slot range in source order, the admin
+decides exactly which row sits where — and, in a multi-page layout, on which page.
+Paging reuses the same in-menu navigation as pagination mode; only the page/slot
+assignment is hand-authored rather than computed. A Placement pins **position
+only**: everything about how the row looks *and behaves* (material, title, lore,
+click chains) comes from the **Item template** the Element is bound to — there is
+**no per-placement override**; per-row variation is a conditional state of the
+template. Available only on **static** sources (a **dynamic** source has no stable
+design-time set to place against).
+
+Non-examples:
+- **Pagination mode** is not Placement — pagination auto-lays a whole list into a
+  slot range in source order; Placement is hand-authored row-to-slot pinning.
+- A Placement's `cachedDisplay` (the row's last-known name/icon/lore, kept so the
+  slot still renders offline) is not the source of truth — the live source wins
+  when reachable; the cache is a render fallback bounded to placed rows.
+- A "special-looking" placed row is **not** an override — it's a conditional state
+  of the Item template, or, if genuinely bespoke, a normal hand-placed Element
+  instead of a Placement.
+
 ## Presence
 
 The **observed** runtime state of a **Server**, reported by its connected plugin
@@ -278,6 +361,21 @@ Non-examples:
 - The generated **resource pack** (textures/fonts served to players) is **not** a
   Project — it's a build artifact derived from a Project's assets.
 - A single **Menu** is **not** a Project; it is one Element within a Project.
+
+## Row key
+
+The field a **static Data source** declares as the stable unique identifier of each
+row (`keyField` in the declaration). It is the anchor a **Placement** pins to — so a
+placement survives the row-set being reordered, and a row removed while the server
+was offline surfaces as a **dangling** placement rather than silently rebinding to a
+neighbour. Only static (placeable) data sources need a Row key; a purely paginated
+dynamic source does not.
+
+Non-examples:
+- A **Key site** is unrelated — that is an i18n concept (where an **LText** lives).
+  A Row key identifies a data row, not a translation slot.
+- A slot **position** is not a Row key — position is *where* a Placement sits; the
+  Row key is *which* row it pins.
 
 ## Server
 
