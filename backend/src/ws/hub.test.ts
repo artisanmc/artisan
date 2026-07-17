@@ -947,3 +947,88 @@ describe("requestPlayerInventory", () => {
     }
   });
 });
+
+describe("boutique_additem", () => {
+  test("mutates the boutique project (captured item + shop item), patches bundle files, commits and replies ok", async () => {
+    const { id: keyId, networkId } = await seedServerKey();
+    const editor = {
+      id: "boutique_shop", name: "boutique_shop",
+      menus: [], commands: [], dialogs: [], templates: [], assets: [],
+      dataSources: [], i18nKeys: {}, defaultLang: "en", canvasLayout: {},
+      moduleData: {
+        boutique: {
+          wholeShopDiscount: 0,
+          categories: [
+            { id: "weapons", name: "Armes", icon: "DIAMOND_SWORD", discount: 0, items: [] },
+          ],
+        },
+      },
+    };
+    await createProject({ networkId, serverKeyId: keyId, name: "boutique_shop", id: "boutique_shop" });
+    await upsertProjectContent("boutique_shop", {
+      hash: "h0",
+      filesJson: JSON.stringify({ "manifest.yaml": "schema: manifest/v1\n" }),
+      editorJson: JSON.stringify(editor),
+    });
+
+    registerConn("conn-add", () => {});
+    connToServerId.set("conn-add", keyId);
+    try {
+      const res = await handlePluginMessage("conn-add", JSON.stringify({
+        type: "boutique_additem", request_id: "r1",
+        item_id: "cle_luxury", price: 500, category: "armes",
+        stack_yaml: "item:\n  ==: org.bukkit.inventory.ItemStack\n  type: PAPER\n",
+        display: { material: "nexo:arcanist_key", enchanted: true, name: "1 clé Luxury" },
+      }));
+      expect(res.reply).not.toBeNull();
+      const reply = JSON.parse(res.reply!);
+      expect(reply.type).toBe("boutique_additem_result");
+      expect(reply.ok).toBe(true);
+
+      const project = await getProject("boutique_shop");
+      const ed = JSON.parse(project!.editorJson!);
+      // Captured item created…
+      expect(ed.capturedItems).toHaveLength(1);
+      const ci = ed.capturedItems[0];
+      expect(ci.display.material).toBe("nexo:arcanist_key");
+      expect(ci.stackYaml).toContain("PAPER");
+      // …and the shop item references it (matched category by name, case-insensitive).
+      const cat = ed.moduleData.boutique.categories[0];
+      expect(cat.items).toHaveLength(1);
+      expect(cat.items[0]).toMatchObject({
+        id: "cle_luxury", name: "1 clé Luxury", icon: `item:${ci.id}`, price: 500,
+      });
+      // Bundle files patched surgically.
+      const files = JSON.parse(project!.filesJson);
+      expect(files["boutique/shop.yaml"]).toContain("cle_luxury");
+      expect(files["boutique/shop.yaml"]).toContain(`item:${ci.id}`);
+      expect(files[`items/${ci.id}.yml`]).toContain("PAPER");
+      // Branch advanced past the initial commit.
+      const branch = await getBranch("boutique_shop", "main");
+      const head = (await db.select().from(projectCommits).where(eq(projectCommits.id, branch!.headCommitId)))[0];
+      expect(head.message).toContain("additem cle_luxury");
+    } finally {
+      connToServerId.delete("conn-add");
+      connSenders.delete("conn-add");
+    }
+  });
+
+  test("replies no_boutique_project when no project on the key holds boutique data", async () => {
+    const { id: keyId } = await seedServerKey();
+    registerConn("conn-add2", () => {});
+    connToServerId.set("conn-add2", keyId);
+    try {
+      const res = await handlePluginMessage("conn-add2", JSON.stringify({
+        type: "boutique_additem", request_id: "r2",
+        item_id: "x", price: 10,
+        stack_yaml: "item:\n  type: PAPER\n", display: {},
+      }));
+      const reply = JSON.parse(res.reply!);
+      expect(reply.ok).toBe(false);
+      expect(reply.error).toBe("no_boutique_project");
+    } finally {
+      connToServerId.delete("conn-add2");
+      connSenders.delete("conn-add2");
+    }
+  });
+});

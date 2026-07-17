@@ -28,6 +28,8 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     lateinit var langManager: LangManager
     lateinit var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
+    /** Late-bound WS sender for module messages (api.messages) — set once the provider exists. */
+    @Volatile var moduleMessageSender: ((Map<String, Any>) -> Unit)? = null
         private set
     lateinit var api: ArtisanAPI
         private set
@@ -40,6 +42,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI {
             val registry = ModuleRegistry()
+            val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
             val api = ArtisanAPI(
                 plugin = plugin,
                 dataSources = DataSourceRegistry(),
@@ -49,6 +52,22 @@ open class ArtisanPlugin : JavaPlugin() {
                 modules = registry,
                 coreVersion = plugin.description.version,
                 project = net.artisanmc.plugin.project.ProjectContentReader(File(plugin.dataFolder, "projects")),
+                items = object : net.artisanmc.modules.api.ItemStackApi {
+                    override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
+                        net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
+                    override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
+                        net.artisanmc.plugin.items.ItemDescriptor.derive(stack, nexoForCapture)
+                },
+                messages = object : net.artisanmc.modules.api.ModuleMessagesApi {
+                    override fun send(type: String, payload: Map<String, Any?>) {
+                        val m = HashMap<String, Any>()
+                        m["type"] = type
+                        payload.forEach { (k, v) -> if (v != null) m[k] = v }
+                        val sender = plugin.moduleMessageSender
+                        if (sender != null) sender(m)
+                        else plugin.logger.warning("[Artisan] module message '$type' dropped — not connected")
+                    }
+                },
             )
             // version = core plugin version for now (ArtisanModule has no own version); P1c will add ArtisanModule.version
             registry.bind(api) {
@@ -101,6 +120,7 @@ open class ArtisanPlugin : JavaPlugin() {
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
+        moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         defaultModules().forEach { api.modules.register(it) }
         // Inject before load() so the initial hello includes the correct custom_items_hash.
         // Nexo/Oraxen fire their "items loaded" events before Artisan enables (softdepend order),
@@ -268,6 +288,7 @@ open class ArtisanPlugin : JavaPlugin() {
             dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
             runOnMainThread = { task -> server.scheduler.runTask(this@ArtisanPlugin, Runnable { task() }) },
         )
+        moduleMessageSender = { m -> (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(m) }
         val pluginsDirReinit = server.pluginsFolder
         val customItemsManagerReinit = net.artisanmc.plugin.customitems.CustomItemsManager(
             listOf(

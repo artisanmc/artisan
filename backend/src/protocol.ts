@@ -176,6 +176,26 @@ export interface PlayerInventoryResultMessage {
   message?: string;
 }
 
+// Plugin → backend: module message from `/boutique additem` — the boutique
+// backend module applies the mutation (ADR captured-items-and-module-field-kit
+// §3). Fire-and-forget plugin-side; the reply is informational.
+export interface BoutiqueAdditemMessage {
+  type: "boutique_additem";
+  request_id?: string;
+  item_id: string;
+  price: number;
+  category?: string;
+  stack_yaml: string;
+  display: InventorySlot["display"];
+}
+
+export interface BoutiqueAdditemResultMessage {
+  type: "boutique_additem_result";
+  request_id: string | null;
+  ok: boolean;
+  error?: "no_boutique_project" | "invalid_input";
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -184,7 +204,8 @@ export type PluginToServerMessage =
   | LocalPushMessage
   | ModulesChangedMessage
   | DataSourceFetchResultMessage
-  | PlayerInventoryResultMessage;
+  | PlayerInventoryResultMessage
+  | BoutiqueAdditemMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";

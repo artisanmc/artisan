@@ -104,6 +104,9 @@ class SyncedMenuProvider(
         testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
     }
 
+    /** Module-message escape hatch (api.messages) — fire-and-forget over the WS. */
+    fun sendModuleMessage(payload: Map<String, Any>) = send(payload)
+
     /**
      * Human-readable one-liner for a thrown exception, for the `message` field of a
      * failed data-source preview. Falls back to the exception's simple class name

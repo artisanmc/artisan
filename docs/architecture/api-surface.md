@@ -93,6 +93,14 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
 
+### `net.artisanmc.modules.api.ItemStackApi` (`@Beta`)
+
+Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what the backend stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
+
+### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`)
+
+Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.send(type, payload)`) — routed backend-side by `type` to the module's backend layer (e.g. `boutique_additem`). No-op while disconnected. Since 1.4.0.
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
