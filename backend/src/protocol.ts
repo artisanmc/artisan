@@ -143,6 +143,39 @@ export interface DataSourceFetchResultMessage {
   message?: string;
 }
 
+// Backend → plugin: snapshot a player's inventory for the editor's capture
+// panel (ADR captured-items-and-module-field-kit). Correlated like
+// data_source_fetch; same 5 s timeout.
+export interface PlayerInventoryFetchMessage {
+  type: "player_inventory_fetch";
+  request_id: string;
+  player: string;
+}
+
+// One non-empty inventory slot: the opaque serialized stack (capture payload)
+// + the display descriptor derived plugin-side from vanilla components.
+export interface InventorySlot {
+  slot: number;
+  stack_yaml: string;
+  display: {
+    material?: string;
+    head_texture?: string;
+    enchanted?: boolean;
+    count?: number;
+    name?: string;
+  };
+}
+
+// Plugin → backend: reply to PlayerInventoryFetchMessage.
+export interface PlayerInventoryResultMessage {
+  type: "player_inventory_result";
+  request_id: string;
+  ok: boolean;
+  slots?: InventorySlot[];
+  error?: "player_not_found" | "fetch_error";
+  message?: string;
+}
+
 export type PluginToServerMessage =
   | HelloMessage
   | PongMessage
@@ -150,7 +183,8 @@ export type PluginToServerMessage =
   | CustomItemsBundleMessage
   | LocalPushMessage
   | ModulesChangedMessage
-  | DataSourceFetchResultMessage;
+  | DataSourceFetchResultMessage
+  | PlayerInventoryResultMessage;
 
 export interface ResourcePackUpdatedMessage {
   type: "resource_pack_updated";
@@ -166,4 +200,5 @@ export type ServerToPluginMessage =
   | CustomItemsRequestMessage
   | ResourcePackUpdatedMessage
   | ProjectDeletedMessage
-  | DataSourceFetchMessage;
+  | DataSourceFetchMessage
+  | PlayerInventoryFetchMessage;

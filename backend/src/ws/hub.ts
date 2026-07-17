@@ -16,6 +16,8 @@ import type {
   CustomItemsRequestMessage,
   DataSourceFetchMessage,
   DataSourceFetchResultMessage,
+  PlayerInventoryFetchMessage,
+  PlayerInventoryResultMessage,
   EditorDraftUpdateMessage,
   HelloAckMessage,
   HelloMessage,
@@ -120,6 +122,50 @@ export function requestDataSourceFetch(
     pendingFetches.set(requestId, (outcome) => {
       clearTimeout(timer);
       pendingFetches.delete(requestId);
+      resolve(outcome);
+    });
+    send(JSON.stringify(msg));
+  });
+}
+
+// ── player inventory snapshot: same correlated request/response pattern ─────
+export type PlayerInventoryOutcome =
+  | { kind: "result"; result: PlayerInventoryResultMessage }
+  | { kind: "offline" }
+  | { kind: "timeout" };
+
+const pendingInventoryFetches = new Map<string, (outcome: PlayerInventoryOutcome) => void>();
+
+/**
+ * Ask the live plugin bound to `serverKeyId` for a snapshot of `player`'s
+ * inventory (capture panel — ADR captured-items-and-module-field-kit). Same
+ * offline/timeout semantics as {@link requestDataSourceFetch}.
+ */
+export function requestPlayerInventory(
+  serverKeyId: string,
+  player: string,
+  timeoutMs: number = DATA_SOURCE_FETCH_TIMEOUT_MS,
+): Promise<PlayerInventoryOutcome> {
+  let send: ((msg: string) => void) | undefined;
+  for (const [cId, sId] of connToServerId) {
+    if (sId === serverKeyId) { send = connSenders.get(cId); if (send) break; }
+  }
+  if (!send) return Promise.resolve({ kind: "offline" });
+
+  const requestId = crypto.randomUUID();
+  const msg: PlayerInventoryFetchMessage = {
+    type: "player_inventory_fetch",
+    request_id: requestId,
+    player,
+  };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingInventoryFetches.delete(requestId);
+      resolve({ kind: "timeout" });
+    }, timeoutMs);
+    pendingInventoryFetches.set(requestId, (outcome) => {
+      clearTimeout(timer);
+      pendingInventoryFetches.delete(requestId);
       resolve(outcome);
     });
     send(JSON.stringify(msg));
@@ -495,6 +541,15 @@ export async function handlePluginMessage(
     if (!serverId) return { reply: null };
     const result = msg as DataSourceFetchResultMessage;
     pendingFetches.get(result.request_id)?.({ kind: "result", result });
+    return { reply: null };
+  }
+
+  // ── player_inventory_result: resolve a pending inventory snapshot ─────────
+  if (msg.type === "player_inventory_result") {
+    const serverId = connToServerId.get(connId);
+    if (!serverId) return { reply: null };
+    const result = msg as PlayerInventoryResultMessage;
+    pendingInventoryFetches.get(result.request_id)?.({ kind: "result", result });
     return { reply: null };
   }
 
