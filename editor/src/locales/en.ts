@@ -463,6 +463,10 @@ export default {
     selectionDragOutside: "selection drag would land outside the menu",
     deleteFailed: "delete failed",
   },
+  mcFields: {
+    pickMaterial: "Pick an item from the library",
+    capturedOption: "Captured…",
+  },
   capturedItems: {
     sectionTitle: "Captured items",
     emptyHint: "No captured item — load a player's inventory below and click an item to capture it.",
