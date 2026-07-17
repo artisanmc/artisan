@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useSelectionStore } from "./selectionStore";
+import { isElementSelected, useSelectionStore } from "./selectionStore";
 
 describe("selectionStore", () => {
   beforeEach(() => {
@@ -30,5 +30,37 @@ describe("selectionStore", () => {
     useSelectionStore.getState().set(["a", "b", "c"]);
     useSelectionStore.getState().clear();
     expect(useSelectionStore.getState().ids.size).toBe(0);
+  });
+
+  it("set records the owning menu; add/toggle/clear drop it", () => {
+    useSelectionStore.getState().set(["grid"], 4, "shop_category");
+    expect(useSelectionStore.getState().menuId).toBe("shop_category");
+    useSelectionStore.getState().add("other");
+    expect(useSelectionStore.getState().menuId).toBeNull();
+    useSelectionStore.getState().set(["grid"], null, "shop_main");
+    useSelectionStore.getState().toggle("grid");
+    expect(useSelectionStore.getState().menuId).toBeNull();
+    useSelectionStore.getState().set(["grid"], null, "shop_main");
+    useSelectionStore.getState().clear();
+    expect(useSelectionStore.getState().menuId).toBeNull();
+  });
+});
+
+describe("isElementSelected", () => {
+  const ids = new Set(["grid"]);
+
+  it("scopes a shared element id to the owning menu", () => {
+    // 'grid' exists in both menus but was selected in shop_category.
+    expect(isElementSelected(ids, "shop_category", "grid", "shop_category")).toBe(true);
+    expect(isElementSelected(ids, "shop_category", "grid", "shop_main")).toBe(false);
+  });
+
+  it("falls back to bare-id matching when no menu scope is set", () => {
+    expect(isElementSelected(ids, null, "grid", "shop_main")).toBe(true);
+    expect(isElementSelected(ids, null, "grid", "shop_category")).toBe(true);
+  });
+
+  it("returns false when the id isn't selected at all", () => {
+    expect(isElementSelected(ids, "shop_main", "back", "shop_main")).toBe(false);
   });
 });

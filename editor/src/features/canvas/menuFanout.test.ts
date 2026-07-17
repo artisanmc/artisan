@@ -50,4 +50,25 @@ describe("fanoutElements", () => {
     // by MenuGroup which has access to live data-source state.
     expect(fanoutElements([layer])).toEqual([]);
   });
+
+  it("ignores places — elements in placement mode are excluded from fanout", () => {
+    const layer: Layer = {
+      id: "L1" as any,
+      name: "layer1",
+      elements: [{
+        id: "E1" as any,
+        positions: "0-2",
+        appearances: [{ material: "diamond" }],
+        places: {
+          source: "shops",
+          alias: "item",
+          keyField: "id",
+          placements: [{ key: "a", page: 0, position: 5 }],
+        } as any,
+      }],
+    };
+    // Placement expansion is data-driven (matched rows), so it lives in
+    // MenuGroup — never in the positional fanout.
+    expect(fanoutElements([layer])).toEqual([]);
+  });
 });

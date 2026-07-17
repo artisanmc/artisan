@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
+import type { ProjectId } from "@/domain/types";
 import {
   type PreviewResult,
   type ServerDataSource,
@@ -10,11 +11,14 @@ import { getNetworkServersStatus } from "@/lib/api/networks";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ItemTemplatesSection } from "./ItemTemplatesSection";
 
 interface ServerSourceDetailProps {
   networkId: string;
   serverId: string;
   source: ServerDataSource;
+  /** When provided, the "Sets d'items" section (Item templates) is shown. */
+  projectId?: ProjectId;
 }
 
 type PreviewState =
@@ -23,7 +27,7 @@ type PreviewState =
   | { kind: "done"; result: PreviewResult };
 
 /** Detail view of one server data source: schema table, copyable ref, live preview. */
-export function ServerSourceDetail({ networkId, serverId, source }: ServerSourceDetailProps) {
+export function ServerSourceDetail({ networkId, serverId, source, projectId }: ServerSourceDetailProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<PreviewState>({ kind: "idle" });
   const [online, setOnline] = useState<boolean | null>(null);
@@ -152,6 +156,8 @@ export function ServerSourceDetail({ networkId, serverId, source }: ServerSource
           </div>
         ) : null}
       </section>
+
+      {projectId ? <ItemTemplatesSection projectId={projectId} source={source} /> : null}
     </div>
   );
 }

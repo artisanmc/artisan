@@ -14,6 +14,7 @@ import type {
   Element,
   I18nKey,
   Layer,
+  ItemTemplate,
   Menu,
   MenuTitleLayer,
   Project,
@@ -179,13 +180,46 @@ function serializeAppearance(app: Appearance, pack: Project): Record<string, unk
 
 // ─── element serialization ───────────────────────────────────────────────────
 
+/** Resolve an element's bound Item template, or null (unbound / dangling ref). */
+function boundTemplate(el: Element, pack: Project): ItemTemplate | null {
+  const tplId = el.places?.templateId ?? el.iterates?.templateId;
+  if (!tplId) return null;
+  return (pack.itemTemplates ?? []).find((t) => t.id === tplId) ?? null;
+}
+
+/**
+ * Serialize an element. When bound to an Item template, the template is
+ * **inlined**: its appearances replace the element's, and its alias (and
+ * `keyField` for placement mode) win over the element's local fields — so
+ * `menu/v1` and the plugin never see templates, and editing a template
+ * propagates to every consuming menu at the next deploy. A dangling
+ * `templateId` falls back to the element's local fields (non-hermetic).
+ */
 function serializeElement(el: Element, pack: Project): Record<string, unknown> {
+  const tpl = boundTemplate(el, pack);
+  const appearances = tpl ? tpl.appearances : el.appearances;
   const out: Record<string, unknown> = {
     id: el.id,
     positions: el.positions,
-    appearances: el.appearances.map((a) => serializeAppearance(a, pack)),
+    appearances: appearances.map((a) => serializeAppearance(a, pack)),
   };
-  if (el.iterates) out.iterates = el.iterates;
+  if (el.iterates) {
+    out.iterates = { source: el.iterates.source, alias: tpl?.alias ?? el.iterates.alias };
+  }
+  if (el.places) {
+    // `key_field` is snake_case on the wire (plugin PlacesYaml); cachedDisplay is
+    // editor-only (offline render fallback) and never exported to the bundle.
+    out.places = {
+      source: el.places.source,
+      alias: tpl?.alias ?? el.places.alias,
+      key_field: tpl?.keyField ?? el.places.keyField,
+      placements: el.places.placements.map((p) => ({
+        key: p.key,
+        page: p.page,
+        position: p.position,
+      })),
+    };
+  }
   if (el.tags && el.tags.length > 0) out.tags = el.tags;
   return out;
 }

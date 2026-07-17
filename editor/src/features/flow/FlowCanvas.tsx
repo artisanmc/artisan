@@ -56,6 +56,7 @@ import {
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
+import { PlacementField } from "./PlacementField";
 
 interface FlowCanvasProps {
   projectId: ProjectId;
@@ -79,6 +80,7 @@ const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
 export function FlowCanvas({ projectId }: FlowCanvasProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
+  const selectionMenuId = useSelectionStore((s) => s.menuId);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
@@ -116,7 +118,13 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       </div>
     );
 
-  for (const menu of pack.menus) {
+  // Element ids are only unique within a menu — scope resolution to the menu
+  // the selection was made in, so a shared id (e.g. `grid` in two menus) edits
+  // the right one rather than the first match.
+  const menusForElement = selectionMenuId
+    ? pack.menus.filter((m) => m.id === selectionMenuId)
+    : pack.menus;
+  for (const menu of menusForElement) {
     for (const layer of menu.layers) {
       const el = layer.elements.find((e) => e.id === id);
       if (el)
@@ -175,6 +183,7 @@ function ElementEditor({
   const { t } = useTranslation();
 
   const addAppearance = useAccountStore((s) => s.addAppearance);
+  const deleteElement = useAccountStore((s) => s.deleteElement);
 
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
@@ -202,12 +211,33 @@ function ElementEditor({
             })}
           </div>
         </div>
+        {/* Always-available delete — works even for elements the canvas can't
+            target (e.g. a placement element whose placements were all removed). */}
+        <button
+          type="button"
+          data-testid="delete-element"
+          title={t("flow.deleteElement")}
+          onClick={() => {
+            deleteElement({ projectId, menuId: menu.id, elementId: element.id });
+            useSelectionStore.getState().clear();
+          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+        >
+          🗑
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto px-3 py-3">
         <ElementIdField projectId={projectId} menuId={menu.id} elementId={element.id} />
-        <PositionsField projectId={projectId} menuId={menu.id} element={element} />
-        <IterationField projectId={projectId} menu={menu} element={element} />
+        {/* Positions are meaningless in placement mode (each row carries its own
+            slot), and iteration is the mutually-exclusive sibling. */}
+        {!element.places ? (
+          <PositionsField projectId={projectId} menuId={menu.id} element={element} />
+        ) : null}
+        {!element.places ? (
+          <IterationField projectId={projectId} menu={menu} element={element} />
+        ) : null}
+        <PlacementField projectId={projectId} menu={menu} element={element} />
 
         <Lane label={t("flow.states")}>
           <SortableStates

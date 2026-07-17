@@ -8,10 +8,11 @@ import {
   visitCommandLTexts,
   visitDialogLTexts,
   visitElementLTexts,
+  visitItemTemplateLTexts,
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { commandId, newCommandId, newLayerId, newProjectId } from "@/domain/ids";
+import { commandId, newCommandId, newElementId, newLayerId, newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -23,7 +24,6 @@ import type {
   CommandArg,
   CommandId,
   Condition,
-  ConnectorSpec,
   ContextInput,
   DataSource,
   DataSourceId,
@@ -37,11 +37,14 @@ import type {
   FieldType,
   I18nKey,
   InventoryType,
+  ItemTemplate,
+  ItemTemplateId,
   LText,
   Layer,
   Menu,
   MenuId,
   MenuTitleLayer,
+  Placement,
   Project,
   ProjectId,
   SourceRef,
@@ -359,6 +362,80 @@ interface AccountState {
     elementId: ElementId;
     iterates: { source: string; alias: string } | undefined;
   }) => void;
+  /**
+   * Placement mode: set (or clear with `undefined`) this element's `places` binding.
+   * Mutually exclusive with iteration — setting it clears `iterates`.
+   */
+  setElementPlaces: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    places: Element["places"] | undefined;
+  }) => void;
+  /** Upsert a single Placement (matched by `key`) into an element's `places`. No-op if not in placement mode. */
+  setElementPlacement: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    placement: Placement;
+  }) => void;
+  /** Remove the Placement with the given `key` from an element's `places`. */
+  removeElementPlacement: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    key: string;
+  }) => void;
+  /**
+   * Item templates — named per-source row views (ADR `item-templates-and-data-library`).
+   * `addItemTemplate` mints canonical i18n entries for sentinel (`key === ""`) LTexts
+   * in the appearances; `removeItemTemplate` releases them (no "(unused)" leaks).
+   */
+  addItemTemplate: (input: {
+    projectId: ProjectId;
+    template: ItemTemplate;
+    /** Seed i18n entries (all languages) merged into `pack.i18nKeys` before minting. */
+    i18n?: Record<I18nKey, Record<string, string>>;
+  }) => void;
+  updateItemTemplate: (input: {
+    projectId: ProjectId;
+    templateId: ItemTemplateId;
+    patch: Partial<Pick<ItemTemplate, "name" | "alias" | "keyField" | "groupBy">>;
+  }) => void;
+  /** Replace a template's appearance states: mints new sentinels, GCs dropped keys. */
+  setItemTemplateAppearances: (input: {
+    projectId: ProjectId;
+    templateId: ItemTemplateId;
+    appearances: Appearance[];
+  }) => void;
+  removeItemTemplate: (input: { projectId: ProjectId; templateId: ItemTemplateId }) => void;
+  /**
+   * Pin one row of an Item template onto a menu slot (library drag / tap). Ensures
+   * the menu has a contextInput for the template's source and a bound placement
+   * element (created on first drop), then upserts the placement by key. Enforces
+   * one template per (menu, source): a second template of the same source is
+   * rejected with `{ok:false, reason:"conflict"}`.
+   */
+  pinItemTemplateRow: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    templateId: ItemTemplateId;
+    key: string;
+    position: number;
+    page?: number;
+    cachedDisplay?: { name?: string; material?: string; lore?: string[] };
+  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
+  /**
+   * Drop a whole template (or one of its `groupBy` groups) onto a menu →
+   * paginated bound element (auto slot range). A group drop gets a dedicated
+   * literal-filtered contextInput + its own element.
+   */
+  dropItemTemplateBlock: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    templateId: ItemTemplateId;
+    group?: { field: string; value: string };
+  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
   /**
    * Rename a menu's id. Rejects if newId already exists in the pack.
    * Atomically rewrites all `open_menu` refs in the pack and the
@@ -720,8 +797,6 @@ interface AccountState {
   removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
   renameProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId; newName: string }) => void;
   setProjectDataSourceYaml: (args: { projectId: ProjectId; id: DataSourceId; yaml: string }) => void;
-  addImportedConnector: (args: { projectId: ProjectId; spec: ConnectorSpec }) => void;
-  removeImportedConnector: (args: { projectId: ProjectId; ref: string }) => void;
 }
 
 /**
@@ -788,6 +863,111 @@ function gcCommandLTexts(pack: Project, command: Command): void {
 }
 function gcDialogLTexts(pack: Project, dialog: Dialog): void {
   releaseLTexts(pack, visitDialogLTexts(dialog));
+}
+
+/** Name of another Item template of the same source already bound in this menu, or null. */
+function findTemplateConflict(pack: Project, menu: Menu, tpl: ItemTemplate): string | null {
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      const boundId = el.places?.templateId ?? el.iterates?.templateId;
+      if (!boundId || boundId === tpl.id) continue;
+      const other = pack.itemTemplates?.find((t) => t.id === boundId);
+      if (other && other.sourceRef === tpl.sourceRef) return other.name;
+    }
+  }
+  return null;
+}
+
+/** Auto slot range for a dropped paginated block: skip the first/last menu row when roomy. */
+function defaultIterateRange(menu: Menu): string {
+  const total = slotCount(menu.inventoryType ?? "chest", menu.rows);
+  if (total <= 18) return `0-${total - 1}`;
+  return `9-${total - 10}`;
+}
+
+/**
+ * Find (or create) the menu's element bound to `tpl` in the given mode, ensuring
+ * a contextInput for the template's source exists (named from the ref tail). A
+ * `group` drop gets its own **literal-filtered** input (`items_weapons` with
+ * `filter: {category: "weapons"}`) and its own element — several groups of the
+ * same template coexist in one menu. Created elements are template-bound: empty
+ * local appearances, template wins. Immer-draft helper for pinItemTemplateRow /
+ * dropItemTemplateBlock.
+ */
+function ensureBoundElement(
+  menu: Menu,
+  tpl: ItemTemplate,
+  mode: "places" | "iterates",
+  group?: { field: string; value: string },
+): Element {
+  if (!menu.contextInputs) menu.contextInputs = [];
+  const matchesInput = (c: ContextInput) =>
+    c.kind === "sourceRef" &&
+    String(c.ref) === tpl.sourceRef &&
+    (group
+      ? c.filter?.[group.field] === group.value && Object.keys(c.filter ?? {}).length === 1
+      : !c.filter || Object.keys(c.filter).length === 0);
+  let input = menu.contextInputs.find(matchesInput);
+  if (!input) {
+    const tail = tpl.sourceRef.split(":").pop() || tpl.alias;
+    const baseName = group ? `${tail}_${group.value.replace(/[^a-zA-Z0-9_]/g, "_")}` : tail;
+    const used = new Set(menu.contextInputs.map((c) => c.name));
+    let name = baseName;
+    let n = 2;
+    while (used.has(name)) name = `${baseName}${n++}`;
+    input = {
+      kind: "sourceRef",
+      name,
+      ref: tpl.sourceRef as SourceRef,
+      ...(group ? { filter: { [group.field]: group.value } } : {}),
+    };
+    menu.contextInputs.push(input);
+  }
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (mode === "places" && el.places?.templateId === tpl.id && el.places.source === input.name)
+        return el;
+      if (
+        mode === "iterates" &&
+        el.iterates?.templateId === tpl.id &&
+        el.iterates.source === input.name
+      )
+        return el;
+    }
+  }
+  if (menu.layers.length === 0) {
+    menu.layers.push({ id: newLayerId(), name: "Main", elements: [] });
+  }
+  const el: Element = {
+    id: newElementId(),
+    positions: mode === "iterates" ? defaultIterateRange(menu) : "",
+    appearances: [],
+    ...(mode === "places"
+      ? {
+          places: {
+            source: input.name,
+            alias: tpl.alias,
+            keyField: tpl.keyField ?? "",
+            templateId: tpl.id,
+            placements: [],
+          },
+        }
+      : { iterates: { source: input.name, alias: tpl.alias, templateId: tpl.id } }),
+  };
+  const layer = menu.layers[0]!;
+  layer.elements.push(el);
+  return layer.elements[layer.elements.length - 1]!;
+}
+
+/** i18n keys held by the text-bearing title layers (text/plain/textarea) in a set. */
+function titleLayerKeys(layers: MenuTitleLayer[]): Set<I18nKey> {
+  const keys = new Set<I18nKey>();
+  for (const l of layers) {
+    if ((l.kind === "text" || l.kind === "plain" || l.kind === "textarea") && l.value?.key) {
+      keys.add(l.value.key);
+    }
+  }
+  return keys;
 }
 /** Replace a single LText key inside a dialog (title/body/input/button label) — used by setDialogId. */
 function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey): void {
@@ -927,7 +1107,6 @@ export const useAccountStore = create<AccountState>()(
               assets: [],
               dataSources: [],
               dialogs: [],
-              importedConnectors: [],
               i18nKeys: {},
               defaultLang: "en",
               canvasLayout: {},
@@ -1812,6 +1991,14 @@ export const useAccountStore = create<AccountState>()(
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
+            // Release the i18n keys of text-bearing layers that the new layer
+            // set drops, so switching title modes (composé ↔ vanilla) doesn't
+            // leak orphaned "(unused)" keys. Keys kept in `layers` (e.g. a
+            // migrated title) are preserved.
+            const keptKeys = titleLayerKeys(layers);
+            for (const key of titleLayerKeys(menu.title)) {
+              if (!keptKeys.has(key)) deleteLText(pack, { key });
+            }
             menu.title = layers;
             pack.updatedAt = new Date().toISOString();
           }),
@@ -1847,7 +2034,12 @@ export const useAccountStore = create<AccountState>()(
             if (!pack) return;
             const menu = pack.menus.find((m) => m.id === mId);
             if (!menu) return;
-            menu.title.splice(index, 1);
+            const [removed] = menu.title.splice(index, 1);
+            // GC the removed layer's i18n key (text-bearing layers only) so a
+            // deleted title layer doesn't leave an orphaned "(unused)" key.
+            if (removed) {
+              for (const key of titleLayerKeys([removed])) deleteLText(pack, { key });
+            }
             pack.updatedAt = new Date().toISOString();
           }),
         ),
@@ -2013,12 +2205,170 @@ export const useAccountStore = create<AccountState>()(
               const el = layer.elements.find((e) => e.id === eId);
               if (el) {
                 el.iterates = iterates;
+                if (iterates) el.places = undefined; // XOR: iterates and places are exclusive
                 pack.updatedAt = new Date().toISOString();
                 return;
               }
             }
           }),
         ),
+      setElementPlaces: ({ projectId: pId, menuId: mId, elementId: eId, places }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            if (!pack || !menu) return;
+            for (const layer of menu.layers) {
+              const el = layer.elements.find((e) => e.id === eId);
+              if (el) {
+                el.places = places;
+                if (places) el.iterates = undefined; // XOR: exclusive with iteration
+                pack.updatedAt = new Date().toISOString();
+                return;
+              }
+            }
+          }),
+        ),
+      setElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, placement }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            if (!pack || !menu) return;
+            for (const layer of menu.layers) {
+              const el = layer.elements.find((e) => e.id === eId);
+              if (el?.places) {
+                const list = el.places.placements;
+                const i = list.findIndex((p) => p.key === placement.key);
+                if (i >= 0) list[i] = placement;
+                else list.push(placement);
+                pack.updatedAt = new Date().toISOString();
+                return;
+              }
+            }
+          }),
+        ),
+      removeElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, key }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            if (!pack || !menu) return;
+            for (const layer of menu.layers) {
+              const el = layer.elements.find((e) => e.id === eId);
+              if (el?.places) {
+                el.places.placements = el.places.placements.filter((p) => p.key !== key);
+                pack.updatedAt = new Date().toISOString();
+                return;
+              }
+            }
+          }),
+        ),
+      addItemTemplate: ({ projectId: pId, template, i18n }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack) return;
+            if (!pack.itemTemplates) pack.itemTemplates = [];
+            pack.itemTemplates.push(template);
+            const tpl = pack.itemTemplates[pack.itemTemplates.length - 1]!;
+            // Merge seed values first (createLTextAt in mint no-ops on existing
+            // entries), then mint canonical entries for any remaining sentinels.
+            for (const [key, entry] of Object.entries(i18n ?? {})) {
+              pack.i18nKeys[key as I18nKey] = { ...entry };
+            }
+            mintLTexts(pack, visitItemTemplateLTexts(tpl), pack.defaultLang);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      updateItemTemplate: ({ projectId: pId, templateId, patch }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
+            if (!pack || !tpl) return;
+            Object.assign(tpl, patch);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      setItemTemplateAppearances: ({ projectId: pId, templateId, appearances }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
+            if (!pack || !tpl) return;
+            const oldKeys = new Set(
+              [...visitItemTemplateLTexts(tpl)].map((s) => s.lText.key).filter(Boolean),
+            );
+            tpl.appearances = appearances;
+            mintLTexts(pack, visitItemTemplateLTexts(tpl), pack.defaultLang);
+            // GC keys the new appearance set no longer references.
+            const newKeys = new Set([...visitItemTemplateLTexts(tpl)].map((s) => s.lText.key));
+            for (const key of oldKeys) {
+              if (!newKeys.has(key)) deleteLText(pack, { key });
+            }
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      removeItemTemplate: ({ projectId: pId, templateId }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack?.itemTemplates) return;
+            const tpl = pack.itemTemplates.find((t) => t.id === templateId);
+            if (!tpl) return;
+            releaseLTexts(pack, visitItemTemplateLTexts(tpl));
+            pack.itemTemplates = pack.itemTemplates.filter((t) => t.id !== templateId);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      pinItemTemplateRow: ({ projectId: pId, menuId: mId, templateId, key, position, page = 0, cachedDisplay }) => {
+        let result: ReturnType<AccountState["pinItemTemplateRow"]> = { ok: true };
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
+            if (!pack || !menu || !tpl) return;
+            const conflict = findTemplateConflict(pack, menu, tpl);
+            if (conflict) {
+              result = { ok: false, reason: "conflict", conflictName: conflict };
+              return;
+            }
+            const el = ensureBoundElement(menu, tpl, "places");
+            if (!el.places) return;
+            const placement: Placement = { key, page, position };
+            if (cachedDisplay && Object.keys(cachedDisplay).length > 0) {
+              placement.cachedDisplay = cachedDisplay;
+            }
+            const list = el.places.placements;
+            const i = list.findIndex((p) => p.key === key);
+            if (i >= 0) list[i] = placement;
+            else list.push(placement);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        );
+        return result;
+      },
+      dropItemTemplateBlock: ({ projectId: pId, menuId: mId, templateId, group }) => {
+        let result: ReturnType<AccountState["dropItemTemplateBlock"]> = { ok: true };
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
+            if (!pack || !menu || !tpl) return;
+            const conflict = findTemplateConflict(pack, menu, tpl);
+            if (conflict) {
+              result = { ok: false, reason: "conflict", conflictName: conflict };
+              return;
+            }
+            ensureBoundElement(menu, tpl, "iterates", group);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        );
+        return result;
+      },
       setMenuId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
         if (!newId) throw new Error("menu id cannot be empty");
@@ -3266,25 +3616,6 @@ export const useAccountStore = create<AccountState>()(
             const parsed = parseYaml(yaml);
             ds.value = parsed ?? [];
             ds.type = inferFieldTypeFromValue(ds.value);
-          }),
-        ),
-      addImportedConnector: ({ projectId, spec }) =>
-        set((state) =>
-          produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            pack.importedConnectors ??= [];
-            const idx = pack.importedConnectors.findIndex((c) => c.ref === spec.ref);
-            if (idx >= 0) pack.importedConnectors[idx] = spec;
-            else pack.importedConnectors.push(spec);
-          }),
-        ),
-      removeImportedConnector: ({ projectId, ref }) =>
-        set((state) =>
-          produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            pack.importedConnectors = pack.importedConnectors.filter((c) => c.ref !== ref);
           }),
         ),
       deleteFromProject: ({ projectId: pId, nodeIds }) => {

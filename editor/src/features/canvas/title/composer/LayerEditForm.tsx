@@ -4,6 +4,7 @@ import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -345,14 +346,10 @@ function TextLayerForm({ projectId, menuId, index, layer }: TextLayerFormProps) 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
       <div>
-        <label
-          htmlFor="layer-edit-text"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
-        >
-          Texte (MiniMessage) — {textEdit.lang}
-        </label>
-        <PlaceholderInput
-          multiline
+        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
+          Titre (MiniMessage) — {textEdit.lang}
+        </div>
+        <RevealField
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
@@ -364,12 +361,15 @@ function TextLayerForm({ projectId, menuId, index, layer }: TextLayerFormProps) 
           }
           entries={placeholderEntries}
           placeholder={t("layerEditForm.textPlaceholder")}
+          className="text-xs"
+          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
+          preview={
+            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+              <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
+            </div>
+          }
         />
-      </div>
-
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
-        <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -461,7 +461,7 @@ interface PlainLayerFormProps {
   layer: Extract<MenuTitleLayer, { kind: "plain" }>;
 }
 
-function PlainLayerForm({ projectId, menuId, index, layer }: PlainLayerFormProps) {
+function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
@@ -479,14 +479,10 @@ function PlainLayerForm({ projectId, menuId, index, layer }: PlainLayerFormProps
         <code className="text-zinc-300">{"<bold>"}</code>, etc.).
       </div>
       <div>
-        <label
-          htmlFor={`plain-layer-text-${index}`}
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
-        >
-          Texte (MiniMessage) — {textEdit.lang}
-        </label>
-        <PlaceholderInput
-          multiline
+        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
+          Titre (MiniMessage) — {textEdit.lang}
+        </div>
+        <RevealField
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
@@ -498,11 +494,15 @@ function PlainLayerForm({ projectId, menuId, index, layer }: PlainLayerFormProps
           }
           entries={placeholderEntries}
           placeholder={t("layerEditForm.plainPlaceholder")}
+          className="text-xs"
+          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
+          preview={
+            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+              <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
+            </div>
+          }
         />
-      </div>
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
-        <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>
   );

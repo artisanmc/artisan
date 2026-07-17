@@ -4,7 +4,7 @@ import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type EditorTab = "edit" | "library" | "assets";
+export type EditorTab = "edit" | "library" | "sets" | "assets";
 
 /**
  * Best-effort detection of the user's preferred language from the
@@ -76,6 +76,12 @@ interface UiState {
   setArmedMaterial: (m: string | null) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
+  /**
+   * Placement-mode row "armed" from the row palette — the next slot tap on the
+   * matching menu pins it at the current page. Touch fallback for the drag path.
+   */
+  armedPlacement: { menuId: string; elementId: string; key: string } | null;
+  setArmedPlacement: (p: { menuId: string; elementId: string; key: string } | null) => void;
   /**
    * v3 title composer — id of the menu currently selected in the pack canvas.
    * Drives the contents of the 3rd-column LayersPanel. Distinct from the
@@ -202,6 +208,8 @@ export const useUiStore = create<UiState>()(
       setEditorTab: (t) => set({ editorTab: t }),
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
+      armedPlacement: null,
+      setArmedPlacement: (p) => set({ armedPlacement: p }),
       activeDragMaterial: null,
       setActiveDragMaterial: (m) => set({ activeDragMaterial: m }),
       selectedMenuId: null,

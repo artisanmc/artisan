@@ -18,7 +18,7 @@ describe("serverDataSourcesStore", () => {
     vi.stubGlobal("fetch", fetchMock);
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null },
+      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
@@ -64,13 +64,13 @@ describe("serverDataSourcesStore", () => {
 
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null },
+      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
 
     await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null },
+      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
   });
 
@@ -101,7 +101,7 @@ describe("serverDataSourcesStore", () => {
 
     expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null },
+      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
   });
 });
