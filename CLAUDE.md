@@ -222,6 +222,7 @@ plugins/Artisan/projects/
     menus/<menu_id>.yaml
     dialogs/<dialog_id>.yaml
     lang/<lang>.yaml
+    items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
     .artisan-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
 ```
 
