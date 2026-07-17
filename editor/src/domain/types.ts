@@ -14,6 +14,7 @@ export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
 export type TemplateId = string & { __brand: "TemplateId" };
+export type ItemTemplateId = string & { __brand: "ItemTemplateId" };
 export type AssetId = string & { __brand: "AssetId" };
 export type ElementId = string & { __brand: "ElementId" };
 export type LayerId = string & { __brand: "LayerId" };
@@ -98,9 +99,17 @@ export interface Project {
   menus: Menu[];
   commands: Command[];
   templates: Template[];
+  /** Item templates — named per-source row views (optional: absent on older stored projects = []). */
+  itemTemplates?: ItemTemplate[];
   assets: Asset[];
   dataSources: DataSource[];
-  importedConnectors: ConnectorSpec[];
+  /**
+   * @deprecated Dead since 2026-07-17 — the early "import connector YAML" flow
+   * was superseded by server-reported data sources (+ snapshots + module-local
+   * rows). Field kept optional so previously stored projects still parse;
+   * nothing reads or writes it anymore.
+   */
+  importedConnectors?: ConnectorSpec[];
   i18nKeys: Record<I18nKey, Record<string, string>>;
   defaultLang: string;
   dialogs: Dialog[];
@@ -187,7 +196,43 @@ export interface Element {
    * `quest`) becomes a placeholder available inside this element's
    * title / lore / click actions, scoped to the current item.
    */
-  iterates?: { source: string; alias: string };
+  iterates?: {
+    source: string;
+    alias: string;
+    /** Item template this pagination renders through. When set, the template wins
+     *  for alias + appearances (inlined at export); absent = local appearances. */
+    templateId?: ItemTemplateId;
+  };
+  /**
+   * Placement mode (mutually exclusive with `iterates`): instead of auto-filling
+   * a slot range in source order, the admin pins specific rows of a **static**
+   * data source (matched by `keyField`) to explicit page+slot. Rows not placed are
+   * omitted. How a row looks and behaves comes from the bound Item template
+   * (`templateId`) — a Placement pins position only, no per-item override. Only
+   * valid on static sources.
+   */
+  places?: {
+    source: string;
+    alias: string;
+    /** The static source's Row key field — rows are matched to placements by this. */
+    keyField: string;
+    /** Item template rows render through. When set, wins for alias/keyField/
+     *  appearances (inlined at export); local fields are the dangling fallback. */
+    templateId?: ItemTemplateId;
+    placements: Placement[];
+  };
+}
+
+/** One pinned row of a static source at a hand-authored page+slot. */
+export interface Placement {
+  key: string;
+  page: number;
+  position: number;
+  /**
+   * Last-known display of the placed row, so the slot still renders offline / for
+   * a member without the server connected. The live source wins when reachable.
+   */
+  cachedDisplay?: { name?: string; material?: string; lore?: string[] };
 }
 
 export interface Appearance {
@@ -376,6 +421,31 @@ export interface Template {
   projectId: ProjectId;
   name: string;
   variables: { name: string; type: string }[];
+  appearances: Appearance[];
+}
+
+/**
+ * Project-level **named view over one data source**: how one row of that source
+ * renders as a menu slot — appearances (material/title/lore/count) **and click
+ * behaviour** — with per-row variation via conditional appearance states (never
+ * per-item overrides). Consumed by elements through `iterates.templateId` /
+ * `places.templateId`; **inlined at export**, so menu/v1 and the plugin never see
+ * templates. N templates per source; one template per (menu, source).
+ * Cf. ADR `item-templates-and-data-library` + CONTEXT.md "Item template".
+ */
+export interface ItemTemplate {
+  id: ItemTemplateId;
+  projectId: ProjectId;
+  name: string;
+  /** Data source ref this template renders (e.g. "boutique:items"). */
+  sourceRef: string;
+  /** Placeholder alias rows bind to in appearances (e.g. "item" → `{item.name}`). */
+  alias: string;
+  /** Static source's Row key — needed to place; absent for dynamic sources. */
+  keyField?: string;
+  /** Library grouping field (static only). Pure arrangement — zero runtime effect. */
+  groupBy?: string;
+  /** THE row template. Conditional states (`if` on row fields) express variation. */
   appearances: Appearance[];
 }
 

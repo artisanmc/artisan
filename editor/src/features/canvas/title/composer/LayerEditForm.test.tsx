@@ -264,16 +264,19 @@ describe("LayerEditForm — text layer", () => {
     selectLayer(0);
   });
 
-  it("renders a textarea bound to the resolved text", () => {
+  it("reveals an editor bound to the resolved text after clicking the facade", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
-    expect(textarea.value).toBe("Hello");
+    // The field shows a rendered facade until clicked (like the item inputs).
+    fireEvent.click(screen.getByText("Hello"));
+    const input = container.querySelector("input, textarea") as HTMLInputElement;
+    expect(input.value).toBe("Hello");
   });
 
-  it("typing in the textarea writes via setI18nValue", () => {
+  it("typing in the revealed editor writes via setI18nValue", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    const textarea = container.querySelector("textarea")!;
-    fireEvent.change(textarea, { target: { value: "<gold>Hi</gold>" } });
+    fireEvent.click(screen.getByText("Hello"));
+    const input = container.querySelector("input, textarea")!;
+    fireEvent.change(input, { target: { value: "<gold>Hi</gold>" } });
     expect(
       useAccountStore.getState().account.projects[0]!.i18nKeys[K("greet")]!.en,
     ).toBe("<gold>Hi</gold>");

@@ -21,6 +21,187 @@ describe("accountStore", () => {
     useAccountStore.setState({ account: mockAccount() });
   });
 
+  describe("item templates", () => {
+    const TPL = "tpl_shop" as import("@/domain/types").ItemTemplateId;
+    const getPack = () =>
+      useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+    const baseTemplate = () => ({
+      id: TPL,
+      projectId: PERSONAL,
+      name: "Vue boutique",
+      sourceRef: "boutique:items",
+      alias: "item",
+      keyField: "id",
+      groupBy: "category",
+      // Sentinel keys ("") — addItemTemplate mints canonical i18n entries for them.
+      appearances: [{ material: "{item.icon}", title: { key: "" as I18nKey } }],
+    });
+
+    it("addItemTemplate appends and mints sentinel LText keys under canonical paths", () => {
+      useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+      const pack = getPack();
+      const tpl = pack.itemTemplates!.find((t) => t.id === TPL)!;
+      expect(tpl.name).toBe("Vue boutique");
+      const titleKey = tpl.appearances[0]!.title!.key;
+      expect(titleKey).toBe("item_templates.tpl_shop.default.title");
+      expect(pack.i18nKeys[titleKey]).toBeDefined();
+    });
+
+    it("addItemTemplate merges seed i18n entries (all languages) before minting", () => {
+      const K = "item_templates.tpl_shop.default.title" as I18nKey;
+      useAccountStore.getState().addItemTemplate({
+        projectId: PERSONAL,
+        template: {
+          ...baseTemplate(),
+          appearances: [{ material: "{item.icon}", title: { key: K } }],
+        },
+        i18n: { [K]: { en: "{item.name}", fr: "{item.name} !" } },
+      });
+      const pack = getPack();
+      expect(pack.i18nKeys[K]).toEqual({ en: "{item.name}", fr: "{item.name} !" });
+    });
+
+    it("updateItemTemplate patches name/groupBy without touching appearances", () => {
+      useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+      useAccountStore.getState().updateItemTemplate({
+        projectId: PERSONAL,
+        templateId: TPL,
+        patch: { name: "Vue compacte", groupBy: undefined },
+      });
+      const tpl = getPack().itemTemplates!.find((t) => t.id === TPL)!;
+      expect(tpl.name).toBe("Vue compacte");
+      expect(tpl.groupBy).toBeUndefined();
+      expect(tpl.appearances).toHaveLength(1);
+    });
+
+    it("setItemTemplateAppearances replaces states, mints new sentinels and releases dropped keys", () => {
+      useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+      const oldKey = getPack().itemTemplates![0]!.appearances[0]!.title!.key;
+      useAccountStore.getState().setItemTemplateAppearances({
+        projectId: PERSONAL,
+        templateId: TPL,
+        appearances: [
+          { material: "{item.icon}", lore: { key: "" as I18nKey } }, // no title anymore
+        ],
+      });
+      const pack = getPack();
+      const tpl = pack.itemTemplates![0]!;
+      expect(tpl.appearances[0]!.title).toBeUndefined();
+      const loreKey = tpl.appearances[0]!.lore!.key;
+      expect(loreKey).toBe("item_templates.tpl_shop.default.lore");
+      expect(pack.i18nKeys[loreKey]).toBeDefined();
+      // The dropped title key must be GC'd — no "(unused)" leak.
+      expect(pack.i18nKeys[oldKey]).toBeUndefined();
+    });
+
+    describe("pinItemTemplateRow / dropItemTemplateBlock", () => {
+      const setup = () => {
+        useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+        return useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_tpl_target" });
+      };
+
+      it("first drop creates the context input + a bound element, then upserts placements", () => {
+        const mId = setup();
+        const r1 = useAccountStore.getState().pinItemTemplateRow({
+          projectId: PERSONAL, menuId: mId, templateId: TPL, key: "sword", position: 4,
+        });
+        expect(r1.ok).toBe(true);
+        const menu = getPack().menus.find((m) => m.id === mId)!;
+        // Context input auto-created, named from the ref tail.
+        expect(menu.contextInputs).toEqual([
+          { kind: "sourceRef", name: "items", ref: "boutique:items" },
+        ]);
+        const el = menu.layers.flatMap((l) => l.elements).find((e) => e.places)!;
+        expect(el.places).toMatchObject({
+          source: "items", alias: "item", keyField: "id", templateId: TPL,
+          placements: [{ key: "sword", page: 0, position: 4 }],
+        });
+        expect(el.appearances).toEqual([]); // template-bound: no local appearances
+
+        // Second drop reuses the same element.
+        useAccountStore.getState().pinItemTemplateRow({
+          projectId: PERSONAL, menuId: mId, templateId: TPL, key: "apple", position: 5,
+        });
+        const el2 = getPack().menus.find((m) => m.id === mId)!.layers
+          .flatMap((l) => l.elements).filter((e) => e.places);
+        expect(el2).toHaveLength(1);
+        expect(el2[0]!.places!.placements).toHaveLength(2);
+      });
+
+      it("blocks a second template of the same source in the same menu (one set per menu-source)", () => {
+        const mId = setup();
+        useAccountStore.getState().addItemTemplate({
+          projectId: PERSONAL,
+          template: { ...baseTemplate(), id: "tpl_other" as never, name: "Vue compacte" },
+        });
+        useAccountStore.getState().pinItemTemplateRow({
+          projectId: PERSONAL, menuId: mId, templateId: TPL, key: "sword", position: 4,
+        });
+        const r = useAccountStore.getState().pinItemTemplateRow({
+          projectId: PERSONAL, menuId: mId, templateId: "tpl_other" as never, key: "apple", position: 5,
+        });
+        expect(r).toEqual({ ok: false, reason: "conflict", conflictName: "Vue boutique" });
+      });
+
+      it("dropping a group creates a dedicated literal-filtered context input + its own element", () => {
+        const mId = setup();
+        const r = useAccountStore.getState().dropItemTemplateBlock({
+          projectId: PERSONAL, menuId: mId, templateId: TPL,
+          group: { field: "category", value: "weapons" },
+        });
+        expect(r.ok).toBe(true);
+        const menu = getPack().menus.find((m) => m.id === mId)!;
+        expect(menu.contextInputs).toEqual([
+          { kind: "sourceRef", name: "items_weapons", ref: "boutique:items", filter: { category: "weapons" } },
+        ]);
+        const el = menu.layers.flatMap((l) => l.elements).find((e) => e.iterates)!;
+        expect(el.iterates).toMatchObject({ source: "items_weapons", templateId: TPL });
+
+        // A second group of the same template → its own input + element, no conflict.
+        const r2 = useAccountStore.getState().dropItemTemplateBlock({
+          projectId: PERSONAL, menuId: mId, templateId: TPL,
+          group: { field: "category", value: "food" },
+        });
+        expect(r2.ok).toBe(true);
+        const menu2 = getPack().menus.find((m) => m.id === mId)!;
+        expect(menu2.contextInputs).toHaveLength(2);
+        expect(menu2.layers.flatMap((l) => l.elements).filter((e) => e.iterates)).toHaveLength(2);
+
+        // Re-dropping the same group reuses its element (no duplicate).
+        useAccountStore.getState().dropItemTemplateBlock({
+          projectId: PERSONAL, menuId: mId, templateId: TPL,
+          group: { field: "category", value: "weapons" },
+        });
+        expect(
+          getPack().menus.find((m) => m.id === mId)!.layers.flatMap((l) => l.elements)
+            .filter((e) => e.iterates),
+        ).toHaveLength(2);
+      });
+
+      it("dropItemTemplateBlock creates a paginated bound element with a sensible slot range", () => {
+        const mId = setup();
+        const r = useAccountStore.getState().dropItemTemplateBlock({
+          projectId: PERSONAL, menuId: mId, templateId: TPL,
+        });
+        expect(r.ok).toBe(true);
+        const menu = getPack().menus.find((m) => m.id === mId)!;
+        const el = menu.layers.flatMap((l) => l.elements).find((e) => e.iterates)!;
+        expect(el.iterates).toMatchObject({ source: "items", alias: "item", templateId: TPL });
+        expect(el.appearances).toEqual([]);
+        expect(el.positions.length).toBeGreaterThan(0); // auto slot range
+      });
+    });
+
+    it("removeItemTemplate deletes the template and releases its LText keys", () => {
+      useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+      const titleKey = getPack().itemTemplates![0]!.appearances[0]!.title!.key;
+      useAccountStore.getState().removeItemTemplate({ projectId: PERSONAL, templateId: TPL });
+      const pack = getPack();
+      expect(pack.itemTemplates ?? []).toHaveLength(0);
+      expect(pack.i18nKeys[titleKey]).toBeUndefined();
+    });
+  });
+
   it("createDialog returns a DialogId and adds dialog to pack", () => {
     const dId = useAccountStore.getState().createDialog({
       projectId: PERSONAL,
@@ -40,6 +221,39 @@ describe("accountStore", () => {
     });
     const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
     expect((pack.canvasLayout as Record<string, unknown>)["d_shop"]).toEqual({ x: 100, y: 200 });
+  });
+
+  describe("placement mode reducers", () => {
+    const places = () => useAccountStore.getState().setElementPlaces;
+    const base = { projectId: PERSONAL, menuId: SHOP_MAIN, elementId: PROFILE_BTN };
+
+    it("setElementPlaces sets the binding and clears iterates (XOR)", () => {
+      useAccountStore.getState().setElementIterates({ ...base, iterates: { source: "items", alias: "item" } });
+      expect(findElement()!.iterates).toBeDefined();
+      places()({ ...base, places: { source: "items", alias: "item", keyField: "id", placements: [] } });
+      expect(findElement()!.places?.keyField).toBe("id");
+      expect(findElement()!.iterates).toBeUndefined();
+    });
+
+    it("setElementIterates clears a prior places binding (XOR both ways)", () => {
+      places()({ ...base, places: { source: "items", alias: "item", keyField: "id", placements: [] } });
+      useAccountStore.getState().setElementIterates({ ...base, iterates: { source: "items", alias: "item" } });
+      expect(findElement()!.places).toBeUndefined();
+      expect(findElement()!.iterates).toBeDefined();
+    });
+
+    it("setElementPlacement upserts by key; removeElementPlacement removes", () => {
+      places()({ ...base, places: { source: "items", alias: "item", keyField: "id", placements: [] } });
+      useAccountStore.getState().setElementPlacement({ ...base, placement: { key: "sword", page: 0, position: 10 } });
+      useAccountStore.getState().setElementPlacement({ ...base, placement: { key: "sword", page: 0, position: 14 } }); // move
+      useAccountStore.getState().setElementPlacement({ ...base, placement: { key: "apple", page: 1, position: 3 } });
+      expect(findElement()!.places!.placements).toEqual([
+        { key: "sword", page: 0, position: 14 },
+        { key: "apple", page: 1, position: 3 },
+      ]);
+      useAccountStore.getState().removeElementPlacement({ ...base, key: "sword" });
+      expect(findElement()!.places!.placements).toEqual([{ key: "apple", page: 1, position: 3 }]);
+    });
   });
 
   it("setDialogTitle stores translation in i18nKeys", () => {
@@ -999,51 +1213,6 @@ describe("accountStore", () => {
     expect(useAccountStore.temporal.getState().pastStates.length).toBe(0);
   });
 
-  describe("Connector reducers", () => {
-    it("adds an imported connector", () => {
-      useAccountStore.getState().addImportedConnector({
-        projectId: PERSONAL,
-        spec: {
-          ref: "chestshop:items",
-          type: { kind: "list", of: { kind: "string" } },
-          sample: ["a"],
-        },
-      });
-      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      expect(pack.importedConnectors).toHaveLength(1);
-      expect(pack.importedConnectors[0]!.ref).toBe("chestshop:items");
-    });
-
-    it("replaces existing connector by ref", () => {
-      const spec1 = {
-        ref: "x:y",
-        type: { kind: "string" } as const,
-        sample: "first",
-      };
-      const spec2 = {
-        ref: "x:y",
-        type: { kind: "string" } as const,
-        sample: "second",
-      };
-      useAccountStore.getState().addImportedConnector({ projectId: PERSONAL, spec: spec1 });
-      useAccountStore.getState().addImportedConnector({ projectId: PERSONAL, spec: spec2 });
-      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      expect(pack.importedConnectors).toHaveLength(1);
-      expect(pack.importedConnectors[0]!.sample).toBe("second");
-    });
-
-    it("removes a connector by ref", () => {
-      useAccountStore.getState().addImportedConnector({
-        projectId: PERSONAL,
-        spec: { ref: "x:y", type: { kind: "string" }, sample: "s" },
-      });
-      useAccountStore.getState().removeImportedConnector({ projectId: PERSONAL, ref: "x:y" });
-      expect(
-        useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.importedConnectors,
-      ).toHaveLength(0);
-    });
-  });
-
   describe("semantic i18n keys", () => {
     it("createMenu initializes title with a default vanilla (plain) layer", () => {
       const mId = useAccountStore.getState().createMenu({
@@ -1288,6 +1457,51 @@ describe("accountStore", () => {
       expect(menu.title).toHaveLength(2);
       if (menu.title[0]!.kind === "background") expect(menu.title[0]!.assetId).toBe("bg2");
       if (menu.title[1]!.kind === "background") expect(menu.title[1]!.assetId).toBe("bg3");
+    });
+
+    it("setMenuTitleLayers releases dropped text-layer i18n keys but keeps migrated ones", () => {
+      const mId = setupMenu();
+      const droppedKey = "lt_dropped" as I18nKey;
+      const keptKey = "lt_kept" as I18nKey;
+      // A text layer (dropped) and a plain layer (migrated to the new set).
+      useAccountStore.getState().setMenuTitleLayers({
+        projectId: PERSONAL,
+        menuId: mId,
+        layers: [
+          { kind: "text", value: { key: droppedKey }, x: 8, y: 5 },
+          { kind: "plain", value: { key: keptKey } },
+        ],
+      });
+      // Seed translations for both so we can watch the GC.
+      useAccountStore.getState().setI18nValue({ projectId: PERSONAL, lt: { key: droppedKey }, lang: "en", value: "Boutique" });
+      useAccountStore.getState().setI18nValue({ projectId: PERSONAL, lt: { key: keptKey }, lang: "en", value: "Shop" });
+
+      // Collapse to vanilla, migrating only keptKey.
+      useAccountStore.getState().setMenuTitleLayers({
+        projectId: PERSONAL,
+        menuId: mId,
+        layers: [{ kind: "plain", value: { key: keptKey } }],
+      });
+
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      // droppedKey is now orphaned → released; keptKey survives.
+      expect(pack.i18nKeys[droppedKey]).toBeUndefined();
+      expect(pack.i18nKeys[keptKey]!.en).toBe("Shop");
+    });
+
+    it("removeMenuTitleLayer GCs the removed text layer's i18n key", () => {
+      const mId = setupMenu();
+      const key = "lt_removed_title" as I18nKey;
+      useAccountStore.getState().setMenuTitleLayers({
+        projectId: PERSONAL,
+        menuId: mId,
+        layers: [{ kind: "text", value: { key }, x: 8, y: 5 }],
+      });
+      useAccountStore.getState().setI18nValue({ projectId: PERSONAL, lt: { key }, lang: "en", value: "Gone" });
+      useAccountStore.getState().removeMenuTitleLayer({ projectId: PERSONAL, menuId: mId, index: 0 });
+
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect(pack.i18nKeys[key]).toBeUndefined();
     });
   });
 

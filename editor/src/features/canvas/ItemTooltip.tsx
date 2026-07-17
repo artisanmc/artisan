@@ -6,9 +6,11 @@ import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
+import { matchPlacementRow, placementTotalPages, resolveAppearance0 } from "./placement";
 
 interface ItemTooltipProps {
   projectId: ProjectId;
@@ -67,16 +69,20 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // selector return value would loop zustand's identity check.
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
+  // Live-server snapshots for real-data resolution. MUST stay above the early
+  // returns below — a hook called conditionally throws "rendered more hooks
+  // than during the previous render" when the hover target appears/clears.
+  const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const found = useMemo(() => findElementAndMenu(pack, elementId), [pack, elementId]);
   if (!found || !pack) return null;
   const { element, menu } = found;
-  const appearance = element.appearances[0];
+  const appearance = resolveAppearance0(pack, element);
   if (!appearance) return null;
 
   // Build a preview scope from contextInputs — primitives are coerced to their
-  // declared type; sourceRefs are resolved against pack.dataSources /
-  // pack.importedConnectors (Plan C4).
-  const sampleCtx = buildPreviewScope(menu, pack);
+  // declared type; sourceRefs resolve against a live snapshot (server sources)
+  // with pack.dataSources as the project-data path.
+  const sampleCtx = buildPreviewScope(menu, pack, snapshots);
 
   // Mirror MenuGroup's pagination context so `{pagination.page}` and
   // friends resolve consistently in tooltips. Walk every iterating
@@ -86,16 +92,25 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   let firstIterable: { page: number; totalPages: number } | null = null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      if (!el.iterates) continue;
-      const positions = parsePositions(el.positions);
-      const list = lookupPath(sampleCtx, el.iterates.source);
-      const items = Array.isArray(list) ? list : [];
-      const perPage = Math.max(1, positions.length);
-      const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+      let source: string;
+      let totalPages: number;
+      if (el.iterates) {
+        const positions = parsePositions(el.positions);
+        const list = lookupPath(sampleCtx, el.iterates.source);
+        const items = Array.isArray(list) ? list : [];
+        const perPage = Math.max(1, positions.length);
+        totalPages = Math.max(1, Math.ceil(items.length / perPage));
+        source = el.iterates.source;
+      } else if (el.places) {
+        totalPages = placementTotalPages(el.places.placements);
+        source = el.places.source;
+      } else {
+        continue;
+      }
       const rawPage = pageByElement[el.id] ?? 0;
       const page = Math.min(Math.max(0, rawPage), totalPages - 1);
       const entry = { page: page + 1, totalPages };
-      paginationCtx[el.iterates.source] = entry;
+      paginationCtx[source] = entry;
       if (!firstIterable) firstIterable = entry;
     }
   }
@@ -109,6 +124,10 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // the current pagination page so hover preview matches what the slot
   // visually renders.
   let ctx: Record<string, unknown> = enhancedCtx;
+  // Placement mode: cachedDisplay is the offline fallback when the live row is
+  // unreachable; otherwise the template appearance renders against the row.
+  let cachedName: string | undefined;
+  let cachedLore: string[] | undefined;
   if (element.iterates && slotPosition != null) {
     const positions = parsePositions(element.positions);
     const localIdx = positions.indexOf(slotPosition);
@@ -122,15 +141,34 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
         ctx = { ...enhancedCtx, [element.iterates.alias]: list[itemIdx] };
       }
     }
+  } else if (element.places && slotPosition != null) {
+    const totalPages = placementTotalPages(element.places.placements);
+    const page = Math.min(Math.max(0, pageByElement[element.id] ?? 0), totalPages - 1);
+    const placement = element.places.placements.find(
+      (p) => p.position === slotPosition && p.page === page,
+    );
+    if (placement) {
+      const rows = lookupPath(sampleCtx, element.places.source);
+      const row = matchPlacementRow(rows, element.places.keyField, placement.key);
+      if (row) ctx = { ...enhancedCtx, [element.places.alias]: row };
+      else if (!Array.isArray(rows)) {
+        // Cache only when the source is unreachable — a reachable source whose
+        // key is gone is dangling (never ghost-render a deleted row).
+        cachedName = placement.cachedDisplay?.name;
+        cachedLore = placement.cachedDisplay?.lore;
+      }
+    }
   }
 
-  const titleSource = getText(pack, appearance.title, activeLang).trim();
+  const titleSource = (cachedName ?? getText(pack, appearance.title, activeLang)).trim();
   const rawTitle = titleSource || humanize(appearance.material ?? "");
   const title = renderPreview(rawTitle, ctx, pack, activeLang);
   const loreRaw = appearance.lore ? getText(pack, appearance.lore, activeLang) : "";
-  const lore = loreRaw
-    ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, pack, activeLang))
-    : [];
+  const lore = cachedLore
+    ? cachedLore
+    : loreRaw
+      ? loreRaw.split("\n").map((line) => renderPreview(line, ctx, pack, activeLang))
+      : [];
 
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>

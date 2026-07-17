@@ -26,4 +26,13 @@ export interface FrontendModule {
    * collectModuleExportFiles); out-of-namespace keys are dropped.
    */
   exportFiles?: (project: unknown) => Record<string, string>;
+  /**
+   * Authoring-time rows for one of this module's data sources, computed from
+   * the module's own project state (moduleData) — so canvas/library tiles
+   * update LIVE while editing the module's form, before any deploy. Return
+   * null when the ref isn't this module's or the project holds no data for it
+   * (the host then falls back to the live server snapshot). Must mirror the
+   * plugin fetcher's row shape.
+   */
+  localPreviewRows?: (project: unknown, ref: string) => Record<string, unknown>[] | null;
 }

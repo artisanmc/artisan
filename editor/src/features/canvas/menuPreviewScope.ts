@@ -2,16 +2,58 @@ import type { I18nKey, Menu, Project, SourceRef } from "@/domain/types";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
+import { listModules } from "@artisan/editor-sdk";
+import { useAccountStore } from "@/state/accountStore";
+
+/** Cached live-server snapshots keyed by ref (see serverSnapshotsStore). */
+export type SourceSnapshots = Record<string, unknown[]>;
+
+/**
+ * Authoring-time rows a registered frontend module computes from a project's
+ * moduleData (FrontendModule.localPreviewRows) — e.g. the boutique form's
+ * items, so tiles/canvas update live while editing, before any deploy.
+ *
+ * Module data may live in a **sibling project** (the plugin merges module
+ * files across ALL projects of the server at runtime — cf. BoutiqueModule
+ * .reloadRepo), so after the current pack we probe the account's other
+ * projects. Null when no module owns the ref or no project holds local data.
+ */
+export function moduleLocalRows(
+  pack: Project,
+  ref: SourceRef | string,
+): Record<string, unknown>[] | null {
+  const r = String(ref);
+  for (const mod of listModules()) {
+    const fn = mod.localPreviewRows;
+    if (!fn) continue;
+    const own = fn(pack, r);
+    if (own) return own;
+    // Lazy import avoided: accountStore never imports this module (no cycle).
+    for (const sibling of useAccountStore.getState().account.projects) {
+      if (sibling.id === pack.id) continue;
+      const rows = fn(sibling, r);
+      if (rows) return rows;
+    }
+  }
+  return null;
+}
 
 /**
  * Resolve a SourceRef against a pack:
  *  - "pack:<id>" → pack.dataSources[id].value
- *  - "<plugin>:<source>" → pack.importedConnectors[ref].sample
+ *  - "<plugin>:<source>" → module-local rows (authoring state, live while
+ *    editing) → live snapshot (if cached)
  *  - unknown / malformed → undefined
  *
- * Cf. spec §3.5.
+ * Local module rows win over the server snapshot (they're what WILL be
+ * deployed). The legacy imported-connector sample fallback was removed
+ * 2026-07-17 — server-reported sources + snapshots superseded it.
  */
-export function resolveSourceRef(ref: SourceRef, pack: Project): unknown {
+export function resolveSourceRef(
+  ref: SourceRef,
+  pack: Project,
+  snapshots?: SourceSnapshots,
+): unknown {
   const r = String(ref);
   if (r === "" || !r.includes(":")) return undefined;
   if (r.startsWith("pack:")) {
@@ -19,8 +61,9 @@ export function resolveSourceRef(ref: SourceRef, pack: Project): unknown {
     const ds = pack.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
     return ds?.value;
   }
-  const c = pack.importedConnectors.find((x) => x.ref === r);
-  return c?.sample;
+  const local = moduleLocalRows(pack, r);
+  if (local) return local;
+  return snapshots?.[r];
 }
 
 /** Sample values for the builtin implicit `{player}` (runtime: the viewing player). */
@@ -49,7 +92,11 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
  * Used by MenuGroup and ItemTooltip preview rendering. Replaces the
  * pre-Plan-C1 sampleContext blob.
  */
-export function buildPreviewScope(menu: Menu, pack: Project): Record<string, unknown> {
+export function buildPreviewScope(
+  menu: Menu,
+  pack: Project,
+  snapshots?: SourceSnapshots,
+): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") {
@@ -58,7 +105,7 @@ export function buildPreviewScope(menu: Menu, pack: Project): Record<string, unk
         input.type as "player" | "string" | "integer" | "number" | "boolean",
       );
     } else {
-      scope[input.name] = resolveSourceRef(input.ref, pack);
+      scope[input.name] = resolveSourceRef(input.ref, pack, snapshots);
     }
   }
   if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {

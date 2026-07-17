@@ -11,6 +11,10 @@ export interface ServerDataSource {
   moduleId: string | null;
   schema: DataSourceSchemaField[];
   schemaHint: string | null;
+  /** "static" = placeable (stable key-set); "dynamic" = pagination-only. null/absent = legacy. */
+  stability?: "static" | "dynamic" | null;
+  /** Row key field name for a static source (null/absent unless static). */
+  keyField?: string | null;
 }
 
 /**
@@ -34,6 +38,8 @@ export async function fetchServerDataSourcesUser(
         module_id?: string | null;
         schema?: { name: string; type: string; description?: string | null }[];
         schema_hint?: string | null;
+        stability?: "static" | "dynamic" | null;
+        key_field?: string | null;
       }[];
     };
     return (data.data_sources ?? []).map((d) => ({
@@ -45,6 +51,8 @@ export async function fetchServerDataSourcesUser(
         description: f.description ?? null,
       })),
       schemaHint: d.schema_hint ?? null,
+      stability: d.stability ?? null,
+      keyField: d.key_field ?? null,
     }));
   } catch {
     return [];

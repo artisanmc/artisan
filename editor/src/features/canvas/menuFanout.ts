@@ -17,15 +17,15 @@ export interface SlotEntry {
  * (`material: undefined`) so their positions still render as dashed-outline
  * placeholders in the canvas.
  *
- * Elements that use `iterates` are intentionally excluded — their expansion
- * depends on live data-source state (store reads, placeholder resolution) and
- * must remain in the component that owns those hooks.
+ * Elements that use `iterates` or `places` (placement mode) are intentionally
+ * excluded — their expansion depends on live data-source state (store reads,
+ * placeholder resolution) and must remain in the component that owns those hooks.
  */
 export function fanoutElements(layers: Layer[]): SlotEntry[] {
   const out: SlotEntry[] = [];
   for (const layer of layers) {
     for (const el of layer.elements) {
-      if (el.iterates) continue;
+      if (el.iterates || el.places) continue;
       const appearance = el.appearances[0];
       if (!appearance) continue;
       const positions = parsePositions(el.positions);

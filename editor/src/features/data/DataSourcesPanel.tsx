@@ -70,6 +70,7 @@ export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId })
             networkId={activeNetworkId}
             serverId={activeServerId}
             source={selectedServerSource}
+            projectId={projectId}
           />
         ) : (
           <div className="mt-8 text-center text-sm text-[var(--text-faint)]">

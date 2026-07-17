@@ -55,7 +55,11 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
       },
     });
     if (entry.target.selectId) {
-      useSelectionStore.getState().set([entry.target.selectId as ElementId], entry.target.focusedSlot ?? null);
+      // `openId` is the owning menu — scope the element selection to it so a
+      // shared element id doesn't resolve to the wrong menu.
+      useSelectionStore
+        .getState()
+        .set([entry.target.selectId as ElementId], entry.target.focusedSlot ?? null, entry.target.openId);
     }
     setOpen(false);
   };

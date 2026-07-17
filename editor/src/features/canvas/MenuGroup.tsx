@@ -6,10 +6,13 @@ import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useNetworksStore } from "@/state/networksStore";
 import { usePaginationStore } from "@/state/paginationStore";
-import { useSelectionStore } from "@/state/selectionStore";
+import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
+import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { toast } from "sonner";
 import useImage from "use-image";
@@ -33,6 +36,13 @@ import {
   usesSingleBackground,
 } from "./menuLayout";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
+import {
+  matchPlacementRow,
+  placementTotalPages,
+  resolveAppearance0,
+  resolvePlacementSlot,
+} from "./placement";
+import { pinPlacementRow } from "./placementDrop";
 import { TitleRender } from "./title/composer/TitleRender";
 import { useMenuClick } from "./useMenuClick";
 import { useMenuDrag } from "./useMenuDrag";
@@ -68,6 +78,7 @@ interface MenuGroupProps {
 export function MenuGroup({ projectId, menu, position, layout, solo = false }: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
+  const selectionMenuId = useSelectionStore((s) => s.menuId);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
   const hoveredEdge = useEdgeHoverStore((s) => s.edge);
   const brand = useCssVar("--brand");
@@ -89,6 +100,11 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
     }
     return positions;
   }, [hoveredEdge, menu.layers]);
+
+  // Placement tap-to-place: while a row is armed for THIS menu, every slot
+  // (including empty ones) becomes a tap target that pins the row.
+  const armedPlacement = useUiStore((s) => s.armedPlacement);
+  const armedForThisMenu = armedPlacement?.menuId === menu.id;
 
   const type = menu.inventoryType ?? "chest";
   const [tex] = useImage(TEXTURE_URLS[INVENTORY_TYPES[type].textureKey]);
@@ -128,10 +144,24 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   // For `iterates` elements, positions are unrolled against the preview
   // scope; each position i binds the i-th item with placeholder resolution.
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  // Live-server snapshots (cached via preview) so the canvas renders REAL rows
+  // for module sources, not just the static connector sample. Loaded below.
+  const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
+  const loadSnapshot = useServerSnapshotsStore((s) => s.loadSnapshot);
+  const networkId = useNetworksStore((s) => s.activeId);
+  const serverId = useServersStore((s) => s.activeServerId);
+  useEffect(() => {
+    if (!networkId || !serverId) return;
+    for (const input of menu.contextInputs ?? []) {
+      if (input.kind === "sourceRef" && !String(input.ref).startsWith("pack:")) {
+        loadSnapshot({ networkId, serverId, ref: String(input.ref) });
+      }
+    }
+  }, [menu.contextInputs, networkId, serverId, loadSnapshot]);
   // Build a preview scope from contextInputs — primitives are coerced to their
-  // declared type; sourceRefs are resolved against pack.dataSources /
-  // pack.importedConnectors (Plan C4).
-  const sampleCtx = pack ? buildPreviewScope(menu, pack) : {};
+  // declared type; sourceRefs resolve against a live snapshot (server sources)
+  // with pack.dataSources as the project-data path.
+  const sampleCtx = pack ? buildPreviewScope(menu, pack, snapshots) : {};
   const activeLang = useUiStore((s) => s.activeLang);
   // Per-element page index for iteration overflow. Shared via
   // paginationStore so the ItemTooltip (which renders outside MenuGroup)
@@ -153,18 +183,28 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   let firstIterable: { page: number; totalPages: number } | null = null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      if (!el.iterates) continue;
-      const appearance = el.appearances[0];
+      const appearance = pack ? resolveAppearance0(pack, el) : el.appearances[0];
       if (!appearance) continue;
-      const positions = parsePositions(el.positions);
-      const list = lookupPath(sampleCtx, el.iterates.source);
-      const items = Array.isArray(list) ? list : [];
-      const perPage = Math.max(1, positions.length);
-      const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+      let source: string;
+      let totalPages: number;
+      if (el.iterates) {
+        const positions = parsePositions(el.positions);
+        const list = lookupPath(sampleCtx, el.iterates.source);
+        const items = Array.isArray(list) ? list : [];
+        const perPage = Math.max(1, positions.length);
+        totalPages = Math.max(1, Math.ceil(items.length / perPage));
+        source = el.iterates.source;
+      } else if (el.places) {
+        // Placement layouts reuse the same in-menu pagination navigation.
+        totalPages = placementTotalPages(el.places.placements);
+        source = el.places.source;
+      } else {
+        continue;
+      }
       const rawPage = pageByElement[el.id] ?? 0;
       const page = Math.min(Math.max(0, rawPage), totalPages - 1);
       const entry = { page: page + 1, totalPages };
-      paginationCtx[el.iterates.source] = entry;
+      paginationCtx[source] = entry;
       if (!firstIterable) firstIterable = entry;
     }
   }
@@ -187,7 +227,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   >();
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
-      const appearance = el.appearances[0];
+      const appearance = pack ? resolveAppearance0(pack, el) : el.appearances[0];
       if (!appearance) continue;
 
       if (el.iterates) {
@@ -258,6 +298,36 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             elementId: el.id,
             multiPos: false,
           });
+        }
+        continue;
+      }
+
+      if (el.places && pack) {
+        // Placement mode: pin specific rows of a static source to hand-authored
+        // page+slots. Rows are matched by keyField; the live snapshot wins, then
+        // the placement's cachedDisplay, else the slot renders empty (dangling).
+        const places = el.places;
+        const totalPages = placementTotalPages(places.placements);
+        const rawPage = pageByElement[el.id] ?? 0;
+        const page = Math.min(Math.max(0, rawPage), totalPages - 1);
+        if (totalPages > 1) overflowing.push({ elementId: el.id, page, totalPages });
+        const rows = lookupPath(sampleCtx, places.source);
+        const rowsAvailable = Array.isArray(rows);
+        for (const placement of places.placements) {
+          if (placement.page !== page) continue;
+          const row = matchPlacementRow(rows, places.keyField, placement.key);
+          const info = resolvePlacementSlot({
+            places,
+            appearance,
+            placement,
+            row,
+            rowsAvailable,
+            baseCtx: enhancedCtx,
+            pack,
+            activeLang,
+            elementId: el.id,
+          });
+          elementsByPosition.set(placement.position, info);
         }
         continue;
       }
@@ -387,7 +457,9 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         const filled = Boolean(el?.material);
         const innerX = TEX_SLOT_INNER_OFFSET;
         const innerY = TEX_SLOT_INNER_OFFSET;
-        const elementSelected = Boolean(el?.elementId && selectedIds.has(el.elementId));
+        const elementSelected = Boolean(
+          el?.elementId && isElementSelected(selectedIds, selectionMenuId, el.elementId, menu.id),
+        );
         const isFocusedSlot = elementSelected && focusedSlot === i;
         const isButtonMode = elementSelected && focusedSlot === null;
         const isEdgeTrigger = Boolean(edgeTriggerPositions?.has(i));
@@ -405,7 +477,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             x={x}
             y={y}
             name={`slot:${menu.id}:${i}`}
-            listening={present}
+            listening={present || armedForThisMenu}
             draggable={filled}
             onDragStart={
               filled && el?.elementId
@@ -414,9 +486,21 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
             }
             onDragMove={filled ? onSlotDragMove : undefined}
             onClick={
-              present
+              present || armedForThisMenu
                 ? (e) => {
                     e.cancelBubble = true;
+                    // Armed placement row: pin it at this slot on the current page.
+                    if (armedForThisMenu && armedPlacement) {
+                      pinPlacementRow({
+                        projectId,
+                        menuId: menu.id,
+                        elementId: armedPlacement.elementId as ElementId,
+                        key: armedPlacement.key,
+                        position: i,
+                      });
+                      useUiStore.getState().setArmedPlacement(null);
+                      return;
+                    }
                     // Armed-from-Library: replace the material at this slot.
                     const armed = useUiStore.getState().armedMaterial;
                     if (armed) {
@@ -453,7 +537,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                     // so the toggle is just visual noise. Always pick
                     // instance mode for consistency.
                     if (!el.multiPos) {
-                      sel.set([el.elementId], i);
+                      sel.set([el.elementId], i, menu.id);
                       return;
                     }
                     // Multi-pos: cmd/ctrl-click forces button mode.
@@ -461,19 +545,30 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                     // click on any slot of the already-selected element
                     // narrows focus to that slot.
                     if (evt.metaKey || evt.ctrlKey) {
-                      sel.set([el.elementId], null);
+                      sel.set([el.elementId], null, menu.id);
                     } else if (sel.ids.has(el.elementId) && sel.ids.size === 1) {
-                      sel.set([el.elementId], i);
+                      sel.set([el.elementId], i, menu.id);
                     } else {
-                      sel.set([el.elementId], null);
+                      sel.set([el.elementId], null, menu.id);
                     }
                   }
                 : undefined
             }
             onTap={
-              present
+              present || armedForThisMenu
                 ? (e) => {
                     e.cancelBubble = true;
+                    if (armedForThisMenu && armedPlacement) {
+                      pinPlacementRow({
+                        projectId,
+                        menuId: menu.id,
+                        elementId: armedPlacement.elementId as ElementId,
+                        key: armedPlacement.key,
+                        position: i,
+                      });
+                      useUiStore.getState().setArmedPlacement(null);
+                      return;
+                    }
                     const armed = useUiStore.getState().armedMaterial;
                     if (armed) {
                       try {
@@ -492,11 +587,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                     useUiStore.getState().setEditorTab("edit");
                     const sel = useSelectionStore.getState();
                     if (!el.multiPos) {
-                      sel.set([el.elementId], i);
+                      sel.set([el.elementId], i, menu.id);
                       return;
                     }
-                    if (sel.ids.has(el.elementId) && sel.ids.size === 1) sel.set([el.elementId], i);
-                    else sel.set([el.elementId], null);
+                    if (sel.ids.has(el.elementId) && sel.ids.size === 1)
+                      sel.set([el.elementId], i, menu.id);
+                    else sel.set([el.elementId], null, menu.id);
                   }
                 : undefined
             }
@@ -544,6 +640,34 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                   width={TEX_SLOT_INNER}
                   height={TEX_SLOT_INNER}
                   stroke="rgba(255,255,255,0.45)"
+                  strokeWidth={1.5}
+                  dash={[3, 3]}
+                  cornerRadius={2}
+                  fill="transparent"
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+              </>
+            ) : null}
+            {/* Armed placement: empty slots become tap targets, highlighted so
+                the user sees where the armed row will land. */}
+            {armedForThisMenu && !present ? (
+              <>
+                <Rect
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  fill="rgba(0,0,0,0.001)"
+                  listening={true}
+                  perfectDrawEnabled={false}
+                />
+                <Rect
+                  x={innerX}
+                  y={innerY}
+                  width={TEX_SLOT_INNER}
+                  height={TEX_SLOT_INNER}
+                  stroke={brand}
                   strokeWidth={1.5}
                   dash={[3, 3]}
                   cornerRadius={2}

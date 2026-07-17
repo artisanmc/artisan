@@ -484,10 +484,8 @@ function SourcePickerOptions({
 }) {
   const { t } = useTranslation();
   const hasProjectData = (pack.dataSources ?? []).length > 0;
-  const hasConnectors = (pack.importedConnectors ?? []).length > 0;
   const serverSources = useServerDataSourcesStore((s) => s.sources);
-  const knownRefs = new Set((pack.importedConnectors ?? []).map((c) => c.ref));
-  const liveSources = serverSources.filter((s) => !knownRefs.has(s.ref));
+  const liveSources = serverSources;
   return (
     <>
       {hasProjectData ? (
@@ -511,31 +509,9 @@ function SourcePickerOptions({
           ))}
         </>
       ) : null}
-      {hasProjectData && hasConnectors ? <DropdownMenuSeparator /> : null}
-      {hasConnectors ? (
-        <>
-          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
-            {t("menuProperties.refSectionConnectors")}
-          </DropdownMenuLabel>
-          {(pack.importedConnectors ?? []).map((c) => (
-            <DropdownMenuItem
-              key={c.ref}
-              onSelect={() => onPick(c.ref as SourceRef)}
-              title={summarizeFieldType(c.type)}
-              className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
-            >
-              <span className="mr-1">🔌</span>
-              <span className="font-mono">{c.ref}</span>
-              <span className="ml-auto text-[9px] text-[var(--text-faint)]">
-                {summarizeFieldType(c.type)}
-              </span>
-            </DropdownMenuItem>
-          ))}
-        </>
-      ) : null}
       {liveSources.length > 0 ? (
         <>
-          {(hasProjectData || hasConnectors) ? <DropdownMenuSeparator /> : null}
+          {hasProjectData ? <DropdownMenuSeparator /> : null}
           <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
             {t("menuProperties.refSectionServer")}
           </DropdownMenuLabel>
@@ -555,7 +531,7 @@ function SourcePickerOptions({
           ))}
         </>
       ) : null}
-      {!hasProjectData && !hasConnectors && liveSources.length === 0 ? (
+      {!hasProjectData && liveSources.length === 0 ? (
         <DropdownMenuItem
           disabled
           className="cursor-not-allowed text-[11px] text-[var(--text-faint)]"
