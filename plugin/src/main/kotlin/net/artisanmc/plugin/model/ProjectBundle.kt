@@ -39,6 +39,38 @@ data class ContextInputYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class IteratesYaml(val source: String = "", val alias: String = "")
 
+/**
+ * Placement mode — the hand-authored alternative to [IteratesYaml] pagination.
+ * Instead of auto-filling a slot range in source order, the admin pins specific
+ * rows of a **static** data source (matched by [keyField]) to explicit page+slot.
+ * Only valid on static sources; mutually exclusive with `iterates`.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PlacesYaml(
+    val source: String = "",
+    val alias: String = "",
+    @JsonProperty("key_field") val keyField: String = "",
+    val placements: List<PlacementYaml> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PlacementYaml(
+    val key: String = "",
+    val page: Int = 0,
+    val position: Int = 0,
+    /** Display-only override (title/lore/material/head/count); behaviour stays from the template. */
+    val override: PlacementOverrideYaml? = null,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PlacementOverrideYaml(
+    val material: String? = null,
+    val head: String? = null,
+    val count: Int? = null,
+    val title: String? = null,
+    val lore: List<String>? = null,
+)
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MenuYaml(
     val schema: String = "",
@@ -71,6 +103,7 @@ data class ElementYaml(
     val id: String = "",
     val positions: String = "",
     val iterates: IteratesYaml? = null,
+    val places: PlacesYaml? = null,
     val appearances: List<AppearanceYaml> = emptyList(),
 )
 

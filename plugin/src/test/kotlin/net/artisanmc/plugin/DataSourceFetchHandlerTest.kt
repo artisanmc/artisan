@@ -168,6 +168,25 @@ class DataSourceFetchHandlerTest {
     }
 
     @Test
+    fun `null-message exception falls back to the exception type instead of null`() {
+        // Reproduces the editor "Le module a échoué : ?" report: a fetcher that
+        // throws an NPE (null message) in preview mode. The reply must carry a
+        // non-null, diagnosable message (the exception's class name).
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(ref = "npe:x", fetcher = { _, _ -> throw NullPointerException() }))
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
+        val latch = CountDownLatch(1)
+        val p = provider(registry, sink, latch)
+
+        p.handleMessageForTesting("""{"type":"data_source_fetch","request_id":"r9","ref":"npe:x","params":{},"filter":{},"sort":null,"limit":null,"args":{}}""")
+        await(latch)
+
+        assertEquals(false, sink[0]["ok"])
+        assertEquals("fetch_error", sink[0]["error"])
+        assertEquals("NullPointerException", sink[0]["message"])
+    }
+
+    @Test
     fun `main-thread scheduling failure still replies with fetch_error`() {
         val dir = Files.createTempDirectory("artisan_dsf_").toFile()
         val registry = DataSourceRegistry()

@@ -8,6 +8,19 @@ import org.bukkit.entity.Player
 @Stable
 enum class FieldKind { STRING, NUMBER, INTEGER, BOOLEAN, LIST, OBJECT }
 
+/**
+ * Whether a data source's **key-set** (which rows exist) is authorable at design time.
+ *
+ * - [STATIC]: stable, enumerable, finite set — `fetcher(null)` returns the complete
+ *   authoritative rows, each identified by a declared [DataSourceDeclaration.keyField].
+ *   Field values may still resolve per-player at runtime. Menu slots may **place**
+ *   individual rows (placement mode) or paginate.
+ * - [DYNAMIC]: runtime- or player-dependent, unbounded (auction listings, homes). No
+ *   authoritative design-time set — pagination only.
+ */
+@Stable
+enum class Stability { STATIC, DYNAMIC }
+
 /** One declared row field — drives editor tooling (schema table, filter autocomplete). */
 @Stable
 data class DataSourceField(
@@ -36,6 +49,11 @@ class PlayerRequiredException(message: String? = null) : RuntimeException(messag
  * @param schema Declared row fields — powers the editor's schema table and
  *               filter autocomplete. Empty = undeclared (editor falls back to free input).
  * @param schemaHint Legacy human-readable schema description. Superseded by [schema].
+ * @param stability Whether the row key-set is authorable at design time ([Stability]).
+ *                  Defaults to [Stability.DYNAMIC] — a source is only placeable if it
+ *                  opts into [Stability.STATIC] and declares a [keyField].
+ * @param keyField Name of the schema field identifying each row (the Row key). Required
+ *                 when [stability] is [Stability.STATIC]; ignored (typically null) otherwise.
  */
 @Stable
 data class DataSourceDeclaration(
@@ -48,4 +66,12 @@ data class DataSourceDeclaration(
         replacement = "schema"
     )
     val schemaHint: String? = null,
-)
+    val stability: Stability = Stability.DYNAMIC,
+    val keyField: String? = null,
+) {
+    init {
+        require(stability != Stability.STATIC || !keyField.isNullOrBlank()) {
+            "Static data source '$ref' must declare a keyField (the Row key identifying each row)"
+        }
+    }
+}

@@ -91,6 +91,44 @@ class DataSourceRegistryTest {
     }
 
     @Test
+    fun `declaration defaults to dynamic stability and null keyField`() {
+        val decl = DataSourceDeclaration(ref = "a:b", fetcher = { _, _ -> emptyList() })
+        assertEquals(Stability.DYNAMIC, decl.stability)
+        assertNull(decl.keyField)
+    }
+
+    @Test
+    fun `static declaration carries stability and keyField`() {
+        val decl = DataSourceDeclaration(
+            ref = "boutique:items",
+            fetcher = { _, _ -> emptyList() },
+            stability = Stability.STATIC,
+            keyField = "id",
+        )
+        assertEquals(Stability.STATIC, decl.stability)
+        assertEquals("id", decl.keyField)
+    }
+
+    @Test
+    fun `static declaration without a keyField is rejected`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            DataSourceDeclaration(
+                ref = "boutique:items",
+                fetcher = { _, _ -> emptyList() },
+                stability = Stability.STATIC,
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            DataSourceDeclaration(
+                ref = "boutique:items",
+                fetcher = { _, _ -> emptyList() },
+                stability = Stability.STATIC,
+                keyField = "  ",
+            )
+        }
+    }
+
+    @Test
     fun `register captures currentOwner as moduleId, null otherwise`() {
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(ref = "core:free", fetcher = { _, _ -> emptyList() }))
