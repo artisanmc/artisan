@@ -35,6 +35,7 @@ import {
   topPieceCrop,
   usesSingleBackground,
 } from "./menuLayout";
+import { resolveDisplayRef } from "@/domain/capturedItems";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import {
   matchPlacementRow,
@@ -613,15 +614,24 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
                 : undefined
             }
           >
-            {filled && !isSelectionSibling ? (
-              <SlotItem
-                material={el?.material ?? ""}
-                head={el?.head}
-                innerX={innerX}
-                innerY={innerY}
-                count={el?.count}
-              />
-            ) : null}
+            {filled && !isSelectionSibling
+              ? (() => {
+                  // `item:<id>` refs expand to the captured display (custom
+                  // material / head texture); other refs pass through.
+                  const d = pack
+                    ? resolveDisplayRef(pack, el?.material ?? "")
+                    : { material: el?.material ?? "" };
+                  return (
+                    <SlotItem
+                      material={d.material}
+                      head={el?.head ?? d.head}
+                      innerX={innerX}
+                      innerY={innerY}
+                      count={el?.count}
+                    />
+                  );
+                })()
+              : null}
             {present && !filled && !isSelectionSibling ? (
               <>
                 {/* Transparent hit area so the group receives pointer events */}

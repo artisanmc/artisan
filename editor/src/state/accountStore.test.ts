@@ -192,6 +192,27 @@ describe("accountStore", () => {
       });
     });
 
+    it("addCapturedItem appends (init array) and removeCapturedItem drops by id", () => {
+      const item = {
+        id: "ci_key" as never,
+        name: "Clé Luxury",
+        stackYaml: "==: org.bukkit.inventory.ItemStack\n",
+        display: { material: "nexo:arcanist_key", enchanted: true },
+      };
+      useAccountStore.getState().addCapturedItem({ projectId: PERSONAL, item });
+      expect(getPack().capturedItems).toEqual([item]);
+      // Same id re-captured → replaced, not duplicated.
+      useAccountStore.getState().addCapturedItem({
+        projectId: PERSONAL,
+        item: { ...item, name: "Clé Luxury v2" },
+      });
+      expect(getPack().capturedItems).toHaveLength(1);
+      expect(getPack().capturedItems![0]!.name).toBe("Clé Luxury v2");
+
+      useAccountStore.getState().removeCapturedItem({ projectId: PERSONAL, itemId: "ci_key" as never });
+      expect(getPack().capturedItems).toHaveLength(0);
+    });
+
     it("removeItemTemplate deletes the template and releases its LText keys", () => {
       useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
       const titleKey = getPack().itemTemplates![0]!.appearances[0]!.title!.key;
