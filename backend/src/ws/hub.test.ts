@@ -148,8 +148,10 @@ describe("persistServerDataSources", () => {
         module_id: "boutique",
         schema: [{ name: "price", type: "number", description: "Unit price" }],
         schema_hint: "id, price",
+        stability: "static",
+        key_field: "id",
       },
-      { ref: "core:stats" }, // legacy shape: no module_id, no schema
+      { ref: "core:stats" }, // legacy shape: no module_id, no schema, no stability
     ]);
     const rows = await db.select().from(serverDataSources).where(eq(serverDataSources.serverKeyId, keyId));
     const byRef = new Map(rows.map((r) => [r.ref, r]));
@@ -157,8 +159,12 @@ describe("persistServerDataSources", () => {
     expect(JSON.parse(byRef.get("boutique:items")?.schemaJson ?? "[]")).toEqual([
       { name: "price", type: "number", description: "Unit price" },
     ]);
+    expect(byRef.get("boutique:items")?.stability).toBe("static");
+    expect(byRef.get("boutique:items")?.keyField).toBe("id");
     expect(byRef.get("core:stats")?.moduleId).toBeNull();
     expect(byRef.get("core:stats")?.schemaJson).toBeNull();
+    expect(byRef.get("core:stats")?.stability).toBeNull();
+    expect(byRef.get("core:stats")?.keyField).toBeNull();
 
     // re-report clears stale enrichment
     await persistServerDataSources(keyId, [{ ref: "boutique:items" }]);
@@ -166,6 +172,8 @@ describe("persistServerDataSources", () => {
     expect(after).toHaveLength(1);
     expect(after[0].moduleId).toBeNull();
     expect(after[0].schemaJson).toBeNull();
+    expect(after[0].stability).toBeNull();
+    expect(after[0].keyField).toBeNull();
   });
 });
 

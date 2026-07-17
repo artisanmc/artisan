@@ -169,6 +169,13 @@
       "when": 1784120229436,
       "tag": "0023_clammy_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784127163260,
+      "tag": "0024_motionless_blazing_skull",
+      "breakpoints": true
     }
   ]
 }

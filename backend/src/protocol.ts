@@ -6,6 +6,11 @@ export interface ReportedDataSource {
   module_id?: string | null;
   schema?: { name: string; type: string; description?: string | null }[];
   schema_hint?: string | null;
+  // "static" = stable, enumerable key-set (placeable); "dynamic" = runtime/player-
+  // dependent (pagination only). Absent on pre-stability plugins → treated as dynamic.
+  stability?: "static" | "dynamic" | null;
+  // Row key: the field identifying each row of a static source. Null unless static.
+  key_field?: string | null;
 }
 
 export interface HelloMessage {
