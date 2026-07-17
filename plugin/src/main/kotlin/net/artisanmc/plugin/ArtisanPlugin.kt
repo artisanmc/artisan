@@ -27,6 +27,7 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         private set
     lateinit var langManager: LangManager
+    lateinit var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
         private set
     lateinit var api: ArtisanAPI
         private set
@@ -70,7 +71,9 @@ open class ArtisanPlugin : JavaPlugin() {
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
-        val softDeps = SoftDepRegistry(this)
+        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectsDir, logger)
+        capturedItems.reload()
+        val softDeps = SoftDepRegistry(this, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
@@ -85,6 +88,7 @@ open class ArtisanPlugin : JavaPlugin() {
             evaluator        = evaluator,
             sessions         = sessions,
             onReload         = {
+                capturedItems.reload()
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
                 api.modules.active().forEach { runCatching { it.onReload() } }
                 api.events.publish(ConfigReloadEvent(moduleId = "menus"))
@@ -238,7 +242,9 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider.unload()
         val projectsDir = File(dataFolder, "projects").also { it.mkdirs() }
 
-        val softDeps = SoftDepRegistry(this)
+        capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectsDir, logger)
+        capturedItems.reload()
+        val softDeps = SoftDepRegistry(this, capturedItems)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(
@@ -249,6 +255,7 @@ open class ArtisanPlugin : JavaPlugin() {
             evaluator        = evaluator,
             sessions         = sessions,
             onReload         = {
+                capturedItems.reload()
                 commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
                 api.modules.active().forEach { runCatching { it.onReload() } }
                 api.events.publish(ConfigReloadEvent(moduleId = "menus"))

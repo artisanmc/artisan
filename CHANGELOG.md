@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — captured items (`item:<id>` material refs)
+- **Captured items** (ADR `captured-items-and-module-field-kit`): a project entity carrying a full Bukkit-serialized ItemStack (opaque, runtime truth) + a display descriptor derived generically at capture (material — possibly a recognized custom ref —, head texture, glint, count, name). Referenced anywhere a material goes via the new **`item:<id>`** ref: the editor renders the descriptor, the bundle exports `items/<id>.yml` **verbatim**, and the plugin's `SoftDepRegistry` deserializes the exact stack (`CapturedItemStore`, atomic reload on every bundle sync; captured amount kept unless the appearance sets an explicit count; dangling refs fall back non-hermetically). Capture flows (inventory mirror, `/boutique additem`) land in the next phases.
+
 ### Added — data source stability axis + menu placement mode
 - `DataSourceDeclaration` gains a **stability** axis (since 1.2.0), **declared** by the registering module (not inferred): `Stability.STATIC` (a stable, enumerable key-set — `fetcher(null)` returns the authoritative rows, each identified by a declared `keyField`) vs `Stability.DYNAMIC` (runtime/player-dependent, unbounded; the default). Constructing a `STATIC` declaration without a `keyField` throws (invariant). Rationale + rejected alternatives in ADR `data-source-stability-and-placement`.
 - `server_data_sources` payload (`hello`/`modules_changed` `data_sources`, `GET …/data-sources`, and the `DataSourceReport`) now carries `stability` + `key_field` (`backend/src/protocol.ts` `ReportedDataSource`) — **migration 0024** adds `server_data_sources.stability` + `key_field`. Legacy sources without the fields report as dynamic.
