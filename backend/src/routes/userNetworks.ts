@@ -37,7 +37,7 @@ import { createProject, listProjectsForNetwork } from "../lib/projectStorage";
 import { slugify } from "../lib/slug";
 import { allocServerSlug } from "../lib/slugAlloc";
 import type { AuthUser } from "../middleware/userAuth";
-import { disconnectServerKey, getInstanceCount, requestDataSourceFetch } from "../ws/hub";
+import { disconnectServerKey, getInstanceCount, requestDataSourceFetch, requestPlayerInventory } from "../ws/hub";
 import { handleResourcePackRebuild } from "./resourcePack";
 
 const EDITOR_URL = process.env.EDITOR_URL ?? "http://localhost:5173";
@@ -781,6 +781,46 @@ userNetworksRouter.post(
 			return c.json({ error, message: r.message ?? null }, status);
 		}
 		return c.json({ rows: r.rows ?? [], truncated: r.truncated ?? false });
+	},
+);
+
+// GET /api/networks/:networkId/servers/:serverId/player-inventory?player=X — member access.
+// Snapshot of an online player's inventory, relayed to the connected plugin
+// (player_inventory_fetch / player_inventory_result, 5 s timeout). Feeds the
+// editor's capture panel (ADR captured-items-and-module-field-kit).
+userNetworksRouter.get(
+	"/:networkId/servers/:serverId/player-inventory",
+	async (c: Context<{ Variables: Vars }>) => {
+		const userId = getUserId(c);
+		if (!userId) return c.json({ error: "unauthorized" }, 401);
+		const networkId = c.req.param("networkId");
+		const serverId = c.req.param("serverId");
+		try {
+			await requireMember(userId, networkId);
+		} catch {
+			return c.json({ error: "forbidden" }, 403);
+		}
+		const sk = await db
+			.select()
+			.from(serverKeys)
+			.where(
+				and(eq(serverKeys.id, serverId), eq(serverKeys.networkId, networkId)),
+			);
+		if (sk.length === 0) return c.json({ error: "not_found" }, 404);
+
+		const player = c.req.query("player")?.trim();
+		if (!player) return c.json({ error: "invalid_input" }, 422);
+
+		const outcome = await requestPlayerInventory(sk[0].id, player);
+		if (outcome.kind === "offline") return c.json({ error: "server_offline" }, 503);
+		if (outcome.kind === "timeout") return c.json({ error: "fetch_timeout" }, 504);
+		const r = outcome.result;
+		if (!r.ok) {
+			const error = r.error ?? "fetch_error";
+			const status = error === "player_not_found" ? 404 : 502;
+			return c.json({ error, message: r.message ?? null }, status);
+		}
+		return c.json({ slots: r.slots ?? [] });
 	},
 );
 

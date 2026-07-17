@@ -1803,3 +1803,56 @@ describe("POST /api/v1/networks/:id/access-requests/:requestId/approve|deny", ()
     expect((await res.json()).error).toBe("not_pending");
   });
 });
+
+describe("GET …/player-inventory", () => {
+  beforeEach(clearAll);
+
+  test("422 without player, 503 offline, 200 relays slots from a fake plugin", async () => {
+    const { sessionId } = await seedUser();
+    const app = makeApp();
+    const create = await app.request("/api/v1/networks", {
+      method: "POST",
+      headers: { Cookie: `artisan_user_session=${sessionId}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "N" }),
+    });
+    const { network } = await create.json();
+    const keyId = crypto.randomUUID();
+    await db.insert(serverKeys).values({ id: keyId, hash: "h-inv", networkId: network.id, createdAt: new Date() });
+    const base = `/api/v1/networks/${network.id}/servers/${keyId}/player-inventory`;
+    const cookie = { Cookie: `artisan_user_session=${sessionId}` };
+
+    // Missing player param.
+    expect((await app.request(base, { headers: cookie })).status).toBe(422);
+    // No plugin connection.
+    expect((await app.request(`${base}?player=Steve`, { headers: cookie })).status).toBe(503);
+
+    // Fake plugin answering the snapshot request.
+    registerConn("conn-inv", (raw) => {
+      const msg = JSON.parse(raw);
+      if (msg.type !== "player_inventory_fetch") return;
+      const reply =
+        msg.player === "Steve"
+          ? {
+              type: "player_inventory_result", request_id: msg.request_id, ok: true,
+              slots: [{ slot: 0, stack_yaml: "item:\n  type: PAPER\n", display: { material: "nexo:key", count: 5 } }],
+            }
+          : { type: "player_inventory_result", request_id: msg.request_id, ok: false, error: "player_not_found" };
+      queueMicrotask(() => { handlePluginMessage("conn-inv", JSON.stringify(reply)); });
+    });
+    connToServerId.set("conn-inv", keyId);
+    try {
+      const ok = await app.request(`${base}?player=Steve`, { headers: cookie });
+      expect(ok.status).toBe(200);
+      const body = await ok.json();
+      expect(body.slots).toHaveLength(1);
+      expect(body.slots[0].display.material).toBe("nexo:key");
+
+      const missing = await app.request(`${base}?player=Ghost`, { headers: cookie });
+      expect(missing.status).toBe(404);
+      expect((await missing.json()).error).toBe("player_not_found");
+    } finally {
+      connToServerId.delete("conn-inv");
+      connSenders.delete("conn-inv");
+    }
+  });
+});

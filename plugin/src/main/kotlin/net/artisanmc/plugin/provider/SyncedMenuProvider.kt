@@ -360,6 +360,55 @@ class SyncedMenuProvider(
                 logger?.info("Draft updated for $menuId")
             }
 
+            "player_inventory_fetch" -> {
+                val requestId = node["request_id"]?.asText() ?: return
+                val playerName = node["player"]?.asText() ?: return
+                fun reply(payload: Map<String, Any?>) {
+                    val base = mapOf("type" to "player_inventory_result", "request_id" to requestId)
+                    try {
+                        httpClient.dispatcher.executorService.execute {
+                            @Suppress("UNCHECKED_CAST")
+                            send((base + payload) as Map<String, Any>)
+                        }
+                    } catch (_: java.util.concurrent.RejectedExecutionException) {
+                        logger?.warning("player_inventory_result dropped — plugin is stopping")
+                    }
+                }
+                try {
+                    runOnMainThread {
+                        try {
+                            val player = org.bukkit.Bukkit.getPlayerExact(playerName)
+                            if (player == null) {
+                                reply(mapOf("ok" to false, "error" to "player_not_found"))
+                                return@runOnMainThread
+                            }
+                            val nexo = evaluator.deps.nexoItems
+                            val slots = ArrayList<Map<String, Any>>()
+                            // 0-35 storage, 36-39 armor, 40 offhand — mirror the
+                            // vanilla slot numbering so the editor can label them.
+                            val inv = player.inventory
+                            val all = inv.contents.toList() + inv.armorContents.toList() + listOf(inv.itemInOffHand)
+                            all.forEachIndexed { slot, stack ->
+                                if (stack == null || stack.type.isAir) return@forEachIndexed
+                                slots.add(
+                                    mapOf(
+                                        "slot" to slot,
+                                        "stack_yaml" to net.artisanmc.plugin.items.ItemDescriptor.serialize(stack),
+                                        "display" to net.artisanmc.plugin.items.ItemDescriptor.derive(stack, nexo),
+                                    )
+                                )
+                            }
+                            reply(mapOf("ok" to true, "slots" to slots))
+                        } catch (e: Throwable) {
+                            logger?.log(java.util.logging.Level.WARNING, "[Artisan] inventory snapshot for '$playerName' failed", e)
+                            reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
+                        }
+                    }
+                } catch (e: Throwable) {
+                    logger?.log(java.util.logging.Level.WARNING, "[Artisan] inventory snapshot scheduling failed", e)
+                    reply(mapOf("ok" to false, "error" to "fetch_error", "message" to describeError(e)))
+                }
+            }
             "data_source_fetch" -> {
                 val requestId = node["request_id"]?.asText() ?: return
                 val ref = node["ref"]?.asText() ?: return

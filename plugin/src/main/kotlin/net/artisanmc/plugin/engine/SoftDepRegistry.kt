@@ -60,6 +60,12 @@ class NexoItemRenderer {
             .clone().also { it.amount = count.coerceAtLeast(1) }
     }.getOrNull()
 
+    /** Reverse lookup: the Nexo id of an arbitrary stack, or null (capture enrichment). */
+    fun idFrom(stack: ItemStack): String? = runCatching {
+        val nexoItems = Class.forName("com.nexomc.nexo.api.NexoItems")
+        nexoItems.getMethod("idFromItem", ItemStack::class.java).invoke(null, stack) as? String
+    }.getOrNull()
+
     companion object {
         fun tryInit(): NexoItemRenderer? = runCatching {
             Class.forName("com.nexomc.nexo.api.NexoItems")

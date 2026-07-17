@@ -5,6 +5,7 @@ import { useAssetInit } from "@/features/assets/useAssetInit";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { type EditorTab, useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
+import { CapturedItemsSection } from "./CapturedItemsSection";
 import { ItemSetsLibrary } from "./ItemSetsLibrary";
 import { Library } from "./Library";
 import { useTextureInit } from "./useTextureInit";
@@ -43,7 +44,16 @@ export function EditorPane({ projectId }: EditorPaneProps) {
           <FlowCanvas projectId={projectId} />
         </TabsContent>
         <TabsContent value="library" className="min-h-0 flex-1 p-3">
-          <Library />
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            {/* Captured items ARE materials — they live with the material
+                library (drag/arm gestures identical, `item:<id>` refs). */}
+            <div className="max-h-[40%] shrink-0 overflow-y-auto border-b border-[var(--border-soft)] pb-3">
+              <CapturedItemsSection projectId={projectId} />
+            </div>
+            <div className="min-h-0 flex-1">
+              <Library />
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="sets" className="min-h-0 flex-1 overflow-y-auto p-3">
           {/* Item sets — data-backed, template-rendered tiles; same

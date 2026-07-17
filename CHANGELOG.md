@@ -9,6 +9,10 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — inventory mirror (capture flow)
+- **New WS relay** `player_inventory_fetch`/`player_inventory_result` (5 s timeout, same correlated pattern as the data-source preview) + **new REST** `GET /api/v1/networks/:networkId/servers/:serverId/player-inventory?player=X` (member access): snapshot of an online player's inventory — each non-empty slot carries the opaque serialized stack + a display descriptor derived generically from vanilla components (material enriched to `nexo:<id>` when recognized, head texture, glint, count, name).
+- Editor: **"Captured items" section** in the Library tab — load a player's inventory, click a slot to capture it into the project; captured tiles are draggable/armable exactly like vanilla materials (`item:<id>` refs, zero new drop plumbing).
+
 ### Added — captured items (`item:<id>` material refs)
 - **Captured items** (ADR `captured-items-and-module-field-kit`): a project entity carrying a full Bukkit-serialized ItemStack (opaque, runtime truth) + a display descriptor derived generically at capture (material — possibly a recognized custom ref —, head texture, glint, count, name). Referenced anywhere a material goes via the new **`item:<id>`** ref: the editor renders the descriptor, the bundle exports `items/<id>.yml` **verbatim**, and the plugin's `SoftDepRegistry` deserializes the exact stack (`CapturedItemStore`, atomic reload on every bundle sync; captured amount kept unless the appearance sets an explicit count; dangling refs fall back non-hermetically). Capture flows (inventory mirror, `/boutique additem`) land in the next phases.
 
