@@ -128,8 +128,10 @@ class SoftDepRegistry(
     val oraxenItems: OraxenItemRenderer?,
     val itemsAdderItems: ItemsAdderItemRenderer?,
     val hdbHeads: HeadDatabaseRenderer? = null,
+    /** Captured project items (`item:<id>` refs) — exact deserialized stacks. */
+    val capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
 ) {
-    constructor(plugin: JavaPlugin) : this(
+    constructor(plugin: JavaPlugin, capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null) : this(
         vault           = VaultProvider.tryInit(plugin),
         papi            = PapiProvider.tryInit(),
         worldGuard      = WorldGuardProvider.tryInit(),
@@ -137,6 +139,7 @@ class SoftDepRegistry(
         oraxenItems     = OraxenItemRenderer.tryInit(),
         itemsAdderItems = ItemsAdderItemRenderer.tryInit(),
         hdbHeads        = HeadDatabaseRenderer.tryInit(),
+        capturedItems   = capturedItems,
     )
 
     fun buildCustomStack(material: String, count: Int): ItemStack? {
@@ -148,6 +151,10 @@ class SoftDepRegistry(
             "nexo"       -> nexoItems?.buildStack(id, count)
             "oraxen"     -> oraxenItems?.buildStack(id, count)
             "itemsadder" -> itemsAdderItems?.buildStack(id, count)
+            // Captured item: the exact stored stack. The appearance count only
+            // overrides when explicitly > 1 — otherwise the captured amount
+            // (e.g. a 5-key bundle) is the intent.
+            "item"       -> capturedItems?.resolve(id)?.also { if (count > 1) it.amount = count }
             else         -> null
         }
     }
