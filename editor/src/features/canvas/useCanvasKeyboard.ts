@@ -3,6 +3,7 @@ import { formatPositions, parsePositions } from "@/lib/positions";
 import { slotCount } from "./inventoryTypes";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { usePaginationStore } from "@/state/paginationStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
@@ -18,15 +19,20 @@ import {
  * Locate an element by id within a pack and return enough context
  * (the owning menu) to call element-scoped actions on it.
  */
-const findElement = (projectId: ProjectId, elementId: ElementId): { menuId: MenuId } | null => {
+const findElement = (
+  projectId: ProjectId,
+  elementId: ElementId,
+  scopeMenuId?: string | null,
+): { menuId: MenuId; element: Element } | null => {
   const account = useAccountStore.getState().account;
   const pack = account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
   for (const menu of pack.menus) {
+    // Element ids collide across menus — honour the selection's owning menu.
+    if (scopeMenuId && menu.id !== scopeMenuId) continue;
     for (const layer of menu.layers) {
-      if (layer.elements.some((el) => el.id === elementId)) {
-        return { menuId: menu.id };
-      }
+      const element = layer.elements.find((el) => el.id === elementId);
+      if (element) return { menuId: menu.id, element };
     }
   }
   return null;
@@ -39,7 +45,7 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 };
 
-const findSelectedEntities = (projectId: ProjectId, ids: string[]) => {
+const findSelectedEntities = (projectId: ProjectId, ids: string[], scopeMenuId?: string | null) => {
   const account = useAccountStore.getState().account;
   const pack = account.projects.find((p) => p.id === projectId);
   if (!pack)
@@ -47,6 +53,9 @@ const findSelectedEntities = (projectId: ProjectId, ids: string[]) => {
   const idSet = new Set(ids);
   const elements: ElementCopy[] = [];
   for (const menu of pack.menus) {
+    // Scope element matching to the selection's menu so a shared id (e.g.
+    // `grid` in two menus) doesn't copy/duplicate both.
+    if (scopeMenuId && menu.id !== scopeMenuId) continue;
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         if (idSet.has(el.id)) elements.push({ sourceMenuId: menu.id, element: el });
@@ -150,7 +159,11 @@ const placeElements = (
 
 const copySelection = async (projectId: ProjectId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands, elements } = findSelectedEntities(projectId, ids);
+  const { menus, commands, elements } = findSelectedEntities(
+    projectId,
+    ids,
+    useSelectionStore.getState().menuId,
+  );
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   try {
     await writeClipboard({
@@ -206,7 +219,11 @@ const pasteFromClipboard = async (projectId: ProjectId, onError?: (m: string) =>
 
 const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: string) => void) => {
   if (ids.length === 0) return;
-  const { menus, commands, elements } = findSelectedEntities(projectId, ids);
+  const { menus, commands, elements } = findSelectedEntities(
+    projectId,
+    ids,
+    useSelectionStore.getState().menuId,
+  );
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
   const rewritten = rewriteIds({ menus, commands, elements });
   try {
@@ -300,7 +317,7 @@ export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs)
             if (flow.sub.kind === "step" && ids.length === 1) {
               const id = ids[0]!;
               if (flow.sub.clickType !== undefined && flow.sub.stateIndex !== undefined) {
-                const candidate = findElement(projectId, id as ElementId);
+                const candidate = findElement(projectId, id as ElementId, sel.menuId);
                 if (candidate) {
                   useAccountStore.getState().removeElementStep({
                     projectId,
@@ -324,7 +341,7 @@ export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs)
               return;
             }
             if (flow.sub.kind === "state" && ids.length === 1) {
-              const candidate = findElement(projectId, ids[0]! as ElementId);
+              const candidate = findElement(projectId, ids[0]! as ElementId, sel.menuId);
               if (candidate && flow.sub.stateIndex > 0) {
                 // Default state (index 0) is protected.
                 useAccountStore.getState().removeAppearance({
@@ -350,10 +367,35 @@ export function useCanvasKeyboard({ projectId, onError }: UseCanvasKeyboardArgs)
           //   instance mode (focusedSlot set) → drop only that position
           //   button mode (focusedSlot null)  → delete the whole element
           if (ids.length === 1) {
-            const candidate = findElement(projectId, ids[0]! as ElementId);
+            const candidate = findElement(projectId, ids[0]! as ElementId, sel.menuId);
             if (candidate) {
               const elementId = ids[0]! as ElementId;
-              if (sel.focusedSlot != null) {
+              const places = candidate.element.places;
+              if (sel.focusedSlot != null && places) {
+                // Placement mode: instance-delete removes the pinned row at
+                // this slot (clearSlot matches by `positions`, which is empty
+                // on placement elements — it would silently no-op). No
+                // placement at the slot → fall through to whole-element delete
+                // so zombie elements stay deletable.
+                const page = usePaginationStore.getState().pageByElement[elementId] ?? 0;
+                const hit = places.placements.find(
+                  (p) => p.position === sel.focusedSlot && p.page === page,
+                );
+                if (hit) {
+                  useAccountStore.getState().removeElementPlacement({
+                    projectId,
+                    menuId: candidate.menuId,
+                    elementId,
+                    key: hit.key,
+                  });
+                } else {
+                  useAccountStore.getState().deleteElement({
+                    projectId,
+                    menuId: candidate.menuId,
+                    elementId,
+                  });
+                }
+              } else if (sel.focusedSlot != null) {
                 useAccountStore.getState().clearSlot({
                   projectId,
                   menuId: candidate.menuId,

@@ -1,5 +1,5 @@
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Appearance, AssetId, Condition, Dialog, I18nKey, Project } from "@/domain/types";
+import type { Appearance, AssetId, Condition, Dialog, Element, I18nKey, ItemTemplateId, Project } from "@/domain/types";
 import { parse } from "yaml";
 import { describe, expect, it, afterEach } from "vitest";
 import { registerModule } from "@artisan/editor-sdk";
@@ -79,6 +79,133 @@ describe("transform", () => {
     const files = transform(pack);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(manifest.editor_layout).toBeUndefined();
+  });
+
+  it("serializes an element in placement mode with key_field (no per-placement overrides)", () => {
+    const pack = makeProject({
+      menus: [
+        {
+          id: menuId("shop"), projectId: projectId("p_test"), rows: 6, title: [],
+          contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }],
+          layers: [
+            {
+              id: layerId("main"), name: "Main",
+              elements: [
+                {
+                  id: elementId("grid"), positions: "",
+                  appearances: [{ material: "{item.icon}", title: { key: "k" as I18nKey } }],
+                  places: {
+                    source: "items", alias: "item", keyField: "id",
+                    placements: [
+                      { key: "sword", page: 0, position: 10 },
+                      { key: "apple", page: 1, position: 12 },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const el = menu.layers[0].elements[0];
+    expect(el.iterates).toBeUndefined();
+    expect(el.places).toEqual({
+      source: "items", alias: "item", key_field: "id",
+      placements: [
+        { key: "sword", page: 0, position: 10 },
+        { key: "apple", page: 1, position: 12 },
+      ],
+    });
+  });
+
+  describe("item template inlining", () => {
+    const TPL_ID = "tpl_shop" as ItemTemplateId;
+    const templatePack = (elements: Element[]) =>
+      makeProject({
+        i18nKeys: { ["k_tpl" as I18nKey]: { en: "{row.name}" } },
+        itemTemplates: [
+          {
+            id: TPL_ID,
+            projectId: projectId("p_test"),
+            name: "Vue boutique",
+            sourceRef: "boutique:items",
+            alias: "row",
+            keyField: "id",
+            groupBy: "category",
+            appearances: [{ material: "{row.icon}", count: 1, title: { key: "k_tpl" as I18nKey } }],
+          },
+        ],
+        menus: [
+          {
+            id: menuId("shop"), projectId: projectId("p_test"), rows: 6, title: [],
+            contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }],
+            layers: [{ id: layerId("main"), name: "Main", elements }],
+          },
+        ],
+      });
+
+    it("places bound to a template inlines its appearances, alias and key_field", () => {
+      const pack = templatePack([
+        {
+          id: elementId("grid"), positions: "",
+          appearances: [], // template-bound: no local appearances
+          places: {
+            source: "items", alias: "stale", keyField: "stale_key", templateId: TPL_ID,
+            placements: [{ key: "sword", page: 0, position: 10 }],
+          },
+        },
+      ]);
+      const files = transform(pack);
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      // Template wins over the element's stale local fields.
+      expect(el.places).toEqual({
+        source: "items", alias: "row", key_field: "id",
+        placements: [{ key: "sword", page: 0, position: 10 }],
+      });
+      expect(el.appearances).toEqual([
+        { material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" },
+      ]);
+    });
+
+    it("iterates bound to a template inlines its appearances and alias", () => {
+      const pack = templatePack([
+        {
+          id: elementId("grid"), positions: "10-43",
+          appearances: [],
+          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
+        },
+      ]);
+      const files = transform(pack);
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      expect(el.iterates).toEqual({ source: "items", alias: "row" });
+      expect(el.appearances).toEqual([
+        { material: "{row.icon}", count: 1, title: "{i18n:k_tpl}" },
+      ]);
+    });
+
+    it("dangling templateId falls back to the element's local fields (non-hermetic)", () => {
+      const pack = templatePack([
+        {
+          id: elementId("grid"), positions: "",
+          appearances: [{ material: "{item.icon}", title: { key: "k" as I18nKey } }],
+          places: {
+            source: "items", alias: "item", keyField: "id",
+            templateId: "tpl_ghost" as ItemTemplateId,
+            placements: [{ key: "sword", page: 0, position: 10 }],
+          },
+        },
+      ]);
+      const files = transform(pack);
+      const el = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!).layers[0].elements[0];
+      expect(el.places).toEqual({
+        source: "items", alias: "item", key_field: "id",
+        placements: [{ key: "sword", page: 0, position: 10 }],
+      });
+      expect(el.appearances[0].material).toBe("{item.icon}");
+    });
   });
 
   describe("module-contributed export files", () => {

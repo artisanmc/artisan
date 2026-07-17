@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PlaceholderInput } from "@/components/PlaceholderInput";
+import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { MenuId, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -41,14 +41,10 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
       </div>
 
       <div>
-        <label
-          htmlFor="plain-title-text"
-          className="mb-1 block text-[10px] uppercase text-zinc-500"
-        >
-          Texte (MiniMessage) — {textEdit.lang}
-        </label>
-        <PlaceholderInput
-          multiline
+        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
+          Titre (MiniMessage) — {textEdit.lang}
+        </div>
+        <RevealField
           value={textEdit.value}
           onChange={(v) =>
             setI18nValue({
@@ -60,12 +56,15 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
           }
           entries={placeholderEntries}
           placeholder={t("layerEditForm.plainPlaceholder")}
+          className="text-xs"
+          facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
+          preview={
+            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
+              <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
+              <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
+            </div>
+          }
         />
-      </div>
-
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-        <div className="mb-1 text-[10px] uppercase text-zinc-500">Aperçu</div>
-        <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
       </div>
     </div>
   );

@@ -161,8 +161,9 @@ function typeOfSourceRef(ref: string, pack: Project): FieldType | null {
     const ds = pack.dataSources.find((d) => d.id === id);
     return ds?.type ?? null;
   }
-  const c = pack.importedConnectors.find((x) => x.ref === ref);
-  return c?.type ?? null;
+  // Server refs: no design-time FieldType — the schema comes from the server
+  // report (serverDataSourcesStore), not the project. Unknown here.
+  return null;
 }
 
 function fieldTypeToPlaceholderType(t: FieldType): PlaceholderType {

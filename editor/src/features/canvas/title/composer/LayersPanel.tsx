@@ -68,10 +68,18 @@ export function LayersPanel({ projectId, menuId, className }: LayersPanelProps) 
       menu.title.length > 0 &&
       !window.confirm("Passer en mode vanilla supprimera les layers actuels. Continuer ?")
     ) return;
+    // Migrate the first text-bearing layer's i18n key into the plain layer so
+    // the title text + its translations survive the round-trip (mirror of
+    // switchToComposed). Minting a fresh key here would orphan the old one
+    // ("(unused)") and silently drop the title.
+    const textLayer = menu.title.find(
+      (l) => l.kind === "text" || l.kind === "plain" || l.kind === "textarea",
+    );
+    const value = textLayer && "value" in textLayer ? textLayer.value : { key: newI18nKey() };
     setMenuTitleLayers({
       projectId,
       menuId,
-      layers: [{ kind: "plain", value: { key: newI18nKey() } }],
+      layers: [{ kind: "plain", value }],
     });
     setSelectedLayerKey(null);
   };

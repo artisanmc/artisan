@@ -33,7 +33,7 @@ import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
-import { setStageDropTarget } from "./stageDropTarget";
+import { setStageDropTarget, setStageSlotHitTest } from "./stageDropTarget";
 import { setStageGeometryProvider } from "./stageGeometry";
 import { canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useMarqueeSelection } from "./useMarqueeSelection";
@@ -233,6 +233,23 @@ export function Stage({ projectId }: StageProps) {
     });
     return () => setStageDropTarget(null);
   }, [pack, layout, viewport, projectId]);
+
+  // Placement-mode row drops: resolve release coords to a menu/slot (the route's
+  // onDragEnd pins the row). Same wrapper-rect → world → hit-test as above.
+  useEffect(() => {
+    setStageSlotHitTest((clientX, clientY) => {
+      const wrapper = wrapperRef.current;
+      if (!wrapper || !pack) return null;
+      const rect = wrapper.getBoundingClientRect();
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+        return null;
+      }
+      const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
+      const world = screenToWorld(stagePoint, viewport);
+      return hitTestSlot(pack, layout, world.x, world.y);
+    });
+    return () => setStageSlotHitTest(null);
+  }, [pack, layout, viewport]);
 
   // Expose the live wrapper rect + viewport so the 3rd-column LayersPanel can
   // convert drag-end client coords into canvas coords (cursor-based new-layer

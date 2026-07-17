@@ -1,5 +1,7 @@
 import type { ContextInput, DataSource, DataSourceId, Menu, Project, SourceRef } from "@/domain/types";
-import { describe, expect, it } from "vitest";
+import { registerModule } from "@artisan/editor-sdk";
+import { afterEach, describe, expect, it } from "vitest";
+import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPreviewScope";
 
 const stubProject = (overrides: Partial<Project> = {}): Project =>
@@ -31,6 +33,67 @@ const stubMenu = (inputs: ContextInput[] = []): Menu =>
     contextInputs: inputs,
   }) as Menu;
 
+describe("resolveSourceRef — module-local rows (authoring-time)", () => {
+  afterEach(() => clearRegistry());
+
+  const registerLocalRowsModule = (rows: Record<string, unknown>[] | null) =>
+    registerModule({
+      id: "boutique",
+      displayName: "Boutique",
+      schemaVersion: "boutique/v1",
+      sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
+      routes: [],
+      localPreviewRows: (_project, ref) => (ref === "boutique:items" ? rows : null),
+    });
+
+  it("module-local rows win over the server snapshot (live editing feedback)", () => {
+    registerLocalRowsModule([{ id: "sword", name: "Local edit" }]);
+    const pack = stubProject();
+    const snapshots = { "boutique:items": [{ id: "sword", name: "Stale server row" }] };
+    expect(resolveSourceRef("boutique:items" as SourceRef, pack, snapshots)).toEqual([
+      { id: "sword", name: "Local edit" },
+    ]);
+  });
+
+  it("falls back to the snapshot when the module returns null (no local data)", () => {
+    registerLocalRowsModule(null);
+    const pack = stubProject();
+    const snapshots = { "boutique:items": [{ id: "sword", name: "Server row" }] };
+    expect(resolveSourceRef("boutique:items" as SourceRef, pack, snapshots)).toEqual([
+      { id: "sword", name: "Server row" },
+    ]);
+  });
+
+  it("probes sibling projects: module data in ANOTHER project still resolves (plugin merges across projects)", async () => {
+    const { useAccountStore } = await import("@/state/accountStore");
+    registerModule({
+      id: "boutique",
+      displayName: "Boutique",
+      schemaVersion: "boutique/v1",
+      sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
+      routes: [],
+      localPreviewRows: (project, ref) => {
+        if (ref !== "boutique:items") return null;
+        const md = (project as { moduleData?: Record<string, unknown> }).moduleData?.boutique;
+        return md ? [{ id: "from_sibling" }] : null;
+      },
+    });
+    const current = stubProject(); // no boutique data (the menus project)
+    const sibling = stubProject({
+      id: "p_shop" as Project["id"],
+      moduleData: { boutique: { wholeShopDiscount: 0, categories: [] } },
+    } as Partial<Project>);
+    useAccountStore.setState({
+      account: { id: "acc" as never, projects: [current, sibling], projectOrder: [] },
+    } as never);
+
+    const snapshots = { "boutique:items": [{ id: "stale_server" }] };
+    expect(resolveSourceRef("boutique:items" as SourceRef, current, snapshots)).toEqual([
+      { id: "from_sibling" },
+    ]);
+  });
+});
+
 describe("resolveSourceRef", () => {
   it("returns the dataSource value for a pack:<id> ref", () => {
     const ds: DataSource = {
@@ -43,26 +106,36 @@ describe("resolveSourceRef", () => {
     expect(resolveSourceRef("pack:categories" as SourceRef, pack)).toEqual(["weapon", "armor"]);
   });
 
-  it("returns the connector sample for a <plugin>:<source> ref", () => {
-    const pack = stubProject({
-      importedConnectors: [
-        { ref: "chestshop:items", type: { kind: "list", of: { kind: "string" } }, sample: ["a"] },
-      ],
-    });
-    expect(resolveSourceRef("chestshop:items" as SourceRef, pack)).toEqual(["a"]);
-  });
-
   it("returns undefined for unknown pack ref", () => {
     expect(resolveSourceRef("pack:missing" as SourceRef, stubProject())).toBeUndefined();
   });
 
-  it("returns undefined for unknown connector ref", () => {
+  it("returns undefined for an unknown server ref (no snapshot, no local rows)", () => {
     expect(resolveSourceRef("chestshop:bogus" as SourceRef, stubProject())).toBeUndefined();
   });
 
   it("returns undefined for empty / malformed ref", () => {
     expect(resolveSourceRef("" as SourceRef, stubProject())).toBeUndefined();
     expect(resolveSourceRef("no_colon" as SourceRef, stubProject())).toBeUndefined();
+  });
+
+  it("resolves a server ref from the live snapshot", () => {
+    const snapshots = { "boutique:items": [{ id: "real", name: "Real" }] };
+    expect(resolveSourceRef("boutique:items" as SourceRef, stubProject(), snapshots)).toEqual([
+      { id: "real", name: "Real" },
+    ]);
+  });
+
+  it("never uses snapshots for a pack:<id> ref (project data wins)", () => {
+    const ds: DataSource = {
+      id: "categories" as DataSourceId,
+      name: "Categories",
+      type: { kind: "list", of: { kind: "string" } },
+      value: ["weapon"],
+    };
+    const pack = stubProject({ dataSources: [ds] });
+    const snapshots = { "pack:categories": [{ id: "hijack" }] };
+    expect(resolveSourceRef("pack:categories" as SourceRef, pack, snapshots)).toEqual(["weapon"]);
   });
 });
 

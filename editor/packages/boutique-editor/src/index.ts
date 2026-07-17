@@ -1,5 +1,6 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
 import { BoutiqueScreen } from "./BoutiqueScreen";
+import { boutiqueLocalRows } from "./localRows";
 import { exportBoutiqueFiles } from "./state";
 
 /**
@@ -13,6 +14,7 @@ const boutiqueModule: FrontendModule = {
   sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
   routes: [{ path: "/", component: BoutiqueScreen }],
   exportFiles: exportBoutiqueFiles,
+  localPreviewRows: boutiqueLocalRows,
 };
 
 export default boutiqueModule;

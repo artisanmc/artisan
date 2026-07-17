@@ -13,6 +13,8 @@ import { commandsModule } from "./modules/commands";
 // Apply data-theme to <html> before React mounts — prevents FOUC on reload.
 document.documentElement.dataset.theme = detectInitialTheme();
 
+// Core modules only — external modules (boutique, quests…) are lazy-loaded and
+// presence-gated by modulesStore via src/distribution/modules.manifest.ts.
 if (listModules().length === 0) {
   registerModule(menusModule);
   registerModule(commandsModule);

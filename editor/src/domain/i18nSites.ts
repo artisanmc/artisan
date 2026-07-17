@@ -20,6 +20,7 @@ import type {
   Command,
   Dialog,
   I18nKey,
+  ItemTemplate,
   LText,
   Menu,
   Project,
@@ -195,6 +196,14 @@ export function* visitTemplateLTexts(template: Template): Generator<LTextSite> {
   }
 }
 
+/** Yield every site of an Item template's appearances (title/lore/click LTexts). */
+export function* visitItemTemplateLTexts(tpl: ItemTemplate): Generator<LTextSite> {
+  for (let i = 0; i < tpl.appearances.length; i++) {
+    const base = `item_templates.${tpl.id}.${stateLabel(i)}`;
+    yield* visitAppearanceLTexts(tpl.appearances[i]!, base);
+  }
+}
+
 /** Yield every site of a dialog — title, body, input/option/button labels, button steps. */
 export function* visitDialogLTexts(dialog: Dialog): Generator<LTextSite> {
   const titleKey = dialogTitleKey(dialog.id);
@@ -230,11 +239,12 @@ export function* visitDialogLTexts(dialog: Dialog): Generator<LTextSite> {
   }
 }
 
-/** Yield every key site in a pack: menus, commands, templates, dialogs. */
+/** Yield every key site in a pack: menus, commands, templates, item templates, dialogs. */
 export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
   for (const menu of pack.menus ?? []) yield* visitMenuLTexts(menu);
   for (const cmd of pack.commands ?? []) yield* visitCommandLTexts(cmd);
   for (const tpl of pack.templates ?? []) yield* visitTemplateLTexts(tpl);
+  for (const tpl of pack.itemTemplates ?? []) yield* visitItemTemplateLTexts(tpl);
   for (const dlg of pack.dialogs ?? []) yield* visitDialogLTexts(dlg);
 }
 

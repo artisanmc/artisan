@@ -23,7 +23,6 @@ function emptyProject(id: string, name: string): Project {
     templates: [],
     assets: [],
     dataSources: [],
-    importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
     dialogs: [],

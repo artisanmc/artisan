@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import type { ElementId, ItemTemplateId, MenuId, ProjectId } from "@/domain/types";
 import {
   exportProjectToFile,
   importProjectFromFile,
@@ -23,7 +23,19 @@ import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortc
 import { EditorPane } from "@/features/canvas/EditorPane";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { Stage } from "@/features/canvas/Stage";
-import { tryStageDrop } from "@/features/canvas/stageDropTarget";
+import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
+import {
+  PLACEMENT_ROW_DRAG_PREFIX,
+  TEMPLATE_BLOCK_DRAG_PREFIX,
+  TEMPLATE_GROUP_DRAG_PREFIX,
+  TEMPLATE_ROW_DRAG_PREFIX,
+  type PlacementRowDragData,
+  type TemplateBlockDragData,
+  type TemplateGroupDragData,
+  type TemplateRowDragData,
+  pinPlacementRow,
+  pinTemplateRowFromLibrary,
+} from "@/features/canvas/placementDrop";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
@@ -189,12 +201,88 @@ export function ProjectCanvasPage() {
     const id = String(e.active.id);
     if (id.startsWith(LIBRARY_DRAG_PREFIX)) {
       setActiveDragMaterial(id.slice(LIBRARY_DRAG_PREFIX.length));
+      return;
+    }
+    // Item-set drags reuse the same overlay: the tile's resolved material (row
+    // tiles) or a chest (block tiles) follows the cursor.
+    if (id.startsWith(TEMPLATE_ROW_DRAG_PREFIX)) {
+      const material = (e.active.data.current as TemplateRowDragData | undefined)?.templateRow
+        ?.material;
+      setActiveDragMaterial(material || "CHEST");
+      return;
+    }
+    if (id.startsWith(TEMPLATE_BLOCK_DRAG_PREFIX) || id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)) {
+      setActiveDragMaterial("CHEST");
     }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
     const id = String(e.active.id);
+
+    // Library item-set drops. A row tile pins one row (placement mode, element
+    // auto-created + one-set-per-(menu,source) enforced by the store); the block
+    // tile drops a whole paginated grid bound to the template.
+    if (
+      id.startsWith(TEMPLATE_ROW_DRAG_PREFIX) ||
+      id.startsWith(TEMPLATE_BLOCK_DRAG_PREFIX) ||
+      id.startsWith(TEMPLATE_GROUP_DRAG_PREFIX)
+    ) {
+      const start = e.activatorEvent as PointerEvent;
+      const hit = tryStageSlotHit((start.clientX ?? 0) + e.delta.x, (start.clientY ?? 0) + e.delta.y);
+      if (!hit) return;
+      const data = e.active.data.current as
+        | (TemplateRowDragData & TemplateGroupDragData & TemplateBlockDragData)
+        | undefined;
+      const result = data?.templateRow
+        ? pinTemplateRowFromLibrary({
+            projectId: pId,
+            menuId: hit.menuId as MenuId,
+            templateId: data.templateRow.templateId as ItemTemplateId,
+            key: data.templateRow.key,
+            position: hit.position,
+          })
+        : data?.templateGroup
+          ? useAccountStore.getState().dropItemTemplateBlock({
+              projectId: pId,
+              menuId: hit.menuId as MenuId,
+              templateId: data.templateGroup.templateId as ItemTemplateId,
+              group: { field: data.templateGroup.field, value: data.templateGroup.value },
+            })
+          : data?.templateBlock
+            ? useAccountStore.getState().dropItemTemplateBlock({
+                projectId: pId,
+                menuId: hit.menuId as MenuId,
+                templateId: data.templateBlock.templateId as ItemTemplateId,
+              })
+            : { ok: true as const };
+      if (!result.ok) {
+        toast.error(t("itemTemplates.conflictToast", { name: result.conflictName }));
+      }
+      return;
+    }
+
+    // Placement-mode row drop: pin the dragged static-source row onto the slot
+    // under the release point (must land on the row's own menu).
+    if (id.startsWith(PLACEMENT_ROW_DRAG_PREFIX)) {
+      const payload = (e.active.data.current as PlacementRowDragData | undefined)?.placementRow;
+      if (payload) {
+        const start = e.activatorEvent as PointerEvent;
+        const endX = (start.clientX ?? 0) + e.delta.x;
+        const endY = (start.clientY ?? 0) + e.delta.y;
+        const hit = tryStageSlotHit(endX, endY);
+        if (hit && hit.menuId === payload.menuId) {
+          pinPlacementRow({
+            projectId: pId,
+            menuId: hit.menuId as MenuId,
+            elementId: payload.elementId as ElementId,
+            key: payload.key,
+            position: hit.position,
+          });
+        }
+      }
+      return;
+    }
 
     if (!id.startsWith(LIBRARY_DRAG_PREFIX)) return;
     const material = id.slice(LIBRARY_DRAG_PREFIX.length);

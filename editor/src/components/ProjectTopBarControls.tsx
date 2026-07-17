@@ -27,6 +27,7 @@ import { createCommit, getBranchHead } from "@/lib/api/branches";
 import { saveUserProject } from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, Redo2, Search, Sparkles, Undo2 } from "lucide-react";
@@ -357,6 +358,9 @@ function DeployButtons({
       // up the new content via the WS hub.
       await saveUserProject(pack.id, { hash: "", files, editor: pack });
       await createCommit(networkId, projectId, "main", "Deploy");
+      // The server's data just changed — drop cached data-source snapshots so
+      // the library/canvas refetch fresh rows on next render.
+      useServerSnapshotsStore.getState().clear();
       toast.success(t("deploy.deployedToast"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("deploy.deployFailed"));
