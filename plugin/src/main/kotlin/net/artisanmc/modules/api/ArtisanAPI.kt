@@ -28,6 +28,8 @@ class ArtisanAPI(
     @Stable val modules: ModuleRegistry,
     @Stable val coreVersion: String,
     @Stable val project: ProjectContentApi,
+    @net.artisanmc.modules.api.annotations.Beta val items: ItemStackApi = ItemStackApi.NOOP,
+    @net.artisanmc.modules.api.annotations.Beta val messages: ModuleMessagesApi = ModuleMessagesApi.NOOP,
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum

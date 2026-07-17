@@ -29,6 +29,8 @@
 | `data_source_fetch_result` | plugin → backend | `{type, request_id, ok, rows?, truncated?, error?, message?}` — réponse du plugin (fetch `player = null` sur le main thread + shaping `ContextBinder`, rows tronquées à 50 / ≤ 256 KB). `error` ∈ `unknown_source` / `player_required` / `fetch_error`. |
 | `player_inventory_fetch` | backend → plugin | `{type, request_id, player}` — snapshot de l'inventaire d'un joueur en ligne, relayé depuis `GET …/player-inventory?player=X` (panneau de capture, ADR `captured-items-and-module-field-kit`). Corrélé par `request_id`, timeout 5 s. |
 | `player_inventory_result` | plugin → backend | `{type, request_id, ok, slots?, error?, message?}` — slots non-vides (0-35 storage, 36-39 armure, 40 offhand) : `{slot, stack_yaml (ItemStack Bukkit sérialisé, clé racine "item:"), display {material?, head_texture?, enchanted?, count?, name?}}` — descripteur dérivé génériquement des composants vanilla, `material` enrichi en ref custom (`nexo:<id>`) si reconnu. `error` ∈ `player_not_found` / `fetch_error`. |
+| `boutique_additem` | plugin → backend | `{type, request_id?, item_id, price, category?, stack_yaml, display}` — `/boutique additem` en jeu : le **module backend boutique** applique la mutation à `moduleData.boutique` (item capturé + article `icon: item:<id>`), patch chirurgical de `boutique/shop.yaml` + `items/<id>.yml` dans filesJson, bump de version (verrou optimiste), commit + `bundle_available`. Le plugin n'écrit jamais les fichiers projet. |
+| `boutique_additem_result` | backend → plugin | `{type, request_id, ok, error?}` — `error` ∈ `no_boutique_project` / `invalid_input`. |
 
 ## Auth du WS éditeur (`GET /ws/editor`)
 
