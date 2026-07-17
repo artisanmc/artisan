@@ -2,7 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Appearance, I18nKey, ItemTemplateId, Project, ProjectId } from "@/domain/types";
+import { resolveDisplayRef } from "@/domain/capturedItems";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { moduleLocalRows, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -42,8 +44,12 @@ function StateMaterialTile({
   activeLang: string;
   onPick: (material: string) => void;
 }) {
-  const resolved = material ? renderPreview(material, previewCtx, pack, activeLang) : "";
-  const textureUrl = useTextureUrl(resolved);
+  const rendered = material ? renderPreview(material, previewCtx, pack, activeLang) : "";
+  // Captured-item refs expand to their display descriptor (custom ref / head).
+  const display = resolveDisplayRef(pack, rendered);
+  const resolved = display.material;
+  const materialUrl = useTextureUrl(resolved);
+  const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   return (
     <MaterialPicker
       trigger={

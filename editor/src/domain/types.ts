@@ -15,6 +15,7 @@ export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
 export type TemplateId = string & { __brand: "TemplateId" };
 export type ItemTemplateId = string & { __brand: "ItemTemplateId" };
+export type CapturedItemId = string & { __brand: "CapturedItemId" };
 export type AssetId = string & { __brand: "AssetId" };
 export type ElementId = string & { __brand: "ElementId" };
 export type LayerId = string & { __brand: "LayerId" };
@@ -101,6 +102,8 @@ export interface Project {
   templates: Template[];
   /** Item templates — named per-source row views (optional: absent on older stored projects = []). */
   itemTemplates?: ItemTemplate[];
+  /** Captured items — serialized game ItemStacks + display descriptors (optional on older projects). */
+  capturedItems?: CapturedItem[];
   assets: Asset[];
   dataSources: DataSource[];
   /**
@@ -422,6 +425,33 @@ export interface Template {
   name: string;
   variables: { name: string; type: string }[];
   appearances: Appearance[];
+}
+
+/**
+ * A full serialized ItemStack captured from the running game (inventory mirror
+ * or an in-game command), plus a display descriptor derived generically at
+ * capture time. The universal item value: referenced anywhere a material goes
+ * through the `item:<id>` ref — the editor renders `display`, the plugin
+ * deserializes `stackYaml` (exact NBT fidelity). Cf. ADR
+ * `captured-items-and-module-field-kit` + CONTEXT.md "Captured item".
+ */
+export interface CapturedItem {
+  id: CapturedItemId;
+  /** Admin-facing label (defaults to the stack's display name at capture). */
+  name: string;
+  /** Opaque Bukkit-serialized stack — runtime truth, never interpreted here. */
+  stackYaml: string;
+  /** Derived once at capture, from vanilla components (no per-plugin branch). */
+  display: {
+    /** Base material, possibly enriched to a recognized custom ref (nexo:…). */
+    material?: string;
+    /** base64 head texture when the stack is a player head with a profile. */
+    headTexture?: string;
+    enchanted?: boolean;
+    count?: number;
+    /** The stack's own display name (item_name/custom_name), plain text. */
+    name?: string;
+  };
 }
 
 /**

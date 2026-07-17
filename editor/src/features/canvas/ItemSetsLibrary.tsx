@@ -8,6 +8,8 @@ import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { resolveDisplayRef } from "@/domain/capturedItems";
+import { headPreviewUrl } from "./headTexture";
 import { moduleLocalRows, renderPreview } from "./menuPreviewScope";
 import {
   TEMPLATE_BLOCK_DRAG_PREFIX,
@@ -208,10 +210,15 @@ function RowTile({
 }) {
   const app = tpl.appearances[0];
   const ctx = { [tpl.alias]: row };
-  const material = app?.material ? renderPreview(app.material, ctx, pack, activeLang) : "";
+  const rawMaterial = app?.material ? renderPreview(app.material, ctx, pack, activeLang) : "";
+  // Captured-item refs (`item:<id>`) expand to their display descriptor.
+  const display = resolveDisplayRef(pack, rawMaterial);
+  const material = display.material;
   const titleRaw = app?.title ? getText(pack, app.title, activeLang) : "";
   const title = titleRaw ? renderPreview(titleRaw, ctx, pack, activeLang) : rowKey;
-  const textureUrl = useTextureUrl(material);
+  // useTextureUrl is a hook — call unconditionally, THEN prefer the head render.
+  const materialUrl = useTextureUrl(material);
+  const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   const data: TemplateRowDragData = { templateRow: { templateId: tpl.id, key: rowKey, material } };
   // No in-place transform — the route's DragOverlay carries the drag visual
   // (transforming the tile inside the scrollable panel scrolls it instead).

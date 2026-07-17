@@ -676,6 +676,13 @@ export function transform(pack: Project): Record<string, string> {
     files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(serializeDialog(dialog), yamlOpts);
   }
 
+  // Captured items: the opaque serialized stack is the runtime truth — emit it
+  // VERBATIM (never parse/re-stringify), one file per item. The plugin
+  // deserializes these to resolve `item:<id>` material refs with exact NBT.
+  for (const item of pack.capturedItems ?? []) {
+    files[`${base}/items/${item.id}.yml`] = item.stackYaml;
+  }
+
   const langs = listLanguages(pack);
   const referencedKeys = collectReferencedKeys(pack);
   for (const lang of langs) {
