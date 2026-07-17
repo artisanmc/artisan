@@ -35,6 +35,8 @@ import type {
   Element,
   ElementId,
   FieldType,
+  CapturedItem,
+  CapturedItemId,
   I18nKey,
   InventoryType,
   ItemTemplate,
@@ -409,6 +411,9 @@ interface AccountState {
     appearances: Appearance[];
   }) => void;
   removeItemTemplate: (input: { projectId: ProjectId; templateId: ItemTemplateId }) => void;
+  /** Captured items — upsert by id (a re-capture replaces the entry). */
+  addCapturedItem: (input: { projectId: ProjectId; item: CapturedItem }) => void;
+  removeCapturedItem: (input: { projectId: ProjectId; itemId: CapturedItemId }) => void;
   /**
    * Pin one row of an Item template onto a menu slot (library drag / tap). Ensures
    * the menu has a contextInput for the template's source and a bound placement
@@ -2319,6 +2324,27 @@ export const useAccountStore = create<AccountState>()(
             if (!tpl) return;
             releaseLTexts(pack, visitItemTemplateLTexts(tpl));
             pack.itemTemplates = pack.itemTemplates.filter((t) => t.id !== templateId);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      addCapturedItem: ({ projectId: pId, item }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack) return;
+            if (!pack.capturedItems) pack.capturedItems = [];
+            const i = pack.capturedItems.findIndex((c) => c.id === item.id);
+            if (i >= 0) pack.capturedItems[i] = item;
+            else pack.capturedItems.push(item);
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
+      removeCapturedItem: ({ projectId: pId, itemId }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack?.capturedItems) return;
+            pack.capturedItems = pack.capturedItems.filter((c) => c.id !== itemId);
             pack.updatedAt = new Date().toISOString();
           }),
         ),

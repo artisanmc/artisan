@@ -121,6 +121,24 @@ describe("transform", () => {
     });
   });
 
+  it("exports captured items as verbatim stack files under items/", () => {
+    const pack = makeProject({
+      capturedItems: [
+        {
+          id: "ci_key" as never,
+          name: "Clé Luxury",
+          stackYaml: "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\n",
+          display: { material: "nexo:arcanist_key" },
+        },
+      ],
+    });
+    const files = transform(pack);
+    // The opaque stack is the runtime truth — emitted VERBATIM, never re-serialized.
+    expect(files["plugins/Artisan/projects/p_test/items/ci_key.yml"]).toBe(
+      "==: org.bukkit.inventory.ItemStack\nid: minecraft:paper\n",
+    );
+  });
+
   describe("item template inlining", () => {
     const TPL_ID = "tpl_shop" as ItemTemplateId;
     const templatePack = (elements: Element[]) =>
