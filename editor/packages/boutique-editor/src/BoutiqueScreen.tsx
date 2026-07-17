@@ -4,6 +4,8 @@ import { useState } from "react";
 // internals) rather than a stable SDK surface. Acceptable for the tracer-bullet
 // module; promote to an SDK-exposed hook once P1c ships a real package split.
 import { useAccountStore } from "@/state/accountStore";
+import { MaterialRefField } from "@/features/canvas/MaterialRefField";
+import type { ProjectId } from "@/domain/types";
 import type { BoutiqueCategory, BoutiqueItem, BoutiqueState } from "./state";
 import { hasBoutiqueData, readBoutiqueState } from "./state";
 
@@ -188,10 +190,10 @@ export function BoutiqueScreen() {
               </label>
               <label className="flex flex-col gap-1 text-sm text-[var(--text-mut)]">
                 Icon
-                <input
-                  className="input"
+                <MaterialRefField
+                  projectId={project.id as ProjectId}
                   value={selectedCategory.icon}
-                  onChange={(e) => updateCategory(selectedCategory.id, { icon: e.target.value })}
+                  onChange={(icon) => updateCategory(selectedCategory.id, { icon })}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-[var(--text-mut)]">
@@ -231,10 +233,10 @@ export function BoutiqueScreen() {
                       />
                     </td>
                     <td className="p-2">
-                      <input
-                        className="input"
+                      <MaterialRefField
+                        projectId={project.id as ProjectId}
                         value={item.icon}
-                        onChange={(e) => updateItem(selectedCategory.id, item.id, { icon: e.target.value })}
+                        onChange={(icon) => updateItem(selectedCategory.id, item.id, { icon })}
                       />
                     </td>
                     <td className="p-2">
