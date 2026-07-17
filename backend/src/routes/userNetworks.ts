@@ -721,6 +721,8 @@ userNetworksRouter.get(
 				module_id: r.moduleId,
 				schema: parseSchemaJson(r.schemaJson),
 				schema_hint: r.schemaHint,
+				stability: r.stability,
+				key_field: r.keyField,
 			})),
 		});
 	},

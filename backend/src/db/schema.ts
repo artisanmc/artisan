@@ -113,6 +113,10 @@ export const serverDataSources = pgTable(
 		moduleId: text("module_id"),
 		// Declared typed schema, JSON array of {name, type, description} (null = undeclared).
 		schemaJson: text("schema_json"),
+		// "static" | "dynamic" — placement mode is gated on static (null = legacy/dynamic).
+		stability: text("stability"),
+		// Row key field name for a static source (null unless static).
+		keyField: text("key_field"),
 		reportedAt: timestamp("reported_at").notNull(),
 	},
 	(t) => [primaryKey({ columns: [t.serverKeyId, t.ref] })],

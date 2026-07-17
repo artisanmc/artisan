@@ -215,15 +215,17 @@ export async function persistServerDataSources(
   const now = new Date();
   for (const ds of reported) {
     const schemaJson = ds.schema && ds.schema.length > 0 ? JSON.stringify(ds.schema) : null;
+    const stability = ds.stability ?? null;
+    const keyField = ds.key_field ?? null;
     await db
       .insert(serverDataSources)
       .values({
         serverKeyId, ref: ds.ref, schemaHint: ds.schema_hint ?? null,
-        moduleId: ds.module_id ?? null, schemaJson, reportedAt: now,
+        moduleId: ds.module_id ?? null, schemaJson, stability, keyField, reportedAt: now,
       })
       .onConflictDoUpdate({
         target: [serverDataSources.serverKeyId, serverDataSources.ref],
-        set: { schemaHint: ds.schema_hint ?? null, moduleId: ds.module_id ?? null, schemaJson, reportedAt: now },
+        set: { schemaHint: ds.schema_hint ?? null, moduleId: ds.module_id ?? null, schemaJson, stability, keyField, reportedAt: now },
       });
   }
   const keepRefs = reported.map((d) => d.ref);

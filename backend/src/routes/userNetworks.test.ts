@@ -904,7 +904,10 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
     );
     expect(dataSourcesRes.status).toBe(200);
     expect(await dataSourcesRes.json()).toEqual({
-      data_sources: [{ ref: "boutique:items", module_id: null, schema: [], schema_hint: "id, name" }],
+      data_sources: [{
+        ref: "boutique:items", module_id: null, schema: [], schema_hint: "id, name",
+        stability: null, key_field: null,
+      }],
     });
   });
 
@@ -957,7 +960,7 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
       {
         serverKeyId: keyId, ref: "boutique:items", moduleId: "boutique",
         schemaJson: JSON.stringify([{ name: "id", type: "string", description: null }]),
-        schemaHint: "id", reportedAt: new Date(),
+        schemaHint: "id", stability: "static", keyField: "id", reportedAt: new Date(),
       },
       { serverKeyId: keyId, ref: "core:stats", moduleId: null, schemaJson: null, schemaHint: null, reportedAt: new Date() },
     ]);
@@ -971,8 +974,12 @@ describe("GET /:networkId/servers/:serverId/modules & /data-sources", () => {
     expect(byRef.get("boutique:items")).toEqual({
       ref: "boutique:items", module_id: "boutique",
       schema: [{ name: "id", type: "string", description: null }], schema_hint: "id",
+      stability: "static", key_field: "id",
     });
-    expect(byRef.get("core:stats")).toEqual({ ref: "core:stats", module_id: null, schema: [], schema_hint: null });
+    expect(byRef.get("core:stats")).toEqual({
+      ref: "core:stats", module_id: null, schema: [], schema_hint: null,
+      stability: null, key_field: null,
+    });
   });
 });
 
