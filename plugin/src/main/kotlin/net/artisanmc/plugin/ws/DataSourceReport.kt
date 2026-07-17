@@ -21,6 +21,8 @@ object DataSourceReport {
                     )
                 },
                 "schema_hint" to r.declaration.schemaHint,
+                "stability" to r.declaration.stability.name.lowercase(),
+                "key_field" to r.declaration.keyField,
             )
         }
 }
