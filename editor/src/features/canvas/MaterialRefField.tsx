@@ -31,11 +31,11 @@ export function MaterialRefField({
   const display = pack ? resolveDisplayRef(pack, value) : { material: value };
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
-  const captured = pack?.capturedItems ?? [];
 
   return (
     <div className={`flex items-center gap-1.5 ${className ?? ""}`}>
       <MaterialPicker
+        projectId={projectId}
         trigger={
           <button
             type="button"
@@ -64,23 +64,6 @@ export function MaterialRefField({
         onChange={(e) => onChange(e.target.value)}
         className="h-8 min-w-0 flex-1 px-2 font-mono text-xs"
       />
-      {captured.length > 0 ? (
-        <select
-          data-testid="material-ref-captured"
-          value={value.startsWith("item:") ? value : ""}
-          onChange={(e) => {
-            if (e.target.value) onChange(e.target.value);
-          }}
-          className="h-8 w-28 shrink-0 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 text-xs text-[var(--text)]"
-        >
-          <option value="">{t("mcFields.capturedOption")}</option>
-          {captured.map((ci) => (
-            <option key={ci.id} value={`item:${ci.id}`}>
-              {ci.name}
-            </option>
-          ))}
-        </select>
-      ) : null}
     </div>
   );
 }

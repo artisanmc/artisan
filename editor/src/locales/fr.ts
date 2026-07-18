@@ -452,9 +452,13 @@ const fr: typeof en = {
     tabLibrary: "Library",
     tabSets: "Sets",
     tabAssets: "Assets",
+    subItems: "Items",
+    subCaptured: "Capturés",
   },
   materialPicker: {
     title: "Choisir un item",
+    tabItems: "Items",
+    tabCaptured: "Capturés",
   },
   export: {
     button: "Exporter vers le serveur (.zip)",
@@ -476,7 +480,6 @@ const fr: typeof en = {
   },
   mcFields: {
     pickMaterial: "Choisir un item dans la librairie",
-    capturedOption: "Capturés…",
   },
   capturedItems: {
     sectionTitle: "Items capturés",

@@ -4,7 +4,9 @@ import { type SupportedLang, detectEditorLang } from "@/i18n";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type EditorTab = "edit" | "library" | "sets" | "assets";
+// "sets" was briefly a top-level tab (2026-07-17) — now a Library sub-tab; the
+// persist merge below coerces any unknown persisted value back to "edit".
+export type EditorTab = "edit" | "library" | "assets";
 
 /**
  * Best-effort detection of the user's preferred language from the

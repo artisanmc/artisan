@@ -26,7 +26,15 @@ import { useTextureUrl } from "./textureStore";
  *  - the inventory mirror: fetch an online player's inventory from the live
  *    server and click a slot to capture its exact stack into the project.
  */
-export function CapturedItemsSection({ projectId }: { projectId: ProjectId }) {
+export function CapturedItemsSection({
+  projectId,
+  onPick,
+}: {
+  projectId: ProjectId;
+  /** Picker mode: clicking a captured tile (or capturing from the mirror)
+   *  calls back with the `item:<id>` ref instead of arming for the canvas. */
+  onPick?: (ref: string) => void;
+}) {
   const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const addCapturedItem = useAccountStore((s) => s.addCapturedItem);
@@ -67,6 +75,7 @@ export function CapturedItemsSection({ projectId }: { projectId: ProjectId }) {
     };
     addCapturedItem({ projectId, item });
     toast.success(t("capturedItems.capturedToast", { name: item.name }));
+    onPick?.(`item:${item.id}`);
   };
 
   return (
@@ -79,6 +88,7 @@ export function CapturedItemsSection({ projectId }: { projectId: ProjectId }) {
               key={ci.id}
               projectId={projectId}
               item={ci}
+              onPick={onPick}
               onRemove={() => removeCapturedItem({ projectId, itemId: ci.id })}
             />
           ))}
@@ -131,14 +141,17 @@ export function CapturedItemsSection({ projectId }: { projectId: ProjectId }) {
   );
 }
 
-/** A captured item tile — draggable/armable exactly like a Library material. */
+/** A captured item tile — draggable/armable exactly like a Library material
+ *  (or a plain pick button in picker mode). */
 function CapturedTile({
   projectId,
   item,
+  onPick,
   onRemove,
 }: {
   projectId: ProjectId;
   item: CapturedItem;
+  onPick?: (ref: string) => void;
   onRemove: () => void;
 }) {
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
@@ -156,12 +169,12 @@ function CapturedTile({
   return (
     <div className="relative">
       <button
-        ref={setNodeRef}
+        ref={onPick ? undefined : setNodeRef}
         type="button"
         title={item.name}
-        onClick={() => setArmedMaterial(armed ? null : ref)}
-        {...listeners}
-        {...attributes}
+        onClick={() => (onPick ? onPick(ref) : setArmedMaterial(armed ? null : ref))}
+        {...(onPick ? {} : listeners)}
+        {...(onPick ? {} : attributes)}
         className={
           armed
             ? "flex h-12 w-12 shrink-0 touch-none cursor-grab select-none items-center justify-center rounded-[8px] border border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] active:cursor-grabbing"
