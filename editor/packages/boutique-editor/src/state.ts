@@ -1,4 +1,4 @@
-import { parseShopYaml, serializeShopYaml } from "./shopYaml";
+import { migrateBuyCommands, parseShopYaml, serializeShopYaml } from "./shopYaml";
 
 export interface BoutiqueItem {
   id: string;
@@ -7,7 +7,10 @@ export interface BoutiqueItem {
   price: number;
   discount: number;
   lore: string[];
-  buyCommands: string[];
+  /** Purchase step tree (wire shape of the `actions` field kit widget —
+   *  literal text). Runs via `api.actions.execute` after payment. Legacy
+   *  `buy_commands`/`buyCommands` migrate to `run_command` steps on read. */
+  actions: unknown[];
 }
 
 export interface BoutiqueCategory {
@@ -53,7 +56,26 @@ export function readBoutiqueState(project: unknown): BoutiqueState {
     if (!parsed) return { ...EMPTY_STATE, ...extras, rawShopYaml: content, parseFailed: true };
     return { ...parsed, ...extras };
   }
-  if (Array.isArray(raw.categories)) return raw as unknown as BoutiqueState;
+  if (Array.isArray(raw.categories)) {
+    // Structured moduleData written before the actions migration may still
+    // carry `buyCommands` — normalize so every item has `actions`.
+    const state = raw as unknown as BoutiqueState;
+    return {
+      ...state,
+      categories: state.categories.map((c) => ({
+        ...c,
+        items: c.items.map((i) => {
+          if (Array.isArray(i.actions)) return i;
+          const legacy = (i as unknown as { buyCommands?: unknown }).buyCommands;
+          const { buyCommands: _dropped, ...rest } = i as unknown as Record<string, unknown>;
+          return {
+            ...(rest as unknown as BoutiqueItem),
+            actions: migrateBuyCommands(Array.isArray(legacy) ? legacy.map(String) : []),
+          };
+        }),
+      })),
+    };
+  }
   return EMPTY_STATE;
 }
 

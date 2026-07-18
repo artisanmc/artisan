@@ -42,7 +42,10 @@ interface BoutiqueItem {
   price: number;
   discount: number;
   lore: string[];
-  buyCommands: string[];
+  /** Purchase step tree (wire shape, literal text). */
+  actions?: unknown[];
+  /** Legacy field — migrated to run_command steps on serialize. */
+  buyCommands?: string[];
 }
 interface BoutiqueCategory {
   id: string;
@@ -50,6 +53,15 @@ interface BoutiqueCategory {
   icon: string;
   discount: number;
   items: BoutiqueItem[];
+}
+
+/** Mirror of the editor's migrateBuyCommands (boutique-editor/src/shopYaml.ts). */
+function itemActions(i: BoutiqueItem): unknown[] {
+  if (Array.isArray(i.actions)) return i.actions;
+  return (i.buyCommands ?? []).map((cmd) => ({
+    kind: "action",
+    action: { type: "run_command", command: String(cmd).replace(/%player%/g, "{player}"), as: "console" },
+  }));
 }
 
 /** Mirror of the editor's serializeShopYaml (boutique-editor/src/shopYaml.ts) —
@@ -65,7 +77,7 @@ function serializeShopYaml(state: {
       id: c.id, name: c.name, icon: c.icon, discount: c.discount,
       items: c.items.map((i) => ({
         id: i.id, name: i.name, icon: i.icon, price: i.price, discount: i.discount,
-        lore: i.lore, buy_commands: i.buyCommands,
+        lore: i.lore, actions: itemActions(i),
       })),
     })),
   });
@@ -150,7 +162,7 @@ export async function applyBoutiqueAdditem(
       price: payload.price,
       discount: 0,
       lore: [],
-      buyCommands: [],
+      actions: [],
     });
   }
 

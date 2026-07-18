@@ -26,6 +26,13 @@ import { stringify } from "yaml";
 
 const i18nRef = (key: string): string => `{i18n:${key}}`;
 
+/**
+ * How LText refs serialize inside steps: menu/command export wraps the key in
+ * `{i18n:…}` (translated at runtime); module-data steps (SchemaForm `actions`
+ * widget) carry the literal text in `key` and emit it verbatim.
+ */
+type StepTextOf = (key: string) => string;
+
 // ─── condition serialization ────────────────────────────────────────────────
 // Most conditions are stored snake_case and contain no LText — pass through
 // as-is. Exceptions: composites (recursive) and pagination (camelCase domain).
@@ -54,7 +61,7 @@ function serializeIfArray(conditions: Condition[], joins?: ("and" | "or")[]): un
 
 // ─── action serialization ────────────────────────────────────────────────────
 
-function serializeAction(action: Action): unknown {
+function serializeAction(action: Action, textOf: StepTextOf = i18nRef): unknown {
   switch (action.type) {
     case "open_menu": {
       const out: Record<string, unknown> = { type: "open_menu", menu_id: action.menuId };
@@ -63,10 +70,10 @@ function serializeAction(action: Action): unknown {
       return out;
     }
     case "send_message":
-      return { type: "send_message", text: i18nRef(action.text.key) };
+      return { type: "send_message", text: textOf(action.text.key) };
     case "show_title": {
-      const out: Record<string, unknown> = { type: "show_title", title: i18nRef(action.title.key) };
-      if (action.subtitle) out.subtitle = i18nRef(action.subtitle.key);
+      const out: Record<string, unknown> = { type: "show_title", title: textOf(action.title.key) };
+      if (action.subtitle) out.subtitle = textOf(action.subtitle.key);
       if (action.fadeIn !== undefined) out.fade_in = action.fadeIn;
       if (action.stay !== undefined) out.stay = action.stay;
       if (action.fadeOut !== undefined) out.fade_out = action.fadeOut;
@@ -89,7 +96,7 @@ function serializeAction(action: Action): unknown {
     case "give_level":
       return { type: "give_level", amount: action.amount };
     case "broadcast":
-      return { type: "broadcast", text: i18nRef(action.text.key) };
+      return { type: "broadcast", text: textOf(action.text.key) };
     case "play_sound": {
       const out: Record<string, unknown> = { type: "play_sound", sound: action.sound };
       if (action.volume !== undefined) out.volume = action.volume;
@@ -135,26 +142,35 @@ function serializeAction(action: Action): unknown {
 
 // ─── step tree serialization ─────────────────────────────────────────────────
 
-function serializeStep(step: Step, pack: Project): unknown {
+function serializeStep(step: Step, pack: Project, textOf: StepTextOf = i18nRef): unknown {
   if (step.kind === "action") {
-    return { kind: "action", action: serializeAction(step.action) };
+    return { kind: "action", action: serializeAction(step.action, textOf) };
   }
   const out: Record<string, unknown> = {
     kind: "if",
     cases: step.cases.map((c) => ({
       conditions: c.conditions.map(serializeCondition),
       ...(c.joins ? { joins: c.joins } : {}),
-      steps: c.steps.map((s) => serializeStep(s, pack)),
+      steps: c.steps.map((s) => serializeStep(s, pack, textOf)),
     })),
   };
   if (step.else) {
-    out.else = step.else.map((s) => serializeStep(s, pack));
+    out.else = step.else.map((s) => serializeStep(s, pack, textOf));
   }
   return out;
 }
 
 function serializeSteps(steps: Step[], pack: Project): unknown[] {
   return steps.map((s) => serializeStep(s, pack));
+}
+
+/**
+ * Serialize steps with LITERAL text (the LText `key` holds the raw string) —
+ * the wire shape of module-data steps (`actions` field kit widget). Same
+ * structure the plugin's ActionParser reads, minus the `{i18n:…}` indirection.
+ */
+export function serializeStepsLiteral(steps: Step[]): unknown[] {
+  return steps.map((s) => serializeStep(s, undefined as unknown as Project, (key) => key));
 }
 
 // ─── appearance serialization ────────────────────────────────────────────────
