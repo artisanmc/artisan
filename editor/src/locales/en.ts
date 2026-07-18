@@ -441,9 +441,13 @@ export default {
     tabLibrary: "Library",
     tabSets: "Sets",
     tabAssets: "Assets",
+    subItems: "Items",
+    subCaptured: "Captured",
   },
   materialPicker: {
     title: "Pick item",
+    tabItems: "Items",
+    tabCaptured: "Captured",
   },
   export: {
     button: "Export to server (.zip)",
@@ -465,7 +469,6 @@ export default {
   },
   mcFields: {
     pickMaterial: "Pick an item from the library",
-    capturedOption: "Captured…",
   },
   capturedItems: {
     sectionTitle: "Captured items",

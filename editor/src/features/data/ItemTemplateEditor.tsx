@@ -52,6 +52,7 @@ function StateMaterialTile({
   const textureUrl = headPreviewUrl(display.head) ?? materialUrl;
   return (
     <MaterialPicker
+      projectId={pack.id}
       trigger={
         <button
           type="button"
