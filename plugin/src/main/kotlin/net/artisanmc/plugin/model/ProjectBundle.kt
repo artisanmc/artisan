@@ -195,7 +195,7 @@ data class BundleDialog(
 
     /** Same deterministic fallback chain as [BundleMenu.langMapWithFallback]. */
     fun langMapWithFallback(lang: String): Map<String, String> =
-        langMaps[lang] ?: langMaps[defaultLang] ?: emptyMap()
+        langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -247,13 +247,14 @@ data class BundleMenu(
     val id: String get() = yaml.id
 
     /**
-     * Lang map with deterministic fallback chain — requested lang → pack default
-     * → empty. Renderers should use this instead of the raw `langMaps[lang]`
-     * lookup so a player on a locale not shipped by the pack still sees the
-     * translated text (in the default language).
+     * Lang map with deterministic PER-KEY fallback chain — requested lang →
+     * pack default → empty. The editor only writes a key into a non-default
+     * lang file when the user translated it, so the default map fills the
+     * requested lang's gaps; a whole-map fallback would leak raw i18n keys
+     * in-game for every untranslated key.
      */
     fun langMapWithFallback(lang: String): Map<String, String> =
-        langMaps[lang] ?: langMaps[defaultLang] ?: emptyMap()
+        langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
 
     /**
      * Legacy title resolver kept for backward-compat until Task 18 replaces it with `TitleCompiler.compileTitle`.
