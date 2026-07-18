@@ -101,6 +101,10 @@ Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonica
 
 Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.send(type, payload)`) — routed backend-side by `type` to the module's backend layer (e.g. `boutique_additem`). No-op while disconnected. Since 1.4.0.
 
+### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
+
+`api.actions.execute(player, steps, args)` — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. Since 1.4.0.
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.

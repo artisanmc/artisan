@@ -68,6 +68,32 @@ open class ArtisanPlugin : JavaPlugin() {
                         else plugin.logger.warning("[Artisan] module message '$type' dropped — not connected")
                     }
                 },
+                actions = object : net.artisanmc.modules.api.ModuleActionsApi {
+                    override fun execute(
+                        player: org.bukkit.entity.Player,
+                        steps: List<Map<String, Any>>,
+                        args: Map<String, Any>,
+                    ) {
+                        val run = Runnable {
+                            val parsed = try {
+                                net.artisanmc.plugin.engine.StepParser.parseAll(steps)
+                            } catch (e: Exception) {
+                                plugin.logger.warning("[Artisan] module actions skipped — malformed steps: ${e.message}")
+                                return@Runnable
+                            }
+                            if (!plugin::executor.isInitialized) {
+                                plugin.logger.warning("[Artisan] module actions dropped — engine not initialized")
+                                return@Runnable
+                            }
+                            plugin.executor.executeSteps(
+                                parsed,
+                                net.artisanmc.plugin.engine.ExecutionContext(player = player, args = args),
+                            )
+                        }
+                        if (org.bukkit.Bukkit.isPrimaryThread()) run.run()
+                        else org.bukkit.Bukkit.getScheduler().runTask(plugin, run)
+                    }
+                },
             )
             // version = core plugin version for now (ArtisanModule has no own version); P1c will add ArtisanModule.version
             registry.bind(api) {

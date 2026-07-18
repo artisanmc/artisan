@@ -5,6 +5,8 @@ import { useState } from "react";
 // module; promote to an SDK-exposed hook once P1c ships a real package split.
 import { useAccountStore } from "@/state/accountStore";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
+import { ControlledStepsEditor } from "@/features/flow/ControlledStepsEditor";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import type { ProjectId } from "@/domain/types";
 import type { BoutiqueCategory, BoutiqueItem, BoutiqueState } from "./state";
 import { hasBoutiqueData, readBoutiqueState } from "./state";
@@ -21,7 +23,7 @@ function makeId(prefix: string): string {
 }
 
 function emptyItem(): BoutiqueItem {
-  return { id: makeId("item"), name: "New item", icon: "BARRIER", price: 0, discount: 0, lore: [], buyCommands: [] };
+  return { id: makeId("item"), name: "New item", icon: "BARRIER", price: 0, discount: 0, lore: [], actions: [] };
 }
 
 function emptyCategory(): BoutiqueCategory {
@@ -218,7 +220,7 @@ export function BoutiqueScreen() {
                   <th className="p-2">Price</th>
                   <th className="p-2">Discount</th>
                   <th className="p-2">Lore</th>
-                  <th className="p-2">Buy commands</th>
+                  <th className="p-2">Purchase actions</th>
                   <th className="p-2" />
                 </tr>
               </thead>
@@ -270,14 +272,12 @@ export function BoutiqueScreen() {
                         }
                       />
                     </td>
-                    <td className="p-2">
-                      <textarea
-                        className="textarea"
-                        value={item.buyCommands.join("\n")}
-                        onChange={(e) =>
-                          updateItem(selectedCategory.id, item.id, {
-                            buyCommands: e.target.value.split("\n").filter((l) => l.length > 0),
-                          })
+                    <td className="min-w-72 p-2">
+                      <ControlledStepsEditor
+                        projectId={project.id as ProjectId}
+                        value={stepsFromWire(item.actions)}
+                        onChange={(steps) =>
+                          updateItem(selectedCategory.id, item.id, { actions: stepsToWire(steps) })
                         }
                       />
                     </td>

@@ -9,6 +9,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — `actions` field kit widget + `ModuleActionsApi` (boutique purchase actions)
+- New module API port (`@Beta`, 1.4.0): `ArtisanAPI.actions` — `execute(player, steps, args)` runs a canonical step tree (wire shape of the exported click-handler steps, literal text) through the core step engine, main-thread. Additive — binary-safe for existing modules.
+- Editor MC field kit gains the **`actions` widget**: a CONTROLLED pseudocode steps/conditions editor (`ControlledStepsEditor`, `value: Step[]` + `onChange`) sharing the visual language of the element/template click editors; text is literal (no i18n keys), wire round-trip via `@/lib/literalSteps` (`stepsFromWire`/`stepsToWire`, structure identical to exported step trees).
+- Boutique: shop items replace `buy_commands: string[]` with **`actions`** (full step tree — conditions, messages, any action). Mechanical migration everywhere legacy data is read (editor parse/state, backend serializer, plugin `ShopRepo`, legacy config migrator): each command becomes a console `run_command` step with `%player%` → `{player}`. `TransactionManager` executes the item's step tree via `api.actions.execute` after payment.
+
 ### Added — `/boutiqueadmin additem` (in-game shop capture)
 - New module API ports (`@Beta`, 1.4.0): `ArtisanAPI.items` (serialize/describe a stack) and `ArtisanAPI.messages` (fire-and-forget WS module messages). Additive — binary-safe for existing modules.
 - New WS message `boutique_additem` (+ result): the **backend boutique module** (`backend/src/modules/boutique/`) applies the mutation to the owning project — captured item + shop entry (`icon: item:<id>`, upsert by id, category matched by id/name or created), surgical `filesJson` patch (`boutique/shop.yaml` + `items/<id>.yml`), optimistic-lock version bump, commit + `bundle_available` broadcast. The plugin never writes project files (FTP/local_push hazard).

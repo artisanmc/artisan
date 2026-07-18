@@ -19,7 +19,7 @@ const project = {
               price: 100,
               discount: 5,
               lore: ["Tranchante", "Rare"],
-              buyCommands: ["give %player% diamond_sword 1"],
+              actions: [],
             },
           ],
         },
