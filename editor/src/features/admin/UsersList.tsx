@@ -40,7 +40,7 @@ export function UsersList({ onSelect }: { onSelect: (id: string) => void }) {
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("admin.users.searchPlaceholder")}
           aria-label={t("admin.users.searchPlaceholder")}
-          className="pl-9"
+          className="pl-9!"
         />
       </div>
 

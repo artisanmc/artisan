@@ -88,7 +88,7 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
                 placeholder={t("library.search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="pl-9!"
               />
             </div>
             <div className="grid min-h-0 flex-1 content-start grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
