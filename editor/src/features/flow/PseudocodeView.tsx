@@ -77,7 +77,7 @@ function DragHandle() {
 }
 
 /** Wraps a step row with a @dnd-kit/sortable item context. */
-function SortableStep({
+export function SortableStep({
   id,
   children,
 }: {
@@ -109,7 +109,7 @@ function SortableStep({
  * correctly — index-based IDs make it think items "swapped" again on the
  * post-drop re-render.
  */
-function useStepIds(steps: Step[]): string[] {
+export function useStepIds(steps: Step[]): string[] {
   const mapRef = useRef<WeakMap<Step, string>>(new WeakMap());
   return useMemo(() => {
     const map = mapRef.current;
@@ -665,7 +665,7 @@ function CommandStepLine({
 // Action / If shared primitives
 // ────────────────────────────────────────────────────────────────────────────
 
-function ActionLine({
+export function ActionLine({
   action,
   indent,
   projectId,
@@ -674,6 +674,7 @@ function ActionLine({
   menuId,
   elementId,
   clickType,
+  literalText,
 }: {
   action: Action;
   indent: number;
@@ -683,11 +684,15 @@ function ActionLine({
   menuId?: MenuId;
   elementId?: ElementId;
   clickType?: ClickType;
+  /** Literal-text mode for module-data steps — see ActionEditor. */
+  literalText?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   // Pull the active-lang LText resolver for the inline summary (so
-  // `send_message: "Hello"` shows real text, not the LText ref).
-  const getText = useGetText(projectId);
+  // `send_message: "Hello"` shows real text, not the LText ref). In literal
+  // mode the raw string IS the key — resolve it directly.
+  const storeGetText = useGetText(projectId);
+  const getText = literalText ? (lt: LText | undefined) => lt?.key ?? "" : storeGetText;
   return (
     <>
       <Row
@@ -709,6 +714,7 @@ function ActionLine({
             menuId={menuId}
             elementId={elementId}
             clickType={clickType}
+            literalText={literalText}
           />
         </Expansion>
       ) : null}
@@ -732,7 +738,7 @@ interface IfBlockProps {
   onToggleElse: (enabled: boolean) => void;
 }
 
-function IfBlock(props: IfBlockProps) {
+export function IfBlock(props: IfBlockProps) {
   const { t } = useTranslation();
   const {
     step,
@@ -872,7 +878,7 @@ function ElseBlock({
   );
 }
 
-function AddStepLine({
+export function AddStepLine({
   indent,
   firstMenuId,
   onPick,

@@ -1,7 +1,9 @@
 import { RevealField } from "@/components/RevealField";
 import type { ProjectId } from "@/domain/types";
 import { MaterialRefField } from "@/features/canvas/MaterialRefField";
+import { ControlledStepsEditor } from "@/features/flow/ControlledStepsEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import type { ComponentType } from "react";
 import type { JsonSchema } from "./types";
 
@@ -18,8 +20,9 @@ interface WidgetProps {
  *   - `material`               → universal material-ref picker (vanilla, nexo:, item:)
  *   - `minimessage`            → rendered facade → raw source on click
  *   - `minimessage_multiline`  → textarea variant
- * `actions` (steps/conditions editor) lands with the controlled pseudocode
- * refactor. Instantiate per project: `widgets={mcWidgets(projectId)}`.
+ *   - `actions`                → controlled pseudocode steps/conditions editor
+ *                                (literal text; wire shape = exported step trees)
+ * Instantiate per project: `widgets={mcWidgets(projectId)}`.
  */
 export function mcWidgets(projectId: ProjectId): Record<string, ComponentType<WidgetProps>> {
   const material: ComponentType<WidgetProps> = ({ value, onChange, schema }) => (
@@ -53,9 +56,21 @@ export function mcWidgets(projectId: ProjectId): Record<string, ComponentType<Wi
     };
   };
 
+  const actions: ComponentType<WidgetProps> = ({ value, onChange, schema }) => (
+    <div className="flex flex-col gap-1 text-sm">
+      {schema.title ? <span>{schema.title}</span> : null}
+      <ControlledStepsEditor
+        projectId={projectId}
+        value={stepsFromWire(value)}
+        onChange={(steps) => onChange(stepsToWire(steps))}
+      />
+    </div>
+  );
+
   return {
     material,
     minimessage: mini(false),
     minimessage_multiline: mini(true),
+    actions,
   };
 }

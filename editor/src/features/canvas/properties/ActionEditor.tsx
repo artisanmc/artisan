@@ -2,7 +2,15 @@ import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Action, ClickType, DialogId, ElementId, MenuId, ProjectId } from "@/domain/types";
+import type {
+  Action,
+  ClickType,
+  DialogId,
+  ElementId,
+  I18nKey,
+  MenuId,
+  ProjectId,
+} from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
@@ -21,6 +29,9 @@ interface ActionEditorProps {
   menuId?: MenuId;
   elementId?: ElementId;
   clickType?: ClickType;
+  /** Literal-text mode (module-data steps): text lives in LText.key verbatim
+   *  and edits go through `onChange` — no i18n key, no store write. */
+  literalText?: boolean;
 }
 
 const looksLikeMiniMessage = (s: string): boolean => s.includes("<");
@@ -104,7 +115,7 @@ export function ArgInsertBar({ onInsert }: { onInsert: (name: string) => void })
  * action's discriminator and call back with the new action object on every
  * edit (immer/zundo handles undo on the store side).
  */
-export function ActionEditor({ projectId, action, onChange, menuId, elementId, clickType }: ActionEditorProps) {
+export function ActionEditor({ projectId, action, onChange, menuId, elementId, clickType, literalText }: ActionEditorProps) {
   const { t } = useTranslation();
   switch (action.type) {
     case "open_menu":
@@ -115,8 +126,10 @@ export function ActionEditor({ projectId, action, onChange, menuId, elementId, c
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
     case "broadcast":
+      if (literalText) return <LiteralTextEditor action={action} onChange={onChange} />;
       return <SendMessageEditor projectId={projectId} action={action} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "show_title":
+      if (literalText) return <LiteralShowTitleEditor action={action} onChange={onChange} />;
       return <ShowTitleEditor projectId={projectId} action={action} onChange={onChange} menuId={menuId} elementId={elementId} clickType={clickType} />;
     case "give_item":
     case "take_item":
@@ -327,6 +340,71 @@ function RunCommandEditor({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Literal-text send_message/broadcast editor (module-data steps): the raw
+ *  string lives in `text.key` and edits replace the action via onChange. */
+function LiteralTextEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "send_message" | "broadcast" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <FieldLabel>{t("actionEditor.textLiteral")}</FieldLabel>
+      <textarea
+        value={action.text.key}
+        rows={2}
+        placeholder={t("actionEditor.textPlaceholder")}
+        onChange={(e) => onChange({ ...action, text: { key: e.target.value as I18nKey } })}
+        className="textarea min-h-0 px-2 py-1 font-mono text-xs"
+      />
+      {looksLikeMiniMessage(action.text.key) ? (
+        <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
+          <MiniMessageInline source={action.text.key} className="font-mono text-xs" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Literal-text show_title editor (module-data steps). */
+function LiteralShowTitleEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "show_title" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <FieldLabel>{t("actionEditor.titleLiteral")}</FieldLabel>
+        <input
+          value={action.title.key}
+          onChange={(e) => onChange({ ...action, title: { key: e.target.value as I18nKey } })}
+          className="input h-8 px-2 font-mono text-xs"
+        />
+      </div>
+      <div>
+        <FieldLabel>{t("actionEditor.subtitleLiteral")}</FieldLabel>
+        <input
+          value={action.subtitle?.key ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...action,
+              subtitle: e.target.value ? { key: e.target.value as I18nKey } : undefined,
+            })
+          }
+          className="input h-8 px-2 font-mono text-xs"
+        />
       </div>
     </div>
   );
