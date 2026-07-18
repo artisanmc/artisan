@@ -591,7 +591,12 @@ function collectReferencedKeys(pack: Project): Set<string> {
     for (const lt of getTitleTextLayers(menu)) keys.add(lt.key);
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
-        for (const app of el.appearances) {
+        // Template-bound elements export the template's appearances (inlined
+        // by serializeElement) — collect THOSE keys, not the element's locals,
+        // else the lang files miss every item_templates.* key the menu
+        // references and the plugin echoes raw keys in-game.
+        const apps = boundTemplate(el, pack)?.appearances ?? el.appearances;
+        for (const app of apps) {
           if (app.title) keys.add(app.title.key);
           if (app.lore) keys.add(app.lore.key);
           if (app.click) {
