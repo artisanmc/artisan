@@ -10,21 +10,28 @@ import { cx } from "@/lib/cx";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CapturedItemsSection } from "./CapturedItemsSection";
 import { getTextureUrl, useTextureStore } from "./textureStore";
 
 interface MaterialPickerProps {
   /** Trigger element rendered by the consumer (a small icon button typically). */
   trigger: React.ReactNode;
   onPick: (material: string) => void;
+  /** When set, adds a "Capturés" tab: pick a captured item or capture straight
+   *  from a player's inventory mirror (returns an `item:<id>` ref). */
+  projectId?: import("@/domain/types").ProjectId;
 }
 
 /**
  * Modal item-palette picker. Used as a visual alternative to typing a
  * material name into a text input — opens, user filters + clicks, picker
- * closes and the parent receives the chosen material via `onPick`.
+ * closes and the parent receives the chosen material via `onPick`. With a
+ * `projectId`, a second tab offers the project's captured items + the
+ * inventory-mirror capture flow.
  */
-export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
+export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerProps) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"items" | "captured">("items");
   const [search, setSearch] = useState("");
   const libraryItems = useTextureStore((s) => s.libraryItems);
   const customItems = useTextureStore((s) => s.libraryCustomData.items);
@@ -48,26 +55,52 @@ export function MaterialPicker({ trigger, onPick }: MaterialPickerProps) {
         <DialogHeader>
           <DialogTitle className="text-base">{t("materialPicker.title")}</DialogTitle>
         </DialogHeader>
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
-          <Input
-            autoFocus
-            placeholder={t("library.search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
-          {filtered.map((item) => (
-            <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
-          ))}
-          {filtered.length === 0 && (
-            <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)] sm:col-span-8">
-              {t("library.noMatch")}
+        {projectId ? (
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setTab("items")}
+              className={cx("chip h-7 px-3 text-[11px]", tab === "items" && "is-active")}
+            >
+              {t("materialPicker.tabItems")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("captured")}
+              className={cx("chip h-7 px-3 text-[11px]", tab === "captured" && "is-active")}
+            >
+              {t("materialPicker.tabCaptured")}
+            </button>
+          </div>
+        ) : null}
+        {tab === "captured" && projectId ? (
+          <div className="min-h-0 overflow-y-auto pb-2">
+            <CapturedItemsSection projectId={projectId} onPick={pick} />
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
+              <Input
+                autoFocus
+                placeholder={t("library.search")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
             </div>
-          )}
-        </div>
+            <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
+              {filtered.map((item) => (
+                <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
+              ))}
+              {filtered.length === 0 && (
+                <div className="col-span-6 py-4 text-center text-xs text-[var(--text-faint)] sm:col-span-8">
+                  {t("library.noMatch")}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
