@@ -51,7 +51,9 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="flex max-h-[80vh] flex-col gap-3 p-4">
+      {/* Fixed height — the tabs have very different content sizes and the
+          modal must not resize when switching between them. */}
+      <DialogContent className="flex h-[80vh] flex-col gap-3 p-4">
         <DialogHeader>
           <DialogTitle className="text-base">{t("materialPicker.title")}</DialogTitle>
         </DialogHeader>
@@ -74,7 +76,7 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
           </div>
         ) : null}
         {tab === "captured" && projectId ? (
-          <div className="min-h-0 overflow-y-auto pb-2">
+          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
             <CapturedItemsSection projectId={projectId} onPick={pick} />
           </div>
         ) : (
@@ -89,7 +91,7 @@ export function MaterialPicker({ trigger, onPick, projectId }: MaterialPickerPro
                 className="pl-9"
               />
             </div>
-            <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
+            <div className="grid min-h-0 flex-1 content-start grid-cols-6 gap-1.5 overflow-y-auto pb-2 sm:grid-cols-8">
               {filtered.map((item) => (
                 <Tile key={item.id} name={item.id} label={item.label} onClick={() => pick(item.id)} />
               ))}
