@@ -14,6 +14,7 @@ import type {
   DialogId,
   ElementId,
   IfCase,
+  ItemTemplateId,
   LText,
   MenuId,
   ProjectId,
@@ -24,7 +25,7 @@ import { ConditionListEditor } from "@/features/canvas/properties/ConditionListE
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { useGetText } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
+import { type AppearanceTarget, useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -129,16 +130,28 @@ function useStepIds(steps: Step[]): string[] {
 
 interface ElementClickHandlersPseudocodeProps {
   projectId: ProjectId;
+  /** Menu context — placeholders and action defaults resolve against it. */
   menuId: MenuId;
   elementId: ElementId;
+  /** When set, mutations target this Item template's state instead of the
+   *  element (the element only provides menu context). */
+  templateId?: ItemTemplateId;
   stateIndex: number;
   click: { [k in ClickType]?: ClickHandler } | undefined;
 }
+
+/** Mutation target: the template when bound, the element otherwise. */
+const targetOf = (
+  menuId: MenuId,
+  elementId: ElementId,
+  templateId?: ItemTemplateId,
+): AppearanceTarget => (templateId ? { templateId } : { menuId, elementId });
 
 export function ElementClickHandlersPseudocode({
   projectId,
   menuId,
   elementId,
+  templateId,
   stateIndex,
   click,
 }: ElementClickHandlersPseudocodeProps) {
@@ -147,6 +160,7 @@ export function ElementClickHandlersPseudocode({
   const unpopulated = CLICK_TYPE_ORDER.filter((ct) => !click?.[ct]);
   const addHandler = useAccountStore((s) => s.addElementClickHandler);
   const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
+  const target = targetOf(menuId, elementId, templateId);
 
   return (
     <div className="flex flex-col gap-2">
@@ -163,7 +177,7 @@ export function ElementClickHandlersPseudocode({
               type="button"
               title={t("flow.clickRemove")}
               onClick={() =>
-                removeHandler({ projectId, menuId, elementId, appearanceIndex: stateIndex, clickType })
+                removeHandler({ projectId, ...target, appearanceIndex: stateIndex, clickType })
               }
               className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[var(--text-faint)] leading-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             >
@@ -175,6 +189,7 @@ export function ElementClickHandlersPseudocode({
               projectId={projectId}
               menuId={menuId}
               elementId={elementId}
+              templateId={templateId}
               stateIndex={stateIndex}
               clickType={clickType}
               steps={click![clickType]!.steps}
@@ -201,8 +216,7 @@ export function ElementClickHandlersPseudocode({
                 onSelect={() =>
                   addHandler({
                     projectId,
-                    menuId,
-                    elementId,
+                    ...target,
                     appearanceIndex: stateIndex,
                     clickType: opt,
                   })
@@ -227,6 +241,7 @@ interface ElementStepTreeProps {
   projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
+  templateId?: ItemTemplateId;
   stateIndex: number;
   clickType: ClickType;
   steps: Step[];
@@ -235,7 +250,8 @@ interface ElementStepTreeProps {
 }
 
 function ElementStepTree(props: ElementStepTreeProps) {
-  const { projectId, menuId, elementId, stateIndex, clickType, steps, frames, indent } = props;
+  const { projectId, menuId, elementId, templateId, stateIndex, clickType, steps, frames, indent } =
+    props;
   const addElementStep = useAccountStore((s) => s.addElementStep);
   const moveElementStep = useAccountStore((s) => s.moveElementStep);
   const firstMenuId = useAccountStore(
@@ -244,12 +260,12 @@ function ElementStepTree(props: ElementStepTreeProps) {
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStepIds(steps);
+  const target = targetOf(menuId, elementId, templateId);
 
   const handleAdd = (newStep: Step) => {
     addElementStep({
       projectId,
-      menuId,
-      elementId,
+      ...target,
       appearanceIndex: stateIndex,
       clickType,
       frames,
@@ -267,8 +283,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
     if (fromIndex < 0 || toIndex < 0) return;
     moveElementStep({
       projectId,
-      menuId,
-      elementId,
+      ...target,
       appearanceIndex: stateIndex,
       clickType,
       frames,
@@ -293,6 +308,7 @@ function ElementStepTree(props: ElementStepTreeProps) {
                 projectId={projectId}
                 menuId={menuId}
                 elementId={elementId}
+                templateId={templateId}
                 stateIndex={stateIndex}
                 clickType={clickType}
                 frames={frames}
@@ -313,6 +329,7 @@ function ElementStepLine({
   projectId,
   menuId,
   elementId,
+  templateId,
   stateIndex,
   clickType,
   frames,
@@ -323,6 +340,7 @@ function ElementStepLine({
   projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
+  templateId?: ItemTemplateId;
   stateIndex: number;
   clickType: ClickType;
   frames: StepFrame[];
@@ -336,12 +354,12 @@ function ElementStepLine({
   const setIfCaseJoin = useAccountStore((s) => s.setIfCaseJoin);
   const toggleIfElse = useAccountStore((s) => s.toggleIfElse);
   const activeLang = useUiStore((s) => s.activeLang);
+  const target = targetOf(menuId, elementId, templateId);
 
   const onRemove = () =>
     removeElementStep({
       projectId,
-      menuId,
-      elementId,
+      ...target,
       appearanceIndex: stateIndex,
       clickType,
       path: { frames, index: stepIndex },
@@ -359,8 +377,7 @@ function ElementStepLine({
         onChange={(next) =>
           setElementStep({
             projectId,
-            menuId,
-            elementId,
+            ...target,
             appearanceIndex: stateIndex,
             clickType,
             path: { frames, index: stepIndex },
@@ -383,6 +400,7 @@ function ElementStepLine({
           projectId={projectId}
           menuId={menuId}
           elementId={elementId}
+          templateId={templateId}
           stateIndex={stateIndex}
           clickType={clickType}
           steps={caseSteps}
@@ -393,8 +411,7 @@ function ElementStepLine({
       onAddCase={() =>
         addIfCase({
           projectId,
-          menuId,
-          elementId,
+          ...target,
           appearanceIndex: stateIndex,
           clickType,
           frames,
@@ -404,8 +421,7 @@ function ElementStepLine({
       onRemoveCase={(caseIndex) =>
         removeIfCase({
           projectId,
-          menuId,
-          elementId,
+          ...target,
           appearanceIndex: stateIndex,
           clickType,
           frames,
@@ -416,8 +432,7 @@ function ElementStepLine({
       onSetCaseConditions={(caseIndex, conditions) =>
         setIfCaseConditions({
           projectId,
-          menuId,
-          elementId,
+          ...target,
           appearanceIndex: stateIndex,
           clickType,
           frames,
@@ -429,8 +444,7 @@ function ElementStepLine({
       onSetCaseJoin={(caseIndex, joinIndex, op) =>
         setIfCaseJoin({
           projectId,
-          menuId,
-          elementId,
+          ...target,
           appearanceIndex: stateIndex,
           clickType,
           frames,
@@ -443,8 +457,7 @@ function ElementStepLine({
       onToggleElse={(enabled) =>
         toggleIfElse({
           projectId,
-          menuId,
-          elementId,
+          ...target,
           appearanceIndex: stateIndex,
           clickType,
           frames,

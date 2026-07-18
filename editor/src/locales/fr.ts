@@ -294,6 +294,8 @@ const fr: typeof en = {
     placementSlotSummary: "p{{page}} · slot {{slot}}",
     placementRemove: "Retirer ce placement",
     states: "États",
+    templateBoundBanner:
+      "Cet élément affiche le set « {{name}} » — les modifications ci-dessous s'appliquent au set, partout où il est utilisé.",
     addState: "+ Ajouter un état",
     stateDefault: "défaut",
     stateN: "état {{index}}",
@@ -515,8 +517,6 @@ const fr: typeof en = {
     groupByNone: "(aucun)",
     stateDefault: "défaut",
     stateN: "état {{index}}",
-    conditionsBadge: "{{count}} condition(s)",
-    clickBadge: "{{count}} action(s) au clic",
     removeState: "Supprimer cet état",
     addState: "+ Ajouter un état",
     materialLabel: "Matériau",

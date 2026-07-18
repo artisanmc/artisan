@@ -66,6 +66,9 @@ import {
   dialogTitleKey,
   elementLoreKey,
   elementTitleKey,
+  itemTemplateClickPrefix,
+  itemTemplateLoreKey,
+  itemTemplateTitleKey,
   menuTitleKey,
 } from "@/lib/i18nKeys";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
@@ -86,6 +89,17 @@ import { temporal } from "zundo";
 import { create } from "zustand";
 
 type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * Where an appearance lives — a menu element (menuId+elementId) or an Item
+ * template state (templateId). The appearance/click/step reducers accept
+ * either, so the same editing UI (state cards, pseudocode click editor)
+ * mutates elements and templates alike. i18n keys mint under the matching
+ * canonical prefix (`menus.…` vs `item_templates.…`).
+ */
+export type AppearanceTarget =
+  | { menuId: MenuId; elementId: ElementId; templateId?: undefined }
+  | { templateId: ItemTemplateId; menuId?: undefined; elementId?: undefined };
 
 interface AccountState {
   account: Account;
@@ -466,32 +480,32 @@ interface AccountState {
   /** Removes the element at the given position from the menu's first layer. */
   clearSlot: (input: { projectId: ProjectId; menuId: MenuId; position: number }) => void;
   /** Update a scalar field on the element's appearance at the given index (default 0). */
-  setAppearanceField: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex?: number;
-    field: "count" | "material" | "head";
-    value: string | number;
-  }) => void;
+  setAppearanceField: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      field: "count" | "material" | "head";
+      value: string | number;
+    } & AppearanceTarget,
+  ) => void;
   /** Update an appearance title for the given language. Allocates the LText on first write. */
-  setAppearanceTitle: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex?: number;
-    lang: string;
-    value: string;
-  }) => void;
+  setAppearanceTitle: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      lang: string;
+      value: string;
+    } & AppearanceTarget,
+  ) => void;
   /** Set the lore value (multi-line string, `\n`-separated lines) for an appearance. */
-  setAppearanceLore: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex?: number;
-    lang: string;
-    value: string;
-  }) => void;
+  setAppearanceLore: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex?: number;
+      lang: string;
+      value: string;
+    } & AppearanceTarget,
+  ) => void;
   /**
    * Update the value of an i18n entry under `lang`. Used by every text
    * field whose component already holds the `LText` ref (menu title,
@@ -544,168 +558,168 @@ interface AccountState {
   /** Remove an element from its menu, regardless of how many positions it has. */
   deleteElement: (input: { projectId: ProjectId; menuId: MenuId; elementId: ElementId }) => void;
   /** Replace one step inside a click handler's step tree at the given path. */
-  setElementStep: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    path: StepPath;
-    step: Step;
-    lang: string;
-  }) => void;
+  setElementStep: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      path: StepPath;
+      step: Step;
+      lang: string;
+    } & AppearanceTarget,
+  ) => void;
   /**
    * Insert a step into a click handler's step tree. `frames` describes how
    * to descend through if-steps; `index` is the position in the resolved
    * Step[] (negative or out-of-range → append).
    */
-  addElementStep: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    index: number;
-    step: Step;
-    lang: string;
-  }) => void;
-  removeElementStep: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    path: StepPath;
-  }) => void;
+  addElementStep: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      index: number;
+      step: Step;
+      lang: string;
+    } & AppearanceTarget,
+  ) => void;
+  removeElementStep: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      path: StepPath;
+    } & AppearanceTarget,
+  ) => void;
   /** Reorder steps within the same Step[] (same parent). */
-  moveElementStep: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    fromIndex: number;
-    toIndex: number;
-  }) => void;
+  moveElementStep: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      fromIndex: number;
+      toIndex: number;
+    } & AppearanceTarget,
+  ) => void;
   /** Add a new case to an if-step. */
-  addIfCase: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    ifStepIndex: number;
-  }) => void;
+  addIfCase: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+    } & AppearanceTarget,
+  ) => void;
   /** Remove a case from an if-step. */
-  removeIfCase: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    ifStepIndex: number;
-    caseIndex: number;
-  }) => void;
+  removeIfCase: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+      caseIndex: number;
+    } & AppearanceTarget,
+  ) => void;
   /** Replace the conditions for one case of an if-step. */
-  setIfCaseConditions: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    ifStepIndex: number;
-    caseIndex: number;
-    conditions: Condition[];
-  }) => void;
+  setIfCaseConditions: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+      caseIndex: number;
+      conditions: Condition[];
+    } & AppearanceTarget,
+  ) => void;
   /** Set the operator for one joiner inside a case (between conditions[i] and [i+1]). */
-  setIfCaseJoin: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    ifStepIndex: number;
-    caseIndex: number;
-    joinIndex: number;
-    op: "and" | "or";
-  }) => void;
+  setIfCaseJoin: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+      caseIndex: number;
+      joinIndex: number;
+      op: "and" | "or";
+    } & AppearanceTarget,
+  ) => void;
   /** Toggle the else-branch of an if-step on or off. */
-  toggleIfElse: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-    frames: StepFrame[];
-    ifStepIndex: number;
-    enabled: boolean;
-  }) => void;
+  toggleIfElse: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+      enabled: boolean;
+    } & AppearanceTarget,
+  ) => void;
   /**
    * Add an empty click handler at clickType on the given appearance. No-op
    * if a handler already exists there.
    */
-  addElementClickHandler: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-  }) => void;
+  addElementClickHandler: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+    } & AppearanceTarget,
+  ) => void;
   /** Remove the click handler at clickType (with its actions and fallback). */
-  removeElementClickHandler: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    clickType: ClickType;
-  }) => void;
+  removeElementClickHandler: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+    } & AppearanceTarget,
+  ) => void;
   /**
    * Append a new appearance to an element. Seeds with a placeholder permission
    * condition so the new state is clearly "conditional" and doesn't shadow the
    * default state (which has no `if`).
    */
-  addAppearance: (input: { projectId: ProjectId; menuId: MenuId; elementId: ElementId }) => void;
+  addAppearance: (input: { projectId: ProjectId } & AppearanceTarget) => void;
   /** Remove the appearance at the given index. The element must keep at least one. */
-  removeAppearance: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-  }) => void;
+  removeAppearance: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+    } & AppearanceTarget,
+  ) => void;
   /** Reorder an element's appearances (priority = position in the array). */
-  moveAppearance: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    fromIndex: number;
-    toIndex: number;
-  }) => void;
+  moveAppearance: (
+    input: {
+      projectId: ProjectId;
+      fromIndex: number;
+      toIndex: number;
+    } & AppearanceTarget,
+  ) => void;
   /**
    * Replace the entire visibility condition list (`if`) for an appearance.
    * Empty list → unconditional (default state).
    */
-  setAppearanceConditions: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    conditions: Condition[];
-  }) => void;
+  setAppearanceConditions: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      conditions: Condition[];
+    } & AppearanceTarget,
+  ) => void;
   /** Set the operator for one joiner between if-conditions on an appearance. */
-  setAppearanceJoin: (input: {
-    projectId: ProjectId;
-    menuId: MenuId;
-    elementId: ElementId;
-    appearanceIndex: number;
-    joinIndex: number;
-    op: "and" | "or";
-  }) => void;
+  setAppearanceJoin: (
+    input: {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      joinIndex: number;
+      op: "and" | "or";
+    } & AppearanceTarget,
+  ) => void;
   /** Replace one step inside a command's step tree at the given path. */
   setCommandStep: (input: {
     projectId: ProjectId;
@@ -808,27 +822,58 @@ interface AccountState {
  * Tiny helpers shared by the step-tree mutations. They walk the immer
  * draft and return live references so callers can splice in place.
  */
+/**
+ * Resolve an AppearanceTarget to its owner (`{ appearances }` — a menu
+ * element or an Item template) inside the given pack draft. Null when the
+ * target doesn't exist.
+ */
+function findAppearanceOwner(
+  pack: Project,
+  target: AppearanceTarget,
+): { appearances: Appearance[] } | null {
+  if (target.templateId) {
+    return pack.itemTemplates?.find((t) => t.id === target.templateId) ?? null;
+  }
+  const menu = pack.menus.find((m) => m.id === target.menuId);
+  if (!menu) return null;
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      if (el.id === target.elementId) return el;
+    }
+  }
+  return null;
+}
+
 function findElementHandler(
   draft: AccountState,
   projectId: ProjectId,
-  menuId: MenuId,
-  elementId: ElementId,
+  target: AppearanceTarget,
   appearanceIndex: number,
   clickType: ClickType,
 ) {
   const pack = draft.account.projects.find((p) => p.id === projectId);
   if (!pack) return null;
-  const menu = pack.menus.find((m) => m.id === menuId);
-  if (!menu) return null;
-  for (const layer of menu.layers) {
-    for (const el of layer.elements) {
-      if (el.id !== elementId) continue;
-      const handler = el.appearances[appearanceIndex]?.click?.[clickType];
-      return handler ?? null;
-    }
-  }
-  return null;
+  const owner = findAppearanceOwner(pack, target);
+  return owner?.appearances[appearanceIndex]?.click?.[clickType] ?? null;
 }
+
+/** Canonical i18n key/prefix for an appearance site, per target kind. */
+const appearanceTitleKeyFor = (target: AppearanceTarget, appIdx: number) =>
+  target.templateId
+    ? itemTemplateTitleKey(target.templateId, appIdx)
+    : elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
+const appearanceLoreKeyFor = (target: AppearanceTarget, appIdx: number) =>
+  target.templateId
+    ? itemTemplateLoreKey(target.templateId, appIdx)
+    : elementLoreKey(target.menuId as string, target.elementId as string, appIdx);
+const appearanceClickPrefixFor = (
+  target: AppearanceTarget,
+  appIdx: number,
+  clickType: ClickType,
+) =>
+  target.templateId
+    ? itemTemplateClickPrefix(target.templateId, appIdx, clickType)
+    : clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
 
 function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
   const pack = draft.account.projects.find((p) => p.id === projectId);
@@ -2522,77 +2567,49 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setAppearanceField: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex = 0,
-        field,
-        value,
-      }) =>
+      setAppearanceField: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex = 0, field, value } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                if (field === "count") {
-                  const n = typeof value === "number" ? value : Number(value);
-                  if (Number.isNaN(n) || n < 1 || n > 64) return;
-                  appearance.count = n === 1 ? undefined : n;
-                } else if (field === "material") {
-                  if (typeof value !== "string") return;
-                  appearance.material = value || undefined;
-                } else if (field === "head") {
-                  if (typeof value !== "string") return;
-                  appearance.head = value || undefined;
-                }
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            if (field === "count") {
+              const n = typeof value === "number" ? value : Number(value);
+              if (Number.isNaN(n) || n < 1 || n > 64) return;
+              appearance.count = n === 1 ? undefined : n;
+            } else if (field === "material") {
+              if (typeof value !== "string") return;
+              appearance.material = value || undefined;
+            } else if (field === "head") {
+              if (typeof value !== "string") return;
+              appearance.head = value || undefined;
             }
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setAppearanceTitle: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex = 0,
-        lang,
-        value,
-      }) =>
+      setAppearanceTitle: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex = 0, lang, value } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                // Lazy-allocate: brand-new appearances start with no title
-                // LText, so the first edit creates one. If the user clears
-                // the field, we keep the LText (they may want to re-edit
-                // or translate it later) but write "" into the active lang.
-                if (!appearance.title)
-                  appearance.title = createLTextAt(
-                    pack,
-                    elementTitleKey(mId, elementId, appearanceIndex),
-                    value,
-                    lang,
-                  );
-                else setLText(pack, appearance.title, lang, value);
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            // Lazy-allocate: brand-new appearances start with no title
+            // LText, so the first edit creates one. If the user clears
+            // the field, we keep the LText (they may want to re-edit
+            // or translate it later) but write "" into the active lang.
+            if (!appearance.title)
+              appearance.title = createLTextAt(
+                pack,
+                appearanceTitleKeyFor(input, appearanceIndex),
+                value,
+                lang,
+              );
+            else setLText(pack, appearance.title, lang, value);
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
       setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
@@ -2684,28 +2701,13 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      setElementStep: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        path,
-        step,
-        lang,
-      }) =>
+      setElementStep: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType, path, step, lang } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
@@ -2715,34 +2717,18 @@ export const useAccountStore = create<AccountState>()(
               pack,
               handler.steps,
               lang,
-              clickHandlerKeyPrefix(mId, elementId, appearanceIndex, clickType),
+              appearanceClickPrefixFor(input, appearanceIndex, clickType),
             );
             touch(draft, pId);
           }),
         ),
-      addElementStep: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        index,
-        step,
-        lang,
-      }) =>
+      addElementStep: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType, frames, index, step, lang } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             if (!parent) return;
@@ -2752,31 +2738,18 @@ export const useAccountStore = create<AccountState>()(
               pack,
               handler.steps,
               lang,
-              clickHandlerKeyPrefix(mId, elementId, appearanceIndex, clickType),
+              appearanceClickPrefixFor(input, appearanceIndex, clickType),
             );
             touch(draft, pId);
           }),
         ),
-      removeElementStep: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        path,
-      }) =>
+      removeElementStep: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType, path } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, path.frames);
             if (!parent || path.index < 0 || path.index >= parent.length) return;
@@ -2785,26 +2758,11 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      moveElementStep: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        fromIndex,
-        toIndex,
-      }) =>
+      moveElementStep: (input) =>
         set(
           produce((draft: AccountState) => {
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const { projectId: pId, appearanceIndex, clickType, frames, fromIndex, toIndex } = input;
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             if (!parent) return;
@@ -2815,25 +2773,11 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addIfCase: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        ifStepIndex,
-      }) =>
+      addIfCase: (input) =>
         set(
           produce((draft: AccountState) => {
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex } = input;
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
@@ -2842,28 +2786,14 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      removeIfCase: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        ifStepIndex,
-        caseIndex,
-      }) =>
+      removeIfCase: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, caseIndex } =
+              input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
@@ -2874,27 +2804,19 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setIfCaseConditions: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        ifStepIndex,
-        caseIndex,
-        conditions,
-      }) =>
+      setIfCaseConditions: (input) =>
         set(
           produce((draft: AccountState) => {
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
+            const {
+              projectId: pId,
               appearanceIndex,
               clickType,
-            );
+              frames,
+              ifStepIndex,
+              caseIndex,
+              conditions,
+            } = input;
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
@@ -2905,28 +2827,20 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      setIfCaseJoin: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        ifStepIndex,
-        caseIndex,
-        joinIndex,
-        op,
-      }) =>
+      setIfCaseJoin: (input) =>
         set(
           produce((draft: AccountState) => {
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
+            const {
+              projectId: pId,
               appearanceIndex,
               clickType,
-            );
+              frames,
+              ifStepIndex,
+              caseIndex,
+              joinIndex,
+              op,
+            } = input;
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
@@ -2941,28 +2855,14 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      toggleIfElse: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-        frames,
-        ifStepIndex,
-        enabled,
-      }) =>
+      toggleIfElse: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, enabled } =
+              input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const handler = findElementHandler(
-              draft,
-              pId,
-              mId,
-              elementId,
-              appearanceIndex,
-              clickType,
-            );
+            const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
             if (!handler) return;
             const parent = resolveParentMut(handler.steps, frames);
             const ifStep = parent?.[ifStepIndex];
@@ -2976,187 +2876,117 @@ export const useAccountStore = create<AccountState>()(
             touch(draft, pId);
           }),
         ),
-      addElementClickHandler: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-      }) =>
+      addElementClickHandler: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                if (!appearance.click) appearance.click = {};
-                if (!appearance.click[clickType]) {
-                  appearance.click[clickType] = { steps: [] };
-                  pack.updatedAt = new Date().toISOString();
-                }
-                return;
-              }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            if (!appearance.click) appearance.click = {};
+            if (!appearance.click[clickType]) {
+              appearance.click[clickType] = { steps: [] };
+              pack.updatedAt = new Date().toISOString();
             }
           }),
         ),
-      removeElementClickHandler: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        clickType,
-      }) =>
+      removeElementClickHandler: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, clickType } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance?.click) return;
-                const handler = appearance.click[clickType];
-                if (handler) gcStepLTexts(pack, handler.steps);
-                delete appearance.click[clickType];
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance?.click) return;
+            const handler = appearance.click[clickType];
+            if (handler) gcStepLTexts(pack, handler.steps);
+            delete appearance.click[clickType];
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      addAppearance: ({ projectId: pId, menuId: mId, elementId }) =>
+      addAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
-            const pack = draft.account.projects.find((p) => p.id === pId);
+            const pack = draft.account.projects.find((p) => p.id === input.projectId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                // Seed with a placeholder permission condition so the new
-                // state is clearly conditional and doesn't shadow the
-                // default state (which is the one with no `if`).
-                el.appearances.push({ if: [{ type: "has_permission", perm: "" }] });
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const owner = findAppearanceOwner(pack, input);
+            if (!owner) return;
+            // Seed with a placeholder permission condition so the new
+            // state is clearly conditional and doesn't shadow the
+            // default state (which is the one with no `if`).
+            owner.appearances.push({ if: [{ type: "has_permission", perm: "" }] });
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      removeAppearance: ({ projectId: pId, menuId: mId, elementId, appearanceIndex }) =>
+      removeAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                if (el.appearances.length <= 1) return; // keep at least one
-                if (appearanceIndex < 0 || appearanceIndex >= el.appearances.length) return;
-                gcAppearanceLTexts(pack, el.appearances[appearanceIndex]!);
-                el.appearances.splice(appearanceIndex, 1);
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const owner = findAppearanceOwner(pack, input);
+            if (!owner) return;
+            if (owner.appearances.length <= 1) return; // keep at least one
+            if (appearanceIndex < 0 || appearanceIndex >= owner.appearances.length) return;
+            gcAppearanceLTexts(pack, owner.appearances[appearanceIndex]!);
+            owner.appearances.splice(appearanceIndex, 1);
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      moveAppearance: ({ projectId: pId, menuId: mId, elementId, fromIndex, toIndex }) =>
+      moveAppearance: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, fromIndex, toIndex } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                if (
-                  fromIndex < 0 ||
-                  fromIndex >= el.appearances.length ||
-                  toIndex < 0 ||
-                  toIndex >= el.appearances.length
-                )
-                  return;
-                const [moved] = el.appearances.splice(fromIndex, 1);
-                if (moved) el.appearances.splice(toIndex, 0, moved);
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const owner = findAppearanceOwner(pack, input);
+            if (!owner) return;
+            if (
+              fromIndex < 0 ||
+              fromIndex >= owner.appearances.length ||
+              toIndex < 0 ||
+              toIndex >= owner.appearances.length
+            )
+              return;
+            const [moved] = owner.appearances.splice(fromIndex, 1);
+            if (moved) owner.appearances.splice(toIndex, 0, moved);
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setAppearanceConditions: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        conditions,
-      }) =>
+      setAppearanceConditions: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, conditions } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                appearance.if = conditions.length > 0 ? conditions : undefined;
-                // Trim joins past the new conditions length so the array
-                // doesn't carry stale entries when conditions shrink.
-                const maxJoins = Math.max(0, conditions.length - 1);
-                if (appearance.ifJoins) {
-                  if (maxJoins === 0) appearance.ifJoins = undefined;
-                  else if (appearance.ifJoins.length > maxJoins)
-                    appearance.ifJoins.length = maxJoins;
-                }
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            appearance.if = conditions.length > 0 ? conditions : undefined;
+            // Trim joins past the new conditions length so the array
+            // doesn't carry stale entries when conditions shrink.
+            const maxJoins = Math.max(0, conditions.length - 1);
+            if (appearance.ifJoins) {
+              if (maxJoins === 0) appearance.ifJoins = undefined;
+              else if (appearance.ifJoins.length > maxJoins) appearance.ifJoins.length = maxJoins;
             }
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
-      setAppearanceJoin: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex,
-        joinIndex,
-        op,
-      }) =>
+      setAppearanceJoin: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex, joinIndex, op } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
-                if (joinIndex < 0 || joinIndex >= max) return;
-                if (!appearance.ifJoins) appearance.ifJoins = Array(max).fill("and");
-                while (appearance.ifJoins.length < max) appearance.ifJoins.push("and");
-                appearance.ifJoins[joinIndex] = op;
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
-            }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
+            if (joinIndex < 0 || joinIndex >= max) return;
+            if (!appearance.ifJoins) appearance.ifJoins = Array(max).fill("and");
+            while (appearance.ifJoins.length < max) appearance.ifJoins.push("and");
+            appearance.ifJoins[joinIndex] = op;
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
       setCommandStep: ({ projectId: pId, commandId: cId, path, step, lang }) =>
@@ -3440,44 +3270,25 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      setAppearanceLore: ({
-        projectId: pId,
-        menuId: mId,
-        elementId,
-        appearanceIndex = 0,
-        lang,
-        value,
-      }) =>
+      setAppearanceLore: (input) =>
         set(
           produce((draft: AccountState) => {
+            const { projectId: pId, appearanceIndex = 0, lang, value } = input;
             const pack = draft.account.projects.find((p) => p.id === pId);
             if (!pack) return;
-            const menu = pack.menus.find((m) => m.id === mId);
-            if (!menu) return;
-            for (const layer of menu.layers) {
-              for (const el of layer.elements) {
-                if (el.id !== elementId) continue;
-                const appearance = el.appearances[appearanceIndex];
-                if (!appearance) return;
-                if (!appearance.lore) {
-                  appearance.lore = value
-                    ? createLTextAt(
-                        pack,
-                        elementLoreKey(mId, elementId, appearanceIndex),
-                        value,
-                        lang,
-                      )
-                    : undefined;
-                } else if (value) {
-                  setLText(pack, appearance.lore, lang, value);
-                } else {
-                  deleteLText(pack, appearance.lore);
-                  appearance.lore = undefined;
-                }
-                pack.updatedAt = new Date().toISOString();
-                return;
-              }
+            const appearance = findAppearanceOwner(pack, input)?.appearances[appearanceIndex];
+            if (!appearance) return;
+            if (!appearance.lore) {
+              appearance.lore = value
+                ? createLTextAt(pack, appearanceLoreKeyFor(input, appearanceIndex), value, lang)
+                : undefined;
+            } else if (value) {
+              setLText(pack, appearance.lore, lang, value);
+            } else {
+              deleteLText(pack, appearance.lore);
+              appearance.lore = undefined;
             }
+            pack.updatedAt = new Date().toISOString();
           }),
         ),
       clearSlot: ({ projectId: pId, menuId: mId, position }) =>

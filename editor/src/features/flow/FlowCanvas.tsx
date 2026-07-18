@@ -3,7 +3,7 @@ import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Appearance } from "@/domain/types";
+import type { Appearance, ItemTemplateId } from "@/domain/types";
 import type {
   Command,
   CommandArg,
@@ -174,9 +174,17 @@ function ElementEditor({
   const setSub = useFlowSelectionStore((s) => s.set);
   const focusedStateIndex =
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
-  const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
   const headerPack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  // Template-bound element: the export inlines the template's appearances, so
+  // the state cards edit the TEMPLATE (shared across menus) — the element's
+  // local appearances are dead weight and editing them would change nothing.
+  const boundTplId = element.places?.templateId ?? element.iterates?.templateId;
+  const boundTpl = boundTplId
+    ? (headerPack?.itemTemplates ?? []).find((t) => t.id === boundTplId)
+    : undefined;
+  const appearances = boundTpl ? boundTpl.appearances : element.appearances;
+  const focusedState = appearances[focusedStateIndex] ?? appearances[0];
   const headerMaterial = focusedState?.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
   const headerDisplay = headerPack
@@ -213,8 +221,8 @@ function ElementEditor({
           <div className="font-mono text-xs text-[var(--text)]">{headerTitle || headerMaterial}</div>
           <div className="text-[10px] text-[var(--text-faint)]">
             {menuTitle} ·{" "}
-            {t(element.appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
-              count: element.appearances.length,
+            {t(appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
+              count: appearances.length,
             })}
           </div>
         </div>
@@ -246,15 +254,27 @@ function ElementEditor({
         ) : null}
         <PlacementField projectId={projectId} menu={menu} element={element} />
 
+        {boundTpl ? (
+          <div className="mb-3 rounded border border-[var(--brand-line)] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)]">
+            {t("flow.templateBoundBanner", { name: boundTpl.name })}
+          </div>
+        ) : null}
         <Lane label={t("flow.states")}>
           <SortableStates
             projectId={projectId}
             menu={menu}
             element={element}
+            templateId={boundTpl?.id}
+            appearances={appearances}
             focusedStateIndex={focusedStateIndex}
             onAdd={() => {
-              addAppearance({ projectId, menuId: menu.id, elementId: element.id });
-              setSub({ kind: "state", stateIndex: element.appearances.length });
+              addAppearance({
+                projectId,
+                ...(boundTpl
+                  ? { templateId: boundTpl.id }
+                  : { menuId: menu.id, elementId: element.id }),
+              });
+              setSub({ kind: "state", stateIndex: appearances.length });
             }}
           />
         </Lane>
@@ -373,12 +393,17 @@ function SortableStates({
   projectId,
   menu,
   element,
+  templateId,
+  appearances,
   focusedStateIndex,
   onAdd,
 }: {
   projectId: ProjectId;
   menu: Menu;
   element: Element;
+  /** Set when the element is template-bound: cards edit the template's states. */
+  templateId?: ItemTemplateId;
+  appearances: Appearance[];
   focusedStateIndex: number;
   onAdd: () => void;
 }) {
@@ -386,7 +411,7 @@ function SortableStates({
   const moveAppearance = useAccountStore((s) => s.moveAppearance);
   const setSub = useFlowSelectionStore((s) => s.set);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-  const ids = useStableAppearanceIds(element.appearances);
+  const ids = useStableAppearanceIds(appearances);
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -397,8 +422,7 @@ function SortableStates({
 
     moveAppearance({
       projectId,
-      menuId: menu.id,
-      elementId: element.id,
+      ...(templateId ? { templateId } : { menuId: menu.id, elementId: element.id }),
       fromIndex,
       toIndex,
     });
@@ -418,7 +442,7 @@ function SortableStates({
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-2">
-          {element.appearances.map((_appearance, i) => (
+          {appearances.map((appearance, i) => (
             <StateCard
               // biome-ignore lint/suspicious/noArrayIndexKey: state index stable per list-render
               key={i}
@@ -426,7 +450,10 @@ function SortableStates({
               projectId={projectId}
               menu={menu}
               element={element}
+              templateId={templateId}
+              appearance={appearance}
               stateIndex={i}
+              stateCount={appearances.length}
               focused={focusedStateIndex === i}
             />
           ))}
@@ -618,14 +645,21 @@ function StateCard({
   projectId,
   menu,
   element,
+  templateId,
+  appearance,
   stateIndex,
+  stateCount,
   focused,
 }: {
   dragId: string;
   projectId: ProjectId;
   menu: Menu;
   element: Element;
+  /** Set when the element is template-bound: edits target the template. */
+  templateId?: ItemTemplateId;
+  appearance: Appearance;
   stateIndex: number;
+  stateCount: number;
   focused: boolean;
 }) {
   const { t } = useTranslation();
@@ -645,9 +679,8 @@ function StateCard({
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const target = templateId ? { templateId } : { menuId: menu.id, elementId: element.id };
 
-  const appearance = element.appearances[stateIndex];
-  if (!appearance) return null;
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
   // Captured-item refs (`item:<id>`) expand to their display descriptor.
@@ -694,8 +727,7 @@ function StateCard({
   const update = (field: "material" | "count" | "head", value: string | number) =>
     setAppearanceField({
       projectId,
-      menuId: menu.id,
-      elementId: element.id,
+      ...target,
       appearanceIndex: stateIndex,
       field,
       value,
@@ -703,8 +735,7 @@ function StateCard({
   const updateTitle = (value: string) =>
     setAppearanceTitle({
       projectId,
-      menuId: menu.id,
-      elementId: element.id,
+      ...target,
       appearanceIndex: stateIndex,
       lang: activeLang,
       value,
@@ -712,8 +743,7 @@ function StateCard({
   const updateLore = (value: string) =>
     setAppearanceLore({
       projectId,
-      menuId: menu.id,
-      elementId: element.id,
+      ...target,
       appearanceIndex: stateIndex,
       lang: activeLang,
       value,
@@ -809,15 +839,14 @@ function StateCard({
               {t("flow.editing")}
             </span>
             <span className="ml-auto" />
-            {element.appearances.length > 1 ? (
+            {stateCount > 1 ? (
               <button
                 type="button"
                 title={t("flow.removeState")}
                 onClick={() => {
                   removeAppearance({
                     projectId,
-                    menuId: menu.id,
-                    elementId: element.id,
+                    ...target,
                     appearanceIndex: stateIndex,
                   });
                   setSub(null);
@@ -975,8 +1004,7 @@ function StateCard({
                 setSub({ kind: "state", stateIndex });
                 setAppearanceConditions({
                   projectId,
-                  menuId: menu.id,
-                  elementId: element.id,
+                  ...target,
                   appearanceIndex: stateIndex,
                   conditions,
                 });
@@ -984,8 +1012,7 @@ function StateCard({
               onJoinChange={(joinIndex, op) =>
                 setAppearanceJoin({
                   projectId,
-                  menuId: menu.id,
-                  elementId: element.id,
+                  ...target,
                   appearanceIndex: stateIndex,
                   joinIndex,
                   op,
@@ -1002,6 +1029,7 @@ function StateCard({
               projectId={projectId}
               menuId={menu.id}
               elementId={element.id}
+              templateId={templateId}
               stateIndex={stateIndex}
               click={appearance.click}
             />
