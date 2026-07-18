@@ -18,6 +18,7 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { resolveDisplayRef } from "@/domain/capturedItems";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { buildHeadValue, type HeadSource, headSourceOf, headValueOf } from "./headField";
@@ -175,8 +176,14 @@ function ElementEditor({
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
   const focusedState = element.appearances[focusedStateIndex] ?? element.appearances[0];
 
+  const headerPack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const headerMaterial = focusedState?.material ?? "";
-  const headerTextureUrl = useTextureUrl(headerMaterial);
+  // Captured-item refs (`item:<id>`) expand to their display descriptor.
+  const headerDisplay = headerPack
+    ? resolveDisplayRef(headerPack, headerMaterial)
+    : { material: headerMaterial };
+  const headerMaterialUrl = useTextureUrl(headerDisplay.material);
+  const headerTextureUrl = headPreviewUrl(headerDisplay.head) ?? headerMaterialUrl;
   const getText = useGetText(projectId);
   const headerTitle = getText(focusedState?.title);
   const menuTitle = getText(getFirstTitleText(menu));
@@ -508,6 +515,7 @@ export function HeadField({ head, onChange }: { head: string; onChange: (v: stri
 }
 
 interface StateMaterialIconProps {
+  projectId: ProjectId;
   menuId: MenuId;
   elementId: ElementId;
   stateIndex: number;
@@ -524,6 +532,7 @@ interface StateMaterialIconProps {
  * isOver shows an emerald ring while a Library drag is hovering.
  */
 function StateMaterialIcon({
+  projectId,
   menuId,
   elementId,
   stateIndex,
@@ -535,6 +544,7 @@ function StateMaterialIcon({
   return (
     <div ref={droppable.setNodeRef}>
       <MaterialPicker
+        projectId={projectId}
         trigger={
           <button
             type="button"
@@ -634,13 +644,16 @@ function StateCard({
   const removeAppearance = useAccountStore((s) => s.removeAppearance);
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
 
   const appearance = element.appearances[stateIndex];
   if (!appearance) return null;
   const isDefault = stateIndex === 0;
   const material = appearance.material ?? "";
-  const materialUrl = useTextureUrl(material);
-  const textureUrl = headPreviewUrl(appearance.head) ?? materialUrl;
+  // Captured-item refs (`item:<id>`) expand to their display descriptor.
+  const display = pack ? resolveDisplayRef(pack, material) : { material };
+  const materialUrl = useTextureUrl(display.material);
+  const textureUrl = headPreviewUrl(appearance.head ?? display.head) ?? materialUrl;
   const title = getText(appearance.title);
   const count = appearance.count ?? 1;
   const loreText = appearance.lore ? getText(appearance.lore) : "";
@@ -669,7 +682,6 @@ function StateCard({
 
   // Preview scope — binds the first list item when the element iterates so
   // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const lorePreviewCtx = useMemo(() => {
     if (!pack) return {};
     const base = buildPreviewScope(menu, pack);
@@ -820,6 +832,7 @@ function StateCard({
           {/* Material row */}
           <div className="flex items-center gap-1.5">
             <StateMaterialIcon
+              projectId={projectId}
               menuId={menu.id}
               elementId={element.id}
               stateIndex={stateIndex}
