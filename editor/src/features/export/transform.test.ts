@@ -204,6 +204,21 @@ describe("transform", () => {
       ]);
     });
 
+    it("collects the inlined template's i18n keys into the lang files", () => {
+      const pack = templatePack([
+        {
+          id: elementId("grid"), positions: "10-43",
+          appearances: [],
+          iterates: { source: "items", alias: "stale", templateId: TPL_ID },
+        },
+      ]);
+      const files = transform(pack);
+      const lang = parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!);
+      // The exported menu references {i18n:k_tpl} — the lang file must carry
+      // it, else the plugin echoes the raw key in-game.
+      expect(lang.k_tpl).toBe("{row.name}");
+    });
+
     it("dangling templateId falls back to the element's local fields (non-hermetic)", () => {
       const pack = templatePack([
         {
