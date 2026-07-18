@@ -128,6 +128,72 @@ describe("readEditorEdgesFromFiles", () => {
   });
 });
 
+describe("importProjectFromFiles — captured items (items/*.yml)", () => {
+  const stackYaml = [
+    "item:",
+    "  ==: org.bukkit.inventory.ItemStack",
+    "  DataVersion: 4671",
+    "  id: minecraft:paper",
+    "  count: 5",
+    "  components:",
+    "    minecraft:custom_model_data: '{floats:[26603.0f]}'",
+    `    minecraft:custom_data: '{PublicBukkitValues:{"nexo:id":"arcanist_key"}}'`,
+    `    minecraft:item_name: '{color:"white",text:"Clé Luxury"}'`,
+    "  schema_version: 1",
+    "display:",
+    "  enchanted: true",
+    "  name: 1 clé Luxury",
+    "",
+  ].join("\n");
+
+  test("maps items/*.yml to editor capturedItems with a derived display", () => {
+    const files = {
+      ...manifestWith(null),
+      [`${base}/items/ci_key.yml`]: stackYaml,
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as {
+      capturedItems?: { id: string; name: string; stackYaml: string; display: Record<string, unknown> }[];
+      moduleData?: Record<string, unknown>;
+    };
+    expect(project.capturedItems).toHaveLength(1);
+    const ci = project.capturedItems![0]!;
+    expect(ci.id).toBe("ci_key");
+    expect(ci.stackYaml).toBe(stackYaml); // verbatim — the runtime truth
+    // Derived from the stack: nexo custom ref wins over the vanilla id; count kept.
+    expect(ci.display.material).toBe("nexo:arcanist_key");
+    expect(ci.display.count).toBe(5);
+    // `display:` overrides in the file win over derivation.
+    expect(ci.display.enchanted).toBe(true);
+    expect(ci.display.name).toBe("1 clé Luxury");
+    expect(ci.name).toBe("1 clé Luxury");
+    // items/ is core — must NOT leak into moduleData.
+    expect(project.moduleData).toBeUndefined();
+  });
+
+  test("plain vanilla stack derives the material from the id", () => {
+    const files = {
+      ...manifestWith(null),
+      [`${base}/items/ci_sword.yml`]: [
+        "item:",
+        "  ==: org.bukkit.inventory.ItemStack",
+        "  id: minecraft:diamond_sword",
+        "  count: 1",
+        "",
+      ].join("\n"),
+    };
+    const project = importProjectFromFiles(PACK_ID, files) as {
+      capturedItems?: { id: string; display: Record<string, unknown> }[];
+    };
+    expect(project.capturedItems![0]!.display).toEqual({ material: "DIAMOND_SWORD" });
+  });
+
+  test("unparseable item file is skipped without breaking the import", () => {
+    const files = { ...manifestWith(null), [`${base}/items/bad.yml`]: "{{{" };
+    const project = importProjectFromFiles(PACK_ID, files) as { capturedItems?: unknown[] };
+    expect(project.capturedItems ?? []).toHaveLength(0);
+  });
+});
+
 describe("importProjectFromFiles — module dirs", () => {
   test("collects unknown top-level dirs into moduleData.__files", () => {
     const files = {

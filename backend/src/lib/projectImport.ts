@@ -558,6 +558,44 @@ function readTranslations(
 /** Module dirs must be sane slugs — rejects hostile keys like `__proto__`. */
 const MODULE_DIR_RE = /^[a-z][a-z0-9_-]*$/;
 
+/**
+ * items/<id>.yml → editor CapturedItem entries. The file is the runtime truth
+ * (verbatim `stackYaml`); the display descriptor is derived generically from
+ * the serialized stack (nexo custom ref > vanilla id, count, item_name) and an
+ * optional root `display:` block in the file overrides the derivation — used
+ * by module migrators that know legacy display flags (e.g. enchanted) the
+ * stack alone doesn't carry. Byte-order sort keeps the output deterministic.
+ */
+function readCapturedItems(
+  files: Record<string, string>,
+  projectId: string,
+): { id: string; name: string; stackYaml: string; display: Record<string, unknown> }[] {
+  const out: { id: string; name: string; stackYaml: string; display: Record<string, unknown> }[] = [];
+  for (const [path, content] of Object.entries(files)) {
+    const rel = relativeToProject(path, projectId);
+    if (!rel.startsWith("items/") || rel.indexOf("/", "items/".length) !== -1) continue;
+    const id = rel.slice("items/".length).replace(/\.ya?ml$/, "");
+    if (!id) continue;
+    const root = tryParse<Record<string, unknown>>(content);
+    if (!root || typeof root !== "object") continue;
+    const stack = (root.item ?? root) as Record<string, unknown>; // `==:`-root tolerated
+    if (!stack || typeof stack !== "object") continue;
+    const display: Record<string, unknown> = {};
+    const vanillaId = typeof stack.id === "string" ? stack.id : "";
+    if (vanillaId) display.material = vanillaId.replace(/^minecraft:/, "").toUpperCase();
+    const components = (stack.components ?? {}) as Record<string, unknown>;
+    const nexo = /"nexo:id"\s*:\s*"([^"]+)"/.exec(String(components["minecraft:custom_data"] ?? ""));
+    if (nexo) display.material = `nexo:${nexo[1]}`;
+    const count = typeof stack.count === "number" ? stack.count : 1;
+    if (count > 1) display.count = count;
+    const nameMatch = /text\s*:\s*"([^"]*)"/.exec(String(components["minecraft:item_name"] ?? ""));
+    if (nameMatch?.[1]) display.name = nameMatch[1];
+    if (root.display && typeof root.display === "object") Object.assign(display, root.display);
+    out.push({ id, name: typeof display.name === "string" ? display.name : id, stackYaml: content, display });
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
 export function importProjectFromFiles(projectId: string, files: Record<string, string>): Record<string, unknown> {
   const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
@@ -653,7 +691,10 @@ export function importProjectFromFiles(projectId: string, files: Record<string, 
     canvasEdges: parseEditorEdges(manifest.editor_edges),
   };
 
-  const CORE_PREFIXES = ["menus/", "commands/", "dialogs/", "lang/"];
+  const capturedItems = readCapturedItems(files, projectId);
+  if (capturedItems.length > 0) project.capturedItems = capturedItems;
+
+  const CORE_PREFIXES = ["menus/", "commands/", "dialogs/", "lang/", "items/"];
   const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
   // Null-prototype accumulator: hostile dir names ("__proto__", "constructor")
   // can't clobber Object.prototype; the regex guard skips them anyway.
