@@ -1,10 +1,19 @@
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { Appearance, I18nKey, ItemTemplateId, Project, ProjectId } from "@/domain/types";
+import type {
+  Appearance,
+  ElementId,
+  I18nKey,
+  ItemTemplateId,
+  MenuId,
+  Project,
+  ProjectId,
+} from "@/domain/types";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
+import { ElementClickHandlersPseudocode } from "@/features/flow/PseudocodeView";
 import { moduleLocalRows, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -19,12 +28,12 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Modal editor of one Item template — THE place a row's look is defined.
- * Editing propagates to every menu bound to this template (banner says so).
- * Per-state fields: material / count / title / lore; conditions and click
- * chains are carried through the seed and shown as read-only badges (full
- * state/click editing arrives with the library phase). Live preview renders
- * state 0 against the first snapshot row when the server has one.
+ * Modal editor of one Item template — THE place a row's look AND click
+ * behavior are defined. Editing propagates to every menu bound to this
+ * template (banner says so). Per-state: material / count / title / lore,
+ * visibility conditions, and the full click-handlers pseudocode editor
+ * (template-addressed reducers). Live preview renders state 0 against the
+ * first snapshot row when the server has one.
  */
 /**
  * Material preview tile of one template state: renders the resolved material
@@ -91,6 +100,8 @@ export function ItemTemplateEditor({
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const updateItemTemplate = useAccountStore((s) => s.updateItemTemplate);
   const setItemTemplateAppearances = useAccountStore((s) => s.setItemTemplateAppearances);
+  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
+  const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
   const setI18nValue = useAccountStore((s) => s.setI18nValue);
   const activeLang = useUiStore((s) => s.activeLang);
 
@@ -122,6 +133,21 @@ export function ItemTemplateEditor({
   const previewRow = Array.isArray(rows) ? rows[0] : undefined;
   const previewCtx = previewRow ? { [tpl.alias]: previewRow } : {};
   const state0 = tpl.appearances[0];
+
+  // Menu context for the click editor (placeholder resolution + action
+  // defaults): the first element consuming this template, else the first menu.
+  const consumer = (() => {
+    for (const menu of pack.menus) {
+      for (const layer of menu.layers) {
+        for (const el of layer.elements) {
+          if ((el.places?.templateId ?? el.iterates?.templateId) === templateId) {
+            return { menuId: menu.id, elementId: el.id };
+          }
+        }
+      }
+    }
+    return { menuId: pack.menus[0]?.id ?? ("" as MenuId), elementId: "" as ElementId };
+  })();
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -196,12 +222,6 @@ export function ItemTemplateEditor({
                 <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
                   {i === 0 ? t("itemTemplates.stateDefault") : t("itemTemplates.stateN", { index: i })}
                 </span>
-                {(app.if ?? []).length > 0 ? (
-                  <Badge>{t("itemTemplates.conditionsBadge", { count: (app.if ?? []).length })}</Badge>
-                ) : null}
-                {app.click && Object.keys(app.click).length > 0 ? (
-                  <Badge>{t("itemTemplates.clickBadge", { count: Object.keys(app.click).length })}</Badge>
-                ) : null}
                 {tpl.appearances.length > 1 && i > 0 ? (
                   <button
                     type="button"
@@ -289,6 +309,43 @@ export function ItemTemplateEditor({
                   {t("itemTemplates.addLore")}
                 </button>
               )}
+
+              {/* Visibility conditions — same editor as the element panel. */}
+              <div className="overflow-x-auto">
+                <ConditionListEditor
+                  label={t("flow.visibility")}
+                  conditions={app.if ?? []}
+                  joins={app.ifJoins}
+                  emptyHint={
+                    i === 0 ? t("flow.visibilityAlwaysDefault") : t("flow.visibilityAlways")
+                  }
+                  onChange={(conditions) =>
+                    setAppearanceConditions({
+                      projectId,
+                      templateId,
+                      appearanceIndex: i,
+                      conditions,
+                    })
+                  }
+                  onJoinChange={(joinIndex, op) =>
+                    setAppearanceJoin({ projectId, templateId, appearanceIndex: i, joinIndex, op })
+                  }
+                />
+              </div>
+
+              {/* Click handlers — THE place a set's click behavior is defined
+                  (the export inlines it into every consuming menu). */}
+              <div className="mt-1">
+                <div className="field-label">{t("flow.clickHandlers")}</div>
+                <ElementClickHandlersPseudocode
+                  projectId={projectId}
+                  menuId={consumer.menuId}
+                  elementId={consumer.elementId}
+                  templateId={templateId}
+                  stateIndex={i}
+                  click={app.click}
+                />
+              </div>
             </div>
           ))}
           <button

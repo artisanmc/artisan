@@ -94,6 +94,118 @@ describe("accountStore", () => {
       expect(pack.i18nKeys[oldKey]).toBeUndefined();
     });
 
+    describe("template-addressed appearance reducers (AppearanceTarget)", () => {
+      const add = () =>
+        useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+      const tpl = () => getPack().itemTemplates!.find((t) => t.id === TPL)!;
+
+      it("setAppearanceField targets a template state via templateId", () => {
+        add();
+        useAccountStore.getState().setAppearanceField({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          field: "material",
+          value: "DIAMOND",
+        });
+        expect(tpl().appearances[0]!.material).toBe("DIAMOND");
+      });
+
+      it("setAppearanceTitle mints the canonical item_templates key on first write", () => {
+        add();
+        // Strip the title so the lazy-allocation path runs.
+        useAccountStore.getState().setItemTemplateAppearances({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearances: [{ material: "{item.icon}" }],
+        });
+        useAccountStore.getState().setAppearanceTitle({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          lang: "en",
+          value: "{item.name}",
+        });
+        const app = tpl().appearances[0]!;
+        expect(app.title!.key).toBe("item_templates.tpl_shop.default.title");
+        expect(getPack().i18nKeys[app.title!.key]).toEqual({ en: "{item.name}" });
+      });
+
+      it("click handler + step lifecycle on a template state mints keys under the template prefix", () => {
+        add();
+        const s = useAccountStore.getState();
+        s.addElementClickHandler({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          clickType: "left",
+        });
+        expect(tpl().appearances[0]!.click!.left).toEqual({ steps: [] });
+        useAccountStore.getState().addElementStep({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          clickType: "left",
+          frames: [],
+          index: -1,
+          step: {
+            kind: "action",
+            action: { type: "send_message", text: { key: "" as I18nKey } },
+          },
+          lang: "en",
+        });
+        const step = tpl().appearances[0]!.click!.left!.steps[0]!;
+        expect(step.kind).toBe("action");
+        const key = (step as { action: { text: { key: string } } }).action.text.key;
+        expect(key).toBe("item_templates.tpl_shop.default.click.left.message");
+        expect(getPack().i18nKeys[key as I18nKey]).toBeDefined();
+        // Removing the handler GCs its step keys.
+        useAccountStore.getState().removeElementClickHandler({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          clickType: "left",
+        });
+        expect(tpl().appearances[0]!.click!.left).toBeUndefined();
+        expect(getPack().i18nKeys[key as I18nKey]).toBeUndefined();
+      });
+
+      it("addAppearance / removeAppearance target template states and GC released keys", () => {
+        add();
+        useAccountStore.getState().addAppearance({ projectId: PERSONAL, templateId: TPL });
+        expect(tpl().appearances).toHaveLength(2);
+        expect(tpl().appearances[1]!.if).toBeDefined();
+        // Give state 1 a title, then remove it — key must be GC'd.
+        useAccountStore.getState().setAppearanceTitle({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 1,
+          lang: "en",
+          value: "Hover",
+        });
+        const key = tpl().appearances[1]!.title!.key;
+        expect(key).toBe("item_templates.tpl_shop.state1.title");
+        useAccountStore.getState().removeAppearance({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 1,
+        });
+        expect(tpl().appearances).toHaveLength(1);
+        expect(getPack().i18nKeys[key]).toBeUndefined();
+      });
+
+      it("setAppearanceConditions targets a template state", () => {
+        add();
+        useAccountStore.getState().setAppearanceConditions({
+          projectId: PERSONAL,
+          templateId: TPL,
+          appearanceIndex: 0,
+          conditions: [{ type: "has_permission", perm: "shop.vip" }],
+        });
+        expect(tpl().appearances[0]!.if).toEqual([{ type: "has_permission", perm: "shop.vip" }]);
+      });
+    });
+
     describe("pinItemTemplateRow / dropItemTemplateBlock", () => {
       const setup = () => {
         useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
