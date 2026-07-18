@@ -17,6 +17,18 @@ export const clickHandlerKeyPrefix = (
   clickType: string,
 ): string => `menus.${menuId}.elements.${elementId}.${stateLabel(appIdx)}.click.${clickType}`;
 
+export const itemTemplateTitleKey = (templateId: string, appIdx: number): I18nKey =>
+  `item_templates.${templateId}.${stateLabel(appIdx)}.title` as I18nKey;
+
+export const itemTemplateLoreKey = (templateId: string, appIdx: number): I18nKey =>
+  `item_templates.${templateId}.${stateLabel(appIdx)}.lore` as I18nKey;
+
+export const itemTemplateClickPrefix = (
+  templateId: string,
+  appIdx: number,
+  clickType: string,
+): string => `item_templates.${templateId}.${stateLabel(appIdx)}.click.${clickType}`;
+
 export const commandKeyPrefix = (commandId: string): string => `commands.${commandId}`;
 
 export const messageKeyAt = (prefix: string, idx: number): I18nKey =>

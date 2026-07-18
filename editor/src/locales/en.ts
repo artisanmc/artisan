@@ -285,6 +285,8 @@ export default {
     placementSlotSummary: "p{{page}} · slot {{slot}}",
     placementRemove: "Remove this placement",
     states: "States",
+    templateBoundBanner:
+      'This element renders the "{{name}}" item set — edits below apply to the set, everywhere it is used.',
     addState: "+ Add state",
     stateDefault: "default",
     stateN: "state {{index}}",
@@ -504,8 +506,6 @@ export default {
     groupByNone: "(none)",
     stateDefault: "default",
     stateN: "state {{index}}",
-    conditionsBadge: "{{count}} condition(s)",
-    clickBadge: "{{count}} click action(s)",
     removeState: "Remove this state",
     addState: "+ Add state",
     materialLabel: "Material",
