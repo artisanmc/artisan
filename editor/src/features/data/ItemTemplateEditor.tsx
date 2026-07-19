@@ -14,11 +14,11 @@ import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { headPreviewUrl } from "@/features/canvas/headTexture";
 import { ElementClickHandlersPseudocode } from "@/features/flow/PseudocodeView";
-import { moduleLocalRows, renderPreview } from "@/features/canvas/menuPreviewScope";
+import { renderPreview, resolveSourceRef } from "@/features/canvas/menuPreviewScope";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
-import type { ServerDataSource } from "@/lib/api/dataSources";
+import type { TemplatableSource } from "./ItemTemplatesSection";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
@@ -92,7 +92,7 @@ export function ItemTemplateEditor({
   onClose,
 }: {
   projectId: ProjectId;
-  source: ServerDataSource;
+  source: TemplatableSource;
   templateId: ItemTemplateId;
   onClose: () => void;
 }) {
@@ -111,13 +111,20 @@ export function ItemTemplateEditor({
   const loadSnapshot = useServerSnapshotsStore((s) => s.loadSnapshot);
   const snapshotRows = useServerSnapshotsStore((s) => s.rowsByRef[source.ref]);
   useEffect(() => {
-    if (networkId && serverId) loadSnapshot({ networkId, serverId, ref: source.ref });
+    // pack: sources live in the project — nothing to fetch from the server.
+    if (networkId && serverId && !source.ref.startsWith("pack:")) {
+      loadSnapshot({ networkId, serverId, ref: source.ref });
+    }
   }, [networkId, serverId, source.ref, loadSnapshot]);
 
   const tpl = pack?.itemTemplates?.find((x) => x.id === templateId);
   if (!pack || !tpl) return null;
-  // Module-local rows (live authoring state) win over the server snapshot.
-  const rows = moduleLocalRows(pack, source.ref) ?? snapshotRows;
+  // Unified resolution: pack: data → module-local rows → server snapshot.
+  const rows = resolveSourceRef(
+    source.ref as never,
+    pack,
+    snapshotRows ? { [source.ref]: snapshotRows } : undefined,
+  ) as Record<string, unknown>[] | undefined;
 
   const patchAppearance = (index: number, patch: Partial<Appearance>) => {
     setItemTemplateAppearances({

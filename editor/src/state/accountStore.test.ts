@@ -221,6 +221,52 @@ describe("accountStore", () => {
       });
     });
 
+    describe("bindElementToTemplate", () => {
+      it("binds an existing element: ensures the source input and sets iterates", () => {
+        useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+        const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_bind" });
+        // A plain element dropped from the library (no iteration yet).
+        useAccountStore.getState().setSlotMaterial({ projectId: PERSONAL, menuId: mId, position: 10, material: "CHEST" });
+        const pack0 = getPack();
+        const el0 = pack0.menus.find((m) => m.id === mId)!.layers[0]!.elements[0]!;
+        const res = useAccountStore.getState().bindElementToTemplate({
+          projectId: PERSONAL,
+          menuId: mId,
+          elementId: el0.id,
+          templateId: TPL,
+        });
+        expect(res.ok).toBe(true);
+        const menu = getPack().menus.find((m) => m.id === mId)!;
+        const el = menu.layers[0]!.elements[0]!;
+        // Context input auto-created from the source ref tail.
+        expect(menu.contextInputs).toEqual([
+          { kind: "sourceRef", name: "items", ref: "boutique:items" },
+        ]);
+        expect(el.iterates).toEqual({ source: "items", alias: "item", templateId: TPL });
+        expect(el.places).toBeUndefined();
+      });
+
+      it("refuses when another template of the same source is already bound in the menu", () => {
+        useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });
+        useAccountStore.getState().addItemTemplate({
+          projectId: PERSONAL,
+          template: { ...baseTemplate(), id: "tpl_other" as never, name: "Autre vue" },
+        });
+        const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_bind2" });
+        useAccountStore.getState().setSlotMaterial({ projectId: PERSONAL, menuId: mId, position: 10, material: "CHEST" });
+        useAccountStore.getState().setSlotMaterial({ projectId: PERSONAL, menuId: mId, position: 11, material: "CHEST" });
+        const menu0 = getPack().menus.find((m) => m.id === mId)!;
+        const [a, b] = menu0.layers[0]!.elements;
+        useAccountStore.getState().bindElementToTemplate({
+          projectId: PERSONAL, menuId: mId, elementId: a!.id, templateId: TPL,
+        });
+        const res = useAccountStore.getState().bindElementToTemplate({
+          projectId: PERSONAL, menuId: mId, elementId: b!.id, templateId: "tpl_other" as never,
+        });
+        expect(res).toEqual({ ok: false, reason: "conflict", conflictName: "Vue boutique" });
+      });
+    });
+
     describe("pinItemTemplateRow / dropItemTemplateBlock", () => {
       const setup = () => {
         useAccountStore.getState().addItemTemplate({ projectId: PERSONAL, template: baseTemplate() });

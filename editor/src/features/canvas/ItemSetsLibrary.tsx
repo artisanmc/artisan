@@ -10,7 +10,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { headPreviewUrl } from "./headTexture";
-import { moduleLocalRows, renderPreview } from "./menuPreviewScope";
+import { renderPreview, resolveSourceRef } from "./menuPreviewScope";
 import {
   TEMPLATE_BLOCK_DRAG_PREFIX,
   TEMPLATE_GROUP_DRAG_PREFIX,
@@ -68,9 +68,13 @@ export function ItemSetsLibrary({ projectId }: { projectId: ProjectId }) {
 function TemplateGroup({ pack, tpl }: { pack: Project; tpl: ItemTemplate }) {
   const { t } = useTranslation();
   const snapshotRows = useServerSnapshotsStore((s) => s.rowsByRef[tpl.sourceRef]);
-  // Module-local rows (the form being edited) win over the server snapshot so
-  // the tiles update live; the snapshot is the fallback for foreign projects.
-  const rows = moduleLocalRows(pack, tpl.sourceRef) ?? snapshotRows;
+  // Unified resolution: pack: data → module-local rows (live authoring) →
+  // server snapshot (foreign projects).
+  const rows = resolveSourceRef(
+    tpl.sourceRef as never,
+    pack,
+    snapshotRows ? { [tpl.sourceRef]: snapshotRows } : undefined,
+  ) as Record<string, unknown>[] | undefined;
   const activeLang = useUiStore((s) => s.activeLang);
 
   // Keys already placed somewhere (any menu) — shown with a ✓ so the admin sees

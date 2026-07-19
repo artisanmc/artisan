@@ -3,7 +3,7 @@ import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Appearance, I18nKey, ItemTemplateId } from "@/domain/types";
+import type { Appearance, I18nKey, ItemTemplate, ItemTemplateId } from "@/domain/types";
 import type {
   Command,
   CommandArg,
@@ -57,7 +57,7 @@ import {
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
-import { PlacementField } from "./PlacementField";
+import { toast } from "sonner";
 
 interface FlowCanvasProps {
   projectId: ProjectId;
@@ -252,7 +252,6 @@ function ElementEditor({
         {!element.places ? (
           <IterationField projectId={projectId} menu={menu} element={element} />
         ) : null}
-        <PlacementField projectId={projectId} menu={menu} element={element} />
 
         {boundTpl ? (
           <div className="mb-3 rounded border border-[var(--brand-line)] bg-[var(--brand-soft)] px-2.5 py-1.5 text-[11px] text-[var(--brand)]">
@@ -283,6 +282,8 @@ function ElementEditor({
   );
 }
 
+const NO_TEMPLATES: ItemTemplate[] = [];
+
 function IterationField({
   projectId,
   menu,
@@ -294,14 +295,33 @@ function IterationField({
 }) {
   const { t } = useTranslation();
   const setElementIterates = useAccountStore((s) => s.setElementIterates);
+  const bindElementToTemplate = useAccountStore((s) => s.bindElementToTemplate);
+  // Select the raw field — a `?? []` INSIDE the selector mints a fresh array
+  // every call and loops zustand's identity check (max update depth).
+  const templatesRaw = useAccountStore(
+    (s) => s.account.projects.find((p) => p.id === projectId)?.itemTemplates,
+  );
+  const templates = templatesRaw ?? NO_TEMPLATES;
   const iterates = element.iterates;
+  const boundTpl = iterates?.templateId
+    ? templates.find((tpl) => tpl.id === iterates.templateId)
+    : undefined;
   // Suggest sourceRef inputs — these carry list/object data from a data source.
   const sourceSuggestions = (menu.contextInputs ?? [])
     .filter((c) => c.kind === "sourceRef")
     .map((c) => c.name);
   const datalistId = `iter-source-${menu.id}-${element.id}`;
 
-  const enable = () => {
+  const bindSet = (templateId: string) => {
+    const res = bindElementToTemplate({
+      projectId,
+      menuId: menu.id,
+      elementId: element.id,
+      templateId: templateId as ItemTemplateId,
+    });
+    if (!res.ok) toast.error(t("flow.iterationSetConflict", { name: res.conflictName }));
+  };
+  const enableManual = () => {
     const firstSourceRef = (menu.contextInputs ?? []).find((c) => c.kind === "sourceRef");
     setElementIterates({
       projectId,
@@ -323,16 +343,45 @@ function IterationField({
     });
   };
 
+  // The SET is the primary way to paginate: appearance + click come from it,
+  // the element only decides where. Manual source/alias iteration stays as
+  // the advanced escape hatch (context lists / dotted paths have no set).
+  const setPicker = (current: string | "") => (
+    <select
+      data-testid="iteration-set-picker"
+      value={current}
+      onChange={(e) => {
+        if (e.target.value) bindSet(e.target.value);
+      }}
+      className="h-7 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)]"
+    >
+      <option value="">{t("flow.iterationSetPick")}</option>
+      {templates.map((tpl) => (
+        <option key={tpl.id} value={tpl.id}>
+          {tpl.name} ({tpl.sourceRef})
+        </option>
+      ))}
+    </select>
+  );
+
   if (!iterates) {
     return (
-      <div className="mb-3">
+      <div className="mb-3 flex flex-col gap-1.5">
+        {templates.length > 0 ? (
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-[var(--text-mut)]">
+              {t("flow.iterationSetLabel")}
+            </span>
+            {setPicker("")}
+          </div>
+        ) : null}
         <button
           type="button"
-          onClick={enable}
-          className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          onClick={enableManual}
+          className="self-start rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-faint)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           title={t("flow.iterateBindHint")}
         >
-          {t("flow.iterationEnable")}
+          {templates.length > 0 ? t("flow.iterationEnableManual") : t("flow.iterationEnable")}
         </button>
       </div>
     );
@@ -353,31 +402,45 @@ function IterationField({
           ×
         </button>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-mono text-[10px] text-[var(--text-mut)]">{t("flow.iterationForEach")}</span>
-        <Input
-          value={iterates.alias}
-          placeholder="item"
-          onChange={(e) => update({ alias: e.target.value })}
-          className="h-7 w-24 px-2 py-0 font-mono text-xs"
-        />
-        <span className="font-mono text-[10px] text-[var(--text-mut)]">{t("flow.iterationIn")}</span>
-        <Input
-          value={iterates.source}
-          placeholder="shops"
-          list={datalistId}
-          onChange={(e) => update({ source: e.target.value })}
-          className="h-7 w-40 px-2 py-0 font-mono text-xs"
-        />
-        <datalist id={datalistId}>
-          {sourceSuggestions.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-[10px] text-[var(--text-mut)]">
+          {t("flow.iterationSetLabel")}
+        </span>
+        {setPicker(boundTpl?.id ?? "")}
       </div>
-      <p className="text-[10px] text-[var(--text-faint)]">
-        {t("flow.iterationFieldsHint", { example: `{${iterates.alias}.field}` })}
-      </p>
+      {boundTpl ? (
+        <p className="text-[10px] text-[var(--text-faint)]">
+          {t("flow.iterationSetHint", { alias: boundTpl.alias, source: iterates.source })}
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[10px] text-[var(--text-mut)]">{t("flow.iterationForEach")}</span>
+            <Input
+              value={iterates.alias}
+              placeholder="item"
+              onChange={(e) => update({ alias: e.target.value })}
+              className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
+            />
+            <span className="font-mono text-[10px] text-[var(--text-mut)]">{t("flow.iterationIn")}</span>
+            <Input
+              value={iterates.source}
+              placeholder="shops"
+              list={datalistId}
+              onChange={(e) => update({ source: e.target.value })}
+              className="h-7 min-w-0 flex-1 px-2 py-0 font-mono text-xs"
+            />
+            <datalist id={datalistId}>
+              {sourceSuggestions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </div>
+          <p className="text-[10px] text-[var(--text-faint)]">
+            {t("flow.iterationFieldsHint", { example: `{${iterates.alias}.field}` })}
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { stringify, parse as parseYaml } from "yaml";
 import { inferFieldTypeFromValue, summarizeFieldType } from "./helpers";
+import { ItemTemplatesSection, packSourceToTemplatable } from "./ItemTemplatesSection";
 
 interface DataSourceEditorProps {
   projectId: ProjectId;
@@ -126,6 +127,11 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             {inferredType ?? "—"}
           </span>
         )}
+      </div>
+
+      {/* Item sets over PROJECT data — same tooling as server sources. */}
+      <div className="shrink-0 border-t border-[var(--border-soft)] pt-2">
+        <ItemTemplatesSection projectId={projectId} source={packSourceToTemplatable(source)} />
       </div>
     </div>
   );
