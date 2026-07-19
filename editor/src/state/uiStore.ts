@@ -76,6 +76,14 @@ interface UiState {
    */
   armedMaterial: string | null;
   setArmedMaterial: (m: string | null) => void;
+  /**
+   * Preview context for parameterized menus (canvas "preview as…" selector):
+   * menuId → { argName: value }. Feeds primitive contextInput values and the
+   * `{arg}` tokens in source filters when the canvas builds its preview
+   * scope. Session state — not persisted.
+   */
+  menuPreviewArgs: Record<string, Record<string, string>>;
+  setMenuPreviewArg: (menuId: string, arg: string, value: string) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
   /**
@@ -210,6 +218,14 @@ export const useUiStore = create<UiState>()(
       setEditorTab: (t) => set({ editorTab: t }),
       armedMaterial: null,
       setArmedMaterial: (m) => set({ armedMaterial: m }),
+      menuPreviewArgs: {},
+      setMenuPreviewArg: (menuId, arg, value) =>
+        set((s) => ({
+          menuPreviewArgs: {
+            ...s.menuPreviewArgs,
+            [menuId]: { ...(s.menuPreviewArgs[menuId] ?? {}), [arg]: value },
+          },
+        })),
       armedPlacement: null,
       setArmedPlacement: (p) => set({ armedPlacement: p }),
       activeDragMaterial: null,

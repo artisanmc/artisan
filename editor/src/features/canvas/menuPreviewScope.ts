@@ -96,22 +96,88 @@ export function buildPreviewScope(
   menu: Menu,
   pack: Project,
   snapshots?: SourceSnapshots,
+  /** Per-menu preview context (the canvas "preview as…" selector): overrides
+   *  primitive input values AND feeds `{arg}` interpolation in source filters. */
+  previewArgs?: Record<string, string>,
 ): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
+  // Primitives first: their values feed the {arg} tokens in source shaping,
+  // regardless of declaration order.
   for (const input of menu.contextInputs ?? []) {
-    if (input.kind === "primitive") {
-      scope[input.name] = coerceDefault(
-        input.default,
-        input.type as "player" | "string" | "integer" | "number" | "boolean",
-      );
-    } else {
-      scope[input.name] = resolveSourceRef(input.ref, pack, snapshots);
-    }
+    if (input.kind !== "primitive") continue;
+    const override = previewArgs?.[input.name];
+    scope[input.name] =
+      override !== undefined && override !== ""
+        ? coerceDefault(override, input.type as "player" | "string" | "integer" | "number" | "boolean")
+        : coerceDefault(
+            input.default,
+            input.type as "player" | "string" | "integer" | "number" | "boolean",
+          );
+  }
+  for (const input of menu.contextInputs ?? []) {
+    if (input.kind === "primitive") continue;
+    const rows = resolveSourceRef(input.ref, pack, snapshots);
+    scope[input.name] = Array.isArray(rows)
+      ? applyShaping(rows, input, { ...scope, ...(previewArgs ?? {}) })
+      : rows;
   }
   if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
     scope.player = makeSamplePlayer();
   }
   return scope;
+}
+
+const ARG_TOKEN_RE = /\{([a-z][a-z0-9_]*)\}/g;
+
+/** Interpolate `{arg}` tokens; null when a token has no (non-empty) value —
+ *  the preview then SKIPS that filter entry instead of matching nothing. */
+function interpolateArgs(template: string, args: Record<string, unknown>): string | null {
+  let unresolved = false;
+  const out = template.replace(ARG_TOKEN_RE, (_m, name: string) => {
+    const v = args[name];
+    if (v === undefined || v === null || v === "") {
+      unresolved = true;
+      return "";
+    }
+    return String(v);
+  });
+  return unresolved ? null : out;
+}
+
+/**
+ * Mirror of the plugin's ContextBinder shaping for canvas previews: equality
+ * filters (string compare on the interpolated value), sort (numeric when both
+ * sides parse, byte-order string compare otherwise — never localeCompare),
+ * then limit. A filter entry whose `{arg}` has no preview value yet is
+ * skipped, so an unparameterized preview shows the full source.
+ */
+function applyShaping(
+  rows: unknown[],
+  input: Extract<NonNullable<Menu["contextInputs"]>[number], { kind: "sourceRef" }>,
+  args: Record<string, unknown>,
+): unknown[] {
+  let out = rows;
+  for (const [field, template] of Object.entries(input.filter ?? {})) {
+    const wanted = interpolateArgs(template, args);
+    if (wanted === null) continue;
+    out = out.filter((r) => String((r as Record<string, unknown>)?.[field]) === wanted);
+  }
+  const by = input.sort?.by;
+  if (by) {
+    const dir = input.sort?.direction === "desc" ? -1 : 1;
+    out = [...out].sort((a, b) => {
+      const av = (a as Record<string, unknown>)?.[by];
+      const bv = (b as Record<string, unknown>)?.[by];
+      const an = Number(av);
+      const bn = Number(bv);
+      if (Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * dir;
+      const as = String(av);
+      const bs = String(bv);
+      return (as < bs ? -1 : as > bs ? 1 : 0) * dir;
+    });
+  }
+  if (input.limit != null && input.limit >= 0) out = out.slice(0, input.limit);
+  return out;
 }
 
 const previewCache = new AstCache(256);

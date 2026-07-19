@@ -19,6 +19,7 @@ import type {
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { MenuDataSection } from "./MenuDataSection";
+import { PreviewContextSection } from "./PreviewContextSection";
 import { SourceShapingEditor } from "./SourceShapingEditor";
 import { summarizeFieldType } from "@/features/data/helpers";
 import { parsePositions } from "@/lib/positions";
@@ -154,6 +155,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         </div>
       ) : null}
       <ContextInputsEditor projectId={projectId} menu={menu} />
+      <PreviewContextSection menu={menu} projectId={projectId} />
       <MenuDataSection menu={menu} />
     </div>
   );
