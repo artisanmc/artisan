@@ -162,7 +162,8 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
   // with pack.dataSources as the project-data path.
-  const sampleCtx = pack ? buildPreviewScope(menu, pack, snapshots) : {};
+  const previewArgs = useUiStore((s) => s.menuPreviewArgs[menu.id]);
+  const sampleCtx = pack ? buildPreviewScope(menu, pack, snapshots, previewArgs) : {};
   const activeLang = useUiStore((s) => s.activeLang);
   // Per-element page index for iteration overflow. Shared via
   // paginationStore so the ItemTooltip (which renders outside MenuGroup)

@@ -723,14 +723,15 @@ function StateCard({
 
   // Preview scope — binds the first list item when the element iterates so
   // expressions like {rank.price > 1 ? "★" : ""} resolve with real data.
+  const previewArgs = useUiStore((s) => s.menuPreviewArgs[menu.id]);
   const lorePreviewCtx = useMemo(() => {
     if (!pack) return {};
-    const base = buildPreviewScope(menu, pack);
+    const base = buildPreviewScope(menu, pack, undefined, previewArgs);
     if (!element.iterates) return base;
     const list = lookupPath(base, element.iterates.source);
     if (!Array.isArray(list) || list.length === 0) return base;
     return { ...base, [element.iterates.alias]: list[0] };
-  }, [pack, menu, element.iterates]);
+  }, [pack, menu, element.iterates, previewArgs]);
 
   const update = (field: "material" | "count" | "head", value: string | number) =>
     setAppearanceField({

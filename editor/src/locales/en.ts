@@ -179,6 +179,10 @@ export default {
     sortAsc: "asc",
     sortDesc: "desc",
     limitLabel: "limit",
+    previewContext: "Preview context",
+    previewContextHint:
+      "Pick which value the canvas previews this parameterized menu with — filters apply to the real rows.",
+    previewContextAll: "(all — unfiltered)",
     menuData: "Menu data",
     menuDataNoFilters: "No filter — full source.",
     menuDataLocalHint: "Project data — see the Data tab.",
