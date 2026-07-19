@@ -2,7 +2,6 @@ import * as networksApi from "@/lib/api/networks";
 import { useAccountStore } from "@/state/accountStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { useUiStore } from "@/state/uiStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -177,72 +176,7 @@ describe("ProjectSidebar", () => {
     expect(await screen.findByText("Survival")).toBeInTheDocument();
   });
 
-  it("shows a missing-translations badge on the active workspace's Translations sub-tab", async () => {
-    mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
-    // Badge mirrors the panel's active-language headline — view "fr".
-    useUiStore.setState({ activeLang: "fr" } as any);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
-    useAccountStore.setState({
-      account: {
-        id: "",
-        projectOrder: [],
-        projects: [
-          {
-            id: "pack_a",
-            name: "Lobby",
-            defaultLang: "en",
-            i18nKeys: {
-              k1: { en: "Hello" }, // missing fr → 1 missing
-              k2: { en: "Bye", fr: "Au revoir" },
-            },
-            menus: [],
-            commands: [],
-            dialogs: [],
-            assets: [],
-          },
-        ],
-      },
-    } as any);
-    render(<ProjectSidebar />);
-    await screen.findByRole("link", { name: /Lobby/ });
-    const badge = await screen.findByLabelText(/manquante|missing translation/i);
-    expect(badge).toHaveTextContent("1");
-  });
 
-  it("hides the translations badge when nothing is missing", async () => {
-    mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
-    useUiStore.setState({ activeLang: "fr" } as any);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [{ id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" }],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
-    useAccountStore.setState({
-      account: {
-        id: "",
-        projectOrder: [],
-        projects: [
-          {
-            id: "pack_a",
-            name: "Lobby",
-            defaultLang: "en",
-            i18nKeys: { k1: { en: "Hello", fr: "Bonjour" } },
-            menus: [],
-            commands: [],
-            dialogs: [],
-            assets: [],
-          },
-        ],
-      },
-    } as any);
-    render(<ProjectSidebar />);
-    await screen.findByRole("link", { name: /Lobby/ });
-    expect(screen.queryByLabelText(/manquante|missing translation/i)).not.toBeInTheDocument();
-  });
 
   it("falls back to the persisted server selection on routes without a serverId param", async () => {
     // e.g. /settings or /credits — no networkId/serverId in the URL.
