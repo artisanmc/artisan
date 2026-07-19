@@ -1,6 +1,11 @@
 import { visitItemTemplateLTexts } from "@/domain/i18nSites";
 import type { Element, I18nKey, ItemTemplate, Project } from "@/domain/types";
-import type { DataSourceSchemaField } from "@/lib/api/dataSources";
+/** Structural minimum for seeding — server AND pack: source schemas fit. */
+export interface SeedSchemaField {
+  name: string;
+  type?: string;
+  description?: string | null;
+}
 
 /**
  * Seeding helpers for Item template creation ("Créer un set d'items"). Pure:
@@ -16,7 +21,7 @@ export interface TemplateSeed {
 
 type TemplateBase = Omit<ItemTemplate, "appearances">;
 
-const findField = (schema: DataSourceSchemaField[], names: string[]): string | undefined =>
+const findField = (schema: SeedSchemaField[], names: string[]): string | undefined =>
   names.find((n) => schema.some((f) => f.name === n));
 
 /**
@@ -27,7 +32,7 @@ const findField = (schema: DataSourceSchemaField[], names: string[]): string | u
 export function seedTemplateFromSchema(
   base: TemplateBase,
   defaultLang: string,
-  schema: DataSourceSchemaField[],
+  schema: SeedSchemaField[],
 ): TemplateSeed {
   const a = base.alias;
   const iconField = findField(schema, ["icon", "material"]);

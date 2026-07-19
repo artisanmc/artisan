@@ -307,6 +307,11 @@ const fr: typeof en = {
     placementNoRows: "Aucune ligne disponible pour cette source pour l'instant.",
     placementSlotSummary: "p{{page}} · slot {{slot}}",
     placementRemove: "Retirer ce placement",
+    iterationSetLabel: "set",
+    iterationSetPick: "(choisir un set d'items…)",
+    iterationSetHint: "L'apparence et le clic viennent du set (alias {{alias}}, source {{source}}). Édite-les dans les États ci-dessous.",
+    iterationSetConflict: "Un autre set de la même source (« {{name}} ») est déjà utilisé dans ce menu.",
+    iterationEnableManual: "itération manuelle (avancé)",
     states: "États",
     templateBoundBanner:
       "Cet élément affiche le set « {{name}} » — les modifications ci-dessous s'appliquent au set, partout où il est utilisé.",

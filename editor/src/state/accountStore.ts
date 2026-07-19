@@ -444,6 +444,19 @@ interface AccountState {
    * one template per (menu, source): a second template of the same source is
    * rejected with `{ok:false, reason:"conflict"}`.
    */
+  /**
+   * Bind an EXISTING element to an Item template for pagination: ensures the
+   * menu consumes the template's source (contextInput auto-created from the
+   * ref tail) and sets `iterates` (source, template alias, templateId) —
+   * clearing `places` (XOR). Refuses when another template of the same
+   * source is already bound in the menu.
+   */
+  bindElementToTemplate: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    elementId: ElementId;
+    templateId: ItemTemplateId;
+  }) => { ok: true } | { ok: false; reason: "conflict"; conflictName: string };
   pinItemTemplateRow: (input: {
     projectId: ProjectId;
     menuId: MenuId;
@@ -953,12 +966,14 @@ function defaultIterateRange(menu: Menu): string {
  * local appearances, template wins. Immer-draft helper for pinItemTemplateRow /
  * dropItemTemplateBlock.
  */
-function ensureBoundElement(
+/** Find-or-create the menu's sourceRef contextInput consuming a template's
+ *  source (optionally group-filtered). Shared by new-element drops and
+ *  existing-element binding. */
+function ensureSourceInput(
   menu: Menu,
   tpl: ItemTemplate,
-  mode: "places" | "iterates",
   group?: { field: string; value: string },
-): Element {
+): ContextInput {
   if (!menu.contextInputs) menu.contextInputs = [];
   const matchesInput = (c: ContextInput) =>
     c.kind === "sourceRef" &&
@@ -982,6 +997,16 @@ function ensureBoundElement(
     };
     menu.contextInputs.push(input);
   }
+  return input;
+}
+
+function ensureBoundElement(
+  menu: Menu,
+  tpl: ItemTemplate,
+  mode: "places" | "iterates",
+  group?: { field: string; value: string },
+): Element {
+  const input = ensureSourceInput(menu, tpl, group);
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
       if (mode === "places" && el.places?.templateId === tpl.id && el.places.source === input.name)
@@ -2416,6 +2441,33 @@ export const useAccountStore = create<AccountState>()(
             pack.updatedAt = new Date().toISOString();
           }),
         ),
+      bindElementToTemplate: ({ projectId: pId, menuId: mId, elementId, templateId }) => {
+        let result: ReturnType<AccountState["bindElementToTemplate"]> = { ok: true };
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            const menu = pack?.menus.find((m) => m.id === mId);
+            const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
+            if (!pack || !menu || !tpl) return;
+            const conflict = findTemplateConflict(pack, menu, tpl);
+            if (conflict) {
+              result = { ok: false, reason: "conflict", conflictName: conflict };
+              return;
+            }
+            for (const layer of menu.layers) {
+              for (const el of layer.elements) {
+                if (el.id !== elementId) continue;
+                const input = ensureSourceInput(menu, tpl);
+                el.iterates = { source: input.name, alias: tpl.alias, templateId: tpl.id };
+                el.places = undefined;
+                pack.updatedAt = new Date().toISOString();
+                return;
+              }
+            }
+          }),
+        );
+        return result;
+      },
       pinItemTemplateRow: ({ projectId: pId, menuId: mId, templateId, key, position, page = 0, cachedDisplay }) => {
         let result: ReturnType<AccountState["pinItemTemplateRow"]> = { ok: true };
         set(

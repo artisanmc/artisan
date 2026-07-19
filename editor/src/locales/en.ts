@@ -298,6 +298,11 @@ export default {
     placementNoRows: "No rows available for this source yet.",
     placementSlotSummary: "p{{page}} · slot {{slot}}",
     placementRemove: "Remove this placement",
+    iterationSetLabel: "set",
+    iterationSetPick: "(pick an item set…)",
+    iterationSetHint: "Appearance and click come from the set (alias {{alias}}, source {{source}}). Edit them in the States below.",
+    iterationSetConflict: 'Another set of the same source ("{{name}}") is already used in this menu.',
+    iterationEnableManual: "manual iteration (advanced)",
     states: "States",
     templateBoundBanner:
       'This element renders the "{{name}}" item set — edits below apply to the set, everywhere it is used.',

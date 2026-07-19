@@ -4,7 +4,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
-import { buildPreviewScope, moduleLocalRows } from "./menuPreviewScope";
+import { buildPreviewScope, resolveSourceRef } from "./menuPreviewScope";
 import { capturePlacementCache, matchPlacementRow, resolveAppearance0 } from "./placement";
 
 /** @dnd-kit id prefix for a draggable palette row. Payload rides in `data`. */
@@ -90,9 +90,12 @@ export function pinTemplateRowFromLibrary(opts: {
   const pack = account.account.projects.find((p) => p.id === projectId);
   const tpl = pack?.itemTemplates?.find((t) => t.id === templateId);
   if (!pack || !tpl) return { ok: true };
-  const rows =
-    moduleLocalRows(pack, tpl.sourceRef) ??
-    useServerSnapshotsStore.getState().rowsByRef[tpl.sourceRef];
+  const snap = useServerSnapshotsStore.getState().rowsByRef[tpl.sourceRef];
+  const rows = resolveSourceRef(
+    tpl.sourceRef as never,
+    pack,
+    snap ? { [tpl.sourceRef]: snap } : undefined,
+  ) as Record<string, unknown>[] | undefined;
   const row = matchPlacementRow(rows, tpl.keyField ?? "", key);
   const appearance = tpl.appearances[0];
   const activeLang = useUiStore.getState().activeLang;
