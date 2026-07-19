@@ -173,7 +173,10 @@ function OpenMenuEditor({
   const { t } = useTranslation();
   const menus = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.menus ?? []);
   const targetMenu = menus.find((m) => m.id === action.menuId);
-  const targetInputs = targetMenu?.contextInputs ?? [];
+  // Only PRIMITIVE inputs are caller-passed; sourceRef inputs are FETCHED by
+  // the target menu itself (ContextBinder) — asking the caller to fill them
+  // was a trap ("items: ?").
+  const targetInputs = (targetMenu?.contextInputs ?? []).filter((i) => i.kind === "primitive");
   const ctxValues = action.context ?? {};
   const getText = useGetText(projectId);
 
