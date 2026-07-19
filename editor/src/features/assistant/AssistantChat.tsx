@@ -270,7 +270,10 @@ export function AssistantChat({
         const updated = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
         if (updated) await persistProject(updated, !!user).catch(() => {});
       }
-    } catch {
+    } catch (err) {
+      // Keep the friendly line but never swallow the cause — "Interrompu"
+      // with an empty console made a wire-shape 404 undiagnosable.
+      console.error("[assistant] turn failed:", err);
       toast.error(t("assistant.errorGeneric"));
       setTurnError(t("assistant.interrupted"));
     } finally {
