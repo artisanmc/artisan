@@ -114,6 +114,43 @@ class ActionExecutorTest {
         assertEquals("d_confirm", lastOpenedDialogId)
     }
 
+    @Test fun `OpenDialog resolves context value placeholders against the click ctx`() {
+        val p = player()
+        val e = executor()
+        // The shop flow: an iterated element binds `item` = the clicked row;
+        // open_dialog passes {item.*} placeholders in its context. They must
+        // resolve HERE — the dialog only sees the flat args it receives.
+        val row = mapOf("id" to "diamond_sword", "name" to "Épée", "final_price" to 80)
+        val action = Action.OpenDialog(
+            "confirm_purchase",
+            context = mapOf(
+                "item_id" to "{item.id}",
+                "item_name" to "{item.name}",
+                "item_price" to "{item.final_price}",
+            ),
+        )
+        e.execute(listOf(action), ctx(p).copy(args = mapOf("item" to row)))
+        assertEquals("confirm_purchase", lastOpenedDialogId)
+        val args = lastDialogCtx!!.args
+        assertEquals("diamond_sword", args["item_id"])
+        assertEquals("Épée", args["item_name"])
+        assertEquals("80", args["item_price"])
+    }
+
+    @Test fun `OpenMenu resolves context value placeholders against the click ctx`() {
+        val p = player()
+        val e = executor()
+        val row = mapOf("id" to "weapons", "name" to "Armes")
+        val action = Action.OpenMenu(
+            "shop_category",
+            context = mapOf("category_id" to "{cat.id}", "category_name" to "{cat.name}"),
+        )
+        e.execute(listOf(action), ctx(p).copy(args = mapOf("cat" to row)))
+        assertEquals("shop_category", lastOpenedMenuId)
+        assertEquals("weapons", lastMenuCtx!!.args["category_id"])
+        assertEquals("Armes", lastMenuCtx!!.args["category_name"])
+    }
+
     @Test fun `OpenDialog with clearContext replaces args`() {
         val p = player()
         lastOpenedDialogId = null
