@@ -24,7 +24,6 @@ class ArtisanMenuHolder : InventoryHolder {
 
 object MenuRenderer {
 
-    private val mm = MiniMessage.miniMessage()
     private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
 
     private val INVENTORY_TYPES: Map<String, InventoryType> = mapOf(
@@ -32,7 +31,7 @@ object MenuRenderer {
         "dropper" to InventoryType.DROPPER,
     )
 
-    private fun parse(text: String) = mm.deserialize(text).applyFallbackStyle(noItalic)
+    private fun parse(text: String) = LenientText.parse(text).applyFallbackStyle(noItalic)
 
     fun open(
         player: Player,

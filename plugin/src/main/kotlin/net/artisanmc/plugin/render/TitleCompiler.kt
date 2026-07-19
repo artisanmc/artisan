@@ -446,6 +446,9 @@ object TitleCompiler {
      * never typed a value), we return `""` rather than echoing the raw key —
      * showing `menus.foo.title` in chat is worse than showing nothing.
      */
+    // Legacy § codes are converted to MiniMessage tags at the resolution choke
+    // point — the compiled title string embeds user text inside MM machinery
+    // (font wrapper, offsets), where a raw § would make the final deserialize throw.
     private fun resolveLText(value: LText, langMap: Map<String, String>): String =
-        langMap[value.key] ?: ""
+        LenientText.legacyToMini(langMap[value.key] ?: "")
 }

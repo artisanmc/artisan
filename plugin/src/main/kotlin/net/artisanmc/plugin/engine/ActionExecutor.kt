@@ -2,6 +2,7 @@ package net.artisanmc.plugin.engine
 
 import net.artisanmc.modules.api.CommandRegistry
 import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.render.LenientText
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
 import java.time.Duration
@@ -21,12 +22,11 @@ class ActionExecutor(
     private val evaluator: ConditionEvaluator,
     private val commandRegistry: CommandRegistry? = null,
 ) {
-    private val mm = MiniMessage.miniMessage()
 
     fun handle(handler: ClickHandler, ctx: ExecutionContext) {
         val cooldown = handler.cooldown
         if (cooldown != null && cooldowns.isOnCooldown(cooldown.id, ctx.player.uniqueId, cooldown.scope)) {
-            cooldown.message?.let { ctx.player.sendMessage(mm.deserialize(it)) }
+            cooldown.message?.let { ctx.player.sendMessage(LenientText.parse(it)) }
             return
         }
         if (!evaluator.evaluateAll(handler.requirements, ctx)) {
@@ -124,8 +124,8 @@ class ActionExecutor(
                 val item = ItemStack(material, action.count)
                 if (action.name != null || action.lore.isNotEmpty()) {
                     val meta = item.itemMeta
-                    if (action.name != null) meta.displayName(mm.deserialize(resolveText(action.name, ctx)))
-                    if (action.lore.isNotEmpty()) meta.lore(action.lore.map { mm.deserialize(resolveText(it, ctx)) })
+                    if (action.name != null) meta.displayName(LenientText.parse(resolveText(action.name, ctx)))
+                    if (action.lore.isNotEmpty()) meta.lore(action.lore.map { LenientText.parse(resolveText(it, ctx)) })
                     item.itemMeta = meta
                 }
                 player.inventory.addItem(item)
@@ -146,8 +146,8 @@ class ActionExecutor(
             is Action.TakeMoney -> deps.vault?.withdraw(player, action.amount)
             is Action.GiveXp    -> player.giveExp(action.amount)
             is Action.GiveLevel -> player.giveExpLevels(action.amount)
-            is Action.SendMessage  -> player.sendMessage(mm.deserialize(resolveText(action.text, ctx)))
-            is Action.Broadcast    -> Bukkit.getServer().broadcast(mm.deserialize(resolveText(action.text, ctx)))
+            is Action.SendMessage  -> player.sendMessage(LenientText.parse(resolveText(action.text, ctx)))
+            is Action.Broadcast    -> Bukkit.getServer().broadcast(LenientText.parse(resolveText(action.text, ctx)))
             is Action.PlaySound    -> runCatching {
                 player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
             }
@@ -161,8 +161,8 @@ class ActionExecutor(
             is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
             is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
             is Action.ShowTitle -> {
-                val titleComponent    = mm.deserialize(resolveText(action.title, ctx))
-                val subtitleComponent = action.subtitle?.let { mm.deserialize(resolveText(it, ctx)) }
+                val titleComponent    = LenientText.parse(resolveText(action.title, ctx))
+                val subtitleComponent = action.subtitle?.let { LenientText.parse(resolveText(it, ctx)) }
                                             ?: net.kyori.adventure.text.Component.empty()
                 val times = Title.Times.times(
                     Duration.ofMillis(action.fadeIn  * 50L),  // 1 tick = 50ms
