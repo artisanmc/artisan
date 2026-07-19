@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, ProjectId } from "@/domain/types";
 import { resolveSourceRef } from "@/features/canvas/menuPreviewScope";
+import { findPreviewCallContexts } from "@/features/canvas/previewCallContexts";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -22,8 +23,23 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);
+  const activeLang = useUiStore((s) => s.activeLang);
   if (!pack) return null;
   const previewArgs = menuPreviewArgs[menu.id] ?? {};
+
+  // The richest option: real call sites. Each candidate carries EVERY context
+  // arg interpolated from ONE caller row (category_id AND category_name
+  // together) — the menu itself only declares how args are used, never where
+  // their values come from; only callers know that.
+  const callContexts = findPreviewCallContexts(menu, pack, snapshots, activeLang);
+  const selectedCallIdx = callContexts.findIndex((c) =>
+    Object.entries(c.args).every(([k, v]) => (previewArgs[k] ?? "") === v),
+  );
+  const applyCallContext = (idx: number) => {
+    const c = callContexts[idx];
+    if (!c) return;
+    for (const [k, v] of Object.entries(c.args)) setMenuPreviewArg(menu.id, k, v);
+  };
 
   const sourceInputs = (menu.contextInputs ?? []).filter(
     (i): i is SourceRefInput => i.kind === "sourceRef" && !!i.ref,
@@ -56,7 +72,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
     (i): i is Extract<ContextInput, { kind: "primitive" }> =>
       i.kind === "primitive" && i.type !== "player" && !candidates.has(i.name),
   );
-  if (candidates.size === 0 && freeInputs.length === 0) return null;
+  if (candidates.size === 0 && freeInputs.length === 0 && callContexts.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-1.5" data-testid="preview-context-section">
@@ -64,6 +80,25 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         {t("menuProperties.previewContext")}
       </div>
       <p className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.previewContextHint")}</p>
+      {callContexts.length > 0 ? (
+        <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
+          <span>{t("menuProperties.previewContextFrom")}</span>
+          <select
+            data-testid="preview-call-context"
+            className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
+            value={selectedCallIdx}
+            onChange={(e) => applyCallContext(Number(e.target.value))}
+          >
+            <option value={-1}>{t("menuProperties.previewContextPick")}</option>
+            {callContexts.map((c, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: candidates are positional per render
+              <option key={i} value={i}>
+                {c.from} → {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       {[...candidates.entries()].map(([token, values]) => (
         <label key={token} className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
           <span className="font-mono">{`{${token}}`}</span>
