@@ -313,6 +313,7 @@ export default {
     headPlaceholderPlayer: "Notch or %player%",
     headHdbHint: "Requires the HeadDatabase plugin on the server. No preview in the editor.",
     loreLabel: "lore ({{lang}})",
+    loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "One line per lore entry.",
     visibility: "visibility",
     visibilityHint:
