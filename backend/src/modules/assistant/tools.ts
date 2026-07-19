@@ -11,6 +11,7 @@ export type EngineEvent =
   | { type: "command_deleted"; id: string }
   | { type: "dialog_written"; dialog: DialogV1 }
   | { type: "dialog_deleted"; id: string }
+  | { type: "translations_written"; entries: Record<string, Record<string, string>> }
   | { type: "usage"; usage: import("./provider/types").LlmUsage }
   | { type: "error"; message: string }
   | { type: "done"; stopReason: string };
@@ -28,6 +29,8 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "get_command", description: "Get a command's full canonical command/v1 JSON by id.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } },
   { name: "upsert_command", description: "Create or replace a command. The argument is a complete canonical command/v1 object. Rejected with errors if invalid — fix and retry.", parameters: { type: "object", properties: { command: { type: "object" } }, required: ["command"], additionalProperties: false } },
   { name: "delete_command", description: "Delete a command by id.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } },
+  { name: "get_translations", description: "Read the pack's i18n translation values (key → { lang: text }). Menus/dialogs reference text as {i18n:<key>} — this is how you see the actual text behind those refs. Optional filters: `keys` (exact key list) and/or `prefix` (e.g. \"item_templates.\"). No args = everything.", parameters: { type: "object", properties: { keys: { type: "array", items: { type: "string" } }, prefix: { type: "string" } }, additionalProperties: false } },
+  { name: "write_translations", description: "Merge i18n translation values: { entries: { \"<key>\": { \"<lang>\": \"<text>\" } } }. Only the listed key/lang pairs change; other languages of the same key are preserved. Use existing keys from get_translations — never invent keys.", parameters: { type: "object", properties: { entries: { type: "object" } }, required: ["entries"], additionalProperties: false } },
   { name: "get_dialog", description: "Get a dialog's full canonical dialog/v1 JSON by id.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } },
   { name: "upsert_dialog", description: "Create or replace a dialog. The argument is a complete canonical dialog/v1 object. Rejected with errors if invalid — fix and retry.", parameters: { type: "object", properties: { dialog: { type: "object" } }, required: ["dialog"], additionalProperties: false } },
   { name: "delete_dialog", description: "Delete a dialog by id.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } },
@@ -79,6 +82,34 @@ export function executeTool(name: string, input: any, wc: WorkingCopy): ToolResu
       return wc.deleteCommand(id)
         ? { ok: true, content: `Command "${id}" deleted.`, event: { type: "command_deleted", id } }
         : { ok: false, content: `No command with id "${id}".` };
+    }
+    case "get_translations": {
+      const keys = Array.isArray(input?.keys) ? input.keys.map(String) : undefined;
+      const prefix = typeof input?.prefix === "string" ? input.prefix : undefined;
+      return { ok: true, content: JSON.stringify(wc.getTranslations(keys, prefix)) };
+    }
+    case "write_translations": {
+      const entries = input?.entries;
+      if (!entries || typeof entries !== "object" || Array.isArray(entries))
+        return { ok: false, content: "`entries` must be an object: { \"<key>\": { \"<lang>\": \"<text>\" } }." };
+      const clean: Record<string, Record<string, string>> = {};
+      for (const [k, langs] of Object.entries(entries as Record<string, unknown>)) {
+        if (!langs || typeof langs !== "object" || Array.isArray(langs))
+          return { ok: false, content: `Value of key "${k}" must be an object { "<lang>": "<text>" }.` };
+        const out: Record<string, string> = {};
+        for (const [lang, v] of Object.entries(langs as Record<string, unknown>)) {
+          if (typeof v !== "string")
+            return { ok: false, content: `"${k}"."${lang}" must be a string.` };
+          out[lang] = v;
+        }
+        clean[k] = out;
+      }
+      const n = wc.setTranslations(clean);
+      return {
+        ok: true,
+        content: `${n} translation key(s) updated.`,
+        event: { type: "translations_written", entries: clean },
+      };
     }
     case "get_dialog": {
       const d = wc.getDialog(String(input?.id));

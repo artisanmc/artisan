@@ -1660,6 +1660,7 @@ const fr: typeof en = {
     interrupted: "Interrompu — réessaie ton message",
     menuCreated: "Créé / modifié : {{id}}",
     menuDeleted: "Supprimé : {{id}}",
+    translationsCard: "{{count}} traduction(s)",
     dropHint: "Dépose des fichiers pour les joindre",
     errorGeneric: "Une erreur est survenue. Réessaie.",
     unsupportedDropped:

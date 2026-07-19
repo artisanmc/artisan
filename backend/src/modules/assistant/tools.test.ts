@@ -12,10 +12,11 @@ describe("TOOL_DEFS", () => {
     const names = TOOL_DEFS.map((t) => t.name).sort();
     expect(names).toEqual([
       "delete_command", "delete_dialog", "delete_menu",
-      "get_command", "get_dialog", "get_menu",
+      "get_command", "get_dialog", "get_menu", "get_translations",
       "list_commands", "list_dialogs", "list_menus",
       "read_attachment",
       "upsert_command", "upsert_dialog", "upsert_menu",
+      "write_translations",
     ]);
     for (const t of TOOL_DEFS) {
       expect(typeof t.description).toBe("string");
@@ -148,5 +149,49 @@ describe("dialog write tools", () => {
     const wc = new WorkingCopy([], {}, [dlg]);
     const r = executeTool("delete_dialog", { id: "d" }, wc);
     expect(r.event).toEqual({ type: "dialog_deleted", id: "d" });
+  });
+
+  it("get_translations reads all, by keys, and by prefix", () => {
+    const wc = new WorkingCopy([], {}, [], [], {
+      "menus.shop.title": { fr: "&6Boutique" },
+      "item_templates.t1.default.title": { fr: "&f{item.name}", en: "{item.name}" },
+    });
+    const all = JSON.parse(executeTool("get_translations", {}, wc).content);
+    expect(Object.keys(all)).toHaveLength(2);
+    const byKey = JSON.parse(
+      executeTool("get_translations", { keys: ["menus.shop.title"] }, wc).content,
+    );
+    expect(byKey).toEqual({ "menus.shop.title": { fr: "&6Boutique" } });
+    const byPrefix = JSON.parse(
+      executeTool("get_translations", { prefix: "item_templates." }, wc).content,
+    );
+    expect(Object.keys(byPrefix)).toEqual(["item_templates.t1.default.title"]);
+  });
+
+  it("write_translations merges per-lang and emits translations_written", () => {
+    const wc = new WorkingCopy([], {}, [], [], {
+      "menus.shop.title": { fr: "&6Boutique", en: "&6Shop" },
+    });
+    const r = executeTool(
+      "write_translations",
+      { entries: { "menus.shop.title": { fr: "<gold>Boutique" } } },
+      wc,
+    );
+    expect(r.ok).toBe(true);
+    expect(r.event).toEqual({
+      type: "translations_written",
+      entries: { "menus.shop.title": { fr: "<gold>Boutique" } },
+    });
+    // Other languages of the same key are preserved.
+    expect(wc.getTranslations(["menus.shop.title"])).toEqual({
+      "menus.shop.title": { fr: "<gold>Boutique", en: "&6Shop" },
+    });
+  });
+
+  it("write_translations rejects malformed entries", () => {
+    const wc = new WorkingCopy();
+    expect(executeTool("write_translations", { entries: "nope" }, wc).ok).toBe(false);
+    expect(executeTool("write_translations", { entries: { k: "nope" } }, wc).ok).toBe(false);
+    expect(executeTool("write_translations", { entries: { k: { fr: 42 } } }, wc).ok).toBe(false);
   });
 });

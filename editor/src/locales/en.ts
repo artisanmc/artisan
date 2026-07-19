@@ -1644,6 +1644,7 @@ export default {
     interrupted: "Interrupted — try sending again",
     menuCreated: "Created / updated: {{id}}",
     menuDeleted: "Deleted: {{id}}",
+    translationsCard: "{{count}} translation(s)",
     dropHint: "Drop files to attach",
     errorGeneric: "Something went wrong. Try again.",
     unsupportedDropped: "Menu “{{id}}”: unsupported constructs were dropped on import: {{list}}",
