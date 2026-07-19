@@ -313,6 +313,7 @@ function importContextInput(ci: Json): unknown {
     kind: "primitive",
     name: ci.name,
     type: ci.type,
+    ...(ci.row_of !== undefined ? { rowOf: ci.row_of } : {}),
     ...(ci.default !== undefined ? { default: ci.default } : {}),
   };
 }

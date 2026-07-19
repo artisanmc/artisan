@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — typed row-model context inputs (`row_of`, menu/v1 additive)
+- A `context_inputs` entry of type `object`/`list` can declare `row_of: <source ref>` — "the caller passes me a ROW of this source" (editor tooling only; the runtime ignores it, args flow untyped). The context-input type dropdown lists one typed entry per known data source ("Category (boutique:categories)"); the placeholder catalog exposes the row's fields ({cat.name}, {cat.id}…) typed from the declared source schema; the preview-context section offers the source's rows directly as candidates. Complements whole-model context passing (`cat: "{cat}"`).
+
 ### Added — whole-model context passing (`open_menu` / `open_dialog`)
 - Context values resolve at emit time against the emitting click's ctx, and a value that is EXACTLY one placeholder (`{cat}`, `{item.final_price}`) passes the RAW value — the whole bound row Map, a Number — instead of a flattened string (mixed templates still interpolate to strings). `context: { cat: "{cat}" }` is enough for the target menu to use `{cat.name}` in titles and `{cat.id}` in filters, no per-attribute re-plumbing. Editor previews mirror the semantics (call-context selector passes raw rows; filters accept dotted `{cat.id}` tokens).
 

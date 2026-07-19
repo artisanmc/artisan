@@ -479,6 +479,7 @@ export function serializeMenuToV1(
     out.context_inputs = menu.contextInputs.map((ci) => {
       if (ci.kind === "primitive") {
         const c: Record<string, unknown> = { name: ci.name, type: ci.type };
+        if (ci.rowOf !== undefined) c.row_of = ci.rowOf;
         if (ci.default !== undefined) c.default = ci.default;
         return c;
       }

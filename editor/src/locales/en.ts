@@ -143,6 +143,7 @@ export default {
     inputDefaultPlaceholder: "(none)",
     inputSenderDefault: "use command sender",
     addInput: "+ Add input",
+    inputRowModels: "Row models (data sources)",
     removeInput: "Remove input",
     inputSource: "source",
     inputSourceCaller: "caller",

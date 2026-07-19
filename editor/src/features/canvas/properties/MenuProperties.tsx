@@ -46,6 +46,17 @@ const PRIMITIVE_TYPES: Extract<ContextInput, { kind: "primitive" }>["type"][] = 
   "boolean",
 ];
 
+/** "boutique:categories" → "Category" — display-only desingularized model name. */
+export function rowModelLabel(ref: string): string {
+  const tail = ref.slice(ref.indexOf(":") + 1) || ref;
+  const singular = tail.endsWith("ies")
+    ? `${tail.slice(0, -3)}y`
+    : tail.endsWith("s")
+      ? tail.slice(0, -1)
+      : tail;
+  return singular.charAt(0).toUpperCase() + singular.slice(1);
+}
+
 export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
   const setMenuField = useAccountStore((s) => s.setMenuField);
   const setEditorTab = useUiStore((s) => s.setEditorTab);
@@ -335,6 +346,12 @@ function PrimitiveInputRow({
   isInvalid: boolean;
 }) {
   const { t } = useTranslation();
+  // Typed row models: one entry per known data source — picking "Category
+  // (boutique:categories)" stores type "object" + rowOf, giving the editor
+  // the field schema (placeholder completion, preview candidates).
+  const serverSources = useServerDataSourcesStore((s) => s.sources);
+  const selectValue =
+    input.type === "object" && input.rowOf ? `row:${input.rowOf}` : input.type;
   return (
     <>
       {/* Row 1: name + type + remove button */}
@@ -350,19 +367,34 @@ function PrimitiveInputRow({
           }
         />
         <select
-          value={input.type}
-          onChange={(e) =>
-            onChange({
-              type: e.target.value as Extract<ContextInput, { kind: "primitive" }>["type"],
-            })
-          }
-          className="h-8 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)]"
+          value={selectValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v.startsWith("row:")) {
+              onChange({ type: "object", rowOf: v.slice(4) as SourceRef });
+            } else {
+              onChange({
+                type: v as Extract<ContextInput, { kind: "primitive" }>["type"],
+                rowOf: undefined,
+              });
+            }
+          }}
+          className="h-8 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)]"
         >
           {PRIMITIVE_TYPES.map((typeOption) => (
             <option key={typeOption} value={typeOption}>
               {typeOption}
             </option>
           ))}
+          {serverSources.length > 0 ? (
+            <optgroup label={t("menuProperties.inputRowModels")}>
+              {serverSources.map((src) => (
+                <option key={src.ref} value={`row:${src.ref}`}>
+                  {rowModelLabel(src.ref)} ({src.ref})
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </select>
         <button
           type="button"

@@ -67,14 +67,29 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       }
     }
   }
+  // Row-model inputs (type object + rowOf): preview candidates are simply the
+  // source's rows — pick one, the whole row lands in the preview scope.
+  const rowInputs = (menu.contextInputs ?? []).filter(
+    (i): i is Extract<ContextInput, { kind: "primitive" }> =>
+      i.kind === "primitive" && i.type === "object" && !!i.rowOf,
+  );
   // The menu's OTHER primitive inputs (e.g. category_name, passed by the
   // calling menu at runtime) preview as free text — titles/lore render them
   // even though no filter enumerates their values.
   const freeInputs = (menu.contextInputs ?? []).filter(
     (i): i is Extract<ContextInput, { kind: "primitive" }> =>
-      i.kind === "primitive" && i.type !== "player" && !candidates.has(i.name),
+      i.kind === "primitive" &&
+      i.type !== "player" &&
+      !candidates.has(i.name) &&
+      !rowInputs.includes(i),
   );
-  if (candidates.size === 0 && freeInputs.length === 0 && callContexts.length === 0) return null;
+  if (
+    candidates.size === 0 &&
+    freeInputs.length === 0 &&
+    rowInputs.length === 0 &&
+    callContexts.length === 0
+  )
+    return null;
 
   return (
     <div className="flex flex-col gap-1.5" data-testid="preview-context-section">
@@ -128,6 +143,39 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
           )}
         </label>
       ))}
+      {rowInputs.map((input) => {
+        const rows = resolveSourceRef(input.rowOf!, pack, snapshots);
+        const list = Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+        const current = previewArgs[input.name];
+        const selectedIdx = list.findIndex(
+          (r) => JSON.stringify(r) === JSON.stringify(current),
+        );
+        return (
+          <label
+            key={input.name}
+            className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+          >
+            <span className="font-mono">{`{${input.name}}`}</span>
+            <select
+              data-testid={`preview-arg-${input.name}`}
+              className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
+              value={selectedIdx}
+              onChange={(e) => {
+                const row = list[Number(e.target.value)];
+                if (row) setMenuPreviewArg(menu.id, input.name, row);
+              }}
+            >
+              <option value={-1}>{t("menuProperties.previewContextPick")}</option>
+              {list.map((r, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional per render
+                <option key={i} value={i}>
+                  {String(r.name ?? r.id ?? `#${i}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      })}
       {freeInputs.map((input) => (
         <label
           key={input.name}
