@@ -14,14 +14,26 @@ export interface PreviewCallContext {
   from: string;
   /** Human label for the selector (prefers a `*name*` arg, falls back to the first value). */
   label: string;
-  /** Fully interpolated context args — apply them all at once for a coherent preview. */
-  args: Record<string, string>;
+  /** Fully resolved context args — whole-token values carry the RAW value
+   *  (the caller row object, a number…), mirroring the runtime; apply them
+   *  all at once for a coherent preview. */
+  args: Record<string, unknown>;
 }
 
-function pickLabel(args: Record<string, string>, from: string): string {
+const WHOLE_TOKEN_RE = /^\{([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)\}$/;
+
+function labelOf(v: unknown): string {
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return String(o.name ?? o.id ?? "");
+  }
+  return v === undefined || v === null ? "" : String(v);
+}
+
+function pickLabel(args: Record<string, unknown>, from: string): string {
   const nameKey = Object.keys(args).find((k) => k.toLowerCase().includes("name"));
-  const v = (nameKey ? args[nameKey] : undefined) ?? Object.values(args)[0];
-  return v?.trim() ? v : from;
+  const v = labelOf(nameKey ? args[nameKey] : undefined) || labelOf(Object.values(args)[0]);
+  return v.trim() ? v : from;
 }
 
 /**
@@ -64,9 +76,17 @@ export function findPreviewCallContexts(
               for (const row of rowList) {
                 const rowScope =
                   row !== undefined && alias ? { ...scope, [alias]: row } : scope;
-                const args: Record<string, string> = {};
+                const args: Record<string, unknown> = {};
                 for (const [k, v] of Object.entries(ctxMap)) {
-                  args[k] = renderPreview(String(v), rowScope, pack, activeLang);
+                  const template = String(v);
+                  // Whole-token values pass the RAW value (runtime parity:
+                  // `cat: {cat}` hands the target the full row object).
+                  const whole = WHOLE_TOKEN_RE.exec(template.trim());
+                  const raw = whole ? lookupPath(rowScope, whole[1]!) : undefined;
+                  args[k] =
+                    raw !== undefined && raw !== null
+                      ? raw
+                      : renderPreview(template, rowScope, pack, activeLang);
                 }
                 const key = JSON.stringify(args);
                 if (seen.has(key)) continue;

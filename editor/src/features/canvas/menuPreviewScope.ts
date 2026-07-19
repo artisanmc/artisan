@@ -1,4 +1,5 @@
 import type { I18nKey, Menu, Project, SourceRef } from "@/domain/types";
+import { lookupPath } from "@/lib/placeholders";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
@@ -97,8 +98,9 @@ export function buildPreviewScope(
   pack: Project,
   snapshots?: SourceSnapshots,
   /** Per-menu preview context (the canvas "preview as…" selector): overrides
-   *  primitive input values AND feeds `{arg}` interpolation in source filters. */
-  previewArgs?: Record<string, string>,
+   *  primitive input values, feeds `{arg}` interpolation in source filters,
+   *  and may carry WHOLE objects (a caller row passed as `cat: {cat}`). */
+  previewArgs?: Record<string, unknown>,
 ): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
   // Primitives first: their values feed the {arg} tokens in source shaping,
@@ -108,11 +110,19 @@ export function buildPreviewScope(
     const override = previewArgs?.[input.name];
     scope[input.name] =
       override !== undefined && override !== ""
-        ? coerceDefault(override, input.type as "player" | "string" | "integer" | "number" | "boolean")
+        ? typeof override === "string"
+          ? coerceDefault(override, input.type as "player" | "string" | "integer" | "number" | "boolean")
+          : override
         : coerceDefault(
             input.default,
             input.type as "player" | "string" | "integer" | "number" | "boolean",
           );
+  }
+  // Undeclared preview args (menus may consume {args} without declaring
+  // inputs — and whole-object call-context rows) go straight into scope so
+  // titles/lore render them.
+  for (const [k, v] of Object.entries(previewArgs ?? {})) {
+    if (!(k in scope)) scope[k] = v;
   }
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") continue;
@@ -127,14 +137,14 @@ export function buildPreviewScope(
   return scope;
 }
 
-const ARG_TOKEN_RE = /\{([a-z][a-z0-9_]*)\}/g;
+const ARG_TOKEN_RE = /\{([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)\}/g;
 
 /** Interpolate `{arg}` tokens; null when a token has no (non-empty) value —
  *  the preview then SKIPS that filter entry instead of matching nothing. */
 function interpolateArgs(template: string, args: Record<string, unknown>): string | null {
   let unresolved = false;
   const out = template.replace(ARG_TOKEN_RE, (_m, name: string) => {
-    const v = args[name];
+    const v = name.includes(".") ? lookupPath(args, name) : args[name];
     if (v === undefined || v === null || v === "") {
       unresolved = true;
       return "";

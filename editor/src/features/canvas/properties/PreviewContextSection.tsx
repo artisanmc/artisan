@@ -33,7 +33,9 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
   // their values come from; only callers know that.
   const callContexts = findPreviewCallContexts(menu, pack, snapshots, activeLang);
   const selectedCallIdx = callContexts.findIndex((c) =>
-    Object.entries(c.args).every(([k, v]) => (previewArgs[k] ?? "") === v),
+    Object.entries(c.args).every(
+      ([k, v]) => JSON.stringify(previewArgs[k] ?? "") === JSON.stringify(v),
+    ),
   );
   const applyCallContext = (idx: number) => {
     const c = callContexts[idx];
@@ -106,7 +108,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
             <select
               data-testid={`preview-arg-${token}`}
               className="h-6 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
-              value={previewArgs[token] ?? ""}
+              value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
               onChange={(e) => setMenuPreviewArg(menu.id, token, e.target.value)}
             >
               <option value="">{t("menuProperties.previewContextAll")}</option>
@@ -119,7 +121,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
           ) : (
             <Input
               data-testid={`preview-arg-${token}`}
-              value={previewArgs[token] ?? ""}
+              value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
               onChange={(e) => setMenuPreviewArg(menu.id, token, e.target.value)}
               className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"
             />
@@ -134,7 +136,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
           <span className="font-mono">{`{${input.name}}`}</span>
           <Input
             data-testid={`preview-arg-${input.name}`}
-            value={previewArgs[input.name] ?? ""}
+            value={typeof previewArgs[input.name] === "string" ? (previewArgs[input.name] as string) : ""}
             placeholder={input.default ?? ""}
             onChange={(e) => setMenuPreviewArg(menu.id, input.name, e.target.value)}
             className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"

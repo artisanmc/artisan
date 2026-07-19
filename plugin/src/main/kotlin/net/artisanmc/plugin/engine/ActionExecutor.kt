@@ -85,6 +85,23 @@ class ActionExecutor(
         return resolved
     }
 
+    private val WHOLE_PLACEHOLDER = Regex("^\\{([a-z][a-z0-9_]*(?:\\.[a-z0-9_]+)?)}$")
+
+    /**
+     * Résolution d'une valeur de `context` (open_menu / open_dialog) :
+     * un template qui est EXACTEMENT un placeholder (`{cat}`, `{item.final_price}`)
+     * passe la valeur BRUTE (Map de la ligne entière, Number…), type-preserving —
+     * `context: { cat: "{cat}" }` suffit pour que le menu cible utilise
+     * `{cat.name}` partout. Tout autre template s'interpole en chaîne.
+     */
+    private fun resolveContextValue(template: String, ctx: ExecutionContext): Any {
+        val m = WHOLE_PLACEHOLDER.matchEntire(template.trim())
+        if (m != null) {
+            ArgResolver.lookupValue(m.groupValues[1], ctx.resolvedArgs)?.let { return it }
+        }
+        return resolveText(template, ctx)
+    }
+
     /** Exécute une action et retourne le contexte — mis à jour par `set_arg*` pour les actions suivantes. */
     private fun executeOne(action: Action, ctx: ExecutionContext): ExecutionContext {
         val player = ctx.player
@@ -98,10 +115,10 @@ class ActionExecutor(
                 }
             }
             is Action.OpenMenu -> {
-                // Context values interpolate against the EMITTING ctx (the click
+                // Context values resolve against the EMITTING ctx (the click
                 // that binds the iteration row / current args) — the target menu
-                // only ever sees flat, already-resolved values.
-                val passed = action.context.mapValues { resolveText(it.value, ctx) as Any }
+                // only ever sees already-resolved values.
+                val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
                 val newArgs = if (action.clearContext) passed else ctx.args + passed
                 // La pagination est un état par menu — ne jamais la propager au menu
                 // cible (collision d'element ids entre menus, ex. deux "grid").
@@ -112,9 +129,9 @@ class ActionExecutor(
             }
             is Action.CloseMenu -> player.closeInventory()
             is Action.OpenDialog -> {
-                // Same rule as OpenMenu: {item.*}-style context values resolve at
-                // emit time — the dialog's texts/actions read the flat args only.
-                val passed = action.context.mapValues { resolveText(it.value, ctx) as Any }
+                // Same rule as OpenMenu: context values resolve at emit time —
+                // the dialog's texts/actions read the passed args only.
+                val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
                 val newArgs = if (action.clearContext) passed else ctx.args + passed
                 menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(args = newArgs))
             }
