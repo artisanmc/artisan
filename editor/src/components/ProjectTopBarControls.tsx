@@ -28,9 +28,20 @@ import { saveUserProject } from "@/lib/api/userProjects";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { useUiStore } from "@/state/uiStore";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { PanelLeftClose, PanelLeftOpen, Redo2, Search, Sparkles, Undo2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  Database as DatabaseIcon,
+  History as HistoryIcon,
+  Languages as LanguagesIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Redo2,
+  Search,
+  Sparkles,
+  Undo2,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -77,21 +88,11 @@ export function ProjectTopBarControls({
   const displayName = projectName ?? pack.name;
   const { t } = useTranslation();
   const panelOpen = useUiStore((s) => s.projectPanelOpen);
-  const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { tab?: string } | undefined;
 
-  // The elements panel only mounts on the overview tab. From any other tab
-  // (translations / data-sources / history) a plain toggle would flip the
-  // flag with nothing to show — so jump back to overview and make sure the
-  // panel is visible. On overview it stays a simple open/close toggle.
+  // The canvas (and its elements panel) is always mounted now — the secondary
+  // views are overlays — so this is a plain open/close toggle.
   const onElementsClick = () => {
-    const ui = useUiStore.getState();
-    if ((search?.tab ?? "overview") !== "overview") {
-      if (!ui.projectPanelOpen) ui.toggleProjectPanel();
-      navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: "overview" }) });
-    } else {
-      ui.toggleProjectPanel();
-    }
+    useUiStore.getState().toggleProjectPanel();
   };
 
   return (
@@ -119,8 +120,8 @@ export function ProjectTopBarControls({
       />
       <LangSwitcher pack={pack} />
       <UndoRedoButtons />
+      <WorkspaceViewButtons pack={pack} />
       <SearchButton />
-      <AssistantButton />
       <DeployButtons pack={pack} projectId={projectId} networkId={networkId ?? null} />
       <TopBarKebabMenu
         onImport={onImport ?? (() => {})}
@@ -147,6 +148,60 @@ export function ProjectTopBarControls({
  * code, switches the active language, and `addLanguage` records the
  * existence of the new code in the i18n map.
  */
+/**
+ * Icon-only topbar entries for the workspace's secondary views. Each opens an
+ * overlay ABOVE the canvas (`?tab=` stays the source of truth: deep links and
+ * back-button keep working; Esc closes). The missing-translations badge rides
+ * on the Languages icon.
+ */
+function WorkspaceViewButtons({ pack }: { pack: Project }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const activeLang = useUiStore((s) => s.activeLang);
+  const missing = countMissingForLang(pack, activeLang);
+  const open = (tab: "translations" | "data-sources" | "history" | "assistant") =>
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...(prev as object), tab }) as never,
+    });
+  const views: { tab: "translations" | "data-sources" | "history" | "assistant"; label: string; Icon: typeof LanguagesIcon; badge: number }[] = [
+    {
+      tab: "translations",
+      label: t("project.tabs.translations"),
+      Icon: LanguagesIcon,
+      badge: missing,
+    },
+    { tab: "data-sources", label: t("project.tabs.dataSources"), Icon: DatabaseIcon, badge: 0 },
+    { tab: "history", label: t("project.tabs.history"), Icon: HistoryIcon, badge: 0 },
+    { tab: "assistant", label: t("assistant.title"), Icon: Sparkles, badge: 0 },
+  ];
+  return (
+    <div className="flex items-center gap-0.5">
+      {views.map((v) => (
+        <button
+          key={v.tab}
+          type="button"
+          title={v.label}
+          aria-label={v.label}
+          data-testid={`open-view-${v.tab}`}
+          onClick={() => open(v.tab)}
+          className="relative flex h-8 w-8 items-center justify-center rounded-[10px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        >
+          <v.Icon className="size-4" />
+          {v.badge > 0 ? (
+            <span
+              title={t("project.tabs.missingTranslations", { count: v.badge })}
+              className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[#2A140C]"
+            >
+              {v.badge}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function LangSwitcher({ pack }: { pack: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
@@ -275,20 +330,6 @@ function UndoRedoButtons() {
   );
 }
 
-/**
- * Top-bar AI assistant toggle. Opens the right-side chat Sheet (rendered in
- * the project route) by flipping `uiStore.assistantPanelOpen`.
- */
-function AssistantButton() {
-  const { t } = useTranslation();
-  const open = useUiStore((s) => s.assistantPanelOpen);
-  const setOpen = useUiStore((s) => s.setAssistantPanelOpen);
-  return (
-    <TopBarIconButton title={t("assistant.open")} onClick={() => setOpen(!open)}>
-      <Sparkles className="h-4 w-4" />
-    </TopBarIconButton>
-  );
-}
 
 const SHORTCUT_MOD =
   typeof navigator !== "undefined" && /mac/i.test(navigator.platform || "") ? "⌘" : "Ctrl+";

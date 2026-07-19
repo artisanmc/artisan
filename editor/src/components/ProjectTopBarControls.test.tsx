@@ -32,4 +32,24 @@ describe("ProjectTopBarControls", () => {
     expect(undoMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /^(Deploy|Déployer|Publier|Publish)/ })).toBeInTheDocument();
   });
+
+  it("renders the workspace view buttons with a missing-translations badge", () => {
+    const pack = {
+      id: "p1",
+      name: "Test",
+      defaultLang: "en",
+      // activeLang defaults to the browser lang in tests ("en") — count misses
+      // for en: k1 has only fr → 1 missing.
+      i18nKeys: { k1: { fr: "Bonjour" }, k2: { en: "Bye", fr: "Au revoir" } },
+      menus: [],
+      commands: [],
+      dialogs: [],
+      assets: [],
+    } as any;
+    render(<ProjectTopBarControls pack={pack} projectId={"p1" as any} />);
+    expect(screen.getByTestId("open-view-translations")).toBeInTheDocument();
+    expect(screen.getByTestId("open-view-data-sources")).toBeInTheDocument();
+    expect(screen.getByTestId("open-view-history")).toBeInTheDocument();
+    expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
+  });
 });

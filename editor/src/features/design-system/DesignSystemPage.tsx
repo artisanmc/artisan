@@ -38,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useState } from "react";
+import { WorkspaceOverlay } from "@/components/ui/workspace-overlay";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "@/state/uiStore";
 
@@ -365,6 +366,7 @@ export function DesignSystemPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <WorkspaceOverlaySpecimen />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline">{"<Sheet>"}</Button>
@@ -547,5 +549,24 @@ export function DesignSystemPage() {
         </div>
       </Section>
     </div>
+  );
+}
+
+/** Near-fullscreen overlay for the workspace's secondary views (Translations,
+ *  Data sources, History) — canvas stays alive underneath; Esc closes. */
+function WorkspaceOverlaySpecimen() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        {"<WorkspaceOverlay>"}
+      </Button>
+      <WorkspaceOverlay open={open} onClose={() => setOpen(false)} title="WorkspaceOverlay">
+        <p className="text-[13px] text-[var(--text-mut)]">
+          Near-fullscreen working view. wide (défaut) = max-w-5xl, narrow = max-w-3xl ;
+          plein écran sous lg. Échap / backdrop / × ferment.
+        </p>
+      </WorkspaceOverlay>
+    </>
   );
 }

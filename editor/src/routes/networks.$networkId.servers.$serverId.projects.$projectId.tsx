@@ -16,8 +16,7 @@ import {
   importProjectFromFile,
   pickProjectFileForImport,
 } from "@/features/account/projectFileIo";
-import { AssistantPane } from "@/features/assistant/AssistantPane";
-import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import { AssistantBody } from "@/features/assistant/AssistantBody";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { EditorPane } from "@/features/canvas/EditorPane";
@@ -43,6 +42,7 @@ import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
+import { WorkspaceOverlay } from "@/components/ui/workspace-overlay";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { HistoryTab } from "@/features/project/HistoryTab";
 import { ProjectPanel } from "@/features/project/ProjectPanel";
@@ -76,7 +76,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-type ProjectSearch = { tab?: "overview" | "translations" | "data-sources" | "history" };
+type ProjectSearch = {
+  tab?: "overview" | "translations" | "data-sources" | "history" | "assistant";
+};
 
 export const Route = createFileRoute(
   "/networks/$networkId/servers/$serverId/projects/$projectId",
@@ -84,7 +86,8 @@ export const Route = createFileRoute(
   component: ProjectCanvasPage,
   validateSearch: (search: Record<string, unknown>): ProjectSearch => {
     const t = search.tab;
-    if (t === "translations" || t === "data-sources" || t === "history") return { tab: t };
+    if (t === "translations" || t === "data-sources" || t === "history" || t === "assistant")
+      return { tab: t };
     return { tab: "overview" };
   },
 });
@@ -102,14 +105,13 @@ export function ProjectCanvasPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
+  const closeOverlay = () =>
+    navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
   const flowCanvasHeight = useUiStore((s) => s.flowCanvasHeight);
   const setFlowCanvasHeight = useUiStore((s) => s.setFlowCanvasHeight);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
-  const assistantOpen = useUiStore((s) => s.assistantPanelOpen);
   const projectPanelOpen = useUiStore((s) => s.projectPanelOpen);
-  const assistantPaneWidth = useUiStore((s) => s.assistantPaneWidth);
-  const setAssistantPaneWidth = useUiStore((s) => s.setAssistantPaneWidth);
   const { pack: userProject } = useProjectLoader(pId);
   const pack = userProject;
   const isDesktop = useIsDesktop();
@@ -340,7 +342,7 @@ export function ProjectCanvasPage() {
         )
       ) : (
         <>
-      {tab === "overview" && (
+      {(
         <div className="min-h-0 flex-1">
           {isDesktop ? (
             // 3 zones: fixed-width ProjectPanel (left) | Stage | EditorPane.
@@ -399,50 +401,52 @@ export function ProjectCanvasPage() {
           )}
         </div>
       )}
-      {tab === "translations" && pack && (
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-            <h1
-              className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {t("project.tabs.translations")}
-            </h1>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-              <TranslationPanelContent projectId={pId} />
-            </div>
+      {/* Secondary views: overlays ABOVE the always-mounted canvas — closing
+          (Esc / backdrop / ×) is a return, not a navigation. `?tab=` stays the
+          source of truth so deep links and back-button keep working. */}
+      {pack && (
+        <WorkspaceOverlay
+          open={tab === "translations"}
+          onClose={closeOverlay}
+          title={t("project.tabs.translations")}
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+            <TranslationPanelContent projectId={pId} />
           </div>
-        </div>
+        </WorkspaceOverlay>
       )}
-      {tab === "data-sources" && pack && (
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-8 py-10">
-            <h1
-              className="display shrink-0 text-[32px] tracking-tight text-[var(--text)]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {t("project.tabs.dataSources")}
-            </h1>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-              <DataSourcesPanelContent projectId={pId} />
-            </div>
+      {pack && (
+        <WorkspaceOverlay
+          open={tab === "data-sources"}
+          onClose={closeOverlay}
+          title={t("project.tabs.dataSources")}
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+            <DataSourcesPanelContent projectId={pId} />
           </div>
-        </div>
+        </WorkspaceOverlay>
       )}
-      {tab === "history" && pack && networkId && (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-10">
-            <h1
-              className="display text-[32px] tracking-tight text-[var(--text)]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {t("project.tabs.history")}
-            </h1>
-            <div className="card p-6 md:p-8">
-              <HistoryTab pack={pack} networkId={networkId} />
-            </div>
+      {pack && networkId && (
+        <WorkspaceOverlay
+          open={tab === "history"}
+          onClose={closeOverlay}
+          title={t("project.tabs.history")}
+          size="narrow"
+        >
+          <div className="card min-h-0 flex-1 overflow-auto p-6 md:p-8">
+            <HistoryTab pack={pack} networkId={networkId} />
           </div>
-        </div>
+        </WorkspaceOverlay>
+      )}
+      {pack && (
+        <WorkspaceOverlay
+          open={tab === "assistant"}
+          onClose={closeOverlay}
+          title={t("assistant.title")}
+          size="narrow"
+        >
+          <AssistantBody projectId={pId} />
+        </WorkspaceOverlay>
       )}
         </>
       )}
@@ -479,24 +483,12 @@ export function ProjectCanvasPage() {
 
       <ProjectConflictBanner projectId={pId} />
 
-      {/* Assistant docks below the topbar, at the same level as the canvas
-          and its properties pane; on mobile it stays a drawer (<AssistantPanel/>).
-          On desktop the content area is clipped with a concave top-left corner +
-          hairline so the sidebar and topbar read as one continuous L-shaped frame. */}
+      {/* The assistant now opens in the same WorkspaceOverlay as the other
+          secondary views (?tab=assistant) — no docked pane, no drawer. The
+          content area keeps the concave top-left corner + hairline so the
+          sidebar and topbar read as one continuous L-shaped frame. */}
       <div className="min-h-0 flex-1 overflow-hidden lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
-        {assistantOpen && isDesktop ? (
-          <SplitPane
-            orientation="horizontal"
-            primary={tabContent}
-            secondary={<AssistantPane projectId={pId} />}
-            secondarySize={assistantPaneWidth}
-            onSecondarySizeChange={setAssistantPaneWidth}
-            minSecondary={320}
-            minPrimary={480}
-          />
-        ) : (
-          tabContent
-        )}
+        {tabContent}
       </div>
     </main>
   );
@@ -553,11 +545,7 @@ export function ProjectCanvasPage() {
         />
       )}
 
-      {/* Mobile assistant drawer. On desktop the assistant is the resizable
-          right pane above (<AssistantPane/>); this Sheet self-gates on
-          !isDesktop so the two presentations never show at once. */}
-      <AssistantPanel projectId={pId} />
-
+      
       {/* Global search palette — fixed overlay, inert when searchOpen=false. */}
       <SearchPalette projectId={pId} />
     </DndContext>
