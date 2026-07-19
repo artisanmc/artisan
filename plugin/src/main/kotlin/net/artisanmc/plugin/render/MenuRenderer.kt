@@ -33,6 +33,14 @@ object MenuRenderer {
 
     private fun parse(text: String) = LenientText.parse(text).applyFallbackStyle(noItalic)
 
+    /**
+     * Liste source d'une itération / d'un placement : clé plate des args
+     * (sourceRef classique) OU chemin pointé dans un objet de contexte
+     * (`category.items` — objet passé entier via `context: { category: "{cat}" }`).
+     */
+    private fun sourceList(args: Map<String, Any>, source: String): List<*> =
+        (args[source] ?: ArgResolver.lookupValue(source, args)) as? List<*> ?: emptyList<Any>()
+
     fun open(
         player: Player,
         menu: BundleMenu,
@@ -62,7 +70,7 @@ object MenuRenderer {
             val pageCount = when {
                 iter != null -> {
                     val slots = parsePositions(element.positions, menu.yaml.size)
-                    val list = boundCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
+                    val list = sourceList(boundCtx.args, iter.source)
                     val pageSize = slots.size.coerceAtLeast(1)
                     ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
                 }
@@ -132,7 +140,7 @@ object MenuRenderer {
                 // and its slot is simply left empty.
                 val places = element.places
                 if (places != null) {
-                    val list = renderCtx.args[places.source] as? List<*> ?: emptyList<Any>()
+                    val list = sourceList(renderCtx.args, places.source)
                     val byKey = list.filterIsInstance<Map<*, *>>()
                         .associateBy { it[places.keyField]?.toString() }
                     val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
@@ -167,7 +175,7 @@ object MenuRenderer {
                     continue
                 }
                 // Élément itérant : une entrée de la liste par slot, fenêtrée par page.
-                val list = renderCtx.args[iter.source] as? List<*> ?: emptyList<Any>()
+                val list = sourceList(renderCtx.args, iter.source)
                 val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
                 val window = list.drop(info.page * slots.size).take(slots.size)
                 window.forEachIndexed { i, entry ->
