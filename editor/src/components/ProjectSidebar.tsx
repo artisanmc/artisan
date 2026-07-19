@@ -12,7 +12,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -21,16 +21,14 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { ProjectId } from "@/domain/types";
 import { type ProjectSummary, getNetwork, listNetworks } from "@/lib/api/networks";
-import { countMissingForLang } from "@/lib/i18nUsages";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
-import { useUiStore } from "@/state/uiStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight, Database, GripVertical, History, Languages, LayoutGrid } from "lucide-react";
+import { ArrowRight, GripVertical, LayoutGrid } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -416,83 +414,9 @@ function SortableProjectItem({
           <GripVertical className="size-3.5" />
         </button>
       </div>
-      {isActiveProject && (
-        <ProjectSubTabs projectId={id} networkId={networkId} serverId={serverId} />
-      )}
+
     </li>
   );
 }
 
-function ProjectSubTabs({
-  projectId,
-  networkId,
-  serverId,
-}: {
-  projectId: string;
-  networkId: string | null;
-  serverId: string | null;
-}) {
-  const { t } = useTranslation();
-  const search = useSearch({ strict: false }) as { tab?: string } | undefined;
-  const currentTab = search?.tab ?? "overview";
-  // Missing-translation count for this workspace's pack, for the active
-  // language — mirrors the Translations panel's "N missing" headline exactly
-  // (same lang, same formula) so the nav badge and the panel never disagree.
-  // Sourced from the live account store, so it tracks edits; 0 when the pack
-  // isn't loaded (summary-only) → no badge.
-  const activeLang = useUiStore((s) => s.activeLang);
-  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const missingCount = pack ? countMissingForLang(pack, activeLang) : 0;
-  const tabs = [
-    { id: "overview", label: t("project.tabs.overview"), Icon: LayoutGrid },
-    {
-      id: "translations",
-      label: t("project.tabs.translations"),
-      Icon: Languages,
-      badge: missingCount,
-    },
-    { id: "data-sources", label: t("project.tabs.dataSources"), Icon: Database },
-    { id: "history", label: t("project.tabs.history"), Icon: History },
-  ] as const;
 
-  const tabLinkTo =
-    networkId && serverId
-      ? "/networks/$networkId/servers/$serverId/projects/$projectId"
-      : "/project/$projectId";
-  const tabLinkParams = networkId && serverId ? { networkId, serverId, projectId } : { projectId };
-
-  return (
-    <ul className="mt-0.5 mb-1 flex flex-col gap-0.5">
-      {tabs.map((tab) => {
-        const isActive = currentTab === tab.id;
-        const Icon = tab.Icon;
-        return (
-          <li key={tab.id}>
-            <Link
-              to={tabLinkTo as any}
-              params={tabLinkParams as any}
-              search={{ tab: tab.id } as any}
-              className={
-                isActive
-                  ? "flex items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] py-2 pl-6 pr-2.5 text-[13px] font-semibold text-[var(--brand)]"
-                  : "flex items-center gap-2 rounded-[10px] py-2 pl-6 pr-2.5 text-[13px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-              }
-            >
-              <Icon className="size-[13px] shrink-0" />
-              <span className="flex-1 truncate">{tab.label}</span>
-              {"badge" in tab && tab.badge > 0 ? (
-                <span
-                  aria-label={t("project.tabs.missingTranslations", { count: tab.badge })}
-                  title={t("project.tabs.missingTranslations", { count: tab.badge })}
-                  className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]"
-                >
-                  {tab.badge}
-                </span>
-              ) : null}
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
