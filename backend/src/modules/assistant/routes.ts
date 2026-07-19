@@ -52,8 +52,10 @@ export function buildAssistantRouter(): Hono {
 	});
 
 	// List a workspace's conversations (newest first), without message bodies.
+	// `projectId` is the wire name since the pack→project rename; `packId` is
+	// the legacy alias kept for old clients.
 	r.get("/conversations", async (c) => {
-		const packId = c.req.query("packId") ?? "";
+		const packId = c.req.query("projectId") ?? c.req.query("packId") ?? "";
 		const conversations = await listConversations(
 			c.get("ownerKey") as string,
 			packId,
@@ -67,7 +69,11 @@ export function buildAssistantRouter(): Hono {
 			.json()
 			.catch(() => ({}) as Record<string, unknown>);
 		const packId =
-			typeof (body as any).packId === "string" ? (body as any).packId : "";
+			typeof (body as any).projectId === "string"
+				? (body as any).projectId
+				: typeof (body as any).packId === "string"
+					? (body as any).packId
+					: "";
 		const access = await resolveProjectAccess(c.get("ownerKey") as string, packId);
 		if (!access.ok)
 			return c.json({ error: access.error }, access.error === "project_not_found" ? 404 : 403);
