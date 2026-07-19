@@ -71,7 +71,7 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
             list={fieldsListId}
             placeholder={t("menuProperties.filterFieldPlaceholder")}
             onChange={(e) => emit(rows.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))}
-            className="h-7 w-24 px-2 py-0 font-mono text-xs"
+            className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
           />
           <span className="text-[10px] text-[var(--text-faint)]">=</span>
           <Input
@@ -80,7 +80,7 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
             list={valuesListId}
             placeholder={t("menuProperties.filterValuePlaceholder")}
             onChange={(e) => emit(rows.map((r, j) => (j === i ? [r[0], e.target.value] : r)))}
-            className="h-7 flex-1 px-2 py-0 font-mono text-xs"
+            className="h-7 min-w-0 flex-1 px-2 py-0 font-mono text-xs"
           />
           <button
             type="button"
@@ -113,7 +113,7 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
               sort: e.target.value === "" ? undefined : { by: e.target.value, direction: input.sort?.direction ?? "asc" },
             })
           }
-          className="h-7 w-24 px-2 py-0 font-mono text-xs"
+          className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
         />
         <select
           data-testid="sort-direction"
@@ -136,7 +136,7 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
           min={1}
           value={input.limit ?? ""}
           onChange={(e) => onChange({ limit: e.target.value === "" ? undefined : Number(e.target.value) })}
-          className="h-7 w-16 px-2 py-0 font-mono text-xs"
+          className="h-7 w-16! shrink-0 px-2 py-0 font-mono text-xs"
         />
       </div>
     </div>
