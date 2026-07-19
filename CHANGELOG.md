@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — assistant i18n tools (`get_translations` / `write_translations`)
+- The assistant can now read and edit the text behind `{i18n:<key>}` refs: the editor sends `translations` (key → { lang: value }) with each turn, the model edits via `write_translations` (per-key/per-lang merge), and the `translations_written` SSE event applies to the editor store. The assistant routes also accept the `projectId` wire name (`packId` kept as legacy alias) — the packId-only read made every conversation create 404 since the pack→project rename.
+
 ### Added — `actions` field kit widget + `ModuleActionsApi` (boutique purchase actions)
 - New module API port (`@Beta`, 1.4.0): `ArtisanAPI.actions` — `execute(player, steps, args)` runs a canonical step tree (wire shape of the exported click-handler steps, literal text) through the core step engine, main-thread. Additive — binary-safe for existing modules.
 - Editor MC field kit gains the **`actions` widget**: a CONTROLLED pseudocode steps/conditions editor (`ControlledStepsEditor`, `value: Step[]` + `onChange`) sharing the visual language of the element/template click editors; text is literal (no i18n keys), wire round-trip via `@/lib/literalSteps` (`stepsFromWire`/`stepsToWire`, structure identical to exported step trees).
