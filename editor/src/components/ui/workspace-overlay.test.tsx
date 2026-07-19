@@ -46,4 +46,27 @@ describe("WorkspaceOverlay keep-alive", () => {
     fireEvent.click(screen.getByText("open-overlay"));
     expect(screen.getByText("count:1")).toBeInTheDocument();
   });
+
+  it("closed overlay does not block clicks on the page (no modal lock)", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("open-overlay"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    // The trigger is reachable and clickable again after closing.
+    fireEvent.click(screen.getByText("open-overlay"));
+    expect(screen.getByText("count:0")).toBeInTheDocument();
+    // The hidden wrapper carries the `hidden` class (display:none) — nothing
+    // invisible sits above the page.
+    fireEvent.keyDown(document, { key: "Escape" });
+    const backdrop = screen.getByTestId("workspace-overlay-backdrop");
+    expect(backdrop.parentElement?.className).toContain("hidden");
+  });
+
+  it("backdrop click closes", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("open-overlay"));
+    fireEvent.click(screen.getByTestId("workspace-overlay-backdrop"));
+    expect(screen.getByTestId("workspace-overlay-backdrop").parentElement?.className).toContain(
+      "hidden",
+    );
+  });
 });
