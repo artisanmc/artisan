@@ -44,4 +44,29 @@ object ArgResolver {
         }
         else -> null
     }
+
+    /**
+     * Valeur BRUTE d'un chemin `name` / `name.field` — pour le passage de
+     * contexte type-preserving (`context: { cat: "{cat}" }` passe la Map de
+     * la ligne entière, `"{item.final_price}"` passe le Number). Null si
+     * introuvable — l'appelant retombe alors sur l'interpolation texte.
+     */
+    fun lookupValue(path: String, args: Map<String, Any>): Any? {
+        val dot = path.indexOf('.')
+        val name = if (dot == -1) path else path.substring(0, dot)
+        val root = args[name] ?: return null
+        if (dot == -1) return root
+        // Un seul niveau de champ, comme `resolve` (contrat menu/v1).
+        val field = path.substring(dot + 1)
+        return when (root) {
+            is Map<*, *> -> root[field]
+            is Player -> when (field) {
+                "name"  -> root.name
+                "uuid"  -> root.uniqueId.toString()
+                "world" -> root.world.name
+                else    -> null
+            }
+            else -> null
+        }
+    }
 }
