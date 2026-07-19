@@ -25,7 +25,15 @@ const ORDER: Record<PlaceholderOrigin, number> = {
  * placeholder entries the user can insert in this field. Pure — no
  * side effects, safe to call from useMemo.
  */
-export function compute(pack: Project, location: FieldLocation): PlaceholderEntry[] {
+/** Field schemas of server-reported sources, keyed by ref — lets `rowOf`-typed
+ *  context inputs expose their fields without compute() touching any store. */
+export type RowModelSchemas = Record<string, { name: string; type: string }[]>;
+
+export function compute(
+  pack: Project,
+  location: FieldLocation,
+  rowSchemas?: RowModelSchemas,
+): PlaceholderEntry[] {
   switch (location.kind) {
     case "menu":
     case "element":
@@ -41,7 +49,7 @@ export function compute(pack: Project, location: FieldLocation): PlaceholderEntr
       if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
         out.push(...builtinPlayerEntries());
       }
-      collectMenuContextInputs(menu, pack, scope, out);
+      collectMenuContextInputs(menu, pack, scope, out, rowSchemas);
       if (location.kind === "element" || location.kind === "action") {
         const element = findElement(menu, location.elementId);
         if (element?.iterates) {
@@ -85,6 +93,7 @@ function collectMenuContextInputs(
   pack: Project,
   scope: ReturnType<typeof buildPreviewScope>,
   out: PlaceholderEntry[],
+  rowSchemas?: RowModelSchemas,
 ): void {
   for (const input of menu.contextInputs ?? []) {
     if (input.kind === "primitive") {
@@ -98,6 +107,19 @@ function collectMenuContextInputs(
       if (type === "player") {
         // Player-valued args expose name/uuid/world at runtime.
         out.push(...playerSubfieldEntries(input.name, sampleFromScope(scope, `${input.name}.name`)));
+      }
+      // Row-model input (`rowOf`): expose the source's fields as subpaths —
+      // {cat.name}, {cat.id}… typed from the declared schema.
+      if (input.type === "object" && input.rowOf) {
+        for (const f of rowSchemaFields(String(input.rowOf), pack, rowSchemas)) {
+          const path = `${input.name}.${f.name}`;
+          out.push({
+            path,
+            type: fieldKindToPlaceholderType(f.type),
+            sample: sampleFromScope(scope, path),
+            origin: "context",
+          });
+        }
       }
       continue;
     }
@@ -154,7 +176,41 @@ function primitiveContextInputTypeToPlaceholderType(t: string): PlaceholderType 
     case "number":
     case "boolean":
     case "player":
+    case "list":
+    case "object":
       return t as PlaceholderType;
+    default:
+      return "string";
+  }
+}
+
+/** Declared field schema of a source ref: server report first, then pack data. */
+function rowSchemaFields(
+  ref: string,
+  pack: Project,
+  rowSchemas?: RowModelSchemas,
+): { name: string; type: string }[] {
+  const server = rowSchemas?.[ref];
+  if (server && server.length > 0) return server;
+  if (ref.startsWith("pack:")) {
+    const t = typeOfSourceRef(ref, pack);
+    const row = t?.kind === "list" ? t.of : t;
+    if (row?.kind === "object") {
+      return row.fields.map((f) => ({ name: f.name, type: f.type.kind }));
+    }
+  }
+  return [];
+}
+
+function fieldKindToPlaceholderType(kind: string): PlaceholderType {
+  switch (kind) {
+    case "string":
+    case "integer":
+    case "number":
+    case "boolean":
+    case "list":
+    case "object":
+      return kind as PlaceholderType;
     default:
       return "string";
   }

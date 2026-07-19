@@ -162,6 +162,41 @@ describe("PlaceholderCatalog.compute", () => {
     ]);
   });
 
+  it("row-model input (type object + rowOf) exposes the source's declared fields", () => {
+    const pack = emptyProject();
+    pack.menus.push({
+      id: "shop_category" as MenuId,
+      projectId: pack.id,
+      title: [],
+      rows: 6,
+      layers: [],
+      contextInputs: [
+        {
+          kind: "primitive",
+          name: "cat",
+          type: "object",
+          rowOf: "boutique:categories" as SourceRef,
+        },
+      ],
+    });
+    const entries = compute(
+      pack,
+      { kind: "menu", menuId: "shop_category" as MenuId },
+      {
+        "boutique:categories": [
+          { name: "id", type: "string" },
+          { name: "name", type: "string" },
+          { name: "discount", type: "number" },
+        ],
+      },
+    );
+    const paths = entries.map((e) => `${e.path}:${e.type}`);
+    expect(paths).toContain("cat:object");
+    expect(paths).toContain("cat.id:string");
+    expect(paths).toContain("cat.name:string");
+    expect(paths).toContain("cat.discount:number");
+  });
+
   it("omits list-typed contextInputs at menu scope (only builtins remain)", () => {
     const pack = emptyProject();
     pack.dataSources.push({
