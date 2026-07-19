@@ -3,7 +3,7 @@ import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { Input } from "@/components/ui/input";
 import { getFirstTitleText } from "@/domain/menuTitle";
-import type { Appearance, ItemTemplateId } from "@/domain/types";
+import type { Appearance, I18nKey, ItemTemplateId } from "@/domain/types";
 import type {
   Command,
   CommandArg,
@@ -692,6 +692,14 @@ function StateCard({
   const loreText = appearance.lore ? getText(appearance.lore) : "";
   const lore = loreText ? loreText.split("\n") : [];
 
+  // Fallback detection: the field shows the defaultLang text when the active
+  // lang has no value — but typing writes the ACTIVE lang. Surface it in the
+  // label so "I replaced the text" edits don't silently land in another lang.
+  const inActiveLang = (lt: { key: I18nKey } | undefined) =>
+    lt && pack ? pack.i18nKeys[lt.key]?.[activeLang] !== undefined : false;
+  const titleIsFallback = Boolean(appearance.title && title !== "" && !inActiveLang(appearance.title));
+  const loreIsFallback = Boolean(appearance.lore && loreText !== "" && !inActiveLang(appearance.lore));
+
   // Local draft state — decoupled from the store so Enter doesn't jump the
   // cursor. Resets to loreText when element/stateIndex changes or on blur.
   const [loreDraft, setLoreDraft] = useState(loreText);
@@ -890,7 +898,11 @@ function StateCard({
           {/* Title + count */}
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <FieldLabel>{t("flow.titleLabel", { lang: activeLang })}</FieldLabel>
+              <FieldLabel>
+                {t(titleIsFallback ? "flow.titleLabelFallback" : "flow.titleLabel", {
+                  lang: activeLang,
+                })}
+              </FieldLabel>
               <RevealField
                 value={title}
                 onChange={(v) => updateTitle(v)}
@@ -935,7 +947,11 @@ function StateCard({
 
           {/* Lore */}
           <div>
-            <FieldLabel>{t("flow.loreLabel", { lang: activeLang })}</FieldLabel>
+            <FieldLabel>
+              {t(loreIsFallback ? "flow.loreLabelFallback" : "flow.loreLabel", {
+                lang: activeLang,
+              })}
+            </FieldLabel>
             <RevealField
               multiline
               rows={lore.length > 2 ? 4 : 2}

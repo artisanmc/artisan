@@ -322,6 +322,7 @@ const fr: typeof en = {
     headPlaceholderPlayer: "Notch ou %player%",
     headHdbHint: "Nécessite le plugin HeadDatabase sur le serveur. Pas de preview dans l'éditeur.",
     loreLabel: "lore ({{lang}})",
+    loreLabelFallback: "lore ({{lang}} — fallback)",
     lorePlaceholder: "Une ligne par entrée de lore.",
     visibility: "visibilité",
     visibilityHint:
