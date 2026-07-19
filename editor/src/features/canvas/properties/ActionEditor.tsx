@@ -17,7 +17,7 @@ import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ActionEditorProps {
@@ -211,7 +211,7 @@ function OpenMenuEditor({
           ))}
         </select>
       </div>
-      {targetInputs.length > 0 ? (
+      {targetInputs.length > 0 || Object.keys(ctxValues).length > 0 ? (
         <div>
           <FieldLabel>{t("actionEditor.contextToPass")}</FieldLabel>
           <div className="flex flex-col gap-1.5">
@@ -238,6 +238,38 @@ function OpenMenuEditor({
                 />
               </div>
             ))}
+            {/* Context keys the action already carries but the target menu never
+                DECLARED as inputs (menus may consume {args} in filters/titles
+                without declaring them) — without these rows the existing
+                context is invisible and uneditable. */}
+            {Object.keys(ctxValues)
+              .filter((k) => !targetInputs.some((i) => i.name === k))
+              .map((k) => (
+                <div key={k} className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5">
+                  <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
+                    <span className="text-[var(--brand)]">{k}</span>
+                    <span className="text-[var(--text-faint)]">{t("actionEditor.contextUndeclared")}</span>
+                    <button
+                      type="button"
+                      title={t("actionEditor.contextRemoveKey")}
+                      onClick={() => setCtxValue(k, "")}
+                      className="ml-auto flex h-5 w-5 items-center justify-center rounded text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <Input
+                    value={ctxValues[k] ?? ""}
+                    onChange={(e) => setCtxValue(k, e.target.value)}
+                    className="h-7 px-2 py-0 font-mono text-xs"
+                  />
+                  <ArgInsertBar onInsert={(name) => setCtxValue(k, `${ctxValues[k] ?? ""}{${name}}`)} />
+                </div>
+              ))}
+            <AddContextKey
+              existing={new Set([...targetInputs.map((i) => i.name), ...Object.keys(ctxValues)])}
+              onAdd={(k) => setCtxValue(k, `{${k}}`)}
+            />
           </div>
         </div>
       ) : null}
@@ -249,6 +281,47 @@ function OpenMenuEditor({
         />
         {t("actionEditor.clearContext")}
       </label>
+    </div>
+  );
+}
+
+/** Small "+ add a context key" row: type a key name, get an editable entry
+ *  seeded with `{key}`. Needed for menus consuming undeclared args. */
+function AddContextKey({
+  existing,
+  onAdd,
+}: {
+  existing: Set<string>;
+  onAdd: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState("");
+  const valid = /^[a-z][a-z0-9_]*$/.test(draft) && !existing.has(draft);
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        value={draft}
+        placeholder={t("actionEditor.contextAddPlaceholder")}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && valid) {
+            onAdd(draft);
+            setDraft("");
+          }
+        }}
+        className="h-7 min-w-0 flex-1 px-2 py-0 font-mono text-xs"
+      />
+      <button
+        type="button"
+        disabled={!valid}
+        onClick={() => {
+          onAdd(draft);
+          setDraft("");
+        }}
+        className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:opacity-40"
+      >
+        {t("actionEditor.contextAdd")}
+      </button>
     </div>
   );
 }
