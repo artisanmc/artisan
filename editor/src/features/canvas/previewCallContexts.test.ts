@@ -105,6 +105,24 @@ describe("findPreviewCallContexts", () => {
     ]);
   });
 
+  it("whole-token context values pass the raw caller row object", () => {
+    const p = pack();
+    // Rewrite the caller's context to the whole-model style: cat: "{cat}".
+    const el = p.menus[0]!.layers[0]!.elements[0]!;
+    const action = el.appearances[0]!.click!.left!.steps[0]! as {
+      action: { context: Record<string, string> };
+    };
+    action.action.context = { cat: "{cat}" };
+    const target = p.menus.find((m) => m.id === "shop_category") as Menu;
+    const contexts = findPreviewCallContexts(target, p, undefined, "fr");
+    expect(contexts).toHaveLength(2);
+    expect(contexts[0]).toEqual({
+      from: "shop_main",
+      label: "Armes",
+      args: { cat: { id: "weapons", name: "Armes" } },
+    });
+  });
+
   it("returns nothing for a menu no one opens with context", () => {
     const p = pack();
     const target = p.menus.find((m) => m.id === "shop_main") as Menu;

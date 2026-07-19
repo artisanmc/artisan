@@ -120,6 +120,8 @@ class ActionExecutorTest {
         // The shop flow: an iterated element binds `item` = the clicked row;
         // open_dialog passes {item.*} placeholders in its context. They must
         // resolve HERE — the dialog only sees the flat args it receives.
+        // Whole-token values pass the RAW value (type-preserving); mixed
+        // templates interpolate to strings.
         val row = mapOf("id" to "diamond_sword", "name" to "Épée", "final_price" to 80)
         val action = Action.OpenDialog(
             "confirm_purchase",
@@ -127,6 +129,7 @@ class ActionExecutorTest {
                 "item_id" to "{item.id}",
                 "item_name" to "{item.name}",
                 "item_price" to "{item.final_price}",
+                "item_label" to "Item {item.name}",
             ),
         )
         e.execute(listOf(action), ctx(p).copy(args = mapOf("item" to row)))
@@ -134,7 +137,20 @@ class ActionExecutorTest {
         val args = lastDialogCtx!!.args
         assertEquals("diamond_sword", args["item_id"])
         assertEquals("Épée", args["item_name"])
-        assertEquals("80", args["item_price"])
+        assertEquals(80, args["item_price"])
+        assertEquals("Item Épée", args["item_label"])
+    }
+
+    @Test fun `OpenMenu passes a whole bound object when the value is a bare placeholder`() {
+        val p = player()
+        val e = executor()
+        val row = mapOf("id" to "weapons", "name" to "Armes")
+        // `context: { cat: "{cat}" }` — the target menu then uses {cat.name}
+        // in its title and {cat.id} in filters, no per-field re-plumbing.
+        val action = Action.OpenMenu("shop_category", context = mapOf("cat" to "{cat}"))
+        e.execute(listOf(action), ctx(p).copy(args = mapOf("cat" to row)))
+        assertEquals("shop_category", lastOpenedMenuId)
+        assertEquals(row, lastMenuCtx!!.args["cat"])
     }
 
     @Test fun `OpenMenu resolves context value placeholders against the click ctx`() {

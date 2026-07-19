@@ -82,8 +82,8 @@ interface UiState {
    * `{arg}` tokens in source filters when the canvas builds its preview
    * scope. Session state — not persisted.
    */
-  menuPreviewArgs: Record<string, Record<string, string>>;
-  setMenuPreviewArg: (menuId: string, arg: string, value: string) => void;
+  menuPreviewArgs: Record<string, Record<string, unknown>>;
+  setMenuPreviewArg: (menuId: string, arg: string, value: unknown) => void;
   activeDragMaterial: string | null;
   setActiveDragMaterial: (m: string | null) => void;
   /**
