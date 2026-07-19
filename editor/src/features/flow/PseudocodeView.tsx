@@ -1095,8 +1095,14 @@ function ActionSummaryArgs({
 /** Compact one-line summary of action params (just the args, no type prefix). */
 function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => string): string {
   switch (action.type) {
-    case "open_menu":
-      return action.menuId + (action.clearContext ? " (clear)" : "");
+    case "open_menu": {
+      // Surface the passed context inline — it's load-bearing (parameterized
+      // menus) and otherwise only visible after expanding the action.
+      const ctx = Object.entries(action.context ?? {})
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ");
+      return action.menuId + (ctx ? ` (${ctx})` : "") + (action.clearContext ? " (clear)" : "");
+    }
     case "close_menu":
       return "";
     case "run_command":
