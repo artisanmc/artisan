@@ -49,7 +49,14 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       }
     }
   }
-  if (candidates.size === 0) return null;
+  // The menu's OTHER primitive inputs (e.g. category_name, passed by the
+  // calling menu at runtime) preview as free text — titles/lore render them
+  // even though no filter enumerates their values.
+  const freeInputs = (menu.contextInputs ?? []).filter(
+    (i): i is Extract<ContextInput, { kind: "primitive" }> =>
+      i.kind === "primitive" && i.type !== "player" && !candidates.has(i.name),
+  );
+  if (candidates.size === 0 && freeInputs.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-1.5" data-testid="preview-context-section">
@@ -82,6 +89,21 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
               className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"
             />
           )}
+        </label>
+      ))}
+      {freeInputs.map((input) => (
+        <label
+          key={input.name}
+          className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+        >
+          <span className="font-mono">{`{${input.name}}`}</span>
+          <Input
+            data-testid={`preview-arg-${input.name}`}
+            value={previewArgs[input.name] ?? ""}
+            placeholder={input.default ?? ""}
+            onChange={(e) => setMenuPreviewArg(menu.id, input.name, e.target.value)}
+            className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"
+          />
         </label>
       ))}
     </div>

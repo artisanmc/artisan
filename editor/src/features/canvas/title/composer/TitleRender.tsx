@@ -3,10 +3,12 @@ import { assetPreviewUrl } from "@/domain/asset";
 import type { InventoryType, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { getText } from "@/lib/i18n";
+import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
 import { useAccountStore } from "@/state/accountStore";
+import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import useImage from "use-image";
 import { MC_TITLE_H, menuBoxSize } from "../../menuLayout";
@@ -156,6 +158,14 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
   const hiddenLayerKeys = useUiStore((s) => s.hiddenLayerKeys);
+  // Preview scope so `{category_name}`-style placeholders in title layers
+  // render with the menu's preview context (same scope as the item grid).
+  const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
+  const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
+  const previewCtx = useMemo(
+    () => (pack && menu ? buildPreviewScope(menu, pack, snapshots, menuPreviewArgs[menuId]) : {}),
+    [pack, menu, snapshots, menuPreviewArgs, menuId],
+  );
 
   const onBackdropClick = useCallback(
     (_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -204,7 +214,7 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
             : undefined;
         const text =
           layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
-            ? getText(pack, layer.value, activeLang)
+            ? renderPreview(getText(pack, layer.value, activeLang), previewCtx, pack, activeLang)
             : "";
         const selected = selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
