@@ -1,7 +1,38 @@
 import { Badge } from "@/components/ui/badge";
 import { newItemTemplateId } from "@/domain/ids";
-import type { ItemTemplateId, ProjectId } from "@/domain/types";
+import type { DataSource as DataSourceDomain, ItemTemplateId, ProjectId } from "@/domain/types";
 import type { ServerDataSource } from "@/lib/api/dataSources";
+
+/**
+ * Structural subset of ServerDataSource the sets tooling needs — lets the
+ * project Data tab synthesize one for `pack:` sources (sets are not
+ * server-only).
+ */
+export interface TemplatableSource {
+  ref: string;
+  schema: { name: string; type: string; description?: string | null }[];
+  stability?: "static" | "dynamic" | null;
+  keyField?: string | null;
+}
+// ServerDataSource is assignable to TemplatableSource (compile-time check).
+const _assignable: TemplatableSource = undefined as unknown as ServerDataSource;
+void _assignable;
+
+/** Adapt a project (`pack:`) data source: sets are not server-only. Project
+ *  data is static by nature; keyField inferred from an `id` field. */
+export function packSourceToTemplatable(ds: DataSourceDomain): TemplatableSource {
+  const row = ds.type.kind === "list" ? ds.type.of : ds.type;
+  const schema =
+    row.kind === "object"
+      ? row.fields.map((f) => ({ name: f.name, type: f.type.kind, description: null }))
+      : [];
+  return {
+    ref: `pack:${ds.id}`,
+    schema,
+    stability: "static",
+    keyField: schema.some((f) => f.name === "id") ? "id" : null,
+  };
+}
 import { useAccountStore } from "@/state/accountStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +53,7 @@ export function ItemTemplatesSection({
   source,
 }: {
   projectId: ProjectId;
-  source: ServerDataSource;
+  source: TemplatableSource;
 }) {
   const { t } = useTranslation();
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
