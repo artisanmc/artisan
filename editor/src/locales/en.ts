@@ -183,6 +183,8 @@ export default {
     previewContextHint:
       "Pick which value the canvas previews this parameterized menu with — filters apply to the real rows.",
     previewContextAll: "(all — unfiltered)",
+    previewContextFrom: "as opened from",
+    previewContextPick: "(pick a caller…)",
     menuData: "Menu data",
     menuDataNoFilters: "No filter — full source.",
     menuDataLocalHint: "Project data — see the Data tab.",
