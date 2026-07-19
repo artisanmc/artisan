@@ -106,7 +106,7 @@ function MenuSourceCard({ input }: { input: SourceRefInput }) {
                     data-testid={`test-arg-${token}`}
                     value={testArgs[token] ?? ""}
                     onChange={(e) => setTestArgs((prev) => ({ ...prev, [token]: e.target.value }))}
-                    className="h-6 w-24 px-2 py-0 font-mono text-[10px]"
+                    className="h-6 w-24! shrink-0 px-2 py-0 font-mono text-[10px]"
                   />
                 </label>
               ))}
