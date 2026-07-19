@@ -73,6 +73,9 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // returns below — a hook called conditionally throws "rendered more hooks
   // than during the previous render" when the hover target appears/clears.
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
+  // Whole map (stable identity) — menu.id is only known after the early
+  // returns, and hooks must not run after them.
+  const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const found = useMemo(() => findElementAndMenu(pack, elementId), [pack, elementId]);
   if (!found || !pack) return null;
   const { element, menu } = found;
@@ -82,7 +85,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
   // with pack.dataSources as the project-data path.
-  const sampleCtx = buildPreviewScope(menu, pack, snapshots);
+  const sampleCtx = buildPreviewScope(menu, pack, snapshots, menuPreviewArgs[menu.id]);
 
   // Mirror MenuGroup's pagination context so `{pagination.page}` and
   // friends resolve consistently in tooltips. Walk every iterating

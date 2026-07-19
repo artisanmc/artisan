@@ -206,6 +206,71 @@ describe("buildPreviewScope", () => {
   });
 });
 
+describe("buildPreviewScope — sourceRef shaping + preview args", () => {
+  const ROWS = [
+    { id: "sword", name: "Épée", category: "weapons", price: 100 },
+    { id: "bow", name: "Arc", category: "weapons", price: 50 },
+    { id: "bread", name: "Pain", category: "food", price: 5 },
+  ];
+  const packWithSource = () =>
+    stubProject({
+      dataSources: [
+        { id: "items" as DataSourceId, projectId: "p1", name: "items", type: { kind: "list" }, value: ROWS },
+      ] as unknown as DataSource[],
+    });
+  const menuWithFilter = (): Menu =>
+    stubMenu([
+      { kind: "primitive", name: "category_id", type: "string" },
+      {
+        kind: "sourceRef",
+        name: "items",
+        ref: "pack:items" as SourceRef,
+        filter: { category: "{category_id}" },
+      },
+    ]);
+
+  it("leaves the source unfiltered while the filter's arg has no value", () => {
+    const scope = buildPreviewScope(menuWithFilter(), packWithSource());
+    expect((scope.items as unknown[]).length).toBe(3);
+  });
+
+  it("applies the filter when previewArgs provide the arg value", () => {
+    const scope = buildPreviewScope(menuWithFilter(), packWithSource(), undefined, {
+      category_id: "food",
+    });
+    expect(scope.items).toEqual([ROWS[2]]);
+    // The primitive itself reflects the preview value too (titles use it).
+    expect(scope.category_id).toBe("food");
+  });
+
+  it("applies sort and limit shaping", () => {
+    const menu = stubMenu([
+      {
+        kind: "sourceRef",
+        name: "items",
+        ref: "pack:items" as SourceRef,
+        sort: { by: "price", direction: "desc" },
+        limit: 2,
+      },
+    ]);
+    const scope = buildPreviewScope(menu, packWithSource());
+    expect((scope.items as { id: string }[]).map((r) => r.id)).toEqual(["sword", "bow"]);
+  });
+
+  it("literal filter values apply without any preview arg", () => {
+    const menu = stubMenu([
+      {
+        kind: "sourceRef",
+        name: "items",
+        ref: "pack:items" as SourceRef,
+        filter: { category: "weapons" },
+      },
+    ]);
+    const scope = buildPreviewScope(menu, packWithSource());
+    expect((scope.items as { id: string }[]).map((r) => r.id)).toEqual(["sword", "bow"]);
+  });
+});
+
 describe("renderPreview with the builtin player", () => {
   it("renders player subfields", () => {
     const pack = stubProject();

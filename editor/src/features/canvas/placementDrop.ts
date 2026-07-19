@@ -57,7 +57,7 @@ export function pinPlacementRow(opts: {
   const page = usePaginationStore.getState().pageByElement[elementId] ?? 0;
   const snapshots = useServerSnapshotsStore.getState().rowsByRef;
   const activeLang = useUiStore.getState().activeLang;
-  const baseCtx = buildPreviewScope(menu, pack, snapshots);
+  const baseCtx = buildPreviewScope(menu, pack, snapshots, useUiStore.getState().menuPreviewArgs[menu.id]);
   const rows = lookupPath(baseCtx, el.places.source);
   const row = matchPlacementRow(rows, el.places.keyField, key);
   const cachedDisplay =
