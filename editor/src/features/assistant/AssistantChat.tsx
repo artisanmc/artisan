@@ -169,6 +169,9 @@ export function AssistantChat({
       const menus = pack ? packToMenuV1(pack) : [];
       const commands = pack ? packToCommandV1(pack) : [];
       const dialogs = pack ? packToDialogV1(pack) : [];
+      // Translation values behind the {i18n:<key>} refs — without them the
+      // model can see the refs but never the actual text.
+      const translations = pack ? pack.i18nKeys : {};
       if (!convId.current) {
         convId.current = await openConversation({ projectId });
       }
@@ -179,6 +182,7 @@ export function AssistantChat({
         attachments,
         commands,
         dialogs,
+        translations,
         modelId: modelId ?? undefined,
       })) {
         if (ev.type === "text") {
@@ -244,6 +248,18 @@ export function AssistantChat({
         } else if (ev.type === "dialog_deleted") {
           useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [String(ev.id)] });
           setEntries((e) => [...e, { role: "card", kind: "deleted", id: String(ev.id) }]);
+          dirty = true;
+        } else if (ev.type === "translations_written") {
+          const entries = ev.entries as Record<string, Record<string, string>>;
+          useAccountStore.getState().applyAssistantTranslations({ projectId, entries });
+          setEntries((e) => [
+            ...e,
+            {
+              role: "card",
+              kind: "written",
+              id: t("assistant.translationsCard", { count: Object.keys(entries).length }),
+            },
+          ]);
           dirty = true;
         } else if (ev.type === "credits") {
           setBalance((b) =>

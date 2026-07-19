@@ -21,6 +21,21 @@ describe("accountStore", () => {
     useAccountStore.setState({ account: mockAccount() });
   });
 
+  describe("applyAssistantTranslations", () => {
+    it("merges per-key/per-lang values without touching other languages", () => {
+      const K = "menus.shop.title" as I18nKey;
+      useAccountStore.getState().setI18nValue({ projectId: PERSONAL, lt: { key: K }, lang: "fr", value: "&6Boutique" });
+      useAccountStore.getState().setI18nValue({ projectId: PERSONAL, lt: { key: K }, lang: "en", value: "&6Shop" });
+      useAccountStore.getState().applyAssistantTranslations({
+        projectId: PERSONAL,
+        entries: { [K]: { fr: "<gold>Boutique" }, ["new.key" as I18nKey]: { fr: "Neuf" } },
+      });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect(pack.i18nKeys[K]).toEqual({ fr: "<gold>Boutique", en: "&6Shop" });
+      expect(pack.i18nKeys["new.key" as I18nKey]).toEqual({ fr: "Neuf" });
+    });
+  });
+
   describe("item templates", () => {
     const TPL = "tpl_shop" as import("@/domain/types").ItemTemplateId;
     const getPack = () =>

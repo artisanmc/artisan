@@ -148,8 +148,12 @@ export function buildAssistantRouter(): Hono {
 		const settings = await getAiSettings();
 		const actorUserId = ownerKey.slice(5);
 
+		const translations =
+			(body as any).translations && typeof (body as any).translations === "object"
+				? ((body as any).translations as Record<string, Record<string, string>>)
+				: {};
 		// Working copy is rebuilt from the live pack on every turn (last-writer-wins).
-		const wc = new WorkingCopy(menus, attachments, dialogs, commands);
+		const wc = new WorkingCopy(menus, attachments, dialogs, commands, translations);
 		const text =
 			typeof (body as any).text === "string" ? (body as any).text : "";
 		// The model can only discover attachments through this note: read_attachment

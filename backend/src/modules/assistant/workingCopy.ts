@@ -10,17 +10,23 @@ export class WorkingCopy {
   private attachments = new Map<string, string>();
   private dialogs = new Map<string, DialogV1>();
   private commands = new Map<string, CommandV1>();
+  /** i18n key → { lang: value } — the values behind `{i18n:<key>}` refs. */
+  private translations = new Map<string, Record<string, string>>();
 
   constructor(
     menus: MenuV1[] = [],
     attachments: Record<string, string> = {},
     dialogs: DialogV1[] = [],
     commands: CommandV1[] = [],
+    translations: Record<string, Record<string, string>> = {},
   ) {
     for (const m of menus) if (typeof m?.id === "string") this.menus.set(m.id, m);
     for (const [k, v] of Object.entries(attachments)) this.attachments.set(k, v);
     for (const d of dialogs) if (typeof d?.id === "string") this.dialogs.set(d.id, d);
     for (const c of commands) if (typeof c?.id === "string") this.commands.set(c.id, c);
+    for (const [k, v] of Object.entries(translations)) {
+      if (v && typeof v === "object") this.translations.set(k, { ...v });
+    }
   }
 
   list(): { id: string; title: unknown; size: number }[] {
@@ -46,4 +52,27 @@ export class WorkingCopy {
 
   attachment(fileId: string): string | undefined { return this.attachments.get(fileId); }
   snapshot(): MenuV1[] { return [...this.menus.values()]; }
+
+  /** Translations, optionally filtered by exact keys and/or a key prefix. */
+  getTranslations(keys?: string[], prefix?: string): Record<string, Record<string, string>> {
+    const wanted = keys && keys.length > 0 ? new Set(keys) : null;
+    const out: Record<string, Record<string, string>> = {};
+    for (const [k, v] of this.translations) {
+      if (wanted && !wanted.has(k)) continue;
+      if (prefix && !k.startsWith(prefix)) continue;
+      out[k] = { ...v };
+    }
+    return out;
+  }
+
+  /** Merge per-key/per-lang values; creates keys as needed. Returns the merged key count. */
+  setTranslations(entries: Record<string, Record<string, string>>): number {
+    let n = 0;
+    for (const [k, langs] of Object.entries(entries)) {
+      const cur = this.translations.get(k) ?? {};
+      this.translations.set(k, { ...cur, ...langs });
+      n++;
+    }
+    return n;
+  }
 }

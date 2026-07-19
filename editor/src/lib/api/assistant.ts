@@ -72,6 +72,9 @@ export async function* streamAssistant(
     commands?: unknown[];
     /** Full dialog/v1 objects (was summaries; now full for get_dialog/editing). */
     dialogs?: unknown[];
+    /** i18n key → { lang: value } — the text behind {i18n:<key>} refs
+     *  (read via get_translations, edited via write_translations). */
+    translations?: Record<string, Record<string, string>>;
     /** Model override for this turn (provider default used when omitted). */
     modelId?: string;
   },

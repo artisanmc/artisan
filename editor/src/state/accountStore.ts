@@ -140,6 +140,15 @@ interface AccountState {
     lang: string;
   }) => string[];
   /**
+   * Apply an AI `write_translations` event: merge per-key/per-lang values into
+   * `i18nKeys`. Only the listed pairs change — other languages of the same key
+   * are preserved.
+   */
+  applyAssistantTranslations: (input: {
+    projectId: ProjectId;
+    entries: Record<string, Record<string, string>>;
+  }) => void;
+  /**
    * Create a new menu in `projectId` with sensible defaults (rows=3, single
    * default layer, no elements). Optional canvas position; falls back to
    * autoLayout's grid if omitted. Returns the new id so callers can route
@@ -1261,6 +1270,20 @@ export const useAccountStore = create<AccountState>()(
         );
         return unsupported;
       },
+      applyAssistantTranslations: ({ projectId: pId, entries }) =>
+        set(
+          produce((draft: AccountState) => {
+            const pack = draft.account.projects.find((p) => p.id === pId);
+            if (!pack) return;
+            for (const [key, langs] of Object.entries(entries)) {
+              pack.i18nKeys[key as I18nKey] = {
+                ...(pack.i18nKeys[key as I18nKey] ?? {}),
+                ...langs,
+              };
+            }
+            pack.updatedAt = new Date().toISOString();
+          }),
+        ),
       applyAssistantCommand: ({ projectId: pId, commandV1, lang }) => {
         let unsupported: string[] = [];
         set(
