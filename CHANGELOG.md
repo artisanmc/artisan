@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — dotted iteration/placement sources (`iterates.source: category.items`)
+- `iterates.source` / `places.source` accept a DOTTED path into a context object: an element can paginate over a list field of a row passed whole (`context: { category: "{cat}" }` → `iterates: { source: category.items, alias: item }`). Flat sourceRef keys keep working — both idioms coexist (the flat source + filter join stays the recommended default: typed schema, sets, stability, live preview).
+
 ### Added — typed row-model context inputs (`row_of`, menu/v1 additive)
 - A `context_inputs` entry of type `object`/`list` can declare `row_of: <source ref>` — "the caller passes me a ROW of this source" (editor tooling only; the runtime ignores it, args flow untyped). The context-input type dropdown lists one typed entry per known data source ("Category (boutique:categories)"); the placeholder catalog exposes the row's fields ({cat.name}, {cat.id}…) typed from the declared source schema; the preview-context section offers the source's rows directly as candidates. Complements whole-model context passing (`cat: "{cat}"`).
 
