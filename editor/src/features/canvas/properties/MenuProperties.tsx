@@ -362,8 +362,8 @@ function PrimitiveInputRow({
           onChange={(e) => onChange({ name: e.target.value })}
           className={
             isInvalid
-              ? "h-8 w-28 border-[var(--danger)] px-2 py-0 font-mono text-xs"
-              : "h-8 w-28 px-2 py-0 font-mono text-xs"
+              ? "h-8 w-28! shrink-0 border-[var(--danger)] px-2 py-0 font-mono text-xs"
+              : "h-8 w-28! shrink-0 px-2 py-0 font-mono text-xs"
           }
         />
         <select

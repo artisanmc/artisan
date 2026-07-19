@@ -73,6 +73,9 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
     (i): i is Extract<ContextInput, { kind: "primitive" }> =>
       i.kind === "primitive" && i.type === "object" && !!i.rowOf,
   );
+  // A declared row-model input WINS over a same-named filter token — one
+  // control (the source-rows dropdown), not two {category} rows.
+  for (const input of rowInputs) candidates.delete(input.name);
   // The menu's OTHER primitive inputs (e.g. category_name, passed by the
   // calling menu at runtime) preview as free text — titles/lore render them
   // even though no filter enumerates their values.
