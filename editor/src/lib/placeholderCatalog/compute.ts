@@ -104,9 +104,14 @@ function collectMenuContextInputs(
     // sourceRef
     const resolvedType = typeOfSourceRef(input.ref, pack);
     if (!resolvedType) {
-      console.warn(
-        `[placeholderCatalog] menu "${menu.id}" contextInput "${input.name}" → sourceRef "${input.ref}" points at a deleted dataSource/connector. Omitted.`,
-      );
+      // Server refs (`namespace:source`) legitimately have no design-time
+      // FieldType — their schema lives in the server report, and iteration
+      // aliases expose the leaves. Only a dangling `pack:` ref is a problem.
+      if (input.ref.startsWith("pack:")) {
+        console.warn(
+          `[placeholderCatalog] menu "${menu.id}" contextInput "${input.name}" → sourceRef "${input.ref}" points at a deleted dataSource. Omitted.`,
+        );
+      }
       continue;
     }
     if (resolvedType.kind === "list") {
