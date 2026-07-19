@@ -5,8 +5,8 @@ import { useState } from "react";
 
 /**
  * AssistantBody — switches between the conversation LIST and a single CHAT.
- * Shared by the desktop pane (`AssistantPane`) and the mobile drawer
- * (`AssistantPanel`). Opens on the list so the user can resume a past
+ * Hosted by the shared WorkspaceOverlay (`?tab=assistant`). Opens on the
+ * list so the user can resume a past
  * conversation or start a new one.
  *
  * The chat is keyed per conversation (`<id>-<nonce>`) so switching — including
