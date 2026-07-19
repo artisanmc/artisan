@@ -24,7 +24,6 @@ import org.bukkit.inventory.ItemStack
 
 object DialogRenderer {
 
-    private val mm = MiniMessage.miniMessage()
 
     fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
         val langMap = dialog.langMapWithFallback(lang)
@@ -34,7 +33,7 @@ object DialogRenderer {
 
         val bodyComponents: List<DialogBody> = dialog.yaml.body.mapIndexedNotNull { i, b ->
             val body: DialogBody? = when (b.type) {
-                "text" -> texts.bodyTexts[i]?.let { DialogBody.plainMessage(mm.deserialize(it)) }
+                "text" -> texts.bodyTexts[i]?.let { DialogBody.plainMessage(LenientText.parse(it)) }
                 "item" -> b.material?.let { mat ->
                     runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()?.let { material ->
                         DialogBody.item(ItemStack(material, b.count.coerceAtLeast(1))).build()
@@ -46,7 +45,7 @@ object DialogRenderer {
         }
 
         val inputList: List<DialogInput> = dialog.yaml.inputs.mapIndexedNotNull { i, inputYaml ->
-            val label = mm.deserialize(texts.inputLabels[i])
+            val label = LenientText.parse(texts.inputLabels[i])
             runCatching {
                 when (inputYaml.type) {
                     "text" -> DialogInput.text(inputYaml.id, label)
@@ -68,7 +67,7 @@ object DialogRenderer {
                         val entries = inputYaml.options.mapIndexed { j, opt ->
                             SingleOptionDialogInput.OptionEntry.create(
                                 opt.value,
-                                mm.deserialize(texts.inputOptionLabels[i][j]),
+                                LenientText.parse(texts.inputOptionLabels[i][j]),
                                 opt.value == defaultVal
                             )
                         }
@@ -87,7 +86,7 @@ object DialogRenderer {
             val actions      = btnYaml.actions.map { ActionParser.parse(it) }
             val fallback     = btnYaml.fallback.map { ActionParser.parse(it) }
             val handler      = ClickHandler(requirements, actions, fallback)
-            val btnLabel     = mm.deserialize(texts.buttonLabels[i])
+            val btnLabel     = LenientText.parse(texts.buttonLabels[i])
 
             val callback = DialogActionCallback { view: DialogResponseView, _: Audience ->
                 val inputValues: Map<String, Any> = inputIds.associateWith { id ->
@@ -107,7 +106,7 @@ object DialogRenderer {
                 .build()
         }
 
-        val title = mm.deserialize(texts.title)
+        val title = LenientText.parse(texts.title)
         val base = DialogBase.builder(title)
             .canCloseWithEscape(dialog.yaml.canCloseWithEscape)
             .body(bodyComponents)
