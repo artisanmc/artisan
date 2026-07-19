@@ -190,6 +190,8 @@ const fr: typeof en = {
     previewContextHint:
       "Choisis avec quelle valeur le canvas prévisualise ce menu paramétré — les filtres s'appliquent aux vraies lignes.",
     previewContextAll: "(tout — non filtré)",
+    previewContextFrom: "comme ouvert depuis",
+    previewContextPick: "(choisir un appelant…)",
     menuData: "Données du menu",
     menuDataNoFilters: "Aucun filtre — source complète.",
     menuDataLocalHint: "Données du projet — voir l'onglet Data.",
