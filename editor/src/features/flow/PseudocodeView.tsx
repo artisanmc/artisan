@@ -56,14 +56,15 @@ function DragHandle() {
   const { t } = useTranslation();
   const ctx = useContext(DragHandleContext);
   const enabled = !!ctx.listeners;
+  // A <span> (with dnd-kit's role="button" attributes), NOT a <button>: the
+  // handle lives inside the row's clickable <button> content, and nested
+  // buttons are invalid HTML (React 19 flags the hydration hazard).
   return (
-    <button
-      type="button"
+    <span
       title={enabled ? t("flow.dragToReorder") : undefined}
-      disabled={!enabled}
       aria-hidden={!enabled}
-      {...(ctx.attributes ?? {})}
-      {...(ctx.listeners ?? {})}
+      {...(enabled ? (ctx.attributes ?? {}) : {})}
+      {...(enabled ? (ctx.listeners ?? {}) : {})}
       className={cx(
         "flex h-6 w-5 shrink-0 select-none items-center justify-center rounded text-[12px] leading-none",
         enabled
@@ -72,7 +73,7 @@ function DragHandle() {
       )}
     >
       ⠿
-    </button>
+    </span>
   );
 }
 
