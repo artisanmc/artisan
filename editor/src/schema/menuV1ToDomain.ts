@@ -176,6 +176,7 @@ export function menuV1ToDomain(
     }
     return {
       kind: "primitive",
+      ...(ci.row_of !== undefined ? { rowOf: ci.row_of } : {}),
       name: ci.name,
       type: ci.type,
       ...(ci.default !== undefined ? { default: ci.default } : {}),

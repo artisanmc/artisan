@@ -150,6 +150,7 @@ const fr: typeof en = {
     inputDefaultPlaceholder: "(aucun)",
     inputSenderDefault: "expéditeur de la commande",
     addInput: "+ Ajouter une entrée",
+    inputRowModels: "Modèles de ligne (sources de données)",
     removeInput: "Supprimer l'entrée",
     inputSource: "source",
     inputSourceCaller: "appelant",

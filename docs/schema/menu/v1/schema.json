@@ -187,6 +187,10 @@
           "type": "string",
           "enum": ["player", "string", "integer", "number", "boolean", "list", "object"]
         },
+        "row_of": {
+          "type": "string",
+          "description": "Pour type=\"object\"/\"list\" : ref de la data source dont cette slot porte le MODELE de ligne (fournie par l'appelant - pas fetchee, contrairement a `source`). Outillage editeur uniquement (completion, apercu) ; le runtime l'ignore."
+        },
         "default": {
           "type": "string",
           "description": "Valeur fallback si l'appelant ne passe rien et qu'aucune data source n'est attachée. Supporte les placeholders."

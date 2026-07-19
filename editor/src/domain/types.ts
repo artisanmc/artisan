@@ -167,6 +167,13 @@ export type ContextInput =
       name: string;
       /** `list`/`object` = caller-provided structured data (e.g. an iteration alias). */
       type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
+      /**
+       * For `object`/`list`: the data source whose ROW MODEL this input carries
+       * (caller-provided — NOT fetched, unlike `kind: "sourceRef"`). Gives the
+       * editor the field schema: placeholder completion, preview candidates,
+       * and the "Category (boutique:categories)" typed entry in the UI.
+       */
+      rowOf?: SourceRef;
       default?: string;
     }
   | {

@@ -651,6 +651,23 @@ describe("transform", () => {
     expect(action.menuId).toBeUndefined();
   });
 
+  it("round-trips a row-model context input (type object + row_of)", () => {
+    const pack = makeProject({
+      menus: [{
+        id: menuId("shop_category"), projectId: projectId("p_test"), rows: 6, title: [],
+        contextInputs: [
+          { kind: "primitive", name: "cat", type: "object", rowOf: "boutique:categories" as never },
+        ],
+        layers: [],
+      }],
+    });
+    const files = transform(pack);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop_category.yaml"]!);
+    expect(menu.context_inputs).toEqual([
+      { name: "cat", type: "object", row_of: "boutique:categories" },
+    ]);
+  });
+
   it("serializes paginate to pagination_next/prev with element_id", () => {
     const pack = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
