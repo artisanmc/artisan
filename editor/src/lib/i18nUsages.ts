@@ -111,6 +111,17 @@ export function countMissingForLang(pack: Project, lang: string): number {
   return count;
 }
 
+/** Opaque template ids make unreadable contexts — show the SET's name:
+ *  "item_templates.itpl_1_x.default.lore" → "set « Vue categories » · default.lore". */
+function prettifyContext(pack: Project, path: string): string {
+  const m = /^item_templates\.([^.]+)\.(.+)$/.exec(path);
+  if (m) {
+    const tpl = pack.itemTemplates?.find((t) => t.id === m[1]);
+    if (tpl) return `set « ${tpl.name} » · ${m[2]}`;
+  }
+  return path;
+}
+
 export function buildTranslationRows(pack: Project, activeLang: string): TranslationRow[] {
   const usages = findKeyUsages(pack);
   const rows: TranslationRow[] = [];
@@ -118,7 +129,7 @@ export function buildTranslationRows(pack: Project, activeLang: string): Transla
     if (!entry) continue;
     rows.push({
       key: key as I18nKey,
-      context: usages.get(key as I18nKey) ?? UNUSED_CONTEXT,
+      context: prettifyContext(pack, usages.get(key as I18nKey) ?? UNUSED_CONTEXT),
       source: entry[pack.defaultLang] ?? "",
       target: entry[activeLang] ?? "",
     });

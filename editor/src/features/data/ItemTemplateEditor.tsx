@@ -297,7 +297,20 @@ export function ItemTemplateEditor({
               </label>
               {app.lore ? (
                 <label className="flex flex-col gap-1 text-[10px] text-[var(--text-mut)]">
-                  {t("itemTemplates.loreLabel", { lang: activeLang })}
+                  <span className="flex items-center gap-1.5">
+                    {t("itemTemplates.loreLabel", { lang: activeLang })}
+                    {/* No lore = no i18n key: removing it GCs the key so it
+                        stops showing as a missing translation. */}
+                    <button
+                      type="button"
+                      data-testid="remove-template-lore"
+                      title={t("itemTemplates.removeLore")}
+                      onClick={() => patchAppearance(i, { lore: undefined })}
+                      className="flex h-4 w-4 items-center justify-center rounded text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--danger)]"
+                    >
+                      ×
+                    </button>
+                  </span>
                   <textarea
                     value={getText(pack, app.lore, activeLang)}
                     rows={2}

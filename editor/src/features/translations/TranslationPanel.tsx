@@ -12,7 +12,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { yaml as yamlLang } from "@codemirror/lang-yaml";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
-import { AlertCircle, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -475,6 +475,17 @@ function VisualRow({
               <span className="text-[var(--text-faint)] italic">{t("translations.emptySource")}</span>
             )}
           </div>
+          {row.source ? (
+            <button
+              type="button"
+              data-testid="copy-default-value"
+              title={t("translations.copyDefault", { lang: defaultLang })}
+              onClick={() => onChange(row.source)}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
         </div>
       ) : null}
 
