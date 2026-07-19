@@ -150,6 +150,28 @@ describe("assistant routes", () => {
 		expect(res.status).toBe(401);
 	});
 
+	it("accepts the projectId wire name (pack→project rename) on create and list", async () => {
+		// The editor sends { projectId } since the wire flip — packId is the
+		// legacy alias. Reading only packId made every create 404 and the
+		// assistant UI show "Interrompu" on the very first message.
+		const created = await app.request("/api/v1/assistant/conversations", {
+			method: "POST",
+			headers: cookieHeader(),
+			body: JSON.stringify({ projectId: PACK_ID }),
+		});
+		expect(created.status).toBe(200);
+		const { conversationId } = await created.json();
+		expect(typeof conversationId).toBe("string");
+
+		const listed = await app.request(
+			`/api/v1/assistant/conversations?projectId=${PACK_ID}`,
+			{ headers: cookieHeader() },
+		);
+		expect(listed.status).toBe(200);
+		const { conversations } = await listed.json();
+		expect(conversations.some((c: { id: string }) => c.id === conversationId)).toBe(true);
+	});
+
 	it("creates a conversation and streams engine events for a message", async () => {
 		const created = await app.request("/api/v1/assistant/conversations", {
 			method: "POST",
