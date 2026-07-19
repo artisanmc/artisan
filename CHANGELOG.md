@@ -9,6 +9,9 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — whole-model context passing (`open_menu` / `open_dialog`)
+- Context values resolve at emit time against the emitting click's ctx, and a value that is EXACTLY one placeholder (`{cat}`, `{item.final_price}`) passes the RAW value — the whole bound row Map, a Number — instead of a flattened string (mixed templates still interpolate to strings). `context: { cat: "{cat}" }` is enough for the target menu to use `{cat.name}` in titles and `{cat.id}` in filters, no per-attribute re-plumbing. Editor previews mirror the semantics (call-context selector passes raw rows; filters accept dotted `{cat.id}` tokens).
+
 ### Added — assistant i18n tools (`get_translations` / `write_translations`)
 - The assistant can now read and edit the text behind `{i18n:<key>}` refs: the editor sends `translations` (key → { lang: value }) with each turn, the model edits via `write_translations` (per-key/per-lang merge), and the `translations_written` SSE event applies to the editor store. The assistant routes also accept the `projectId` wire name (`packId` kept as legacy alias) — the packId-only read made every conversation create 404 since the pack→project rename.
 
