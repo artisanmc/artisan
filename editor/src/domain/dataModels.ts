@@ -16,6 +16,11 @@ import type {
  * `project-sources-and-data-models` + CONTEXT.md "Data model".
  */
 
+/** Canonical authored name used for source identity and i18n paths. */
+export function normalizeDataSourceName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 export function findDataModel(pack: Project, id: DataModelId): DataModel | undefined {
   return (pack.dataModels ?? []).find((m) => m.id === id);
 }
