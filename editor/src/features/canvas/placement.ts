@@ -4,9 +4,9 @@ import { renderPreview } from "./menuPreviewScope";
 
 /**
  * Pure helpers for **placement mode** rendering (Element.places). A placement
- * pins one row of a static data source to a page+slot; the element's
- * `appearances[0]` is the template, `override` is a display-only per-row patch,
- * and `cachedDisplay` is the offline fallback when the live row is unreachable.
+ * pins one row of a static data source to a page+slot; the bound template
+ * supplies how the row looks and behaves (no per-placement override), and
+ * `cachedDisplay` is the offline fallback when the live row is unreachable.
  * Kept out of MenuGroup so the resolution is unit-testable without Konva.
  */
 

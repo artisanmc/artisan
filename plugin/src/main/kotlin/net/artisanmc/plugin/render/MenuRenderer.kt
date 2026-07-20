@@ -159,8 +159,7 @@ object MenuRenderer {
                         val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
                         val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
                             ?: continue
-                        val appYaml = applyOverride(chosen.yaml, placement.override)
-                        inv.setItem(placement.position, buildItem(appYaml, langMap, itemCtx, evaluator.deps))
+                        inv.setItem(placement.position, buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps))
                         if (chosen.clicks.isNotEmpty()) {
                             activeClicks[placement.position] = chosen.clicks
                             slotArgs[placement.position] = itemArgs
@@ -202,18 +201,6 @@ object MenuRenderer {
 
         player.openInventory(inv)
         return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs)
-    }
-
-    /** Merge a Placement's display-only override onto the template appearance. */
-    private fun applyOverride(base: AppearanceYaml, override: net.artisanmc.plugin.model.PlacementOverrideYaml?): AppearanceYaml {
-        if (override == null) return base
-        return base.copy(
-            material = override.material ?: base.material,
-            head = override.head ?: base.head,
-            count = override.count ?: base.count,
-            title = override.title ?: base.title,
-            lore = override.lore ?: base.lore,
-        )
     }
 
     private fun buildItem(

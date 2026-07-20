@@ -55,10 +55,16 @@ monolingual hole (per-item literal `name`/`lore`).
    model is inlined as a flattened field-kind map, mirroring how Item templates are
    inlined into `menu/v1`. ltext values export as their canonical keys (translations
    already travel in `lang/`); item values as refs (stacks travel in `items/`). The
-   core menus module registers a reserved `pack:` resolver in `DataSourceRegistry`
-   (static, keyField from the file); ltext fields resolve at **bind** time
-   (`ContextBinder`, player language known) so `resolveText` is untouched. New JSON
-   schema: `docs/schema/data/v1/`. `BundleHasher` covers `data/` automatically.
+   reserved `pack:` namespace resolves at the **renderer fetch seam**
+   (`ProjectDataResolver`, over the live bundle list) — *amended at implementation
+   time*: it was first planned as a `DataSourceRegistry` registration, but the
+   registry feeds the presence report (`data_sources` WS), which would leak project
+   content into the editor's "server sources" list and duplicate what the editor
+   already authors locally; the seam also survives hot-reload without an
+   unregister API. ltext fields resolve at **bind** time (the viewer's language is
+   known when the menu opens) so `resolveText` is untouched; a config-shaped
+   source binds its object whole, unshaped. New JSON schema:
+   `docs/schema/data/v1/`. `BundleHasher` covers `data/` automatically.
 
 ## Consequences
 

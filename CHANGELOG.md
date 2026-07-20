@@ -9,6 +9,12 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+### Added — Project sources with declared schemas (Data models, `data/v1`)
+- Manual project data sources (`pack:<id>`) are now first-class deployable content: the admin declares a **Data model** (recursive field schema incl. `ltext` localized text and `item` material refs), edits rows through a schema-driven form (the YAML pane is gone), and the bundle ships `data/<source_id>.yaml` (new schema `docs/schema/data/v1`, models inlined). The plugin loads them (`ProjectReader` → `BundleDataSource`) and resolves the reserved `pack:` namespace at the renderer fetch seam, localizing ltext fields with the viewer's language at bind time. Two shapes: **table** (rows — iterable/placeable/set-able) and **config** (a single object bound whole for `{settings.x}` interpolation). Legacy schemaless sources are reset on load (accepted, cf. ADR `project-sources-and-data-models`).
+
+### Removed — per-placement display override (runtime)
+- `PlacementYaml.override` / `applyOverride` dropped from the plugin renderer — the editor stopped authoring overrides on 2026-07-16 (per-row variation is a conditional state of the Item template; CONTEXT.md "Placement"). Old bundles carrying `override:` still parse (ignored).
+
 ### Added — dotted iteration/placement sources (`iterates.source: category.items`)
 - `iterates.source` / `places.source` accept a DOTTED path into a context object: an element can paginate over a list field of a row passed whole (`context: { category: "{cat}" }` → `iterates: { source: category.items, alias: item }`). Flat sourceRef keys keep working — both idioms coexist (the flat source + filter join stays the recommended default: typed schema, sets, stability, live preview).
 

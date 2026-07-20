@@ -58,17 +58,9 @@ data class PlacementYaml(
     val key: String = "",
     val page: Int = 0,
     val position: Int = 0,
-    /** Display-only override (title/lore/material/head/count); behaviour stays from the template. */
-    val override: PlacementOverrideYaml? = null,
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class PlacementOverrideYaml(
-    val material: String? = null,
-    val head: String? = null,
-    val count: Int? = null,
-    val title: String? = null,
-    val lore: List<String>? = null,
+    // No per-placement override: how a placed row looks and behaves comes from
+    // the Item template only (CONTEXT.md "Placement"; editor stopped authoring
+    // overrides 2026-07-16, runtime support dropped with the data-sources epic).
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
