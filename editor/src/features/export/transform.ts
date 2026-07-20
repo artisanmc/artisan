@@ -1,12 +1,16 @@
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { getTitleTextLayers } from "@/domain/menuTitle";
 import { walkActions } from "@/domain/stepPath";
+import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import type {
   Action,
   Appearance,
   AssetId,
   Command,
   Condition,
+  DataModel,
+  DataModelId,
+  DataSource,
   Dialog,
   DialogBody,
   DialogButton,
@@ -17,6 +21,8 @@ import type {
   ItemTemplate,
   Menu,
   MenuTitleLayer,
+  ModelField,
+  ModelFieldType,
   Project,
   Step,
 } from "@/domain/types";
@@ -645,6 +651,11 @@ function collectReferencedKeys(pack: Project): Set<string> {
       for (const action of walkActions(btn.steps)) addActionKeys(action, keys);
     }
   }
+  // Project-source ltext values — the plugin resolves them at bind time
+  // against the same lang files.
+  for (const ds of pack.dataSources ?? []) {
+    for (const site of visitDataSourceLTexts(pack, ds)) keys.add(site.lText.key);
+  }
   return keys;
 }
 
@@ -671,6 +682,103 @@ function serializeLang(
     }
   }
   return out;
+}
+
+// ─── Project sources (data/v1) ───────────────────────────────────────────────
+// Denormalized per ADR project-sources-and-data-models: Data models are inlined
+// as flattened field kinds — the Bundle/plugin never see model identity (same
+// philosophy as Item templates inlined into menu/v1). ltext values export as
+// their canonical i18n keys (translations travel in lang/); item values as refs
+// (stacks travel in items/).
+
+function serializeDataFieldType(
+  type: ModelFieldType,
+  models: DataModel[],
+  visited: Set<DataModelId>,
+): Record<string, unknown> {
+  switch (type.kind) {
+    case "list":
+      return { kind: "list", of: serializeDataFieldType(type.of, models, visited) };
+    case "object":
+      return { kind: "object", fields: type.fields.map((f) => serializeDataField(f, models, visited)) };
+    case "model": {
+      const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
+      if (!model) return { kind: "object", fields: [] };
+      const next = new Set(visited).add(type.ref);
+      return { kind: "object", fields: model.fields.map((f) => serializeDataField(f, models, next)) };
+    }
+    default:
+      return { kind: type.kind };
+  }
+}
+
+function serializeDataField(
+  field: ModelField,
+  models: DataModel[],
+  visited: Set<DataModelId>,
+): Record<string, unknown> {
+  return { name: field.name, ...serializeDataFieldType(field.type, models, visited) };
+}
+
+function serializeDataValue(
+  value: unknown,
+  type: ModelFieldType,
+  models: DataModel[],
+  visited: Set<DataModelId>,
+): unknown {
+  switch (type.kind) {
+    case "ltext":
+      return typeof value === "object" && value !== null && "key" in value
+        ? String((value as { key: unknown }).key)
+        : "";
+    case "list":
+      return Array.isArray(value)
+        ? value.map((el) => serializeDataValue(el, type.of, models, visited))
+        : [];
+    case "object": {
+      const obj =
+        typeof value === "object" && value !== null && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+      const out: Record<string, unknown> = {};
+      for (const f of type.fields) out[f.name] = serializeDataValue(obj[f.name], f.type, models, visited);
+      return out;
+    }
+    case "model": {
+      const model = visited.has(type.ref) ? undefined : models.find((m) => m.id === type.ref);
+      if (!model) return {};
+      const next = new Set(visited).add(type.ref);
+      return serializeDataValue(value, { kind: "object", fields: model.fields }, models, next);
+    }
+    default:
+      return value;
+  }
+}
+
+export function serializeDataSource(pack: Project, ds: DataSource): Record<string, unknown> {
+  const models = pack.dataModels ?? [];
+  if (ds.shape === "table") {
+    const model = models.find((m) => m.id === ds.modelId);
+    const fields = model?.fields ?? [];
+    const visited = new Set<DataModelId>(model ? [model.id] : []);
+    return {
+      schema: "data/v1",
+      id: ds.id,
+      shape: "table",
+      key_field: model?.keyField ?? "id",
+      fields: fields.map((f) => serializeDataField(f, models, visited)),
+      rows: ds.rows.map((r) =>
+        serializeDataValue(r, { kind: "object", fields }, models, new Set(model ? [model.id] : [])),
+      ),
+    };
+  }
+  return {
+    schema: "data/v1",
+    id: ds.id,
+    shape: "config",
+    fields: ds.fields.map((f) => serializeDataField(f, models, new Set())),
+    value: serializeDataValue(ds.value, { kind: "object", fields: ds.fields }, models, new Set()),
+  };
 }
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -703,6 +811,10 @@ export function transform(pack: Project): Record<string, string> {
   // deserializes these to resolve `item:<id>` material refs with exact NBT.
   for (const item of pack.capturedItems ?? []) {
     files[`${base}/items/${item.id}.yml`] = item.stackYaml;
+  }
+
+  for (const ds of pack.dataSources ?? []) {
+    files[`${base}/data/${ds.id}.yaml`] = stringify(serializeDataSource(pack, ds), yamlOpts);
   }
 
   const langs = listLanguages(pack);
