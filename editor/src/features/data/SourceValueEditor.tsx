@@ -59,7 +59,8 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
 
   useEffect(() => {
     setDraft(String(value ?? ""));
-  }, [value]);
+    setError(null);
+  }, [value, sourceId, row, fieldName]);
 
   const commit = () => {
     const result = setSourceValue({ projectId, sourceId, row, path: [fieldName], value: draft });

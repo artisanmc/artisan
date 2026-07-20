@@ -95,6 +95,26 @@ describe("SourceRowsTable", () => {
     expect(input).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("clears a Row key error when an index-keyed editor is reused", () => {
+    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useAccountStore
+      .getState()
+      .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
+    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+
+    const input = screen.getByDisplayValue("vip");
+    fireEvent.change(input, { target: { value: " member " } });
+    fireEvent.blur(input);
+    expect(screen.getByText("Une ligne porte déjà cet ID.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByLabelText("Supprimer la row")[0]!);
+    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+
+    const reusedInput = screen.getByDisplayValue("member");
+    expect(reusedInput).toHaveAttribute("aria-invalid", "false");
+    expect(screen.queryByText("Une ligne porte déjà cet ID.")).toBeNull();
+  });
+
   it("shows a required Row key error without changing the stored value", () => {
     render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
     const input = screen.getByDisplayValue("vip");
