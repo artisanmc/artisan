@@ -1,38 +1,30 @@
 import { Badge } from "@/components/ui/badge";
-import { findDataModel } from "@/domain/dataModels";
-import type { DataSource, ModelField, ProjectId } from "@/domain/types";
+import type { DataSource, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ItemTemplatesSection, packSourceToTemplatable } from "./ItemTemplatesSection";
+import { ModelFieldsEditor } from "./ModelFieldsEditor";
+import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
 
 interface DataSourceEditorProps {
   projectId: ProjectId;
   source: DataSource;
 }
 
-function fieldKindLabel(f: ModelField): string {
-  const t = f.type;
-  if (t.kind === "list") return `list<${t.of.kind}>`;
-  return t.kind;
-}
-
 /**
- * Project-source detail. The YAML pane died with the declared-schema refactor
- * (ADR `project-sources-and-data-models`): editing is form-only, and the row
- * form ships with the authoring-UI phase. Until then this shows the declared
- * shape read-only + the Sets section (unchanged).
+ * Project-source detail — form-only editing (the YAML pane died with the
+ * declared-schema refactor, ADR `project-sources-and-data-models`): schema
+ * section (Data model / config fields), then the rows table (table) or the
+ * value form (config), then the Sets section (unchanged).
  */
 export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
   const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
   const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
   const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const [schemaOpen, setSchemaOpen] = useState(true);
   if (!pack) return null;
-
-  const fields =
-    source.shape === "table"
-      ? (findDataModel(pack, source.modelId)?.fields ?? [])
-      : source.fields;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -55,25 +47,42 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto rounded border border-[var(--border-soft)] p-3">
-        <div className="eyebrow mb-2">{t("dataSources.schemaTitle")}</div>
-        {fields.length === 0 ? (
-          <p className="text-[11px] text-[var(--text-faint)]">{t("dataSources.noSchema")}</p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {fields.map((f) => (
-              <li key={f.name} className="flex items-center gap-2 font-mono text-[12px]">
-                <span className="text-[var(--text)]">{f.name}</span>
-                <span className="text-[var(--text-faint)]">{fieldKindLabel(f)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+        <section className="rounded border border-[var(--border-soft)] p-3">
+          <button
+            type="button"
+            onClick={() => setSchemaOpen((v) => !v)}
+            className="eyebrow mb-2 flex items-center gap-1"
+            aria-expanded={schemaOpen}
+          >
+            <span>{schemaOpen ? "▾" : "▸"}</span>
+            {t("dataSources.schemaTitle")}
+          </button>
+          {schemaOpen ? (
+            <ModelFieldsEditor projectId={projectId} pack={pack} source={source} />
+          ) : null}
+        </section>
 
-      {/* Item sets over PROJECT data — same tooling as server sources. */}
-      <div className="shrink-0 border-t border-[var(--border-soft)] pt-2">
-        <ItemTemplatesSection projectId={projectId} source={packSourceToTemplatable(pack, source)} />
+        <section className="rounded border border-[var(--border-soft)] p-3">
+          <div className="eyebrow mb-2">
+            {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
+          </div>
+          {source.shape === "table" ? (
+            <SourceRowsTable projectId={projectId} pack={pack} source={source} />
+          ) : (
+            <ConfigValueForm projectId={projectId} pack={pack} source={source} />
+          )}
+        </section>
+
+        {/* Item sets over PROJECT data — same tooling as server sources. */}
+        {source.shape === "table" ? (
+          <section className="border-t border-[var(--border-soft)] pt-2">
+            <ItemTemplatesSection
+              projectId={projectId}
+              source={packSourceToTemplatable(pack, source)}
+            />
+          </section>
+        ) : null}
       </div>
     </div>
   );

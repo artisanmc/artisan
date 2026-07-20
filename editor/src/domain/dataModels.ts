@@ -225,7 +225,7 @@ export function sourceTypeAtPath(
       type = type.of;
     } else {
       if (type.kind !== "object") return undefined;
-      const f = type.fields.find((x) => x.name === seg);
+      const f: ModelField | undefined = type.fields.find((x) => x.name === seg);
       if (!f) return undefined;
       type = f.type;
     }
