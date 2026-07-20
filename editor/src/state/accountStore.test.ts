@@ -1379,6 +1379,134 @@ describe("accountStore", () => {
       expect(pack.i18nKeys["lt_x" as never]).toBeUndefined();
     });
 
+    it("row lifecycle: add seeds defaults + mints ltexts, cell set, remove releases keys", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const pack0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const ds0 = pack0.dataSources[0]!;
+      if (ds0.shape !== "table") throw new Error("expected table");
+      // Declare: name (ltext) + icon (item) on the auto model.
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: ds0.modelId },
+        edit: { op: "add", path: [], field: { name: "name", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: ds0.modelId },
+        edit: { op: "add", path: [], field: { name: "icon", type: { kind: "item" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: ds0.id });
+      let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      let row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect(row.id).toBe("");
+      expect(row.icon).toBe("");
+      const lt = row.name as { key: string };
+      // Minted: non-sentinel key backed by an i18n entry.
+      expect(lt.key).not.toBe("");
+      expect(pack.i18nKeys[lt.key as never]).toBeDefined();
+
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: ds0.id,
+        row: 0,
+        path: ["id"],
+        value: "vip",
+      });
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: ds0.id,
+        row: 0,
+        path: ["icon"],
+        value: "GOLD_INGOT",
+      });
+      pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect(row.id).toBe("vip");
+      expect(row.icon).toBe("GOLD_INGOT");
+
+      useAccountStore.getState().removeSourceRow({ projectId: PERSONAL, sourceId: ds0.id, index: 0 });
+      pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect((pack.dataSources[0] as { rows: unknown[] }).rows).toHaveLength(0);
+      expect(pack.i18nKeys[lt.key as never]).toBeUndefined();
+    });
+
+    it("list items: add appends a minted element, remove releases it", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (ds0.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: ds0.modelId },
+        edit: { op: "add", path: [], field: { name: "perks", type: { kind: "list", of: { kind: "ltext" } } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: ds0.id });
+      useAccountStore.getState().addSourceListItem({ projectId: PERSONAL, sourceId: ds0.id, row: 0, path: ["perks"] });
+      let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const perks = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.perks as {
+        key: string;
+      }[];
+      expect(perks).toHaveLength(1);
+      expect(perks[0]!.key).not.toBe("");
+      const key = perks[0]!.key;
+      expect(pack.i18nKeys[key as never]).toBeDefined();
+      useAccountStore.getState().removeSourceListItem({ projectId: PERSONAL, sourceId: ds0.id, row: 0, path: ["perks"], index: 0 });
+      pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect((pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.perks).toEqual([]);
+      expect(pack.i18nKeys[key as never]).toBeUndefined();
+    });
+
+    it("config: cell set operates on the value object (row: null)", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL, shape: "config" });
+      const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "config", sourceId: ds0.id },
+        edit: { op: "add", path: [], field: { name: "currency", type: { kind: "string" } } },
+      });
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: ds0.id,
+        row: null,
+        path: ["currency"],
+        value: "coins",
+      });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect((pack.dataSources[0] as { value: Record<string, unknown> }).value.currency).toBe("coins");
+    });
+
+    it("editSourceField refuses a model ref that would create a cycle", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (ds0.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: ds0.modelId },
+        edit: { op: "add", path: [], field: { name: "self", type: { kind: "model", ref: ds0.modelId } } },
+      });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect(pack.dataModels![0]!.fields.some((f) => f.name === "self")).toBe(false);
+    });
+
+    it("renameDataModel + setModelKeyField update the model", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (ds0.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().renameDataModel({ projectId: PERSONAL, modelId: ds0.modelId, newName: "rank" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: ds0.modelId },
+        edit: { op: "add", path: [], field: { name: "slug", type: { kind: "string" } } },
+      });
+      useAccountStore.getState().setModelKeyField({ projectId: PERSONAL, modelId: ds0.modelId, keyField: "slug" });
+      const m = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.dataModels![0]!;
+      expect(m.name).toBe("rank");
+      expect(m.keyField).toBe("slug");
+    });
+
     it("renames a data source", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const id = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
