@@ -223,6 +223,7 @@ plugins/Artisan/projects/
     dialogs/<dialog_id>.yaml
     lang/<lang>.yaml
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
+    data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`) — Data models inlinés, valeurs ltext = clés i18n résolues au bind, valeurs item = refs material
     .artisan-sync.yaml   ← SyncMetadata (syncedHash, backendHash, syncedAt)
 ```
 

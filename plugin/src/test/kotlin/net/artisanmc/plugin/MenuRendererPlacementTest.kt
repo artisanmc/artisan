@@ -107,17 +107,19 @@ class MenuRendererPlacementTest {
         assertEquals(Material.DIAMOND_SWORD, inv.getItem(11)?.type)  // sword still fine
     }
 
-    @Test fun `override changes display only, template still supplies material and click`() {
+    @Test fun `legacy override key in YAML is ignored — template supplies everything`() {
+        // Per-placement overrides were dropped (CONTEXT.md "Placement"); old
+        // bundles carrying `override:` still load (ignoreUnknown) but render
+        // purely from the template.
         val p = player()
         val m = BundleCompiler.compile(menu(
             "[ { key: apple, page: 0, position: 12, override: { title: \"PROMO\", lore: [\"-50%\"] } } ]"
         ), emptyMap())
         val session = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())
         val item = p.openInventory.topInventory.getItem(12)
-        assertEquals(Material.APPLE, item?.type)                       // material from template
-        assertEquals("PROMO", legacy(item?.itemMeta?.displayName()))   // title overridden
-        assertEquals(listOf("-50%"), item?.itemMeta?.lore()?.map { legacy(it) }) // lore overridden
-        assertTrue(session.activeClicks.containsKey(12))              // click from template kept
+        assertEquals(Material.APPLE, item?.type)                        // material from template
+        assertNotEquals("PROMO", legacy(item?.itemMeta?.displayName())) // override NOT applied
+        assertTrue(session.activeClicks.containsKey(12))                // click from template kept
         assertEquals(mapOf("id" to "apple", "name" to "Apple", "material" to "APPLE"), session.slotArgs[12]?.get("item"))
     }
 }
