@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dataModelId, dataSourceId } from "./ids";
 import type { DataModel, DataSource, Project } from "./types";
 import {
+  applyFieldEdit,
   defaultValueForModelType,
   findDataModel,
   modelFieldTypeToFieldType,
@@ -138,5 +139,192 @@ describe("normalizeDataSources", () => {
     normalizeDataSources(pack);
     expect(pack.dataSources).toEqual([table]);
     expect(pack.dataModels).toEqual([]);
+  });
+});
+
+describe("applyFieldEdit", () => {
+  // A pack with: rank model (used by two tables + nested in cat model), a config.
+  function migPack(): Project {
+    const rank: DataModel = {
+      id: dataModelId("m_rank"),
+      name: "rank",
+      keyField: "id",
+      fields: [
+        { name: "id", type: { kind: "string" } },
+        { name: "name", type: { kind: "ltext" } },
+        { name: "price", type: { kind: "number" } },
+        { name: "meta", type: { kind: "object", fields: [{ name: "tag", type: { kind: "string" } }] } },
+      ],
+    };
+    const cat: DataModel = {
+      id: dataModelId("m_cat"),
+      name: "cat",
+      keyField: "id",
+      fields: [
+        { name: "id", type: { kind: "string" } },
+        { name: "top", type: { kind: "model", ref: rank.id } },
+      ],
+    };
+    const pack = {
+      id: "p1",
+      name: "P",
+      menus: [],
+      commands: [],
+      templates: [],
+      assets: [],
+      dataModels: [rank, cat],
+      dataSources: [
+        {
+          id: dataSourceId("ranks"),
+          name: "ranks",
+          shape: "table",
+          modelId: rank.id,
+          rows: [
+            { id: "vip", name: { key: "lt_vip" }, price: 9.99, meta: { tag: "a" } },
+            { id: "elite", name: { key: "lt_elite" }, price: 19.99, meta: { tag: "b" } },
+          ],
+        },
+        {
+          id: dataSourceId("cats"),
+          name: "cats",
+          shape: "table",
+          modelId: cat.id,
+          rows: [{ id: "c1", top: { id: "vip", name: { key: "lt_top" }, price: 1, meta: { tag: "c" } } }],
+        },
+        {
+          id: dataSourceId("settings"),
+          name: "settings",
+          shape: "config",
+          fields: [{ name: "motd", type: { kind: "ltext" } }],
+          value: { motd: { key: "lt_motd" } },
+        },
+      ],
+      i18nKeys: {
+        lt_vip: { en: "VIP" },
+        lt_elite: { en: "Elite" },
+        lt_top: { en: "Top" },
+        lt_motd: { en: "Hello" },
+      },
+      defaultLang: "en",
+      dialogs: [],
+      canvasLayout: {},
+    } as unknown as Project;
+    return pack;
+  }
+
+  const model = (pack: Project) => pack.dataModels!.find((m) => m.name === "rank")!;
+  const rows = (pack: Project) =>
+    (pack.dataSources.find((d) => d.name === "ranks") as { rows: Record<string, unknown>[] }).rows;
+  const catRow = (pack: Project) =>
+    (pack.dataSources.find((d) => d.name === "cats") as { rows: Record<string, unknown>[] }).rows[0]!;
+
+  it("add: appends the field and seeds defaults in every instance (incl. nested model refs)", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "add",
+      path: [],
+      field: { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
+    });
+    expect(model(pack).fields.map((f) => f.name)).toContain("perks");
+    expect(rows(pack)[0]!.perks).toEqual([]);
+    expect((catRow(pack).top as Record<string, unknown>).perks).toEqual([]);
+  });
+
+  it("rename: renames the field and moves the data everywhere", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "rename",
+      path: [],
+      oldName: "price",
+      newName: "cost",
+    });
+    expect(model(pack).fields.some((f) => f.name === "cost")).toBe(true);
+    expect(rows(pack)[0]!.cost).toBe(9.99);
+    expect(rows(pack)[0]!.price).toBeUndefined();
+    expect((catRow(pack).top as Record<string, unknown>).cost).toBe(1);
+  });
+
+  it("rename on a nested path migrates nested objects", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "rename",
+      path: ["meta"],
+      oldName: "tag",
+      newName: "label",
+    });
+    expect((rows(pack)[0]!.meta as Record<string, unknown>).label).toBe("a");
+    expect((rows(pack)[1]!.meta as Record<string, unknown>).tag).toBeUndefined();
+  });
+
+  it("remove: drops the field, its data, and releases its i18n keys", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "remove",
+      path: [],
+      name: "name",
+    });
+    expect(model(pack).fields.some((f) => f.name === "name")).toBe(false);
+    expect(rows(pack)[0]!.name).toBeUndefined();
+    expect(pack.i18nKeys["lt_vip" as never]).toBeUndefined();
+    expect(pack.i18nKeys["lt_elite" as never]).toBeUndefined();
+    // Nested instance released too.
+    expect(pack.i18nKeys["lt_top" as never]).toBeUndefined();
+    // Unrelated keys untouched.
+    expect(pack.i18nKeys["lt_motd" as never]).toEqual({ en: "Hello" });
+  });
+
+  it("retype string→ltext wraps the value as a defaultLang translation", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "id",
+      newType: { kind: "ltext" },
+    });
+    const v = rows(pack)[0]!.id as { key: string };
+    expect(typeof v.key).toBe("string");
+    expect(pack.i18nKeys[v.key as never]).toEqual({ en: "vip" });
+  });
+
+  it("retype ltext→string keeps the defaultLang text and releases the key", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "name",
+      newType: { kind: "string" },
+    });
+    expect(rows(pack)[0]!.name).toBe("VIP");
+    expect(pack.i18nKeys["lt_vip" as never]).toBeUndefined();
+  });
+
+  it("retype incompatible resets to the new type's default and releases lost ltexts", () => {
+    const pack = migPack();
+    applyFieldEdit(pack, { kind: "model", modelId: model(pack).id }, {
+      op: "retype",
+      path: [],
+      name: "name",
+      newType: { kind: "boolean" },
+    });
+    expect(rows(pack)[0]!.name).toBe(false);
+    expect(pack.i18nKeys["lt_vip" as never]).toBeUndefined();
+  });
+
+  it("edits a config source's own fields", () => {
+    const pack = migPack();
+    const settings = pack.dataSources.find((d) => d.name === "settings")!;
+    applyFieldEdit(pack, { kind: "config", sourceId: settings.id }, {
+      op: "rename",
+      path: [],
+      oldName: "motd",
+      newName: "welcome",
+    });
+    const ds = pack.dataSources.find((d) => d.name === "settings") as {
+      fields: { name: string }[];
+      value: Record<string, unknown>;
+    };
+    expect(ds.fields[0]!.name).toBe("welcome");
+    expect(ds.value.welcome).toEqual({ key: "lt_motd" });
+    expect(ds.value.motd).toBeUndefined();
   });
 });

@@ -14,7 +14,17 @@ import {
   visitStepLTexts,
 } from "@/domain/i18nSites";
 import { commandId, newCommandId, newDataModelId, newElementId, newLayerId, newProjectId } from "@/domain/ids";
-import { isDataModelReferenced } from "@/domain/dataModels";
+import {
+  type FieldEdit,
+  type FieldEditTarget,
+  applyFieldEdit,
+  defaultValueForModelType,
+  isDataModelReferenced,
+  releaseValueLTexts,
+  sourceRootFields,
+  sourceTypeAtPath,
+  wouldTypeCreateModelCycle,
+} from "@/domain/dataModels";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -28,6 +38,7 @@ import type {
   Condition,
   ContextInput,
   DataSource,
+  DataModelId,
   DataSourceId,
   Dialog,
   DialogBody,
@@ -836,6 +847,33 @@ interface AccountState {
   addProjectDataSource: (args: { projectId: ProjectId; shape?: "table" | "config" }) => void;
   removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
   renameProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId; newName: string }) => void;
+  /** One Data-model/config field edit: schema + synchronous value migration (ADR project-sources-and-data-models). */
+  editSourceField: (args: { projectId: ProjectId; target: FieldEditTarget; edit: FieldEdit }) => void;
+  renameDataModel: (args: { projectId: ProjectId; modelId: DataModelId; newName: string }) => void;
+  setModelKeyField: (args: { projectId: ProjectId; modelId: DataModelId; keyField: string }) => void;
+  addSourceRow: (args: { projectId: ProjectId; sourceId: DataSourceId }) => void;
+  removeSourceRow: (args: { projectId: ProjectId; sourceId: DataSourceId; index: number }) => void;
+  /** Set a scalar/item cell. `row: null` targets a config source's value object. */
+  setSourceValue: (args: {
+    projectId: ProjectId;
+    sourceId: DataSourceId;
+    row: number | null;
+    path: (string | number)[];
+    value: unknown;
+  }) => void;
+  addSourceListItem: (args: {
+    projectId: ProjectId;
+    sourceId: DataSourceId;
+    row: number | null;
+    path: (string | number)[];
+  }) => void;
+  removeSourceListItem: (args: {
+    projectId: ProjectId;
+    sourceId: DataSourceId;
+    row: number | null;
+    path: (string | number)[];
+    index: number;
+  }) => void;
 }
 
 /**
@@ -1106,6 +1144,28 @@ function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I18nKey):
 
 function generateDataSourceId(): DataSourceId {
   return `ds_${Math.random().toString(36).slice(2, 10)}` as DataSourceId;
+}
+
+/** Mint every sentinel ({key:""}) ltext across the pack's Project sources. */
+function mintSourceLTexts(pack: Project): void {
+  for (const ds of pack.dataSources ?? []) {
+    mintLTexts(pack, visitDataSourceLTexts(pack, ds), pack.defaultLang);
+  }
+}
+
+/** Navigate a source's row (or config value) to the container at `path`. */
+function sourceValueContainer(
+  ds: DataSource,
+  row: number | null,
+  path: (string | number)[],
+): unknown {
+  let current: unknown =
+    ds.shape === "table" ? (row === null ? undefined : ds.rows[row]) : ds.value;
+  for (const seg of path) {
+    if (current === undefined || current === null) return undefined;
+    current = (current as Record<string | number, unknown>)[seg];
+  }
+  return current;
 }
 
 function nextElementIdForMaterial(pack: Project, material: string | undefined): ElementId {
@@ -3533,6 +3593,106 @@ export const useAccountStore = create<AccountState>()(
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === id);
             if (ds) ds.name = newName;
+          }),
+        ),
+      editSourceField: ({ projectId, target, edit }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            if (target.kind === "model" && (edit.op === "add" || edit.op === "retype")) {
+              const t = edit.op === "add" ? edit.field.type : edit.newType;
+              if (wouldTypeCreateModelCycle(pack.dataModels ?? [], target.modelId, t)) return;
+            }
+            applyFieldEdit(pack, target, edit);
+            mintSourceLTexts(pack);
+          }),
+        ),
+      renameDataModel: ({ projectId, modelId, newName }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            const m = pack?.dataModels?.find((x) => x.id === modelId);
+            if (m) m.name = newName;
+          }),
+        ),
+      setModelKeyField: ({ projectId, modelId, keyField }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            const m = pack?.dataModels?.find((x) => x.id === modelId);
+            // Placements pinned on the old key dangle — never rewritten (ADR).
+            if (m) m.keyField = keyField;
+          }),
+        ),
+      addSourceRow: ({ projectId, sourceId }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (ds?.shape !== "table") return;
+            const row = defaultValueForModelType(
+              { kind: "object", fields: sourceRootFields(pack, ds) },
+              pack.dataModels ?? [],
+            ) as Record<string, unknown>;
+            ds.rows.push(row);
+            mintSourceLTexts(pack);
+          }),
+        ),
+      removeSourceRow: ({ projectId, sourceId, index }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (ds?.shape !== "table") return;
+            const row = ds.rows[index];
+            if (row === undefined) return;
+            releaseValueLTexts(pack, row, { kind: "object", fields: sourceRootFields(pack, ds) });
+            ds.rows.splice(index, 1);
+          }),
+        ),
+      setSourceValue: ({ projectId, sourceId, row, path, value }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (!ds) return;
+            const container = sourceValueContainer(ds, row, path.slice(0, -1));
+            const last = path[path.length - 1];
+            if (container === undefined || last === undefined) return;
+            (container as Record<string | number, unknown>)[last] = value;
+          }),
+        ),
+      addSourceListItem: ({ projectId, sourceId, row, path }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (!ds) return;
+            const listType = sourceTypeAtPath(pack, ds, path);
+            if (listType?.kind !== "list") return;
+            const list = sourceValueContainer(ds, row, path);
+            if (!Array.isArray(list)) return;
+            list.push(defaultValueForModelType(listType.of, pack.dataModels ?? []));
+            mintSourceLTexts(pack);
+          }),
+        ),
+      removeSourceListItem: ({ projectId, sourceId, row, path, index }) =>
+        set((state) =>
+          produce(state, (draft) => {
+            const pack = draft.account.projects.find((p) => p.id === projectId);
+            if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === sourceId);
+            if (!ds) return;
+            const listType = sourceTypeAtPath(pack, ds, path);
+            const list = sourceValueContainer(ds, row, path);
+            if (!Array.isArray(list) || list[index] === undefined) return;
+            if (listType?.kind === "list") releaseValueLTexts(pack, list[index], listType.of);
+            list.splice(index, 1);
           }),
         ),
       deleteFromProject: ({ projectId: pId, nodeIds }) => {
