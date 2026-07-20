@@ -68,9 +68,56 @@ describe("SourceRowsTable", () => {
   });
 
   it("edits a string cell through setSourceValue", () => {
-    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
-    fireEvent.change(screen.getByDisplayValue("vip"), { target: { value: "gold" } });
+    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const input = screen.getByDisplayValue("vip");
+    fireEvent.change(input, { target: { value: "gold" } });
+    expect(tableSource().rows[0]!.id).toBe("vip");
+    fireEvent.blur(input);
     expect(tableSource().rows[0]!.id).toBe("gold");
+    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getByDisplayValue("gold")).toBeInTheDocument();
+  });
+
+  it("shows a duplicate Row key error without changing the stored value", () => {
+    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useAccountStore
+      .getState()
+      .setSourceValue({ projectId: PID, sourceId: "ranks" as never, row: 1, path: ["id"], value: "member" });
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+
+    const input = screen.getByDisplayValue("member");
+    fireEvent.change(input, { target: { value: " VIP " } });
+    fireEvent.blur(input);
+
+    expect(screen.getByText("Une ligne porte déjà cet ID.")).toBeInTheDocument();
+    expect(tableSource().rows[1]!.id).toBe("member");
+    expect(input).toHaveValue("member");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("shows a required Row key error without changing the stored value", () => {
+    render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const input = screen.getByDisplayValue("vip");
+    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.blur(input);
+
+    expect(screen.getByText("L’ID de la ligne est obligatoire.")).toBeInTheDocument();
+    expect(tableSource().rows[0]!.id).toBe("vip");
+    expect(input).toHaveValue("vip");
+  });
+
+  it("commits a Row key on Enter", () => {
+    const view = render(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    const input = screen.getByDisplayValue("vip");
+    input.focus();
+    fireEvent.change(input, { target: { value: " ELITE " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(tableSource().rows[0]!.id).toBe("elite");
+    view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
+    expect(screen.getByDisplayValue("elite")).toBeInTheDocument();
+    expect(screen.queryByText("Une ligne porte déjà cet ID.")).toBeNull();
+    expect(screen.queryByText("L’ID de la ligne est obligatoire.")).toBeNull();
   });
 
   it("edits an ltext cell through the i18n write path (active language)", () => {
@@ -84,7 +131,8 @@ describe("SourceRowsTable", () => {
     fireEvent.click(screen.getByText("+ Row"));
     expect(tableSource().rows).toHaveLength(2);
     const minted = tableSource().rows[1]!.name as { key: string };
-    expect(minted.key).not.toBe("");
+    expect(tableSource().rows[1]!.id).toBe("row_1");
+    expect(minted.key).toBe("sources.ranks.row_1.name");
     expect(pack().i18nKeys[minted.key as never]).toBeDefined();
 
     view.rerender(<SourceRowsTable projectId={PID} pack={pack()} source={tableSource()} />);
