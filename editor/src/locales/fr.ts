@@ -590,6 +590,8 @@ const fr: typeof en = {
     valuesTitle: "Valeurs",
     addRow: "+ Row",
     removeRow: "Supprimer la row",
+    rowKeyRequired: "L’ID de la ligne est obligatoire.",
+    rowKeyDuplicate: "Une ligne porte déjà cet ID.",
     noRows: "Aucune row pour l'instant.",
     addItem: "+ Élément",
     removeItem: "Supprimer l'élément",

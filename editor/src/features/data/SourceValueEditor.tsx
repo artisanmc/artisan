@@ -12,6 +12,7 @@ import { MaterialRefField } from "@/features/canvas/MaterialRefField";
 import { getText } from "@/lib/i18n";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -38,6 +39,67 @@ function resolveObjectFields(
     return m.fields;
   }
   return null;
+}
+
+interface RowKeyEditorProps {
+  projectId: Project["id"];
+  sourceId: DataSource["id"];
+  row: number;
+  fieldName: string;
+  type: "string" | "number" | "integer";
+  value: unknown;
+}
+
+function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowKeyEditorProps) {
+  const { t } = useTranslation();
+  const setSourceValue = useAccountStore((s) => s.setSourceValue);
+  const [draft, setDraft] = useState(String(value ?? ""));
+  const [error, setError] = useState<"required" | "duplicate" | null>(null);
+  const errorId = `row-key-error-${sourceId}-${row}`;
+
+  useEffect(() => {
+    setDraft(String(value ?? ""));
+  }, [value]);
+
+  const commit = () => {
+    const result = setSourceValue({ projectId, sourceId, row, path: [fieldName], value: draft });
+    if (result.ok) {
+      setError(null);
+      return;
+    }
+    setError(result.reason === "required_row_key" ? "required" : "duplicate");
+    setDraft(String(value ?? ""));
+  };
+
+  return (
+    <div>
+      <Input
+        type={type === "string" ? "text" : "number"}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError(null);
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+        className={type === "string" ? "h-7 min-w-24 px-2 text-[12px]" : "h-7 w-24 px-2 text-[12px]"}
+        aria-label={fieldName}
+        aria-invalid={error !== null}
+        aria-describedby={error ? errorId : undefined}
+      />
+      {error ? (
+        <p id={errorId} className="text-[10px] text-[var(--danger)]">
+          {t(error === "required" ? "dataSources.rowKeyRequired" : "dataSources.rowKeyDuplicate")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function isRowKeyType(type: ModelFieldType): type is Extract<ModelFieldType, { kind: "string" | "number" | "integer" }> {
+  return type.kind === "string" || type.kind === "number" || type.kind === "integer";
 }
 
 export function ValueEditor({
@@ -206,6 +268,7 @@ export function SourceRowsTable({
   const addSourceRow = useAccountStore((s) => s.addSourceRow);
   const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
   const fields = sourceRootFields(pack, source);
+  const model = (pack.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
 
   return (
     <div className="flex min-h-0 flex-col gap-2" data-testid="source-rows-table">
@@ -229,15 +292,26 @@ export function SourceRowsTable({
                 <tr key={i} className="border-t border-[var(--border-soft)] align-top">
                   {fields.map((f) => (
                     <td key={f.name} className="px-2 py-1.5">
-                      <ValueEditor
-                        projectId={projectId}
-                        sourceId={source.id}
-                        row={i}
-                        path={[f.name]}
-                        type={f.type}
-                        value={r[f.name]}
-                        pack={pack}
-                      />
+                      {f.name === model?.keyField && isRowKeyType(f.type) ? (
+                        <RowKeyEditor
+                          projectId={projectId}
+                          sourceId={source.id}
+                          row={i}
+                          fieldName={f.name}
+                          type={f.type.kind}
+                          value={r[f.name]}
+                        />
+                      ) : (
+                        <ValueEditor
+                          projectId={projectId}
+                          sourceId={source.id}
+                          row={i}
+                          path={[f.name]}
+                          type={f.type}
+                          value={r[f.name]}
+                          pack={pack}
+                        />
+                      )}
                     </td>
                   ))}
                   <td className="px-1 py-1.5">

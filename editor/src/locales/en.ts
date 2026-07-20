@@ -579,6 +579,8 @@ export default {
     valuesTitle: "Values",
     addRow: "+ Row",
     removeRow: "Remove row",
+    rowKeyRequired: "The row ID is required.",
+    rowKeyDuplicate: "Another row already uses this ID.",
     noRows: "No rows yet.",
     addItem: "+ Item",
     removeItem: "Remove item",
