@@ -1,6 +1,8 @@
 export default {
   topbar: {
     projects: "Projects",
+    saveHealthy: "Saves are flowing normally",
+    saveConflict: "Save rejected — another session modified this project (reload to resync)",
     exportProject: "Export project",
     importProject: "Import project…",
     translations: "Translations",
