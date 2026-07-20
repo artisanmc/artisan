@@ -579,7 +579,7 @@ const fr: typeof en = {
     addTable: "+ Table",
     addConfig: "+ Config",
     modelName: "Modèle",
-    keyField: "Clé de row",
+    keyField: "Clé",
     keyFieldHint: "Identifiant stable et unique de chaque row — ancre les placements et les traductions.",
     fieldName: "Nom du champ",
     addField: "Ajouter un champ",

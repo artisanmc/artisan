@@ -568,7 +568,7 @@ export default {
     addTable: "+ Table",
     addConfig: "+ Config",
     modelName: "Model",
-    keyField: "Row key",
+    keyField: "Key",
     keyFieldHint: "Stable unique identifier of each row — anchors placements and translations.",
     fieldName: "Field name",
     addField: "Add field",
