@@ -76,6 +76,8 @@ class SyncedMenuProvider(
 
     @Volatile private var menus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var bundles = listOf<ProjectBundle>()
+    /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
+    private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { bundles }
     private val draftMenus = ConcurrentHashMap<String, BundleMenu>()
     @Volatile private var dialogs = ConcurrentHashMap<String, BundleDialog>()
     private val jsonMapper = ObjectMapper()
@@ -190,7 +192,10 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
-        val session = MenuRenderer.open(player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider(), dataSources)
+        val session = MenuRenderer.open(
+            player, menu, lang, ctx, evaluator, lookupAsset, offsetEncoderProvider(),
+            dataSources, projectDataResolver,
+        )
         sessions?.set(player, session)
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }

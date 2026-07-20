@@ -77,4 +77,18 @@ class ContextBinderSourceTest {
         val out = ContextBinder.bind(m, emptyMap())
         assertEquals("none", out["items"])
     }
+
+    @Test fun `a Map result (config Project source) binds whole without shaping`() {
+        val m = menu(ContextInputYaml(name = "settings", type = "object", source = mapOf("ref" to "pack:settings")))
+        val out = ContextBinder.bind(m, emptyMap(), fetchSource = { _, _ ->
+            mapOf("currency" to "coins", "motd" to "Welcome")
+        })
+        assertEquals(mapOf("currency" to "coins", "motd" to "Welcome"), out["settings"])
+    }
+
+    @Test fun `a null fetch result falls through to the declared default`() {
+        val m = menu(ContextInputYaml(name = "q", type = "string", default = "all", source = mapOf("ref" to "pack:gone")))
+        val out = ContextBinder.bind(m, emptyMap(), fetchSource = { _, _ -> null })
+        assertEquals("all", out["q"])
+    }
 }
