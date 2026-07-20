@@ -6,13 +6,15 @@ import {
   releaseLTexts,
   visitAppearanceLTexts,
   visitCommandLTexts,
+  visitDataSourceLTexts,
   visitDialogLTexts,
   visitElementLTexts,
   visitItemTemplateLTexts,
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { commandId, newCommandId, newElementId, newLayerId, newProjectId } from "@/domain/ids";
+import { commandId, newCommandId, newDataModelId, newElementId, newLayerId, newProjectId } from "@/domain/ids";
+import { isDataModelReferenced } from "@/domain/dataModels";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -34,7 +36,6 @@ import type {
   EdgeAnchor,
   Element,
   ElementId,
-  FieldType,
   CapturedItem,
   CapturedItemId,
   I18nKey,
@@ -54,7 +55,6 @@ import type {
 } from "@/domain/types";
 import { gridArrange } from "@/features/canvas/autoLayout";
 import { colsFor, rowsFor, slotCount } from "@/features/canvas/inventoryTypes";
-import { inferFieldTypeFromValue } from "@/features/data/helpers";
 import { createLText, createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import {
   clickHandlerKeyPrefix,
@@ -84,7 +84,6 @@ import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import { dialogV1ToDomain } from "@/schema/dialogV1ToDomain";
 import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
 import { current, produce } from "immer";
-import { parse as parseYaml } from "yaml";
 import { temporal } from "zundo";
 import { create } from "zustand";
 
@@ -834,10 +833,9 @@ interface AccountState {
     commands: Command[];
     offset: { x: number; y: number };
   }) => void;
-  addProjectDataSource: (args: { projectId: ProjectId }) => void;
+  addProjectDataSource: (args: { projectId: ProjectId; shape?: "table" | "config" }) => void;
   removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
   renameProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId; newName: string }) => void;
-  setProjectDataSourceYaml: (args: { projectId: ProjectId; id: DataSourceId; yaml: string }) => void;
 }
 
 /**
@@ -3488,17 +3486,29 @@ export const useAccountStore = create<AccountState>()(
         });
         set({ account: next });
       },
-      addProjectDataSource: ({ projectId }) =>
+      addProjectDataSource: ({ projectId, shape = "table" }) =>
         set((state) =>
           produce(state, (draft) => {
             const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
             if (!pack.dataSources) pack.dataSources = [];
+            if (!pack.dataModels) pack.dataModels = [];
             const id = generateDataSourceId();
             const name = nextAvailableName(pack.dataSources, "new_source");
-            const value: unknown[] = [];
-            const type: FieldType = { kind: "list", of: { kind: "string" } };
-            pack.dataSources.push({ id, name, type, value });
+            if (shape === "config") {
+              pack.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
+              return;
+            }
+            // A Table is a table OF a Data model — auto-created with it (ADR
+            // project-sources-and-data-models), seeded with its Row key field.
+            const modelId = newDataModelId();
+            pack.dataModels.push({
+              id: modelId,
+              name,
+              keyField: "id",
+              fields: [{ name: "id", type: { kind: "string" } }],
+            });
+            pack.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
           }),
         ),
       removeProjectDataSource: ({ projectId, id }) =>
@@ -3506,7 +3516,14 @@ export const useAccountStore = create<AccountState>()(
           produce(state, (draft) => {
             const pack = draft.account.projects.find((p) => p.id === projectId);
             if (!pack) return;
+            const ds = pack.dataSources.find((d) => d.id === id);
+            if (!ds) return;
+            releaseLTexts(pack, visitDataSourceLTexts(pack, ds));
             pack.dataSources = pack.dataSources.filter((d) => d.id !== id);
+            // GC the auto-created model when nothing else references it.
+            if (ds.shape === "table" && !isDataModelReferenced(pack, ds.modelId)) {
+              pack.dataModels = (pack.dataModels ?? []).filter((m) => m.id !== ds.modelId);
+            }
           }),
         ),
       renameProjectDataSource: ({ projectId, id, newName }) =>
@@ -3516,18 +3533,6 @@ export const useAccountStore = create<AccountState>()(
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === id);
             if (ds) ds.name = newName;
-          }),
-        ),
-      setProjectDataSourceYaml: ({ projectId, id, yaml }) =>
-        set((state) =>
-          produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === id);
-            if (!ds) return;
-            const parsed = parseYaml(yaml);
-            ds.value = parsed ?? [];
-            ds.type = inferFieldTypeFromValue(ds.value);
           }),
         ),
       deleteFromProject: ({ projectId: pId, nodeIds }) => {

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/data/v1.json",
+  "title": "Artisan Project Source",
+  "description": "Fichier data/<source_id>.yaml d'un Bundle : une Project source dénormalisée (le Data model est inliné dans `fields` à l'export — le runtime ne voit jamais l'identité des models). Cf. ADR project-sources-and-data-models.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "shape", "fields"],
+  "allOf": [
+    {
+      "if": { "properties": { "shape": { "const": "table" } } },
+      "then": { "required": ["key_field", "rows"], "not": { "required": ["value"] } }
+    },
+    {
+      "if": { "properties": { "shape": { "const": "config" } } },
+      "then": { "required": ["value"], "not": { "required": ["rows"] } }
+    }
+  ],
+  "properties": {
+    "schema": {
+      "const": "data/v1",
+      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "description": "Identifiant stable de la source. Référencée par les menus via `pack:<id>`."
+    },
+    "shape": {
+      "enum": ["table", "config"],
+      "description": "table = liste de rows (itérable, plaçable) ; config = objet unique consommé par interpolation."
+    },
+    "key_field": {
+      "type": "string",
+      "description": "Row key (table uniquement) : champ scalaire top-level identifiant chaque row de façon stable. Ancre des Placements."
+    },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Field" },
+      "description": "Schéma déclaré des rows (table) ou de l'objet (config). Data models inlinés — pas de refs ici."
+    },
+    "rows": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Les rows d'une table. Valeurs ltext = clé i18n (string, résolue via lang/) ; valeurs item = material ou ref `item:<id>`."
+    },
+    "value": {
+      "type": "object",
+      "description": "L'objet d'une config. Mêmes conventions de valeurs que rows."
+    }
+  },
+  "$defs": {
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "kind": {
+          "enum": ["string", "number", "integer", "boolean", "ltext", "item", "list", "object"],
+          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom). `model` n'existe pas ici : inliné en `object` à l'export."
+        },
+        "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list uniquement)." },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Field" },
+          "description": "Champs imbriqués (kind=object uniquement)."
+        }
+      }
+    },
+    "FieldType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["string", "number", "integer", "boolean", "ltext", "item", "list", "object"] },
+        "of": { "$ref": "#/$defs/FieldType" },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } }
+      }
+    }
+  }
+}

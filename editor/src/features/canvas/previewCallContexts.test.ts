@@ -29,7 +29,7 @@ const pack = (): Project =>
     defaultLang: "fr",
     canvasLayout: {},
     dataSources: [
-      { id: "cats" as DataSourceId, projectId: "p1", name: "cats", type: { kind: "list" }, value: CATS },
+      { id: "cats" as DataSourceId, name: "cats", shape: "table", modelId: "m_cats", rows: CATS },
     ] as unknown as DataSource[],
     menus: [
       {

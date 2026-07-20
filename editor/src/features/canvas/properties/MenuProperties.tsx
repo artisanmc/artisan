@@ -21,6 +21,7 @@ import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { MenuDataSection } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
 import { SourceShapingEditor } from "./SourceShapingEditor";
+import { sourceFieldType } from "@/domain/dataModels";
 import { summarizeFieldType } from "@/features/data/helpers";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
@@ -531,13 +532,13 @@ function SourcePickerOptions({
             <DropdownMenuItem
               key={d.id}
               onSelect={() => onPick(`pack:${d.id}` as SourceRef)}
-              title={summarizeFieldType(d.type)}
+              title={summarizeFieldType(sourceFieldType(pack, d))}
               className="cursor-pointer text-[11px] focus:bg-[var(--surface-raised-2)]"
             >
-              <span className="mr-1">{d.type.kind === "list" ? "🗂" : "📦"}</span>
+              <span className="mr-1">{d.shape === "table" ? "🗂" : "📦"}</span>
               <span className="font-mono">{d.name}</span>
               <span className="ml-auto text-[9px] text-[var(--text-faint)]">
-                {summarizeFieldType(d.type)}
+                {summarizeFieldType(sourceFieldType(pack, d))}
               </span>
             </DropdownMenuItem>
           ))}

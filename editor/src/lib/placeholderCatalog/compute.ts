@@ -1,4 +1,5 @@
 import type { FieldType, Menu, Project } from "@/domain/types";
+import { sourceFieldType } from "@/domain/dataModels";
 import {
   buildPreviewScope,
   SAMPLE_PLAYER_NAME,
@@ -220,7 +221,7 @@ function typeOfSourceRef(ref: string, pack: Project): FieldType | null {
   if (ref.startsWith("pack:")) {
     const id = ref.slice("pack:".length);
     const ds = pack.dataSources.find((d) => d.id === id);
-    return ds?.type ?? null;
+    return ds ? sourceFieldType(pack, ds) : null;
   }
   // Server refs: no design-time FieldType — the schema comes from the server
   // report (serverDataSourcesStore), not the project. Unknown here.

@@ -99,11 +99,15 @@ describe("resolveSourceRef", () => {
     const ds: DataSource = {
       id: "categories" as DataSourceId,
       name: "Categories",
-      type: { kind: "list", of: { kind: "string" } },
-      value: ["weapon", "armor"],
+      shape: "table",
+      modelId: "m_cat" as never,
+      rows: [{ id: "weapon" }, { id: "armor" }],
     };
     const pack = stubProject({ dataSources: [ds] });
-    expect(resolveSourceRef("pack:categories" as SourceRef, pack)).toEqual(["weapon", "armor"]);
+    expect(resolveSourceRef("pack:categories" as SourceRef, pack)).toEqual([
+      { id: "weapon" },
+      { id: "armor" },
+    ]);
   });
 
   it("returns undefined for unknown pack ref", () => {
@@ -130,12 +134,15 @@ describe("resolveSourceRef", () => {
     const ds: DataSource = {
       id: "categories" as DataSourceId,
       name: "Categories",
-      type: { kind: "list", of: { kind: "string" } },
-      value: ["weapon"],
+      shape: "table",
+      modelId: "m_cat" as never,
+      rows: [{ id: "weapon" }],
     };
     const pack = stubProject({ dataSources: [ds] });
     const snapshots = { "pack:categories": [{ id: "hijack" }] };
-    expect(resolveSourceRef("pack:categories" as SourceRef, pack, snapshots)).toEqual(["weapon"]);
+    expect(resolveSourceRef("pack:categories" as SourceRef, pack, snapshots)).toEqual([
+      { id: "weapon" },
+    ]);
   });
 });
 
@@ -188,14 +195,15 @@ describe("buildPreviewScope", () => {
     const ds: DataSource = {
       id: "categories" as DataSourceId,
       name: "Categories",
-      type: { kind: "list", of: { kind: "string" } },
-      value: ["weapon", "armor"],
+      shape: "table",
+      modelId: "m_cat" as never,
+      rows: [{ id: "weapon" }, { id: "armor" }],
     };
     const pack = stubProject({ dataSources: [ds] });
     const menu = stubMenu([
       { kind: "sourceRef", name: "categories", ref: "pack:categories" as SourceRef },
     ]);
-    expect(buildPreviewScope(menu, pack).categories).toEqual(["weapon", "armor"]);
+    expect(buildPreviewScope(menu, pack).categories).toEqual([{ id: "weapon" }, { id: "armor" }]);
   });
 
   it("falls back to undefined for unresolvable sourceRef inputs", () => {
@@ -215,7 +223,7 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
   const packWithSource = () =>
     stubProject({
       dataSources: [
-        { id: "items" as DataSourceId, projectId: "p1", name: "items", type: { kind: "list" }, value: ROWS },
+        { id: "items" as DataSourceId, name: "items", shape: "table", modelId: "m_items", rows: ROWS },
       ] as unknown as DataSource[],
     });
   const menuWithFilter = (): Menu =>

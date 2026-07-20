@@ -21,6 +21,7 @@ export type ElementId = string & { __brand: "ElementId" };
 export type LayerId = string & { __brand: "LayerId" };
 export type I18nKey = string & { __brand: "I18nKey" };
 export type DataSourceId = string & { __brand: "DataSourceId" };
+export type DataModelId = string & { __brand: "DataModelId" };
 export type SourceRef = string & { __brand: "SourceRef" };
 export type DialogId = string & { __brand: "DialogId" };
 
@@ -106,6 +107,8 @@ export interface Project {
   capturedItems?: CapturedItem[];
   assets: Asset[];
   dataSources: DataSource[];
+  /** Declared data shapes for Project sources (optional: absent on older stored projects = []). */
+  dataModels?: DataModel[];
   /**
    * @deprecated Dead since 2026-07-17 — the early "import connector YAML" flow
    * was superseded by server-reported data sources (+ snapshots + module-local
@@ -510,22 +513,73 @@ export type FieldType =
   | { kind: "object"; fields: { name: string; type: FieldType }[] };
 
 /**
- * Admin-made source of typed data. Lives on the pack and is referenced
- * by menus via `ContextInput { kind: "sourceRef", ref: "pack:<id>" }`.
- * Renaming the source updates referencing inputs atomically (cf.
- * accountStore reducers in Plan C2).
+ * Recursive **declared** field type for Project-source content. Unlike the
+ * inferred {@link FieldType} (kept for module-reported schemas), this is what
+ * the admin authors in the Data model form. Two extra leaves:
+ *  - `ltext` — a localizable string; the stored value is an {@link LText}
+ *    (key into `Project.i18nKeys`), a normal Key site.
+ *  - `item`  — the material value-space (`"DIAMOND"`, `item:<id>`, custom ref).
+ * `model` references another {@link DataModel} by id (no cycles — guarded at
+ * edit time by `wouldCreateModelCycle`).
+ * Cf. ADR `project-sources-and-data-models` + CONTEXT.md "Data model".
  */
-export interface DataSource {
-  id: DataSourceId;
+export type ModelFieldType =
+  | { kind: "string" }
+  | { kind: "number" }
+  | { kind: "integer" }
+  | { kind: "boolean" }
+  | { kind: "ltext" }
+  | { kind: "item" }
+  | { kind: "list"; of: ModelFieldType }
+  | { kind: "object"; fields: ModelField[] }
+  | { kind: "model"; ref: DataModelId };
+
+export interface ModelField {
   name: string;
-  type: FieldType;
-  /**
-   * Concrete data, validated against `type` at edit time. Stored as
-   * unknown because the shape varies — runtime/preview consumers cast
-   * after schema lookup.
-   */
-  value: unknown;
+  type: ModelFieldType;
 }
+
+/**
+ * Project-level **named shape of data** — the admin-declared schema that
+ * Project-source content conforms to. Every Table source is a table *of* one
+ * Data model (auto-created with it); the **Row key** is declared here, so two
+ * Tables of the same model share it. Editor-side only: denormalized into each
+ * `data/<id>.yaml` at export — the Bundle/plugin never see model identity.
+ * Cf. CONTEXT.md "Data model".
+ */
+export interface DataModel {
+  id: DataModelId;
+  name: string;
+  fields: ModelField[];
+  /** Name of the top-level scalar field acting as Row key. */
+  keyField: string;
+}
+
+/**
+ * **Project source** — admin-authored data living on the Project, referenced
+ * by menus via `ContextInput { kind: "sourceRef", ref: "pack:<id>" }`. Always
+ * static. Two shapes (cf. ADR `project-sources-and-data-models`):
+ *  - `table`  — rows of one {@link DataModel}; iterable, placeable, Set target.
+ *  - `config` — a single object for interpolation (settings/constants); its
+ *    inline fields may reference Data models.
+ * ltext field values are stored as {@link LText} nodes; item values as
+ * material/`item:<id>` refs.
+ */
+export type DataSource =
+  | {
+      id: DataSourceId;
+      name: string;
+      shape: "table";
+      modelId: DataModelId;
+      rows: Record<string, unknown>[];
+    }
+  | {
+      id: DataSourceId;
+      name: string;
+      shape: "config";
+      fields: ModelField[];
+      value: Record<string, unknown>;
+    };
 
 /**
  * Spec of a plugin-sourced connector. Either pushed to the editor via

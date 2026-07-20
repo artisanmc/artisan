@@ -135,13 +135,11 @@ describe("PlaceholderCatalog.compute", () => {
     pack.dataSources.push({
       id: "ds1" as DataSourceId,
       name: "currentQuest",
-      type: {
-        kind: "object",
-        fields: [
-          { name: "name", type: { kind: "string" } },
-          { name: "reward", type: { kind: "integer" } },
-        ],
-      },
+      shape: "config",
+      fields: [
+        { name: "name", type: { kind: "string" } },
+        { name: "reward", type: { kind: "integer" } },
+      ],
       value: { name: "Tuer 10 zombies", reward: 500 },
     });
     pack.menus.push({
@@ -199,11 +197,15 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("omits list-typed contextInputs at menu scope (only builtins remain)", () => {
     const pack = emptyProject();
+    pack.dataModels = [
+      { id: "m2" as never, name: "quest", keyField: "name", fields: [{ name: "name", type: { kind: "string" } }] },
+    ];
     pack.dataSources.push({
       id: "ds2" as DataSourceId,
       name: "questList",
-      type: { kind: "list", of: { kind: "object", fields: [{ name: "name", type: { kind: "string" } }] } },
-      value: [],
+      shape: "table",
+      modelId: "m2" as never,
+      rows: [],
     });
     pack.menus.push({
       id: "m1" as MenuId,
@@ -222,20 +224,23 @@ describe("PlaceholderCatalog.compute", () => {
   // Task 5 tests
   it("emits iteration alias leaves + pagination when the element iterates over a list of objects", () => {
     const pack = emptyProject();
+    pack.dataModels = [
+      {
+        id: "m3" as never,
+        name: "quest",
+        keyField: "name",
+        fields: [
+          { name: "name", type: { kind: "string" } },
+          { name: "reward", type: { kind: "integer" } },
+        ],
+      },
+    ];
     pack.dataSources.push({
       id: "ds3" as DataSourceId,
       name: "quests",
-      type: {
-        kind: "list",
-        of: {
-          kind: "object",
-          fields: [
-            { name: "name", type: { kind: "string" } },
-            { name: "reward", type: { kind: "integer" } },
-          ],
-        },
-      },
-      value: [{ name: "Q1", reward: 100 }],
+      shape: "table",
+      modelId: "m3" as never,
+      rows: [{ name: "Q1", reward: 100 }],
     });
     pack.menus.push({
       id: "m1" as MenuId,
@@ -304,19 +309,15 @@ describe("PlaceholderCatalog.compute", () => {
     const pack = emptyProject();
     // Provide a real dataSource so the iteration entries are non-empty and the
     // assertion verifies genuine delegation rather than two empty arrays.
+    pack.dataModels = [
+      { id: "m_list" as never, name: "row", keyField: "label", fields: [{ name: "label", type: { kind: "string" } }] },
+    ];
     pack.dataSources.push({
       id: "ds_list" as DataSourceId,
       name: "list",
-      type: {
-        kind: "list",
-        of: {
-          kind: "object",
-          fields: [
-            { name: "label", type: { kind: "string" } },
-          ],
-        },
-      },
-      value: [{ label: "hello" }],
+      shape: "table",
+      modelId: "m_list" as never,
+      rows: [{ label: "hello" }],
     });
     pack.menus.push({
       id: "m1" as MenuId,
@@ -393,11 +394,15 @@ describe("PlaceholderCatalog.compute", () => {
   // Task 8 test
   it("sorts entries by origin (context → iteration → pagination → source) then alpha by path", () => {
     const pack = emptyProject();
+    pack.dataModels = [
+      { id: "m4" as never, name: "quest", keyField: "name", fields: [{ name: "name", type: { kind: "string" } }] },
+    ];
     pack.dataSources.push({
       id: "ds4" as DataSourceId,
       name: "quests",
-      type: { kind: "list", of: { kind: "object", fields: [{ name: "name", type: { kind: "string" } }] } },
-      value: [{ name: "Q1" }],
+      shape: "table",
+      modelId: "m4" as never,
+      rows: [{ name: "Q1" }],
     });
     pack.menus.push({
       id: "m1" as MenuId,
