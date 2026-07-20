@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/state/authStore";
 import { useAccountStore } from "@/state/accountStore";
 import { loadUserProject } from "@/lib/api/userProjects";
+import { normalizeDataSources } from "@/domain/dataModels";
 import type { Account, Project, ProjectId } from "@/domain/types";
 
 /**
@@ -53,6 +54,9 @@ export function useProjectLoader(projectId: string): ProjectLoadResult {
         // loadUserProject returns { project, files, editor, networkId }; editor is the full Project JSON.
         // Fresh projects have editor=null server-side — fall back to an empty Project shape.
         const loaded = (res.editor as Project | null) ?? emptyProject(res.project.id, res.project.name);
+        // Accepted reset (ADR project-sources-and-data-models): legacy
+        // schemaless sources are dropped at the load boundary, never migrated.
+        normalizeDataSources(loaded);
         setProject(loaded);
         setNetworkId(res.networkId);
         // Mirror into accountStore so descendants (FlowCanvas, EditorPane,

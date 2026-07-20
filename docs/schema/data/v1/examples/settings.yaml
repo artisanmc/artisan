@@ -1,0 +1,16 @@
+# data/settings.yaml — Config source: constantes du projet interpolées
+# dans les menus via {settings.currency}, {settings.support_url}…
+schema: data/v1
+id: settings
+shape: config
+fields:
+  - name: currency
+    kind: string
+  - name: motd
+    kind: ltext
+  - name: support_url
+    kind: string
+value:
+  currency: "coins"
+  motd: sources.settings.motd
+  support_url: "https://discord.gg/example"

@@ -574,6 +574,8 @@ const fr: typeof en = {
     schemaType: "Type",
     schemaDescription: "Description",
     noSchema: "Pas de schéma déclaré.",
+    shapeTable: "Table",
+    shapeConfig: "Config",
     copyRef: "Copier la ref",
     refCopied: "Ref copiée.",
     preview: "Prévisualiser",

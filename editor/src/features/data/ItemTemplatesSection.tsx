@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { newItemTemplateId } from "@/domain/ids";
-import type { DataSource as DataSourceDomain, ItemTemplateId, ProjectId } from "@/domain/types";
+import type { DataSource as DataSourceDomain, ItemTemplateId, Project, ProjectId } from "@/domain/types";
 import type { ServerDataSource } from "@/lib/api/dataSources";
 
 /**
@@ -19,18 +19,19 @@ const _assignable: TemplatableSource = undefined as unknown as ServerDataSource;
 void _assignable;
 
 /** Adapt a project (`pack:`) data source: sets are not server-only. Project
- *  data is static by nature; keyField inferred from an `id` field. */
-export function packSourceToTemplatable(ds: DataSourceDomain): TemplatableSource {
-  const row = ds.type.kind === "list" ? ds.type.of : ds.type;
-  const schema =
-    row.kind === "object"
-      ? row.fields.map((f) => ({ name: f.name, type: f.type.kind, description: null }))
-      : [];
+ *  data is static by nature; a table's Row key comes from its Data model.
+ *  Config sources expose their top-level fields (iterable nested lists) but
+ *  have no Row key — not placeable. */
+export function packSourceToTemplatable(pack: Project, ds: DataSourceDomain): TemplatableSource {
+  const models = pack.dataModels ?? [];
+  const fields =
+    ds.shape === "table" ? (models.find((m) => m.id === ds.modelId)?.fields ?? []) : ds.fields;
   return {
     ref: `pack:${ds.id}`,
-    schema,
+    schema: fields.map((f) => ({ name: f.name, type: f.type.kind, description: null })),
     stability: "static",
-    keyField: schema.some((f) => f.name === "id") ? "id" : null,
+    keyField:
+      ds.shape === "table" ? (models.find((m) => m.id === ds.modelId)?.keyField ?? null) : null,
   };
 }
 import { useAccountStore } from "@/state/accountStore";

@@ -563,6 +563,8 @@ export default {
     schemaType: "Type",
     schemaDescription: "Description",
     noSchema: "No declared schema.",
+    shapeTable: "Table",
+    shapeConfig: "Config",
     copyRef: "Copy ref",
     refCopied: "Ref copied.",
     preview: "Preview",
