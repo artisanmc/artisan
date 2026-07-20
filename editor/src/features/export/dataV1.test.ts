@@ -1,0 +1,149 @@
+import type { Project, ProjectId } from "@/domain/types";
+import { parse } from "yaml";
+import { describe, expect, it } from "vitest";
+import { transform } from "./transform";
+
+const PID = "p1" as ProjectId;
+
+function makeProject(): Project {
+  return {
+    id: PID,
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    menus: [],
+    commands: [],
+    templates: [],
+    assets: [],
+    dataModels: [
+      {
+        id: "m_rank",
+        name: "rank",
+        keyField: "id",
+        fields: [
+          { name: "id", type: { kind: "string" } },
+          { name: "name", type: { kind: "ltext" } },
+          { name: "icon", type: { kind: "item" } },
+          { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
+        ],
+      },
+      {
+        id: "m_cat",
+        name: "cat",
+        keyField: "id",
+        fields: [
+          { name: "id", type: { kind: "string" } },
+          { name: "featured", type: { kind: "model", ref: "m_rank" } },
+        ],
+      },
+    ],
+    dataSources: [
+      {
+        id: "ranks",
+        name: "ranks",
+        shape: "table",
+        modelId: "m_rank",
+        rows: [
+          {
+            id: "vip",
+            name: { key: "sources.ranks.vip.name" },
+            icon: "item:ci_1",
+            perks: [{ key: "sources.ranks.vip.perks" }],
+          },
+        ],
+      },
+      {
+        id: "cats",
+        name: "cats",
+        shape: "table",
+        modelId: "m_cat",
+        rows: [
+          {
+            id: "c1",
+            featured: { id: "vip", name: { key: "sources.cats.c1.featured.name" }, icon: "", perks: [] },
+          },
+        ],
+      },
+      {
+        id: "settings",
+        name: "settings",
+        shape: "config",
+        fields: [
+          { name: "currency", type: { kind: "string" } },
+          { name: "motd", type: { kind: "ltext" } },
+        ],
+        value: { currency: "coins", motd: { key: "sources.settings.motd" } },
+      },
+    ],
+    i18nKeys: {
+      "sources.ranks.vip.name": { en: "VIP", fr: "V.I.P." },
+      "sources.ranks.vip.perks": { en: "Fly" },
+      "sources.cats.c1.featured.name": { en: "Nested" },
+      "sources.settings.motd": { en: "Welcome" },
+    },
+    defaultLang: "en",
+    dialogs: [],
+    canvasLayout: {},
+  } as unknown as Project;
+}
+
+const BASE = `plugins/Artisan/projects/${PID}`;
+
+describe("data/v1 export", () => {
+  it("emits one denormalized data/<id>.yaml per source", () => {
+    const files = transform(makeProject());
+    const ranks = parse(files[`${BASE}/data/ranks.yaml`]!);
+    expect(ranks.schema).toBe("data/v1");
+    expect(ranks.id).toBe("ranks");
+    expect(ranks.shape).toBe("table");
+    expect(ranks.key_field).toBe("id");
+    expect(ranks.fields).toEqual([
+      { name: "id", kind: "string" },
+      { name: "name", kind: "ltext" },
+      { name: "icon", kind: "item" },
+      { name: "perks", kind: "list", of: { kind: "ltext" } },
+    ]);
+    // ltext values export as their canonical i18n keys; item refs verbatim.
+    expect(ranks.rows).toEqual([
+      { id: "vip", name: "sources.ranks.vip.name", icon: "item:ci_1", perks: ["sources.ranks.vip.perks"] },
+    ]);
+  });
+
+  it("inlines model refs — the bundle never sees model identity", () => {
+    const files = transform(makeProject());
+    const cats = parse(files[`${BASE}/data/cats.yaml`]!);
+    expect(cats.fields).toEqual([
+      { name: "id", kind: "string" },
+      {
+        name: "featured",
+        kind: "object",
+        fields: [
+          { name: "id", kind: "string" },
+          { name: "name", kind: "ltext" },
+          { name: "icon", kind: "item" },
+          { name: "perks", kind: "list", of: { kind: "ltext" } },
+        ],
+      },
+    ]);
+    expect(cats.rows[0].featured.name).toBe("sources.cats.c1.featured.name");
+  });
+
+  it("emits config sources with their value object (no key_field, no rows)", () => {
+    const files = transform(makeProject());
+    const settings = parse(files[`${BASE}/data/settings.yaml`]!);
+    expect(settings.shape).toBe("config");
+    expect(settings.key_field).toBeUndefined();
+    expect(settings.rows).toBeUndefined();
+    expect(settings.value).toEqual({ currency: "coins", motd: "sources.settings.motd" });
+  });
+
+  it("includes source ltext keys in the lang files", () => {
+    const files = transform(makeProject());
+    const en = parse(files[`${BASE}/lang/en.yaml`]!);
+    expect(en["sources.ranks.vip.name"]).toBe("VIP");
+    expect(en["sources.settings.motd"]).toBe("Welcome");
+    const fr = parse(files[`${BASE}/lang/fr.yaml`]!);
+    expect(fr["sources.ranks.vip.name"]).toBe("V.I.P.");
+  });
+});
