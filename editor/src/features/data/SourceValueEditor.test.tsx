@@ -127,7 +127,7 @@ describe("ModelFieldsEditor", () => {
 
   it("changes the Row key via the selector", () => {
     render(<ModelFieldsEditor projectId={PID} pack={pack()} source={tableSource()} />);
-    const keySelect = screen.getByLabelText("Clé de row");
+    const keySelect = screen.getByLabelText("Clé");
     fireEvent.change(keySelect, { target: { value: "id" } });
     expect(pack().dataModels![0]!.keyField).toBe("id");
   });
