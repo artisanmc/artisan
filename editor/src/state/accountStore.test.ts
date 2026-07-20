@@ -1398,11 +1398,12 @@ describe("accountStore", () => {
       useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: ds0.id });
       let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       let row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
-      expect(row.id).toBe("");
+      expect(row.id).toBe("row_1");
       expect(row.icon).toBe("");
       const lt = row.name as { key: string };
       // Minted: non-sentinel key backed by an i18n entry.
       expect(lt.key).not.toBe("");
+      expect(lt.key).toContain(".row_1.");
       expect(pack.i18nKeys[lt.key as never]).toBeDefined();
 
       useAccountStore.getState().setSourceValue({
@@ -1428,6 +1429,166 @@ describe("accountStore", () => {
       pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       expect((pack.dataSources[0] as { rows: unknown[] }).rows).toHaveLength(0);
       expect(pack.i18nKeys[lt.key as never]).toBeUndefined();
+    });
+
+    it("assigns sequential Row keys before minting table ltexts", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+
+      const rows = (useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0] as { rows: Record<string, unknown>[] }).rows;
+      expect(rows.map((row) => row.id)).toEqual(["row_1", "row_2"]);
+      expect((rows[1]!.lore as { key: string }).key).toBe("sources.grades.row_2.lore");
+    });
+
+    it("reuses the first available numeric Row key", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "retype", path: [], name: "id", newType: { kind: "integer" } },
+      });
+      useAccountStore.setState((state) =>
+        produce(state, (draft) => {
+          const pack = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          const table = pack.dataSources.find((dataSource) => dataSource.id === source.id)!;
+          if (table.shape !== "table") throw new Error("expected table");
+          table.rows.push({ id: 1 }, { id: 3 });
+        }),
+      );
+
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+
+      const rows = (useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0] as { rows: Record<string, unknown>[] }).rows;
+      expect(rows.map((row) => row.id)).toEqual([1, 3, 2]);
+    });
+
+    it("rejects duplicate normalized Row keys without rekeying translations", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 0,
+        path: ["id"],
+        value: "vip",
+      });
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 1,
+        path: ["id"],
+        value: "member",
+      });
+      const before = structuredClone(
+        useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.i18nKeys,
+      );
+
+      const result = useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 1,
+        path: ["id"],
+        value: " VIP ",
+      });
+
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const rows = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows;
+      expect(result).toEqual({ ok: false, reason: "duplicate_row_key" });
+      expect(rows[1]!.id).toBe("member");
+      expect(pack.i18nKeys).toEqual(before);
+    });
+
+    it("rejects blank Row keys", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+
+      const result = useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 0,
+        path: ["id"],
+        value: "   ",
+      });
+
+      const row = (useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect(result).toEqual({ ok: false, reason: "required_row_key" });
+      expect(row.id).toBe("row_1");
+    });
+
+    it("normalizes valid Row-key renames and moves all translations", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      const oldKey = "sources.grades.row_1.lore";
+      useAccountStore.setState((state) =>
+        produce(state, (draft) => {
+          const pack = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          pack.i18nKeys[oldKey as never] = { en: "VIP lore", fr: "Description VIP" };
+        }),
+      );
+
+      const result = useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 0,
+        path: ["id"],
+        value: " ELITE ",
+      });
+
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect(result).toEqual({ ok: true });
+      expect(row.id).toBe("elite");
+      expect((row.lore as { key: string }).key).toBe("sources.grades.elite.lore");
+      expect(pack.i18nKeys["sources.grades.elite.lore" as never]).toEqual({
+        en: "VIP lore",
+        fr: "Description VIP",
+      });
+      expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
     });
 
     it("list items: add appends a minted element, remove releases it", () => {
