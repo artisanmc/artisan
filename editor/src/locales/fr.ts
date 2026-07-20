@@ -3,6 +3,8 @@ import type en from "./en";
 const fr: typeof en = {
   topbar: {
     projects: "Projects",
+    saveHealthy: "Sauvegardes OK",
+    saveConflict: "Sauvegarde rejetée — une autre session a modifié ce projet (recharge pour resynchroniser)",
     exportProject: "Exporter le projet",
     importProject: "Importer un projet…",
     translations: "Traductions",
