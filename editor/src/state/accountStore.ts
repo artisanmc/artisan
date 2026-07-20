@@ -25,6 +25,7 @@ import {
   sourceTypeAtPath,
   wouldTypeCreateModelCycle,
 } from "@/domain/dataModels";
+import { nextAvailableSourceRowKey, validateSourceRowKey } from "@/domain/dataSourceRowKeys";
 import { migrateTitle } from "@/domain/migrateTitle";
 import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
 import type {
@@ -110,6 +111,10 @@ type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
 export type AppearanceTarget =
   | { menuId: MenuId; elementId: ElementId; templateId?: undefined }
   | { templateId: ItemTemplateId; menuId?: undefined; elementId?: undefined };
+
+export type SourceValueUpdateResult =
+  | { ok: true }
+  | { ok: false; reason: "required_row_key" | "duplicate_row_key" };
 
 interface AccountState {
   account: Account;
@@ -860,7 +865,7 @@ interface AccountState {
     row: number | null;
     path: (string | number)[];
     value: unknown;
-  }) => void;
+  }) => SourceValueUpdateResult;
   addSourceListItem: (args: {
     projectId: ProjectId;
     sourceId: DataSourceId;
@@ -3632,10 +3637,13 @@ export const useAccountStore = create<AccountState>()(
             if (!pack) return;
             const ds = pack.dataSources.find((d) => d.id === sourceId);
             if (ds?.shape !== "table") return;
+            const model = pack.dataModels?.find((dataModel) => dataModel.id === ds.modelId);
+            if (!model) return;
             const row = defaultValueForModelType(
               { kind: "object", fields: sourceRootFields(pack, ds) },
               pack.dataModels ?? [],
             ) as Record<string, unknown>;
+            row[model.keyField] = nextAvailableSourceRowKey(pack, ds);
             ds.rows.push(row);
             mintSourceLTexts(pack);
           }),
@@ -3653,7 +3661,28 @@ export const useAccountStore = create<AccountState>()(
             ds.rows.splice(index, 1);
           }),
         ),
-      setSourceValue: ({ projectId, sourceId, row, path, value }) =>
+      setSourceValue: ({ projectId, sourceId, row, path, value }) => {
+        let nextValue = value;
+        if (row !== null && path.length === 1) {
+          const pack = get().account.projects.find((p) => p.id === projectId);
+          const ds = pack?.dataSources.find((d) => d.id === sourceId);
+          const model =
+            ds?.shape === "table"
+              ? pack?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
+              : undefined;
+          const container = ds ? sourceValueContainer(ds, row, []) : undefined;
+          if (ds?.shape === "table" && model && path[0] === model.keyField && container !== undefined) {
+            const validation = validateSourceRowKey(pack!, ds, row, value);
+            if (!validation.ok) {
+              return {
+                ok: false,
+                reason:
+                  validation.reason === "required" ? "required_row_key" : "duplicate_row_key",
+              };
+            }
+            nextValue = validation.value;
+          }
+        }
         set((state) =>
           produce(state, (draft) => {
             const pack = draft.account.projects.find((p) => p.id === projectId);
@@ -3663,9 +3692,11 @@ export const useAccountStore = create<AccountState>()(
             const container = sourceValueContainer(ds, row, path.slice(0, -1));
             const last = path[path.length - 1];
             if (container === undefined || last === undefined) return;
-            (container as Record<string | number, unknown>)[last] = value;
+            (container as Record<string | number, unknown>)[last] = nextValue;
           }),
-        ),
+        );
+        return { ok: true };
+      },
       addSourceListItem: ({ projectId, sourceId, row, path }) =>
         set((state) =>
           produce(state, (draft) => {
