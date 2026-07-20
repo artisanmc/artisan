@@ -1591,6 +1591,85 @@ describe("accountStore", () => {
       expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
     });
 
+    it("rekeys source translations when a table Row key changes", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+
+      let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      let row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      const oldKey = (row.lore as { key: string }).key;
+      expect(oldKey).toBe("sources.grades.row_1.lore");
+      useAccountStore.setState((state) =>
+        produce(state, (draft) => {
+          const current = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          current.i18nKeys[oldKey as never] = { en: "VIP lore", fr: "Description VIP" };
+        }),
+      );
+
+      useAccountStore.getState().setSourceValue({
+        projectId: PERSONAL,
+        sourceId: source.id,
+        row: 0,
+        path: ["id"],
+        value: "vip",
+      });
+
+      pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect((row.lore as { key: string }).key).toBe("sources.grades.vip.lore");
+      expect(pack.i18nKeys["sources.grades.vip.lore" as never]).toEqual({
+        en: "VIP lore",
+        fr: "Description VIP",
+      });
+      expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
+    });
+
+    it("rekeys source translations when the source is renamed", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const source = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources[0]!;
+      if (source.shape !== "table") throw new Error("expected table");
+      useAccountStore.getState().editSourceField({
+        projectId: PERSONAL,
+        target: { kind: "model", modelId: source.modelId },
+        edit: { op: "add", path: [], field: { name: "lore", type: { kind: "ltext" } } },
+      });
+      useAccountStore.getState().addSourceRow({ projectId: PERSONAL, sourceId: source.id });
+      let pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const row = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      const oldKey = (row.lore as { key: string }).key;
+      useAccountStore.setState((state) =>
+        produce(state, (draft) => {
+          const current = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          current.i18nKeys[oldKey as never] = { en: "Lore", fr: "Description" };
+        }),
+      );
+
+      useAccountStore
+        .getState()
+        .renameProjectDataSource({ projectId: PERSONAL, id: source.id, newName: "grades" });
+
+      pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const renamedRow = (pack.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!;
+      expect((renamedRow.lore as { key: string }).key).toBe("sources.grades.row_1.lore");
+      expect(pack.i18nKeys["sources.grades.row_1.lore" as never]).toEqual({
+        en: "Lore",
+        fr: "Description",
+      });
+      expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
+    });
+
     it("list items: add appends a minted element, remove releases it", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
