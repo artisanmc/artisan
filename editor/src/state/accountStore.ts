@@ -21,6 +21,7 @@ import {
   applyFieldEdit,
   defaultValueForModelType,
   isDataModelReferenced,
+  normalizeDataSourceName,
   releaseValueLTexts,
   sourceRootFields,
   sourceTypeAtPath,
@@ -852,7 +853,11 @@ interface AccountState {
   }) => void;
   addProjectDataSource: (args: { projectId: ProjectId; shape?: "table" | "config" }) => void;
   removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
-  renameProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId; newName: string }) => void;
+  renameProjectDataSource: (args: {
+    projectId: ProjectId;
+    id: DataSourceId;
+    newName: string;
+  }) => boolean;
   /** One Data-model/config field edit: schema + synchronous value migration (ADR project-sources-and-data-models). */
   editSourceField: (args: { projectId: ProjectId; target: FieldEditTarget; edit: FieldEdit }) => void;
   renameDataModel: (args: { projectId: ProjectId; modelId: DataModelId; newName: string }) => void;
@@ -1193,12 +1198,13 @@ function nextElementIdForMaterial(pack: Project, material: string | undefined): 
 }
 
 function nextAvailableName(existing: DataSource[], base: string): string {
-  if (!existing.some((d) => d.name === base)) return base;
+  const normalizedBase = normalizeDataSourceName(base);
+  if (!existing.some((d) => normalizeDataSourceName(d.name) === normalizedBase)) return normalizedBase;
   for (let n = 2; n < 1000; n++) {
-    const candidate = `${base}_${n}`;
-    if (!existing.some((d) => d.name === candidate)) return candidate;
+    const candidate = `${normalizedBase}_${n}`;
+    if (!existing.some((d) => normalizeDataSourceName(d.name) === candidate)) return candidate;
   }
-  return `${base}_${Date.now()}`;
+  return `${normalizedBase}_${Date.now()}`;
 }
 
 /** Throws if any required arg follows an optional one. */
@@ -3593,18 +3599,33 @@ export const useAccountStore = create<AccountState>()(
             }
           }),
         ),
-      renameProjectDataSource: ({ projectId, id, newName }) =>
+      renameProjectDataSource: ({ projectId, id, newName }) => {
+        const normalizedName = normalizeDataSourceName(newName);
+        const pack = get().account.projects.find((p) => p.id === projectId);
+        if (
+          !pack ||
+          normalizedName === "" ||
+          pack.dataSources.some(
+            (source) =>
+              source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
+          )
+        ) {
+          return false;
+        }
+
+        let renamed = false;
         set((state) =>
           produce(state, (draft) => {
-            const pack = draft.account.projects.find((p) => p.id === projectId);
-            if (!pack) return;
-            const ds = pack.dataSources.find((d) => d.id === id);
-            if (ds) {
-              ds.name = newName;
-              rekeyDataSource(pack, ds);
-            }
+            const draftPack = draft.account.projects.find((p) => p.id === projectId);
+            const dataSource = draftPack?.dataSources.find((source) => source.id === id);
+            if (!draftPack || !dataSource) return;
+            dataSource.name = normalizedName;
+            rekeyDataSource(draftPack, dataSource);
+            renamed = true;
           }),
-        ),
+        );
+        return renamed;
+      },
       editSourceField: ({ projectId, target, edit }) =>
         set((state) =>
           produce(state, (draft) => {
