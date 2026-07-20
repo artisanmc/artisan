@@ -1670,6 +1670,31 @@ describe("accountStore", () => {
       expect(pack.i18nKeys[oldKey as never]).toBeUndefined();
     });
 
+    it("stores lowercase source names and rejects normalized duplicates", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
+      const sources = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources;
+
+      const firstResult = useAccountStore.getState().renameProjectDataSource({
+        projectId: PERSONAL,
+        id: sources[0]!.id,
+        newName: " Grades ",
+      });
+      const duplicateResult = useAccountStore.getState().renameProjectDataSource({
+        projectId: PERSONAL,
+        id: sources[1]!.id,
+        newName: "GRADES",
+      });
+
+      const renamed = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
+        .dataSources;
+      expect(firstResult).toBe(true);
+      expect(renamed[0]!.name).toBe("grades");
+      expect(duplicateResult).toBe(false);
+      expect(renamed[1]!.name).toBe("new_source_2");
+    });
+
     it("list items: add appends a minted element, remove releases it", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const ds0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
