@@ -3,6 +3,8 @@ import type {
   AssetId,
   CapturedItemId,
   CommandId,
+  DataModelId,
+  DataSourceId,
   DialogId,
   ElementId,
   ItemTemplateId,
@@ -38,3 +40,6 @@ export const newItemTemplateId = () =>
   itemTemplateId(`itpl_${next()}_${Date.now().toString(36)}`);
 export const newCapturedItemId = () =>
   capturedItemId(`ci_${next()}_${Date.now().toString(36)}`);
+export const dataSourceId = (s: string): DataSourceId => s as DataSourceId;
+export const dataModelId = (s: string): DataModelId => s as DataModelId;
+export const newDataModelId = () => dataModelId(`dm_${next()}_${Date.now().toString(36)}`);

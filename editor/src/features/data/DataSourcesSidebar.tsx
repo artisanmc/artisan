@@ -2,7 +2,6 @@ import type { DataSourceId, Project } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useTranslation } from "react-i18next";
 import { ServerSourcesSection } from "./ServerSourcesSection";
-import { summarizeFieldType } from "./helpers";
 
 interface DataSourcesSidebarProps {
   pack: Project;
@@ -40,10 +39,12 @@ export function DataSourcesSidebar({
                     : "flex w-full items-center gap-1 rounded px-2 py-1 text-left text-[12px] text-[var(--text-mut)] hover:bg-[var(--surface-raised)]"
                 }
               >
-                <span>{d.type.kind === "list" ? "🗂" : "📦"}</span>
+                <span>{d.shape === "table" ? "🗂" : "📦"}</span>
                 <span className="truncate">{d.name}</span>
                 <span className="ml-auto text-[9px] text-[var(--text-faint)]">
-                  {summarizeFieldType(d.type)}
+                  {d.shape === "table"
+                    ? t("dataSources.shapeTable")
+                    : t("dataSources.shapeConfig")}
                 </span>
               </button>
             </li>

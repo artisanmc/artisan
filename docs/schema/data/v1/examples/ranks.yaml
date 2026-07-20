@@ -1,0 +1,30 @@
+# data/ranks.yaml — Table source: un menu de grades.
+# Les valeurs ltext sont des clés i18n (traductions dans lang/) ; les valeurs
+# item sont des materials ou refs `item:<id>` (stacks dans items/).
+schema: data/v1
+id: ranks
+shape: table
+key_field: id
+fields:
+  - name: id
+    kind: string
+  - name: name
+    kind: ltext
+  - name: icon
+    kind: item
+  - name: price
+    kind: number
+  - name: perks
+    kind: list
+    of: { kind: ltext }
+rows:
+  - id: vip
+    name: sources.ranks.vip.name
+    icon: GOLD_INGOT
+    price: 9.99
+    perks: [sources.ranks.vip.perks, sources.ranks.vip.perks_2]
+  - id: elite
+    name: sources.ranks.elite.name
+    icon: "item:ci_3_abc"
+    price: 19.99
+    perks: [sources.ranks.elite.perks]

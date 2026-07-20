@@ -1,11 +1,8 @@
-import type { DataSource, ProjectId } from "@/domain/types";
+import { Badge } from "@/components/ui/badge";
+import { findDataModel } from "@/domain/dataModels";
+import type { DataSource, ModelField, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { yaml as yamlLang } from "@codemirror/lang-yaml";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { stringify, parse as parseYaml } from "yaml";
-import { inferFieldTypeFromValue, summarizeFieldType } from "./helpers";
 import { ItemTemplatesSection, packSourceToTemplatable } from "./ItemTemplatesSection";
 
 interface DataSourceEditorProps {
@@ -13,74 +10,29 @@ interface DataSourceEditorProps {
   source: DataSource;
 }
 
-const CM_THEME = EditorView.theme({
-  "&": { background: "transparent", fontSize: "12px" },
-  ".cm-content": { padding: "8px 0", fontFamily: "ui-monospace, monospace" },
-  ".cm-line": { padding: "0 12px" },
-  ".cm-gutters": {
-    background: "#18181b",
-    border: "none",
-    color: "#52525b",
-    minWidth: "32px",
-  },
-  ".cm-activeLineGutter": { background: "#27272a" },
-  ".cm-activeLine": { background: "#27272a40" },
-  ".cm-cursor": { borderLeftColor: "#a1a1aa" },
-  ".cm-selectionBackground": { background: "#3f3f4660 !important" },
-  "&.cm-focused .cm-selectionBackground": { background: "#3f3f4680 !important" },
-  ".cm-foldPlaceholder": { background: "#3f3f46", border: "none", color: "#a1a1aa" },
-});
-
-function valueToYaml(value: unknown): string {
-  if (value === undefined || value === null) return "";
-  return stringify(value, { lineWidth: 0 });
+function fieldKindLabel(f: ModelField): string {
+  const t = f.type;
+  if (t.kind === "list") return `list<${t.of.kind}>`;
+  return t.kind;
 }
 
+/**
+ * Project-source detail. The YAML pane died with the declared-schema refactor
+ * (ADR `project-sources-and-data-models`): editing is form-only, and the row
+ * form ships with the authoring-UI phase. Until then this shows the declared
+ * shape read-only + the Sets section (unchanged).
+ */
 export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
   const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
   const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
-  const setYaml = useAccountStore((s) => s.setProjectDataSourceYaml);
+  const pack = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  if (!pack) return null;
 
-  const [localYaml, setLocalYaml] = useState(() => valueToYaml(source.value));
-  const [parseError, setParseError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync when the selected source changes (different source ID)
-  const prevIdRef = useRef(source.id);
-  useEffect(() => {
-    if (prevIdRef.current !== source.id) {
-      prevIdRef.current = source.id;
-      setLocalYaml(valueToYaml(source.value));
-      setParseError(null);
-    }
-  }, [source.id, source.value]);
-
-  const handleChange = useCallback(
-    (val: string) => {
-      setLocalYaml(val);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        try {
-          parseYaml(val);
-          setParseError(null);
-          setYaml({ projectId, id: source.id, yaml: val });
-        } catch (e) {
-          setParseError(e instanceof Error ? e.message : String(e));
-        }
-      }, 400);
-    },
-    [projectId, source.id, setYaml],
-  );
-
-  const inferredType = (() => {
-    try {
-      const parsed = parseYaml(localYaml);
-      return summarizeFieldType(inferFieldTypeFromValue(parsed ?? []));
-    } catch {
-      return null;
-    }
-  })();
+  const fields =
+    source.shape === "table"
+      ? (findDataModel(pack, source.modelId)?.fields ?? [])
+      : source.fields;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -91,6 +43,9 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           onChange={(e) => renameDataSource({ projectId, id: source.id, newName: e.target.value })}
           className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-[var(--text)] outline-none focus:border-b focus:border-[var(--brand-line)]"
         />
+        <Badge>
+          {source.shape === "table" ? t("dataSources.shapeTable") : t("dataSources.shapeConfig")}
+        </Badge>
         <button
           type="button"
           onClick={() => removeDataSource({ projectId, id: source.id })}
@@ -100,38 +55,25 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
         </button>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-[var(--border-soft)]">
-        <CodeMirror
-          value={localYaml}
-          extensions={[yamlLang(), CM_THEME]}
-          onChange={handleChange}
-          theme="dark"
-          basicSetup={{
-            lineNumbers: true,
-            foldGutter: true,
-            autocompletion: false,
-            highlightActiveLine: true,
-            indentOnInput: true,
-            bracketMatching: true,
-          }}
-          className="min-h-0 flex-1 overflow-auto bg-[var(--surface-raised)] text-[var(--text)]"
-          style={{ height: "100%" }}
-        />
-      </div>
-
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        {parseError ? (
-          <span className="font-mono text-[11px] text-rose-400">{parseError}</span>
+      <div className="min-h-0 flex-1 overflow-auto rounded border border-[var(--border-soft)] p-3">
+        <div className="eyebrow mb-2">{t("dataSources.schemaTitle")}</div>
+        {fields.length === 0 ? (
+          <p className="text-[11px] text-[var(--text-faint)]">{t("dataSources.noSchema")}</p>
         ) : (
-          <span className="font-mono text-[11px] text-[var(--text-faint)]">
-            {inferredType ?? "—"}
-          </span>
+          <ul className="flex flex-col gap-1">
+            {fields.map((f) => (
+              <li key={f.name} className="flex items-center gap-2 font-mono text-[12px]">
+                <span className="text-[var(--text)]">{f.name}</span>
+                <span className="text-[var(--text-faint)]">{fieldKindLabel(f)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
       {/* Item sets over PROJECT data — same tooling as server sources. */}
       <div className="shrink-0 border-t border-[var(--border-soft)] pt-2">
-        <ItemTemplatesSection projectId={projectId} source={packSourceToTemplatable(source)} />
+        <ItemTemplatesSection projectId={projectId} source={packSourceToTemplatable(pack, source)} />
       </div>
     </div>
   );

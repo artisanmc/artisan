@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   type LTextSite,
   label,
+  visitDataSourceLTexts,
   visitDialogLTexts,
   visitMenuLTexts,
   visitProjectLTexts,
@@ -260,5 +261,102 @@ describe("visitDialogLTexts tolerance", () => {
       "dialogButtonLabel",
       "message",
     ]);
+  });
+});
+
+describe("visitDataSourceLTexts", () => {
+  const RANK_MODEL = {
+    id: "m_rank" as never,
+    name: "rank",
+    keyField: "id",
+    fields: [
+      { name: "id", type: { kind: "string" } },
+      { name: "name", type: { kind: "ltext" } },
+      { name: "perks", type: { kind: "list", of: { kind: "ltext" } } },
+      { name: "meta", type: { kind: "object", fields: [{ name: "label", type: { kind: "ltext" } }] } },
+    ],
+  };
+
+  function packWithSources(): Project {
+    const pack = makeFixture();
+    pack.dataModels = [RANK_MODEL as never];
+    pack.dataSources = [
+      {
+        id: "ranks" as never,
+        name: "ranks",
+        shape: "table",
+        modelId: "m_rank" as never,
+        rows: [
+          {
+            id: "vip",
+            name: lt("lt_n1"),
+            perks: [lt("lt_p1"), lt("lt_p2")],
+            meta: { label: lt("lt_m1") },
+          },
+          { id: "", name: lt("lt_n2"), perks: [], meta: { label: lt("lt_m2") } },
+        ],
+      },
+      {
+        id: "settings" as never,
+        name: "settings",
+        shape: "config",
+        fields: [{ name: "motd", type: { kind: "ltext" } }],
+        value: { motd: lt("lt_s1") },
+      },
+    ] as never;
+    return pack;
+  }
+
+  it("yields row-key-derived canonical keys for table sources", () => {
+    const sites = [...visitDataSourceLTexts(packWithSources(), packWithSources().dataSources[0]!)];
+    const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
+    expect(byLive.get("lt_n1" as I18nKey)).toBe("sources.ranks.vip.name");
+    expect(byLive.get("lt_p1" as I18nKey)).toBe("sources.ranks.vip.perks");
+    expect(byLive.get("lt_p2" as I18nKey)).toBe("sources.ranks.vip.perks_2");
+    expect(byLive.get("lt_m1" as I18nKey)).toBe("sources.ranks.vip.meta.label");
+  });
+
+  it("falls back to a positional row key when the key value is empty", () => {
+    const pack = packWithSources();
+    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[0]!)];
+    const byLive = new Map(sites.map((s) => [s.lText.key, s.key]));
+    expect(byLive.get("lt_n2" as I18nKey)).toBe("sources.ranks.row_2.name");
+  });
+
+  it("yields config sites without a row segment", () => {
+    const pack = packWithSources();
+    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[1]!)];
+    expect(sites).toHaveLength(1);
+    expect(sites[0]!.key).toBe("sources.settings.motd");
+    expect(sites[0]!.kind).toBe("sourceField");
+  });
+
+  it("resolves nested model refs and skips non-LText values defensively", () => {
+    const pack = packWithSources();
+    pack.dataModels!.push({
+      id: "m_cat" as never,
+      name: "cat",
+      keyField: "id",
+      fields: [
+        { name: "id", type: { kind: "string" } },
+        { name: "rank", type: { kind: "model", ref: "m_rank" as never } },
+      ],
+    });
+    pack.dataSources.push({
+      id: "cats" as never,
+      name: "cats",
+      shape: "table",
+      modelId: "m_cat" as never,
+      rows: [{ id: "c1", rank: { name: lt("lt_r1"), perks: "not-a-list", meta: null } }],
+    } as never);
+    const sites = [...visitDataSourceLTexts(pack, pack.dataSources[2]!)];
+    expect(sites.map((s) => s.key)).toEqual(["sources.cats.c1.rank.name"]);
+  });
+
+  it("is folded into visitProjectLTexts", () => {
+    const pack = packWithSources();
+    const keys = [...visitProjectLTexts(pack)].map((s) => String(s.key));
+    expect(keys).toContain("sources.ranks.vip.name");
+    expect(keys).toContain("sources.settings.motd");
   });
 });

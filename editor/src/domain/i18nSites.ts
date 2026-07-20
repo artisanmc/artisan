@@ -18,11 +18,15 @@ import { walkActions } from "./stepPath";
 import type {
   Appearance,
   Command,
+  DataModel,
+  DataModelId,
+  DataSource,
   Dialog,
   I18nKey,
   ItemTemplate,
   LText,
   Menu,
+  ModelFieldType,
   Project,
   Step,
   Template,
@@ -55,6 +59,7 @@ export type SiteKind =
   | "message"
   | "showTitle"
   | "showSubtitle"
+  | "sourceField"
   | "dialogTitle"
   | "dialogBody"
   | "dialogInputLabel"
@@ -239,13 +244,103 @@ export function* visitDialogLTexts(dialog: Dialog): Generator<LTextSite> {
   }
 }
 
-/** Yield every key site in a pack: menus, commands, templates, item templates, dialogs. */
+/** LText-shaped live node guard — row values are untrusted (`unknown`). */
+function isLTextNode(v: unknown): v is LText {
+  return typeof v === "object" && v !== null && typeof (v as { key?: unknown }).key === "string";
+}
+
+/**
+ * Walk one value against its declared {@link ModelFieldType}, yielding a site
+ * per ltext leaf. `base` is the canonical key prefix (`sources.<id>.<rowKey>`
+ * for a table row, `sources.<id>` for a config). List entries follow the
+ * `_${i+1}` suffix convention (`perks`, `perks_2`); non-conforming values are
+ * skipped defensively (never throw over authored data).
+ */
+function* visitModelValueLTexts(
+  value: unknown,
+  type: ModelFieldType,
+  base: string,
+  models: DataModel[],
+  visited: Set<DataModelId>,
+): Generator<LTextSite> {
+  switch (type.kind) {
+    case "ltext":
+      if (isLTextNode(value)) {
+        yield { lText: value, key: base as I18nKey, path: base, kind: "sourceField" };
+      }
+      return;
+    case "list": {
+      if (!Array.isArray(value)) return;
+      for (let i = 0; i < value.length; i++) {
+        const entryBase = i === 0 ? base : `${base}_${i + 1}`;
+        yield* visitModelValueLTexts(value[i], type.of, entryBase, models, visited);
+      }
+      return;
+    }
+    case "object": {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+      const obj = value as Record<string, unknown>;
+      for (const f of type.fields) {
+        yield* visitModelValueLTexts(obj[f.name], f.type, `${base}.${f.name}`, models, visited);
+      }
+      return;
+    }
+    case "model": {
+      if (visited.has(type.ref)) return;
+      const model = models.find((m) => m.id === type.ref);
+      if (!model) return;
+      const next = new Set(visited).add(type.ref);
+      yield* visitModelValueLTexts(value, { kind: "object", fields: model.fields }, base, models, next);
+      return;
+    }
+    default:
+      return;
+  }
+}
+
+/**
+ * Yield every ltext site of one Project source. Table rows key on the row's
+ * **Row key** value (`sources.<id>.<rowKey>.<fieldPath>`) so keys survive
+ * reordering; an empty key value falls back to `row_<n>` (positional) until
+ * the admin fills it. Cf. ADR `project-sources-and-data-models`.
+ */
+export function* visitDataSourceLTexts(pack: Project, ds: DataSource): Generator<LTextSite> {
+  const models = pack.dataModels ?? [];
+  if (ds.shape === "table") {
+    const model = models.find((m) => m.id === ds.modelId);
+    if (!model) return;
+    for (let i = 0; i < ds.rows.length; i++) {
+      const row = ds.rows[i]!;
+      const raw = row[model.keyField];
+      const keyVal = typeof raw === "string" || typeof raw === "number" ? String(raw) : "";
+      const rowKey = keyVal !== "" ? keyVal : `row_${i + 1}`;
+      yield* visitModelValueLTexts(
+        row,
+        { kind: "object", fields: model.fields },
+        `sources.${ds.id}.${rowKey}`,
+        models,
+        new Set([model.id]),
+      );
+    }
+  } else {
+    yield* visitModelValueLTexts(
+      ds.value,
+      { kind: "object", fields: ds.fields },
+      `sources.${ds.id}`,
+      models,
+      new Set(),
+    );
+  }
+}
+
+/** Yield every key site in a pack: menus, commands, templates, item templates, dialogs, sources. */
 export function* visitProjectLTexts(pack: Project): Generator<LTextSite> {
   for (const menu of pack.menus ?? []) yield* visitMenuLTexts(menu);
   for (const cmd of pack.commands ?? []) yield* visitCommandLTexts(cmd);
   for (const tpl of pack.templates ?? []) yield* visitTemplateLTexts(tpl);
   for (const tpl of pack.itemTemplates ?? []) yield* visitItemTemplateLTexts(tpl);
   for (const dlg of pack.dialogs ?? []) yield* visitDialogLTexts(dlg);
+  for (const ds of pack.dataSources ?? []) yield* visitDataSourceLTexts(pack, ds);
 }
 
 // ── Rekey: assign every site its canonical key ───────────────────────────────

@@ -58,16 +58,52 @@ Non-examples:
 - A raw Bukkit command from another plugin is not an Artisan Command unless a
   Module bridges it into the `CommandRegistry`.
 
+## Data model
+
+A project-level, **named shape of data**: an admin-declared, recursive field
+schema (field name + kind — text, localized text, number, boolean, item, list,
+object — nestable to any depth) that **Project source** content conforms to.
+Every **Table** source is a table *of* one Data model (creating a Table
+auto-creates its model); a **Config** source may type its object fields with
+one; a Data model may reference others (no cycles). The model also declares the
+**Row key** field. Editing a model migrates the rows the editor owns
+synchronously (add/rename/retype/drop fields); *consumers* of a changed field
+(interpolations, Placements) are never rewritten — they dangle, per the
+non-hermetic contract. Data models are editor-side only: at export they are
+denormalized into each source file — the Bundle and the plugin never see them.
+
+Non-examples:
+- An **Item template** is not a Data model — the model defines the *shape* of a
+  row's data; the template defines how a row *renders and behaves* in a Menu.
+- A Minecraft item model (`items.json`) and an AI model are unrelated — hence
+  the qualified name.
+
 ## Data source
 
-A named, typed **provider** of data — keyed `namespace:source_id` (e.g.
-`shop:items`, `essentials:warps`) — that a **Module** registers in the shared
-`DataSourceRegistry` and that other modules and menu slots consume. Data sources
-are the **composition mechanism** between Modules: a Module never calls another
-directly; it publishes data sources (and commands) and reads theirs. The same
-registry is how a thin **integration** Module bridges a third-party plugin
-(EssentialsX, LuckPerms) into Artisan — by contributing data sources, not by being
-a new kind of thing.
+A named, typed **provider** of data that menu slots, **Item templates**, and other
+modules consume. One notion, two **provenances**:
+
+- **Module-contributed** — keyed `namespace:source_id` (e.g. `shop:items`,
+  `essentials:warps`), registered by a **Module** in the shared
+  `DataSourceRegistry`. Data sources are the **composition mechanism** between
+  Modules: a Module never calls another directly; it publishes data sources (and
+  commands) and reads theirs. The same registry is how a thin **integration**
+  Module bridges a third-party plugin (EssentialsX, LuckPerms) into Artisan — by
+  contributing data sources, not by being a new kind of thing.
+- **Project source** — keyed `pack:<id>`, authored by the admin as content *of a
+  Project* (it lives in the Project, deploys with its **Bundle**, and is
+  exported/imported with it). Always **static**: its rows are hand-written, so
+  the design-time set is by definition the authoritative set. A Project source
+  declares one of two **shapes**: **Table** — a list of rows conforming to a
+  **Data model**, with a **Row key**, iterable/placeable/set-able — or
+  **Config** — a single object consumed by interpolation (settings, constants),
+  neither placeable nor a Set target (though a nested list inside it may still
+  be iterated). Localized text (**LText**) and item fields are allowed at any
+  depth; each ltext value in a row is a normal **Key site**
+  (`sources.<id>.<rowKey>.<fieldPath>`).
+
+The consumer side is provenance-blind: an Element, Item template, or Placement
+binds a `SourceRef` and never cares who provides the rows.
 
 Examples:
 - The shop add-on registers `shop:items`; a menu's iterable slot pulls from it.
@@ -365,7 +401,8 @@ Non-examples:
 ## Row key
 
 The field a **static Data source** declares as the stable unique identifier of each
-row (`keyField` in the declaration). It is the anchor a **Placement** pins to — so a
+row (`keyField` in the declaration; for a **Project source** it is declared on the
+**Data model**, so two Tables of the same model share it). It is the anchor a **Placement** pins to — so a
 placement survives the row-set being reordered, and a row removed while the server
 was offline surfaces as a **dangling** placement rather than silently rebinding to a
 neighbour. Only static (placeable) data sources need a Row key; a purely paginated

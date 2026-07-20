@@ -41,7 +41,7 @@ export function moduleLocalRows(
 
 /**
  * Resolve a SourceRef against a pack:
- *  - "pack:<id>" → pack.dataSources[id].value
+ *  - "pack:<id>" → Project source: table → its rows, config → its object
  *  - "<plugin>:<source>" → module-local rows (authoring state, live while
  *    editing) → live snapshot (if cached)
  *  - unknown / malformed → undefined
@@ -60,7 +60,8 @@ export function resolveSourceRef(
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
     const ds = pack.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
-    return ds?.value;
+    if (!ds) return undefined;
+    return ds.shape === "table" ? ds.rows : ds.value;
   }
   const local = moduleLocalRows(pack, r);
   if (local) return local;

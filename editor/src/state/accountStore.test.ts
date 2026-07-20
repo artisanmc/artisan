@@ -1,7 +1,8 @@
 import { dialogId, elementId, menuId, projectId } from "@/domain/ids";
 import { gridArrange } from "@/features/canvas/autoLayout";
-import type { I18nKey, Menu, MenuTitleLayer } from "@/domain/types";
+import type { I18nKey, MenuTitleLayer } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
+import { produce } from "immer";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
 
@@ -1322,13 +1323,30 @@ describe("accountStore", () => {
   });
 
   describe("DataSource reducers", () => {
-    it("adds a data source with default name and empty list shape", () => {
+    it("adds a table source with its auto-created Data model (Row key seeded)", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
       const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       expect(pack.dataSources).toHaveLength(1);
-      expect(pack.dataSources[0]!.name).toBe("new_source");
-      expect(pack.dataSources[0]!.type).toEqual({ kind: "list", of: { kind: "string" } });
-      expect(pack.dataSources[0]!.value).toEqual([]);
+      const ds = pack.dataSources[0]!;
+      expect(ds.name).toBe("new_source");
+      expect(ds.shape).toBe("table");
+      if (ds.shape !== "table") throw new Error("expected table");
+      expect(ds.rows).toEqual([]);
+      const model = pack.dataModels!.find((m) => m.id === ds.modelId)!;
+      expect(model.name).toBe("new_source");
+      expect(model.keyField).toBe("id");
+      expect(model.fields).toEqual([{ name: "id", type: { kind: "string" } }]);
+    });
+
+    it("adds a config source without a model", () => {
+      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL, shape: "config" });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const ds = pack.dataSources[0]!;
+      expect(ds.shape).toBe("config");
+      if (ds.shape !== "config") throw new Error("expected config");
+      expect(ds.fields).toEqual([]);
+      expect(ds.value).toEqual({});
+      expect(pack.dataModels ?? []).toHaveLength(0);
     });
 
     it("disambiguates duplicate names", () => {
@@ -1339,14 +1357,26 @@ describe("accountStore", () => {
       expect(pack.dataSources[1]!.name).toBe("new_source_2");
     });
 
-    it("removes a data source by id", () => {
+    it("removes a data source by id and GCs its orphaned auto-model + i18n keys", () => {
       useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
-      const id = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
-        .dataSources[0]!.id;
-      useAccountStore.getState().removeProjectDataSource({ projectId: PERSONAL, id });
-      expect(
-        useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.dataSources,
-      ).toHaveLength(0);
+      const pack0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      const ds = pack0.dataSources[0]!;
+      if (ds.shape !== "table") throw new Error("expected table");
+      // Simulate an authored ltext row value backed by an i18n entry.
+      useAccountStore.setState((s) =>
+        produce(s, (draft) => {
+          const pack = draft.account.projects.find((p) => p.id === PERSONAL)!;
+          const model = pack.dataModels!.find((m) => m.id === (ds as { modelId: unknown }).modelId)!;
+          model.fields.push({ name: "label", type: { kind: "ltext" } });
+          (pack.dataSources[0] as { rows: unknown[] }).rows = [{ id: "r1", label: { key: "lt_x" } }];
+          pack.i18nKeys["lt_x" as never] = { en: "Hello" };
+        }),
+      );
+      useAccountStore.getState().removeProjectDataSource({ projectId: PERSONAL, id: ds.id });
+      const pack = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+      expect(pack.dataSources).toHaveLength(0);
+      expect(pack.dataModels).toHaveLength(0);
+      expect(pack.i18nKeys["lt_x" as never]).toBeUndefined();
     });
 
     it("renames a data source", () => {
@@ -1362,37 +1392,6 @@ describe("accountStore", () => {
       ).toBe("categories");
     });
 
-    it("setYaml parses YAML and infers type", () => {
-      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
-      const id = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
-        .dataSources[0]!.id;
-      useAccountStore
-        .getState()
-        .setProjectDataSourceYaml({ projectId: PERSONAL, id, yaml: "- weapon\n- armor\n" });
-      const ds = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
-        .dataSources[0]!;
-      expect(ds.value).toEqual(["weapon", "armor"]);
-      expect(ds.type).toEqual({ kind: "list", of: { kind: "string" } });
-    });
-
-    it("setYaml infers object type from object YAML", () => {
-      useAccountStore.getState().addProjectDataSource({ projectId: PERSONAL });
-      const id = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
-        .dataSources[0]!.id;
-      useAccountStore
-        .getState()
-        .setProjectDataSourceYaml({ projectId: PERSONAL, id, yaml: "title: hello\ncount: 3\n" });
-      const ds = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!
-        .dataSources[0]!;
-      expect(ds.value).toEqual({ title: "hello", count: 3 });
-      expect(ds.type).toEqual({
-        kind: "object",
-        fields: [
-          { name: "title", type: { kind: "string" } },
-          { name: "count", type: { kind: "integer" } },
-        ],
-      });
-    });
   });
 
   it("createProject clears the temporal stack", () => {
